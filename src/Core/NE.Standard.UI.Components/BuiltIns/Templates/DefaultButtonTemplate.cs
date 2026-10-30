@@ -27,8 +27,8 @@ public abstract class DefaultButtonTemplate<TTemplate> : ButtonComponent<TTempla
             _ = this.BindItemState();
 
             // Safe to bind unconditionally: every item this template renders is IButtonModel-shaped.
-            _ = Bind(TypeProperty, nameof(IButtonModel.Type), UIBindingScope.Relative, optional: true);
-            _ = Bind(SizeProperty, nameof(IButtonModel.Size), UIBindingScope.Relative, optional: true);
+            _ = BindVariant(nameof(IButtonModel.Variant), UIBindingScope.Relative, optional: true);
+            _ = BindSize(nameof(IButtonModel.Size), UIBindingScope.Relative, optional: true);
         }
     }
 }

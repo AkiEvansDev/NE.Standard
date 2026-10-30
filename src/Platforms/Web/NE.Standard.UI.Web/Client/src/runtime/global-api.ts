@@ -4,8 +4,8 @@ import type { EventRegistration } from "../events/event-descriptor";
 import type { ValueConverterRegistration } from "../extensions/converters";
 import type { ValueReaderRegistration } from "../extensions/value-readers";
 import type { CollectionSinkRegistration } from "../updates/collection-sinks";
-import { getLogLevel, logError, setLogLevel } from "./logger.ts";
-import type { LogLevel } from "./logger.ts";
+import { getLogLevel, logError, setLogLevel } from "../metadata/logger.ts";
+import type { LogLevel } from "../metadata/logger.ts";
 import type { DomOperationRegistration } from "../updates/dom-operation-registry";
 import type { PluginEngine, WebUIRuntime } from "./web-ui-runtime";
 
@@ -58,6 +58,16 @@ export function exposeGlobalApi(runtime: WebUIRuntime, key = "__neStandardUIRunt
     const api = ensureGlobalApi();
     api.runtime = runtime;
     applyPendingRegistrations(runtime, api);
+}
+
+export function unexposeGlobalApi(runtime: WebUIRuntime, key = "__neStandardUIRuntime"): void {
+    const holder = window as unknown as Record<string, unknown>;
+
+    if (holder[key] === runtime)
+        delete holder[key];
+
+    if (window.NEStandardUI?.runtime === runtime)
+        delete window.NEStandardUI.runtime;
 }
 
 function ensureGlobalApi(): NEStandardUIGlobalApi {

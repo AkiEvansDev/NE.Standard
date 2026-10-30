@@ -8,12 +8,13 @@ using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
@@ -32,6 +33,10 @@ internal enum UIComponentGateKind
     CanRemove,
     CanRename,
     MarkedDaysOnly,
+    AllowNegative,
+    AllowDecimals,
+    ShowOpacity,
+    ShowPalette,
 
     /// <summary>Not a closing value: one a check reads through the gate's binding — an input's bound, its marked days.</summary>
     Read
@@ -43,33 +48,33 @@ internal enum UIComponentGateKind
 /// </summary>
 /// <remarks>
 /// <see cref="FixedPath"/> is the bound path where the binding takes no row keys, the same for every read;
-/// <see cref="DynamicCount"/> is how many of the target's row keys, outermost first, the binding reads. <see cref="Owner"/> is the
-/// component whose static value it is, which a command's show lifts for its runtime.
+/// <see cref="DynamicCount"/> is how many of the target's row keys, outermost first, the binding reads. <see cref="Declared"/> holds the
+/// rows declared on a host where the binding reads one of them (a <c>ComponentItems</c> source) rather than the controller.
 /// </remarks>
-internal sealed record UIComponentGate(UIComponentGateKind Kind, CompiledUIBinding? Binding, RecursivePath? FixedPath, int DynamicCount)
-{
-    public UIComponentId Owner { get; init; }
-}
+internal sealed record UIComponentGate(UIComponentGateKind Kind, CompiledUIBinding? Binding, RecursivePath? FixedPath, int DynamicCount, IEnumerable? Declared = null);
 
 /// <summary>
-/// A component's gates: its own and its ancestors' that close it whole, and its own for a write or the value written.
+/// A component's gates: its own and its ancestors' that close it whole, its own for a write or the value written, and the check it
+/// holds the page's writes to its own properties to (<see cref="IClientWriteCheckComponent"/>).
 /// </summary>
-internal sealed record UIComponentGates(UIComponentGate[] Chain, UIComponentGate? ReadOnly, UIValueChecks? Values);
+internal sealed record UIComponentGates(UIComponentGate[] Chain, UIComponentGate? ReadOnly, UIValueChecks? Values, UIClientWriteCheck? WriteCheck);
 
 /// <summary>A value a check reads: the compiled static one, or the controller's through <see cref="Bound"/>.</summary>
 internal readonly record struct UIGateValue(object? Static, UIComponentGate? Bound);
 
 /// <summary>
 /// What an input's written value — and a period's end — is held to, in the value's own <see cref="ValueType"/>: its <c>Min</c> and
-/// <c>Max</c>, a day input's marked days while <see cref="MarkedOnly"/> closes, a range slider's other end (<see cref="Ends"/>), a
-/// slider's <see cref="Step"/> counted from its <c>Min</c>, and a text field's <see cref="MaxLength"/>. One unset, or bound to what the
-/// server cannot read, holds nothing.
+/// <c>Max</c>, a day input's marked days while <see cref="MarkedOnly"/> closes, a period's other end (<see cref="Ends"/>), a
+/// slider's <see cref="Step"/> counted from its <c>Min</c>, a text field's <see cref="MaxLength"/>, a multi-select's
+/// <see cref="MaxSelected"/> distinct keys, and a number's sign and fraction while <see cref="AllowNegative"/> or
+/// <see cref="AllowDecimals"/> closes. One unset, or bound to what the server cannot read, holds nothing.
 /// </summary>
-internal sealed record UIValueChecks(Type ValueType, UIGateValue? Min, UIGateValue? Max, UIComponentGate? MarkedOnly, UIGateValue? MarkedDays, UIPeriodEnds? Ends, UIGateValue? Step, UIGateValue? MaxLength);
+internal sealed record UIValueChecks(Type ValueType, UIGateValue? Min, UIGateValue? Max, UIComponentGate? MarkedOnly, UIGateValue? MarkedDays, UIPeriodEnds? Ends, UIGateValue? Step, UIGateValue? MaxLength, UIGateValue? MaxSelected, UIComponentGate? AllowNegative, UIComponentGate? AllowDecimals, UIComponentGate? ShowOpacity = null, UIComponentGate? ShowPalette = null);
 
 /// <summary>
-/// A range slider's two ends as the controller holds them, and the least distance between them: a start written past the end, or an
-/// end below the start, is refused. An end not bound to the controller holds the other to nothing.
+/// A period's two ends as the controller holds them, and the least distance between them — a number for a slider, a
+/// <see cref="TimeSpan"/> for a temporal input or a calendar: a start written past the end, or an end below the start, is refused, and
+/// so is one nearer the other than the distance. An end not bound to the controller holds the other to nothing.
 /// </summary>
 internal sealed record UIPeriodEnds(UIComponentGate? Start, UIComponentGate? End, UIGateValue? MinDistance);
 
@@ -124,20 +129,30 @@ internal sealed record UIRowAbilities(int RowParameterCount, UIComponentGate?[] 
     }
 }
 
-/// <summary>An items host's rows: the template root every row is drawn from, where every row wears one, and what a row allows.</summary>
-internal readonly record struct UIRowGates(UIComponentId? TemplateRootId, UIRowAbilities Abilities);
+/// <summary>
+/// A row template a host picks by the row's own item (<c>TemplateKeyProperty</c>): the variant it stands for, none for the default
+/// template, read off the row's item by its key where the host's rows are read. In a menu offering sub-entries, an entry opening others
+/// is no plain entry, nor is one disabled or hidden.
+/// </summary>
+internal sealed record UIRowVariant(UIComponentId HostId, string KeyProperty, string? FallbackKey, string? VariantKey, int RowParameterCount, UIRowItems Items, bool OpensSubmenus);
+
+/// <summary>
+/// An items host's rows: the template root every row is drawn from, where every row wears one, and what a row allows; for an input
+/// drawing its options, that its <c>Value</c> is a choice of rows, and whether the reader may type keys no option holds.
+/// </summary>
+internal readonly record struct UIRowGates(UIComponentId? TemplateRootId, UIRowAbilities Abilities, bool ChoosesByValue, bool TakesFreeText);
 
 /// <summary>
 /// The server's half of what closes a component — <c>Enabled</c>, <c>Loading</c> and <c>Visibility</c> up the ancestors,
-/// <c>IsReadOnly</c> of its own, an input's <c>Min</c>/<c>Max</c>, a day input's <c>MarkedDaysOnly</c> and a text field's
-/// <c>MaxLength</c> for the value written, and a row's abilities — built once per compiled view.
+/// <c>IsReadOnly</c> of its own, an input's <c>Min</c>/<c>Max</c>, a day input's <c>MarkedDaysOnly</c>, a text field's
+/// <c>MaxLength</c>, a multi-select's <c>MaxSelected</c> and a number's <c>AllowNegative</c>/<c>AllowDecimals</c> for the value
+/// written, a component's own check of the writes to its properties, and a row's abilities — built once per compiled view.
 /// </summary>
 /// <remarks>
 /// Only what the server can know goes in: a static value, or a binding to the controller. An interaction's state
 /// (<c>EnabledWhen</c>, <c>ShownWhen</c>, a panel revealed on hover) lives on the client alone, so a property an interaction writes is
-/// no static gate: its authored value is only where the page starts. A command's show the runtime sends, and lifts the static
-/// visibility for itself. A component nothing closes has no entry, so a view that closes nothing and draws no rows
-/// costs one count read per command or value.
+/// no static gate: its authored value is only where the page starts. A component nothing closes has no entry, so a view that closes
+/// nothing and draws no rows costs one count read per command or value.
 /// </remarks>
 internal sealed class UIComponentGateIndex
 {
@@ -146,9 +161,13 @@ internal sealed class UIComponentGateIndex
     // By name, as the bounds are: a slider's own key, which no contract declares, equals it.
     private static readonly UIProperty StepProperty = new("Step");
 
+    /// <summary>The step a range input with no <c>step</c> lands on in the browser, which the gate holds a slider to as well.</summary>
+    public const decimal DefaultSliderStep = 1m;
+
     private readonly FrozenDictionary<UIComponentId, UIComponentGates> _components;
     private readonly FrozenDictionary<UIComponentId, UIRowGates> _rows;
     private readonly FrozenDictionary<UIComponentId, UIRowAbilities> _rowRoots;
+    private readonly FrozenDictionary<UIComponentId, UIRowVariant> _rowVariants;
 
     private UIComponentGateIndex(CompiledView view)
     {
@@ -156,26 +175,29 @@ internal sealed class UIComponentGateIndex
         Dictionary<UIComponentId, UIComponentGates> components = [];
         Dictionary<UIComponentId, UIRowGates> rows = [];
         Dictionary<UIComponentId, UIRowAbilities> rowRoots = [];
+        Dictionary<UIComponentId, UIRowVariant> rowVariants = [];
 
         foreach (UIComponentNode node in view.Graph.All)
         {
             UIComponentGate[] chain = GetChain(view, node, chains);
             UIComponentGate? readOnly = CreateGate(view, node.ComponentId, IInputComponent.IsReadOnlyProperty, UIComponentGateKind.ReadOnly);
             UIValueChecks? values = CreateValueChecks(view, node.ComponentId);
+            UIClientWriteCheck? writeCheck = ReadWriteCheck(view, node.ComponentId);
 
-            if (chain.Length > 0 || readOnly is not null || values is not null)
-                components.Add(node.ComponentId, new UIComponentGates(chain, readOnly, values));
+            if (chain.Length > 0 || readOnly is not null || values is not null || writeCheck is not null)
+                components.Add(node.ComponentId, new UIComponentGates(chain, readOnly, values, writeCheck));
         }
 
         foreach (UIComponentNode node in view.Graph.All)
         {
-            if (CreateRowGates(view, node, rowRoots) is UIRowGates hostRows)
+            if (CreateRowGates(view, node, rowRoots, rowVariants) is UIRowGates hostRows)
                 rows.Add(node.ComponentId, hostRows);
         }
 
         _components = components.ToFrozenDictionary();
         _rows = rows.ToFrozenDictionary();
         _rowRoots = rowRoots.ToFrozenDictionary();
+        _rowVariants = rowVariants.ToFrozenDictionary();
     }
 
     /// <summary>The index of a compiled view, built on first use and shared by every runtime of the view.</summary>
@@ -183,7 +205,7 @@ internal sealed class UIComponentGateIndex
         => Indexes.GetValue(view, static view => new UIComponentGateIndex(view));
 
     /// <summary>Whether nothing in the view can close a component or refuse a row, so a check has nothing to read.</summary>
-    public bool IsEmpty => _components.Count == 0 && _rows.Count == 0 && _rowRoots.Count == 0;
+    public bool IsEmpty => _components.Count == 0 && _rows.Count == 0 && _rowRoots.Count == 0 && _rowVariants.Count == 0;
 
     public bool TryGet(UIComponentId componentId, out UIComponentGates? gates)
         => _components.TryGetValue(componentId, out gates);
@@ -194,6 +216,10 @@ internal sealed class UIComponentGateIndex
     /// <summary>The abilities of the row a template root draws, for the root itself: a row's move, removal and rename are raised on it.</summary>
     public bool TryGetRowRoot(UIComponentId rootId, out UIRowAbilities? abilities)
         => _rowRoots.TryGetValue(rootId, out abilities);
+
+    /// <summary>The variant a template root stands for, where its host picks a row's template by the row's item.</summary>
+    public bool TryGetRowVariant(UIComponentId rootId, out UIRowVariant? variant)
+        => _rowVariants.TryGetValue(rootId, out variant);
 
     /// <summary>The component's own closing gates followed by its parent's chain, each chain built once.</summary>
     private static UIComponentGate[] GetChain(CompiledView view, UIComponentNode node, Dictionary<UIComponentId, UIComponentGate[]> chains)
@@ -233,7 +259,7 @@ internal sealed class UIComponentGateIndex
             return null;
 
         if (!value.IsBind)
-            return Closes(kind, value.Value) && !IsInteractionTarget(view, componentId, property) ? new UIComponentGate(kind, Binding: null, FixedPath: null, DynamicCount: 0) { Owner = componentId } : null;
+            return Closes(kind, value.Value) && !IsInteractionTarget(view, componentId, property) ? new UIComponentGate(kind, Binding: null, FixedPath: null, DynamicCount: 0) : null;
 
         return CreateBoundGate(view, componentId, property, kind);
     }
@@ -245,20 +271,44 @@ internal sealed class UIComponentGateIndex
     private static bool IsInteractionTarget(CompiledView view, UIComponentId componentId, UIProperty property)
         => view.Interactions.GetByTarget(new UIPropertyAddress(componentId, property)).Count > 0;
 
-    /// <summary>The gate a property bound to the controller makes; none for a binding to anything else, which the server cannot read.</summary>
+    /// <summary>
+    /// The gate a property bound to the controller, or to a row the author declared on a host, makes; none for a binding to anything
+    /// else, which the server cannot read.
+    /// </summary>
     private static UIComponentGate? CreateBoundGate(CompiledView view, UIComponentId componentId, UIProperty property, UIComponentGateKind kind)
         => view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, property), out CompiledUIBinding? binding) ? CreateBoundGate(view, binding, kind) : null;
 
     private static UIComponentGate? CreateBoundGate(CompiledView view, CompiledUIBinding binding, UIComponentGateKind kind)
     {
-        if (!view.Sources.TryGet(binding.SourceId, out CompiledUIBindingSource? source) || source.Kind != CompiledUIBindingSourceKind.Controller)
+        if (!view.Sources.TryGet(binding.SourceId, out CompiledUIBindingSource? source))
             return null;
+
+        // A declared row is read off its host's rows by its key, as a command's argument reads one.
+        IEnumerable? declared = null;
+
+        if (source.Kind == CompiledUIBindingSourceKind.ComponentItems)
+        {
+            if (source.ComponentId is not UIComponentId hostId || DeclaredRows(view, hostId) is not { } rows)
+                return null;
+
+            declared = rows;
+        }
+        else if (source.Kind != CompiledUIBindingSourceKind.Controller)
+        {
+            return null;
+        }
 
         var dynamicCount = CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters);
         RecursivePath? fixedPath = dynamicCount == 0 ? view.Bindings.Resolve(binding, []).Path : null;
 
-        return new UIComponentGate(kind, binding, fixedPath, dynamicCount);
+        return new UIComponentGate(kind, binding, fixedPath, dynamicCount, declared);
     }
+
+    /// <summary>The rows the author declared on a host, its static <c>Items</c>; none where they are bound.</summary>
+    private static IEnumerable? DeclaredRows(CompiledView view, UIComponentId hostId)
+        => view.State.TryGetValue(hostId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? items) && !items.IsBind && items.Value is IEnumerable declared
+            ? declared
+            : null;
 
     /// <summary>
     /// What an input's written value is held to, or none: an input with no bound set that offers every day costs a write nothing. A
@@ -277,24 +327,36 @@ internal sealed class UIComponentGateIndex
         UIPeriodEnds? ends = CreatePeriodEnds(view, componentId, valueType);
         UIGateValue? step = CreateStep(view, componentId, valueType);
         UIGateValue? maxLength = CreateGateValue(view, componentId, ITextLengthComponent.MaxLengthProperty, typeof(int), unset: null);
+        UIGateValue? maxSelected = CreateGateValue(view, componentId, MultiSelectComponent.MaxSelectedProperty, typeof(int), unset: null);
+        UIComponentGate? allowNegative = CreateGate(view, componentId, NumberInputComponent.AllowNegativeProperty, UIComponentGateKind.AllowNegative);
+        UIComponentGate? allowDecimals = CreateGate(view, componentId, NumberInputComponent.AllowDecimalsProperty, UIComponentGateKind.AllowDecimals);
+        UIComponentGate? showOpacity = CreateGate(view, componentId, ColorInputComponent.ShowOpacityProperty, UIComponentGateKind.ShowOpacity);
+        UIComponentGate? showPalette = CreateGate(view, componentId, ColorInputComponent.ShowPaletteProperty, UIComponentGateKind.ShowPalette);
 
-        return min is null && max is null && markedDays is null && ends is null && step is null && maxLength is null
+        return min is null && max is null && markedDays is null && ends is null && step is null && maxLength is null && maxSelected is null && allowNegative is null && allowDecimals is null && showOpacity is null && showPalette is null
             ? null
-            : new UIValueChecks(valueType, min, max, markedOnly, markedDays, ends, step, maxLength);
+            : new UIValueChecks(valueType, min, max, markedOnly, markedDays, ends, step, maxLength, maxSelected, allowNegative, allowDecimals, showOpacity, showPalette);
     }
 
     /// <summary>
-    /// The step a slider's value — one handle or two — lands on, counted from <c>Min</c>; only an input offering a least distance
-    /// (the slider family), since a number input's step is a hint the reader may type past.
+    /// The step a slider's value — one handle or two — lands on, counted from <c>Min</c>; only a number offering a least distance
+    /// (the slider family), since a number input's step is a hint the reader may type past. Unset, it is the 1 the browser steps by
+    /// (<see cref="DefaultSliderStep"/>).
     /// </summary>
     private static UIGateValue? CreateStep(CompiledView view, UIComponentId componentId, Type valueType)
-        => view.State.TryGetValue(componentId, IPeriodInputComponent.MinDistanceProperty, out _)
-            ? CreateGateValue(view, componentId, StepProperty, valueType, unset: null)
-            : null;
+    {
+        if (valueType != typeof(decimal) || !view.State.TryGetValue(componentId, IPeriodInputComponent.MinDistanceProperty, out _))
+            return null;
+
+        return view.State.TryGetValue(componentId, StepProperty, out _)
+            ? CreateGateValue(view, componentId, StepProperty, valueType, unset: DefaultSliderStep)
+            : new UIGateValue(DefaultSliderStep, Bound: null);
+    }
 
     /// <summary>
-    /// A range's two ends, where the input offers a least distance between them (a slider under <c>IsRange</c>), whose ends move one
-    /// at a time; a temporal period has none, since choosing one writes its ends in either order.
+    /// A period's two ends, where the input offers a least distance between them (a slider, a temporal input or a calendar under
+    /// <c>IsRange</c>). A slider's are held in order with no distance set, as its handles move one at a time; a temporal period's only
+    /// where a distance is set, since without one its page swaps ends typed the wrong way round, writing them in either order.
     /// </summary>
     private static UIPeriodEnds? CreatePeriodEnds(CompiledView view, UIComponentId componentId, Type valueType)
     {
@@ -306,10 +368,16 @@ internal sealed class UIComponentGateIndex
             return null;
         }
 
+        var number = valueType == typeof(decimal);
+        UIGateValue? distance = CreateGateValue(view, componentId, IPeriodInputComponent.MinDistanceProperty, number ? valueType : typeof(TimeSpan), unset: null);
+
+        if (distance is null && !number)
+            return null;
+
         UIComponentGate? start = CreateBoundGate(view, componentId, IInputComponent.ValueProperty, UIComponentGateKind.Read);
         UIComponentGate? end = CreateBoundGate(view, componentId, IPeriodInputComponent.EndValueProperty, UIComponentGateKind.Read);
 
-        return start is null && end is null ? null : new UIPeriodEnds(start, end, CreateGateValue(view, componentId, IPeriodInputComponent.MinDistanceProperty, valueType, unset: null));
+        return start is null && end is null ? null : new UIPeriodEnds(start, end, distance);
     }
 
     /// <summary>The type the page's writes to an input's value — or a period's end, the same type — are read in; none where neither is bound.</summary>
@@ -350,12 +418,18 @@ internal sealed class UIComponentGateIndex
         return bound is null ? null : new UIGateValue(Static: null, bound);
     }
 
+    /// <summary>The check a component holds the page's writes to its own properties to; none for one that holds them to nothing.</summary>
+    private static UIClientWriteCheck? ReadWriteCheck(CompiledView view, UIComponentId componentId)
+        => view.State.TryGetValue(componentId, IClientWriteCheckComponent.ClientWriteCheckProperty, out CompiledUIPropertyValue? value) && value is { IsBind: false, Value: UIClientWriteCheck check }
+            ? check
+            : null;
+
     /// <summary>
     /// An items host's rows, or none for a component drawing no rows; each template root a row stands in is entered in
-    /// <paramref name="rowRoots"/>. A row's abilities are its fixed template's — the one template, or a composite's <c>row</c> — for
+    /// <paramref name="rowRoots"/>, and in <paramref name="rowVariants"/> where the host picks it by the row's item. A row's abilities are its fixed template's — the one template, or a composite's <c>row</c> — for
     /// every template it stands in; where rows wear a template by the item's kind, each template holds its own.
     /// </summary>
-    private static UIRowGates? CreateRowGates(CompiledView view, UIComponentNode host, Dictionary<UIComponentId, UIRowAbilities> rowRoots)
+    private static UIRowGates? CreateRowGates(CompiledView view, UIComponentNode host, Dictionary<UIComponentId, UIRowAbilities> rowRoots, Dictionary<UIComponentId, UIRowVariant> rowVariants)
     {
         List<UIComponentNode>? roots = null;
         var variants = false;
@@ -394,10 +468,17 @@ internal sealed class UIComponentGateIndex
                 rowRoots[root.ComponentId] = abilities;
         }
 
+        if (fixedRoot is null && items is not null)
+            AddRowVariants(view, host, items, rowVariants);
+
         if (fixedRoot is null && items is null)
             return null;
 
-        return new UIRowGates(fixedRoot?.ComponentId, fixedAbilities ?? new UIRowAbilities((fixedRoot ?? roots[0]).ContextParameterCount, [], items));
+        // An input drawing rows draws its options: what it writes to its value is a choice of them.
+        var choosesByValue = view.State.TryGetValue(host.ComponentId, IInputComponent.IsReadOnlyProperty, out _);
+        var takesFreeText = view.State.TryGetValue(host.ComponentId, MultiSelectComponent.AllowFreeTextProperty, out CompiledUIPropertyValue? freeText) && freeText is { IsBind: false, Value: true };
+
+        return new UIRowGates(fixedRoot?.ComponentId, fixedAbilities ?? new UIRowAbilities((fixedRoot ?? roots[0]).ContextParameterCount, [], items), choosesByValue, takesFreeText);
     }
 
     /// <summary>What a row drawn from <paramref name="root"/> allows; none where neither its template nor its item can refuse anything.</summary>
@@ -416,8 +497,8 @@ internal sealed class UIComponentGateIndex
     }
 
     /// <summary>
-    /// Where a host's rows are read by key: its collection bound to the controller, or the rows declared on it; none for a windowed
-    /// source, of whose rows the server holds only a window, nor for a collection bound to anything else.
+    /// Where a host's rows are read by key: its collection bound to the controller or to a declared row, or the rows declared on it;
+    /// none for a windowed source, of whose rows the server holds only a window, nor for a collection bound to anything else.
     /// </summary>
     private static UIRowItems? CreateRowItems(CompiledView view, UIComponentId hostId)
     {
@@ -427,14 +508,46 @@ internal sealed class UIComponentGateIndex
         if (view.Bindings.TryGetCollection(hostId, out CompiledUIBinding? binding))
             return CreateBoundGate(view, binding, UIComponentGateKind.Read) is UIComponentGate bound ? new UIRowItems(bound, Declared: null) : null;
 
-        return view.State.TryGetValue(hostId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? items) && !items.IsBind && items.Value is IEnumerable declared
-            ? new UIRowItems(Bound: null, declared)
-            : null;
+        return DeclaredRows(view, hostId) is { } declared ? new UIRowItems(Bound: null, declared) : null;
     }
 
     /// <summary>
+    /// Enters the template roots of a host picking a row's template by its item, each by the variant it stands for; a menu's sub-entries,
+    /// drawn beside an entry rather than picked, stand for no variant and are left out.
+    /// </summary>
+    private static void AddRowVariants(CompiledView view, UIComponentNode host, UIRowItems items, Dictionary<UIComponentId, UIRowVariant> rowVariants)
+    {
+        if (StaticText(view, host.ComponentId, ITemplatedComponent.TemplateKeyPropertyProperty) is not { } keyProperty)
+            return;
+
+        var fallbackKey = StaticText(view, host.ComponentId, ITemplatedComponent.FallbackTemplateKeyProperty);
+        var opensSubmenus = view.Graph.TryGetSlot(host.ComponentId, UIComponentSlotKind.TemplateVariant, out _, MenuComponent.SubmenuTemplateKey);
+
+        foreach (UIComponentSlot slot in host.Slots)
+        {
+            if (slot.Kind is not (UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant) || slot.Key == MenuComponent.SubmenuTemplateKey)
+                continue;
+
+            UIComponentNode root = view.Graph.GetRequired(slot.RootComponentId);
+
+            if (root.ContextParameterCount <= host.ContextParameterCount)
+                continue;
+
+            var variantKey = slot.Kind == UIComponentSlotKind.TemplateVariant ? slot.Key : null;
+
+            rowVariants[root.ComponentId] = new UIRowVariant(host.ComponentId, keyProperty, fallbackKey, variantKey, root.ContextParameterCount, items, opensSubmenus);
+        }
+    }
+
+    /// <summary>A property's static, non-blank text; none where it is bound, unset or of no text.</summary>
+    private static string? StaticText(CompiledView view, UIComponentId componentId, UIProperty property)
+        => view.State.TryGetValue(componentId, property, out CompiledUIPropertyValue? value) && value is { IsBind: false, Value: string { Length: > 0 } text } && !string.IsNullOrWhiteSpace(text)
+            ? text
+            : null;
+
+    /// <summary>
     /// Whether a property's value closes the component: disabled, loading, hidden at every width, read-only, not to be chosen,
-    /// dragged, removed or renamed, or offering only its marked days.
+    /// dragged, removed or renamed, offering only its marked days, or taking no negative or fractional number.
     /// </summary>
     public static bool Closes(UIComponentGateKind kind, object? value)
         => kind switch
@@ -444,6 +557,7 @@ internal sealed class UIComponentGateIndex
             UIComponentGateKind.ReadOnly => value is true,
             UIComponentGateKind.CanSelect or UIComponentGateKind.CanDrag or UIComponentGateKind.CanRemove or UIComponentGateKind.CanRename => value is false,
             UIComponentGateKind.MarkedDaysOnly => value is true,
+            UIComponentGateKind.AllowNegative or UIComponentGateKind.AllowDecimals or UIComponentGateKind.ShowOpacity or UIComponentGateKind.ShowPalette => value is false,
             UIComponentGateKind.Visibility => IsHiddenEverywhere(value),
             _ => false
         };

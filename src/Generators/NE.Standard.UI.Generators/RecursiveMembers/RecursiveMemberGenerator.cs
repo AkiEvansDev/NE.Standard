@@ -23,22 +23,35 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        IncrementalValueProvider<ImmutableArray<RecursiveMemberModel>> members = context.SyntaxProvider
+        IncrementalValuesProvider<RecursiveMemberModel> members = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 RecursiveMemberNames.AttributeMetadataName,
                 predicate: static (node, _) => node is PropertyDeclarationSyntax or IndexerDeclarationSyntax,
                 transform: static (ctx, ct) => RecursiveMemberModelFactory.CreateMemberModel(ctx, ct))
             .Where(static model => model is not null)
             .Select(static (model, _) => model!)
-            .WithTrackingName(MemberModelsStep)
+            .WithTrackingName(MemberModelsStep);
+
+        IncrementalValuesProvider<DiagnosticInfo> unannotated = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: static (node, _) => RecursiveMemberModelFactory.IsCandidateUnannotatedProperty(node),
+                transform: static (ctx, ct) => RecursiveMemberModelFactory.CreateUnannotatedDiagnostic(ctx, ct))
+            .Where(static diagnostic => diagnostic is not null)
+            .Select(static (diagnostic, _) => diagnostic!);
+
+        IncrementalValueProvider<(ImmutableArray<RecursiveMemberModel> Members, ImmutableArray<DiagnosticInfo> Unannotated)> source = members
             .Collect()
+            .Combine(unannotated.Collect())
             .WithTrackingName(CollectedModelsStep);
 
-        context.RegisterSourceOutput(members, static (ctx, members) => Execute(ctx, members));
+        context.RegisterSourceOutput(source, static (ctx, source) => Execute(ctx, source.Members, source.Unannotated));
     }
 
-    private static void Execute(SourceProductionContext context, ImmutableArray<RecursiveMemberModel> members)
+    private static void Execute(SourceProductionContext context, ImmutableArray<RecursiveMemberModel> members, ImmutableArray<DiagnosticInfo> unannotated)
     {
+        foreach (DiagnosticInfo diagnostic in unannotated)
+            context.ReportDiagnostic(diagnostic.ToDiagnostic());
+
         if (members.IsDefaultOrEmpty)
             return;
 

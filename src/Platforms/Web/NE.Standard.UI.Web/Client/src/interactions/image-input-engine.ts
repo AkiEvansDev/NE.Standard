@@ -6,17 +6,15 @@
 // (`Crop`) is fitted to it in the crop dialog first, and the square the frame holds is what is shown and sent.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
-import { FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageCropAttribute, ImageCropSizeAttribute, ImageFailedAttribute, ImageSourceAttribute, LoadingClass, SelectedKeysAttribute } from "../addressing/dom-attributes.ts";
+import { DraftDroppedEventName, FilePickAttribute as PickAttribute, ImageCaptionAttribute, ImageCropAttribute, ImageCropSizeAttribute, ImageDraggingAttribute, ImageFailedAttribute, ImageInputClass, ImageInputMultipleClass, ImageInputNativeClass, ImageInputPictureClass, ImageInputRemoveClass, ImageInputSelectionClass, ImageInputSelectionsClass, ImageInputSurfaceClass, ImageInputTilesClass, ImagePreviewAttribute, ImageSourceAttribute, ImageTilesAttribute, LoadingClass, OpenPickerEventName, SelectedKeysAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
-import { fileTileParts } from "../rendering/file-tile.ts";
-import type { FileFace } from "../rendering/file-tile.ts";
-import { clientStrings, forgetWords, readWords } from "../runtime/client-strings.ts";
-import { logWarn } from "../runtime/logger.ts";
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { logWarn } from "../metadata/logger.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import type { DialogEngine } from "./dialog-engine.ts";
 import { observeComponents } from "./dom-mutations.ts";
-import { DraftDroppedEventName } from "./draft-events.ts";
 import { attachFileDrop, findDropTargetField } from "./file-drop.ts";
+import { createStoredTile, createTile, drawFace, fileNameOf, nameSurface, writeFailure, writeText } from "./file-tile-engine.ts";
+import type { FileFace, ImageTile as Tile } from "./file-tile-engine.ts";
 import { DefaultCropSize } from "./image-crop.ts";
 import type { CropFrame } from "./image-crop.ts";
 import { cropPictureAsync } from "./image-crop-dialog.ts";
@@ -24,44 +22,16 @@ import type { CropImaging } from "./image-crop-dialog.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { publishSelection, readSelectionAsync, refuseFailedUpload, takeWithinSizeLimit, uploadedFileUrl, uploadFilesAsync } from "./file-upload.ts";
 import type { StoredFile } from "./file-upload.ts";
-import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
+import { answerOpenPicker } from "./picker-events.ts";
 import { uploadsInFlight } from "./uploads-in-flight.ts";
 import type { UploadsInFlight } from "./uploads-in-flight.ts";
 import type { FieldValidation } from "./validation-engine.ts";
-
-const RootClass = "ui-image-input";
-const MultipleClass = "ui-image-input--multiple";
-const SurfaceClass = "ui-image-input__surface";
-const NativeClass = "ui-image-input__native";
-const PictureClass = "ui-image-input__picture";
-const TextClass = "ui-image-input__text";
-const SelectionClass = "ui-image-input__selection";
-const SelectionsClass = "ui-image-input__selections";
-const TilesClass = "ui-image-input__tiles";
-const TileClass = "ui-image-input__tile";
-const RemoveClass = "ui-image-input__remove";
-const ProgressClass = "ui-image-input__progress";
 
 /** The property whose emptying from the controller clears a single picture. */
 const SelectionIdProperty = "SelectionId";
 
 /** On a square while its file is on its way: how much of it has gone, which the stylesheet draws as a bar. */
 const ProgressProperty = "--ui-image-progress";
-
-/**
- * Client-only: on the root while the file the viewer chose stands in for the controller's picture; while a drag is over it; while a
- * square stands on its shelf.
- */
-const PreviewAttribute = "data-ui-image-preview";
-const DraggingAttribute = "data-ui-image-dragging";
-const TilesAttribute = "data-ui-image-tiles";
-
-type Tile = {
-    readonly element: HTMLElement;
-    /** The object URL of the file the reader chose; null for a square drawn from what the server holds. */
-    readonly url: string | null;
-    selectionId: string | null;
-};
 
 /** The chosen file standing in for the controller's picture, and whether its handle has gone to the controller. */
 type Preview = {
@@ -74,7 +44,7 @@ export type ImageInputEngineOptions = {
     /** Where a picture refused for its size is said; left out, the refusal goes to the console. */
     readonly validation?: FieldValidation;
     /** Tells a single picture that the controller emptied its handle, and whether a shelf's list is still unanswered. */
-    readonly propertyPatchEngine?: PropertyPatchEngine;
+    readonly propertyPatchEngine?: PropertyPatchTarget;
     /** Opens the crop dialog for a picture with a frame; left out, such a picture is taken as it is. */
     readonly dialogs?: DialogEngine;
     /** The browser's decoding and drawing of a picture to crop; a test stands in for it. */
@@ -87,7 +57,7 @@ export class ImageInputEngine {
     private readonly root: ParentNode;
     private readonly validation: FieldValidation | undefined;
     private readonly uploads: UploadsInFlight;
-    private readonly propertyPatchEngine: PropertyPatchEngine | undefined;
+    private readonly propertyPatchEngine: PropertyPatchTarget | undefined;
     private readonly dialogs: DialogEngine | undefined;
     private readonly cropImaging: CropImaging | undefined;
 
@@ -122,10 +92,10 @@ export class ImageInputEngine {
         this.dialogs = options.dialogs;
         this.cropImaging = options.cropImaging;
 
-        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${ImageInputClass}`));
 
         // The picture follows the root's source (a Value patch), outranked by a preview until it changes; a shelf follows its handles.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => {
+        observeComponents(this.root, `.${ImageInputClass}`, { childList: true, attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => {
             this.applyAll(roots);
             this.releaseDetached();
         });
@@ -133,7 +103,7 @@ export class ImageInputEngine {
         // The handle lives on a hidden input's value, which no mutation reports: the controller emptying it is heard as a value change.
         options.propertyPatchEngine?.addValueChangeHandler(change => {
             if (change.propertyName === SelectionIdProperty && (change.value === null || change.value === undefined || change.value === ""))
-                this.clearAll(componentParts(change.components, `.${RootClass}`));
+                this.clearAll(componentParts(change.components, `.${ImageInputClass}`));
         });
 
         this.root.addEventListener("click", domEvent => this.handlePickClick(domEvent), true);
@@ -143,9 +113,9 @@ export class ImageInputEngine {
         this.root.addEventListener("change", domEvent => void this.handleNativeChangeAsync(domEvent), true);
         // Asked from a control elsewhere, the chooser is refused as the surface's own press is: while read-only, or its picture loads.
         this.root.addEventListener(OpenPickerEventName, domEvent => answerOpenPicker(domEvent, {
-            rootSelector: `.${RootClass}`,
-            nativeSelector: `.${NativeClass}`,
-            pressed: root => root.querySelector(`.${SurfaceClass}`)
+            rootSelector: `.${ImageInputClass}`,
+            nativeSelector: `.${ImageInputNativeClass}`,
+            pressed: root => root.querySelector(`.${ImageInputSurfaceClass}`)
         }));
 
         // An editor that closed on a cancel lets the chosen picture go too: the controller's own picture is painted again.
@@ -155,13 +125,13 @@ export class ImageInputEngine {
         // target; a loading surface refuses it, or a second file would race the first to the controller.
         attachFileDrop({
             root: this.root,
-            draggingAttribute: DraggingAttribute,
+            draggingAttribute: ImageDraggingAttribute,
             resolveTarget: target => {
-                const surface = target.closest<HTMLElement>(`.${SurfaceClass}`);
-                const own = surface?.closest<HTMLElement>(`.${RootClass}`) ?? null;
-                const other = own === null ? findDropTargetField(this.root, target, `.${RootClass}`) : null;
+                const surface = target.closest<HTMLElement>(`.${ImageInputSurfaceClass}`);
+                const own = surface?.closest<HTMLElement>(`.${ImageInputClass}`) ?? null;
+                const other = own === null ? findDropTargetField(this.root, target, `.${ImageInputClass}`) : null;
                 const root = own ?? other?.field ?? null;
-                const rootSurface = surface ?? root?.querySelector<HTMLElement>(`.${SurfaceClass}`) ?? null;
+                const rootSurface = surface ?? root?.querySelector<HTMLElement>(`.${ImageInputSurfaceClass}`) ?? null;
 
                 if (root === null || rootSurface === null)
                     return null;
@@ -169,7 +139,7 @@ export class ImageInputEngine {
                 return {
                     host: root,
                     mark: other?.component,
-                    accept: root.querySelector<HTMLInputElement>(`.${NativeClass}`)?.getAttribute("accept") ?? "",
+                    accept: root.querySelector<HTMLInputElement>(`.${ImageInputNativeClass}`)?.getAttribute("accept") ?? "",
                     multiple: isShelf(root),
                     refused: isReadOnly(root) || isInert(rootSurface)
                 };
@@ -189,7 +159,7 @@ export class ImageInputEngine {
 
     /** Paints the controller's picture, and lets a preview go the moment the controller has answered with one. */
     private apply(root: HTMLElement): void {
-        const picture = root.querySelector<HTMLImageElement>(`.${PictureClass}`);
+        const picture = root.querySelector<HTMLImageElement>(`.${ImageInputPictureClass}`);
 
         if (picture === null)
             return;
@@ -243,7 +213,7 @@ export class ImageInputEngine {
         // The shelf's own list echoed: an older echo can arrive after a later square lands, so pruning by it would drop that square.
         // Only while its lists are unanswered: once the field is let go, a list it sent named again is the controller's refusing a later one.
         const sent = this.published.get(root) ?? [];
-        const selections = root.querySelector(`.${SelectionsClass}`);
+        const selections = root.querySelector(`.${ImageInputSelectionsClass}`);
 
         if (selections === null || this.propertyPatchEngine?.isHeldTarget(selections) !== true)
             sent.length = 0;
@@ -277,7 +247,7 @@ export class ImageInputEngine {
 
     /** Draws a square for each handle the shelf has none for, and keeps the squares in the controller's order, those on their way last. */
     private restoreTiles(root: HTMLElement, tiles: Tile[], handles: ReadonlySet<string>): void {
-        const host = root.querySelector<HTMLElement>(`.${TilesClass}`);
+        const host = root.querySelector<HTMLElement>(`.${ImageInputTilesClass}`);
 
         if (host === null || handles.size === 0)
             return;
@@ -386,20 +356,20 @@ export class ImageInputEngine {
             return;
 
         const trigger = domEvent.target.closest<HTMLElement>(`[${PickAttribute}]`);
-        const root = trigger?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const root = trigger?.closest<HTMLElement>(`.${ImageInputClass}`) ?? null;
 
         if (trigger === null || root === null || isReadOnly(root) || isInert(trigger))
             return;
 
-        root.querySelector<HTMLInputElement>(`.${NativeClass}`)?.click();
+        root.querySelector<HTMLInputElement>(`.${ImageInputNativeClass}`)?.click();
     }
 
     private handleRemoveClick(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const remove = domEvent.target.closest<HTMLElement>(`.${RemoveClass}`);
-        const root = remove?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const remove = domEvent.target.closest<HTMLElement>(`.${ImageInputRemoveClass}`);
+        const root = remove?.closest<HTMLElement>(`.${ImageInputClass}`) ?? null;
 
         if (remove === null || root === null || isReadOnly(root) || isInert(root))
             return;
@@ -417,10 +387,10 @@ export class ImageInputEngine {
     }
 
     private async handleNativeChangeAsync(domEvent: Event): Promise<void> {
-        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(NativeClass))
+        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(ImageInputNativeClass))
             return;
 
-        const root = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const root = domEvent.target.closest<HTMLElement>(`.${ImageInputClass}`);
         const files = [...domEvent.target.files ?? []];
 
         // Cleared, so choosing the same file again is a change the picker reports.
@@ -439,7 +409,7 @@ export class ImageInputEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        for (const root of domEvent.target.querySelectorAll<HTMLElement>(`.${RootClass}`)) {
+        for (const root of domEvent.target.querySelectorAll<HTMLElement>(`.${ImageInputClass}`)) {
             if (!this.previews.has(root))
                 continue;
 
@@ -447,7 +417,7 @@ export class ImageInputEngine {
             this.apply(root);
 
             // The handle went to the controller as the file was chosen; the draft gone, the controller hears that it holds nothing.
-            publishSelection(root.querySelector<HTMLInputElement>(`.${SelectionClass}`), "");
+            publishSelection(root.querySelector<HTMLInputElement>(`.${ImageInputSelectionClass}`), "");
         }
     }
 
@@ -458,9 +428,9 @@ export class ImageInputEngine {
     private async takeFileAsync(root: HTMLElement, chosen: File): Promise<void> {
         this.releaseDetached();
 
-        const surface = root.querySelector<HTMLElement>(`.${SurfaceClass}`);
-        const picture = root.querySelector<HTMLImageElement>(`.${PictureClass}`);
-        const selection = root.querySelector<HTMLInputElement>(`.${SelectionClass}`);
+        const surface = root.querySelector<HTMLElement>(`.${ImageInputSurfaceClass}`);
+        const picture = root.querySelector<HTMLImageElement>(`.${ImageInputPictureClass}`);
+        const selection = root.querySelector<HTMLInputElement>(`.${ImageInputSelectionClass}`);
 
         if (surface === null || picture === null)
             return;
@@ -481,7 +451,7 @@ export class ImageInputEngine {
         this.previews.set(root, preview);
         this.holding.add(root);
         root.dataset.previewFor = root.getAttribute(ImageSourceAttribute) ?? "";
-        root.setAttribute(PreviewAttribute, "");
+        root.setAttribute(ImagePreviewAttribute, "");
         root.removeAttribute(ImageFailedAttribute);
         picture.setAttribute("src", preview.url);
 
@@ -557,7 +527,7 @@ export class ImageInputEngine {
     private async takeManyAsync(root: HTMLElement, files: readonly File[]): Promise<void> {
         this.releaseDetached();
 
-        const host = root.querySelector<HTMLElement>(`.${TilesClass}`);
+        const host = root.querySelector<HTMLElement>(`.${ImageInputTilesClass}`);
         const accepted = takeWithinSizeLimit(root, files, true, this.validation);
 
         if (host === null || accepted.length === 0)
@@ -625,7 +595,7 @@ export class ImageInputEngine {
 
     /** The handles that have landed, in shelf order, on the hidden input the value engine reads; the root's copy is the controller's. */
     private publishShelf(root: HTMLElement): void {
-        const selections = root.querySelector<HTMLInputElement>(`.${SelectionsClass}`);
+        const selections = root.querySelector<HTMLInputElement>(`.${ImageInputSelectionsClass}`);
         const tiles = this.shelves.get(root) ?? [];
         const handles = tiles.map(tile => tile.selectionId).filter((handle): handle is string => handle !== null);
         const json = JSON.stringify(handles);
@@ -656,7 +626,7 @@ export class ImageInputEngine {
         URL.revokeObjectURL(preview.url);
         this.previews.delete(root);
         delete root.dataset.previewFor;
-        root.removeAttribute(PreviewAttribute);
+        root.removeAttribute(ImagePreviewAttribute);
 
         if (!keepName)
             writeText(root, "");
@@ -664,7 +634,7 @@ export class ImageInputEngine {
 }
 
 function isShelf(root: HTMLElement): boolean {
-    return root.classList.contains(MultipleClass);
+    return root.classList.contains(ImageInputMultipleClass);
 }
 
 /**
@@ -672,14 +642,14 @@ function isShelf(root: HTMLElement): boolean {
  * (its icon, else the shape's glyph), as a failed picture anywhere shows its fallback glyph; never the browser's broken mark.
  */
 function markFailedPicture(target: EventTarget | null): void {
-    if (target instanceof Element && target.classList.contains(PictureClass))
-        target.closest(`.${RootClass}`)?.setAttribute(ImageFailedAttribute, "");
+    if (target instanceof Element && target.classList.contains(ImageInputPictureClass))
+        target.closest(`.${ImageInputClass}`)?.setAttribute(ImageFailedAttribute, "");
 }
 
 /** Says on the root whether a square stands on its shelf: the shelf's words and an empty shelf's hiding read it. */
 function markTiles(root: HTMLElement, tiles: readonly Tile[]): void {
-    if (root.hasAttribute(TilesAttribute) !== tiles.length > 0)
-        root.toggleAttribute(TilesAttribute, tiles.length > 0);
+    if (root.hasAttribute(ImageTilesAttribute) !== tiles.length > 0)
+        root.toggleAttribute(ImageTilesAttribute, tiles.length > 0);
 }
 
 function cropFrameOf(root: HTMLElement): CropFrame | null {
@@ -712,122 +682,4 @@ function readHandles(text: string | null): Set<string> | null {
     }
 
     return Array.isArray(kept) ? new Set(kept.filter((key): key is string => typeof key === "string")) : null;
-}
-
-/** A square for a file the reader chose, shown from the file itself, with the ring and the bar until the upload has landed. */
-function createTile(file: File): Tile {
-    const element = document.createElement("span");
-    const url = URL.createObjectURL(file);
-
-    element.className = `${TileClass} ${LoadingClass}`;
-    drawFace(element, file, url);
-
-    return { element, url, selectionId: null };
-}
-
-/** A square for a handle the controller names, ringed and crossed until the server says what it holds. */
-function createStoredTile(selectionId: string): Tile {
-    const element = document.createElement("span");
-    const remove = document.createElement("button");
-    const progress = document.createElement("span");
-
-    element.className = `${TileClass} ${LoadingClass}`;
-    remove.type = "button";
-    remove.className = RemoveClass;
-    progress.className = ProgressClass;
-    clientStrings.write(remove, "aria-label", "ui.file.remove");
-    element.append(remove, progress);
-
-    return { element, url: null, selectionId };
-}
-
-/**
- * A square's face: a picture as its own thumbnail from `source`, any other file as its kind's glyph over its name and size; the cross
- * over it, and the ring and the bar while the square loads.
- */
-function drawFace(element: HTMLElement, face: FileFace, source: string): void {
-    const remove = document.createElement("button");
-    const progress = document.createElement("span");
-
-    remove.type = "button";
-    remove.className = RemoveClass;
-    progress.className = ProgressClass;
-
-    if (face.type.startsWith("image/")) {
-        const picture = document.createElement("img");
-
-        picture.src = source;
-        picture.alt = face.name;
-        clientStrings.write(remove, "aria-label", "ui.image.remove");
-
-        // A picture the browser cannot draw — a camera's HEIC — is shown as the file it is.
-        picture.addEventListener("error", () => element.replaceChildren(...fileParts(element, remove, face), remove, progress), { once: true });
-        element.replaceChildren(picture, remove, progress);
-    }
-    else {
-        element.replaceChildren(...fileParts(element, remove, face), remove, progress);
-    }
-}
-
-/** A file's square's face: a file tile's (file-tile.ts), and a cross that says it takes a file away. */
-function fileParts(element: HTMLElement, remove: HTMLElement, file: FileFace): HTMLElement[] {
-    clientStrings.write(remove, "aria-label", "ui.file.remove");
-
-    return fileTileParts(element, file, clientStrings.language);
-}
-
-/** Writes the inline row's text — a file's name or the controller's caption — only when it changes. */
-function writeText(root: HTMLElement, value: string): void {
-    const text = root.querySelector<HTMLElement>(`.${TextClass}`);
-
-    if (text === null)
-        return;
-
-    // No word of the chrome's: a failure's mark comes off, so a language switch leaves it alone.
-    forgetWords(text, null);
-
-    // The engine watches the subtree and would answer its own write.
-    if (text.textContent !== value)
-        text.textContent = value;
-}
-
-/** The inline row's failure: the chrome's word, marked so a language switch writes it again. */
-function writeFailure(root: HTMLElement): void {
-    const text = root.querySelector<HTMLElement>(`.${TextClass}`);
-
-    if (text !== null)
-        clientStrings.write(text, null, "ui.file.failed");
-}
-
-/**
- * The surface's name says what a press does now — choose a picture, or change the one shown — and follows a switch by its mark; only
- * while that word is its name: a field's caption or `AccessibleName` names it instead, unmarked.
- */
-function nameSurface(root: HTMLElement, shows: boolean): void {
-    const surface = root.querySelector<HTMLElement>(`.${SurfaceClass}`);
-
-    if (surface === null || (surface.hasAttribute("aria-label") && readWords(surface, "aria-label") === null))
-        return;
-
-    clientStrings.write(surface, "aria-label", shows ? "ui.image.change" : "ui.image.choose");
-}
-
-/** The name a picture's URL ends in, for the inline row's text; a data or blob URL has none, and so has an address ending in a key. */
-function fileNameOf(source: string): string {
-    if (source.length === 0 || source.startsWith("data:") || source.startsWith("blob:"))
-        return "";
-
-    const path = source.split(/[?#]/, 1)[0] ?? "";
-    const name = path.slice(path.lastIndexOf("/") + 1);
-
-    // A file name has an extension; a content key or an id has none and says nothing about the picture.
-    if (!name.includes("."))
-        return "";
-
-    try {
-        return decodeURIComponent(name);
-    }
-    catch {
-        return name;
-    }
 }

@@ -1,7 +1,7 @@
 // A press on a field box's own empty space — its padding, or the gap a caption inside leaves before a value sized to its text —
 // focuses the box's text field with the caret at the end, so the box answers as one field wherever it is pressed.
 
-import { EventBoundaryAttribute, PopupRoleSelector } from "../addressing/dom-attributes.ts";
+import { EventBoundaryAttribute, FieldClass, PopupRoleSelector } from "../addressing/dom-attributes.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { FieldBoxSelector, NativeControlSelector } from "./own-control.ts";
@@ -10,7 +10,7 @@ import { FieldBoxSelector, NativeControlSelector } from "./own-control.ts";
 // a split button's list): its press stays its own, and the field keeps the caret the reader left there for an insertion.
 const OwnPartSelector = `${NativeControlSelector}, [tabindex], [contenteditable], ${PopupRoleSelector}, [${EventBoundaryAttribute}]`;
 // The box's text field: the framework's field class on a caret input or a multi-line field.
-const FieldSelector = ":scope > input.ui-field, :scope > textarea.ui-field";
+const FieldSelector = `:scope > input.${FieldClass}, :scope > textarea.${FieldClass}`;
 
 export type FieldBoxPressEngineOptions = {
     readonly root?: ParentNode;

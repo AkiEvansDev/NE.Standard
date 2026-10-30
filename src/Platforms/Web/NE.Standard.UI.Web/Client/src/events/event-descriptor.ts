@@ -22,6 +22,8 @@ export type EventRegistration<TEvent extends Event = Event> = {
     readonly name: string;
     readonly domEventName?: string;
     readonly options?: AddEventListenerOptions;
+    /** The event belongs to the component its target stands in, handed to no component around it; unsaid, the event's definition decides. */
+    readonly ownTarget?: boolean;
     readonly preventDefault?: boolean | ((context: EventDispatchContext<TEvent>) => boolean);
     readonly stopPropagation?: boolean | ((context: EventDispatchContext<TEvent>) => boolean);
     /** The command waits for the component's value to reach the server first, as an .OnChange command does. */

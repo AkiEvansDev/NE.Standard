@@ -45,8 +45,8 @@
 .ui-select__clear {
     .ui-field-adornment();
     .ui-cross-glyph(@ui-glyph-xs);
-    width: 1rem;
-    height: 1rem;
+    width: @ui-glyph-xs;
+    height: @ui-glyph-xs;
 }
 
 .ui-field-clear-host(~".ui-select:not(.ui-multi-select)"; ~".ui-select__trigger .ui-select__clear"; ~".ui-select:not(.ui-multi-select):is(:not([data-ui-select-value]), [data-ui-select-value='']) .ui-select__trigger .ui-select__clear");
@@ -66,7 +66,19 @@
 
 .ui-select__chevron {
     .ui-glyph-host();
+    color: var(--ui-text-muted);
+    transition: color @ui-motion-fast @ui-motion-ease;
 }
+
+    @media @{ui-can-hover} {
+        .ui-select:not(.ui-disabled):not(.ui-readonly) > .ui-select__trigger:hover .ui-select__chevron {
+            color: var(--ui-color-on-surface);
+        }
+    }
+
+    .ui-select--open .ui-select__chevron {
+        color: var(--ui-color-on-surface);
+    }
 
     .ui-select__chevron::before {
         .ui-chevron(@ui-glyph-sm);
@@ -123,8 +135,9 @@
     min-height: @ui-list-row-height;
     padding: @ui-space-1 @ui-space-2;
     border-radius: @ui-list-entry-radius;
+    color: @ui-text-muted;
     cursor: pointer;
-    transition: background-color @ui-motion-fast @ui-motion-ease;
+    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 }
 
     // A small field's list is as dense as the field: caption text, a row the small field's height, a target still. Not as a phone's
@@ -146,11 +159,17 @@
 
 .ui-select__option@{ui-list-current}:not([aria-selected="true"]) {
     background: var(--ui-wash-hover);
+    color: @ui-text-ink;
 }
 
-// Where the arrows put the current option — the chosen one too — it wears the keyboard's frame; the pointer's current, its wash alone.
+// Where the arrows put the current option — the chosen one too — it suppresses the browser ring; on the chosen option, it layers
+// the hover wash over the selected ground so the keyboard cursor remains visible.
 .ui-select__option@{ui-list-keyboard} {
     .ui-keyboard-frame();
+}
+
+.ui-select__option@{ui-list-keyboard}[aria-selected="true"] {
+    background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
 }
 
 // A key moves the mark at once, frame and wash together: the wash's fade trailed the frame, which has none. The pointer's keeps it.
@@ -162,10 +181,25 @@
 // A press is stronger than the pointer's rest, on any option but the chosen one.
 .ui-select__option:not([aria-selected="true"]):not([aria-disabled="true"]):active {
     background: var(--ui-wash-active);
+    color: @ui-text-ink;
+}
+
+.ui-select:not(.ui-multi-select) .ui-select__option {
+    position: relative;
+    padding-right: calc(@ui-space-2 + @ui-glyph-md + @ui-space-2);
+}
+
+.ui-select:not(.ui-multi-select) .ui-select__option[aria-selected="true"]::after {
+    .ui-check-glyph(@ui-glyph-md);
+    position: absolute;
+    right: @ui-space-2;
+    top: 50%;
+    translate: 0 -50%;
 }
 
 .ui-select__option[aria-selected="true"] {
     .ui-selected-ground();
+    .ui-selected-ink();
 }
 
 // A disabled option says so by looking spent, and takes no pointer of its own; the pointer never makes it current.

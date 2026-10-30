@@ -44,7 +44,7 @@ function entries(list: string): string[] {
 const regionRoots = rules
     .filter(rule => rule.body.includes(keepsRoom))
     .flatMap(rule => entries(rule.selector))
-    .filter(part => part.includes("[data-ui-region") && !part.endsWith(":dir(rtl)"));
+    .filter(part => part.includes("[data-ui-region"));
 
 test("no region's root keeps the room where a list's or a tree's host keeps its own, nor a rail or a collapsed panel", () => {
     const roots = regionRoots.filter(part => /> \[data-ui-id\][^>]*$/.test(part));
@@ -164,7 +164,7 @@ test("a container's free air after it (ScrollbarAir) is lent, up to the room, to
     assert.ok(!scroller.selector.includes("ui-text-area"), "a text area's field keeps its room inside its frame");
 
     // A padded, framed or filled box between stops it: only plain grids and stacks lead down to the scroller.
-    const frame = "[style*=\"--ui-border-thickness\"], [style*=\"--ui-surface-color\"], .ui-surface--raised, .ui-surface--flat, .ui-surface--tinted";
+    const frame = "[style*=\"--ui-border-thickness\"], [style*=\"--ui-surface-color\"], .ui-surface--surface, .ui-surface--tinted";
 
     assert.ok(rules.some(rule => rule.selector.includes(`:is([data-ui-id]:not(.ui-container, .ui-stack-panel, .ui-items-view, .ui-tree, .ui-scroll), [data-ui-id][style*="--ui-padding"], [data-ui-id]:is(${frame})) > *`) && rule.body.includes("--ui-scroll-hang: 0px;")));
     assert.ok(rules.some(rule => rule.selector.includes(`[style*="--ui-scrollbar-air"]:is([style*="--ui-padding"], ${frame}) > *`) && rule.body.includes("--ui-scroll-hang: 0px;")));
@@ -175,9 +175,14 @@ test("a container's free air after it (ScrollbarAir) is lent, up to the room, to
     // A scroller inside it lends nothing on, and the clipping boxes between let the hung room through.
     assert.ok(rules.some(rule => rule.selector.includes("--ui-scrollbar-air") && rule.selector.endsWith("> *") && rule.body.includes("--ui-scroll-hang: 0px;")));
     assert.ok(rules.some(rule => rule.selector.includes("[style*=\"--ui-scrollbar-air\"] :is(.ui-container, .ui-stack-panel)") && rule.body.includes("overflow-clip-margin: var(--ui-scroll-hang);")));
-    assert.ok(rules.some(rule => rule.selector.includes("[style*=\"--ui-scrollbar-air\"] :is(.ui-container, .ui-stack-panel)[style*=\"overflow: clip\"]") && rule.body.includes("--ui-scroll-clip-reach: max(6px, var(--ui-scroll-hang));") && rule.body.includes("overflow-clip-margin: var(--ui-scroll-clip-reach);")));
+    assert.ok(rules.some(rule => rule.selector.includes("[style*=\"--ui-scrollbar-air\"] :is(.ui-container, .ui-stack-panel)[style*=\"overflow: clip\"]") && rule.body.includes("--ui-scroll-clip-reach: max(8px, var(--ui-scroll-hang));") && rule.body.includes("overflow-clip-margin: var(--ui-scroll-clip-reach);")));
 
     // Chrome takes no math function in overflow-clip-margin: a calc() or a max() there clips at 0.
     for (const rule of rules.filter(rule => rule.body.includes("overflow-clip-margin:")))
         assert.doesNotMatch(rule.body, /overflow-clip-margin: [^;]*(calc|max|min|clamp)\(/, rule.selector);
+});
+
+test("the room is taken on the right side alone: the left keeps only a capped column's inset", () => {
+    assert.ok(!css.includes("--ui-scroll-room-left"), "a left-side room is declared or read");
+    assert.match(css, /padding: 0 max\(var\(--ui-scroll-room-right\), var\(--ui-scroll-cap\)\) var\(--ui-scroll-room-x\) var\(--ui-scroll-cap\);/);
 });

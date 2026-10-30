@@ -23,7 +23,7 @@ internal sealed partial class TextContentGroupContext : TooltipGroupContext
     public partial UIThemeColor? IconColor { get; set; }
 
     [RecursiveMember]
-    public partial UIIconSize? IconSize { get; set; }
+    public partial UISize? IconSize { get; set; }
 
     [RecursiveMember]
     public partial string? Title { get; set; }
@@ -219,14 +219,14 @@ internal sealed partial class ParagraphLayoutGroupContext : SelectableTextLayout
 /// </summary>
 internal sealed partial class TextBadgeGroupContext : DemoGroupContext
 {
-    private const string SampleBadgeText = "30 days";
+    private const string SampleBadgeTitle = "30 days";
 
     // Trailing rather than null: an inline badge has no far edge, so the BadgeAlignment rows would move nothing.
     [RecursiveMember]
     public partial UITextBadgePlacement? BadgePlacement { get; set; } = UITextBadgePlacement.Trailing;
 
     [RecursiveMember]
-    public partial UIBadgeType? BadgeStyle { get; set; }
+    public partial UIBadgeVariant? BadgeVariant { get; set; }
 
     [RecursiveMember]
     public partial UIThemeColor? BadgeColor { get; set; }
@@ -241,13 +241,13 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
     public partial UIThemeColor? BadgeIconColor { get; set; }
 
     [RecursiveMember]
-    public partial UIIconSize? BadgeIconSize { get; set; }
+    public partial UISize? BadgeIconSize { get; set; }
 
     [RecursiveMember]
-    public partial string? BadgeText { get; set; } = SampleBadgeText;
+    public partial string? BadgeTitle { get; set; } = SampleBadgeTitle;
 
     [RecursiveMember]
-    public partial UITextAppearance? BadgeTextType { get; set; }
+    public partial UITextAppearance? BadgeTitleType { get; set; }
 
     [RecursiveMember]
     public partial string? BadgeTooltip { get; set; }
@@ -258,14 +258,14 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
     public TextBadgeGroupContext()
     {
         AddOption(nameof(BadgePlacement), CycleBadgePlacement, () => BadgePlacement);
-        AddOption(nameof(BadgeStyle), CycleBadgeStyle, () => BadgeStyle);
+        AddOption(nameof(BadgeVariant), CycleBadgeVariant, () => BadgeVariant);
         AddOption(nameof(BadgeColor), CycleBadgeColor, () => BadgeColor);
         AddOption(nameof(BadgeFill), CycleBadgeFill, () => BadgeFill);
         AddOption(nameof(BadgeIcon), CycleBadgeIcon, () => BadgeIcon);
         AddOption(nameof(BadgeIconColor), CycleBadgeIconColor, () => BadgeIconColor);
         AddOption(nameof(BadgeIconSize), CycleBadgeIconSize, () => BadgeIconSize);
-        AddOption(nameof(BadgeText), ToggleBadgeText, () => BadgeText);
-        AddOption(nameof(BadgeTextType), CycleBadgeTextType, () => BadgeTextType);
+        AddOption(nameof(BadgeTitle), ToggleBadgeTitle, () => BadgeTitle);
+        AddOption(nameof(BadgeTitleType), CycleBadgeTitleType, () => BadgeTitleType);
         AddOption(nameof(BadgeTooltip), ToggleBadgeTooltip, () => BadgeTooltip);
         AddOption(nameof(BadgeTooltipPlacement), CycleBadgeTooltipPlacement, () => BadgeTooltipPlacement);
     }
@@ -273,10 +273,10 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
     public void CycleBadgePlacement()
         => SetLastChange(nameof(BadgePlacement), BadgePlacement = CycleEnum(BadgePlacement));
 
-    public void CycleBadgeStyle()
-        => SetLastChange(nameof(BadgeStyle), BadgeStyle = CycleEnum(BadgeStyle));
+    public void CycleBadgeVariant()
+        => SetLastChange(nameof(BadgeVariant), BadgeVariant = CycleEnum(BadgeVariant));
 
-    // Set, it wins over BadgeStyle above.
+    // Set, it wins over BadgeVariant above.
     public void CycleBadgeColor()
         => SetLastChange(nameof(BadgeColor), BadgeColor = CycleValue(BadgeColor, null, UIThemeColor.FromStyle(UIColorStyle.Success), UIThemeColor.FromColorVariant(ColorName.NebulaRose)));
 
@@ -305,19 +305,19 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
             BadgeIcon = DemoIcons.Clock;
     }
 
-    public void ToggleBadgeText()
-        => SetLastChange(nameof(BadgeText), BadgeText = CycleValue(BadgeText, null, SampleBadgeText));
+    public void ToggleBadgeTitle()
+        => SetLastChange(nameof(BadgeTitle), BadgeTitle = CycleValue(BadgeTitle, null, SampleBadgeTitle));
 
-    public void CycleBadgeTextType()
+    public void CycleBadgeTitleType()
     {
-        CheckBadgeText();
-        SetLastChange(nameof(BadgeTextType), BadgeTextType = CycleAppearance(BadgeTextType));
+        CheckBadgeTitle();
+        SetLastChange(nameof(BadgeTitleType), BadgeTitleType = CycleAppearance(BadgeTitleType));
     }
 
-    private void CheckBadgeText()
+    private void CheckBadgeTitle()
     {
-        if (string.IsNullOrEmpty(BadgeText))
-            BadgeText = SampleBadgeText;
+        if (string.IsNullOrEmpty(BadgeTitle))
+            BadgeTitle = SampleBadgeTitle;
     }
 
     public void ToggleBadgeTooltip()

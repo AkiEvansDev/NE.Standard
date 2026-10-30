@@ -3,7 +3,7 @@
 // the page. A field with a drop target (`DropTargetId`) takes the files let go or pasted on that other component — a composer — too.
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
-import { ComponentIdAttribute, cssAttributeValue, FileDropTargetIdAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentIdAttribute, cssAttributeValue, FileDropOverAttribute, FileDropTargetIdAttribute } from "../addressing/dom-attributes.ts";
 import { markDropBoxed } from "./drag-marks.ts";
 
 type FileDropTarget = {
@@ -27,9 +27,6 @@ export type FileDropOptions = {
     readonly draggingAttribute: string;
     readonly onFiles: (host: HTMLElement, files: readonly File[]) => void;
 };
-
-/** On a drop target while a file is over it, as a field's own dragging attribute is on the field; the stylesheet reads it. */
-const DropOverAttribute = "data-ui-file-drop-over";
 
 /** How long a leave with no destination waits for the dragover that would prove the file is still over the page. */
 const LeaveGrace = 120;
@@ -120,11 +117,11 @@ function handleDrag(options: FileDropOptions, state: DropState, domEvent: Event)
                 unmark(marked, other);
         }
 
-        const attribute = target.mark === undefined ? options.draggingAttribute : DropOverAttribute;
+        const attribute = target.mark === undefined ? options.draggingAttribute : FileDropOverAttribute;
 
         marked.set(mark, attribute);
         mark.setAttribute(attribute, refused ? RefusedMark : "");
-        markDropBoxed(mark, attribute === DropOverAttribute);
+        markDropBoxed(mark, attribute === FileDropOverAttribute);
         return;
     }
 

@@ -15,7 +15,7 @@ const source = resolve(styles, "ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
 /** The tokens' values as the stylesheet writes them, rendered from `core/tokens.less` itself. */
-const tokenNames = ["ui-scroll-ink", "ui-scroll-ink-hover", "ui-outline-edge", "ui-outline-edge-hover", "ui-own-tint-share", "ui-neutral-tint", "ui-track-ink", "ui-picture-plate", "ui-text-muted", "ui-text-muted-share", "ui-text-faint-share"];
+const tokenNames = ["ui-scroll-ink", "ui-scroll-ink-hover", "ui-outline-edge", "ui-outline-edge-hover", "ui-own-tint-share", "ui-neutral-tint", "ui-track-ink", "ui-image-plate", "ui-accent-stroke", "ui-text-muted", "ui-text-muted-share", "ui-text-faint-share"];
 const tokenSheet = (await less.render(
     `@import (reference) "styles/core/tokens.less";\n.tokens {\n${tokenNames.map(name => `  --${name}: @${name};`).join("\n")}\n}`,
     { filename: resolve(styles, "tokens.less") }
@@ -31,16 +31,16 @@ function rule(selector: string): string {
     return bodies.join("");
 }
 
-test("a scrollbar's thumb and arrows and a dragged bar's thick line are one ink at rest and one under the pointer", () => {
+test("a scrollbar's thumb and a dragged bar's thick line are one ink at rest and one under the pointer", () => {
     const rest = token("ui-scroll-ink");
     const hover = token("ui-scroll-ink-hover");
 
     assert.ok(rule("html").includes(`scrollbar-color: ${rest} transparent;`));
 
-    for (const selector of ["*::-webkit-scrollbar-thumb", ".ui-overlay-scrollbar__thumb::before", ".ui-overlay-scrollbar__arrow::before", ".ui-grid-splitter.ui-orientation--vertical[data-ui-splitting]::before"])
+    for (const selector of ["*::-webkit-scrollbar-thumb", ".ui-overlay-scrollbar__thumb::before", ".ui-grid-splitter.ui-orientation--vertical[data-ui-splitting]::before"])
         assert.ok(rule(selector).includes(`background: ${rest};`), `${selector} is not the scroll ink`);
 
-    for (const selector of ["*::-webkit-scrollbar-thumb:hover", ":is(.ui-overlay-scrollbar__thumb:hover, .ui-overlay-scrollbar__thumb--held)::before", ".ui-overlay-scrollbar__arrow:hover::before"])
+    for (const selector of ["*::-webkit-scrollbar-thumb:hover", ":is(.ui-overlay-scrollbar__thumb:hover, .ui-overlay-scrollbar__thumb--held)::before"])
         assert.ok(rule(selector).includes(`background: ${hover};`), `${selector} is not the scroll ink under the pointer`);
 });
 
@@ -57,9 +57,9 @@ test("a colour's own tint is one share — a tinted badge, an icon's circle, a m
 
     assert.ok(rule(".ui-badge-fill--tinted").includes(`background: color-mix(in srgb, var(--ui-badge-color, currentColor) ${share}, transparent);`));
     assert.ok(rule(".ui-icon.ui-icon--circle:not(.ui-icon--image)[data-ui-icon]").includes(`background-color: color-mix(in srgb, currentColor ${share}, transparent);`));
-    assert.ok(rule(".ui-multi-select__chip:not(.ui-badge)").includes(`background: color-mix(in srgb, var(--ui-color-primary) ${share}, transparent);`));
+    assert.ok(rule(".ui-multi-select__chip:not(.ui-badge)").includes("background: var(--ui-wash-selected);"));
 
-    assert.ok(rule(".ui-badge-style--surface:not(.ui-badge--colored).ui-badge-fill--tinted").includes(`background: ${token("ui-neutral-tint")};`));
+    assert.ok(rule(".ui-badge-variant--surface:not(.ui-badge--colored).ui-badge-fill--tinted").includes(`background: ${token("ui-neutral-tint")};`));
     assert.ok(rule(".ui-icon--circle[data-ui-icon-failed]::before").includes(`background: ${token("ui-neutral-tint")};`));
 });
 
@@ -69,15 +69,22 @@ test("a progress bar's and ring's tracks are one ink", () => {
 });
 
 test("the plate over a picture is one: a replaceable picture's glass and the lightbox's controls", () => {
-    const plate = `background: ${token("ui-picture-plate")};`;
+    const plate = `background: ${token("ui-image-plate")};`;
 
     for (const selector of [".ui-image-input__remove", ".ui-lightbox__close,\n.ui-lightbox__step", ".ui-lightbox__counter"])
         assert.ok(rule(selector).includes(plate), `${selector} is not on the picture plate`);
 });
 
+test("a toast's tone and a validation tooltip's severity draw one accent bar", () => {
+    const bar = `border-left: ${token("ui-accent-stroke")} solid`;
+
+    for (const selector of [".ui-notification::before", ".ui-tooltip[data-ui-tooltip-severity]::before"])
+        assert.ok(rule(selector).includes(bar), `${selector} draws no accent bar`);
+});
+
 test("a control with a fill of its own mixes the theme's wash shares into it; a Link button's own hue takes them too", () => {
     const live = ":not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not([data-ui-popup-hover]))";
-    const surfaceButton = "var(--ui-surface-color, var(--ui-surface-raised))";
+    const surfaceButton = "var(--ui-surface-color, var(--ui-popup-ground, var(--ui-popup-base, var(--ui-color-surface))))";
 
     assert.ok(rule(`.ui-button--surface${live}:hover`).includes(`background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), ${surfaceButton});`));
     assert.ok(rule(`.ui-button--surface${live}:active`).includes(`background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-active-share), ${surfaceButton});`));
@@ -99,7 +106,7 @@ test("a muted separator's label and a text's fold take one faint share: of the m
     // A word of the sentence at its weight, its chevron the words' size.
     assert.doesNotMatch(rule(".ui-text__fold-toggle"), /font-weight/);
     assert.match(rule(".ui-text__fold-toggle::after"), /font-size: 1em;[\s\S]*vertical-align: -0\.15em;/);
-    assert.ok(rule(".ui-separator__line.ui-color--muted[data-ui-separator-label] .ui-separator__label").includes(`color: color-mix(in srgb, ${token("ui-text-muted")} ${faint}, transparent);`));
+    assert.ok(rule(".ui-separator__line.ui-color--muted[data-ui-separator-title] .ui-separator__title").includes(`color: color-mix(in srgb, ${token("ui-text-muted")} ${faint}, transparent);`));
 });
 
 test("a separator's line is the border's own colour, as a card's edge and a row's rule", () => {

@@ -3,12 +3,12 @@
 // on Enter, a column moved by Alt with an arrow, one sized by Shift with an arrow — is its own engine's.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { TableColumnAttribute, TableHeaderClass, TableResizerClass, TableScrollClass } from "../addressing/dom-attributes.ts";
+import { TableClass, TableColumnAttribute, TableHeaderClass, TableResizerClass, TableScrollClass } from "../addressing/dom-attributes.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { isRovingCandidate, isRovingKey, resolveRovingTarget } from "./roving-focus.ts";
 import { readColumnLayout } from "./table-column-layout.ts";
 
-const TableSelector = ".ui-table";
+const TableSelector = `.${TableClass}`;
 const HeaderCellSelector = `:scope > .${TableScrollClass} > .${TableHeaderClass} > [role='columnheader']`;
 const ResizerSelector = `:scope > .${TableResizerClass}`;
 /** A control a header cell holds, which stands for the cell: the box over a grid's checkboxes. */

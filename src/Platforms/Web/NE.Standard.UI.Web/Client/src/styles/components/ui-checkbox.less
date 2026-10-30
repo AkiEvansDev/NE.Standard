@@ -11,6 +11,9 @@
 @ui-checkbox-box-small: 0.875rem;
 @ui-checkbox-box-large: 1.375rem;
 
+// A multi-select drawn as checkboxes wears this box on each of its rows (ui-multi-select.less lays them out): a rule below that names
+// a checkbox's root names the group's row beside it, so the two never drift.
+
 // The root *is* the row. A nested row would put the body too deep for the ui-text gate.
 .ui-checkbox {
     .ui-toggle-root();
@@ -18,6 +21,8 @@
 
     // A hand-drawn checkbox (a package's) is no root and would read its host's height (see ui-button.less); taken back here.
     .ui-checkbox:not([data-ui-id]) {
+        .ui-responsive-reset(--ui-width);
+        .ui-responsive-reset(--ui-max-width);
         .ui-responsive-reset(--ui-height);
     }
 
@@ -45,10 +50,15 @@
 }
 
 // A box whose input is off of its own (a data grid's row that cannot be chosen) answers nothing either: the guard is on the input.
-.ui-toggle-answers(~".ui-checkbox", ~".ui-checkbox__input:not(:disabled, .ui-disabled)", ~".ui-checkbox__box", {
+@ui-checkbox-leaned: {
     background: @ui-toggle-leaned;
     border-color: @ui-toggle-leaned;
-});
+};
+
+.ui-toggle-answers(~".ui-checkbox", ~".ui-checkbox__input:not(:disabled, .ui-disabled)", ~".ui-checkbox__box", @ui-checkbox-leaned);
+
+// A group's row answers as one checkbox does; the group carries the states, as a radio group does, and its message the edge.
+.ui-toggle-answers(~".ui-multi-select--checkboxes@{ui-toggle-live} .ui-multi-select__check", ~".ui-checkbox__input:not(:disabled, .ui-disabled)", ~".ui-checkbox__box", @ui-checkbox-leaned, ~".ui-multi-select--checkboxes@{ui-toggle-live}:not(@{ui-validation-marked}) .ui-multi-select__check");
 
 // The framework's own check mark, as a menu entry and a row's save button draw it, centred by the box.
 .ui-checkbox__box::after {
@@ -63,23 +73,27 @@
 }
 
 // A size steps the box with the text ui-input.less sizes: a small box for a caption line, a large one for a subtitle.
-.ui-checkbox.ui-input--small > .ui-checkbox__box {
+.ui-checkbox.ui-input--small > .ui-checkbox__box,
+.ui-multi-select--checkboxes.ui-input--small .ui-multi-select__check > .ui-checkbox__box {
     width: @ui-checkbox-box-small;
     height: @ui-checkbox-box-small;
     .ui-responsive-property(border-radius, --ui-border-radius, 0.1875rem);
 }
 
-    .ui-checkbox.ui-input--small > .ui-checkbox__box::after {
+    .ui-checkbox.ui-input--small > .ui-checkbox__box::after,
+    .ui-multi-select--checkboxes.ui-input--small .ui-multi-select__check > .ui-checkbox__box::after {
         .ui-check-glyph(@ui-glyph-xs);
     }
 
-.ui-checkbox.ui-input--large > .ui-checkbox__box {
+.ui-checkbox.ui-input--large > .ui-checkbox__box,
+.ui-multi-select--checkboxes.ui-input--large .ui-multi-select__check > .ui-checkbox__box {
     width: @ui-checkbox-box-large;
     height: @ui-checkbox-box-large;
     .ui-responsive-property(border-radius, --ui-border-radius, 0.3125rem);
 }
 
-    .ui-checkbox.ui-input--large > .ui-checkbox__box::after {
+    .ui-checkbox.ui-input--large > .ui-checkbox__box::after,
+    .ui-multi-select--checkboxes.ui-input--large .ui-multi-select__check > .ui-checkbox__box::after {
         .ui-check-glyph(@ui-glyph-md);
     }
 
@@ -91,6 +105,7 @@
 .ui-toggle-note-inset(~".ui-checkbox.ui-input--small"; @ui-checkbox-box-small);
 .ui-toggle-note-inset(~".ui-checkbox.ui-input--large"; @ui-checkbox-box-large);
 
-.ui-checkbox:is(@{ui-validation-marked}) > .ui-checkbox__box {
+.ui-checkbox:is(@{ui-validation-marked}) > .ui-checkbox__box,
+.ui-multi-select--checkboxes:is(@{ui-validation-marked}) .ui-multi-select__check > .ui-checkbox__box {
     border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }

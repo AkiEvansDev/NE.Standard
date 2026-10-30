@@ -58,20 +58,6 @@
     transform: translateX(-100%);
 }
 
-    [data-ui-sheet][popover][data-ui-sheet-covered]:dir(rtl):popover-open {
-        transform: translateX(100%);
-    }
-
-    [data-ui-sheet="nested"][popover]:dir(rtl) {
-        transform: translateX(-100%);
-    }
-
-    [data-ui-sheet="nested"][popover]:dir(rtl):popover-open {
-        @starting-style {
-            transform: translateX(-100%);
-        }
-    }
-
 // The grab handle, in the band a press drags from.
 [data-ui-sheet][popover]::before {
     .ui-sheet-handle();
@@ -116,16 +102,12 @@
     padding: 0 @ui-space-2;
     border-bottom: 1px solid var(--ui-color-border);
     border-radius: 0;
-    font-weight: 600;
+    font-weight: var(--ui-text-title-font-weight);
 }
 
-    // The standard Back's arrow (popup-sheet.ts), pointing the way the page reads back.
+    // The standard Back's arrow (popup-sheet.ts), pointing left.
     .ui-sheet__back-mark {
         font-size: @ui-glyph-md-lg;
-    }
-
-    .ui-sheet__back:dir(rtl) > .ui-sheet__back-mark {
-        transform: scaleX(-1);
     }
 
 // The page dimmed under every open sheet, a press on it a press outside; lifted as a popup is, whose mark takes the popover's own

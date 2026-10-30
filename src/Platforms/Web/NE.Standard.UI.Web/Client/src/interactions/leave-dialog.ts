@@ -1,11 +1,11 @@
-import { clientStrings } from "../runtime/client-strings";
+import { ButtonDangerClass, GhostButtonClass, LeaveDialogClass, LeaveDialogKey, LeaveDialogMessageClass, LeaveDialogTitleClass, LeaveMessageId, LeavePartAttribute, LeaveTitleId, TextTypeBodyClass, TextTypeSubtitleClass } from "../addressing/dom-attributes.ts";
+import { clientStrings } from "../rendering/client-strings";
 import { DialogEngine } from "./dialog-engine";
 import { buildPageDialog, PageDialogParts } from "./page-dialog";
 
 // The framework's own "Leave without saving?": a page dialog (page-dialog.ts) the dialog engine closes on Escape or the backdrop.
 
-const LeaveDialogKey = "ui-leave";
-const Parts = new PageDialogParts("data-ui-leave-part");
+const Parts = new PageDialogParts(LeavePartAttribute);
 
 // The centred panel's cap a view's dialog takes when it names no width (`WebViewRenderer.CenteredDialogWidthCap`, held equal by
 // `DialogLayoutRenderTests`).
@@ -39,23 +39,23 @@ export function showLeaveDialog(dialogs: DialogEngine, leave: () => void): void 
 function buildDialog(): HTMLElement {
     const { dialog, surface } = buildPageDialog({
         key: LeaveDialogKey,
-        className: "ui-leave-dialog",
+        className: LeaveDialogClass,
         role: "alertdialog",
-        labelledBy: "ui-leave-title",
-        describedBy: "ui-leave-message",
+        labelledBy: LeaveTitleId,
+        describedBy: LeaveMessageId,
         closesOnEscapeAndBackdrop: true
     });
 
     surface.style.setProperty("--ui-max-width-sm", CenteredDialogWidthCap);
 
-    const title = Parts.element("h2", "ui-leave-dialog__title ui-text-type--subtitle", "title");
-    const message = Parts.element("p", "ui-leave-dialog__message ui-text-type--body", "message");
+    const title = Parts.element("h2", `${LeaveDialogTitleClass} ${TextTypeSubtitleClass}`, "title");
+    const message = Parts.element("p", `${LeaveDialogMessageClass} ${TextTypeBodyClass}`, "message");
 
-    title.id = "ui-leave-title";
-    message.id = "ui-leave-message";
+    title.id = LeaveTitleId;
+    message.id = LeaveMessageId;
 
     // Stay first: the dialog's first control takes the focus, and Enter on it keeps the reader's work.
-    surface.append(title, message, Parts.actions(Parts.button("ui-button--ghost", "stay"), Parts.button("ui-button--danger", "leave")));
+    surface.append(title, message, Parts.actions(Parts.button(GhostButtonClass, "stay"), Parts.button(ButtonDangerClass, "leave")));
 
     dialog.addEventListener("click", domEvent => {
         const choice = Parts.pressed(domEvent);

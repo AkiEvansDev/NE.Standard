@@ -41,21 +41,11 @@
 
     // Every language's words stacked in one cell, one shown: as wide as the widest, so a switch moves nothing beside it; narrow, it gives way first.
     .ui-language-switcher__label {
-        display: inline-grid;
-        grid-template-columns: minmax(0, auto);
-        min-width: 0;
-        white-space: nowrap;
+        .ui-stacked-choice-label(~".ui-language-switcher__label-text"; ~".ui-language-switcher__label-text--current");
     }
 
         .ui-language-switcher__label-text {
-            grid-area: 1 / 1;
             justify-self: center;
-            max-width: 100%;
-            .ui-text-nowrap();
-        }
-
-        .ui-language-switcher__label-text:not(.ui-language-switcher__label-text--current) {
-            visibility: hidden;
         }
 
     // No glyph named, no room taken: the icon is the author's to add.

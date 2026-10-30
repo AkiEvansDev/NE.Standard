@@ -1,83 +1,114 @@
 @import "./tokens.less";
+@import "../mixins/color.less";
 @import "../mixins/focus.less";
+@import "../mixins/interactive.less";
 
-// Where the keyboard stands on a plain pressable — a button (a toast's cross among them), an action, a link, an expander's header, a
-// clickable surface, the page switchers — the one keyboard frame a list's entry wears, only for a focus a key gave (`@ui-keyboard-focus`),
-// in the one shape (`.ui-keyboard-frame()`). A pressable with a mark of its own is not listed: a menu's entry and a select's option (their
-// list's frame), a tab's caption (inset, below), a field's parts (the field's edge), a toggle (its row's frame, in its own file).
-// After every component, so a component's own `outline: none` does not win the tie.
+// Unified pointer hover and keyboard focus: when focused via keyboard (`@ui-keyboard-focus`), pressable controls take the exact same
+// surface wash and text step-up as pointer hover, with no separate outline frame under `forced-colors: none`.
 
-// A split button frames the part the keyboard is on, never its pill; a menu split button's pill is its one press. Weightless, so the
-// rules below say their own. A button's corner is the frame's own (the theme's button radius), and stays its own.
-@ui-keyboard-pressables: ~".ui-button:not(.ui-tab-caption, .ui-tab-item__label, .ui-menu-item, .ui-split-button), .ui-action, .ui-language-switcher__trigger, .ui-collapsible__toggle, .ui-collapsible__pin, .ui-breadcrumb";
-
-:where(@{ui-keyboard-pressables})@{ui-keyboard-focus} {
-    .ui-keyboard-frame(@takes: false);
+.ui-button:is(.ui-button--ghost, .ui-button--outline):not(.ui-tab-caption, .ui-tab-item__label, .ui-menu-item, .ui-split-button, [aria-pressed="true"], [aria-current="page"])@{ui-button-live}@{ui-keyboard-focus},
+.ui-split-button[data-ui-split-mode="menu"]:is(.ui-button--ghost, .ui-button--outline)@{ui-button-live}@{ui-keyboard-within},
+:is(.ui-action, .ui-language-switcher__trigger, .ui-collapsible__toggle, .ui-collapsible__pin, .ui-shell__drawer-toggle)@{ui-button-live}@{ui-keyboard-focus} {
+    background-color: var(--ui-wash-hover);
+    color: @ui-text-ink;
 }
 
-// A tab's caption, on every strip, frames itself inside its box, the frame's foot on the chosen line's place, so the two read as one
-// line: a Tab into the strip lands on the chosen caption, whose line alone would show no change. A TabsView's frame is its whole
-// caption's, the close inside it, read off the keyboard's mark on it (the label has no air of its own round its words).
-.ui-tab-caption@{ui-keyboard-focus} {
-    .ui-keyboard-frame-inset(@takes: chain);
+.ui-button.ui-button--link:not(.ui-tab-caption, .ui-tab-item__label, .ui-menu-item, .ui-split-button, [aria-pressed="true"], [aria-current="page"])@{ui-button-live}@{ui-keyboard-focus},
+.ui-split-button[data-ui-split-mode="menu"].ui-button--link@{ui-button-live}@{ui-keyboard-within} {
+    background-color: var(--ui-wash-hover);
+
+    > :not([role="menu"], [role="listbox"], .ui-split-button__menu) {
+        .ui-brighten-hover();
+    }
 }
 
-.ui-color-input__tab@{ui-keyboard-focus},
-.ui-tab-item__caption@{ui-keyboard-within} {
-    .ui-keyboard-frame-inset();
+.ui-button:is([aria-pressed="true"], [aria-current="page"])@{ui-button-live}@{ui-keyboard-focus},
+.ui-button-group__item[data-ui-selected] > .ui-button@{ui-button-live}@{ui-keyboard-focus},
+.ui-color-input__tab[data-ui-color-tab-selected]@{ui-keyboard-focus} {
+    background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
 }
 
-// A TabsView caption fills under the pointer: its ground stays in its own box, not in the room the frame reaches down over.
-.ui-tab-item__caption@{ui-keyboard-within} {
-    background-clip: padding-box;
+.ui-button--outline:not(.ui-split-button)@{ui-button-live}@{ui-keyboard-focus},
+.ui-split-button.ui-button--outline@{ui-button-live}@{ui-keyboard-within} {
+    border-color: @ui-outline-edge-hover;
 }
 
-// A split button's part is square where it meets the other: framed, it takes the frame's corner all round, its ground being the pill's.
-:is(.ui-split-button__main, .ui-split-button__toggle)@{ui-keyboard-focus} {
-    .ui-keyboard-frame();
+.ui-button--surface:not(.ui-split-button)@{ui-button-live}@{ui-keyboard-focus},
+.ui-split-button[data-ui-split-mode="menu"].ui-button--surface@{ui-button-live}@{ui-keyboard-within} {
+    background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), var(--ui-surface-color, @ui-popup-ground));
+    color: @ui-text-ink;
 }
 
-// On a filled ground the brand's ink is lost in the brand's fill: the frame takes the words' own colour there.
-:is(.ui-button--primary, .ui-button--accent, .ui-button--danger):not(.ui-split-button)@{ui-keyboard-focus} {
-    .ui-keyboard-frame(@ink: currentColor; @takes: false);
+:is(.ui-button--primary, .ui-button--accent, .ui-button--danger):not(.ui-split-button)@{ui-button-live}@{ui-keyboard-focus},
+.ui-split-button[data-ui-split-mode="menu"]:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live}@{ui-keyboard-within} {
+    box-shadow: inset 0 0 0 999px @ui-filled-hover-shade;
 }
 
-.ui-split-button:is(.ui-button--primary, .ui-button--accent, .ui-button--danger) > :is(.ui-split-button__main, .ui-split-button__toggle)@{ui-keyboard-focus} {
-    .ui-keyboard-frame(@ink: currentColor);
+.ui-tab-caption@{ui-button-live}@{ui-keyboard-focus}:not(.ui-tab-caption--selected) {
+    color: @ui-text-ink;
+
+    &::after {
+        background: var(--ui-mark-hover);
+    }
 }
 
-// A card's corner is larger than the frame's: the frame stands in from it as far as keeps its own. An expander's header takes the card's
-// corner all round for the while (it paints no ground), so the frame clears the expander's rounded clip on every side, open or folded.
-.ui-surface--clickable@{ui-keyboard-focus} {
-    .ui-keyboard-frame-inside(var(--ui-radius-card));
-}
-
-    // One stroked on one side alone has a list entry's corner (ui-surface.less), and the frame stands in from that.
-    .ui-surface--clickable:is(.ui-border--left, .ui-border--top, .ui-border--right, .ui-border--bottom)@{ui-keyboard-focus} {
-        .ui-keyboard-frame-inside(@ui-list-entry-radius);
+.ui-tab-item@{ui-button-live}:not(.ui-tab-item--selected) > .ui-tab-item__caption@{ui-keyboard-within} {
+    .ui-tab-item__label {
+        color: @ui-text-ink;
     }
 
-.ui-expander:not(.ui-expander--quiet) > .ui-expander__header@{ui-keyboard-focus} {
-    .ui-keyboard-frame(@host: var(--ui-radius-card); @offset: ~"calc(@{ui-keyboard-frame-radius} - var(--ui-radius-card) - 2px)");
+    &::after {
+        background: var(--ui-mark-hover);
+    }
 }
 
-// A quiet expander's line is words with no box of their own: its header's air round them (components/ui-expander.less) is the box the
-// frame stands inside, as a ghost button's.
-.ui-expander--quiet > .ui-expander__header@{ui-keyboard-focus} {
-    .ui-keyboard-frame(@takes: true);
+@{ui-split-parts}:is(.ui-button--ghost, .ui-button--outline, .ui-button--surface)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle)@{ui-keyboard-focus} {
+    background-color: var(--ui-wash-hover);
+    color: @ui-text-ink;
 }
 
-// A link is its words, with no box to stand a frame inside: it goes round them — a link among running words close round them, in the
-// little room a line leaves above and below its words, where a clamped paragraph clips.
-.ui-link@{ui-keyboard-focus} {
-    .ui-keyboard-frame-outside();
+@{ui-split-parts}.ui-button--link@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle)@{ui-keyboard-focus} {
+    background-color: var(--ui-wash-hover);
+    .ui-brighten-hover();
+}
+
+@{ui-split-parts}:is(.ui-button--primary, .ui-button--accent, .ui-button--danger)@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle)@{ui-keyboard-focus} {
+    background-color: @ui-filled-hover-shade;
+}
+
+.ui-surface--clickable:not(.ui-surface--quiet-hover)@{ui-button-live}@{ui-keyboard-focus} {
+    background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), var(--ui-surface-fill));
+}
+
+.ui-surface--clickable.ui-surface--quiet-hover@{ui-button-live}@{ui-keyboard-focus} {
+    background-color: color-mix(in srgb, var(--ui-color-on-surface) calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));
+}
+
+.ui-expander:not(.ui-expander--quiet)@{ui-button-live} > .ui-expander__header@{ui-keyboard-focus} {
+    background-color: var(--ui-wash-hover);
+
+    .ui-expander__chevron {
+        color: @ui-text-ink;
+    }
+}
+
+.ui-expander--quiet@{ui-button-live} > .ui-expander__header@{ui-keyboard-focus} {
+    background-color: var(--ui-wash-hover);
+    color: @ui-text-ink;
+}
+
+.ui-link@{ui-button-live}@{ui-keyboard-focus} {
+    filter: brightness(1.15);
+
+    .ui-text__title {
+        text-decoration-color: currentColor;
+    }
 }
 
 .ui-text__link@{ui-keyboard-focus} {
-    .ui-keyboard-frame-outside(0px);
+    filter: brightness(1.15);
 }
 
-// A key's focus scrolls the frame into sight with the words, not the words alone, which left its outer edge under a scroller's edge.
 :is(.ui-link, .ui-text__link) {
     scroll-margin: @ui-keyboard-frame-reach;
 }

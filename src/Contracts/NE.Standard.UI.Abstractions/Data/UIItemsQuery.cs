@@ -69,7 +69,7 @@ public readonly record struct UIItemSortTerm
 }
 
 /// <summary>
-/// The filtering and ordering a window request carries, resolved down to plain terms.
+/// The filtering, free-text search and ordering a window request carries, resolved down to plain terms.
 /// </summary>
 public sealed class UIItemsQuery
 {
@@ -79,15 +79,17 @@ public sealed class UIItemsQuery
     public static UIItemsQuery Empty { get; } = new([], []);
 
     /// <summary>
-    /// Creates a query from filter and sort terms.
+    /// Creates a query from filter terms, sort terms and an optional free-text search.
     /// </summary>
-    public UIItemsQuery(UIItemFilterTerm[] filters, UIItemSortTerm[] sorts)
+    [JsonConstructor]
+    public UIItemsQuery(UIItemFilterTerm[] filters, UIItemSortTerm[] sorts, string? search = null)
     {
         ArgumentNullException.ThrowIfNull(filters);
         ArgumentNullException.ThrowIfNull(sorts);
 
         Filters = filters;
         Sorts = sorts;
+        Search = string.IsNullOrWhiteSpace(search) ? null : search.Trim();
     }
 
     /// <summary>
@@ -101,9 +103,15 @@ public sealed class UIItemsQuery
     public UIItemSortTerm[] Sorts { get; }
 
     /// <summary>
+    /// Gets the viewer's free-text search across the row's columns; <see langword="null"/> when empty.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Search { get; }
+
+    /// <summary>
     /// Gets whether the query asks for nothing in particular.
     /// </summary>
     /// <remarks>Computed, so it stays off the wire.</remarks>
     [JsonIgnore]
-    public bool IsEmpty => Filters.Length == 0 && Sorts.Length == 0;
+    public bool IsEmpty => Filters.Length == 0 && Sorts.Length == 0 && Search is null;
 }

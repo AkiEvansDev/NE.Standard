@@ -1,6 +1,6 @@
 // The client half of `UIInlineMarkup`, which must read the same markup the same way; nodes are built, never innerHTML.
 
-import { EventBoundaryAttribute, FoldsAttribute } from "../addressing/dom-attributes.ts";
+import { EventBoundaryAttribute, FoldsAttribute, TextCodeClass, TextFoldClass, TextFoldContentClass, TextFoldToggleClass, TextIconInlineClass, TextLinkClass } from "../addressing/dom-attributes.ts";
 import { applyIconValue } from "./icon-value.ts";
 import { isExternalLink, isSafeLink } from "./url-safety.ts";
 
@@ -41,9 +41,6 @@ const CodeMarker = "`";
 const IconMarker = "!";
 const FoldOpen = "{";
 const FoldClose = "}";
-const FoldClass = "ui-text__fold";
-const FoldToggleClass = "ui-text__fold-toggle";
-const FoldContentClass = "ui-text__fold-content";
 
 // Folds nest by recursion: deeper text reads as literal braces, or a few kilobytes of user text could exhaust the stack.
 const MaxFoldDepth = 8;
@@ -132,7 +129,7 @@ function renderSegment(segment: InlineSegment, options: InlineMarkupOptions): No
     if ((segment.styles & InlineStyles.Code) !== 0) {
         const code = document.createElement("code");
 
-        code.className = "ui-text__code";
+        code.className = TextCodeClass;
         code.append(node);
         node = code;
     }
@@ -153,7 +150,7 @@ function renderSegment(segment: InlineSegment, options: InlineMarkupOptions): No
         const anchor = document.createElement("a");
 
         anchor.setAttribute("href", segment.url);
-        anchor.className = "ui-text__link";
+        anchor.className = TextLinkClass;
 
         if (isExternalLink(segment.url)) {
             anchor.setAttribute("target", "_blank");
@@ -173,10 +170,10 @@ function renderFold(segment: InlineSegment, options: InlineMarkupOptions): Node 
     const toggle = document.createElement(options.staticFolds === true ? "span" : "button");
     const content = document.createElement("span");
 
-    fold.className = options.staticFolds === true ? `${FoldClass} ${FoldClass}--static` : FoldClass;
-    toggle.className = FoldToggleClass;
+    fold.className = options.staticFolds === true ? `${TextFoldClass} ${TextFoldClass}--static` : TextFoldClass;
+    toggle.className = TextFoldToggleClass;
     toggle.textContent = segment.fold ?? "";
-    content.className = FoldContentClass;
+    content.className = TextFoldContentClass;
     content.append(renderSegments(parseInlineMarkup(segment.text, options), options));
 
     if (options.staticFolds === true) {
@@ -199,7 +196,7 @@ function renderFold(segment: InlineSegment, options: InlineMarkupOptions): Node 
 function renderIcon(icon: string): Node {
     const element = document.createElement("i");
 
-    element.className = "ui-text__icon-inline";
+    element.className = TextIconInlineClass;
     applyIconValue(element, icon);
     element.setAttribute("aria-hidden", "true");
 

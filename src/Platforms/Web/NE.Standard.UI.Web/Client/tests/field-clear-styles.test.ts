@@ -26,12 +26,14 @@ function literal(text: string): string {
     return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-test("each clearable field hides its clear unless asked for, on a disabled or read-only field, and while it is empty", () => {
+test("each clearable field hides its clear unless asked for or on a disabled or read-only field, and keeps its room while empty", () => {
     for (const [root, clear, empty] of hosts) {
-        const selectors = [`${root}:not([data-ui-clearable])${clear}`, `${root}:is(.ui-disabled, .ui-readonly)${clear}`, empty];
+        const selectors = [`${root}:not([data-ui-clearable])${clear}`, `${root}:is(.ui-disabled, .ui-readonly)${clear}`];
         const rule = new RegExp(`(?:^|\\n)${selectors.map(literal).join(",\\n")} \\{\\s*display: none;\\s*\\}`);
+        const emptyRule = new RegExp(`(?:^|\\n)${literal(empty)} \\{\\s*visibility: hidden;\\s*\\}`);
 
         assert.match(css, rule, root);
+        assert.match(css, emptyRule, root);
     }
 });
 

@@ -2,7 +2,7 @@
 // arriving as a token and fetched before it is applied.
 
 import type { ServerChangeSet, ServerValueUIUpdate } from "../metadata/metadata-index";
-import { pageSessionKey } from "../runtime/session-key.ts";
+import { pageSessionKey } from "../state/session-key.ts";
 
 const StagePath = "/_ne/values";
 

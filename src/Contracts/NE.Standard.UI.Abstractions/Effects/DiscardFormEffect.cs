@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace NE.Standard.UI.Abstractions.Effects;
 
@@ -23,6 +24,7 @@ public sealed class DiscardFormEffect : ClientEffect
     /// The page holds the server's latest value of every held field and puts it back itself, so a Cancel or a Discard runs it with no
     /// round trip.
     /// </summary>
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>

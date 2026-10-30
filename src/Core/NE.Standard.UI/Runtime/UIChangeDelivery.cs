@@ -16,10 +16,6 @@ namespace NE.Standard.UI.Runtime;
 /// </summary>
 internal static class UIChangeDelivery
 {
-    /// <inheritdoc cref="SendAsync(IUIUpdateSink, IUIRuntime, UIHandle, IReadOnlyCollection{string}, ServerChangeSet, TimeSpan, CancellationToken)"/>
-    public static Task SendAsync(IUIUpdateSink sink, IUIRuntime runtime, UIHandle handle, IReadOnlyCollection<string> instanceIds, ServerChangeSet changes, CancellationToken cancellationToken)
-        => SendAsync(sink, runtime, handle, instanceIds, changes, Timeout.InfiniteTimeSpan, cancellationToken);
-
     /// <summary>
     /// Sends every instance its share, all at once, each given up past <paramref name="timeout"/>; a send that fails or is given up
     /// stops no other, asks the runtime for a full resync — the instance it missed is otherwise stale for good — and is thrown once the
@@ -122,7 +118,7 @@ internal static class UIChangeDelivery
     }
 
     /// <summary>Reads a send's failure once it ends, so a fault nobody waits for is not reported unobserved.</summary>
-    private static void Observe(Task send)
+    internal static void Observe(Task send)
         => _ = send.ContinueWith(static ended => _ = ended.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
     /// <summary>Whether the set carries a full resync; the dispatcher's queue never joins one.</summary>

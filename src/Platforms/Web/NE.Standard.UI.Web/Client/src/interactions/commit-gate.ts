@@ -3,18 +3,21 @@
 // field, a clear: the leave raised that value again, and it went to the server and ran the field's `OnChange` a second time. The
 // browser's own rule, widened to those commits: every `change` of the field the focus is in is weighed here, ahead of every listener.
 
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { isCaretField } from "./caret-fields.ts";
 
 type CaretField = HTMLInputElement | HTMLTextAreaElement;
 
 export type CommitGateOptions = {
     readonly root?: ParentNode;
-    readonly propertyPatchEngine?: Pick<PropertyPatchEngine, "addValueChangeHandler">;
+    readonly propertyPatchEngine?: Pick<PropertyPatchTarget, "addValueChangeHandler">;
+    /** A field's value as its binding sends it (a number field's invariant text), or its own `.value` when omitted. */
+    readonly readValue?: (field: CaretField) => string;
 };
 
 export class CommitGate {
     private readonly root: ParentNode;
+    private readonly readValue: (field: CaretField) => string;
 
     // The caret field the focus is in, or last was: a leave's change, Enter's commit after the blur and a pause ending after the leave
     // all come once it has lost the focus.
@@ -26,6 +29,7 @@ export class CommitGate {
 
     public constructor(options: CommitGateOptions = {}) {
         this.root = options.root ?? document;
+        this.readValue = options.readValue ?? (field => field.value);
 
         // On the page's document it listens on the window, capturing: ahead of every engine's listener on the root, none of which may
         // hear a change stopped here. On another root, on that root, as the refusals do.
@@ -44,7 +48,7 @@ export class CommitGate {
             return;
 
         this.field = target;
-        this.committed = target.value;
+        this.committed = this.readValue(target);
     }
 
     private handleChange(domEvent: Event): void {
@@ -53,12 +57,14 @@ export class CommitGate {
         if (field === null || domEvent.target !== field)
             return;
 
-        if (field.value === this.committed) {
+        const value = this.readValue(field);
+
+        if (value === this.committed) {
             domEvent.stopImmediatePropagation();
             return;
         }
 
-        this.committed = field.value;
+        this.committed = value;
     }
 
     /** A value pushed into the field: what the server holds is no longer what it last committed. */

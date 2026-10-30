@@ -53,6 +53,20 @@ internal sealed partial class CollapsiblePanelController() : DemoStandardControl
     [RecursiveMember]
     public partial PanelDetailsGroupContext DetailsGroup { get; set; } = new();
 
+    [RecursiveMember]
+    public partial DemoGroupContext WorkspaceGroup { get; set; } = new();
+
+    /// <summary>
+    /// A pane's switch pressed open; every pane runs this one command, told which by its literal argument.
+    /// </summary>
+    [UICommand]
+    public void PaneExpanded(string pane)
+        => WorkspaceGroup.LogEvent($"Expand: {pane} opened");
+
+    [UICommand]
+    public void PaneCollapsed(string pane)
+        => WorkspaceGroup.LogEvent($"Collapse: {pane} folded to its switch");
+
     [UICommand]
     public void ToggleDetails()
     {

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Constants;
 
@@ -76,13 +75,30 @@ internal static class UIViewValidation
                 ValidateBackgroundImage(owner, surface);
             }
 
+            else
+            {
+                ValidateResponsive(owner, nameof(ISurfaceComponent.Padding), ReadOwnProperty<UIThickness>(component, nameof(ISurfaceComponent.Padding)), static padding => padding.Validate());
+            }
+
             if (component is IBorderedComponent bordered)
             {
                 ValidateResponsive(owner, nameof(IBorderedComponent.BorderThickness), bordered.BorderThickness, static thickness => thickness.Validate());
                 ValidateResponsive(owner, nameof(IBorderedComponent.BorderRadius), bordered.BorderRadius, static radius => radius.Validate());
             }
+            else
+            {
+                ValidateResponsive(owner, nameof(IBorderedComponent.BorderRadius), ReadOwnProperty<UICornerRadius>(component, nameof(IBorderedComponent.BorderRadius)), static radius => radius.Validate());
+            }
         }
     }
+
+    /// <summary>
+    /// A padding or a corner a component declares of its own, past the shared interfaces — a list's rows' padding, an image's corners —
+    /// read by its name, since this contract cannot name the component; none where it declares no such property.
+    /// </summary>
+    private static UIResponsive<T>? ReadOwnProperty<T>(IVisualComponent component, string name)
+        where T : struct
+        => component.GetType().GetProperty(name)?.GetValue(component) as UIResponsive<T>?;
 
     private static void ValidateResponsive<T>(string owner, string property, UIResponsive<T>? value, Action<T> validate)
         where T : struct

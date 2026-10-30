@@ -1,8 +1,8 @@
 // A notification of the operating system's, shown through the browser: by the service worker the application registered where it
 // did, else by the page itself (`new Notification`), which a phone's browser refuses — answered false, and the page shows its fallback.
 
-import { browserNotificationPermission } from "../runtime/client-state.ts";
-import type { NotificationClick, NotificationClickData } from "../runtime/worker-messages.ts";
+import { browserNotificationPermission } from "../state/client-state.ts";
+import type { NotificationClick, NotificationClickData } from "../state/worker-messages.ts";
 
 /** What the system shows, its words already in the page's language, and what a click on it does. */
 export type SystemNotificationRequest = {

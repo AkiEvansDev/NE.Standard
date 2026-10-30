@@ -1,5 +1,8 @@
-// Each type states `text-transform`, even `none`, so Overline's can't inherit into a nested type, and republishes its spacing as a
-// length in `--ui-letter-spacing`, so code centring text can subtract it.
+@import "./tokens.less";
+
+// Each type states `text-transform`, even `none`, so Overline's can't inherit into a nested type, republishes its spacing as a
+// length in `--ui-letter-spacing`, so code centring text can subtract it, and sets `--ui-text-glyph` to the whole-pixel icon step
+// matching its cap height so a `.ui-text__icon` or `.ui-input__affix-icon` never lands on a fractional `1em` pixel.
 
 .ui-text-type--display {
     text-transform: none;
@@ -8,6 +11,7 @@
     font-weight: var(--ui-text-display-font-weight);
     letter-spacing: var(--ui-text-display-letter-spacing, normal);
     --ui-letter-spacing: var(--ui-text-display-letter-spacing, 0px);
+    --ui-text-glyph: @ui-glyph-xxl;
 }
 
 .ui-text-type--title {
@@ -17,6 +21,7 @@
     font-weight: var(--ui-text-title-font-weight);
     letter-spacing: var(--ui-text-title-letter-spacing, normal);
     --ui-letter-spacing: var(--ui-text-title-letter-spacing, 0px);
+    --ui-text-glyph: @ui-glyph-lg;
 }
 
 .ui-text-type--subtitle {
@@ -26,6 +31,7 @@
     font-weight: var(--ui-text-subtitle-font-weight);
     letter-spacing: var(--ui-text-subtitle-letter-spacing, normal);
     --ui-letter-spacing: var(--ui-text-subtitle-letter-spacing, 0px);
+    --ui-text-glyph: @ui-glyph-md-lg;
 }
 
 .ui-text-type--body {
@@ -35,6 +41,7 @@
     font-weight: var(--ui-text-body-font-weight);
     letter-spacing: var(--ui-text-body-letter-spacing, normal);
     --ui-letter-spacing: var(--ui-text-body-letter-spacing, 0px);
+    --ui-text-glyph: @ui-glyph-md;
 }
 
 .ui-text-type--caption {
@@ -44,6 +51,7 @@
     font-weight: var(--ui-text-caption-font-weight);
     letter-spacing: var(--ui-text-caption-letter-spacing, normal);
     --ui-letter-spacing: var(--ui-text-caption-letter-spacing, 0px);
+    --ui-text-glyph: @ui-glyph-sm;
 }
 
 .ui-text-type--overline {
@@ -52,5 +60,6 @@
     font-weight: var(--ui-text-overline-font-weight);
     letter-spacing: var(--ui-text-overline-letter-spacing, normal);
     --ui-letter-spacing: var(--ui-text-overline-letter-spacing, 0px);
+    --ui-text-glyph: @ui-glyph-sm;
     text-transform: uppercase;
 }

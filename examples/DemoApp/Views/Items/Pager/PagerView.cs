@@ -27,14 +27,14 @@ internal sealed class PagerView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/items/pager";
     protected override string Header => "demo.items.pager.header";
     protected override string HeaderDescription => "demo.items.pager.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/lists", "demo.nav.mechanisms.lists");
+    protected override (string Route, string Title)? ComposedIn => ("/mechanisms/lists", "demo.nav.mechanisms.lists");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame
             .AddChild(new ItemsViewComponent(PreviewListId)
-                .BindSource(nameof(PagerController.Preview))
+                .BindSource<PagerController>(static x => x.Preview)
                 .SetWindowSize(5)
-                .BindPaging($"{PagerGroup}.{nameof(PagerGroupContext.Paging)}")
+                .BindPaging<PagerController>(static x => x.PagerGroup.Paging)
                 .SetSpacing(4)
                 .VerticalScrollOnly()
                 .SetMaxHeight(UILayoutLength.Absolute(260))
@@ -44,7 +44,7 @@ internal sealed class PagerView : DemoComponentView, IUIViewDefinition
             .AddChild(new PagerComponent()
                 .SetTarget(PreviewListId)
                 .SetPageSizes([5, 10, 20])
-                .BindMode($"{PagerGroup}.{nameof(PagerGroupContext.Mode)}")
+                .BindMode<PagerController>(static x => x.PagerGroup.Mode)
                 .BindStandard()
                 .SetPlacement(1, 2, 24, 1)
             ), contentMinHeight: 340);
@@ -52,14 +52,14 @@ internal sealed class PagerView : DemoComponentView, IUIViewDefinition
     /// <summary>A server as a row of a list: its role's glyph, its name over where it runs, its status at the end.</summary>
     private static TextComponent ServerRow()
         => new TextComponent()
-            .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+            .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
             .SetIconColor(UIThemeColor.Muted)
-            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+            .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
             .AsBody()
-            .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+            .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
             .SetDescriptionColor(UIThemeColor.Muted)
-            .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
-            .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
+            .BindBadgeTitle<TextItem>(static x => x.BadgeTitle, UIBindingScope.Relative)
+            .BindBadgeVariant<TextItem>(static x => x.BadgeVariant, UIBindingScope.Relative)
             .SetBadgePlacement(UITextBadgePlacement.Trailing);
 
     protected override ContainerComponent CreateOptions()
@@ -79,24 +79,24 @@ internal sealed class PagerView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("A page of cards",
             UILayout.Stack(12)
                 .AddChild(new ItemsViewComponent(CardsId)
-                    .BindSource(nameof(PagerController.Cards))
+                    .BindSource<PagerController>(static x => x.Cards)
                     .SetWindowSize(8)
                     .SetPaging(true)
                     .SetLayoutType(UIItemsLayoutType.Wrap)
                     .SetSpacing(12)
                     .SetRowHoverable(true)
                     .SetTemplate(new SurfaceComponent()
-                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetSurface(UISurfaceStyle.Surface)
                         .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(250)))
                         .SetContent(new TextComponent()
-                            .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
-                            .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Primary))
-                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
+                            .SetIconColor(UIThemeColor.Default)
+                            .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                             .AsBody()
-                            .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                            .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                             .SetDescriptionColor(UIThemeColor.Muted)
-                            .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
-                            .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
+                            .BindBadgeTitle<TextItem>(static x => x.BadgeTitle, UIBindingScope.Relative)
+                            .BindBadgeVariant<TextItem>(static x => x.BadgeVariant, UIBindingScope.Relative)
                         )
                     )
                 )
@@ -119,7 +119,7 @@ internal sealed class PagerView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Compact",
             UILayout.Stack(8)
                 .AddChild(new ItemsViewComponent(NarrowId)
-                    .BindSource(nameof(PagerController.Narrow))
+                    .BindSource<PagerController>(static x => x.Narrow)
                     .SetWindowSize(20)
                     .SetPaging(true)
                     .VerticalScrollOnly()

@@ -12,7 +12,7 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 public static class FlyoutRenderer
 {
     /// <summary>The flyout's root class, which the engine finds it by.</summary>
-    public const string ClassName = "ui-flyout";
+    public const string ClassName = WebClassNames.Flyout;
 
     /// <summary>Draws a closed flyout under <paramref name="parent"/>: an anchor and a content panel, each filled by the caller.</summary>
     public static void RenderFlyout(IHtmlElementBuilder parent, UIPopupPlacement placement, Action<IHtmlElementBuilder> renderAnchor, Action<IHtmlElementBuilder> renderContent)
@@ -38,7 +38,7 @@ public static class FlyoutRenderer
 
         _ = flyout.Element("div", anchor =>
         {
-            _ = anchor.Class("ui-flyout__anchor");
+            _ = anchor.Class(WebClassNames.FlyoutAnchor);
             render(anchor);
         });
     }

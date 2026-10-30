@@ -31,10 +31,9 @@ test("the close is a square on the first line, overhanging it by as much as the 
     assert.match(close, /margin: calc\(\(var\(--ui-text-body-line-height\) - 1\.75rem\) \/ 2\);/);
 });
 
-test("it draws the core's cross as its whole face, which gives a little while held", () => {
+test("it draws the core's cross as its whole face and does not scale on press", () => {
     assert.match(declarations(".ui-notification__close::before"), /content: "\\e5cd" \/ "";[\s\S]*font-size: 1rem;/);
-    assert.match(css, /\.ui-notification__close\)::before \{\s*transition: scale/);
-    assert.match(css, /\.ui-notification__close\)\.ui-press-held::before \{\s*scale:/);
+    assert.doesNotMatch(css, /\.ui-notification__close[^{]*\{\s*scale:/);
 });
 
 test("no look of its own is left: the ghost button's wash, press and ink are its", () => {

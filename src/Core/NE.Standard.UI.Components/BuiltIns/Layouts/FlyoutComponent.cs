@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -13,8 +12,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>
 /// A popup surface anchored to another component that opens/closes on interaction and hosts arbitrary content.
 /// </summary>
+/// <remarks>
+/// Its panel is a dialog a screen reader names by what opened it — the anchor's button and its words — unless <c>AccessibleName</c>
+/// names it otherwise.
+/// </remarks>
 [UIComponentPropertyBlock(typeof(IPopupPlacementComponent))]
-public abstract partial class FlyoutComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), IOpenableComponent, IPopupPlacementComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class FlyoutComponent<T>(string? id = null) : RegionContainerComponentBase<T>(id), IOpenableComponent, IPopupPlacementComponent, IAccessibleNameComponent
     where T : FlyoutComponent<T>, IUIComponentDefinition
 {
     /// <summary>

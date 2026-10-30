@@ -53,6 +53,13 @@ public record UITableColumn(string Key, UIPhrase? Caption, UIGridUnit Width, UIT
     public bool Fixed { get; init; }
 
     /// <summary>
+    /// Whether the column's cells name their rows (<c>role="rowheader"</c>): a screen reader says them as it moves from row to row,
+    /// and a grid's checkbox is named after them. Where no column says so, the first of the author's own with a caption heads
+    /// the rows of a table with more than one column.
+    /// </summary>
+    public bool IsRowHeader { get; init; }
+
+    /// <summary>
     /// Whether the caption is content — a name such as <c>AP</c> or <c>SPD</c>, shown as written wherever the column is named (the
     /// header, a chooser's entry, a filter's caption) and never looked up as a key. A phrase's key is looked up whatever this says.
     /// </summary>

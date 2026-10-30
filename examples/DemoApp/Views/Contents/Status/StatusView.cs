@@ -16,10 +16,10 @@ internal sealed class StatusView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/contents/status";
     protected override string Header => "demo.contents.status.header";
     protected override string HeaderDescription => "demo.contents.status.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/forbidden", "demo.screens.forbidden.header");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/forbidden", "demo.screens.forbidden.header");
 
     protected override ContainerComponent CreatePreview()
-        => DemoUI.CreatePreview(frame => frame.AddChild(UIPage.Status(DemoIcons.Outline(DemoIcons.Search), UIMessageSeverity.Info, "Nothing at this address", "The page was moved or the link was mistyped.", UIButtons.Primary("Go to the home page"))
+        => DemoUI.CreatePreview(frame => frame.AddChild(UIPage.Status(DemoIcons.Outline(DemoIcons.Search), UIColorStyle.Info, "Nothing at this address", "The page was moved or the link was mistyped.", UIButtons.Primary("Go to the home page"))
             .BindStandard()
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 280);
@@ -35,10 +35,10 @@ internal sealed class StatusView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateNotFoundGroup()
     {
-        return DemoUI.CreateExample("A page not found, one way on",
+        return DemoUI.CreateExample("Info status with primary action",
             UIPage.Status(
                 DemoIcons.Outline(DemoIcons.Search),
-                UIMessageSeverity.Info,
+                UIColorStyle.Info,
                 "This project is gone",
                 "It was deleted or moved; the address you followed points nowhere now.",
                 UIButtons.Primary("Go to the home page")
@@ -51,10 +51,10 @@ internal sealed class StatusView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRefusalGroup()
     {
-        return DemoUI.CreateExample("A refusal, two ways on",
+        return DemoUI.CreateExample("Warning status with secondary & primary actions",
             UIPage.Status(
                 DemoIcons.Outline(DemoIcons.Lock),
-                UIMessageSeverity.Warning,
+                UIColorStyle.Warning,
                 "Billing is for the owners",
                 "Ask one of the workspace's owners to open it for you, or sign in as one.",
                 UIButtons.Ghost("Back to the dashboard"),
@@ -69,7 +69,7 @@ internal sealed class StatusView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFailureGroup()
     {
-        return DemoUI.CreateExample("A failure, no way on",
+        return DemoUI.CreateExample("Danger status without actions",
             new StatusComponent(DemoIcons.Outline(DemoIcons.Alert), UIColorStyle.Danger, "The report could not be built", "The warehouse did not answer in time. Nothing was lost; it is tried again in a minute."),
             note: "new StatusComponent(icon, tone, title, line) is what UIPage.Status builds; AddAction adds a way on."
         );
@@ -80,10 +80,10 @@ internal sealed class StatusView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateSuccessGroup()
     {
-        return DemoUI.CreateExample("Done, and the way in",
+        return DemoUI.CreateExample("Success status with built-in glyph",
             UIPage.Status(
                 null,
-                UIMessageSeverity.Success,
+                UIColorStyle.Success,
                 "Your workspace is ready",
                 "Three projects and the team's invitations were copied from the old one.",
                 UIButtons.Primary("Open the workspace")

@@ -15,9 +15,9 @@ Documentation: [akievansdev.github.io/NE.Standard](https://akievansdev.github.io
 
 ## Install
 
-The framework's packages share one version and are installed together at it. A component package shares its first two
-digits — `1.1.x` goes with the framework's `1.1` — and moves its last digit on its own between framework releases. Until
-2.0.0 the public surface may still move between versions; each changelog marks what breaks.
+Every package — the framework's, the icon set and each component package — is released at one version number, all of them
+together, and installed at it: a component package `2.0.0` goes with the framework's `2.0.0`, and accepts a later framework
+of the same first digit.
 
 An application is a class library over the platform-independent packages — its views, controllers, routes and services —
 and a web project that hosts it, so a second platform is a second host over the same library:
@@ -60,14 +60,14 @@ step.
 **Components can ship separately too.** A component package is a component like the built-in ones — the same
 generator, the same binding, its own renderer on `NE.Standard.UI.Web.Renderers.Foundation` (the data grid, which
 extends the table, on `NE.Standard.UI.Web.Renderers`) — under the framework's own licence, released with every framework
-version and on their own between them, each in a repository of its own:
+version at its number, each in a repository of its own:
 
 - [`NE.Standard.UI.CodeInput`](https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput) — a code editor with
   syntax highlighting, line numbers, several carets and find and replace.
 - [`NE.Standard.UI.DataGrid`](https://github.com/AkiEvansDev/NE.Standard.UI.DataGrid) — a data grid over the
   table: typed columns, editing in place, filters, paging, totals, pinned columns, a detail row and CSV export.
 - [`NE.Standard.UI.Charts`](https://github.com/AkiEvansDev/NE.Standard.UI.Charts) — line, area, bar, pie,
-  scatter and radar charts, a sparkline and a gauge, as SVG the browser keeps.
+  share bar, scatter and radar charts, a sparkline and a gauge, as SVG the browser keeps.
 - [`NE.Standard.UI.Graph`](https://github.com/AkiEvansDev/NE.Standard.UI.Graph) — a canvas of typed nodes, and
   the layered graph of an application's own nodes or of its resources and crafts; a calculator's node kinds come
   ready made in `NE.Standard.UI.Graph.Calculator`, picture kinds in `NE.Standard.UI.Graph.Image`.
@@ -142,7 +142,7 @@ await app.RunAsync();
 
 ## The demo
 
-`examples/DemoApp` is the reference application, 79 routes in all: screens that compose many components into a piece of an
+`examples/DemoApp` is the reference application, 92 routes in all: screens that compose many components into a piece of an
 application (a sign-up, a checkout, a chat, a file editor, the sign-in, account, admin and forbidden pages of the security
 mechanism), pages for what the framework does across components (words, commands, values and validation, large lists, colours),
 and one page per component — a preview beside every bindable property, each row stepping its value, then examples of it in use,

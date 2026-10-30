@@ -98,7 +98,6 @@ installFakeDom({
         position: "static",
         overflowX: element.style.overflowY ?? "visible",
         overflowY: element.style.overflowY ?? "visible",
-        direction: element.style.direction ?? "ltr",
         transform: "none",
         filter: "none",
         perspective: "none",
@@ -377,7 +376,7 @@ test("a finger's tap chooses as it lifts; a press that turned into a scroll or a
     key("Escape", fakeDocument.documentElement);
 });
 
-test("the bar stands above its host as a popup, at the end, the start or the middle the host names, mirrored right to left", () => {
+test("the bar stands above its host as a popup, at the end, the start or the middle the host names", () => {
     const at = scene();
 
     at.host.rect = { left: 100, top: 300, width: 400, height: 60 };
@@ -388,16 +387,15 @@ test("the bar stands above its host as a popup, at the end, the start or the mid
     // A bar of no size measured: it stands its gap above the host's top edge, at its end.
     assert.equal(bar.style.top, "294px");
     assert.equal(bar.style.left, "500px");
-    assert.equal(bar.dataset.uiPlacement, "top-end");
+    assert.equal(bar.getAttribute("data-ui-placement"), "top-end");
 
-    for (const [alignment, direction, placement] of [["start", "ltr", "top-start"], ["center", "ltr", "top"], ["end", "rtl", "top-start"], ["start", "rtl", "top-end"]]) {
+    for (const [alignment, placement] of [["start", "top-start"], ["center", "top"], ["end", "top-end"]]) {
         const again = scene({ hostAttributes: { "data-ui-action-bar": alignment } });
 
-        again.host.style.direction = direction;
         again.host.rect = { left: 100, top: 300, width: 400, height: 60 };
         press(again.text);
 
-        assert.equal(barOf(again.host)!.dataset.uiPlacement, placement, `${alignment} ${direction}`);
+        assert.equal(barOf(again.host)!.getAttribute("data-ui-placement"), placement, alignment);
     }
 });
 
@@ -429,7 +427,7 @@ test("a host the box around it leaves no room above has its bar under it, inside
     list.dispatchEvent(new FakeEvent("scroll"));
     fakeDocument.documentElement.dispatchEvent(new FakeEvent("scroll"));
 
-    assert.equal(bar.dataset.uiPlacement, "bottom-end");
+    assert.equal(bar.getAttribute("data-ui-placement"), "bottom-end");
     assert.equal(bar.style.top, "356px");
     assert.equal(bar.style.left, "480px");
 });
@@ -445,7 +443,7 @@ test("a list that does not scroll is no boundary: its first row's bar stands abo
     at.host.rect = { left: 0, top: 465, width: 600, height: 94 };
     drawnAtSize(() => press(at.text));
 
-    assert.equal(barOf(at.host)!.dataset.uiPlacement, "top-end");
+    assert.equal(barOf(at.host)!.getAttribute("data-ui-placement"), "top-end");
 });
 
 test("a container that only clips is no boundary: a host at its top edge has its bar above while the window has room, and one inside a list is measured against the list", () => {
@@ -458,7 +456,7 @@ test("a container that only clips is no boundary: a host at its top edge has its
     at.host.rect = { left: 0, top: 290, width: 600, height: 60 };
     drawnAtSize(() => press(at.text));
 
-    assert.equal(barOf(at.host)!.dataset.uiPlacement, "top-end");
+    assert.equal(barOf(at.host)!.getAttribute("data-ui-placement"), "top-end");
     assert.equal(barOf(at.host)!.style.top, "252px");
 
     // The same panel in a list scrolled to its end, the row at the list's top edge: the list scrolls it into view.
@@ -498,7 +496,7 @@ test("a host chosen at its scrolling box's top edge is scrolled into view by wha
         // Laid out as the scroll left it: the row lower by what the list scrolled.
         at.host.rect = { left: 0, top: 290 + scrolled - expected, width: 600, height: 60 };
         fakeDocument.documentElement.dispatchEvent(new FakeEvent("scroll"));
-        assert.equal(barOf(at.host)!.dataset.uiPlacement, placement, `scrolled ${scrolled}`);
+        assert.equal(barOf(at.host)!.getAttribute("data-ui-placement"), placement, `scrolled ${scrolled}`);
     }
 });
 
@@ -519,7 +517,7 @@ test("a host the reader scrolls to the box's top edge keeps its bar where it fit
     drawnAtSize(() => press(at.text));
 
     assert.equal(list.scrollTop, 100);
-    assert.equal(barOf(at.host)!.dataset.uiPlacement, "bottom-end");
+    assert.equal(barOf(at.host)!.getAttribute("data-ui-placement"), "bottom-end");
 });
 
 /** Runs a press with every element drawn at a bar's size, as a browser lays out a fixed bar the moment it is drawn. */
@@ -1065,6 +1063,9 @@ test("more stands only while the menu holds an entry out of the bar, and opens t
     more.click();
 
     assert.equal(at.menu.classes.has("ui-context-menu--open"), true);
+    // Called what "more" says, as a menu button's list is.
+    assert.notEqual(more.id, "");
+    assert.equal(at.menu.getAttribute("aria-labelledby"), more.id);
     // Under "more" as a menu button's list, the popup gap below the bar rather than the button inside it.
     assert.equal(at.menu.style.left, "300px");
     assert.equal(at.menu.style.top, "55px");
@@ -1233,6 +1234,8 @@ test("a finger's long press opens the menu with the bar's icons in a row atop it
 
     assert.equal(at.menu.classes.has("ui-context-menu--open"), true);
     assert.equal(strip.classes.has("ui-action-bar--strip"), true);
+    assert.equal(strip.getAttribute("aria-label"), "ui.actionbar.name", "the row is called what the bar it stands for is");
+    assert.equal(at.menu.hasAttribute("aria-labelledby"), false, "a menu at the pointer has no control that opened it");
     assert.deepEqual(labelsOf(strip), ["Pin", "Edit", "Delete"]);
     assert.deepEqual(buttonsOf(strip).map(button => button.getAttribute("role")), ["menuitem", "menuitem", "menuitem"]);
 

@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Shell.Localization;
 
 namespace NE.Standard.UI.Runtime;
@@ -26,9 +27,6 @@ internal enum UIFormattedValueNormalization
 internal static class UIFormattedValueNormalizer
 {
     private const string CanonicalTimeFormat = "HH:mm:ss";
-
-    /// <summary>The exact shapes <c>TemporalInputRendererBase</c> and <c>toCanonical</c> (client) produce.</summary>
-    private static readonly string[] CanonicalDateFormats = ["yyyy-MM-dd", "yyyy-MM-ddTHH:mm:ss"];
 
     /// <summary>
     /// Normalizes <paramref name="value"/> when it is text entered against
@@ -124,6 +122,12 @@ internal static class UIFormattedValueNormalizer
             return TryParseCanonical(text, format, out normalized);
         }
 
+        if (UIWrittenMoment.TryRead(text, out DateTime written, out TimeSpan? writtenOffset))
+        {
+            normalized = FormatTemporal(written, format: null, writtenOffset);
+            return true;
+        }
+
         if (DateTime.TryParse(text, culture, styles, out DateTime parsed))
         {
             normalized = FormatTemporal(parsed, format: null);
@@ -159,9 +163,9 @@ internal static class UIFormattedValueNormalizer
             return false;
         }
 
-        if (DateTime.TryParseExact(text, CanonicalDateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime parsed))
+        if (UIWrittenMoment.TryRead(text, out DateTime parsed, out TimeSpan? offset))
         {
-            normalized = FormatTemporal(parsed, format);
+            normalized = FormatTemporal(parsed, format, offset);
             return true;
         }
 
@@ -170,26 +174,45 @@ internal static class UIFormattedValueNormalizer
     }
 
     private static bool HasDateParts(string format)
-        => format.Contains('d', StringComparison.Ordinal) ||
-           format.Contains('M', StringComparison.Ordinal) ||
-           format.Contains('y', StringComparison.Ordinal);
+    {
+        if (format.AsSpan().IndexOfAny('\'', '"', '\\') >= 0)
+            return false;
+
+        foreach (UITemporalPatternPiece piece in UITemporalPattern.Walk(format))
+        {
+            if (piece.Token is { } token && token[0] is 'd' or 'M' or 'y')
+                return true;
+        }
+
+        return false;
+    }
 
     private static bool HasTimeParts(string format)
-        => format.Contains('H', StringComparison.Ordinal) ||
-           format.Contains('h', StringComparison.Ordinal) ||
-           format.Contains('m', StringComparison.Ordinal) ||
-           format.Contains('s', StringComparison.Ordinal);
+    {
+        if (format.AsSpan().IndexOfAny('\'', '"', '\\') >= 0)
+            return false;
 
-    private static string FormatTemporal(DateTime value, string? format)
+        foreach (UITemporalPatternPiece piece in UITemporalPattern.Walk(format))
+        {
+            if (piece.Token is { } token && token[0] is 'H' or 'h' or 'm' or 's')
+                return true;
+        }
+
+        return false;
+    }
+
+    private static string FormatTemporal(DateTime value, string? format, TimeSpan? offset = null)
     {
         // A format naming no time part is a date-only input; without a format, midnight is the only signal available.
         var isDateOnly = format is null
-            ? value.TimeOfDay == TimeSpan.Zero
+            ? value.TimeOfDay == TimeSpan.Zero && offset is null
             : !HasTimeParts(format);
 
         return isDateOnly
             ? value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-            : value.ToString("O", CultureInfo.InvariantCulture);
+            : offset is TimeSpan written
+                ? new DateTimeOffset(value, written).ToString("O", CultureInfo.InvariantCulture)
+                : value.ToString("O", CultureInfo.InvariantCulture);
     }
 
     private static bool TryParseNumeric(string text, CultureInfo culture, out object? normalized)

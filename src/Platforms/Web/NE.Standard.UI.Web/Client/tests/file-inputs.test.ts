@@ -84,11 +84,11 @@ installFakeDom({
     DragEvent: FakeDragEvent
 });
 
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 const { ImageInputEngine } = await import("../src/interactions/image-input-engine.ts");
 const { FileInputEngine } = await import("../src/interactions/file-input-engine.ts");
 const { formatFileSize } = await import("../src/rendering/file-size.ts");
-const { formatWords } = await import("../src/runtime/words.ts");
+const { formatWords } = await import("../src/rendering/words.ts");
 const { uploadsInFlight } = await import("../src/interactions/uploads-in-flight.ts");
 
 /** A mark the engines put on a field, as the validation engine would show it. */
@@ -335,7 +335,9 @@ test("a shelf taking any file shows a picture as its thumbnail and any other fil
     assert.equal(pdf.querySelector(".ui-file-tile__glyph")?.classes.has("ui-icon-glyph--ne-picture-as-pdf"), true);
     assert.equal(pdf.querySelector(".ui-file-tile__name")?.textContent, "minutes.pdf");
     assert.equal(pdf.querySelector(".ui-file-tile__size")?.textContent, "10 bytes");
-    assert.match(pdf.querySelector(".ui-image-input__remove")?.getAttribute("data-ui-words") ?? "", /ui\.file\.remove/);
+    // Each square's cross says which file or picture it takes away: the shelf holds several.
+    assert.match(pdf.querySelector(".ui-image-input__remove")?.getAttribute("data-ui-words") ?? "", /ui\.shelf\.remove.*minutes\.pdf/);
+    assert.match(picture.querySelector(".ui-image-input__remove")?.getAttribute("data-ui-words") ?? "", /ui\.shelf\.remove.*cat\.png/);
 
     assert.equal(other.querySelector(".ui-file-tile__glyph")?.classes.has("ui-icon-glyph--ne-draft"), true);
 });

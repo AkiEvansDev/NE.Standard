@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { selectPlural } from "../src/runtime/plural-rules.ts";
+import { selectPlural } from "../src/rendering/plural-rules.ts";
 
 type PluralCase = { readonly language: string; readonly number: number; readonly expected: string };
 

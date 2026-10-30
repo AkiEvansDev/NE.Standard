@@ -28,9 +28,9 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(
             DemoButtonBindings.Bind(new ActionComponent(), ButtonGroup, ContentGroup, LayoutGroup, BadgeGroup, BorderGroup)
-                .BindTrailingText($"{ActionGroup}.{nameof(ActionGroupContext.TrailingText)}")
-                .BindTrailingIcon($"{ActionGroup}.{nameof(ActionGroupContext.TrailingIcon)}")
-                .BindShowChevron($"{ActionGroup}.{nameof(ActionGroupContext.ShowChevron)}")
+                .BindTrailingText<ActionController>(static x => x.ActionGroup.TrailingText)
+                .BindTrailingIcon<ActionController>(static x => x.ActionGroup.TrailingIcon)
+                .BindShowChevron<ActionController>(static x => x.ActionGroup.ShowChevron)
                 .SetPlacement(1, 1, 24, 1)
         ));
 
@@ -70,7 +70,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                     .AddChild(new ActionComponent()
                         // The same Icon property carrying a picture instead of a glyph name, drawn round: a person.
                         .SetIcon(DemoImages.Avatar)
-                        .SetIconShape(UIIconShape.Circle)
+                        .SetIconShape(UIShape.Circle)
                         .SetTitle("Profile")
                         .SetDescription("Robin Hale · Admin")
                         .SetTrailingText("Signed in")
@@ -85,8 +85,8 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
                         .SetDescription("Asked on a new device")
-                        .SetBadgeText("Recommended")
-                        .SetBadgeStyle(UIBadgeType.Warning)
+                        .SetBadgeTitle("Recommended")
+                        .SetBadgeVariant(UIBadgeVariant.Warning)
                     )
                 )
                 .AddChild(new StackPanelComponent()
@@ -131,7 +131,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                     )
                     .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Alert)
-                        .SetType(UIButtonType.Danger)
+                        .SetVariant(UIButtonVariant.Danger)
                         .SetTitle("Delete this server")
                         .SetDescription("Cannot be undone")
                     )
@@ -145,40 +145,40 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateMenuGroup()
     {
-        return DemoUI.CreateExample("Inside something that is already a panel",
+        return DemoUI.CreateExample("Frameless action rows inside a card",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetPadding(UIThickness.Uniform(6))
                 .SetContent(UILayout.Stack(2)
                     .SetWidth(UILayoutLength.Absolute(260))
                     // No chevron: in a popover it would promise a submenu, and TrailingIcon cannot say that (unset draws it).
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Edit))
                         .SetTitle("Rename")
                     )
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
                         .SetTitle("Duplicate")
                         .SetTrailingText("Ctrl+D")
                     )
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Download))
                         .SetTitle("Export")
                     )
                     // Not Type.Danger: the row keeps its ghost ground and colours only its own label.
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Alert))
                         .SetTitle("Delete")
@@ -194,7 +194,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstButtonGroup()
     {
-        return DemoUI.CreateExample("Against a button",
+        return DemoUI.CreateExample("ActionComponent vs ButtonComponent",
             // One column and one width for both, or how much of the offered width each takes cannot be seen.
             new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
@@ -202,7 +202,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(300))
                     .AddChild(UIText.Label("ButtonComponent"))
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         // Asked for: a button centres itself, and the two only compare from the same edge.
                         .SetHorizontalAlignment(UIAlignment.Start)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Bell))

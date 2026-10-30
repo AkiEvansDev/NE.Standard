@@ -10,9 +10,9 @@ namespace NE.Standard.UI.Web.Abstractions.Rendering;
 public static class WebAttributes
 {
     /// <summary>A badge's text shown, "compact" while it fits a circle; the client writes it too for a count the page computes itself.</summary>
-    public const string BadgeText = "data-ui-badge-text";
+    public const string BadgeTitle = "data-ui-badge-title";
 
-    /// <summary>A badge's icon shown; a badge select's chips copy their option's badge by it with the rest of its look.</summary>
+    /// <summary>A badge's icon shown; the chips of a multi-select's badges variant copy their option's badge by it with the rest of its look.</summary>
     public const string BadgeIcon = "data-ui-badge-icon";
 
     /// <summary>A badge's text given at all, blank included: an empty text is a badge with nothing to say, which a menu's icon corner draws as a dot.</summary>
@@ -44,7 +44,7 @@ public static class WebAttributes
     // one of the two the first paint wrote would take the mark off.
     public const string TextBadgeIcon = "data-ui-text-badge-icon";
 
-    public const string TextBadgeText = "data-ui-text-badge-text";
+    public const string TextBadgeTitle = "data-ui-text-badge-title";
 
     /// <summary>On the element inline markup was written into while it holds a fold (<c>[caption]{text}</c>), which then wraps.</summary>
     public const string Folds = "data-ui-folds";
@@ -90,7 +90,7 @@ public static class WebAttributes
 
     public const string ColorNoPalette = "data-ui-color-no-palette";
 
-    public const string ColorNoPicker = "data-ui-color-no-picker";
+    public const string ColorNoOpacity = "data-ui-color-no-opacity";
 
     public const string ColorOpacity = "data-ui-color-opacity";
 
@@ -104,8 +104,6 @@ public static class WebAttributes
     public const string ColorTab = "data-ui-color-tab";
 
     public const string ColorToggle = "data-ui-color-toggle";
-
-    public const string ColorVariant = "data-ui-color-variant";
 
     public const string Context = "data-ui-context";
 
@@ -195,7 +193,7 @@ public static class WebAttributes
     public const string FallbackSrc = "data-ui-fallback-src";
 
     /// <summary>On a round picture or picture icon: the glyph it shows while it has no picture, where the author named one; else <c>UIGlyphs.Person</c>.</summary>
-    public const string FallbackIcon = "data-ui-fallback-icon";
+    public const string IconFallback = "data-ui-icon-fallback";
 
     /// <summary>On a picture (<c>.ui-image</c>) showing the framework's stand-in: its source, and any fallback source, missing or failed.</summary>
     public const string ImageFailed = "data-ui-image-failed";
@@ -286,6 +284,9 @@ public static class WebAttributes
     /// </summary>
     public const string StepEnd = "data-ui-step-end";
 
+    /// <summary>On a wizard step's wrapper: the step stands before the current one and is completed.</summary>
+    public const string StepCompleted = "data-ui-step-completed";
+
     public const string InputDebounce = "data-ui-input-debounce";
 
     public const string Selection = "data-ui-selection";
@@ -368,6 +369,10 @@ public static class WebAttributes
 
     public const string MenuGroup = "data-ui-menu-group";
 
+    /// <summary>On a page-standing menu entry that acts (an Item or a Select): the client gives it the button's role while its row
+    /// holds no address, since an anchor without one has no role of its own. A popup entry takes the mark never.</summary>
+    public const string MenuEntryActing = "data-ui-menu-entry-acting";
+
     public const string MenuItemKind = "data-ui-menu-item-kind";
 
     public const string MenuOpen = "data-ui-menu-open";
@@ -420,6 +425,10 @@ public static class WebAttributes
     /// <summary>The id a dialog's title carries, which the dialog's panel names in <c>aria-labelledby</c>.</summary>
     public static string DialogTitleId(UIComponentId titleComponentId)
         => string.Create(CultureInfo.InvariantCulture, $"ui-{titleComponentId.Value}-dialog-title");
+
+    /// <summary>The id a named menu standing in the page carries, which the side holding it names in <c>aria-labelledby</c>.</summary>
+    public static string MenuNameId(UIComponentId menuComponentId)
+        => string.Create(CultureInfo.InvariantCulture, $"ui-{menuComponentId.Value}-menu");
 
     /// <summary>On each band of the page — header, sides, content, footer — naming it; a side's drawer is found by it.</summary>
     public const string Region = "data-ui-region";
@@ -625,6 +634,12 @@ public static class WebAttributes
     /// <summary>On the header cell of a column the control owns: the viewer neither sizes it nor moves it.</summary>
     public const string TableFixed = "data-ui-table-fixed";
 
+    /// <summary>On the cells of a table's column of checkboxes.</summary>
+    public const string TableSelect = "data-ui-table-select";
+
+    /// <summary>On that column's header cell, which carries the box over the rows the table has drawn.</summary>
+    public const string TableSelectAll = "data-ui-table-select-all";
+
     public const string TabCaption = "data-ui-tab-caption";
 
     /// <summary>On a tree node's root: the key of the node above it.</summary>
@@ -741,6 +756,9 @@ public static class WebAttributes
 
     public const string TemporalMax = "data-ui-temporal-max";
 
+    /// <summary>On a period: the least distance between its two ends, as a <see cref="System.TimeSpan"/>'s invariant <c>c</c> text, the wire's.</summary>
+    public const string TemporalMinDistance = "data-ui-temporal-min-distance";
+
     public const string TemporalMin = "data-ui-temporal-min";
 
     public const string TemporalMode = "data-ui-temporal-mode";
@@ -787,8 +805,11 @@ public static class WebAttributes
 
     public const string TooltipPlacement = "data-ui-tooltip-placement";
 
+    /// <summary>On a control speaking through the tooltip of a part inside it: the client shows that part's tooltip, drawn against the part.</summary>
+    public const string TooltipMark = "data-ui-tooltip-mark";
+
     /// <summary>
-    /// On an element whose tooltip is shown as written (<c>ITextBaseComponent.TooltipPlain</c>): its words, written and pushed, are text,
+    /// On an element whose tooltip is shown as written (<c>ITooltipComponent.TooltipPlain</c>): its words, written and pushed, are text,
     /// never read as inline markup.
     /// </summary>
     public const string TooltipPlain = "data-ui-tooltip-plain";
@@ -806,6 +827,14 @@ public static class WebAttributes
     public const string TextAreaGrow = "data-ui-text-area-grow";
 
     public const string TrimInput = "data-ui-trim-input";
+
+    public const string Triggers = "data-ui-triggers";
+
+    public const string TriggerItems = "data-ui-trigger-items";
+
+    public const string TriggerSearch = "data-ui-trigger-search";
+
+    public const string TriggerClick = "data-ui-trigger-click";
 
     public const string ValidationMessage = "data-ui-validation-message";
 

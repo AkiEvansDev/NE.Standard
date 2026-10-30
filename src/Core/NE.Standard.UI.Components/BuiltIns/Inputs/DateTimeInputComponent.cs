@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
@@ -39,8 +38,8 @@ public abstract partial class DateTimeInputComponent<T>(string? id = null) : Tem
     }
 
     /// <inheritdoc/>
-    protected override void ValidatePeriod(DateTimeOffset? start, DateTimeOffset? end)
-        => OrderedRange.ValidatePeriod(start, end, "date-time");
+    protected override void ValidatePeriod(DateTimeOffset? start, DateTimeOffset? end, TimeSpan? minDistance)
+        => OrderedRange.ValidatePeriod(start, end, minDistance, static (from, to) => to - from, "date-time");
 }
 
 /// <summary>

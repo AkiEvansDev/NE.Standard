@@ -17,11 +17,9 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// <summary>A swatch that opens a picker: a free colour on one tab, the palette on the other.</summary>
 public sealed class ColorInputComponentRenderer : TextContentRendererBase
 {
-    private const string ValueInputClass = "ui-color-input__value-input";
+    private const string ValueInputClass = WebClassNames.ColorInputValueInput;
     private const string PickerPane = "picker";
     private const string PalettePane = "palette";
-    // Read by the stylesheet alone, so it is this renderer's own rather than a WebAttributes constant.
-    private const string NoOpacityAttribute = "data-ui-color-no-opacity";
 
     // The palette as a colour chart: a column per family around the hue wheel, the neutrals last, and a row per step the palette's
     // names give — the deep one, Nebula, Lunar. In the enum's order, ten to a row, every family broke across two rows.
@@ -38,15 +36,14 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         ColorName.Flare, ColorName.Ember, ColorName.SolarGold, ColorName.Photon, ColorName.Comet, ColorName.Halo, ColorName.Vortex, ColorName.PulsarMagenta
     ];
 
-    private static readonly WebDomOperation[] ReadOnlyOperations = NativeInputRendererBase.PickReadOnlyOperations([".ui-color-input__toggle", ".ui-color-input__swatch--button"]);
+    private static readonly WebDomOperation[] ReadOnlyOperations = NativeInputRendererBase.PickReadOnlyOperations([".ui-color-input__swatch"]);
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value", converter: WebDomConverters.ThemeColorCanonical)];
     private static readonly WebDomOperation[] TextFormatOperations = [WebDomOperation.Attribute(WebAttributes.ColorFormat, converter: WebDomConverters.ColorTextFormatAttribute)];
-    private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Attribute(WebAttributes.ColorVariant, converter: WebDomConverters.ColorInputVariantAttribute)];
 
     public override string ComponentTypeKey => ColorInputComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-color-input";
+    protected override string ClassName => WebClassNames.ColorInput;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -64,12 +61,10 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root, titleCanGoInside: true);
 
-        // Both variants and both panes are always rendered, the root says which show: no DOM operation swaps elements.
         List<IHtmlElementBuilder> texts = [];
         List<IHtmlElementBuilder> toggles = [];
 
         RenderRow(context, root, texts.Add, toggles.Add);
-        RenderSwatchButton(context, root, texts.Add, toggles.Add);
         NativeInputRendererBase.RenderIsReadOnlyAsPick(context, root, toggles, native: null, ReadOnlyOperations);
         RenderPopup(context, root);
         RenderValueInput(context, root, format, texts);
@@ -84,59 +79,34 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
             TextFormatOperations);
     }
 
-    /// <summary>Which variant shows, and which of the popup's parts are refused — all four on the root.</summary>
+    /// <summary>Which of the popup's parts are refused, on the root.</summary>
     private static void RenderPresentation(WebRenderContext context, IHtmlElementBuilder root)
     {
-        _ = RenderProperty<UIColorInputVariant?>(context, root, ColorInputComponent.VariantProperty, static (target, value)
-            => target.Attribute(WebAttributes.ColorVariant, value == UIColorInputVariant.Swatch ? "swatch" : "field"),
-            VariantOperations);
-
         // A refusal rather than an offer: each defaults to shown, so an unset or null value, first paint and live patch alike, marks nothing.
-        RenderFlagAttribute(context, root, ColorInputComponent.ShowPickerProperty, WebAttributes.ColorNoPicker, WebValueCondition.IsFalse);
         RenderFlagAttribute(context, root, ColorInputComponent.ShowPaletteProperty, WebAttributes.ColorNoPalette, WebValueCondition.IsFalse);
-        RenderFlagAttribute(context, root, ColorInputComponent.ShowOpacityProperty, NoOpacityAttribute, WebValueCondition.IsFalse);
+        RenderFlagAttribute(context, root, ColorInputComponent.ShowOpacityProperty, WebAttributes.ColorNoOpacity, WebValueCondition.IsFalse);
     }
 
-    /// <summary>The field variant: a swatch, the colour written beside it, and the button that opens the picker.</summary>
+    /// <summary>A swatch that opens the picker, and the colour written beside it.</summary>
     private static void RenderRow(WebRenderContext context, IHtmlElementBuilder root, Action<IHtmlElementBuilder> onText, Action<IHtmlElementBuilder> onToggle)
     {
         _ = root.Element("span", row =>
         {
-            _ = row.Class("ui-color-input__row");
+            _ = row.Class(WebClassNames.ColorInputRow);
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
             RenderInputHeaderInside(context, root, row);
 
-            _ = row.Element("span", element => element.Class("ui-color-input__swatch"));
-
-            _ = row.Element("span", element =>
-            {
-                _ = element.Class("ui-color-input__text");
-                onText(element);
-            });
-
-            RenderPopupToggle(row, "ui-color-input__toggle", WebAttributes.ColorToggle, button =>
+            RenderPopupToggle(row, "ui-color-input__swatch", WebAttributes.ColorToggle, button =>
             {
                 onToggle(button);
                 RenderFieldLabel(context, button, UIStrings.ColorChoose);
             });
-        });
-    }
 
-    /// <summary>The swatch variant: the colour itself, with its own text across it, and nothing else.</summary>
-    private static void RenderSwatchButton(WebRenderContext context, IHtmlElementBuilder root, Action<IHtmlElementBuilder> onText, Action<IHtmlElementBuilder> onToggle)
-    {
-        RenderPopupToggle(root, "ui-color-input__swatch ui-color-input__swatch--button", WebAttributes.ColorToggle, button =>
-        {
-            onToggle(button);
-            RenderFieldLabel(context, button, UIStrings.ColorChoose);
-
-            BorderStyleRenderer.RenderBorderStyle(context, button);
-
-            _ = button.Element("span", element =>
+            _ = row.Element("span", element =>
             {
-                _ = element.Class("ui-color-input__text ui-color-input__text--over");
+                _ = element.Class(WebClassNames.ColorInputText);
                 onText(element);
             });
         });
@@ -146,7 +116,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
     {
         _ = root.Element("div", popup =>
         {
-            _ = popup.Class("ui-color-input__popup");
+            _ = popup.Class(WebClassNames.ColorInputPopup);
             _ = popup.Attribute("role", "dialog");
 
             // A holder, as a flyout's panel is: Enter in its Hex or channel field hands it the keyboard, never the page's body.
@@ -164,18 +134,21 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         _ = popup.Element("div", tabs =>
         {
             _ = tabs.Class("ui-color-input__tabs");
+            _ = tabs.Attribute("role", "tablist");
 
-            RenderTab(context, tabs, PickerPane, UIStrings.ColorPicker);
-            RenderTab(context, tabs, PalettePane, UIStrings.ColorPalette);
+            RenderTab(context, tabs, PickerPane, UIStrings.ColorPicker, selected: true);
+            RenderTab(context, tabs, PalettePane, UIStrings.ColorPalette, selected: false);
         });
     }
 
-    private static void RenderTab(WebRenderContext context, IHtmlElementBuilder tabs, string pane, string captionKey)
+    private static void RenderTab(WebRenderContext context, IHtmlElementBuilder tabs, string pane, string captionKey, bool selected)
     {
         _ = tabs.Element("button", tab =>
         {
             _ = tab.Class("ui-color-input__tab");
             _ = tab.Attribute("type", "button");
+            _ = tab.Attribute("role", "tab");
+            _ = tab.Attribute("aria-selected", selected ? "true" : "false");
             _ = tab.Attribute(WebAttributes.ColorTab, pane);
             WebWords.Write(context, tab, null, captionKey);
         });
@@ -197,14 +170,14 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 {
                     _ = square.Class("ui-color-input__square");
                     _ = square.Attribute(WebAttributes.ColorSquare);
-                    _ = square.Element("span", thumb => thumb.Class("ui-color-input__square-thumb"));
+                    _ = square.Element("span", thumb => thumb.Class(WebClassNames.ColorInputSquareThumb));
                 });
 
                 _ = area.Element("div", hue =>
                 {
                     _ = hue.Class("ui-color-input__hue");
                     _ = hue.Attribute(WebAttributes.ColorHue);
-                    _ = hue.Element("span", thumb => thumb.Class("ui-color-input__hue-thumb"));
+                    _ = hue.Element("span", thumb => thumb.Class(WebClassNames.ColorInputHueThumb));
                 });
             });
 
@@ -259,6 +232,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
         {
             _ = chip.Class("ui-color-input__chip");
             _ = chip.Attribute("type", "button");
+            _ = chip.Attribute("aria-pressed", "false");
             // The palette name is the colour's identifier on the wire, and a word to the reader; since the tooltip engine reads to
             // nobody else, the word doubles as the label.
             var key = UIStrings.ColorNameKey(name);
@@ -345,25 +319,13 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                     return;
 
                 _ = root.Style("--ui-color-input-color", WebCssValues.ThemeColor(color));
-                _ = root.Style("--ui-color-input-on-color", OnColor(color));
 
-                // Both variants carry the text, because both are rendered.
                 var described = Describe(color, format);
 
                 foreach (IHtmlElementBuilder text in texts)
                     _ = text.Text(described);
             }, ValueOperations);
         });
-    }
-
-    /// <summary>The text colour that reads on top, judged over the swatch's white checkerboard rather than the colour alone.</summary>
-    private static string OnColor(UIThemeColor color)
-    {
-        ColorVariant? variant = color.Light ?? color.Dark;
-
-        return variant is null
-            ? "inherit"
-            : WebCssValues.OnColorToken(variant.Value.IsLightOverWhite());
     }
 
     /// <summary>How the colour reads as text.</summary>

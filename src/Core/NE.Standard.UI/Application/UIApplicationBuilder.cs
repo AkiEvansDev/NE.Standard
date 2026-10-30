@@ -587,6 +587,7 @@ public sealed class UIApplicationBuilder
             MaxParallelFlushes = source.MaxParallelFlushes,
             MaxQueuedChangeSets = source.MaxQueuedChangeSets,
             MaxQueuedChangeBytes = source.MaxQueuedChangeBytes,
+            MaxQueuedChangeBytesTotal = source.MaxQueuedChangeBytesTotal,
             SendTimeout = source.SendTimeout,
             MaxRuntimesPerSession = source.MaxRuntimesPerSession,
             MaxUnclaimedRuntimesPerSession = source.MaxUnclaimedRuntimesPerSession,

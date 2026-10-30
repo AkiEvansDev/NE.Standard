@@ -29,7 +29,7 @@ internal sealed class TimeInputView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/inputs/time-input";
     protected override string Header => "demo.inputs.time-input.header";
     protected override string HeaderDescription => "demo.inputs.time-input.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(360,
@@ -41,25 +41,26 @@ internal sealed class TimeInputView : DemoComponentView, IUIViewDefinition
     private static TimeInputComponent Bind(TimeInputComponent input)
         => input
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(TimeValueGroupContext.Value)}")
-            .BindMin($"{ValueGroup}.{nameof(TimeValueGroupContext.Min)}")
-            .BindMax($"{ValueGroup}.{nameof(TimeValueGroupContext.Max)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(TimeValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(TimeValueGroupContext.Size)}")
-            .BindDisplayFormat($"{FieldGroup}.{nameof(TemporalFieldGroupContext.DisplayFormat)}")
-            .BindAppearance($"{FieldGroup}.{nameof(TemporalFieldGroupContext.Appearance)}")
-            .BindPrefixIcon($"{FieldGroup}.{nameof(TemporalFieldGroupContext.PrefixIcon)}")
-            .BindSuffixIcon($"{FieldGroup}.{nameof(TemporalFieldGroupContext.SuffixIcon)}")
+            .BindValue<TimeInputController>(static x => x.ValueGroup.Value)
+            .BindMin<TimeInputController>(static x => x.ValueGroup.Min)
+            .BindMax<TimeInputController>(static x => x.ValueGroup.Max)
+            .BindIsReadOnly<TimeInputController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<TimeInputController>(static x => x.ValueGroup.Size)
+            .BindDisplayFormat<TimeInputController>(static x => x.FieldGroup.DisplayFormat)
+            .BindAppearance<TimeInputController>(static x => x.FieldGroup.Appearance)
+            .BindPrefixIcon<TimeInputController>(static x => x.FieldGroup.PrefixIcon)
+            .BindSuffixIcon<TimeInputController>(static x => x.FieldGroup.SuffixIcon)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
-            .BindEndValue($"{ValueGroup}.{nameof(TimeValueGroupContext.EndValue)}")
+            .BindEndValue<TimeInputController>(static x => x.ValueGroup.EndValue)
+            .BindMinDistance<TimeInputController>(static x => x.ValueGroup.MinDistance)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value", note: "EndValue and MinDistance are the period's: an end nearer the other than the distance is not on offer."),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
             DemoUI.CreateOptionSection(ContentGroup, "Content"),
             DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
@@ -77,7 +78,7 @@ internal sealed class TimeInputView : DemoComponentView, IUIViewDefinition
     /// </remarks>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateExample("Where it is used",
+        return DemoUI.CreateExample("Single time & time range",
             UILayout.Stack(8)
                 .AddChild(new TimeInputComponent()
                     .SetAppearance(UIInputAppearance.Underline)
@@ -91,13 +92,14 @@ internal sealed class TimeInputView : DemoComponentView, IUIViewDefinition
                 .AddChild(new TimeInputComponent()
                     .SetAppearance(UIInputAppearance.Underline)
                     .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                    .SetTitle("Maintenance window")
+                    .SetTitle("Maintenance window, at least an hour")
                     .SetIsRange()
+                    .SetMinDistance(TimeSpan.FromHours(1))
                     .SetValue(new TimeOnly(2, 0))
                     .SetEndValue(new TimeOnly(4, 0))
                     .SetStepMinutes(30)
-                    .SetBadgeText("UTC")
-                    .SetBadgeStyle(UIBadgeType.Info)
+                    .SetBadgeTitle("UTC")
+                    .SetBadgeVariant(UIBadgeVariant.Info)
                 )
                 .AddChild(new TimeInputComponent()
                     .SetAppearance(UIInputAppearance.Underline)
@@ -116,7 +118,7 @@ internal sealed class TimeInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateSegmentsGroup()
     {
-        return DemoUI.CreateExample("Which segments it has",
+        return DemoUI.CreateExample("Format-driven segments (24h, AM/PM, seconds)",
             UILayout.Stack(16)
                 .AddChild(new TimeInputComponent()
                     .SetTitle("Unset — HH:mm, two segments, 24 hours")
@@ -140,7 +142,7 @@ internal sealed class TimeInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateStepGroup()
     {
-        return DemoUI.CreateExample("What the arrows move by",
+        return DemoUI.CreateExample("Step intervals",
             UILayout.Stack(16)
                 .AddChild(new TimeInputComponent()
                     .SetTitle("A minute at a time")
@@ -168,7 +170,7 @@ internal sealed class TimeInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateExample("Bounds",
+        return DemoUI.CreateExample("Min & max time bounds",
             UILayout.Stack(16)
                 .AddChild(new TimeInputComponent()
                     .SetTitle("Working hours")

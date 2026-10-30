@@ -84,11 +84,14 @@
         padding: @ui-space-2 @ui-space-4;
     }
 
+// The keyboard's row: the list is a row host whose cursor's row holds the focus, the host's one Tab stop (row-cursor.ts).
+.ui-row-cursor-on-row(~".ui-key-value-action", ~".ui-key-value-action__row");
+
 // With no edge of its own — no border, no fill — the list stands in its holder's inset, so its keys line up with what is beside them
 // in a card or an expander; the separators stay. The fill is read off the inline Background, the one place it is written. Surface
 // Background is not an edge: every list carries it by default, and its ground is the page's own. A list whose rows wash under the
 // pointer keeps the inset, since the wash is then the row's edge and the key would stand on it.
-.ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, .ui-surface--flat, [style*="--ui-surface-color"], .ui-key-value-action--row-hover) {
+.ui-key-value-action.ui-border--none:not(.ui-surface--surface, .ui-surface--tinted, [style*="--ui-surface-color"], .ui-key-value-action--row-hover) {
     .ui-key-value-action__row,
     .ui-key-value-action__host > [data-ui-empty-placeholder] {
         padding-inline: 0;
@@ -182,7 +185,7 @@
     }
 
     // The editor fills the cell's width.
-    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
+    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
         flex: 1 1 auto;
         align-self: flex-start;
         .ui-responsive-property(min-width, --ui-min-width, 0);
@@ -190,18 +193,18 @@
 
     // Set back by the field's own inset, so its text starts on the value's first glyph. The inset is narrowed to the column gap less a
     // step, or a box set back by a full one closed up against the key.
-    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
+    .ui-key-value-action__value-input > :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
         .ui-field-narrow-inset(@ui-space-3 - @ui-space-1);
         .ui-responsive-property(margin, --ui-margin, 0 0 0 calc(-1 * var(--ui-field-inset, calc(@ui-space-3 + var(--ui-border-width, 1px)))));
     }
 
     // Anything else in the cell — a switch, a picture — sits in the middle of it, whatever alignment its template wrote inline.
-    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input > [data-ui-id]:not(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
+    .ui-key-value-action__row[data-ui-row-editing] > .ui-key-value-action__value-input > [data-ui-id]:not(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) {
         align-self: center;
         .ui-responsive-property(margin, --ui-margin, 0);
     }
 
-    .ui-key-value-action__value-input :is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline) > :is(@{ui-input-field}) {
+    .ui-key-value-action__value-input :is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline) > :is(@{ui-input-field}) {
         flex: 1 1 auto;
         min-height: @ui-button-height-sm;
     }
@@ -242,19 +245,27 @@
     aspect-ratio: 1;
 }
 
+    :where(.ui-key-value-action--editable .ui-key-value-action__action, .ui-key-value-action__edit-action > .ui-stack-panel) > .ui-button.ui-button--ghost {
+        color: @ui-text-muted;
+    }
+
     .ui-key-value-action--editable .ui-key-value-action__action > .ui-button > .ui-button__content,
     .ui-key-value-action__edit-action > .ui-stack-panel > .ui-button > .ui-button__content {
         .ui-visually-hidden();
     }
 
-    .ui-key-value-action--editable .ui-key-value-action__action > .ui-button::before {
+    .ui-key-value-action--editable .ui-key-value-action__action > .ui-button:not(.ui-loading, [data-ui-pending])::before {
         .ui-pencil-glyph(@ui-glyph-sm);
     }
 
-    .ui-key-value-action__edit-action > .ui-stack-panel > .ui-button:first-child::before {
+    .ui-key-value-action__edit-action > .ui-stack-panel > .ui-button:first-child:not(.ui-loading, [data-ui-pending])::before {
         .ui-check-glyph(@ui-glyph-sm);
     }
 
-    .ui-key-value-action__edit-action > .ui-stack-panel > .ui-button:last-child {
+    .ui-key-value-action__edit-action > .ui-stack-panel > .ui-button:last-child:not(.ui-loading, [data-ui-pending]) {
         .ui-cross-glyph(@ui-glyph-sm);
+    }
+
+    :is(.ui-key-value-action--editable .ui-key-value-action__action, .ui-key-value-action__edit-action > .ui-stack-panel) > .ui-button:is(.ui-loading, [data-ui-pending])::before {
+        font-size: @ui-glyph-sm;
     }

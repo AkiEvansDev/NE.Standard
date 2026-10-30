@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Abstractions.Binding.Properties;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -46,7 +45,8 @@ internal static class SwitcherChromeRenderer
 
     /// <summary>
     /// The field's root: the engine's hook, the tooltip and the box's appearance, an input's; the caption over the box, the author's
-    /// title or else the framework's word for the setting (<paramref name="defaultTitleKey"/>).
+    /// title or else the framework's word for the setting (<paramref name="defaultTitleKey"/>); the edge on the box, as a select's. The
+    /// button's chrome (<see cref="RenderChrome"/>) — its look, padding, ground and picture — is the button's alone.
     /// </summary>
     public static void RenderField(WebRenderContext context, IHtmlElementBuilder root, string hookAttribute, string defaultTitleKey, Action<IHtmlElementBuilder> renderValue, Action<IHtmlElementBuilder> renderChoices)
     {
@@ -58,7 +58,7 @@ internal static class SwitcherChromeRenderer
         _ = root.Attribute(WebAttributes.TextTitle);
 
         WebComponentRendererBase.RenderTooltip(context, root);
-        TextContentRendererBase.RenderFieldAppearance(context, root);
+        TextContentRendererBase.RenderFieldAppearance(context, root, ISwitcherComponent.FieldVariantProperty);
 
         _ = WebComponentRendererBase.ResolveRenderValue(context, ISwitcherComponent.TitleProperty, out string? title, out _);
 
@@ -70,10 +70,10 @@ internal static class SwitcherChromeRenderer
 
             _ = header.Element("span", body =>
             {
-                _ = body.Class("ui-text__body");
+                _ = body.Class(WebClassNames.TextBody);
                 _ = body.Element("span", line =>
                 {
-                    _ = line.Class("ui-text__header");
+                    _ = line.Class(WebClassNames.TextHeader);
                     _ = line.Element("span", caption => RenderFieldCaption(context, caption, defaultTitleKey));
                 });
             });
@@ -83,6 +83,10 @@ internal static class SwitcherChromeRenderer
         {
             _ = trigger.Class(WebClassNames.SelectTrigger);
             _ = trigger.Attribute("type", "button");
+
+            // On the box, not the root: the box is the field, as a select's trigger is.
+            BorderStyleRenderer.RenderBorderStyle(context, trigger);
+
             // A select-only combobox: the caption is its name and the current choice drawn inside it is its value.
             _ = trigger.Attribute("role", "combobox");
             _ = trigger.Attribute("aria-haspopup", "listbox");
@@ -109,7 +113,7 @@ internal static class SwitcherChromeRenderer
 
     private static void RenderFieldCaption(WebRenderContext context, IHtmlElementBuilder caption, string defaultTitleKey)
     {
-        _ = caption.Class("ui-text__title");
+        _ = caption.Class(WebClassNames.TextTitle);
 
         // The framework's word is marked, so a language switch writes it again; the author's is the property's own.
         _ = WebComponentRendererBase.RenderProperty<string?>(context, caption, ISwitcherComponent.TitleProperty, (target, value) =>
@@ -121,16 +125,17 @@ internal static class SwitcherChromeRenderer
         }, FieldTitleOperations);
     }
 
-    /// <summary>The tooltip, the button's look, the padding, the ground and the edge, on the root the pointer rests on.</summary>
+    /// <summary>The tooltip, the button's look, the padding, the ground, its picture and the edge, on the root the pointer rests on.</summary>
     public static void RenderChrome(WebRenderContext context, IHtmlElementBuilder root)
     {
         WebComponentRendererBase.RenderTooltip(context, root);
 
-        ButtonRendererBase.RenderButtonLook(context, root);
+        ButtonRendererBase.RenderButtonLook(context, root, ISwitcherComponent.ButtonVariantProperty);
 
         ResponsiveRenderer.ApplyResponsiveThickness(context, root, ISurfaceComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
 
         SurfaceStyleRenderer.RenderBackground(context, root, ISurfaceComponent.BackgroundProperty);
+        SurfaceStyleRenderer.RenderBackgroundImage(context, root);
 
         BorderStyleRenderer.RenderBorderStyle(context, root);
     }

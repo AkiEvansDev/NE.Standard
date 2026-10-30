@@ -7,7 +7,7 @@ import { FakeElement, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom({});
 
-const { markMenuIcons, writeMenuIcons } = await import("../src/updates/menu-icons.ts");
+const { markMenuIcons, writeMenuIcons } = await import("../src/rendering/menu-icons.ts");
 
 function entry(icon: boolean): FakeElement {
     return FakeElement.of("ui-menu-item", icon ? { "data-ui-text-icon": "" } : {}, "a");

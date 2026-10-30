@@ -4,12 +4,12 @@
 // bar is a view of the host's context menu: a press on an icon is the entry's own press, after the opening its menu would have heard.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarKeyAttribute, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, EventBoundaryAttribute, InActionBarAttribute, NoRowDragAttribute, PopupRoleSelector, RowBarAttribute, TableRowClass, TreeRowClass, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import { ActionBarButtonClass, actionBarEntryOf, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
+import { ActionBarAttribute, ActionBarButtonClass, ActionBarClass, ActionBarOutClass, ComponentKeyAttribute, ComponentSelector, ContextMenuAttribute, ContextMenuOpenClass, EventBoundaryAttribute, InActionBarAttribute, NoRowDragAttribute, PopupRoleSelector, RowBarAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import type { HostIdentity } from "./action-bar.ts";
+import { actionBarEntryOf, barButtons, barGapOf, barPlacement, drawActionBar, findByIdentity, hostsIn, identityOf, isShownEntry, markMoreOpen, moreButtonOf, openMenuFrom, ownMenuHost, readActionBarEntries, rowOfHost, takesFocus } from "./action-bar.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup, repositionAnchoredPopup } from "./anchored-popup.ts";
-import { actionBarMenuOf, isTouchOpening, OpenClass as MenuOpenClass } from "./context-menu-engine.ts";
+import { actionBarMenuOf, isTouchOpening } from "./context-menu-engine.ts";
 import { canScroll, isClippedOut, isInSight, viewBoxAround } from "./element-visibility.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isInert } from "./interactive-state.ts";
@@ -18,7 +18,7 @@ import { isBehindModal, OpenDialogSelector } from "./open-dialogs.ts";
 import { registerEscapeLayer } from "./popup-dismissal.ts";
 import { ownControlOf } from "./own-control.ts";
 import { onlyPressWaves } from "./press-wave.ts";
-import { FocusableSelector, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
+import { isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
 import type { ComponentIndex } from "./popup-focus.ts";
 import { applyRovingTabIndex, moveRovingFocus, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
 import { cursorRowOf } from "./row-cursor.ts";
@@ -26,18 +26,6 @@ import { SelectionRootSelector } from "./row-selection.ts";
 
 const HostSelector = `[${ActionBarAttribute}]`;
 const BarSelector = `.${ActionBarClass}`;
-
-// On a bar whose host the scroll took wholly out of sight: it stays chosen, and shows again as the host comes back.
-const OutClass = `${ActionBarClass}--out`;
-
-// The rows that hold a host as their child; a tree's row holds it in its node face's wrapper.
-const HostRowSelector = `.ui-items-view__item, .${TableRowClass}`;
-const TreeNodeWrapperClass = "ui-tree__node";
-
-// Between the bar and the edge of the item it stands over, so the two never read as one. A host whose look reaches past its box (a
-// canvas node's selection ring) sets a wider one on itself.
-const BarGap = 6;
-const BarGapProperty = "--ui-action-bar-gap";
 
 // A double tap's second tap lands where the bar its first one brought up now stands (a canvas moving the chosen node clear for it):
 // a finger's press on a bar younger than this is held, not pressed. When each bar came up is kept by the bar.
@@ -53,18 +41,6 @@ type ShownBar = {
     readonly observer: MutationObserver;
     /** The list's row the bar stands over, marked while it does (`.ui-row-bar()`). */
     readonly row: Element | null;
-};
-
-/**
- * What a chosen host stands for, so the one drawn in its place keeps the bar: a row redrawn, a window scrolled past it and back, a
- * node a package drew anew. The element under `scope` carrying `key` in `attribute` — the host itself where a package keys it
- * (`data-ui-action-bar-key`), else its row (`data-ui-key`) — and the host's place among the hosts there.
- */
-type HostIdentity = {
-    readonly scope: Element;
-    readonly attribute: string;
-    readonly key: string;
-    readonly index: number;
 };
 
 /**
@@ -319,7 +295,7 @@ export class ActionBarEngine {
 
         const bar = chosen === null ? undefined : this.shown.get(chosen)?.bar;
 
-        return chosen !== null && bar !== undefined && !bar.classList.contains(OutClass) && isInSight(chosen) && !isBehindModal(chosen);
+        return chosen !== null && bar !== undefined && !bar.classList.contains(ActionBarOutClass) && isInSight(chosen) && !isBehindModal(chosen);
     }
 
     /** Chooses a host, or none: its bar shows and every other goes. The one chosen already is left as it stands. */
@@ -450,7 +426,7 @@ export class ActionBarEngine {
 
         bar.className = ActionBarClass;
         bar.setAttribute("role", "toolbar");
-        clientStrings.write(bar, "aria-label", "ui.actionbar.label");
+        clientStrings.write(bar, "aria-label", "ui.actionbar.name");
         // A press on the bar is never its host's — a row's click, a surface's press, a drag of the row.
         bar.setAttribute(EventBoundaryAttribute, "");
         bar.setAttribute(NoRowDragAttribute, "");
@@ -462,7 +438,7 @@ export class ActionBarEngine {
         // child, and the bar's events still pass through the host. Placed fixed, so no box around the host clips it.
         host.insertBefore(bar, ownMenuHost(host));
         placeAnchoredPopup(host, bar, { placement: barPlacement(host), gap: barGapOf(host), boundary: viewBoxAround(host) ?? undefined });
-        bar.classList.toggle(OutClass, isClippedOut(host));
+        bar.classList.toggle(ActionBarOutClass, isClippedOut(host));
 
         // An entry's words, state and mark change while the bar stands — a push, a language switch: the bar is drawn again.
         const observer = new MutationObserver(records => {
@@ -516,7 +492,7 @@ export class ActionBarEngine {
         openMenuFrom(button);
 
         // The opening kept the menu shut: the bar answers to the choice alone again.
-        if (!shown.menu.classList.contains(MenuOpenClass)) {
+        if (!shown.menu.classList.contains(ContextMenuOpenClass)) {
             this.menuHost = null;
             return;
         }
@@ -524,7 +500,7 @@ export class ActionBarEngine {
         markMoreOpen(shown.bar, true);
 
         const observer = new MutationObserver(() => {
-            if (shown.menu.classList.contains(MenuOpenClass))
+            if (shown.menu.classList.contains(ContextMenuOpenClass))
                 return;
 
             observer.disconnect();
@@ -572,13 +548,13 @@ export class ActionBarEngine {
     /** A bar whose host the scroll took wholly out of sight is not seen floating against nothing; back in sight, it is again. */
     private markOut(): void {
         for (const [host, shown] of this.shown)
-            shown.bar.classList.toggle(OutClass, isClippedOut(host));
+            shown.bar.classList.toggle(ActionBarOutClass, isClippedOut(host));
     }
 
     /** Whether the focus went into the menu a shown bar's "more" opened, which may stand outside its host (a package's node menu). */
     private isInOpenMenu(target: Element): boolean {
         for (const shown of this.shown.values()) {
-            if (shown.menu.classList.contains(MenuOpenClass) && shown.menu.contains(target))
+            if (shown.menu.classList.contains(ContextMenuOpenClass) && shown.menu.contains(target))
                 return true;
         }
 
@@ -690,78 +666,6 @@ function focusHostOf(active: Element): HTMLElement | null {
     return active.closest<HTMLElement>(HostSelector);
 }
 
-/** The hosts an element holds, itself first where it is one. */
-function hostsIn(element: Element): HTMLElement[] {
-    const inside = [...element.querySelectorAll<HTMLElement>(HostSelector)];
-
-    return element.matches(HostSelector) ? [element as HTMLElement, ...inside] : inside;
-}
-
-function identityOf(host: HTMLElement): HostIdentity | null {
-    const own = host.getAttribute(ActionBarKeyAttribute);
-
-    if (own !== null && host.parentElement !== null)
-        return { scope: host.parentElement, attribute: ActionBarKeyAttribute, key: own, index: 0 };
-
-    const row = host.closest(`[${ComponentKeyAttribute}]`);
-    const key = row?.getAttribute(ComponentKeyAttribute) ?? null;
-
-    if (row === null || key === null || row.parentElement === null)
-        return null;
-
-    return { scope: row.parentElement, attribute: ComponentKeyAttribute, key, index: hostsIn(row).indexOf(host) };
-}
-
-/** The host drawn in the place of the one an identity was taken from; null while nothing stands there. */
-function findByIdentity(identity: HostIdentity): HTMLElement | null {
-    for (const child of identity.scope.children) {
-        if (child.getAttribute(identity.attribute) === identity.key)
-            return hostsIn(child)[identity.index] ?? null;
-    }
-
-    return null;
-}
-
-/** Above the host, at its end, its start or its middle as the host says, the page's direction mirroring start and end. */
-function barPlacement(host: HTMLElement): AnchoredPopupPlacement {
-    const alignment = host.getAttribute(ActionBarAttribute);
-
-    if (alignment === "center")
-        return "top";
-
-    const rightToLeft = getComputedStyle(host).direction === "rtl";
-
-    return (alignment === "start") !== rightToLeft ? "top-start" : "top-end";
-}
-
-/** The room between a host and its bar: the host's own `--ui-action-bar-gap` in pixels, else the framework's. */
-function barGapOf(host: HTMLElement): number {
-    const own = Number.parseFloat(getComputedStyle(host).getPropertyValue(BarGapProperty));
-
-    return Number.isFinite(own) ? own : BarGap;
-}
-
-/**
- * The list's row a host's bar stands over, as each list draws it: a table's row is a host itself, an items view's or a table's row holds
- * one as its child, a tree's row in its node face's wrapper. A host further inside a row (a card in a template) has none.
- */
-function rowOfHost(host: HTMLElement): Element | null {
-    if (host.classList.contains(TableRowClass))
-        return host;
-
-    const parent = host.parentElement;
-
-    if (parent === null)
-        return null;
-
-    if (parent.matches(HostRowSelector))
-        return parent;
-
-    const row = parent.parentElement;
-
-    return parent.classList.contains(TreeNodeWrapperClass) && row !== null && row.classList.contains(TreeRowClass) ? row : null;
-}
-
 /** Draws the bar's buttons from its menu, one tab stop among them; false when the menu has nothing shown to offer. */
 function drawBar(bar: HTMLElement, menu: HTMLElement, openMore: (button: HTMLElement) => void, menuOpen: boolean): boolean {
     const { entries, more } = readActionBarEntries(menu);
@@ -782,30 +686,6 @@ function drawBar(bar: HTMLElement, menu: HTMLElement, openMore: (button: HTMLEle
     markMoreOpen(bar, menuOpen);
 
     return true;
-}
-
-/** Says on "more" whether its menu is open; open, its tooltip stays away as an open popup trigger's does (tooltip-engine.ts). */
-function markMoreOpen(bar: HTMLElement, open: boolean): void {
-    moreButtonOf(bar)?.setAttribute("aria-expanded", open ? "true" : "false");
-}
-
-/** "More", the one button standing for no entry. */
-function moreButtonOf(bar: HTMLElement): HTMLElement | null {
-    return barButtons(bar).find(button => actionBarEntryOf(button) === null) ?? null;
-}
-
-/** The host's own context menu, a child of its root, where the owner is the host; null where the menu stands elsewhere. */
-function ownMenuHost(host: HTMLElement): HTMLElement | null {
-    for (const child of host.children) {
-        if (child.hasAttribute(ContextMenuAttribute))
-            return child as HTMLElement;
-    }
-
-    return null;
-}
-
-function barButtons(bar: HTMLElement): HTMLElement[] {
-    return [...bar.querySelectorAll<HTMLElement>(`:scope > .${ActionBarButtonClass}`)];
 }
 
 /**
@@ -830,16 +710,4 @@ function isHeld(button: HTMLElement): boolean {
     const at = bar === null ? undefined : shownAt.get(bar);
 
     return at !== undefined && isTouchLast() && Date.now() - at < DoubleTapHold;
-}
-
-/** "More" opens the menu itself under the button, as a right press there would, the keyboard's press giving it the first entry. */
-function openMenuFrom(button: HTMLElement): void {
-    const rect = button.getBoundingClientRect();
-
-    button.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: rect.left, clientY: rect.bottom }));
-}
-
-/** Whether a script's focus would land on the element: focusable by its markup or by a tab index of any value. */
-function takesFocus(element: HTMLElement): boolean {
-    return element.matches(FocusableSelector) || element.hasAttribute("tabindex");
 }

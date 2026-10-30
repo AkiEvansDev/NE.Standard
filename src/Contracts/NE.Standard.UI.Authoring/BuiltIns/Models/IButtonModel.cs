@@ -11,10 +11,10 @@ public interface IButtonModel : ITextModel, IBindableGroup
     /// <summary>
     /// Gets the button's visual variant — Primary, Accent, Danger, Outline, Ghost, Link, or Surface.
     /// </summary>
-    UIButtonType? Type { get; }
+    UIButtonVariant? Variant { get; }
 
     /// <summary>
     /// Gets how much room the button takes — Small, Medium, or Large.
     /// </summary>
-    UIButtonSize? Size { get; }
+    UISize? Size { get; }
 }

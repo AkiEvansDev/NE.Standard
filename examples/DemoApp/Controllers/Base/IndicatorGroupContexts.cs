@@ -7,10 +7,10 @@ namespace DemoApp.Controllers.Base;
 /// <remarks>An unset <c>Value</c> means indeterminate — running, but not knowing how far — which both shapes draw as movement.</remarks>
 internal sealed partial class ProgressGroupContext : DemoGroupContext
 {
-    private const string SampleProgressLabel = "Provisioning api-eu-north-1";
+    private const string SampleProgressTitle = "Provisioning api-eu-north-1";
 
     [RecursiveMember]
-    public partial string? Label { get; set; }
+    public partial string? Title { get; set; }
 
     [RecursiveMember]
     public partial decimal? Value { get; set; } = 62;
@@ -35,7 +35,7 @@ internal sealed partial class ProgressGroupContext : DemoGroupContext
 
     public ProgressGroupContext()
     {
-        AddOption(nameof(Label), ToggleLabel, () => Label);
+        AddOption(nameof(Title), ToggleTitle, () => Title);
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
@@ -45,8 +45,8 @@ internal sealed partial class ProgressGroupContext : DemoGroupContext
         AddOption(nameof(ValueUnit), CycleValueUnit, () => ValueUnit);
     }
 
-    public void ToggleLabel()
-        => SetLastChange(nameof(Label), Label = CycleValue(Label, null, SampleProgressLabel));
+    public void ToggleTitle()
+        => SetLastChange(nameof(Title), Title = CycleValue(Title, null, SampleProgressTitle));
 
     // (none) is a value here: an indeterminate bar runs on its own rather than standing still.
     public void CycleValue()
@@ -78,26 +78,26 @@ internal sealed partial class ProgressGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class SpinnerGroupContext : DemoGroupContext
 {
-    private const string SampleLabel = "Reading metrics";
+    private const string SampleTitle = "Reading metrics";
 
     [RecursiveMember]
-    public partial string? Label { get; set; }
+    public partial string? Title { get; set; }
 
     [RecursiveMember]
-    public partial UIIconSize? Size { get; set; }
+    public partial UISize? Size { get; set; }
 
     [RecursiveMember]
     public partial UIThemeColor? Color { get; set; }
 
     public SpinnerGroupContext()
     {
-        AddOption(nameof(Label), ToggleLabel, () => Label);
+        AddOption(nameof(Title), ToggleTitle, () => Title);
         AddOption(nameof(Size), CycleSize, () => Size);
         AddOption(nameof(Color), CycleColor, () => Color);
     }
 
-    public void ToggleLabel()
-        => SetLastChange(nameof(Label), Label = CycleValue(Label, null, SampleLabel));
+    public void ToggleTitle()
+        => SetLastChange(nameof(Title), Title = CycleValue(Title, null, SampleTitle));
 
     public void CycleSize()
         => SetLastChange(nameof(Size), Size = CycleEnum(Size));

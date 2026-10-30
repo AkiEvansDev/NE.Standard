@@ -1,15 +1,14 @@
 using System;
-using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Application;
-using NE.Standard.UI.Hosting;
+using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Startup;
 
 namespace NE.Standard.UI.Testing;
 
-/// <summary>A host built for a test, and what it was built from.</summary>
-internal sealed record UITestBuiltHost(ServiceProvider Services, UIApplication Application, UIHost Host);
+/// <summary>A host built for a test, and what it was built from; the container owns the host.</summary>
+internal sealed record UITestBuiltHost(ServiceProvider Services, UIApplication Application, IUIHost Host);
 
 /// <summary>
 /// Builds a host from an application's startup as <see cref="UIStartupBase"/> does, with no platform under it and its scheduler
@@ -17,43 +16,33 @@ internal sealed record UITestBuiltHost(ServiceProvider Services, UIApplication A
 /// </summary>
 internal static class UITestHostBuilder
 {
-    [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "The host is handed over in the result, whose owner disposes it.")]
-    public static UITestBuiltHost Build<TStartup>(Action<IServiceCollection>? beforeStartup, Action<IServiceCollection>? configureServices, Action<UIApplicationBuilder>? configureApplication, Func<IServiceProvider, ILogger<UIHost>> createLogger)
+    public static UITestBuiltHost Build<TStartup>(Action<IServiceCollection>? beforeStartup, Action<IServiceCollection>? configureServices, Action<UIApplicationBuilder>? configureApplication)
         where TStartup : UIStartupBase, new()
     {
-        ArgumentNullException.ThrowIfNull(createLogger);
-
         ServiceCollection services = new();
-        UIApplicationBuilder applicationBuilder = new();
 
         // Ahead of the startup, whose check for the services a platform brings would otherwise refuse an application that has none.
         beforeStartup?.Invoke(services);
 
-        UIStartupBuilder.Configure<TStartup>(services, applicationBuilder);
-
-        // The scheduler is parked at an hour so a background drain cannot race a command's own change set.
-        _ = applicationBuilder.ConfigurePersistence(static persistence =>
+        UIStartupBuilder.Configure<TStartup>(services, application =>
         {
-            persistence.FlushSchedulerInterval = TimeSpan.FromHours(1);
-            persistence.CleanupInterval = TimeSpan.FromHours(1);
+            // No scheduled flush, a route's short interval neither, so a background drain cannot race a command's own change set.
+            _ = application.ConfigurePersistence(static persistence =>
+            {
+                persistence.FlushSchedulerInterval = Timeout.InfiniteTimeSpan;
+                persistence.CleanupInterval = TimeSpan.FromHours(1);
+            });
+
+            configureApplication?.Invoke(application);
         });
 
+        // A host with no platform under it may have no logging: the host's log then goes nowhere.
+        _ = services.AddLogging();
+
         configureServices?.Invoke(services);
-        configureApplication?.Invoke(applicationBuilder);
-
-        // As the startup registers them; the host is built after the container here.
-        UIHost? built = null;
-        UIStartupBase.AddHostServices(services, _ => built ?? throw new InvalidOperationException("The test host is not built yet."));
-
-        // Built in the container the host keeps, as the startup does: a lazily compiled view resolves through it on first use.
-        _ = services.AddSingleton(applicationBuilder.Build);
 
         ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
-        UIApplication application = provider.GetRequiredService<UIApplication>();
-        UIHost host = new(application, provider, createLogger(provider));
 
-        built = host;
-
-        return new UITestBuiltHost(provider, application, host);
+        return new UITestBuiltHost(provider, provider.GetRequiredService<UIApplication>(), provider.GetRequiredService<IUIHost>());
     }
 }

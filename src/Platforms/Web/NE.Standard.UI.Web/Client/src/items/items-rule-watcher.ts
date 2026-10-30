@@ -7,16 +7,14 @@ import { findOwningComponentId, readComponentId } from "../addressing/dom-regist
 import { observeComponents } from "../interactions/dom-mutations.ts";
 import { collectDynamicParameters, matchesDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
 import { getIdValue, getPropertyKeyName, getUpdateKind } from "../metadata/metadata-index.ts";
-import type { MetadataIndex, ServerChangeSet, ServerUIUpdate, ServerValidationUIUpdate, ServerValueUIUpdate } from "../metadata/metadata-index.ts";
-import type { PropertyStateStore } from "../state/property-state-store.ts";
+import type { MetadataIndex, ServerChangeSet, ServerUIUpdate, ServerValidationUIUpdate, ServerValueUIUpdate, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
+import type { PropertyPatchTarget, PropertyStateStore, PropertyValueChange } from "../state/property-state-store.ts";
 import { areValuesEqual } from "../state/value-equality.ts";
-import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
-import type { ReactiveSourceRegistry } from "../updates/reactive-source-registry.ts";
 import { readItemValuePath } from "./binding-template-evaluator.ts";
 import type { ItemValuePath, ItemValueStep } from "./binding-template-evaluator.ts";
 import { readItemsQuery } from "./items-filter-sort.ts";
 import { syncItemsHost } from "./items-host-sync.ts";
-import { resolveHostMode } from "./items-host-mode.ts";
+import { resolveHostMode } from "../addressing/items-host-mode.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 import { ItemAbilityAttributes, applyItemGroupAttribute, restampItemMarks } from "./items-template-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer.ts";
@@ -31,8 +29,8 @@ export type ItemsRuleWatcherOptions = {
     readonly templates: ItemsTemplateRegistry;
     readonly renderer: ItemsTemplateRenderer;
     readonly state: PropertyStateStore;
-    readonly propertyPatchEngine: PropertyPatchEngine;
-    readonly reactiveSources: ReactiveSourceRegistry;
+    readonly propertyPatchEngine: PropertyPatchTarget;
+    readonly reactiveSources: { watch(source: WebRenderPropertyReferenceMetadata, callback: () => void): void };
     readonly virtualization: ItemsVirtualizationEngine;
 };
 
@@ -456,7 +454,9 @@ export class ItemsRuleWatcher {
 
         const query = readItemsQuery(host);
 
-        return (query?.filters ?? []).some(filter => affectsRule(filter.itemProperty, path)) || (query?.sorts ?? []).some(sort => affectsRule(sort.itemProperty, path));
+        return (query?.search?.trim().length ?? 0) > 0
+            || (query?.filters ?? []).some(filter => affectsRule(filter.itemProperty, path))
+            || (query?.sorts ?? []).some(sort => affectsRule(sort.itemProperty, path));
     }
 
     private syncComponentHosts(componentId: number): void {

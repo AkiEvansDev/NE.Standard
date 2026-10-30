@@ -4,10 +4,10 @@
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
 import { FileMaxSizeAttribute } from "../addressing/dom-attributes.ts";
 import { acceptsFile } from "./file-drop.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import { logElapsed, logWarn } from "../runtime/logger.ts";
-import { pageSessionKey } from "../runtime/session-key.ts";
-import type { FileSize, Phrase } from "../runtime/words.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import { logElapsed, logWarn } from "../metadata/logger.ts";
+import { pageSessionKey } from "../state/session-key.ts";
+import type { FileSize, Phrase } from "../rendering/words.ts";
 import type { UploadsInFlight } from "./uploads-in-flight.ts";
 import type { FieldMarkWords, FieldValidation } from "./validation-engine.ts";
 

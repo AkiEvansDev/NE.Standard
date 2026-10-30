@@ -4,7 +4,7 @@
 // choice, gives a menu whose display differs by breakpoint the width's shape, and holds every region with a part a package's engine
 // draws, before the first paint.
 
-import { FileTileClass, FileTileSizeAttribute, FileTileSizeClass, MenuRailTiersAttribute, PageWrittenAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
+import { ComponentNameAttribute, FileTileClass, FileTileSizeAttribute, FileTileSizeClass, FrameworkAttributePrefix, MenuRailTiersAttribute, PageWrittenAttribute, RootAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
 import { formatFileSize, serverFileSizePaint, tileSizeText } from "./rendering/file-size.ts";
 import { PageWrittenMarkSelector, paintedOfMark, readPageTemporal, readPageWrittenAttribute, serverMomentPaint } from "./rendering/first-paint-words.ts";
 import type { PaintedValue } from "./rendering/first-paint-words.ts";
@@ -20,7 +20,6 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
 (() => {
     const KeyPrefix = "ne.ui:";
     const KeySuffix = ":boot";
-    const NameAttribute = "data-ui-name";
 
     type BootPatch = {
         readonly selector?: string;
@@ -51,7 +50,7 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
     const temporal = readPageTemporal(document);
 
     if (patchesByName.size > 0)
-        jobs.push(job(`[${NameAttribute}]`, element => applyPatches(element, patchesByName)));
+        jobs.push(job(`[${ComponentNameAttribute}]`, element => applyPatches(element, patchesByName)));
 
     // After the names: a tree is handed over before its rows, and its walk is found on it.
     if ([...patchesByName.values()].some(patches => patches.some(patch => patch.fold !== undefined))) {
@@ -139,7 +138,7 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
 
     /** Applies the element's patches; answers whether they are finished with, which a patch naming its targets by selector never is while parsing. */
     function applyPatches(element: Element, patchesByName: ReadonlyMap<string, readonly BootPatch[]>): boolean {
-        const patches = patchesByName.get(element.getAttribute(NameAttribute) ?? "");
+        const patches = patchesByName.get(element.getAttribute(ComponentNameAttribute) ?? "");
 
         if (patches === undefined)
             return true;
@@ -159,7 +158,7 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
 
             // Every element the selector names, not the first: one patch may mark many parts. The root is the page's own, open around
             // the element as the parser hands it over.
-            const root = patch.root === true ? element.closest("[data-ui-root]") : null;
+            const root = patch.root === true ? element.closest(`[${RootAttribute}]`) : null;
             const targets = patch.root === true ? (root === null ? [] : [root]) : patch.selector === undefined ? [element] : [...element.querySelectorAll(patch.selector)];
 
             // Never done before the document: the parser hands a long tree over in chunks, and later rows would paint unpatched.
@@ -296,7 +295,7 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
             return false;
 
         for (const attribute of [...element.attributes]) {
-            if ((place === AnyPlace ? attribute.name.startsWith("data-ui-") : attribute.name !== place) || !attribute.value.includes(painted))
+            if ((place === AnyPlace ? attribute.name.startsWith(FrameworkAttributePrefix) : attribute.name !== place) || !attribute.value.includes(painted))
                 continue;
 
             element.setAttribute(attribute.name, attribute.value.replace(painted, () => written));

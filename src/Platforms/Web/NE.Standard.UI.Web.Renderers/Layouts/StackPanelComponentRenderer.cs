@@ -12,7 +12,7 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 public sealed class StackPanelComponentRenderer : WebComponentRendererBase
 {
     // Render-time only, its tiers fitted on the client as a size's are: the panel has no size of its own on the attribute.
-    private static readonly TierClassFamily<UIButtonSize> LineOnFamily = new(WebAttributes.TierSize, FirstLineOnControlClassName);
+    private static readonly TierClassFamily<UISize> LineOnFamily = new(WebAttributes.TierSize, FirstLineOnControlClassName);
 
     public override string ComponentTypeKey => StackPanelComponent.ComponentTypeKey;
 
@@ -46,16 +46,16 @@ public sealed class StackPanelComponentRenderer : WebComponentRendererBase
             _ = root.Class(glyphEdge);
 
         // The button size whose middle the first child's first line stands on (ui-stack-panel.less).
-        TierClassRenderer.Write(root, ReadRenderValue<UIResponsive<UIButtonSize>?>(context, StackPanelComponent.FirstLineOnControlProperty, null), LineOnFamily);
+        TierClassRenderer.Write(root, ReadRenderValue<UIResponsive<UISize>?>(context, StackPanelComponent.FirstLineOnControlProperty, null), LineOnFamily);
 
         RenderChildren(context, root);
     }
 
-    private static string FirstLineOnControlClassName(UIButtonSize size)
+    private static string FirstLineOnControlClassName(UISize size)
         => size switch
         {
-            UIButtonSize.Small => "ui-stack-panel--line-on-small",
-            UIButtonSize.Large => "ui-stack-panel--line-on-large",
+            UISize.Small => "ui-stack-panel--line-on-small",
+            UISize.Large => "ui-stack-panel--line-on-large",
             _ => "ui-stack-panel--line-on-medium"
         };
 }

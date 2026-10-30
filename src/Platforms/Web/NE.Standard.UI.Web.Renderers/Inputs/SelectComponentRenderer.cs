@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -24,25 +23,25 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 {
     /// <summary>The shape each server-rendered option gets, registered as items metadata so a client-cloned one matches.</summary>
     public const string OptionWrapperElementName = "div";
-    public const string OptionWrapperClassName = "ui-select__option";
+    public const string OptionWrapperClassName = WebClassNames.SelectOption;
 
     /// <summary>What every option row is to assistive technology, the server's and the client's alike.</summary>
     public const string OptionRole = "option";
 
     // The floating panel, and the listbox the options stand in: one element in a select, two in a search, whose field stands between.
-    private const string PopupClassName = "ui-select__popup";
-    private const string ListClassName = "ui-select__list";
+    private const string PopupClassName = WebClassNames.SelectPopup;
+    private const string ListClassName = WebClassNames.SelectList;
 
     private const string NoChevronClassName = "ui-select--no-chevron";
 
     // The key that does the clear's work from the closed field (select-interaction-engine.ts), said on the control the reader stands on
     // while the clear shows: a select's or a search's trigger, a multi-select's box or its free-text entry.
     private const string ClearKey = "Delete";
-    private const string ClearKeyTarget = "[role=\"combobox\"]:is(.ui-select__trigger, .ui-multi-select__entry)";
+    private const string ClearKeyTarget = $"[role=\"combobox\"]:is(.{WebClassNames.SelectTrigger}, .{WebClassNames.MultiSelectEntry})";
 
-    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.SelectValue, target: "root")];
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.SelectValue, target: "root", converter: WebDomConverters.NonEmptyText)];
     private static readonly WebDomOperation[] TextOperations = [WebDomOperation.Text()];
-    private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Attribute(WebAttributes.SelectPlacement, converter: WebDomConverters.PopupPlacementAttribute)];
+    private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Attribute(WebAttributes.SelectPlacement, converter: WebDomConverters.SelectPlacementAttribute)];
 
     private static readonly WebDomOperation[] ClearableOperations =
     [
@@ -122,16 +121,16 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     }
 
     /// <summary>
-    /// The field closed: a button showing the chosen option as the list draws it, else the placeholder, between the affix icons, with
-    /// the clear and the chevron — a select's and a search's alike.
+    /// The field closed: a button showing the chosen option as the list draws it — or the reader's own text where the field takes free
+    /// text — else the placeholder, between the affix icons, with the clear and the chevron.
     /// </summary>
-    public static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, string? currentValue)
+    public static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, string? currentValue, bool freeText = false)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(items);
 
-        RenderTrigger(context, root, FindSelectedItem(items, currentValue));
+        RenderTrigger(context, root, FindSelectedItem(items, currentValue), freeText ? currentValue : null);
     }
 
     /// <summary>The option the value names, or null where the list is client-side or nothing is chosen.</summary>
@@ -149,7 +148,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         return null;
     }
 
-    private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, object? selectedItem)
+    private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, object? selectedItem, string? freeTextValue)
     {
         _ = root.Element("button", trigger =>
         {
@@ -173,20 +172,32 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: false));
 
+            var hasContent = selectedItem is not null || !string.IsNullOrEmpty(freeTextValue);
+
             // The chosen option drawn here on the first frame, so the field is not empty until the connection is up.
             if (selectedItem is not null)
             {
                 _ = trigger.Element("span", content =>
                 {
-                    _ = content.Class("ui-select__trigger-content");
+                    _ = content.Class(WebClassNames.SelectTriggerContent);
                     _ = content.Attribute(WebAttributes.SelectContent, ((IBindableItem)selectedItem).Id);
                     _ = content.Style("display", "inline-flex");
 
                     RenderPresentationItem(context, content, selectedItem);
                 });
             }
+            else if (!string.IsNullOrEmpty(freeTextValue))
+            {
+                _ = trigger.Element("span", content =>
+                {
+                    _ = content.Class(WebClassNames.SelectTriggerContent);
+                    _ = content.Attribute(WebAttributes.SelectContent, freeTextValue);
+                    _ = content.Style("display", "inline-flex");
+                    _ = content.Text(freeTextValue);
+                });
+            }
 
-            RenderPlaceholder(context, trigger, hidden: selectedItem is not null);
+            RenderPlaceholder(context, trigger, hidden: hasContent);
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: true));
 
@@ -203,7 +214,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
         _ = parent.Element("span", placeholder =>
         {
-            _ = placeholder.Class("ui-select__placeholder");
+            _ = placeholder.Class(WebClassNames.SelectPlaceholder);
 
             if (hidden)
                 _ = placeholder.Style("display", "none");
@@ -258,7 +269,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        NativeInputRendererBase.RenderHiddenValueInput(context, root, "ui-select__value-input", input =>
+        NativeInputRendererBase.RenderHiddenValueInput(context, root, WebClassNames.SelectValueInput, input =>
         {
             if (valueKind == WebRenderValueKind.Static && !string.IsNullOrEmpty(currentValue))
                 _ = input.Attribute("value", currentValue);

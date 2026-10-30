@@ -21,7 +21,7 @@ installFakeDom({
     }
 });
 
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 const { FileTileEngine } = await import("../src/interactions/file-tile-engine.ts");
 const { fileTileParts } = await import("../src/rendering/file-tile.ts");
 

@@ -1,16 +1,16 @@
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
-/// What a button is, as opposed to what it says: its type, its size, and the box it draws around its label.
+/// What a button is, as opposed to what it says: its variant, its size, and the box it draws around its label.
 /// </summary>
 /// <remarks>Shared by Button and Action, which adds only the trailing pair below.</remarks>
 internal sealed partial class ButtonGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial UIButtonType? Type { get; set; }
+    public partial UIButtonVariant? Variant { get; set; }
 
     [RecursiveMember]
-    public partial UIButtonSize? Size { get; set; }
+    public partial UISize? Size { get; set; }
 
     [RecursiveMember]
     public partial UIResponsive<UIThickness>? Padding { get; set; }
@@ -26,7 +26,7 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
 
     public ButtonGroupContext()
     {
-        AddOption(nameof(Type), CycleType, () => Type);
+        AddOption(nameof(Variant), CycleVariant, () => Variant);
         AddOption(nameof(Size), CycleSize, () => Size);
         AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddOption(nameof(Background), CycleBackground, () => Background);
@@ -34,8 +34,8 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
         AddOption(nameof(Shortcut), ToggleShortcut, () => Shortcut);
     }
 
-    public void CycleType()
-        => SetLastChange(nameof(Type), Type = CycleEnum(Type));
+    public void CycleVariant()
+        => SetLastChange(nameof(Variant), Variant = CycleEnum(Variant));
 
     public void CycleSize()
         => SetLastChange(nameof(Size), Size = CycleEnum(Size));
@@ -43,7 +43,7 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
     public void CyclePadding()
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(4), UIThickness.Uniform(20), null));
 
-    // Background says which colour, Type says what is done with it.
+    // Background says which colour, Variant says what is done with it.
     public void CycleBackground()
         => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 
@@ -95,12 +95,12 @@ internal sealed partial class ActionGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class BadgeGroupContext : TooltipGroupContext
 {
-    private const string SampleText = "In review";
+    private const string SampleTitle = "In review";
     private const string SampleCount = "12";
     private const string SampleTooltip = "Waiting on two approvals";
 
     [RecursiveMember]
-    public partial UIBadgeType? Type { get; set; }
+    public partial UIBadgeVariant? Variant { get; set; }
 
     [RecursiveMember]
     public partial UIThemeColor? Color { get; set; }
@@ -115,35 +115,35 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
     public partial UIThemeColor? IconColor { get; set; }
 
     [RecursiveMember]
-    public partial UIIconSize? IconSize { get; set; }
+    public partial UISize? IconSize { get; set; }
 
     [RecursiveMember]
-    public partial string? Text { get; set; } = SampleText;
+    public partial string? Title { get; set; } = SampleTitle;
 
     [RecursiveMember]
-    public partial UITextAppearance? TextType { get; set; }
+    public partial UITextAppearance? TitleType { get; set; }
 
     public BadgeGroupContext()
     {
-        AddOption(nameof(Type), CycleType, () => Type);
+        AddOption(nameof(Variant), CycleVariant, () => Variant);
         AddOption(nameof(Color), CycleColor, () => Color);
         AddOption(nameof(Fill), CycleFill, () => Fill);
         AddOption(nameof(Icon), CycleIcon, () => Icon);
         AddOption(nameof(IconColor), CycleIconColor, () => IconColor);
         AddOption(nameof(IconSize), CycleIconSize, () => IconSize);
-        AddOption(nameof(Text), CycleText, () => Text);
-        AddOption(nameof(TextType), CycleTextType, () => TextType);
+        AddOption(nameof(Title), CycleTitle, () => Title);
+        AddOption(nameof(TitleType), CycleTitleType, () => TitleType);
         AddTooltipOptions(SampleTooltip);
     }
 
-    public void CycleType()
-        => SetLastChange(nameof(Type), Type = CycleEnum(Type));
+    public void CycleVariant()
+        => SetLastChange(nameof(Variant), Variant = CycleEnum(Variant));
 
-    // Color overrides Type: set, the pill carries that colour tinted rather than the type's own paint.
+    // Color overrides Variant: set, the pill carries that colour tinted rather than the variant's own paint.
     public void CycleColor()
         => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.FromStyle(UIColorStyle.Accent), UIThemeColor.FromStyle(UIColorStyle.Warning), null));
 
-    // Unset, a Type fills and a Color tints; set, either one wears the fill named.
+    // Unset, a Variant fills and a Color tints; set, either one wears the fill named.
     public void CycleFill()
         => SetLastChange(nameof(Fill), Fill = CycleEnum(Fill));
 
@@ -170,18 +170,18 @@ internal sealed partial class BadgeGroupContext : TooltipGroupContext
     }
 
     // The third step is a different pill: a count is drawn as a circle, a word is not.
-    public void CycleText()
-        => SetLastChange(nameof(Text), Text = CycleValue(Text, null, SampleText, SampleCount));
+    public void CycleTitle()
+        => SetLastChange(nameof(Title), Title = CycleValue(Title, null, SampleTitle, SampleCount));
 
-    public void CycleTextType()
+    public void CycleTitleType()
     {
-        CheckText();
-        SetLastChange(nameof(TextType), TextType = CycleAppearance(TextType));
+        CheckTitle();
+        SetLastChange(nameof(TitleType), TitleType = CycleAppearance(TitleType));
     }
 
-    private void CheckText()
+    private void CheckTitle()
     {
-        if (string.IsNullOrEmpty(Text))
-            Text = SampleText;
+        if (string.IsNullOrEmpty(Title))
+            Title = SampleTitle;
     }
 }

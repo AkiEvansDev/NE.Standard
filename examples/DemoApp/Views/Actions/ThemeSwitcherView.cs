@@ -24,7 +24,7 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/actions/theme-switcher";
     protected override string Header => "demo.actions.theme-switcher.header";
     protected override string HeaderDescription => "demo.actions.theme-switcher.description";
-    protected override (string Route, string Label)? ComposedIn => ("/design/colors/theme", "demo.nav.design.colors");
+    protected override (string Route, string Title)? ComposedIn => ("/design/colors/theme", "demo.nav.design.colors");
 
     // The shape is decided once at render, so both are drawn; the field takes the standard rows and its own, not the button's.
     protected override ContainerComponent CreatePreview()
@@ -35,35 +35,35 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
 
     private static ThemeSwitcherComponent CreateButton()
         => BindStandard(new ThemeSwitcherComponent())
-            .BindLightIcon($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.LightIcon)}")
-            .BindDarkIcon($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.DarkIcon)}")
-            .BindIconSize($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.IconSize)}")
-            .BindType($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.Type)}")
-            .BindSize($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.Size)}")
-            .BindPadding($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.Padding)}")
-            .BindTooltip($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.TooltipPlacement)}")
-            .BindBackground($"{SwitcherGroup}.{nameof(ThemeSwitcherGroupContext.Background)}")
+            .BindLightIcon<ThemeSwitcherController>(static x => x.SwitcherGroup.LightIcon)
+            .BindDarkIcon<ThemeSwitcherController>(static x => x.SwitcherGroup.DarkIcon)
+            .BindIconSize<ThemeSwitcherController>(static x => x.SwitcherGroup.IconSize)
+            .BindButtonVariant<ThemeSwitcherController>(static x => x.SwitcherGroup.ButtonVariant)
+            .BindSize<ThemeSwitcherController>(static x => x.SwitcherGroup.Size)
+            .BindPadding<ThemeSwitcherController>(static x => x.SwitcherGroup.Padding)
+            .BindTooltip<ThemeSwitcherController>(static x => x.SwitcherGroup.Tooltip)
+            .BindTooltipPlacement<ThemeSwitcherController>(static x => x.SwitcherGroup.TooltipPlacement)
+            .BindBackground<ThemeSwitcherController>(static x => x.SwitcherGroup.Background)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);
 
     private static ThemeSwitcherComponent CreateField()
         => BindStandard(new ThemeSwitcherComponent().AsField())
-            .BindAppearance($"{FieldGroup}.{nameof(SwitcherFieldGroupContext.Appearance)}")
+            .BindFieldVariant<ThemeSwitcherController>(static x => x.FieldGroup.FieldVariant)
             .SetWidth(UILayoutLength.Absolute(280))
             .SetPlacement(1, 1, 24, 1);
 
     private static ThemeSwitcherComponent BindStandard(ThemeSwitcherComponent switcher)
         => switcher
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}");
+            .BindVisibility<DemoStandardController>(static x => x.MainGroup.Visibility)
+            .BindEnabled<DemoStandardController>(static x => x.MainGroup.Enabled)
+            .BindHorizontalAlignment<DemoStandardController>(static x => x.MainGroup.HorizontalAlignment)
+            .BindVerticalAlignment<DemoStandardController>(static x => x.MainGroup.VerticalAlignment)
+            .BindMargin<DemoStandardController>(static x => x.MainGroup.Margin)
+            .BindWidth<DemoStandardController>(static x => x.MainGroup.Width)
+            .BindHeight<DemoStandardController>(static x => x.MainGroup.Height)
+            .BindTheme<DemoStandardController>(static x => x.MainGroup.Theme)
+            .BindLoading<DemoStandardController>(static x => x.MainGroup.Loading);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
@@ -82,17 +82,17 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("In a page's head",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetPadding(UIThickness.All(16, 8, 8, 8))
                 .SetContent(UILayout.Ends(
                     UIText.Body("Orvane Cloud", "Admin panel"),
                     UIIconButtons.Search(),
                     new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Bell))
                         .SetTooltip("Notifications")
-                        .SetBadgeText("3")
-                        .SetBadgeStyle(UIBadgeType.Danger),
+                        .SetBadgeTitle("3")
+                        .SetBadgeVariant(UIBadgeVariant.Danger),
                     new ThemeSwitcherComponent()
                         .SetLightIcon(DemoIcons.Outline(DemoIcons.LightMode))
                         .SetDarkIcon(DemoIcons.Outline(DemoIcons.DarkMode))
@@ -109,7 +109,7 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("At a sidebar's foot",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetPadding(UIThickness.Uniform(8))
                 .SetWidth(UILayoutLength.Absolute(260))
                 .SetContent(UILayout.Stack(8,
@@ -121,10 +121,10 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
                     ]),
                     new SeparatorComponent(),
                     UILayout.Ends(
-                        UIText.Person(DemoImages.Avatar, "Robin Hale", "Admin", UIPersonSize.Small),
+                        UIText.Person(DemoImages.Avatar, "Robin Hale", "Admin", UISize.Small),
                         new ThemeSwitcherComponent()
-                            .SetSize(UIButtonSize.Small)
-                            .SetIconSize(UIIconSize.Small)
+                            .SetSize(UISize.Small)
+                            .SetIconSize(UISize.Small)
                             .SetLightIcon(DemoIcons.LightMode)
                             .SetDarkIcon(DemoIcons.DarkMode)
                             .SetTooltip("Switch the theme")
@@ -159,7 +159,7 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
                     .SetDescriptionColor(UIThemeColor.Muted)
             ), DemoIcons.Outline(DemoIcons.Palette))
             .SetMaxWidth(UILayoutLength.Absolute(480)),
-            note: "AsField() draws the switcher as a form's field: its caption (\"Theme\" unless set), a box in the form's appearance, Tonal unless set, and the list of Light, Dark and System. The current choice is the page's to show, and a choice switches as the button does — no command, no binding, no save."
+            note: "AsField() draws the switcher as a form's field: its caption (\"Theme\" unless set), a box in the form's appearance, Filled unless set, and the list of Light, Dark and System. The current choice is the page's to show, and a choice switches as the button does — no command, no binding, no save."
         );
     }
 }

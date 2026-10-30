@@ -91,13 +91,11 @@ test("a select's option is lit by the list's mark alone, never by a hover of its
     assert.match(rule(".ui-select__option:not([aria-selected=\"true\"]):not([aria-disabled=\"true\"]):active") ?? "", /--ui-wash-active/);
 });
 
-// The keyboard's frame (`.ui-keyboard-frame()`): an outline in the keyboard's mark, under no forced colours, which draw their own mark.
-const KeyboardFrame = "\\{\\s*outline: 2px solid var\\(--ui-mark-keyboard\\);\\s*outline-offset: -2px;";
-// A menu's entry lays it inside its border, on the line its current entry draws there.
-const EntryFrame = "\\{\\s*outline: 2px solid var\\(--ui-mark-keyboard\\);\\s*outline-offset: (?:-2px|calc\\(-2px - var\\(--ui-border-width, 1px\\)\\));";
+// Under forced-colors: none, keyboard focus suppresses the browser ring (`outline: none;`) and uses the same wash as pointer hover.
+const NoOutline = "\\{\\s*outline: none;";
 
-test("a select's option the arrows made current wears the keyboard's frame; the pointer's current, its wash alone", () => {
-    assert.match(css, new RegExp(`@media \\(forced-colors: none\\) \\{\\s*\\.ui-select__option\\[data-ui-active\\]:not\\(\\[data-ui-pointer-focus\\]\\) ${KeyboardFrame}`));
+test("a select's option the arrows made current suppresses the browser ring and uses the hover wash", () => {
+    assert.match(css, new RegExp(`\\.ui-select__option\\[data-ui-active\\]:not\\(\\[data-ui-pointer-focus\\]\\) ${NoOutline}`));
 });
 
 test("a list's keyboard entry is lit only under a focus a key gave, and stays as it is while the pointer crosses it", () => {
@@ -108,21 +106,20 @@ test("a list's keyboard entry is lit only under a focus a key gave, and stays as
         const focus = `${entry.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:focus-visible:not\\(\\[data-ui-pointer-focus\\]\\)`;
         const keyboard = `${focus}(?::not\\([^)]*\\))*`;
 
-        // The frame on the chosen entry too: where the keyboard is, whatever else the entry says.
-        assert.match(css, new RegExp(`${focus} ${EntryFrame}`), `${entry} wears no keyboard frame`);
+        assert.match(css, new RegExp(`${focus} ${NoOutline}`), `${entry} leaves the browser outline`);
         assert.match(css, new RegExp(`${keyboard} \\{\\s*background-image: linear-gradient\\(var\\(--ui-wash-hover\\)`), `${entry} draws no keyboard wash`);
         assert.match(css, new RegExp(`${keyboard}:hover:not\\(:active\\) \\{\\s*background-color: transparent;`), `${entry} stacks the pointer's wash on the keyboard's`);
     }
 });
 
-test("a resting pointer's entry stays quiet, and a chip wears the frame, by the keyboard's mark on the list, not by a :has()", () => {
+test("a resting pointer's entry stays quiet, and a chip suppresses the browser ring, by the keyboard's mark on the list, not by a :has()", () => {
     const keyboard = "[data-ui-focus-within='keyboard']";
     const lists = [`> .ui-menu${keyboard} .ui-menu-item`, `.ui-pager__sizes${keyboard} > .ui-pager__size-choice`, `.ui-tab-overflow__menu${keyboard} > .ui-tab-overflow__entry`, `.ui-language-switcher__menu${keyboard} > .ui-language-switcher__choice`, `.ui-temporal-input__days${keyboard} > .ui-temporal-input__day`, `.ui-temporal-input__time-columns${keyboard} > .ui-temporal-input__time-column > .ui-temporal-input__time-cell`];
 
     for (const list of lists)
         assert.match(css, new RegExp(`${list.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:[^{]*:hover:not\\(:active\\) \\{\\s*background-color: transparent;`), `${list} keeps its resting pointer's wash`);
 
-    assert.match(css, new RegExp(`\\.ui-multi-select__chip\\[data-ui-focus-within='keyboard'\\] ${KeyboardFrame}`), "a chip the keyboard walked onto wears no frame");
+    assert.match(css, new RegExp(`\\.ui-multi-select__chip\\[data-ui-focus-within='keyboard'\\] ${NoOutline}`), "a chip the keyboard walked onto leaves the browser outline");
     assert.doesNotMatch(css, /:has\([^)]*:focus/, "a focus is read through a :has()");
 });
 

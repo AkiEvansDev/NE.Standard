@@ -310,23 +310,26 @@ test("a disabled button, a secondary button and a press in a popup the button ho
     assert.equal(rippling(option), true, "the entry pressed in the list is the one that answers");
 });
 
-test("a tabs view's caption takes the wave as a whole, from its label too; its close raises none", () => {
+test("a tabs view's caption and a tab's caption answer a press in their ink and underline alone, raising no wave", () => {
     const label = FakeElement.of("ui-tab-item__label ui-button ui-button--ghost", {}, "button");
     const close = FakeElement.of("ui-tab-item__close", {}, "button");
     const caption = placed(FakeElement.of("ui-tab-item__caption"), 0, 0, 160, 36).append(label, close);
+    const tabCaption = placed(FakeElement.of("ui-tab-caption ui-button ui-button--ghost", {}, "button"), 0, 40, 120, 32);
 
-    page(FakeElement.of("ui-tab-item").append(caption));
+    page(FakeElement.of("ui-tab-item").append(caption), tabCaption);
     down(label);
 
-    assert.equal(rippling(caption), true);
-    assert.equal(rippling(label), false, "a wave on the label alone stops short of the caption's edges");
+    assert.equal(rippling(caption), false);
+    assert.equal(rippling(label), false);
 
     up(label);
-    page(FakeElement.of("ui-tab-item").append(caption));
-    caption.classes.delete("ui-pressing");
     down(close);
 
     assert.equal(rippling(caption), false);
+
+    down(tabCaption);
+
+    assert.equal(rippling(tabCaption), false);
 });
 
 test("a split button's part takes the wave alone; a menu split button's pill takes it whole", () => {
@@ -613,20 +616,13 @@ function rule(selector: string): string {
     return at < 0 ? "" : css.slice(css.indexOf("{", at) + 1, css.indexOf("}", at));
 }
 
-test("an icon that is the whole face shrinks while held and springs back; a button itself never scales", () => {
-    const held = rule(".ui-button[data-ui-text-icon]:not([data-ui-text-title]).ui-press-held > .ui-button__content > .ui-text__icon");
-
-    assert.match(held, /scale: 0\.88;/);
-    // At a line's start: the icon scale's `:where()` names the same glyph inside its own list.
-    assert.match(rule("\n.ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon"), /transition: scale 200ms cubic-bezier\(0\.34, 1\.56, 0\.64, 1\);/);
-    assert.ok(css.includes('.ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:where(:not([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]))).ui-press-held > .ui-button__content > .ui-text__icon'), "a rail's entry does not shrink its icon");
-
-    const pressed = [...css.matchAll(/([^{}]*\.ui-press(?:ing|-held|-placed)[^{}]*)\{([^}]*)\}/g)].filter(match => !/(?:icon|::before|::after)\s*$/.test(match[1].trim()));
+test("neither a pressed element nor its icon scales while held", () => {
+    const pressed = [...css.matchAll(/([^{}]*\.ui-press(?:ing|-held|-placed)[^{}]*)\{([^}]*)\}/g)];
 
     assert.ok(pressed.length > 0);
 
     for (const match of pressed)
-        assert.doesNotMatch(match[2], /\b(?:scale|transform):/, `${match[1].trim()} scales the pressed element`);
+        assert.doesNotMatch(match[2], /\b(?:scale|transform):/, `${match[1].trim()} scales on press`);
 });
 
 test("the wave is a layer of the element's own frame and corners, cutting the circle, so the element itself clips nothing", () => {
@@ -650,7 +646,7 @@ test("the wave is a layer of the element's own frame and corners, cutting the ci
     assert.doesNotMatch(css, /--ui-ripple-radius|clip-path: circle\(var/);
     assert.match(rule(".ui-loading > .ui-press-wave {"), /display: none;/);
     assert.match(rule(".ui-table__row > .ui-press-wave {"), /z-index: 2;/);
-    assert.match(rule(".ui-tab-caption > .ui-press-wave {"), /border-radius: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);/);
+
 });
 
 test("a table's column lines stop at the last cell, not the row's last child, so a wave standing after the cells adds none", () => {

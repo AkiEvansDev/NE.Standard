@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -65,10 +67,27 @@ public sealed class ScrollToEffect(UIComponentReference target, ScrollToBehavior
         : this(new UIComponentReference(targetComponentId, dynamicParameters), behavior, block)
     { }
 
+    /// <summary>
+    /// Creates an effect that scrolls <paramref name="targetComponent"/>
+    /// into view, using the default behavior and block alignment.
+    /// </summary>
+    public ScrollToEffect(IBindableComponent targetComponent, params object?[]? dynamicParameters)
+        : this(new UIComponentReference(targetComponent, dynamicParameters), ScrollToBehavior.Smooth, ScrollToBlock.Nearest)
+    { }
+
+    /// <summary>
+    /// Creates an effect that scrolls <paramref name="targetComponent"/>
+    /// into view, using the given behavior and block alignment.
+    /// </summary>
+    public ScrollToEffect(IBindableComponent targetComponent, ScrollToBehavior behavior, ScrollToBlock block, params object?[]? dynamicParameters)
+        : this(new UIComponentReference(targetComponent, dynamicParameters), behavior, block)
+    { }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.ScrollTo;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>
@@ -91,6 +110,7 @@ internal sealed class CompiledScrollToEffect(UIComponentAddress target, ScrollTo
     public override string Kind => ClientEffectKinds.ScrollTo;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     public ScrollToBehavior Behavior { get; } = behavior;

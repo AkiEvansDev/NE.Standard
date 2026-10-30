@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -18,12 +18,16 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// The size is written by the page in the reader's language, as the shelf writes it: "1.5 MB", "1,5 МБ". Given a <c>Url</c>, the tile
 /// is a link to the file — opened or downloaded by the address, in a new tab or copied as a surface's is.
 /// </remarks>
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultAlignment))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultAlignment))]
 [UIComponentPropertyBlock(typeof(IClickableComponent))]
 [UIComponentPropertyBlock(typeof(ILinkableComponent))]
 [UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
-public abstract partial class FileTileComponent<T> : VisualComponentBase<T>, IClickableComponent, ILinkableComponent, IAccessibleNameComponent
+public abstract partial class FileTileComponent<T>(string? id = null) : VisualComponentBase<T>(id), IClickableComponent, ILinkableComponent, IAccessibleNameComponent
     where T : FileTileComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Start;
+
     /// <summary>
     /// Gets or sets the file's name, shown on up to two lines and whole as the tile's tooltip; its extension picks the glyph.
     /// </summary>
@@ -47,15 +51,6 @@ public abstract partial class FileTileComponent<T> : VisualComponentBase<T>, ICl
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public string? Icon { get; set; }
-
-    /// <summary>
-    /// Initializes the tile at the start of its cell, at its own size.
-    /// </summary>
-    protected FileTileComponent(string? id = null) : base(id)
-    {
-        HorizontalAlignment = UIAlignment.Start;
-        VerticalAlignment = UIAlignment.Start;
-    }
 
     /// <summary>
     /// Registers a command to invoke when the tile is pressed — to open or download the file; the tile is pressable unless its author

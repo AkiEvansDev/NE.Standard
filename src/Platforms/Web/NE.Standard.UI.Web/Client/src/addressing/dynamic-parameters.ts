@@ -1,6 +1,6 @@
 // With extensions: the node test runner loads this module as is.
 import { ComponentKeyAttribute, ComponentParameterCountAttribute, GroupAnchorAttribute, ItemsHostAttribute } from "./dom-attributes.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logWarn } from "../metadata/logger.ts";
 
 export function readParameterCount(element: Element): number {
     return readNumberAttribute(element, ComponentParameterCountAttribute);

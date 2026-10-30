@@ -40,30 +40,30 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/items/items-view";
     protected override string Header => "demo.items.items-view.header";
     protected override string HeaderDescription => "demo.items.items-view.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/lists", "demo.nav.mechanisms.lists");
+    protected override (string Route, string Title)? ComposedIn => ("/mechanisms/lists", "demo.nav.mechanisms.lists");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new ItemsViewComponent()
             .BindStandard()
-            .BindItems($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Items)}")
-            .BindLayoutType($"{ItemsGroup}.{nameof(ItemsViewGroupContext.LayoutType)}")
-            .BindOrientation($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Orientation)}")
-            .BindSpacing($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Spacing)}")
-            .BindPadding($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Padding)}")
-            .BindHorizontalScroll($"{ItemsGroup}.{nameof(ItemsViewGroupContext.HorizontalScroll)}")
-            .BindVerticalScroll($"{ItemsGroup}.{nameof(ItemsViewGroupContext.VerticalScroll)}")
-            .BindScrollSnap($"{ItemsGroup}.{nameof(ItemsViewGroupContext.ScrollSnap)}")
-            .BindScrollAnchor($"{ItemsGroup}.{nameof(ItemsViewGroupContext.ScrollAnchor)}")
-            .BindSelectionMode($"{ItemsGroup}.{nameof(ItemsViewGroupContext.SelectionMode)}")
-            .BindSelectedKey($"{ItemsGroup}.{nameof(ItemsViewGroupContext.SelectedKey)}")
-            .BindSelectedKeys($"{ItemsGroup}.{nameof(ItemsViewGroupContext.SelectedKeys)}")
-            .BindSelectionStyle($"{ItemsGroup}.{nameof(ItemsViewGroupContext.SelectionStyle)}")
-            .BindDraggable($"{ItemsGroup}.{nameof(ItemsViewGroupContext.Draggable)}")
-            .BindDragHandle($"{ItemsGroup}.{nameof(ItemsViewGroupContext.DragHandle)}")
-            .BindDragHandlePlacement($"{ItemsGroup}.{nameof(ItemsViewGroupContext.DragHandlePlacement)}")
+            .BindItems<ItemsViewController>(static x => x.ItemsGroup.Items)
+            .BindLayoutType<ItemsViewController>(static x => x.ItemsGroup.LayoutType)
+            .BindOrientation<ItemsViewController>(static x => x.ItemsGroup.Orientation)
+            .BindSpacing<ItemsViewController>(static x => x.ItemsGroup.Spacing)
+            .BindPadding<ItemsViewController>(static x => x.ItemsGroup.Padding)
+            .BindHorizontalScroll<ItemsViewController>(static x => x.ItemsGroup.HorizontalScroll)
+            .BindVerticalScroll<ItemsViewController>(static x => x.ItemsGroup.VerticalScroll)
+            .BindScrollSnap<ItemsViewController>(static x => x.ItemsGroup.ScrollSnap)
+            .BindScrollAnchor<ItemsViewController>(static x => x.ItemsGroup.ScrollAnchor)
+            .BindSelectionMode<ItemsViewController>(static x => x.ItemsGroup.SelectionMode)
+            .BindSelectedKey<ItemsViewController>(static x => x.ItemsGroup.SelectedKey)
+            .BindSelectedKeys<ItemsViewController>(static x => x.ItemsGroup.SelectedKeys)
+            .BindSelectionStyle<ItemsViewController>(static x => x.ItemsGroup.SelectionStyle)
+            .BindDraggable<ItemsViewController>(static x => x.ItemsGroup.Draggable)
+            .BindDragHandle<ItemsViewController>(static x => x.ItemsGroup.DragHandle)
+            .BindDragHandlePlacement<ItemsViewController>(static x => x.ItemsGroup.DragHandlePlacement)
             .OnItemMoveWithItemKey(nameof(ItemsViewController.MoveItem))
             // One line per row: the properties are the exhibit here, the richer rows are in the examples below.
-            .SetTemplate(new TextComponent().SetTitleType(UITextAppearance.Body).BindTitle(nameof(TextItem.Title), UIBindingScope.Relative))
+            .SetTemplate(new TextComponent().SetTitleType(UITextAppearance.Body).BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative))
             // Room for every row at the default spacing: at 240 the last row stood cut by four pixels, a scroll that read as a fault.
             .SetMaxHeight(UILayoutLength.Absolute(264))
             .SetPlacement(1, 1, 24, 1)
@@ -83,7 +83,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateStripGroup()
     {
-        return DemoUI.CreateExample("A strip of cards",
+        return DemoUI.CreateExample("Horizontal card strip",
             new ItemsViewComponent()
                 .SetItems(CreateReleases())
                 .SetOrientation(UIOrientation.Horizontal)
@@ -91,18 +91,18 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                 .SetScrollSnap(UIScrollSnapMode.Mandatory)
                 .SetSpacing(12)
                 .SetTemplate(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetWidth(UILayoutLength.Absolute(220))
                     .SetContent(new TextComponent()
-                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
-                        .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Primary))
-                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
+                        .SetIconColor(UIThemeColor.Default)
+                        .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                         .SetTitleType(UITextAppearance.Subtitle)
-                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
-                        .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
-                        .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
+                        .BindBadgeTitle<TextItem>(static x => x.BadgeTitle, UIBindingScope.Relative)
+                        .BindBadgeVariant<TextItem>(static x => x.BadgeVariant, UIBindingScope.Relative)
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     )
                 ),
@@ -114,16 +114,16 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     private static TextItem[] CreateReleases()
         =>
         [
-            CreateRelease("r481", "481", "Raised the health gate to ten minutes.", "Live", UIBadgeType.Success),
-            CreateRelease("r480", "480", "DNS zone rebuild moved off the deploy path.", "Rolled back", UIBadgeType.Warning),
-            CreateRelease("r479", "479", "Billing retries with jitter.", "Live", UIBadgeType.Success),
-            CreateRelease("r478", "478", "Metrics kept for thirteen months.", "Live", UIBadgeType.Success),
-            CreateRelease("r477", "477", "Mail relay paused for the provider migration.", "Paused", UIBadgeType.Surface),
-            CreateRelease("r476", "476", "Invoices export as CSV.", "Live", UIBadgeType.Success)
+            CreateRelease("r481", "481", "Raised the health gate to ten minutes.", "Live", UIBadgeVariant.Success),
+            CreateRelease("r480", "480", "DNS zone rebuild moved off the deploy path.", "Rolled back", UIBadgeVariant.Warning),
+            CreateRelease("r479", "479", "Billing retries with jitter.", "Live", UIBadgeVariant.Success),
+            CreateRelease("r478", "478", "Metrics kept for thirteen months.", "Live", UIBadgeVariant.Success),
+            CreateRelease("r477", "477", "Mail relay paused for the provider migration.", "Paused", UIBadgeVariant.Surface),
+            CreateRelease("r476", "476", "Invoices export as CSV.", "Live", UIBadgeVariant.Success)
         ];
 
-    private static TextItem CreateRelease(string id, string number, string note, string badge, UIBadgeType badgeStyle)
-        => new() { Id = id, Icon = DemoIcons.Upload, Title = $"Release {number}", Description = note, BadgeText = badge, BadgeStyle = badgeStyle };
+    private static TextItem CreateRelease(string id, string number, string note, string badge, UIBadgeVariant badgeVariant)
+        => new() { Id = id, Icon = DemoIcons.Upload, Title = $"Release {number}", Description = note, BadgeTitle = badge, BadgeVariant = badgeVariant };
 
     /// <summary>
     /// The group is carried by the item and the header drawn by the group template, a labelled rule; the rows are one line each. A pin
@@ -132,40 +132,40 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateGroupedGroup()
     {
-        return DemoUI.CreateExample("Bucketed by region",
+        return DemoUI.CreateExample("Grouped sections",
             new ItemsViewComponent()
-                .BindItems(nameof(PinnedServicesGroupContext.Services), UIBindingScope.Relative)
+                .BindItems<PinnedServicesGroupContext>(static x => x.Services, UIBindingScope.Relative)
                 .SetSpacing(4)
                 .OnItemOpenWithItemKey(nameof(ItemsViewController.OpenService))
                 .SetTemplate(new ContainerComponent()
                     .SetColumn(24, UIGridUnit.Auto())
                     .AddChild(new TextComponent()
-                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                        .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
                         .SetIconColor(UIThemeColor.Muted)
-                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                         .AsBody()
-                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted)
-                        .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
-                        .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
+                        .BindBadgeTitle<TextItem>(static x => x.BadgeTitle, UIBindingScope.Relative)
+                        .BindBadgeVariant<TextItem>(static x => x.BadgeVariant, UIBindingScope.Relative)
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
                         .SetVerticalAlignment(UIAlignment.Center)
                         .SetPlacement(1, 1, 23, 1)
                     )
                     // Two buttons in one cell, one of them collapsed: the row says which way a press goes.
                     .AddChild(UIIconButtons.Pin()
-                        .SetSize(UIButtonSize.Small)
+                        .SetSize(UISize.Small)
                         .SetMargin(UIThickness.All(8, 0, 0, 0))
                         .SetVerticalAlignment(UIAlignment.Center)
-                        .BindVisibility(nameof(DemoPinnableService.PinVisibility), UIBindingScope.Relative)
+                        .BindVisibility<DemoPinnableService>(static x => x.PinVisibility, UIBindingScope.Relative)
                         .OnClick(nameof(ItemsViewController.TogglePin), UIAction.ArgCurrentItemKey("id"))
                         .SetPlacement(24, 1, 1, 1)
                     )
                     .AddChild(UIIconButtons.Unpin()
-                        .SetSize(UIButtonSize.Small)
+                        .SetSize(UISize.Small)
                         .SetMargin(UIThickness.All(8, 0, 0, 0))
                         .SetVerticalAlignment(UIAlignment.Center)
-                        .BindVisibility(nameof(DemoPinnableService.UnpinVisibility), UIBindingScope.Relative)
+                        .BindVisibility<DemoPinnableService>(static x => x.UnpinVisibility, UIBindingScope.Relative)
                         .OnClick(nameof(ItemsViewController.TogglePin), UIAction.ArgCurrentItemKey("id"))
                         .SetPlacement(24, 1, 1, 1)
                     )
@@ -183,27 +183,27 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateOrderGroup()
     {
-        return DemoUI.CreateExample("Put in order",
+        return DemoUI.CreateExample("Drag-and-drop reordering",
             UILayout.Stack(16,
                 DemoUI.CreateLabelled("By a drag: the deploy queue, whose order the controller keeps", new ItemsViewComponent()
-                    .BindItems(nameof(DeployQueueGroupContext.Deploys), UIBindingScope.Relative)
+                    .BindItems<DeployQueueGroupContext>(static x => x.Deploys, UIBindingScope.Relative)
                     .SetDraggable(true)
                     .OnItemMoveWithItemKey(nameof(ItemsViewController.MoveDeploy))
                     .SetSpacing(4)
                     .SetTemplate(new TextComponent()
-                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                        .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
                         .SetIconColor(UIThemeColor.Muted)
-                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                         .AsBody()
-                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted)
-                        .BindBadgeText(nameof(TextItem.BadgeText), UIBindingScope.Relative)
-                        .BindBadgeStyle(nameof(TextItem.BadgeStyle), UIBindingScope.Relative)
+                        .BindBadgeTitle<TextItem>(static x => x.BadgeTitle, UIBindingScope.Relative)
+                        .BindBadgeVariant<TextItem>(static x => x.BadgeVariant, UIBindingScope.Relative)
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     )
                 ),
                 DemoUI.CreateLabelled("By a grip: a failover's steps in the order they are run", new ItemsViewComponent()
-                    .BindItems(nameof(DeployQueueGroupContext.Steps), UIBindingScope.Relative)
+                    .BindItems<DeployQueueGroupContext>(static x => x.Steps, UIBindingScope.Relative)
                     .SetDraggable(true)
                     .SetDragHandle(true)
                     // A step's command is copied out of the list, so its words select, as a row's do not by default.
@@ -211,11 +211,11 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                     .OnItemMoveWithItemKey(nameof(ItemsViewController.MoveStep))
                     .SetSpacing(4)
                     .SetTemplate(new TextComponent()
-                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                        .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
                         .SetIconColor(UIThemeColor.Muted)
-                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                         .AsBody()
-                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                 )
@@ -232,11 +232,11 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBoardGroup()
     {
-        return DemoUI.CreateExample("Between lists",
+        return DemoUI.CreateExample("Cross-list drag and drop",
             UILayout.Stack(16)
                 .AddChild(UILayout.Columns(24,
                         DemoUI.CreateLabelled(BoardGroupContext.RoutinesTitle, new ItemsViewComponent(BoardGroupContext.Routines)
-                            .BindItems(nameof(BoardGroupContext.RoutineCards), UIBindingScope.Relative)
+                            .BindItems<BoardGroupContext>(static x => x.RoutineCards, UIBindingScope.Relative)
                             .SetDragKind(BoardGroupContext.CardKind)
                             .SetDragEffects(UIDragEffects.Copy)
                             .SetSpacing(4)
@@ -244,9 +244,9 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                             .SetTemplate(new TextComponent()
                                 .SetIcon(DemoIcons.Outline(DemoIcons.History))
                                 .SetIconColor(UIThemeColor.Muted)
-                                .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                                .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                                 .AsBody()
-                                .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                                .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                                 .SetDescriptionColor(UIThemeColor.Muted)
                             )
                         ),
@@ -258,7 +258,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                 .AddChild(new TextAreaComponent()
                     .SetTitle("Notes")
                     .SetPlaceholder("Drop a card here to note it")
-                    .BindValue(nameof(BoardGroupContext.Notes), UIBindingScope.Relative)
+                    .BindValue<BoardGroupContext>(static x => x.Notes, UIBindingScope.Relative)
                     .OnDrop(BoardGroupContext.CardKind, nameof(ItemsViewController.NoteCards))
                 ),
             columns: 24,
@@ -279,9 +279,9 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
             .SetSpacing(4)
             .SetMinHeight(UILayoutLength.Absolute(160))
             .SetTemplate(new TextComponent()
-                .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                 .AsBody()
-                .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                 .SetDescriptionColor(UIThemeColor.Muted)
             )
         );
@@ -294,19 +294,19 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRowMenusGroup()
     {
-        return DemoUI.CreateExample("A row's own menu",
+        return DemoUI.CreateExample("Row context & overflow menus",
             UILayout.Columns(24,
                 DemoUI.CreateLabelled("Actions over a row", new ItemsViewComponent()
-                    .BindItems(nameof(RowMenusGroupContext.Files), UIBindingScope.Relative)
+                    .BindItems<RowMenusGroupContext>(static x => x.Files, UIBindingScope.Relative)
                     .SetRowHoverable(true)
                     .SetSpacing(2)
                     .OnItemClickWithItemKey(nameof(ItemsViewController.OpenFile))
                     .SetTemplate(new TextComponent()
-                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                        .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
                         .SetIconColor(UIThemeColor.Muted)
-                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                         .AsBody()
-                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted)
                         .SetMargin(UIThickness.All(8, 6, 8, 6))
                         .SetContextMenu(new MenuComponent()
@@ -318,43 +318,43 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                 ),
                 DemoUI.CreateLabelled("A feed of two kinds", UILayout.Stack(4)
                     .AddChild(new ItemsViewComponent()
-                        .BindItems(nameof(RowMenusGroupContext.Entries), UIBindingScope.Relative)
-                        .BindFirstVisibleKey(nameof(RowMenusGroupContext.TopEntry), UIBindingScope.Relative)
-                        .BindLastVisibleKey(nameof(RowMenusGroupContext.BottomEntry), UIBindingScope.Relative)
+                        .BindItems<RowMenusGroupContext>(static x => x.Entries, UIBindingScope.Relative)
+                        .BindFirstVisibleKey<RowMenusGroupContext>(static x => x.TopEntry, UIBindingScope.Relative)
+                        .BindLastVisibleKey<RowMenusGroupContext>(static x => x.BottomEntry, UIBindingScope.Relative)
                         .SetTemplateKeyProperty(nameof(DemoFeedItem.Kind))
                         .SetFallbackTemplateKey(RowMenusGroupContext.NoteKind)
                         .AddTemplateVariant(RowMenusGroupContext.NoteKind, new SurfaceComponent()
-                            .SetSurface(UISurfaceStyle.Raised)
+                            .SetSurface(UISurfaceStyle.Surface)
                             .SetPadding(UIThickness.All(10, 8, 10, 8))
                             .SetContextMenu(CreateFeedMenu())
                             .SetContent(new TextComponent()
-                                .BindTitle(nameof(DemoFeedItem.Title), UIBindingScope.Relative)
+                                .BindTitle<DemoFeedItem>(static x => x.Title, UIBindingScope.Relative)
                                 .SetTitleType(UITextAppearance.Caption)
                                 .SetTitleColor(UIThemeColor.Muted)
-                                .BindDescription(nameof(DemoFeedItem.Description), UIBindingScope.Relative)
+                                .BindDescription<DemoFeedItem>(static x => x.Description, UIBindingScope.Relative)
                                 .SetDescriptionType(UITextAppearance.Body)
                             )
                         )
                         .AddTemplateVariant(RowMenusGroupContext.ImageKind, new SurfaceComponent()
-                            .SetSurface(UISurfaceStyle.Raised)
+                            .SetSurface(UISurfaceStyle.Surface)
                             .SetPadding(UIThickness.All(10, 8, 10, 8))
                             .SetContextMenu(CreateFeedMenu())
                             .SetContent(UILayout.Stack(6)
                                 .AddChild(new TextComponent()
-                                    .BindTitle(nameof(DemoFeedItem.Title), UIBindingScope.Relative)
+                                    .BindTitle<DemoFeedItem>(static x => x.Title, UIBindingScope.Relative)
                                     .SetTitleType(UITextAppearance.Caption)
                                     .SetTitleColor(UIThemeColor.Muted)
                                 )
                                 // No height: the picture is drawn at its own proportions, so the row grows when it has loaded.
                                 .AddChild(new ImageComponent()
-                                    .BindSource(nameof(DemoFeedItem.Source), UIBindingScope.Relative)
-                                    .BindAltText(nameof(DemoFeedItem.Description), UIBindingScope.Relative)
+                                    .BindSource<DemoFeedItem>(static x => x.Source, UIBindingScope.Relative)
+                                    .BindAltText<DemoFeedItem>(static x => x.Description, UIBindingScope.Relative)
                                     .SetMaxWidth(UILayoutLength.Absolute(360))
                                     .SetMaxHeight(UILayoutLength.Absolute(240))
                                     .SetBorderRadius(UICornerRadius.Uniform(6))
                                 )
                                 .AddChild(new TextComponent()
-                                    .BindTitle(nameof(DemoFeedItem.Description), UIBindingScope.Relative)
+                                    .BindTitle<DemoFeedItem>(static x => x.Description, UIBindingScope.Relative)
                                     .SetTitleType(UITextAppearance.Caption)
                                 )
                             )
@@ -366,7 +366,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                     )
                     // The page writes the entries at the feed's top and foot back as the reader scrolls; the setters word them here.
                     .AddChild(new TextComponent()
-                        .BindTitle(nameof(RowMenusGroupContext.InView), UIBindingScope.Relative)
+                        .BindTitle<RowMenusGroupContext>(static x => x.InView, UIBindingScope.Relative)
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.Muted)
                     )
@@ -389,6 +389,6 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     /// <summary>A row's context menu over the entry's own list; the press names the entry pressed and the row it was opened on.</summary>
     private static MenuComponent CreateFeedMenu()
         => new MenuComponent()
-            .BindItems(nameof(DemoFeedItem.Menu), UIBindingScope.Relative)
+            .BindItems<DemoFeedItem>(static x => x.Menu, UIBindingScope.Relative)
             .OnItemClick(nameof(ItemsViewController.FeedMenuAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(DemoFeedItem.Id)));
 }

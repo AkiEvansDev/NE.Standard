@@ -10,5 +10,5 @@ namespace NE.Standard.UI.Authoring.Components;
 public interface ICaptionRowComponent : IVisualComponent
 {
     /// <summary>The size of the box its caption row stands over at <paramref name="tier"/>, or null where it draws none there.</summary>
-    UIInputSize? CaptionRowBox(UIResponsiveTier tier);
+    UISize? CaptionRowBox(UIResponsiveTier tier);
 }

@@ -15,7 +15,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
     protected override string ComponentRoute => "/choices/checkbox";
     protected override string Header => "demo.choices.checkbox.header";
     protected override string HeaderDescription => "demo.choices.checkbox.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/sign-up", "demo.nav.screens.sign-up");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/sign-up", "demo.nav.screens.sign-up");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(Bind(new CheckboxComponent())));
@@ -27,7 +27,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
     /// <summary>The ordinary case: a list of independent settings, each answered on its own.</summary>
     private static ContainerComponent CreateSettingsGroup()
     {
-        return DemoUI.CreateExample("A list of settings",
+        return DemoUI.CreateExample("Independent boolean options",
             UILayout.Stack(12)
                 .AddChild(new CheckboxComponent()
                     .SetTitle("Take automatic backups")
@@ -54,7 +54,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
     /// <remarks>Not a property: the row is <c>UILayout.Ends</c>, the control at its far end as wide as itself.</remarks>
     private static ContainerComponent CreateRowEndGroup()
     {
-        return DemoUI.CreateExample("At the far end of a row",
+        return DemoUI.CreateExample("Trailing row alignment",
             new SurfaceComponent()
                 .SetContent(UILayout.Stack(4)
                     .AddChild(UILayout.Ends(
@@ -67,6 +67,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
                             .SetDescriptionColor(UIThemeColor.Muted),
                         new CheckboxComponent()
                             .SetValue(true)
+                            .SetAccessibleName("Deploy notifications")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -80,6 +81,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
                             .SetDescriptionColor(UIThemeColor.Muted),
                         new CheckboxComponent()
                             .SetValue(false)
+                            .SetAccessibleName("Keep snapshots")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -93,7 +95,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLabelGroup()
     {
-        return DemoUI.CreateExample("The label it carries",
+        return DemoUI.CreateExample("Descriptions, icons, badges & help",
             UILayout.Stack(12)
                 .AddChild(new CheckboxComponent()
                     .SetTitle("Take automatic backups")
@@ -106,8 +108,8 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
                     .SetTitle("Two-factor authentication")
                     .SetDescription("A *second step* on a new device.")
                     .SetDescriptionColor(UIThemeColor.Muted)
-                    .SetBadgeText("Recommended")
-                    .SetBadgeStyle(UIBadgeType.Success)
+                    .SetBadgeTitle("Recommended")
+                    .SetBadgeVariant(UIBadgeVariant.Success)
                     .SetValue(true)
                 )
                 .AddChild(new CheckboxComponent()
@@ -116,8 +118,8 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
                     .SetTitle("Allow public IPv4")
                     .SetDescription("**The server answers the whole internet.**")
                     .SetDescriptionColor(UIThemeColor.Muted)
-                    .SetBadgeText("Dangerous")
-                    .SetBadgeStyle(UIBadgeType.Danger)
+                    .SetBadgeTitle("Dangerous")
+                    .SetBadgeVariant(UIBadgeVariant.Danger)
                     .SetValue(false)
                 )
                 .AddChild(new CheckboxComponent()
@@ -140,7 +142,7 @@ internal sealed class CheckboxView : ToggleView, IUIViewDefinition
     /// <remarks>Side by side rather than stacked, or the two read as one list instead of as a choice between two controls.</remarks>
     private static ContainerComponent CreateAgainstRadioGroup()
     {
-        return DemoUI.CreateExample("What it is not",
+        return DemoUI.CreateExample("Checkboxes vs RadioGroup",
             UILayout.Row(32)
                 .AddChild(DemoUI.CreateLabelled("Two checkboxes, two answers", UILayout.Stack(8)
                     .AddChild(new CheckboxComponent()

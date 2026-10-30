@@ -2,18 +2,11 @@
 // One fitter serves the tabs component's strip and the tabs view's — the selected tab kept, every tab listed — and the command bar's
 // row, whose trailing commands go and are the ones listed.
 
-import { ComponentKeyAttribute, DisabledClass, SmallGhostButtonClasses } from "../addressing/dom-attributes.ts";
+import { ComponentKeyAttribute, DisabledClass, SmallGhostButtonClasses, TabOverflowEntryClass, TabOverflowEntryCurrentClass, TabOverflowMenuClass, TabOverflowMenuOpenClass } from "../addressing/dom-attributes.ts";
 import { carryPopupGround } from "./anchored-popup.ts";
 import { isInert } from "./interactive-state.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { followPointer, handleChoiceListKey, openChoiceList } from "./popup-list.ts";
-
-export const OverflowButtonClass = "ui-tab-overflow";
-
-const MenuClass = "ui-tab-overflow__menu";
-const MenuOpenClass = "ui-tab-overflow__menu--open";
-const EntryClass = "ui-tab-overflow__entry";
-const EntryCurrentClass = "ui-tab-overflow__entry--current";
 
 /** One kind of strip as the fitter sees it: its classes, and its engine's answers to a refit and a pick from the list. */
 export type StripFitterOptions = {
@@ -230,26 +223,21 @@ function fitStrip(fit: StripFit): boolean {
 
 /**
  * Hides every caption from the first that ends past the room left before the "…" control, shown only once one has to go, and answers
- * whether any is hidden. Measured from the room's inline start, so the gaps and separators between captions count.
+ * whether any is hidden. Measured from the room's left edge, so the gaps and separators between captions count.
  */
 function fitTrailing(layout: StripLayout, hiddenClass: string, showButton: () => void): boolean {
     for (const caption of layout.captions)
         caption.classList.remove(hiddenClass);
 
     const style = getComputedStyle(layout.room);
-    const rtl = style.direction === "rtl";
     const paddingLeft = Number.parseFloat(style.paddingLeft) || 0;
     const paddingRight = Number.parseFloat(style.paddingRight) || 0;
     const room = layout.room.getBoundingClientRect();
-    const start = rtl ? room.right - layout.room.clientLeft - paddingRight : room.left + layout.room.clientLeft + paddingLeft;
+    const start = room.left + layout.room.clientLeft + paddingLeft;
     const width = layout.room.clientWidth - paddingLeft - paddingRight;
 
     // Read in one pass, with every caption shown, so the fit forces one layout.
-    const ends = layout.captions.map(caption => {
-        const rect = caption.getBoundingClientRect();
-
-        return rtl ? start - rect.left : rect.right - start;
-    });
+    const ends = layout.captions.map(caption => caption.getBoundingClientRect().right - start);
 
     if (ends.every(end => end <= width))
         return false;
@@ -259,8 +247,8 @@ function fitTrailing(layout: StripLayout, hiddenClass: string, showButton: () =>
     // Where the "…" begins, its own margin before it: what is left of the room for the captions.
     const button = layout.button.getBoundingClientRect();
     const buttonStyle = getComputedStyle(layout.button);
-    const margin = Number.parseFloat(rtl ? buttonStyle.marginRight : buttonStyle.marginLeft) || 0;
-    const available = (rtl ? start - button.right : button.left - start) - margin;
+    const margin = Number.parseFloat(buttonStyle.marginLeft) || 0;
+    const available = button.left - start - margin;
     let past = false;
 
     for (let i = 0; i < layout.captions.length; i++) {
@@ -280,9 +268,9 @@ class StripOverflowMenu {
 
     // The opening control counts as inside: its own click is the engine's toggle.
     private readonly list = new OwnedPopups({
-        show: ({ popup }) => popup.classList.add(MenuOpenClass),
+        show: ({ popup }) => popup.classList.add(TabOverflowMenuOpenClass),
         hide: ({ popup }) => {
-            popup.classList.remove(MenuOpenClass);
+            popup.classList.remove(TabOverflowMenuOpenClass);
             this.button = null;
         },
         closesWhenReadOnly: false,
@@ -297,7 +285,7 @@ class StripOverflowMenu {
     public constructor(pick: (strip: HTMLElement, key: string) => void) {
         this.pick = pick;
         this.menu = document.createElement("div");
-        this.menu.className = MenuClass;
+        this.menu.className = TabOverflowMenuClass;
         this.menu.setAttribute("role", "menu");
         this.menu.addEventListener("click", domEvent => this.handleClick(domEvent));
         this.menu.addEventListener("keydown", domEvent => this.handleKeydown(domEvent));
@@ -318,12 +306,12 @@ class StripOverflowMenu {
             document.body.appendChild(this.menu);
 
         // A list of tabs opens on the current one; a list with none (the commands) as every popup list does, by what opened it.
-        const current = this.menu.querySelector<HTMLElement>(`.${EntryCurrentClass}`);
+        const current = this.menu.querySelector<HTMLElement>(`.${TabOverflowEntryCurrentClass}`);
 
         this.button = button;
         carryPopupGround(button, this.menu);
 
-        const opening = { owner: strip, popup: this.menu, anchor: button, placement: { placement: "bottom-end" }, openers: [button], returnFocus: () => button } as const;
+        const opening = { owner: strip, popup: this.menu, anchor: button, placement: { placement: "bottom-end" }, openers: [button], namedBy: button, returnFocus: () => button } as const;
 
         if (!openChoiceList(this.list, opening, this.entries(), current))
             this.button = null;
@@ -337,7 +325,7 @@ class StripOverflowMenu {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const entry = domEvent.target.closest<HTMLElement>(`.${EntryClass}`);
+        const entry = domEvent.target.closest<HTMLElement>(`.${TabOverflowEntryClass}`);
         const key = entry?.getAttribute(ComponentKeyAttribute) ?? null;
         const strip = this.list.current;
 
@@ -355,14 +343,14 @@ class StripOverflowMenu {
     }
 
     private handlePointerMove(domEvent: PointerEvent): void {
-        const entry = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${EntryClass}`) : null;
+        const entry = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${TabOverflowEntryClass}`) : null;
 
         if (entry !== null)
             followPointer(entry, this.entries());
     }
 
     private entries(): HTMLElement[] {
-        return Array.from(this.menu.querySelectorAll<HTMLElement>(`.${EntryClass}`));
+        return Array.from(this.menu.querySelectorAll<HTMLElement>(`.${TabOverflowEntryClass}`));
     }
 }
 
@@ -370,8 +358,8 @@ function createEntry(entry: StripOverflowEntry): HTMLElement {
     const button = document.createElement("button");
 
     button.type = "button";
-    button.className = `${EntryClass} ${SmallGhostButtonClasses}`;
-    button.classList.toggle(EntryCurrentClass, entry.current);
+    button.className = `${TabOverflowEntryClass} ${SmallGhostButtonClasses}`;
+    button.classList.toggle(TabOverflowEntryCurrentClass, entry.current);
     button.setAttribute("role", "menuitem");
     button.setAttribute(ComponentKeyAttribute, entry.key);
     button.textContent = entry.title;

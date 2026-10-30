@@ -3,7 +3,8 @@
 // (page-dialog.ts), as the leave dialog is, so the dialog engine traps the focus in it and gives it back.
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports, and types imported as types.
-import { clientStrings } from "../runtime/client-strings.ts";
+import { ButtonPrimaryClass, GhostButtonClass, ImageCropCanvasClass, ImageCropClass, ImageCropFrameAttribute, ImageCropFrameClass, ImageCropPartAttribute, ImageCropStageClass, ImageCropSurfaceClass, ImageCropTitleClass, ImageCropTitleId, ImageCropZoomClass, TextTypeSubtitleClass } from "../addressing/dom-attributes.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
 import type { DialogEngine } from "./dialog-engine.ts";
 import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { centredView, cropFileName, cropOutputSide, cropOutputType, cropRect, cropScale, MaxCropZoom, panView, workingScale, zoomView } from "./image-crop.ts";
@@ -13,10 +14,8 @@ import { PointerDrag } from "./pointer-drag.ts";
 import type { PinchStep } from "./pointer-drag.ts";
 import { wheelPixels } from "./wheel-notches.ts";
 
-const CropDialogKey = "ui-image-crop";
-const TitleId = "ui-image-crop-title";
-const Parts = new PageDialogParts("data-ui-image-crop-part");
-const FrameAttribute = "data-ui-image-crop-frame";
+const CropDialogKey = ImageCropClass;
+const Parts = new PageDialogParts(ImageCropPartAttribute);
 
 /** How far an arrow moves the picture, in screen pixels; with Shift, five times as far. */
 const ArrowStep = 10;
@@ -151,7 +150,7 @@ export async function cropPictureAsync(dialogs: DialogEngine, file: File, reques
         clientStrings.write(crop.zoom, "aria-label", "ui.crop.zoom");
         clientStrings.write(crop.cancel, null, "ui.crop.cancel");
         clientStrings.write(crop.apply, null, "ui.crop.apply");
-        crop.stage.setAttribute(FrameAttribute, request.frame);
+        crop.stage.setAttribute(ImageCropFrameAttribute, request.frame);
 
         dialogs.open(CropDialogKey);
         show(crop);
@@ -163,39 +162,39 @@ function buildDialog(): CropParts {
     // a drag on the backdrop is no Cancel either.
     const { dialog, surface } = buildPageDialog({
         key: CropDialogKey,
-        className: "ui-image-crop",
-        surfaceClassName: "ui-image-crop__surface",
+        className: ImageCropClass,
+        surfaceClassName: ImageCropSurfaceClass,
         role: "dialog",
-        labelledBy: TitleId,
+        labelledBy: ImageCropTitleId,
         closesOnEscapeAndBackdrop: false
     });
 
-    const title = Parts.element("h2", "ui-image-crop__title ui-text-type--subtitle");
+    const title = Parts.element("h2", `${ImageCropTitleClass} ${TextTypeSubtitleClass}`);
 
-    title.id = TitleId;
+    title.id = ImageCropTitleId;
 
     // The stage is the picture's control: the first stop, where the arrows, + and − and Enter work.
-    const stage = Parts.element("div", "ui-image-crop__stage", "stage");
+    const stage = Parts.element("div", ImageCropStageClass, "stage");
 
     stage.setAttribute("tabindex", "0");
     stage.setAttribute("role", "group");
 
-    const canvas = Parts.element("canvas", "ui-image-crop__canvas") as HTMLCanvasElement;
-    const frame = Parts.element("span", "ui-image-crop__frame");
+    const canvas = Parts.element("canvas", ImageCropCanvasClass) as HTMLCanvasElement;
+    const frame = Parts.element("span", ImageCropFrameClass);
 
     canvas.setAttribute("aria-hidden", "true");
     frame.setAttribute("aria-hidden", "true");
     stage.append(canvas, frame);
 
-    const zoom = Parts.element("input", "ui-image-crop__zoom", "zoom") as HTMLInputElement;
+    const zoom = Parts.element("input", ImageCropZoomClass, "zoom") as HTMLInputElement;
 
     zoom.type = "range";
     zoom.min = "1";
     zoom.max = String(MaxCropZoom);
     zoom.step = "0.01";
 
-    const cancel = Parts.button("ui-button--ghost", "cancel");
-    const apply = Parts.button("ui-button--primary", "apply");
+    const cancel = Parts.button(GhostButtonClass, "cancel");
+    const apply = Parts.button(ButtonPrimaryClass, "apply");
 
     surface.append(title, stage, zoom, Parts.actions(cancel, apply));
 

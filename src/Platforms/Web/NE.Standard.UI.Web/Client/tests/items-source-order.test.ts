@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getSourceOrder, mergeSourceOrder, removeSourceItems, setSourceOrder } from "../src/items/items-source-order.ts";
+import { getSourceOrder, mergeSourceOrder, removeSourceItems, setSourceOrder } from "../src/addressing/items-source-order.ts";
 
 test("keeps the known order for what is still present", () => {
     assert.deepEqual(mergeSourceOrder(["a", "b", "c", "d"], ["d", "b", "a"]), ["a", "b", "d"]);

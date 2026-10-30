@@ -58,10 +58,11 @@ public static class UIThemeDefaults
         FocusRing = new(ColorName.NovaPurple),
 
         Border = new(ColorName.IronFog, ColorAdjustment.Shade, 10, 30),
+        Mark = ColorVariant.FromRgb(200, 200, 196),
         Shadow = new(ColorName.IronFog, ColorAdjustment.Shade, 10, 65),
         Overlay = new(ColorName.IronFog, ColorAdjustment.Shade, 10, 95),
 
-        DisabledOpacity = 145
+        DisabledOpacity = 102
     };
 
     /// <summary>
@@ -77,5 +78,5 @@ public static class UIThemeDefaults
     /// <summary>
     /// Gets the standard shape tokens.
     /// </summary>
-    public static UIShape Shape => new();
+    public static UIThemeShape Shape => new();
 }

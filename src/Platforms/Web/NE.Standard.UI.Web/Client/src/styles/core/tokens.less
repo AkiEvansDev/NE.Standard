@@ -19,10 +19,10 @@
 @ui-space-5: 1.5rem;   
 
 @ui-control-height: 2.5rem;
-// A button says its own size — see UIButtonSize. @ui-control-height stays the medium one so other controls reading it are unaffected.
+// A button says its own size — see UISize. @ui-control-height stays the medium one so other controls reading it are unaffected.
 @ui-button-height-sm: 1.75rem;
 @ui-button-height-lg: 3rem;  
-// A field says its own size too — see UIInputSize. A small one is a line of caption text with room for a glyph, for a dense surface.
+// A field says its own size too — see UISize. A small one is a line of caption text with room for a glyph, for a dense surface.
 @ui-control-height-sm: 1.5rem;
 @ui-control-height-lg: 3rem;
 // A small field's side padding, and the gap between the parts of its row: half a medium field's padding, for a caption line.
@@ -36,6 +36,11 @@
 @ui-glyph-md-lg: 1.125rem; // 18px — an icon-only control's glyph: a button, the theme switcher, an icon strip
 @ui-glyph-lg: 1.25rem; // 20px — a mark standing on its own, over a picture or in a corner; a medium icon, a rail's glyph
 @ui-glyph-xl: 1.5rem; // 24px — a large icon button's glyph, a large icon, a large rail's glyph
+@ui-glyph-xxl: 1.75rem; // 28px — a stand-in filling a tile: a file's kind, an empty picture's or an avatar's
+@ui-glyph-xxxl: 2rem; // 32px — an empty picture field's stand-in
+
+// The chosen entry's weight among its siblings — a tab, a page, a crumb, a time: bold enough to tell it, not a title's.
+@ui-chosen-weight: 600;
 
 // A line in a list that is scanned, not pressed - a menu entry, a breadcrumb step, a calendar cell: read-down height, not press-target.
 @ui-list-row-height: 1.75rem;
@@ -44,27 +49,20 @@
 @ui-list-entry-gap: 2px;
 
 // An entry's corner in a list (a select's options, a popup menu's entries, the "…" and language lists, a calendar's cells, a sidebar's
-// entries): two thirds of a button's, 4 px to its 6, so a theme's shape scales both and a list reads finer than its buttons.
-@ui-list-entry-radius: ~"calc(var(--ui-radius-button) * 2 / 3)";
+// entries): a button's (`--ui-radius-button`, 6 px by default), so a theme's shape scales both and list entries match field/button corners.
+@ui-list-entry-radius: var(--ui-radius-button);
 
 // How far past its element the keyboard's frame reaches where it is drawn outside (its 2 px gap and its 2 px line: a link, a toggle's
 // row; a quiet expander's header, padded and pulled back out by its air): the room a clipping panel leaves its children past its edge.
 // A link among running words keeps closer (core/keyboard.less).
-@ui-keyboard-frame-reach: 6px;
+@ui-keyboard-frame-reach: 8px;
 
-// The air inside a quiet expander's header, round its words, that its keyboard frame stands in (components/ui-expander.less).
-@ui-quiet-header-air-y: @ui-space-1;
-@ui-quiet-header-air-x: 6px;
-
-// The keyboard's frame's corner, one everywhere it is drawn: a button's, so a theme's shape scales it with the controls.
-@ui-keyboard-frame-radius: var(--ui-radius-button);
-
-// A popup's corner: its entries' widened by the list's padding, so the two curves run parallel — 8 px by default.
-@ui-popup-radius: ~"calc(var(--ui-radius-button) * 2 / 3 + @{ui-space-1})";
+// A popup's corner: its entries' widened by 2 px so the outer curve visually nests the 4 px-padded list entries — 8 px by default.
+@ui-popup-radius: ~"calc(var(--ui-radius-button) + 2px)";
 
 // A small part's corner inside a control — a row's grip, a stepper's half, a time segment, a tree's chevron, a field's own
-// picture: an entry's, so a theme's shape scales it too; a picture smaller than a line, half a button's (3 px by default).
-@ui-part-radius: @ui-list-entry-radius;
+// picture: two thirds of a button's (4 px by default), so a theme's shape scales it too; a picture smaller than a line, half a button's (3 px by default).
+@ui-part-radius: ~"calc(var(--ui-radius-button) * 2 / 3)";
 @ui-part-radius-sm: ~"calc(var(--ui-radius-button) / 2)";
 
 // The page's stacking ladder, low to high, in one place: a new layer takes its step here, never a number of its own.
@@ -114,11 +112,11 @@
 @ui-offer-opacity: 0.35;
 @ui-offer-opacity-hover: 0.7;
 
-// The ring, in a thing's own colour, round one the pointer holds or could land on: a slider's handle, a pin a pulled link can take.
-@ui-halo-share: 22%;
+// The ring, in a thing's own colour, round one that is focused, held or reachable: a focused field, a slider's handle, a pin a pulled link can take.
+@ui-halo-share: 28%;
 
 // The dark plate light marks stand on over a picture of any colours: a replaceable picture's glass, the lightbox's controls.
-@ui-picture-plate: color-mix(in srgb, black 50%, transparent);
+@ui-image-plate: color-mix(in srgb, black 50%, transparent);
 
 // How close to the viewport's edge a popup may sit; must match anchored-popup.ts's own margin.
 @ui-popup-viewport-margin: 4px;
@@ -128,34 +126,37 @@
 @ui-row-height-sm: 2.5rem;
 @ui-row-height-lg: 4rem;
 
-// One step off a row's ground for a table's header, stripe and footer, so the three never drift apart.
+// One step off a row's ground for a table's header and footer, and a subtler 2% step for striped even rows so hover (4% in dark mode)
+// stays clearly distinct from the stripe.
 @ui-table-tint: 6%;
 @ui-table-ground: color-mix(in srgb, var(--ui-color-on-surface) @ui-table-tint, transparent);
+@ui-table-stripe: color-mix(in srgb, var(--ui-color-on-surface) 2%, transparent);
 
 // The ink of the ground a part stands on, and its muted fade. `--ui-faint-base` is the ground's on-colour where the ground is filled
-// (a filled button or badge, a Background) and is reset where a ground of its own is opaque (a popup, a raised or flat surface); the root's
+// (a filled button or badge, a Background) and is reset where a ground of its own is opaque (a popup, a Surface panel); the root's
 // `--ui-text-muted` is fixed to the page's ink and never sees it, so a part that can stand on a filled ground reads these.
 @ui-text-ink: var(--ui-faint-base, var(--ui-color-on-surface));
-// Muted is the ink at 75% on the page and at 87% on a filled ground, which reads 4.5:1 on every theme fill (Success, the lowest,
-// 4.6:1). One expression rather than a second property to set beside every base: the base's own veil, mixed under the page's
-// share, lifts the ink only where a base is set — unset or reset, the veil is transparent and the page's muted is what it was.
-@ui-text-muted-share: 0.75;
+// Muted is the ink at `--ui-text-muted-share` (64% on dark, 70% on light) on the page and at 87% on a filled ground, which reads 4.5:1
+// on every theme fill (Success, the lowest, 4.6:1). One expression rather than a second property to set beside every base: the base's
+// own veil, mixed under the page's share, lifts the ink only where a base is set — unset or reset, the veil is transparent and the
+// page's muted is what it was.
+@ui-text-muted-share: 0.64;
 @ui-text-muted-filled-share: 0.87;
-// An aside's share of its ink, under the 4.5:1 floor on purpose: a muted separator's label at 55% of the muted ink, a text's fold at
+// An aside's share of its ink, under the 4.5:1 floor on purpose: a muted separator's title at 55% of the muted ink, a text's fold at
 // 55% of its words — at the muted ink itself they read as loud as the words around them (DECISIONS).
 @ui-text-faint-share: 0.55;
 @ui-faint-lift: color-mix(in srgb, var(--ui-faint-base, transparent) percentage(((@ui-text-muted-filled-share - @ui-text-muted-share) / (1 - @ui-text-muted-share))), transparent);
-@ui-text-muted: color-mix(in srgb, @ui-text-ink percentage(@ui-text-muted-share), @ui-faint-lift);
+@ui-text-muted: color-mix(in srgb, @ui-text-ink var(--ui-text-muted-share, percentage(@ui-text-muted-share)), @ui-faint-lift);
 
 // A faint ground of the ink a part stands on, so it reads on any ground: a file tile's, Markdown's code.
 @ui-ink-ground: color-mix(in srgb, @ui-text-ink 7%, transparent);
 
 // The ground a part stands on, for a part cut out of it (a chart's hollow marker, the edge between two sectors). `--ui-ground` is
 // written where `--ui-faint-base` is: a Background's colour inline, a filled button's or badge's fill, and the own colour of a
-// ground that is opaque (a popup, the dialog, a Background, Raised, Flat or Tinted surface); unset, the ground is the page's surface.
+// ground that is opaque (a popup, the dialog, a Background, Surface or Tinted surface); unset, the ground is the page's surface.
 @ui-ground: var(--ui-ground, var(--ui-color-surface));
 
-// A popup's own ground, one step above the ground it opens from: the page's surface colour over the page; over a raised or flat
+// A popup's own ground, one step above the ground it opens from: the page's surface colour over the page; over a Surface
 // panel or the dialog, what the panel writes to `--ui-popup-ground` — its fill with 8 % more of the text, the step the panel is off the
 // surface. A Background or Tinted ground is the page's level again and takes the step back; a popup on the body is handed its
 // opener's (`carryPopupGround`, anchored-popup.ts).
@@ -177,7 +178,7 @@
 // The brand's ink, not its fill: on a dark page the fill is as dark as the page, and a third of it was all but unseen.
 // A selection drawn in a ground's own colour (a graph node's rename field) takes the same share.
 @ui-text-selection-share: 48%;
-@ui-text-selection: color-mix(in srgb, var(--ui-color-primary-ink) @ui-text-selection-share, transparent);
+@ui-text-selection: color-mix(in srgb, var(--ui-color-primary) @ui-text-selection-share, transparent);
 
 // A quote's stroke, one width wherever one is drawn: a paragraph's quote line, a Markdown blockquote, the Extensions quote (its
 // `UIText.Quote` writes the same 3 px as a border, held equal by QuoteStrokeSyncTests). A quotation inside text is drawn in one
@@ -185,12 +186,12 @@
 @ui-quote-stroke: 3px;
 @ui-quote-ink: var(--ui-color-border);
 
-// A message's severity, drawn as a bar down its leading edge: a toast's and a validation tooltip's, one width.
-@ui-severity-stroke: 3px;
+// A message's accent, drawn as a bar down its leading edge: a toast's tone and a validation tooltip's severity, one width.
+@ui-accent-stroke: 3px;
 
 // A thing being dragged stays in its place as a ghost (a column's caption, a tab, a tree row), so the gap it will leave is what moves.
 @ui-drag-ghost-opacity: 0.45;
-// A label a loading ring stands beside rather than replacing (a button with no icon to turn into the ring) fades under it.
+// A label a loading ring stands over rather than replacing (a tab with no icon to turn into the ring) fades under it.
 @ui-loading-label-opacity: 0.35;
 
 // Code and anything else set in a fixed-width face: the platform's own monospace first.

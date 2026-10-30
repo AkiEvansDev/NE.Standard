@@ -18,6 +18,9 @@ internal sealed partial class DateValueGroupContext : InputValueGroupContext
     public partial DateOnly? EndValue { get; set; } = Sample.AddDays(4);
 
     [RecursiveMember]
+    public partial TimeSpan? MinDistance { get; set; }
+
+    [RecursiveMember]
     public partial DateOnly? Min { get; set; }
 
     [RecursiveMember]
@@ -27,6 +30,7 @@ internal sealed partial class DateValueGroupContext : InputValueGroupContext
     {
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(EndValue), CycleEndValue, () => EndValue);
+        AddOption(nameof(MinDistance), CycleMinDistance, () => MinDistance);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
         AddSizeOption();
@@ -34,11 +38,36 @@ internal sealed partial class DateValueGroupContext : InputValueGroupContext
     }
 
     public void CycleValue()
-        => SetLastChange(nameof(Value), Value = CycleValue(Value, Sample, new DateOnly(2026, 12, 31), null));
+    {
+        SetLastChange(nameof(Value), Value = CycleValue(Value, Sample, new DateOnly(2026, 12, 31), null));
+        KeepApart(endMoved: false);
+    }
 
     // Read only by the period pane; the single pane carries the binding and ignores it.
     public void CycleEndValue()
-        => SetLastChange(nameof(EndValue), EndValue = CycleValue(EndValue, Sample.AddDays(4), Sample.AddDays(30), null));
+    {
+        SetLastChange(nameof(EndValue), EndValue = CycleValue(EndValue, Sample.AddDays(4), Sample.AddDays(30), null));
+        KeepApart(endMoved: true);
+    }
+
+    // Whole days: a date input refuses a part of one.
+    public void CycleMinDistance()
+    {
+        SetLastChange(nameof(MinDistance), MinDistance = CycleValue(MinDistance, null, TimeSpan.FromDays(2), TimeSpan.FromDays(7)));
+        KeepApart(endMoved: true);
+    }
+
+    /// <summary>The period's other end moves out of the way of the one just set, so the page and the server hold the distance it names.</summary>
+    private void KeepApart(bool endMoved)
+    {
+        if (MinDistance is not TimeSpan distance || Value is not DateOnly start || EndValue is not DateOnly end || end.DayNumber - start.DayNumber >= distance.Days)
+            return;
+
+        if (endMoved)
+            Value = end.AddDays(-distance.Days);
+        else
+            EndValue = start.AddDays(distance.Days);
+    }
 
     public void CycleMin()
     {
@@ -81,6 +110,9 @@ internal sealed partial class TimeValueGroupContext : InputValueGroupContext
     public partial TimeOnly? EndValue { get; set; } = new(17, 0);
 
     [RecursiveMember]
+    public partial TimeSpan? MinDistance { get; set; }
+
+    [RecursiveMember]
     public partial TimeOnly? Min { get; set; }
 
     [RecursiveMember]
@@ -90,6 +122,7 @@ internal sealed partial class TimeValueGroupContext : InputValueGroupContext
     {
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(EndValue), CycleEndValue, () => EndValue);
+        AddOption(nameof(MinDistance), CycleMinDistance, () => MinDistance);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
         AddSizeOption();
@@ -97,10 +130,34 @@ internal sealed partial class TimeValueGroupContext : InputValueGroupContext
     }
 
     public void CycleValue()
-        => SetLastChange(nameof(Value), Value = CycleValue(Value, Sample, new TimeOnly(23, 45), null));
+    {
+        SetLastChange(nameof(Value), Value = CycleValue(Value, Sample, new TimeOnly(23, 45), null));
+        KeepApart(endMoved: false);
+    }
 
     public void CycleEndValue()
-        => SetLastChange(nameof(EndValue), EndValue = CycleValue(EndValue, new TimeOnly(17, 0), new TimeOnly(23, 59), null));
+    {
+        SetLastChange(nameof(EndValue), EndValue = CycleValue(EndValue, new TimeOnly(17, 0), new TimeOnly(23, 59), null));
+        KeepApart(endMoved: true);
+    }
+
+    public void CycleMinDistance()
+    {
+        SetLastChange(nameof(MinDistance), MinDistance = CycleValue(MinDistance, null, TimeSpan.FromHours(1), TimeSpan.FromHours(10)));
+        KeepApart(endMoved: true);
+    }
+
+    /// <summary>The period's other end moves out of the way of the one just set, as far as the day lets it: a time has no day past its own.</summary>
+    private void KeepApart(bool endMoved)
+    {
+        if (MinDistance is not TimeSpan distance || Value is not TimeOnly start || EndValue is not TimeOnly end || end.ToTimeSpan() - start.ToTimeSpan() >= distance)
+            return;
+
+        if (endMoved)
+            Value = TimeOnly.FromTimeSpan(end.ToTimeSpan() > distance ? end.ToTimeSpan() - distance : TimeSpan.Zero);
+        else
+            EndValue = TimeOnly.FromTimeSpan(start.ToTimeSpan() + distance < TimeSpan.FromDays(1) ? start.ToTimeSpan() + distance : new TimeSpan(23, 59, 0));
+    }
 
     public void CycleMin()
     {
@@ -144,6 +201,9 @@ internal sealed partial class DateTimeValueGroupContext : InputValueGroupContext
     public partial DateTimeOffset? EndValue { get; set; } = Sample.AddHours(30);
 
     [RecursiveMember]
+    public partial TimeSpan? MinDistance { get; set; }
+
+    [RecursiveMember]
     public partial DateTimeOffset? Min { get; set; }
 
     [RecursiveMember]
@@ -153,6 +213,7 @@ internal sealed partial class DateTimeValueGroupContext : InputValueGroupContext
     {
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(EndValue), CycleEndValue, () => EndValue);
+        AddOption(nameof(MinDistance), CycleMinDistance, () => MinDistance);
         AddOption("Offset", CycleOffset, () => Value?.Offset);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
@@ -161,10 +222,37 @@ internal sealed partial class DateTimeValueGroupContext : InputValueGroupContext
     }
 
     public void CycleValue()
-        => SetLastChange(nameof(Value), Value = CycleValue(Value, Sample, new DateTimeOffset(2026, 12, 31, 23, 45, 0, TimeSpan.Zero), null));
+    {
+        SetLastChange(nameof(Value), Value = CycleValue(Value, Sample, new DateTimeOffset(2026, 12, 31, 23, 45, 0, TimeSpan.Zero), null));
+        KeepApart(endMoved: false);
+    }
 
     public void CycleEndValue()
-        => SetLastChange(nameof(EndValue), EndValue = CycleValue(EndValue, Sample.AddHours(30), new DateTimeOffset(2026, 12, 31, 23, 59, 0, TimeSpan.Zero), null));
+    {
+        SetLastChange(nameof(EndValue), EndValue = CycleValue(EndValue, Sample.AddHours(30), new DateTimeOffset(2026, 12, 31, 23, 59, 0, TimeSpan.Zero), null));
+        KeepApart(endMoved: true);
+    }
+
+    public void CycleMinDistance()
+    {
+        SetLastChange(nameof(MinDistance), MinDistance = CycleValue(MinDistance, null, TimeSpan.FromHours(12), TimeSpan.FromHours(36)));
+        KeepApart(endMoved: true);
+    }
+
+    /// <summary>
+    /// The period's other end moves out of the way of the one just set, by instant, as the server's gate compares them; the end moved
+    /// keeps its own offset.
+    /// </summary>
+    internal void KeepApart(bool endMoved)
+    {
+        if (MinDistance is not TimeSpan distance || Value is not DateTimeOffset start || EndValue is not DateTimeOffset end || end - start >= distance)
+            return;
+
+        if (endMoved)
+            Value = (end - distance).ToOffset(start.Offset);
+        else
+            EndValue = (start + distance).ToOffset(end.Offset);
+    }
 
     /// <summary>
     /// Keeps the wall-clock reading and moves the offset.

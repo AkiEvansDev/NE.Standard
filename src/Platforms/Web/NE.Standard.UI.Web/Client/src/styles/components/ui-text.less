@@ -24,7 +24,7 @@
 // Whether the badge shows sits on the component root beside the marks above (BadgeRenderer), so a host lays out by one element; where
 // it stands (ui-text--badge-trailing) and the description's role (ui-text--description-<role>) are written on the body itself. No
 // rule reads a part below the body.
-@ui-text-with-badge: ~":is([data-ui-text-badge-icon] > .ui-text, [data-ui-text-badge-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-icon].ui-text, [data-ui-text-badge-text] > .ui-text, [data-ui-text-badge-text] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-text].ui-text)";
+@ui-text-with-badge: ~":is([data-ui-text-badge-icon] > .ui-text, [data-ui-text-badge-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-icon].ui-text, [data-ui-text-badge-title] > .ui-text, [data-ui-text-badge-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-title].ui-text)";
 
 // IconAlignment.Title: the icon sits on the title's own line; `1lh` matches a Match-sized icon's line-height exactly.
 .ui-text__icon {
@@ -33,6 +33,12 @@
     align-self: start;
     height: 1lh;
     line-height: inherit;
+}
+
+// Match-sized text icons take the whole-pixel step of their text role (`--ui-text-glyph`, typography.less) rather than the
+// fractional `1em` of `WholeCapitalsFontSize`, where the icon font rounds its ascent and stands the glyph 1px high.
+:where(.ui-text__icon:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large, .ui-icon--image, [data-ui-icon-failed])) {
+    font-size: var(--ui-text-glyph, @ui-glyph-md);
 }
 
 // IconAlignment.Content centres the glyph across title and description together, unlike Title above.
@@ -188,6 +194,9 @@
     flex: 1 1 auto;
     min-width: 0;
     max-width: 100%;
+    margin: 0;
+    font: inherit;
+    letter-spacing: inherit;
     .ui-text-nowrap();
 }
 
@@ -202,16 +211,13 @@
     align-self: center;
 }
 
-.ui-text__badge:is([data-ui-badge-icon], [data-ui-badge-text]) {
+.ui-text__badge:is([data-ui-badge-icon], [data-ui-badge-title]) {
     display: inline-flex;
 }
 
 // Short of room on the title's line, the title gives way first, down to its own width or half the line, whichever is less; only then
-// do a badge's words ellipsise: the badge took all it wanted and cut a card's title to its first letters. Weights, not a floor, since
-// the root's mark is a count's too: the words take all but a sliver of the shortfall, the title the rest — all of it beside a count,
-// which keeps its round shape, as where an intrinsic size cannot be reckoned with. A floor (`flex-shrink: 0`) pushed a count out of a
-// tight box; the title's factor stays a whole one, as factors summing under one shrink by that share only.
-@ui-text-with-badge-words: ~":is([data-ui-text-badge-text] > .ui-text, [data-ui-text-badge-text] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-text].ui-text)";
+// do a badge's words ellipsise.
+@ui-text-with-badge-words: ~":is([data-ui-text-badge-title] > .ui-text, [data-ui-text-badge-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-title].ui-text)";
 
 @supports (flex-basis: calc-size(max-content, size)) {
     @{ui-text-with-badge-words} > .ui-text__body > .ui-text__header > .ui-text__title {
@@ -219,7 +225,7 @@
         flex-basis: ~"calc-size(max-content, min(size, 50%))";
     }
 
-    @{ui-text-with-badge-words} > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-text]:not([data-ui-badge-text="compact"]) {
+    @{ui-text-with-badge-words} > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-title]:not([data-ui-badge-title="compact"]) {
         flex-shrink: 10000;
         min-width: 0;
     }
@@ -383,13 +389,16 @@
     cursor: pointer;
 }
 
-// Inline code run, sized in em; 0.9 since monospace reads larger at the same nominal size, and the background is mixed from currentColor.
+// Inline code chip: steps up to 2nd-degree ink (`@ui-text-ink`) even inside muted descriptions, with a subtle surface chip and 1px mark border.
 .ui-text__code {
-    border-radius: 0.25em;
-    background: color-mix(in srgb, currentColor 12%, transparent);
-    padding: 0.1em 0.3em;
+    padding: 0.1em 0.35em;
+    border-radius: @ui-space-1;
+    background: color-mix(in srgb, @ui-text-ink 10%, var(--ui-color-surface));
+    box-shadow: inset 0 0 0 1px var(--ui-color-mark);
+    color: @ui-text-ink;
     font-family: @ui-font-mono;
     font-size: 0.9em;
+    vertical-align: 0.05em;
 }
 
 // Inline icon mark in prose, sized by the line via .ui-icon's 1em; the baseline fix corrects inline-flex baselining on the margin edge.

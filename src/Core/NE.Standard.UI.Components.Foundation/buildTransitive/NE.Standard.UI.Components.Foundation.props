@@ -4,6 +4,7 @@
        usings unless the project sets NEStandardUIImplicitUsings to false; a package only names its own. -->
   <ItemGroup>
     <NEStandardUIUsing Include="NE.Standard.UI.Components.Foundation.Inputs" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Components.Foundation.Items" />
   </ItemGroup>
 
 </Project>

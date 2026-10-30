@@ -11,7 +11,7 @@ namespace DemoApp.Views.Base;
 internal abstract class DemoComponentView : DemoView
 {
     /// <summary>The screen or mechanism page that composes the component for real: its route and its sidebar label, or none.</summary>
-    protected virtual (string Route, string Label)? ComposedIn => null;
+    protected virtual (string Route, string Title)? ComposedIn => null;
 
     protected sealed override void DrawContent(WrapPanelComponent container)
     {
@@ -28,8 +28,8 @@ internal abstract class DemoComponentView : DemoView
                 .AddChildren(examples);
         }
 
-        if (ComposedIn is (string route, string label))
-            _ = container.AddChild(DemoUI.CreateComposedIn(route, label));
+        if (ComposedIn is (string route, string title))
+            _ = container.AddChild(DemoUI.CreateComposedIn(route, title));
     }
 
     protected abstract ContainerComponent CreatePreview();

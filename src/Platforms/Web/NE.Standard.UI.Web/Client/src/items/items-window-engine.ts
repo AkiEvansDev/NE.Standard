@@ -4,15 +4,15 @@ import {
     WindowTotalAttribute
 } from "../addressing/dom-attributes.ts";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
-import { DefaultItemSize, readWindowFlag, readWindowNumber, resolveHostMode } from "./items-host-mode.ts";
+import { DefaultItemSize, readWindowFlag, readWindowNumber, resolveHostMode } from "../addressing/items-host-mode.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
 import type { ItemAnchorName, WebUIItemWindowRequest } from "../metadata/metadata-index.ts";
 import { isEndAnchored } from "../interactions/scroll-anchor-engine.ts";
-import { keepHeldRow } from "./item-reveal.ts";
-import { logWarn } from "../runtime/logger.ts";
-import { BottomSpacer, PendingSpacer, TopSpacer, addMeasured, ensureSpacer } from "./items-spacers.ts";
+import { keepHeldRow } from "../addressing/item-reveal.ts";
+import { logWarn } from "../metadata/logger.ts";
+import { BottomSpacer, PendingSpacer, TopSpacer, addMeasured, ensureSpacer, seatSpacers } from "./items-spacers.ts";
 import type { RunningMean } from "./items-spacers.ts";
-import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo, viewportOf } from "./items-viewport.ts";
+import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo, viewportOf } from "../addressing/items-viewport.ts";
 import { stampRowIndices } from "./table-row-indices.ts";
 
 const DefaultWindowSize = 50;
@@ -42,6 +42,8 @@ export type ItemsWindowEngineOptions = {
     readonly root?: ParentNode;
     /** Settles once the window's rows are applied. */
     readonly requestWindow: (request: WebUIItemWindowRequest) => Promise<void>;
+    /** Says to the person a window of rows, a page turn among them, that failed to come (`FailureNotice`). */
+    readonly failed?: (error: unknown) => void;
 };
 
 type WindowState = {
@@ -66,10 +68,7 @@ type WindowState = {
     skeletonTile: number | null;
 };
 
-/** The windowed hosts as a package reaches them: a window asked for by offset, which a pager over a host marked `data-ui-window-paged` does. */
-export type ItemWindows = {
-    requestOffsetAsync(host: Element, offset: number): Promise<void>;
-};
+export type { ItemWindows } from "../addressing/item-pages.ts";
 
 /** Drives a windowed items host: asks for the part of the source the viewer is looking at, and spaces out the part they are not. */
 export class ItemsWindowEngine {
@@ -139,6 +138,22 @@ export class ItemsWindowEngine {
             this.held.delete(host);
             this.forgotten.add(host);
         }
+    }
+
+    /** Cancels pending host window timers when the runtime disposes. */
+    public dispose(): void {
+        for (const host of new Set([...this.held, ...this.hosts()])) {
+            const state = this.states.get(host);
+
+            if (state !== undefined && state.scheduled !== 0) {
+                window.clearTimeout(state.scheduled);
+                state.scheduled = 0;
+            }
+
+            this.states.delete(host);
+        }
+
+        this.held.clear();
     }
 
     /** Puts the viewport where the realized window is, since a window read on the server can start anywhere. */
@@ -344,12 +359,12 @@ export class ItemsWindowEngine {
                 return;
             }
 
-            if (firstVisible - margin <= offset && hasMoreBefore) {
+            if (firstVisible - offset <= margin && hasMoreBefore) {
                 void this.requestAsync(host, "Before", 0, keyOf(items[0]), true);
                 return;
             }
 
-            if (lastVisible + margin >= offset + items.length && hasMoreAfter) {
+            if (offset + items.length - lastVisible <= margin && hasMoreAfter) {
                 void this.requestAsync(host, "After", 0, keyOf(items[items.length - 1]), true);
                 return;
             }
@@ -431,6 +446,7 @@ export class ItemsWindowEngine {
         }
         catch (error) {
             logWarn("reading an item window failed.", { componentId, anchor, error });
+            this.options.failed?.(error);
         }
         finally {
             state.pending = false;
@@ -471,6 +487,8 @@ export class ItemsWindowEngine {
             ensureSpacer(host, BottomSpacer, 0);
             return;
         }
+
+        seatSpacers(host);
 
         // A zero reading from an unlaid-out host is ignored.
         if (items.length > 0) {

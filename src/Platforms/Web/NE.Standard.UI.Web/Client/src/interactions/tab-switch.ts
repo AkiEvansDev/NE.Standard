@@ -1,12 +1,10 @@
 // What a tab strip does as the choice moves (Tabs and TabsView alike): the line slides over from the caption chosen before, the titles
 // keep the width of their bold selves, so the chosen caption turning bold never moves its neighbours, and the page it shows fades in.
 
+import { CaptionTextAttribute, TextTitleClass } from "../addressing/dom-attributes.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 
-/** On a caption's title: its own words, which the stylesheet lays out bold and unseen under it (`.ui-tab-caption-reserve()`). */
-const CaptionTextAttribute = "data-ui-caption-text";
-
-const TitleSelector = ".ui-text__title";
+const TitleSelector = `.${TextTitleClass}`;
 
 /** Copies each title's words onto it, where they changed, so the reserved width follows a title a binding rewrote. */
 export function reserveCaptionWidth(caption: Element): void {

@@ -18,7 +18,6 @@ using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -43,8 +42,8 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     // Every items component registers these same lists, so they are built once rather than per instance.
     private static readonly TierClassFamily<UIItemsLayoutType> LayoutTypeFamily = new(WebAttributes.TierLayout, WebDomConverters.ItemsViewLayoutClass, WebDomConverters.ItemsViewLayoutTierClasses, WebClassNames.ItemsViewLayout);
     private static readonly WebDomOperation[] SelectionModeOperations = [WebDomOperation.Attribute(WebAttributes.Selection, converter: WebDomConverters.SelectionModeAttribute)];
-    private static readonly WebDomOperation[] ItemsQueryOperations = [WebDomOperation.Attribute(WebAttributes.ItemsQuery)];
-    private static readonly WebDomOperation[] SelectedKeysOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKeys, $"[{WebAttributes.ItemsHost}]")];
+    private static readonly WebDomOperation[] ItemsQueryOperations = [WebDomOperation.Attribute(WebAttributes.ItemsQuery, converter: WebDomConverters.ItemsQueryAttribute)];
+    private static readonly WebDomOperation[] SelectedKeysOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKeys, $"[{WebAttributes.ItemsHost}]", WebDomConverters.SelectedKeysAttribute)];
 
     protected static void RenderLayout(WebRenderContext context, IHtmlElementBuilder root, UIProperty layoutTypeProperty, UIProperty orientationProperty, UIProperty spacingProperty)
     {
@@ -277,7 +276,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     }
 
     private static readonly WebDomOperation[] WindowPagedOperations = [WebDomOperation.ToggleAttribute(WebAttributes.WindowPaged, target: $"[{WebAttributes.ItemsHost}]", condition: WebValueCondition.IsTrue)];
-    private static readonly WebDomOperation[] WindowAggregatesOperations = [WebDomOperation.Attribute(WebAttributes.WindowAggregates, $"[{WebAttributes.ItemsHost}]")];
+    private static readonly WebDomOperation[] WindowAggregatesOperations = [WebDomOperation.Attribute(WebAttributes.WindowAggregates, $"[{WebAttributes.ItemsHost}]", WebDomConverters.WindowAggregatesAttribute)];
     private static readonly WindowValueRender WindowOffsetRender = new(WebAttributes.WindowOffset);
     private static readonly WindowValueRender WindowTotalRender = new(WebAttributes.WindowTotal);
     private static readonly WindowValueRender WindowMoreBeforeRender = new(WebAttributes.WindowMoreBefore);
@@ -487,9 +486,10 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         => ResolveRenderValue(context, property, out bool? value, out _) == WebRenderValueKind.Binding || value == true;
 
     /// <summary>
-    /// The grip a row is dragged by (<c>DragHandle</c>): the one part a press drags the row by, named by the framework's words; not
-    /// focusable, so a press on it focuses the host, whose cursor the engine puts on the row for Alt+Up and Alt+Down. <c>row-grip.ts</c>
-    /// gives a row the client builds the same one, through <see cref="RowGripDecorator"/>.
+    /// The grip a row is dragged by (<c>DragHandle</c>): the one part a press drags the row by, the pointer's alone and hidden from a
+    /// reader, who moves the row by Alt+Up and Alt+Down; not focusable, so a press on it focuses the host, whose cursor the engine puts
+    /// on the row. Hidden, it is no child of a table's row either. <c>row-grip.ts</c> gives a row the client builds the same one, through
+    /// <see cref="RowGripDecorator"/>.
     /// </summary>
     protected static void RenderRowGrip(WebRenderContext context, IHtmlElementBuilder row)
     {
@@ -499,8 +499,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         _ = row.Element("span", grip =>
         {
             _ = grip.Class(WebClassNames.RowGrip);
-            _ = grip.Attribute("role", "button");
-            WebWords.Write(context, grip, "aria-label", UIStrings.RowDrag);
+            _ = grip.Attribute("aria-hidden", "true");
         });
     }
 

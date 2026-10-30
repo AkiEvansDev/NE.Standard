@@ -9,21 +9,19 @@ namespace DemoApp.Views.Base;
 /// </summary>
 internal static class DemoBindings
 {
-    private const string MainGroup = nameof(DemoStandardController.MainGroup);
-
     /// <summary>Binds the Standard section's rows (<see cref="StandardGroupContext"/>), which every preview carries.</summary>
     public static TComponent BindStandard<TComponent>(this VisualComponentBase<TComponent> component)
         where TComponent : VisualComponentBase<TComponent>, IUIComponentDefinition
         => component
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}");
+            .BindVisibility<DemoStandardController>(static x => x.MainGroup.Visibility)
+            .BindEnabled<DemoStandardController>(static x => x.MainGroup.Enabled)
+            .BindHorizontalAlignment<DemoStandardController>(static x => x.MainGroup.HorizontalAlignment)
+            .BindVerticalAlignment<DemoStandardController>(static x => x.MainGroup.VerticalAlignment)
+            .BindMargin<DemoStandardController>(static x => x.MainGroup.Margin)
+            .BindWidth<DemoStandardController>(static x => x.MainGroup.Width)
+            .BindHeight<DemoStandardController>(static x => x.MainGroup.Height)
+            .BindTheme<DemoStandardController>(static x => x.MainGroup.Theme)
+            .BindLoading<DemoStandardController>(static x => x.MainGroup.Loading);
 
     /// <summary>Binds the icon, the title and the tooltip to a <see cref="TextContentGroupContext"/> named <paramref name="group"/>.</summary>
     public static TComponent BindTextContent<TComponent>(this VisualComponentBase<TComponent> component, string group)
@@ -43,14 +41,14 @@ internal static class DemoBindings
         where TComponent : VisualComponentBase<TComponent>, ITextBaseComponent, IUIComponentDefinition
         => component
             .Bind(ITextBaseComponent.BadgePlacementProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .Bind(ITextBaseComponent.BadgeStyleProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
+            .Bind(ITextBaseComponent.BadgeVariantProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeVariant)}")
             .Bind(ITextBaseComponent.BadgeColorProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeColor)}")
             .Bind(ITextBaseComponent.BadgeFillProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeFill)}")
             .Bind(ITextBaseComponent.BadgeIconProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
             .Bind(ITextBaseComponent.BadgeIconColorProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
             .Bind(ITextBaseComponent.BadgeIconSizeProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .Bind(ITextBaseComponent.BadgeTextProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .Bind(ITextBaseComponent.BadgeTextTypeProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
+            .Bind(ITextBaseComponent.BadgeTitleProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeTitle)}")
+            .Bind(ITextBaseComponent.BadgeTitleTypeProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeTitleType)}")
             .Bind(ITextBaseComponent.BadgeTooltipProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
             .Bind(ITextBaseComponent.BadgeTooltipPlacementProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}");
 

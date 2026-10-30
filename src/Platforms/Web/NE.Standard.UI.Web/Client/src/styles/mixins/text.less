@@ -85,3 +85,22 @@
         outline: none;
     }
 }
+
+
+// Every choice's words stacked in a single 1x1 grid cell so switching the active label never shifts surrounding controls.
+.ui-stacked-choice-label(@text; @current) {
+    display: inline-grid;
+    grid-template-columns: minmax(0, auto);
+    min-width: 0;
+    white-space: nowrap;
+
+    > @{text} {
+        grid-area: 1 / 1;
+        max-width: 100%;
+        .ui-text-nowrap();
+    }
+
+    > @{text}:not(@{current}) {
+        visibility: hidden;
+    }
+}

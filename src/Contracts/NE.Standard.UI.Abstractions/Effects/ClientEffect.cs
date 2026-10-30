@@ -15,9 +15,6 @@ public static class ClientEffectKinds
     public const string Focus = "Focus";
     public const string ScrollTo = "ScrollTo";
     public const string ScrollToItem = "ScrollToItem";
-    public const string Show = "Show";
-    public const string Hide = "Hide";
-    public const string Collapse = "Collapse";
     public const string OpenDialog = "OpenDialog";
     public const string CloseDialog = "CloseDialog";
     public const string ShowNotification = "ShowNotification";
@@ -27,8 +24,7 @@ public static class ClientEffectKinds
     public const string SetTheme = "SetTheme";
     public const string SetThemeColors = "SetThemeColors";
     public const string SetLanguage = "SetLanguage";
-    public const string RenameTab = "RenameTab";
-    public const string RenameNode = "RenameNode";
+    public const string RenameItem = "RenameItem";
     public const string CopyToClipboard = "CopyToClipboard";
     public const string InsertText = "InsertText";
     public const string DiscardForm = "DiscardForm";

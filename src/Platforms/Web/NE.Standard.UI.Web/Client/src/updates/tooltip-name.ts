@@ -4,7 +4,7 @@
 
 import { TooltipAttribute } from "../addressing/dom-attributes.ts";
 import { inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
-import { forgetWords } from "../runtime/client-strings.ts";
+import { forgetWords } from "../rendering/client-strings.ts";
 
 /** The operation's kind, as `TextContentRendererBase.TooltipNameOperationKind` spells it on the server. */
 export const TooltipNameOperationKind = "tooltip-name";

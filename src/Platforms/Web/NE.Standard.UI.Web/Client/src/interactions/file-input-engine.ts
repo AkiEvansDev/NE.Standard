@@ -2,25 +2,16 @@
 // hub and writes the handle back as the selection id.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
-import { FilePickAttribute as PickAttribute } from "../addressing/dom-attributes.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { FileDraggingAttribute, FileInputClass, FileInputFieldClass, FileInputNativeClass, FileInputRowClass, FileInputSelectionClass, FilePickAttribute as PickAttribute, OpenPickerEventName } from "../addressing/dom-attributes.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import { logWarn } from "../metadata/logger.ts";
 import { attachFileDrop, findDropTargetField } from "./file-drop.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { publishSelection, takeWithinSizeLimit, uploadFilesAsync } from "./file-upload.ts";
-import { answerOpenPicker, OpenPickerEventName } from "./picker-events.ts";
+import { answerOpenPicker } from "./picker-events.ts";
 import { uploadsInFlight } from "./uploads-in-flight.ts";
 import type { UploadsInFlight } from "./uploads-in-flight.ts";
 import type { FieldValidation } from "./validation-engine.ts";
-
-const RootClass = "ui-file-input";
-const RowClass = "ui-file-input__row";
-const NativeClass = "ui-file-input__native";
-const FieldClass = "ui-file-input__field";
-const SelectionClass = "ui-file-input__selection";
-
-/** Client-only: on the root while a file is dragged over its row. */
-const DraggingAttribute = "data-ui-file-dragging";
 
 export type FileInputEngineOptions = {
     readonly root?: ParentNode;
@@ -50,8 +41,8 @@ export class FileInputEngine {
         this.root.addEventListener("click", domEvent => this.handlePickClick(domEvent), true);
         // Asked from a control elsewhere, the chooser is refused as the row's own press is.
         this.root.addEventListener(OpenPickerEventName, domEvent => answerOpenPicker(domEvent, {
-            rootSelector: `.${RootClass}`,
-            nativeSelector: `.${NativeClass}`,
+            rootSelector: `.${FileInputClass}`,
+            nativeSelector: `.${FileInputNativeClass}`,
             pressed: root => root
         }));
 
@@ -62,12 +53,12 @@ export class FileInputEngine {
         // disabled field refuses it in place.
         attachFileDrop({
             root: this.root,
-            draggingAttribute: DraggingAttribute,
+            draggingAttribute: FileDraggingAttribute,
             resolveTarget: target => {
-                const own = target.closest<HTMLElement>(`.${RowClass}`)?.closest<HTMLElement>(`.${RootClass}`) ?? null;
-                const other = own === null ? findDropTargetField(this.root, target, `.${RootClass}`) : null;
+                const own = target.closest<HTMLElement>(`.${FileInputRowClass}`)?.closest<HTMLElement>(`.${FileInputClass}`) ?? null;
+                const other = own === null ? findDropTargetField(this.root, target, `.${FileInputClass}`) : null;
                 const root = own ?? other?.field ?? null;
-                const native = root?.querySelector<HTMLInputElement>(`.${NativeClass}`) ?? null;
+                const native = root?.querySelector<HTMLInputElement>(`.${FileInputNativeClass}`) ?? null;
 
                 if (root === null || native === null)
                     return null;
@@ -98,7 +89,7 @@ export class FileInputEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const trigger = domEvent.target.closest<HTMLElement>(`[${PickAttribute}], .${RowClass}`);
+        const trigger = domEvent.target.closest<HTMLElement>(`[${PickAttribute}], .${FileInputRowClass}`);
 
         // A read-only field's pick says it does nothing (`aria-disabled`) and stays focusable; the refusal engine turns its press away.
         if (trigger === null || isInert(trigger) || isReadOnly(trigger))
@@ -108,7 +99,7 @@ export class FileInputEngine {
         if (!trigger.hasAttribute(PickAttribute) && domEvent.target.closest("button, a") !== null)
             return;
 
-        const native = trigger.closest(`.${RootClass}`)?.querySelector<HTMLInputElement>(`.${NativeClass}`);
+        const native = trigger.closest(`.${FileInputClass}`)?.querySelector<HTMLInputElement>(`.${FileInputNativeClass}`);
 
         if (native === null || native === undefined || native.disabled)
             return;
@@ -117,10 +108,10 @@ export class FileInputEngine {
     }
 
     private async handleSelectionAsync(domEvent: Event): Promise<void> {
-        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(NativeClass))
+        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(FileInputNativeClass))
             return;
 
-        const root = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const root = domEvent.target.closest<HTMLElement>(`.${FileInputClass}`);
         const files = [...domEvent.target.files ?? []];
 
         // Cleared, so choosing the same file again — a retry after a failed upload — is a change the picker reports, as the image field's is.
@@ -132,7 +123,7 @@ export class FileInputEngine {
 
     /** Sends the files and hands the controller the handle; none clears it, a failure leaves it empty and says so. */
     private async takeFilesAsync(root: HTMLElement, files: readonly File[]): Promise<void> {
-        const field = root.querySelector<HTMLInputElement>(`.${FieldClass}`);
+        const field = root.querySelector<HTMLInputElement>(`.${FileInputFieldClass}`);
 
         if (field === null)
             return;
@@ -143,7 +134,7 @@ export class FileInputEngine {
             return;
         }
 
-        const accepted = takeWithinSizeLimit(root, files, root.querySelector<HTMLInputElement>(`.${NativeClass}`)?.multiple === true, this.validation);
+        const accepted = takeWithinSizeLimit(root, files, root.querySelector<HTMLInputElement>(`.${FileInputNativeClass}`)?.multiple === true, this.validation);
 
         // Every file refused for size is not an empty pick: the selection stands, and the validation line says why nothing happened.
         if (accepted.length === 0)
@@ -202,7 +193,7 @@ export class FileInputEngine {
     }
 
     private publishSelection(root: Element, selectionId: string): void {
-        publishSelection(root.querySelector<HTMLInputElement>(`.${SelectionClass}`), selectionId);
+        publishSelection(root.querySelector<HTMLInputElement>(`.${FileInputSelectionClass}`), selectionId);
     }
 }
 

@@ -36,3 +36,13 @@ NEUIR009 | NE.Standard.UI | Error | Generated member conflicts with existing mem
 Rule ID | Category | Severity | Notes
 --------|----------|----------|------
 NEUI016 | NE.Standard.UI | Error | A property default names no block property
+
+## Release 2.0.0
+
+### New Rules
+
+Rule ID | Category | Severity | Notes
+--------|----------|----------|------
+NEUI017 | NE.Standard.UI | Error | A property block on a type that does not implement its contract
+NEUI018 | NE.Standard.UI | Error | Component constructor assigns a UI component property
+NEUIR010 | NE.Standard.UI | Error | Mutable property on RecursiveObservable is missing [RecursiveMember]

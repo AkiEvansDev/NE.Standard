@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -17,6 +18,13 @@ public sealed class OpenPickerEffect(UIComponentReference target) : TargetedClie
     /// </summary>
     public OpenPickerEffect(string targetComponentId, params object?[]? dynamicParameters)
         : this(new UIComponentReference(targetComponentId, dynamicParameters))
+    { }
+
+    /// <summary>
+    /// Creates an effect that opens the chooser of <paramref name="targetComponent"/>.
+    /// </summary>
+    public OpenPickerEffect(IBindableComponent targetComponent, params object?[]? dynamicParameters)
+        : this(new UIComponentReference(targetComponent, dynamicParameters))
     { }
 
     /// <inheritdoc />

@@ -12,7 +12,7 @@ import less from "less";
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
-const withWords = ":is([data-ui-text-badge-text] > .ui-text, [data-ui-text-badge-text] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-text].ui-text) > .ui-text__body > .ui-text__header";
+const withWords = ":is([data-ui-text-badge-title] > .ui-text, [data-ui-text-badge-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-title].ui-text) > .ui-text__body > .ui-text__header";
 
 /** The `@supports (flex-basis: calc-size(…))` block's own text. */
 function intrinsicBlock(): string {
@@ -44,7 +44,7 @@ function shrink(declarations: string): number {
 }
 
 const title = part(".ui-text__title");
-const words = part(".ui-text__badge[data-ui-badge-text]:not([data-ui-badge-text=\"compact\"])");
+const words = part(".ui-text__badge[data-ui-badge-title]:not([data-ui-badge-title=\"compact\"])");
 
 test("beside a badge with words the title starts from its own width or half the line, whichever is less, and grows as before", () => {
     assert.match(title, /flex-basis: calc-size\(max-content, min\(size, 50%\)\);/);
@@ -55,7 +55,7 @@ test("a badge with words then gives way, its words ellipsising and taking all bu
     assert.match(words, /min-width: 0;/);
     assert.ok(shrink(words) >= 1000 * shrink(title), `the words (${shrink(words)}) against the title (${shrink(title)})`);
     assert.match(css, /\n\.ui-text__badge \{\s*display: none;\s*flex: 0 0 auto;/, "anywhere else the badge keeps its width");
-    assert.match(css, /\.ui-badge__text \{[^}]*min-width: 0;/);
+    assert.match(css, /\.ui-badge__title \{[^}]*min-width: 0;/);
 });
 
 test("beside a count, which the root's mark does not tell from words, the title gives way fully rather than pushing the count out", () => {

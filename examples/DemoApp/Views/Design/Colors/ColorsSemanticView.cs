@@ -45,6 +45,7 @@ internal sealed class ColorsSemanticView : ColorsViewBase, IUIViewDefinition
         new("Selected", static p => p.Selected),
         new("FocusRing", static p => p.FocusRing),
         new("Border", static p => p.Border),
+        new("Mark", static p => p.Mark),
         new("Shadow", static p => p.Shadow),
         new("Overlay", static p => p.Overlay)
     ];

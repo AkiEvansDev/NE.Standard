@@ -79,9 +79,9 @@ public static class UIIconButtons
         => new SplitButtonComponent()
             .SetMode(UISplitButtonMode.Menu)
             .SetShowChevron(false)
-            .SetType(UIButtonType.Ghost)
-            .SetIcon(UIStandardAction.More.Glyph)
-            .SetTooltip(new UIPhrase(UIStandardAction.More.Word));
+            .SetVariant(UIButtonVariant.Ghost)
+            .SetIcon(UIStandardAction.More.Icon)
+            .SetTooltip(new UIPhrase(UIStandardAction.More.Title));
 
     /// <summary>Load it afresh.</summary>
     public static ButtonComponent Refresh()
@@ -153,9 +153,9 @@ public static class UIIconButtons
 
     private static ButtonComponent Create(UIStandardAction action)
     {
-        ButtonComponent button = UIButtons.Icon(action.Glyph, new UIPhrase(action.Word));
+        ButtonComponent button = UIButtons.Icon(action.Icon, new UIPhrase(action.Title));
 
         // Icon's button is a bare one, so a danger is its glyph's ink.
-        return action.ButtonInk(UIButtonType.Ghost) is UIThemeColor ink ? button.SetIconColor(ink) : button;
+        return action.ButtonInk(UIButtonVariant.Ghost) is UIThemeColor ink ? button.SetIconColor(ink) : button;
     }
 }

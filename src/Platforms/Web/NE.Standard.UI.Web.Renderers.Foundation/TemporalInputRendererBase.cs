@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Styling;
@@ -19,7 +18,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// <summary>The shared class every part of the shell is named after, and what the client engine matches on.</summary>
     protected const string SharedClassName = TemporalCalendarRenderer.TemporalClassName;
 
-    private static readonly WebDomOperation[] DisplayFormatOperations = [WebDomOperation.Attribute(WebAttributes.TemporalFormat, target: "root")];
+    private static readonly WebDomOperation[] DisplayFormatOperations = [WebDomOperation.Attribute(WebAttributes.TemporalFormat, target: "root", converter: WebDomConverters.NonBlankText)];
 
     private static readonly WebDomOperation[] ReadOnlyOperations =
     [
@@ -96,7 +95,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// </summary>
     private WebTemporalCulturePack RenderPickerMetadata(WebRenderContext context, IHtmlElementBuilder root, UITemporalStep? step, string defaultDisplayFormat, CultureInfo inputCulture, bool ownCulture)
     {
-        TemporalCalendarRenderer.RenderBounds<TValue>(context, root, MinMaxInputComponentBase<TComponent, TValue>.MinProperty, MinMaxInputComponentBase<TComponent, TValue>.MaxProperty, Canonical);
+        TemporalCalendarRenderer.RenderBounds<TValue>(context, root, IBoundedInputComponent.MinProperty, IBoundedInputComponent.MaxProperty, Canonical);
 
         _ = RenderProperty<string?>(context, root, IFormattedInputComponent.DisplayFormatProperty, static (target, value) =>
         {
@@ -116,6 +115,8 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             _ = root.Attribute(WebAttributes.TemporalStep, resolvedStep.Value.ToString(CultureInfo.InvariantCulture));
             _ = root.Attribute(WebAttributes.TemporalStepUnit, StepUnitName(resolvedStep.Unit));
         }
+
+        TemporalCalendarRenderer.RenderMinDistance(context, root);
 
         // A type test on the component type, not the instance: a property the type does not declare cannot be rendered.
         if (typeof(ICalendarComponent).IsAssignableFrom(typeof(TComponent)))
@@ -146,7 +147,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// <summary>Whether the control edits a period: two fields under one caption, the end behind the second.</summary>
     protected static bool IsRange(WebRenderContext context)
     {
-        _ = ResolveRenderValue(context, TemporalInputComponentBase<TComponent, TValue>.IsRangeProperty, out bool? isRange, out _);
+        _ = ResolveRenderValue(context, IPeriodInputComponent.IsRangeProperty, out bool? isRange, out _);
 
         return isRange == true;
     }
@@ -177,7 +178,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             if (isRange)
             {
                 _ = row.Attribute("role", "group");
-                RenderFieldLabel(context, row);
+                RenderGroupLabel(context, row);
             }
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
@@ -270,7 +271,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     {
         _ = input.Class($"{SharedClassName}__field");
         NativeInputRendererBase.RenderFieldName(context, input, end ? "end-text" : "text");
-        _ = input.Class("ui-field");
+        _ = input.Class(WebClassNames.Field);
         _ = input.Attribute("type", "text");
         _ = input.Attribute("autocomplete", "off");
         // The format in the page's letters; the client writes it again after a switch or a patched format.
@@ -352,7 +353,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     {
         ArgumentNullException.ThrowIfNull(writeDisplay);
 
-        TemporalCalendarRenderer.RenderValueInput<TValue>(context, root, TemporalInputComponentBase<TComponent, TValue>.EndValueProperty, end: true, Canonical, value => writeDisplay(Display(value, format, culture)));
+        TemporalCalendarRenderer.RenderValueInput<TValue>(context, root, IPeriodInputComponent.EndValueProperty, end: true, Canonical, value => writeDisplay(Display(value, format, culture)));
     }
 
     /// <summary>A value's canonical text, the form the page reads it in; none when unset.</summary>

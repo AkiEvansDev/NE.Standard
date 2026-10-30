@@ -47,10 +47,10 @@
         gap: 0;
     }
 
-    // No veil on a button (runtime.less says why): a label with no icon to turn into the ring fades under it instead. A press
-    // waiting on a late answer (data-ui-pending) looks the same.
+    // No veil on a button (runtime.less says why): a label with no icon to turn into the ring hides in place so the ring stands
+    // centered in the button's unchanged width. A press waiting on a late answer (data-ui-pending) looks the same.
     .ui-button.ui-loading:not([data-ui-text-icon])@{path} > .ui-button__content,
     .ui-button[data-ui-pending]:not([data-ui-text-icon])@{path} > .ui-button__content {
-        opacity: @ui-loading-label-opacity;
+        opacity: 0;
     }
 }

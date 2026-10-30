@@ -39,14 +39,14 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(DeployGroup, Words + "deploy.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(DeployGroupContext.Staging), UIBindingScope.Relative)
+                    .BindDescription<DeployGroupContext>(static x => x.Staging, UIBindingScope.Relative)
                 )
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(DeployGroupContext.Production), UIBindingScope.Relative)
+                    .BindDescription<DeployGroupContext>(static x => x.Production, UIBindingScope.Relative)
                 )
                 .AddChild(UILayout.Row(8)
-                    .AddChild(CreateButton(Words + "deploy.staging", nameof(NotificationTestController.DeployStaging), UIButtonType.Primary))
-                    .AddChild(CreateButton(Words + "deploy.production", nameof(NotificationTestController.DeployProduction), UIButtonType.Ghost))
+                    .AddChild(CreateButton(Words + "deploy.staging", nameof(NotificationTestController.DeployStaging), UIButtonVariant.Primary))
+                    .AddChild(CreateButton(Words + "deploy.production", nameof(NotificationTestController.DeployProduction), UIButtonVariant.Ghost))
                 )
             ),
             note: Words + "deploy.note",
@@ -60,11 +60,11 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(JobGroup, Words + "job.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(JobGroupContext.LastRun), UIBindingScope.Relative)
+                    .BindDescription<JobGroupContext>(static x => x.LastRun, UIBindingScope.Relative)
                 )
                 .AddChild(new ButtonComponent()
                     .OnClickShowingLoading(nameof(NotificationTestController.RunMigrationAsync))
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle(Words + "job.run")
                 )
@@ -80,11 +80,11 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(StackGroup, Words + "stack.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(StackGroupContext.Pushed), UIBindingScope.Relative)
+                    .BindDescription<StackGroupContext>(static x => x.Pushed, UIBindingScope.Relative)
                 )
                 .AddChild(UILayout.Row(8)
-                    .AddChild(CreateButton(Words + "stack.three", nameof(NotificationTestController.NotifyThree), UIButtonType.Ghost))
-                    .AddChild(CreateButton(Words + "stack.one-more", nameof(NotificationTestController.NotifyOneMore), UIButtonType.Ghost))
+                    .AddChild(CreateButton(Words + "stack.three", nameof(NotificationTestController.NotifyThree), UIButtonVariant.Ghost))
+                    .AddChild(CreateButton(Words + "stack.one-more", nameof(NotificationTestController.NotifyOneMore), UIButtonVariant.Ghost))
                 )
             ),
             words: true
@@ -97,9 +97,9 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(UndoGroup, Words + "undo.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(UndoGroupContext.Scheduled), UIBindingScope.Relative)
+                    .BindDescription<UndoGroupContext>(static x => x.Scheduled, UIBindingScope.Relative)
                 )
-                .AddChild(CreateButton(Words + "undo.cancel", nameof(NotificationTestController.CancelNextDeploy), UIButtonType.Ghost))
+                .AddChild(CreateButton(Words + "undo.cancel", nameof(NotificationTestController.CancelNextDeploy), UIButtonVariant.Ghost))
             ),
             note: Words + "undo.note",
             words: true
@@ -115,18 +115,18 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(SystemGroup, Words + "system.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(SystemGroupContext.Permission), UIBindingScope.Relative)
+                    .BindDescription<SystemGroupContext>(static x => x.Permission, UIBindingScope.Relative)
                 )
                 .AddChild(UILayout.Row(8)
                     .AddChild(new ButtonComponent()
                         .InteractOn(EventNames.Click, new RequestNotificationPermissionEffect())
-                        .BindVisibility(nameof(SystemGroupContext.AskVisibility), UIBindingScope.Relative)
-                        .SetType(UIButtonType.Primary)
+                        .BindVisibility<SystemGroupContext>(static x => x.AskVisibility, UIBindingScope.Relative)
+                        .SetVariant(UIButtonVariant.Primary)
                         .SetHorizontalAlignment(UIAlignment.Start)
                         .SetTitle(Words + "system.ask")
                     )
-                    .AddChild(CreateButton(Words + "system.notify", nameof(NotificationTestController.NotifyLaterAsync), UIButtonType.Ghost))
-                    .AddChild(CreateButton(Words + "system.notify-now", nameof(NotificationTestController.NotifyNow), UIButtonType.Ghost))
+                    .AddChild(CreateButton(Words + "system.notify", nameof(NotificationTestController.NotifyLaterAsync), UIButtonVariant.Ghost))
+                    .AddChild(CreateButton(Words + "system.notify-now", nameof(NotificationTestController.NotifyNow), UIButtonVariant.Ghost))
                 )
             ),
             note: Words + "system.note",
@@ -137,7 +137,7 @@ internal sealed class NotificationTestView : DemoTestView, IUIViewDefinition
     private static ContainerComponent CreateWrapGroup()
     {
         return DemoUI.CreateGroup(WrapGroup, Words + "wrap.title",
-            content => content.AddChild(CreateButton(Words + "wrap.show", nameof(NotificationTestController.NotifyLong), UIButtonType.Ghost)),
+            content => content.AddChild(CreateButton(Words + "wrap.show", nameof(NotificationTestController.NotifyLong), UIButtonVariant.Ghost)),
             note: Words + "wrap.note",
             words: true
         );

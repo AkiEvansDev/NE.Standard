@@ -1,0 +1,461 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Shell.Commands;
+using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Updates.Server;
+
+namespace NE.Standard.UI.Runtime;
+
+internal sealed partial class UIRuntime
+{
+    /// <inheritdoc />
+    public Task InvokeAsync(Action action, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        return InvokeAsync(
+            _ =>
+            {
+                action();
+                return Task.CompletedTask;
+            },
+            cancellationToken
+        );
+    }
+
+    /// <inheritdoc />
+    public async Task InvokeAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        EnsureStarted();
+
+        ArgumentNullException.ThrowIfNull(action);
+
+        // The action runs under the state lock, which is not re-entrant: a call back in from it would wait on its own caller for good,
+        // and one into another runtime on that runtime's action, which may be waiting for this one.
+        ThrowIfInsideAction("InvokeAsync");
+
+        // Held as a command holds it. Called from the flow of what holds it already — the command it runs in — it goes on even once
+        // the runtime is asked to go, since the runtime stays until that holder ends anyway; a call from anywhere else, while some
+        // other command runs, is refused as a new command is. Read before the hold marks this flow.
+        var nested = HoldsRuntime;
+
+        await using ConfiguredAsyncDisposable hold = HoldAsCommand(out var alone).ConfigureAwait(false);
+
+        // Alone, the flow's mark is stale — work it started that outlived it — and nothing keeps the runtime for it.
+        if (alone || !nested)
+            ThrowIfAskedToGo();
+
+        _ = await DrainAsync(action, DrainTarget.Leave, cancellationToken).ConfigureAwait(false);
+    }
+
+    // How many posted actions a runtime queues before dropping new ones: keeps a broadcast storm from growing without bound.
+    private const int MaxPostedWork = 1024;
+
+    private readonly Queue<(string Operation, Func<CancellationToken, Task> Action)> _posted = new();
+    private bool _drainingPosted;
+    // Completed once the drain running when it was asked for runs dry: what a test waits on to see posted work's effect.
+    private TaskCompletionSource? _postedDrained;
+
+    /// <inheritdoc />
+    public void Post(Func<CancellationToken, Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        PostCore("Post", action);
+    }
+
+    /// <summary>
+    /// Queues work to run on the thread pool in a command's turn, as a command's body runs, in the order it was posted.
+    /// </summary>
+    /// <remarks>
+    /// Counted as a command from the moment it is queued, so a runtime asked to go waits for the work rather than disposing under
+    /// it; work still queued when the runtime is asked to go is dropped. One drain runs at a time, so a message posted and then
+    /// deleted arrives in that order.
+    /// </remarks>
+    private void PostCore(string operation, Func<CancellationToken, Task> action)
+    {
+        if (Volatile.Read(ref _disposeRequested) != 0)
+            return;
+
+        _ = Interlocked.Increment(ref _commandsInFlight);
+
+        lock (_posted)
+        {
+            // When full, _drainingPosted is already true and the draining item holds _commandsInFlight >= 1, so dropping here never reaches 0.
+            if (_posted.Count >= MaxPostedWork)
+            {
+                _ = Interlocked.Decrement(ref _commandsInFlight);
+                return;
+            }
+
+            _posted.Enqueue((operation, action));
+
+            if (_drainingPosted)
+                return;
+
+            _drainingPosted = true;
+        }
+
+        // Not in the poster's flow: every work the drain runs would read the command that started it as Context.Handle, another
+        // tab's perhaps, still running. A hook posted for a page names its connection itself (PostLifecycleHook).
+        if (ExecutionContext.IsFlowSuppressed())
+        {
+            _ = Task.Run(DrainPostedAsync);
+            return;
+        }
+
+        using (ExecutionContext.SuppressFlow())
+            _ = Task.Run(DrainPostedAsync);
+    }
+
+    private async Task DrainPostedAsync()
+    {
+        while (TakePosted(out (string Operation, Func<CancellationToken, Task> Action) next))
+            await RunPostedAsync(next.Operation, next.Action).ConfigureAwait(false);
+    }
+
+    /// <summary>Takes the next posted work; with none left, ends the drain and lets go of whoever waits for it to run dry.</summary>
+    private bool TakePosted(out (string Operation, Func<CancellationToken, Task> Action) next)
+    {
+        TaskCompletionSource? drained;
+
+        lock (_posted)
+        {
+            if (_posted.TryDequeue(out next))
+                return true;
+
+            _drainingPosted = false;
+            drained = _postedDrained;
+            _postedDrained = null;
+        }
+
+        drained?.SetResult();
+
+        return false;
+    }
+
+    /// <inheritdoc />
+    public Task WhenPostedRanAsync()
+    {
+        ThrowIfInsideAction(nameof(WhenPostedRanAsync));
+
+        lock (_posted)
+        {
+            if (!_drainingPosted)
+                return Task.CompletedTask;
+
+            _postedDrained ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            return _postedDrained.Task;
+        }
+    }
+
+    /// <summary>
+    /// Runs queued work between exclusive commands and lets go of its hold; never faults, since nothing awaits it: a failure goes to
+    /// the controller.
+    /// </summary>
+    private async Task RunPostedAsync(string operation, Func<CancellationToken, Task> action)
+    {
+        var inTurn = false;
+
+        // Counted when it was posted: its own calls back in are the holder's.
+        MarkFlowAsHolding();
+
+        try
+        {
+            // Read before the wait: the hold is counted already, so a runtime not yet asked to go stays until this work leaves, while one
+            // asked to go may have disposed its lock — a failed initialization disposes at once.
+            if (Volatile.Read(ref _disposeRequested) != 0)
+                return;
+
+            // A command's body holds no state lock, so without its turn a posted redraw would write the controller beside the command's own.
+            await _exclusiveCommandLock.WaitAsync(_lifetime.Token).ConfigureAwait(false);
+            inTurn = true;
+
+            if (Volatile.Read(ref _disposeRequested) == 0)
+                await RunInTurnAsync(action, _lifetime.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The runtime is going: the work stopped as asked.
+        }
+        catch (Exception exception)
+        {
+            await ReportDetachedFailureAsync(operation, exception).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Released before the hold: the last hold out may dispose the runtime, and its lock with it.
+            if (inTurn)
+                _ = _exclusiveCommandLock.Release();
+
+            await LeaveOrLogAsync(operation, 1).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Runs work that holds a command's turn as a command's body runs — outside the state lock — then drains what it wrote into the
+    /// queue the next flush sends, as <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/> does.
+    /// </summary>
+    /// <remarks>
+    /// Outside the lock so the work may await <c>InvokeAsync</c> on its own runtime, as a command may: under it, that call waited for
+    /// the lock its own caller held, and the runtime with every flush behind it stopped for good.
+    /// </remarks>
+    private async Task RunInTurnAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken)
+    {
+        await action(cancellationToken).ConfigureAwait(false);
+
+        _ = await DrainAsync(action: null, DrainTarget.Leave, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Hands a failure nothing awaits to the controller's exception handler, and logs one the handler itself throws.</summary>
+    private async Task ReportDetachedFailureAsync(string operation, Exception exception)
+    {
+        try
+        {
+            _ = await HandleRuntimeExceptionAsync(exception, operation, commandRequest: null, clientChangeSet: null, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception handlerException)
+        {
+            TryLogDetachedCommandFailure(operation, handlerException);
+        }
+    }
+
+    /// <summary>Lets go of a hold nothing awaits (<see cref="LeaveAsync"/>), logging a failure of the dispose it may run.</summary>
+    private async Task LeaveOrLogAsync(string operation, long hold)
+    {
+        try
+        {
+            await LeaveAsync(hold).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            TryLogDetachedCommandFailure(operation, exception);
+        }
+    }
+
+    // Cancelled once the runtime is asked to go: the token of every job it owns.
+    private readonly CancellationTokenSource _lifetime = new();
+
+    /// <inheritdoc />
+    public void Start(Func<CancellationToken, Task> action)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(action);
+
+        // Held from now, as posted work is, so a runtime asked to go waits for the job to answer its token rather than disposing under
+        // it; held as a job, which keeps no runtime past its retention, so one nobody comes back to is asked to go and its job told.
+        _ = Interlocked.Add(ref _commandsInFlight, JobHold);
+
+        // Not in the caller's flow: started in a command, the job kept that command's connection as Context.Handle after it closed.
+        if (ExecutionContext.IsFlowSuppressed())
+        {
+            _ = Task.Run(() => RunStartedAsync(action));
+            return;
+        }
+
+        using (ExecutionContext.SuppressFlow())
+            _ = Task.Run(() => RunStartedAsync(action));
+    }
+
+    /// <summary>Runs a job the runtime owns to its end and lets go of its hold; never faults: a failure goes to the controller.</summary>
+    private async Task RunStartedAsync(Func<CancellationToken, Task> action)
+    {
+        MarkFlowAsHolding();
+
+        try
+        {
+            // Read under the hold: a runtime not yet asked to go keeps its token until this job leaves.
+            if (Volatile.Read(ref _disposeRequested) == 0)
+                await action(_lifetime.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The runtime is going: the job stopped as asked.
+        }
+        catch (Exception exception)
+        {
+            await ReportDetachedFailureAsync("Start", exception).ConfigureAwait(false);
+        }
+        finally
+        {
+            await LeaveOrLogAsync("Start", JobHold).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Tells the runtime's own jobs it is going; a job's registration that throws stops neither the others nor the going.</summary>
+    private void CancelLifetime()
+    {
+        try
+        {
+            _lifetime.Cancel();
+        }
+        catch (AggregateException exception)
+        {
+            TryLogDetachedCommandFailure("Start", exception);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, UIHandle? except = null, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(effects);
+        ThrowIfInsideAction("A flush or a push of effects");
+
+        if (effects.Count == 0)
+            return Task.CompletedTask;
+
+        UICommandExecutionResult result = OutsideCommand(effects);
+        IReadOnlyList<UIHandle> viewers = ViewerHandles;
+        UIHandle? hiddenShower = PickSystemNotificationPage(viewers, except, UINotificationWhen.WhenHidden);
+        UIHandle? alwaysShower = PickSystemNotificationPage(viewers, except, UINotificationWhen.Always);
+
+        return SendEachAsync(viewers, viewer => IsSame(viewer, except) ? null : ForPage(result, viewer, hiddenShower, alwaysShower), cancellationToken);
+    }
+
+    /// <summary>
+    /// Effects raised outside a command, resolved, on the command-result channel with no command behind it — the one way every send
+    /// outside a command builds what it sends.
+    /// </summary>
+    private UICommandExecutionResult OutsideCommand(IReadOnlyList<ClientEffect> effects)
+    {
+        UICommandResult command = UICommandResult.Ok(ResolveEffects(effects));
+
+        return new UICommandExecutionResult
+        {
+            Command = command,
+            Changes = WithPageStateAhead(ServerChangeSet.Empty, command)
+        };
+    }
+
+    /// <summary>
+    /// The one page of a reader's that shows a system notification as the system's, so it sounds once rather than once a page: for
+    /// one shown <see cref="UINotificationWhen.Always"/> the first on screen, else the first off screen; for one shown only off
+    /// screen none while any page is on screen — the reader is told there — else the first off screen.
+    /// </summary>
+    /// <remarks>Shared by a send to a runtime's pages and a send to a session's, which pass every page of the session.</remarks>
+    internal static UIHandle? PickSystemNotificationPage(IReadOnlyList<UIHandle> pages, UIHandle? except, UINotificationWhen when)
+    {
+        UIHandle? offScreen = null;
+
+        for (var i = 0; i < pages.Count; i++)
+        {
+            UIHandle page = pages[i];
+
+            if (page.ClientState.IsVisible)
+            {
+                if (when == UINotificationWhen.WhenHidden)
+                    return null;
+
+                if (!IsSame(page, except))
+                    return page;
+            }
+            else if (offScreen is null && !IsSame(page, except))
+            {
+                offScreen = page;
+            }
+        }
+
+        return offScreen;
+    }
+
+    private static bool IsSame(UIHandle page, UIHandle? other)
+        => other is not null && StringComparer.Ordinal.Equals(page.Instance.Id, other.Instance.Id);
+
+    /// <summary>The result as one page is sent it: without the system notifications it does not show; null where nothing is left.</summary>
+    private static UICommandExecutionResult? ForPage(UICommandExecutionResult result, UIHandle page, UIHandle? hiddenShower, UIHandle? alwaysShower)
+    {
+        ClientEffect[] effects = result.Command.Effects;
+        List<ClientEffect>? kept = null;
+
+        for (var i = 0; i < effects.Length; i++)
+        {
+            if (effects[i] is ShowSystemNotificationEffect notification && !GetsSystemNotification(page, notification.When, notification.When == UINotificationWhen.Always ? alwaysShower : hiddenShower))
+                kept ??= [.. effects.AsSpan(0, i)];
+            else
+                kept?.Add(effects[i]);
+        }
+
+        if (kept is null)
+            return result;
+
+        return kept.Count == 0 ? null : result with { Command = UICommandResult.Ok(kept) };
+    }
+
+    /// <summary>
+    /// Whether a page is sent a system notification: the page <see cref="PickSystemNotificationPage"/> picked, and for one shown only
+    /// off screen every page on screen too, which shows its fallback.
+    /// </summary>
+    internal static bool GetsSystemNotification(UIHandle page, UINotificationWhen when, UIHandle? picked)
+        => ReferenceEquals(page, picked) || (when == UINotificationWhen.WhenHidden && page.ClientState.IsVisible);
+
+    /// <summary>
+    /// Sends each page what <paramref name="resultFor"/> picks for it, none where it picks nothing, through the send queue behind what
+    /// the state holds now, drained first; one failed send stops no other, and the first failure is thrown once all are tried.
+    /// </summary>
+    /// <remarks>
+    /// Queued rather than sent here, or an effect overtook the sets queued before it: a focus written after the value that shows its
+    /// field reached the page ahead of that value.
+    /// </remarks>
+    private async Task SendEachAsync(IReadOnlyList<UIHandle> pages, Func<UIHandle, UICommandExecutionResult?> resultFor, CancellationToken cancellationToken)
+    {
+        // A runtime not started, or stopped, holds no state a flush may drain.
+        if (IsStarted && !IsStopped)
+            _ = await FlushAsync(DrainTarget.Dispatched, cancellationToken).ConfigureAwait(false);
+
+        List<Task>? sends = null;
+
+        for (var i = 0; i < pages.Count; i++)
+        {
+            UIHandle page = pages[i];
+
+            if (resultFor(page) is { } result && _dispatcher.EnqueueResult(this, page, result) is { } sent)
+                (sends ??= []).Add(sent);
+        }
+
+        if (sends is not null)
+            await Task.WhenAll(sends).WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public Task SendEffectsToAsync(IReadOnlyList<UIHandle> pages, IReadOnlyList<ClientEffect> effects, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(pages);
+        ArgumentNullException.ThrowIfNull(effects);
+        ThrowIfInsideAction("A flush or a push of effects");
+
+        if (effects.Count == 0)
+            return Task.CompletedTask;
+
+        UICommandExecutionResult result = OutsideCommand(effects);
+
+        return SendEachAsync(pages, _ => result, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<ClientEffect> ResolveEffects(IReadOnlyList<ClientEffect> effects)
+    {
+        ThrowIfDisposed();
+
+        ArgumentNullException.ThrowIfNull(effects);
+
+        return ResolveRuntimeEffects(effects) ?? effects;
+    }
+
+    /// <inheritdoc />
+    void IUIRuntimeAccess.RequestFullResync()
+    {
+        ThrowIfDisposed();
+
+        // Counted once a resync: asked again before it is taken, it is the same one.
+        if (Interlocked.Exchange(ref _fullResyncRequested, 1) == 0)
+            _host.Metrics.ResyncRequested();
+    }
+}

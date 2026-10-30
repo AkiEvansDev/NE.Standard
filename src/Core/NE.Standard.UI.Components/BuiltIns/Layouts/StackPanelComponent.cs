@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -28,8 +27,8 @@ public abstract partial class StackPanelComponent<T>(string? id = null) : Contai
     public bool? Wrap { get; set; }
 
     /// <summary>
-    /// Gets or sets the content's edge, start or end, on which the panel's first or last quiet button stands what it shows at rest
-    /// rather than its box: a ghost's or link's icon glyph or words, the theme switcher's glyph, the language switcher's press.
+    /// Gets or sets the content's edge, start or end, on which the panel's first or last quiet icon button or switcher stands what it
+    /// shows at rest rather than its box: a ghost's or link's icon glyph, the theme switcher's glyph, the language switcher's press.
     /// </summary>
     /// <remarks>Render-time only. The button's wash spills past the edge by the glyph's inset, so the host wants that much padding there.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
@@ -45,7 +44,7 @@ public abstract partial class StackPanelComponent<T>(string? id = null) : Contai
     /// </summary>
     /// <remarks>Render-time only. Drawn as the first child's top margin, half the button's height less its own line's.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
-    public UIResponsive<UIButtonSize>? FirstLineOnControl { get; set; }
+    public UIResponsive<UISize>? FirstLineOnControl { get; set; }
 
     /// <summary>
     /// Gets or sets whether the panel's first child stands in a field's caption row — at least a caption's line tall — so a label over a
@@ -60,10 +59,10 @@ public abstract partial class StackPanelComponent<T>(string? id = null) : Contai
     /// and its Add), or where it runs down as one field: a cell round it, or it and the words under it (its hint). A column of more is
     /// a form, not a field: what stands beside it stays where it is laid out.
     /// </summary>
-    public UIInputSize? CaptionRowBox(UIResponsiveTier tier)
+    public UISize? CaptionRowBox(UIResponsiveTier tier)
     {
         if (FirstChildAsCaption == true)
-            return UIFieldBoxes.FirstCaptionRowBox(Children, tier) ?? UIInputSize.Medium;
+            return UIFieldBoxes.FirstCaptionRowBox(Children, tier) ?? UISize.Medium;
 
         if (Children.Count == 0)
             return null;

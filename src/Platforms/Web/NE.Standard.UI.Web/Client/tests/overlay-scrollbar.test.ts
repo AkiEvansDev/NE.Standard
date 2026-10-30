@@ -1,6 +1,5 @@
 // The overlay scrollbar's geometry: a scroller under a transform (a canvas's zoom) gets its thumb on its scaled box; a fixed popup's
-// list is clipped by none of the boxes around it in the document; a right-to-left scroller's horizontal thumb starts at its right end
-// and drags back towards it; a scroller that draws no bar on purpose gets no thumb; the pointer brings a bar in only near its edge; a
+// list is clipped by none of the boxes around it in the document; a horizontal thumb starts at its left end and drags on; a scroller that draws no bar on purpose gets no thumb; the pointer brings a bar in only near its edge; a
 // scroller hanging the bar's room past its box stands its thumb there, seen through the clip margins of the boxes around it.
 
 import assert from "node:assert/strict";
@@ -12,7 +11,7 @@ const styles = new Map<FakeElement, Readonly<Record<string, string>>>();
 
 installFakeDom({
     getComputedStyle: (element: FakeElement) => {
-        const style = { overflowX: "visible", overflowY: "visible", position: "static", direction: "ltr", ...styles.get(element) };
+        const style = { overflowX: "visible", overflowY: "visible", position: "static", ...styles.get(element) };
 
         return { ...style, getPropertyValue: (name: string) => style[name as keyof typeof style] ?? "" };
     }
@@ -20,7 +19,7 @@ installFakeDom({
 
 fakeDocument.documentElement.rect = { left: 0, top: 0, width: 1000, height: 800 };
 
-const { arrowBoxes, barBox, canScroll, clientBox, dragScroll, nearsBar, thumbBox, visibleBox } = await import("../src/interactions/overlay-scrollbar-engine.ts");
+const { barBox, canScroll, clientBox, dragScroll, nearsBar, thumbBox, visibleBox } = await import("../src/interactions/overlay-scrollbar-engine.ts");
 
 /** A scroller laid out `width` by `height`, holding `scrollWidth` by `scrollHeight`, drawn on the viewport at `rect`. */
 function scroller(rect: { left: number; top: number; width: number; height: number }, laidOut: { width: number; height: number }, held: { width: number; height: number }, style: Readonly<Record<string, string>> = {}): FakeElement {
@@ -49,8 +48,6 @@ test("a scroller under a zoom of a half gets its thumb on the box it is drawn in
     assert.equal(thumb.left, 200 - 12);
     assert.equal(thumb.top, 52);
     assert.equal(thumb.height, 24);
-    // 56 of track keeps no arrows: the thumb runs end to end.
-    assert.equal(arrowBoxes(real(editor), "y", client, false), null);
 });
 
 test("a fixed popup's list is clipped by the viewport alone, not by the boxes around it in the document", () => {
@@ -97,21 +94,21 @@ test("a list hanging the bar's room past its box stands its thumb there, seen as
     assert.equal(visibleBox(real(list))?.right, 292);
 });
 
-test("a right-to-left scroller's horizontal thumb starts at its right end, and a drag to the right goes back towards it", () => {
-    const strip = scroller({ left: 0, top: 0, width: 400, height: 100 }, { width: 400, height: 100 }, { width: 1600, height: 100 }, { direction: "rtl" });
+test("a horizontal thumb starts at its left end, and a drag to the right scrolls on", () => {
+    const strip = scroller({ left: 0, top: 0, width: 400, height: 100 }, { width: 400, height: 100 }, { width: 1600, height: 100 });
     const client = clientBox(real(strip));
     const start = thumbBox(real(strip), "x", client, false);
 
-    // Inside the arrow at its end: the inset, then the arrow.
-    assert.equal(start.left + start.width, 400 - 2 - 12);
+    assert.equal(start.left, 2);
 
-    strip.scrollLeft = -1200;
+    strip.scrollLeft = 1200;
 
-    assert.equal(thumbBox(real(strip), "x", client, false).left, 2 + 12);
+    const end = thumbBox(real(strip), "x", client, false);
 
-    // Held at -1200 and pulled 10 pixels to the right at 4 scroll pixels a pixel: 40 back towards the start.
-    assert.equal(dragScroll(1200, 10, 4, true), -1160);
-    assert.equal(dragScroll(100, 10, 4, false), 140);
+    assert.equal(end.left + end.width, 400 - 2);
+
+    // Held at 100 and pulled 10 pixels to the right at 4 scroll pixels a pixel: 40 on.
+    assert.equal(dragScroll(100, 10, 4), 140);
 });
 
 test("a scroller that draws no bar on purpose gets no thumb; one that only holds more than it shows does", () => {
@@ -129,44 +126,41 @@ test("a pointer brings the bar in near the edge it stands at, not over the words
     const view = { left: 100, top: 50, right: 500, bottom: 450, width: 400, height: 400 };
 
     // Over the strip, and a little short of it.
-    assert.equal(nearsBar({ x: 495, y: 200 }, view, "y", false), true);
-    assert.equal(nearsBar({ x: 475, y: 200 }, view, "y", false), true);
+    assert.equal(nearsBar({ x: 495, y: 200 }, view, "y"), true);
+    assert.equal(nearsBar({ x: 475, y: 200 }, view, "y"), true);
     // Over the words, past the scroller, or beyond its ends.
-    assert.equal(nearsBar({ x: 300, y: 200 }, view, "y", false), false);
-    assert.equal(nearsBar({ x: 505, y: 200 }, view, "y", false), false);
-    assert.equal(nearsBar({ x: 495, y: 460 }, view, "y", false), false);
-    // A right-to-left scroller's bar stands at its left edge.
-    assert.equal(nearsBar({ x: 105, y: 200 }, view, "y", true), true);
-    assert.equal(nearsBar({ x: 495, y: 200 }, view, "y", true), false);
+    assert.equal(nearsBar({ x: 300, y: 200 }, view, "y"), false);
+    assert.equal(nearsBar({ x: 505, y: 200 }, view, "y"), false);
+    assert.equal(nearsBar({ x: 495, y: 460 }, view, "y"), false);
+    assert.equal(nearsBar({ x: 105, y: 200 }, view, "y"), false);
     // The bar across stands at the bottom.
-    assert.equal(nearsBar({ x: 300, y: 440 }, view, "x", false), true);
-    assert.equal(nearsBar({ x: 300, y: 300 }, view, "x", false), false);
+    assert.equal(nearsBar({ x: 300, y: 440 }, view, "x"), true);
+    assert.equal(nearsBar({ x: 300, y: 300 }, view, "x"), false);
 });
 
-test("the arrows stand at the track's ends, in the thumb's strip, and the thumb at an end stops short of them", () => {
+test("the thumb runs the full track between the insets", () => {
     const list = scroller({ left: 0, top: 0, width: 200, height: 300 }, { width: 200, height: 300 }, { width: 200, height: 900 });
     const client = clientBox(real(list));
-    const arrows = arrowBoxes(real(list), "y", client, false);
 
-    assert.deepEqual(arrows?.back, { left: 188, top: 2, width: 12, height: 12 });
-    assert.deepEqual(arrows?.forward, { left: 188, top: 300 - 2 - 12, width: 12, height: 12 });
-    assert.equal(thumbBox(real(list), "y", client, false).top, 14);
+    assert.equal(thumbBox(real(list), "y", client, false).top, 2);
 
     list.scrollTop = 600;
     const end = thumbBox(real(list), "y", client, false);
 
-    assert.equal(end.top + end.height, 300 - 2 - 12);
+    assert.equal(end.top + end.height, 300 - 2);
 });
 
 test("a table's upright bar runs beside its rows, under the header sticking over them and over a footer, as its scroll padding says", () => {
     const table = scroller({ left: 0, top: 0, width: 600, height: 400 }, { width: 600, height: 400 }, { width: 600, height: 2000 }, { scrollPaddingTop: "40px", scrollPaddingBottom: "32px" });
     const client = clientBox(real(table));
     const thumb = thumbBox(real(table), "y", client, false);
-    const arrows = arrowBoxes(real(table), "y", client, false);
 
-    // The header's 40 px, the bar's 2 px inset and the arrow's 12 px above the thumb.
-    assert.equal(thumb.top, 40 + 2 + 12);
-    assert.equal(arrows?.back.top, 40 + 2);
-    // The footer's 32 px under the forward arrow's square.
-    assert.equal(arrows.forward.top + arrows.forward.height, 400 - 32 - 2);
+    // The header's 40 px and the bar's 2 px inset above the thumb.
+    assert.equal(thumb.top, 40 + 2);
+
+    table.scrollTop = 1600;
+    const end = thumbBox(real(table), "y", client, false);
+
+    // The footer's 32 px and the bar's 2 px inset under the thumb.
+    assert.equal(end.top + end.height, 400 - 32 - 2);
 });

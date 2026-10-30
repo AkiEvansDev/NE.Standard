@@ -22,8 +22,8 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new WrapPanelComponent()
             .BindStandard()
-            .BindSpacing($"{WrapGroup}.{nameof(WrapPanelGroupContext.Spacing)}")
-            .BindLineSpacing($"{WrapGroup}.{nameof(WrapPanelGroupContext.LineSpacing)}")
+            .BindSpacing<WrapPanelController>(static x => x.WrapGroup.Spacing)
+            .BindLineSpacing<WrapPanelController>(static x => x.WrapGroup.LineSpacing)
             // Two columns of twenty-four: near-square tiles, and twenty of them do not fill the second row.
             .AddChildren(DemoUI.CreateSpannedTiles(20, 2))
             .SetPlacement(1, 1, 24, 1)
@@ -44,7 +44,7 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateColumnsGroup()
     {
-        return DemoUI.CreateExample("Settings in even columns",
+        return DemoUI.CreateExample("24-column responsive spans",
             new WrapPanelComponent()
                 .SetSpacing(16)
                 .SetLineSpacing(8)
@@ -69,7 +69,7 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreatePlansGroup()
     {
-        return DemoUI.CreateExample("Plans, a share of the line each",
+        return DemoUI.CreateExample("Equal fractional column shares",
             new WrapPanelComponent()
                 .SetSpacing(16)
                 .AddChild(new CardComponent()
@@ -86,8 +86,8 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
                     .ConfigureDefaultHeader(header => header
                         .SetTitle("Standard")
                         .SetDescription("€18 a month for each server")
-                        .SetBadgeText("Most chosen")
-                        .SetBadgeStyle(UIBadgeType.Primary)
+                        .SetBadgeTitle("Most chosen")
+                        .SetBadgeVariant(UIBadgeVariant.Primary)
                     )
                     .SetContent(UIDetails.List(("vCPU", "2"), ("Memory", "4 GB"), ("Disk", "80 GB")))
                     .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1), xl: UIGridPlacement.At(1, 1, 6, 1))
@@ -120,7 +120,7 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRegionsGroup()
     {
-        return DemoUI.CreateExample("Captioned tiles, lines further apart",
+        return DemoUI.CreateExample("Separate horizontal & vertical spacing",
             new WrapPanelComponent()
                 .SetSpacing(12)
                 .SetLineSpacing(24)
@@ -163,7 +163,7 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFormGroup()
     {
-        return DemoUI.CreateExample("Two fields to a line",
+        return DemoUI.CreateExample("Two-column form fields",
             new WrapPanelComponent()
                 .SetSpacing(16)
                 .AddChild(new TextInputComponent()

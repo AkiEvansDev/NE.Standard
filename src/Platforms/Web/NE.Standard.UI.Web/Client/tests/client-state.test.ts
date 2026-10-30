@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ClientState, ClientStateSource } from "../src/runtime/client-state.ts";
-import { ClientStateReporter, readClientState } from "../src/runtime/client-state.ts";
+import type { ClientState, ClientStateSource } from "../src/state/client-state.ts";
+import { ClientStateReporter, readClientState } from "../src/state/client-state.ts";
 
 type Browser = { visibility: DocumentVisibilityState; permission: NotificationPermission | undefined };
 

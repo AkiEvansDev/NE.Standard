@@ -16,6 +16,6 @@ test("the trail hangs out by a step's default padding, so a line's first words s
     const host = /\n\.ui-breadcrumbs__host \{([^}]*)\}/.exec(css)?.[1] ?? "";
 
     // The hang is the step's own default padding, so the two cannot drift apart.
-    assert.match(step, /padding: var\(--ui-padding-xxl, [^;]*var\(--ui-padding, 0\.25rem\)+;/);
-    assert.match(host, /margin-inline-start: -0\.25rem;/);
+    assert.match(step, /padding: var\(--ui-padding-xxl, [^;]*var\(--ui-padding, 0\.125rem 0\.5rem\)+;/);
+    assert.match(host, /margin-inline-start: -0\.5rem;/);
 });

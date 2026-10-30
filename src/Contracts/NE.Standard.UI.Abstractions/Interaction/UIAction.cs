@@ -2,6 +2,7 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Primitives.Binding;
@@ -114,8 +115,24 @@ public sealed class UIAction
     public static KeyValuePair<string, UIActionArgument> ArgEventValue(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        return new KeyValuePair<string, UIActionArgument>(name, UIActionArgument.EventValue());
+        return ArgEventValue(name, 0);
     }
+
+    /// <summary>
+    /// Creates an action argument entry resolved from the value at <paramref name="index"/> of what the event carries after the keys
+    /// that address its component.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgEventValue(string name, int index)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        return new KeyValuePair<string, UIActionArgument>(name, UIActionArgument.EventValue(index));
+    }
+
+    /// <summary>
+    /// Creates an action argument entry resolved from a typed binding path relative to the root context.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgRoot<TSource>(string name, Expression<Func<TSource, object?>> path)
+        => ArgBinding(name, RecursivePath.FromExpression(path), UIBindingScope.Root);
 
     /// <summary>
     /// Creates an action argument entry resolved from a binding path relative to the root context.
@@ -124,17 +141,35 @@ public sealed class UIAction
         => ArgBinding(name, path, UIBindingScope.Root);
 
     /// <summary>
+    /// Creates an action argument entry resolved from a typed binding path in the scope around the component's own.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgParent<TSource>(string name, Expression<Func<TSource, object?>> path)
+        => ArgBinding(name, RecursivePath.FromExpression(path), UIBindingScope.Parent);
+
+    /// <summary>
     /// Creates an action argument entry resolved from a binding path in the scope around the component's own: the row a menu inside a
-    /// row is drawn for, but the controller (or an outer row) for a control straight in a row — whose own row is <see cref="ArgRelative"/>.
+    /// row is drawn for, but the controller (or an outer row) for a control straight in a row — whose own row is <see cref="ArgRelative(string, string)"/>.
     /// </summary>
     public static KeyValuePair<string, UIActionArgument> ArgParent(string name, string path)
         => ArgBinding(name, path, UIBindingScope.Parent);
+
+    /// <summary>
+    /// Creates an action argument entry resolved from a typed binding path relative to the current context — inside an item template, the row.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgRelative<TSource>(string name, Expression<Func<TSource, object?>> path)
+        => ArgBinding(name, RecursivePath.FromExpression(path), UIBindingScope.Relative);
 
     /// <summary>
     /// Creates an action argument entry resolved from a binding path relative to the current context — inside an item template, the row.
     /// </summary>
     public static KeyValuePair<string, UIActionArgument> ArgRelative(string name, string path)
         => ArgBinding(name, path, UIBindingScope.Relative);
+
+    /// <summary>
+    /// Creates an action argument entry resolved from a typed binding path.
+    /// </summary>
+    public static KeyValuePair<string, UIActionArgument> ArgBinding<TSource>(string name, Expression<Func<TSource, object?>> path, UIBindingScope scope = UIBindingScope.Relative)
+        => ArgBinding(name, RecursivePath.FromExpression(path), scope);
 
     /// <summary>
     /// Creates an action argument entry resolved from a binding path.

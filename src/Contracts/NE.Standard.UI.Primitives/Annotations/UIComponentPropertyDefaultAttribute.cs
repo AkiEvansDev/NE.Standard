@@ -3,14 +3,14 @@ using System;
 namespace NE.Standard.UI.Primitives.Annotations;
 
 /// <summary>
-/// Gives a property that a <see cref="UIComponentPropertyBlockAttribute"/> brings onto the type a default of the type's own,
-/// read from a static member the type declares — a table that draws an edge where the contract leaves the stylesheet's own.
+/// Gives a property that a <see cref="UIComponentPropertyBlockAttribute"/> or a base component brings onto the type a default of the
+/// type's own, read from a static member the type declares.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = true)]
 public sealed class UIComponentPropertyDefaultAttribute(string propertyName, string valueMember) : Attribute
 {
     /// <summary>
-    /// Gets the name of the block property the default is for.
+    /// Gets the name of the block or inherited component property the default is for.
     /// </summary>
     public string PropertyName { get; } = propertyName;
 

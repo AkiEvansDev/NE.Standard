@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
-using NE.Standard.UI.Components.BuiltIns.Items;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
@@ -30,6 +31,9 @@ internal sealed partial class UIViewCompilationContext
     {
         if (property.Equals(IClickableComponent.ClickableProperty))
             return component is IClickableComponent && HasClickOfItsOwn(component) ? true : null;
+
+        if (property.Equals(IVisualComponent.HorizontalAlignmentProperty))
+            return component is ISwitcherComponent { Variant: UISwitcherVariant.Field } ? (UIResponsive<UIAlignment>)UIAlignment.Stretch : null;
 
         return property.Equals(IVisualComponent.AlignWithFieldBoxesProperty) ? ImpliedFieldBoxes(component) : null;
     }
@@ -140,12 +144,27 @@ internal sealed partial class UIViewCompilationContext
     // are presses is one, whatever its items' template says: a pager's pages, a switcher's choices, a splitter's handle, a panel's fold
     // toggle, rows the reader chooses, and what says so itself (tabs, an expander, a tree, a package's grid or chart).
     private bool IsControl(IVisualComponent component)
-        => component is IButtonComponent or IInputComponent or IPagerComponent or ISwitcherComponent or IGridSplitterComponent or ICollapsibleComponent { ShowCollapseToggle: true }
+        => component is IButtonComponent or IInputComponent or IPagerComponent or ISwitcherComponent or IGridSplitterComponent
+            || IsCollapsibleWithToggle(component)
             || component is IPressablePartsComponent { HasPressableParts: true }
             || component.TypeKey == LinkComponent.ComponentTypeKey
             || HasChosenRows(component)
             || HasClickOfItsOwn(component)
             || component is IClickableComponent { Clickable: true };
+
+    private bool IsCollapsibleWithToggle(IVisualComponent component)
+    {
+        if (component is not ICollapsibleComponent collapsible)
+            return false;
+
+        if (FindBinding(component, ICollapsibleComponent.ShowCollapseToggleProperty) is not null)
+            return true;
+
+        var effective = collapsible.ShowCollapseToggle
+            ?? (TryGetPropertyDefinition(component.TypeKey, ICollapsibleComponent.ShowCollapseToggleProperty, out UIPropertyDefinition? definition) ? definition.DefaultValue as bool? : null);
+
+        return effective == true;
+    }
 
     /// <summary>Whether the reader chooses the component's rows: its selection mode one or many, or bound.</summary>
     private static bool HasChosenRows(IVisualComponent component)

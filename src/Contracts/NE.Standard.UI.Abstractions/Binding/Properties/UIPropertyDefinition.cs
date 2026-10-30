@@ -57,4 +57,9 @@ public sealed class UIPropertyDefinition
     /// Gets the accessor used to read the property value from a component instance.
     /// </summary>
     public required Func<IBindableComponent, object?> Getter { get; init; }
+
+    /// <summary>
+    /// Gets the accessor used to write the property value onto a component instance, when the property is writable.
+    /// </summary>
+    public Action<IBindableComponent, object?>? Setter { get; init; }
 }

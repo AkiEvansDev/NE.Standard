@@ -2,21 +2,33 @@
 // The bar over a host and the row of icons atop a menu a long press opened are both drawn here; a press is always the entry's own.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { ActionBarClass, DisabledClass, InActionBarAttribute, MenuControlEntrySelector, MenuGroupEntrySelector, MenuItemKindAttribute, MenuLeftOutAttribute, SmallGhostButtonClasses } from "../addressing/dom-attributes.ts";
+import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
+import { ActionBarAttribute, ActionBarButtonClass, ActionBarIconButtonClass, ActionBarKeyAttribute, ActionBarMoreClass, ButtonContentClass, ComponentKeyAttribute, ContextMenuAttribute, DisabledClass, IconAttribute, InActionBarAttribute, ItemsViewItemClass, MenuControlEntrySelector, MenuGroupEntrySelector, MenuItemKindAttribute, MenuLeftOutAttribute, SmallGhostButtonClasses, TableRowClass, TextIconClass, TextTitleClass, TreeNodeWrapperClass, TreeRowClass } from "../addressing/dom-attributes.ts";
+import { isLaidOut } from "./element-visibility.ts";
 import { isInert } from "./interactive-state.ts";
-import { IconMarkAttribute, IconUrlProperty, isIconClassName } from "../rendering/icon-value.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-
-export const ActionBarButtonClass = `${ActionBarClass}__button`;
-export const ActionBarMoreClass = `${ActionBarClass}__more`;
-/** An entry's button that shows its icon, which ui-action-bar.less squares; a title's keeps its frame. */
-const ActionBarIconButtonClass = `${ActionBarButtonClass}--icon`;
-
+import { IconUrlProperty, isIconClassName } from "../rendering/icon-value.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import { FocusableSelector } from "./popup-focus.ts";
 
 // The entry's own icon and title: an entry holds no other text component.
-const TextIconClass = "ui-text__icon";
-const IconSelector = `.ui-button__content .${TextIconClass}`;
-const TitleSelector = ".ui-button__content .ui-text__title";
+const IconSelector = `.${ButtonContentClass} .${TextIconClass}`;
+const TitleSelector = `.${ButtonContentClass} .${TextTitleClass}`;
+const HostSelector = `[${ActionBarAttribute}]`;
+const HostRowSelector = `.${ItemsViewItemClass}, .${TableRowClass}`;
+const BarGap = 6;
+const BarGapProperty = "--ui-action-bar-gap";
+
+/**
+ * What a chosen host stands for, so the one drawn in its place keeps the bar: a row redrawn, a window scrolled past it and back, a
+ * node a package drew anew. The element under `scope` carrying `key` in `attribute` — the host itself where a package keys it
+ * (`data-ui-action-bar-key`), else its row (`data-ui-key`) — and the host's place among the hosts there.
+ */
+export type HostIdentity = {
+    readonly scope: Element;
+    readonly attribute: string;
+    readonly key: string;
+    readonly index: number;
+};
 
 /** The menu's entries a bar shows, and whether the menu holds an entry shown and not among them, for "more". */
 export type ActionBarEntries = {
@@ -62,7 +74,7 @@ export function readActionBarEntries(menu: HTMLElement): ActionBarEntries {
  */
 export function isShownEntry(entry: HTMLElement, menu: HTMLElement): boolean {
     for (let element: HTMLElement | null = entry; element !== null && element !== menu; element = element.parentElement) {
-        if (!element.hasAttribute(MenuLeftOutAttribute) && getComputedStyle(element).display === "none")
+        if (!element.hasAttribute(MenuLeftOutAttribute) && !isLaidOut(element))
             return false;
     }
 
@@ -128,7 +140,7 @@ function entryIcon(entry: HTMLElement): HTMLElement | null {
 
     glyph.className = icon.className;
     glyph.classList.remove(TextIconClass);
-    glyph.setAttribute(IconMarkAttribute, "");
+    glyph.setAttribute(IconAttribute, "");
     glyph.setAttribute("aria-hidden", "true");
 
     const picture = icon.style.getPropertyValue(IconUrlProperty);
@@ -168,4 +180,110 @@ export function actionBarEntryOf(button: Element): HTMLElement | null {
 /** The words an entry shows as its title: the button's name. */
 function entryWords(entry: HTMLElement): string {
     return entry.querySelector(TitleSelector)?.textContent?.trim() ?? "";
+}
+
+/** The hosts an element holds, itself first where it is one. */
+export function hostsIn(element: Element): HTMLElement[] {
+    const inside = [...element.querySelectorAll<HTMLElement>(HostSelector)];
+
+    return element.matches(HostSelector) ? [element as HTMLElement, ...inside] : inside;
+}
+
+export function identityOf(host: HTMLElement): HostIdentity | null {
+    const own = host.getAttribute(ActionBarKeyAttribute);
+
+    if (own !== null && host.parentElement !== null)
+        return { scope: host.parentElement, attribute: ActionBarKeyAttribute, key: own, index: 0 };
+
+    const row = host.closest(`[${ComponentKeyAttribute}]`);
+    const key = row?.getAttribute(ComponentKeyAttribute) ?? null;
+
+    if (row === null || key === null || row.parentElement === null)
+        return null;
+
+    return { scope: row.parentElement, attribute: ComponentKeyAttribute, key, index: hostsIn(row).indexOf(host) };
+}
+
+/** The host drawn in the place of the one an identity was taken from; null while nothing stands there. */
+export function findByIdentity(identity: HostIdentity): HTMLElement | null {
+    for (const child of identity.scope.children) {
+        if (child.getAttribute(identity.attribute) === identity.key)
+            return hostsIn(child)[identity.index] ?? null;
+    }
+
+    return null;
+}
+
+/** Above the host, at its end, its start or its middle as the host says. */
+export function barPlacement(host: HTMLElement): AnchoredPopupPlacement {
+    const alignment = host.getAttribute(ActionBarAttribute);
+
+    if (alignment === "center")
+        return "top";
+
+    return alignment === "start" ? "top-start" : "top-end";
+}
+
+/** The room between a host and its bar: the host's own `--ui-action-bar-gap` in pixels, else the framework's. */
+export function barGapOf(host: HTMLElement): number {
+    const own = Number.parseFloat(getComputedStyle(host).getPropertyValue(BarGapProperty));
+
+    return Number.isFinite(own) ? own : BarGap;
+}
+
+/**
+ * The list's row a host's bar stands over, as each list draws it: a table's row is a host itself, an items view's or a table's row holds
+ * one as its child, a tree's row in its node face's wrapper. A host further inside a row (a card in a template) has none.
+ */
+export function rowOfHost(host: HTMLElement): Element | null {
+    if (host.classList.contains(TableRowClass))
+        return host;
+
+    const parent = host.parentElement;
+
+    if (parent === null)
+        return null;
+
+    if (parent.matches(HostRowSelector))
+        return parent;
+
+    const row = parent.parentElement;
+
+    return parent.classList.contains(TreeNodeWrapperClass) && row !== null && row.classList.contains(TreeRowClass) ? row : null;
+}
+
+/** Says on "more" whether its menu is open; open, its tooltip stays away as an open popup trigger's does (tooltip-engine.ts). */
+export function markMoreOpen(bar: HTMLElement, open: boolean): void {
+    moreButtonOf(bar)?.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+/** "More", the one button standing for no entry. */
+export function moreButtonOf(bar: HTMLElement): HTMLElement | null {
+    return barButtons(bar).find(button => actionBarEntryOf(button) === null) ?? null;
+}
+
+/** The host's own context menu, a child of its root, where the owner is the host; null where the menu stands elsewhere. */
+export function ownMenuHost(host: HTMLElement): HTMLElement | null {
+    for (const child of host.children) {
+        if (child.hasAttribute(ContextMenuAttribute))
+            return child as HTMLElement;
+    }
+
+    return null;
+}
+
+export function barButtons(bar: HTMLElement): HTMLElement[] {
+    return [...bar.querySelectorAll<HTMLElement>(`:scope > .${ActionBarButtonClass}`)];
+}
+
+/** "More" opens the menu itself under the button, as a right press there would, the keyboard's press giving it the first entry. */
+export function openMenuFrom(button: HTMLElement): void {
+    const rect = button.getBoundingClientRect();
+
+    button.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: rect.left, clientY: rect.bottom }));
+}
+
+/** Whether a script's focus would land on the element: focusable by its markup or by a tab index of any value. */
+export function takesFocus(element: HTMLElement): boolean {
+    return element.matches(FocusableSelector) || element.hasAttribute("tabindex");
 }

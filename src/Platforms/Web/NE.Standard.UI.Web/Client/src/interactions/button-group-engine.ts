@@ -1,15 +1,12 @@
 // A button group's segment: a press or key writes it like a tab strip does, and the arrows walk the strip like a radio group's.
 
-import { BindSelectedKeyAttribute, ButtonClass, ComponentKeyAttribute, SelectedAttribute, SelectedKeyAttribute } from "../addressing/dom-attributes";
+import { BindSelectedKeyAttribute, ButtonClass, ButtonGroupClass, ButtonGroupItemClass, ComponentKeyAttribute, SelectedAttribute, SelectedKeyAttribute } from "../addressing/dom-attributes";
 import { observeComponents } from "./dom-mutations";
 import { isInert } from "./interactive-state";
 import { isPlainKey } from "./keyboard-shortcut";
 import { ownDescendants } from "./own-descendants";
 import { applyRovingTabIndex, isRovingCandidate, resolveRovingTarget } from "./roving-focus";
 import { writeSelectedKey } from "./selected-key";
-
-const RootClass = "ui-button-group";
-const ItemClass = "ui-button-group__item";
 
 export type ButtonGroupEngineOptions = {
     readonly root?: ParentNode;
@@ -21,13 +18,13 @@ export class ButtonGroupEngine {
     public constructor(options: ButtonGroupEngineOptions = {}) {
         this.root = options.root ?? document;
 
-        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${ButtonGroupClass}`));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
 
         // A pushed key and a re-rendered segment land as mutations with the same answer.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true, attributeFilter: [SelectedKeyAttribute] }, roots => this.applyAll(roots));
+        observeComponents(this.root, `.${ButtonGroupClass}`, { childList: true, addedOnly: true, attributeFilter: [SelectedKeyAttribute] }, roots => this.applyAll(roots));
     }
 
     private applyAll(roots: Iterable<HTMLElement>): void {
@@ -64,10 +61,10 @@ export class ButtonGroupEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const item = domEvent.target.closest<HTMLElement>(`.${ItemClass}`);
-        const root = item?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const item = domEvent.target.closest<HTMLElement>(`.${ButtonGroupItemClass}`);
+        const root = item?.closest<HTMLElement>(`.${ButtonGroupClass}`) ?? null;
 
-        if (item === null || root === null || item.closest(`.${RootClass}`) !== root || isInert(root))
+        if (item === null || root === null || item.closest(`.${ButtonGroupClass}`) !== root || isInert(root))
             return;
 
         // A disabled segment refuses its press before any engine hears it; the guard is for a press that arrives another way.
@@ -84,8 +81,8 @@ export class ButtonGroupEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element))
             return;
 
-        const button = domEvent.target.closest<HTMLElement>(`.${ItemClass} > .${ButtonClass}`);
-        const root = button?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const button = domEvent.target.closest<HTMLElement>(`.${ButtonGroupItemClass} > .${ButtonClass}`);
+        const root = button?.closest<HTMLElement>(`.${ButtonGroupClass}`) ?? null;
 
         if (button === null || root === null || !isPlainKey(domEvent))
             return;
@@ -99,7 +96,7 @@ export class ButtonGroupEngine {
         domEvent.preventDefault();
         target.focus({ preventScroll: true });
 
-        const item = target.closest<HTMLElement>(`.${ItemClass}`);
+        const item = target.closest<HTMLElement>(`.${ButtonGroupItemClass}`);
 
         if (item !== null)
             this.choose(root, item);
@@ -112,7 +109,7 @@ export class ButtonGroupEngine {
     }
 
     private ownItems(root: HTMLElement): HTMLElement[] {
-        return ownDescendants(root, `.${ItemClass}`, `.${RootClass}`);
+        return ownDescendants(root, `.${ButtonGroupItemClass}`, `.${ButtonGroupClass}`);
     }
 }
 

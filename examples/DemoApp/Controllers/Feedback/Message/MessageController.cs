@@ -5,7 +5,7 @@ using DemoApp.Controllers.Base;
 namespace DemoApp.Controllers.Feedback.Message;
 
 /// <summary>
-/// What a message says: its title, its body, and whether it carries an action. The severity is the preset's own choice, so the
+/// What a message says: its title, its body, and whether it carries an action. The tone is the preset's own choice, so the
 /// preview draws all four.
 /// </summary>
 internal sealed partial class MessageGroupContext : DemoGroupContext
@@ -59,7 +59,7 @@ internal sealed partial class SyncGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// One message preset drawn in each severity, and every property that can be bound to it.
+/// One message preset drawn in each tone, and every property that can be bound to it.
 /// </summary>
 internal sealed partial class MessageController : DemoStandardController
 {

@@ -56,7 +56,7 @@ function iconRules(text: string = css): { selector: string; size: string }[] {
 }
 
 test("the scale is whole, even pixels, defined once among the tokens", () => {
-    assert.deepEqual([...scale.keys()], ["xs", "sm", "md", "md-lg", "lg", "xl"]);
+    assert.deepEqual([...scale.keys()], ["xs", "sm", "md", "md-lg", "lg", "xl", "xxl", "xxxl"]);
 
     for (const [step, pixels] of scale) {
         assert.ok(Number.isInteger(pixels) && pixels % 2 === 0, `@ui-glyph-${step} is ${pixels}px`);
@@ -97,6 +97,21 @@ test("no add-on's icon is sized as a fraction of its text either", async () => {
     assert.ok(addOnEntries.length === 0 || checked > 0, "no add-on icon rule found");
 });
 
+// A size fitted to its room (`min(50cqmin, 48px)`) is no step: only a size given outright in rem or pixels is held to the scale.
+test("every icon the core sizes outright in rem or pixels stands at a step of the scale", () => {
+    const steps = new Set(scale.values());
+    const off: string[] = [];
+
+    for (const { selector, size } of iconRules()) {
+        const outright = /^(\d*\.?\d+)(rem|px)$/.exec(size.trim());
+
+        if (outright !== null && !steps.has(Number(outright[1]) * (outright[2] === "rem" ? Rem : 1)))
+            off.push(`${selector}: font-size ${size}`);
+    }
+
+    assert.deepEqual(off, []);
+});
+
 test("the core's own glyphs are drawn at a step of the scale, or at the em of a host sized by one", () => {
     const steps = new Set([...scale.keys()].map(rem));
 
@@ -125,10 +140,18 @@ test("the theme switcher, an icon strip and a field's picture take the same step
     assert.match(rule(".ui-input--large .ui-input__affix-icon.ui-icon--image"), new RegExp(`font-size: ${rem("xl")};`));
 });
 
-test("an icon's own sizes and a rail's glyph are steps of the scale", () => {
+test("an icon's own sizes, a text role's match-sized glyph and a rail's glyph are steps of the scale", () => {
     assert.match(rule(".ui-icon-size--small"), new RegExp(`font-size: ${rem("sm")};`));
     assert.match(rule(".ui-icon-size--medium"), new RegExp(`font-size: ${rem("lg")};`));
     assert.match(rule(".ui-icon-size--large"), new RegExp(`font-size: ${rem("xl")};`));
+    assert.match(rule(":where(.ui-text__icon:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large, .ui-icon--image, [data-ui-icon-failed]))"), new RegExp(`font-size: var\\(--ui-text-glyph, ${rem("md")}\\);`));
+    assert.match(rule(".ui-input__affix-icon"), new RegExp(`font-size: var\\(--ui-text-glyph, ${rem("md")}\\);`));
+    assert.match(rule(".ui-text-type--display"), new RegExp(`--ui-text-glyph: ${rem("xxl")};`));
+    assert.match(rule(".ui-text-type--title"), new RegExp(`--ui-text-glyph: ${rem("lg")};`));
+    assert.match(rule(".ui-text-type--subtitle"), new RegExp(`--ui-text-glyph: ${rem("md-lg")};`));
+    assert.match(rule(".ui-text-type--body"), new RegExp(`--ui-text-glyph: ${rem("md")};`));
+    assert.match(rule(".ui-text-type--caption"), new RegExp(`--ui-text-glyph: ${rem("sm")};`));
+    assert.match(rule(".ui-text-type--overline"), new RegExp(`--ui-text-glyph: ${rem("sm")};`));
     assert.match(rule(".ui-menu--rail"), new RegExp(`--ui-menu-rail-glyph: ${rem("lg")};`));
     assert.match(rule(".ui-menu--rail.ui-menu--large"), new RegExp(`--ui-menu-rail-glyph: ${rem("xl")};`));
 });

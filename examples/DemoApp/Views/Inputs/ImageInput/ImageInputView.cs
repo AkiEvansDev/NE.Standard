@@ -24,7 +24,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/inputs/image-input";
     protected override string Header => "demo.inputs.image-input.header";
     protected override string HeaderDescription => "demo.inputs.image-input.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(360,
@@ -37,17 +37,17 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     private static ImageInputComponent Bind(ImageInputComponent input)
         => input
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(ImageValueGroupContext.Value)}")
-            .BindSelectionId($"{ValueGroup}.{nameof(ImageValueGroupContext.SelectionId)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(ImageValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(ImageValueGroupContext.Size)}")
+            .BindValue<ImageInputController>(static x => x.ValueGroup.Value)
+            .BindSelectionId<ImageInputController>(static x => x.ValueGroup.SelectionId)
+            .BindIsReadOnly<ImageInputController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<ImageInputController>(static x => x.ValueGroup.Size)
             .OnChange(nameof(ImageInputController.TakePictureAsync))
             .SetMaxFileSize(DemoImages.MaxInlinePictureBytes)
-            .BindAccept($"{ImageGroup}.{nameof(ImagePictureGroupContext.Accept)}")
-            .BindPlaceholderIcon($"{ImageGroup}.{nameof(ImagePictureGroupContext.PlaceholderIcon)}")
-            .BindPlaceholder($"{ImageGroup}.{nameof(ImagePictureGroupContext.Placeholder)}")
-            .BindFit($"{ImageGroup}.{nameof(ImagePictureGroupContext.Fit)}")
-            .BindAppearance($"{ImageGroup}.{nameof(ImagePictureGroupContext.Appearance)}")
+            .BindAccept<ImageInputController>(static x => x.ImageGroup.Accept)
+            .BindPlaceholderIcon<ImageInputController>(static x => x.ImageGroup.PlaceholderIcon)
+            .BindPlaceholder<ImageInputController>(static x => x.ImageGroup.Placeholder)
+            .BindFit<ImageInputController>(static x => x.ImageGroup.Fit)
+            .BindAppearance<ImageInputController>(static x => x.ImageGroup.Appearance)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
@@ -73,7 +73,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCoverGroup()
     {
-        return DemoUI.CreateExample("The status page's banner",
+        return DemoUI.CreateExample("Cover dropzone (filled & empty)",
             UILayout.Row(24)
                 // Two to a row at the page's width: at 520 each the second wrapped under the first.
                 .AddChild(new ImageInputComponent()
@@ -88,8 +88,8 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(480))
                     .SetHeight(UILayoutLength.Absolute(180))
                     .SetPlaceholder("Drop a picture here")
-                    .SetBadgeText("optional")
-                    .SetBadgeStyle(UIBadgeType.Info)
+                    .SetBadgeTitle("optional")
+                    .SetBadgeVariant(UIBadgeVariant.Info)
                 ),
             columns: 24,
             note: "The same control either way: empty it is the drop area, filled it is the picture — nothing appears or disappears when a file is chosen."
@@ -101,7 +101,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateProfileGroup()
     {
-        return DemoUI.CreateExample("A profile card",
+        return DemoUI.CreateExample("Avatar variant",
             new SurfaceComponent()
                 .SetContent(UILayout.Stack(16)
                     .AddChild(UILayout.Row(16)
@@ -153,7 +153,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateInlineGroup()
     {
-        return DemoUI.CreateExample("One field among others",
+        return DemoUI.CreateExample("Inline field variant",
             UILayout.Stack(16)
                 .AddChild(new TextInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
@@ -185,7 +185,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCropGroup()
     {
-        return DemoUI.CreateExample("Cropped before it uploads",
+        return DemoUI.CreateExample("Interactive crop dialog (Circle & Square)",
             UILayout.Row(32)
                 .AddChild(UILayout.Row(16)
                     .AddChild(new ImageInputComponent()
@@ -229,7 +229,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateShelfGroup()
     {
-        return DemoUI.CreateExample("Several at once",
+        return DemoUI.CreateExample("Multi-image tile shelf",
             new ImageInputComponent()
                 .SetMultiple(true)
                 .SetTitle("Incident screenshots")

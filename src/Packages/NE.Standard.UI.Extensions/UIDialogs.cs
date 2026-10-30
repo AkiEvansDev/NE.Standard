@@ -106,7 +106,7 @@ public static class UIDialogs
                 .SetGlyphEdge(UIAlignment.End)
                 .SetMargin(UIThickness.All(8, 0, 0, 0))
                 .SetVerticalAlignment(UIAlignment.Center)
-                .AddChild(ClosesAsViewer(UIIconButtons.Close().SetSize(UIButtonSize.Small), key))
+                .AddChild(ClosesAsViewer(UIIconButtons.Close().SetSize(UISize.Small), key))
                 .SetPlacement(24, 1, 1, 1)
             );
     }
@@ -153,14 +153,14 @@ public static class UIDialogs
 
     /// <summary>
     /// The dialog's own answer that closes it as the viewer does — Cancel, or <paramref name="action"/> (Close, Done) — in
-    /// <paramref name="type"/>: the held edits of the dialog's form (<see cref="DiscardFormEffect"/>) are put back and the dialog closes
+    /// <paramref name="variant"/>: the held edits of the dialog's form (<see cref="DiscardFormEffect"/>) are put back and the dialog closes
     /// on the page, raising its <c>OnClose</c> as Escape does, with nothing asked of the server.
     /// </summary>
-    public static ButtonComponent CloseButton(string key, UIStandardAction? action = null, UIButtonType type = UIButtonType.Ghost)
+    public static ButtonComponent CloseButton(string key, UIStandardAction? action = null, UIButtonVariant variant = UIButtonVariant.Ghost)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        return ClosesAsViewer(UIButtons.Create(type, action ?? UIStandardAction.Cancel, glyph: false), key);
+        return ClosesAsViewer(UIButtons.Create(variant, action ?? UIStandardAction.Cancel, glyph: false), key);
     }
 
     /// <summary>
@@ -187,7 +187,7 @@ public static class UIDialogs
     }
 
     /// <summary>The form around its words: the heading, the content joined to the dialog's form, and the pair, in a form's column.</summary>
-    private static UIDialog Form(string key, TextComponent title, ParagraphComponent? line, IVisualComponent content, ButtonComponent safe, ButtonComponent primary)
+    private static UIDialog Form(string key, TextComponent title, ParagraphComponent? description, IVisualComponent content, ButtonComponent safe, ButtonComponent primary)
     {
         ArgumentNullException.ThrowIfNull(content);
         ArgumentNullException.ThrowIfNull(safe);
@@ -196,8 +196,8 @@ public static class UIDialogs
         StackPanelComponent heading = UILayout.Stack(4, title.AsTitle().SetTitleWrap(true));
 
         // A note, as UIText.Note draws one.
-        if (line is not null)
-            _ = heading.AddChild(line.SetDescriptionType(UITextAppearance.Caption).Muted());
+        if (description is not null)
+            _ = heading.AddChild(description.SetDescriptionType(UITextAppearance.Caption).Muted());
 
         JoinForm(content, key);
 
@@ -248,8 +248,8 @@ public static class UIDialogs
     }
 
     /// <summary>The question alone — "Sign out?" — with no words under it.</summary>
-    public static UIDialog Confirm(string key, UIPhrase question, UIPhrase confirmWord, string confirmCommand, UIButtonType confirmType = UIButtonType.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
-        => Confirm(key, question, (ParagraphComponent?)null, confirmWord, confirmCommand, confirmType, cancelCommand, middle);
+    public static UIDialog Confirm(string key, UIPhrase question, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
+        => Confirm(key, question, (ParagraphComponent?)null, confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
 
     /// <summary>
     /// A question asked before something is done — "Delete this note?" — over its words, answered by Cancel and one committing button,
@@ -258,34 +258,34 @@ public static class UIDialogs
     /// where there is one; the committing button runs <paramref name="confirmCommand"/>, which closes the dialog itself. The question
     /// names the dialog.
     /// </summary>
-    public static UIDialog Confirm(string key, UIPhrase question, UIPhrase? body, UIPhrase confirmWord, string confirmCommand, UIButtonType confirmType = UIButtonType.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
+    public static UIDialog Confirm(string key, UIPhrase question, UIPhrase? description, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
     {
-        PresetWords.RequireIfGiven(body);
+        PresetWords.RequireIfGiven(description);
 
-        return Confirm(key, question, body is null ? null : new ParagraphComponent().SetDescription(body), confirmWord, confirmCommand, confirmType, cancelCommand, middle);
+        return Confirm(key, question, description is null ? null : new ParagraphComponent().SetDescription(description), confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
     }
 
     /// <summary>
     /// The same with words of the author's own beyond words alone — a link to what goes, an emphasis — given the dialog's text role
     /// here; words the controller holds are <see cref="BoundConfirm"/>.
     /// </summary>
-    public static UIDialog Confirm(string key, UIPhrase question, ParagraphComponent? body, UIPhrase confirmWord, string confirmCommand, UIButtonType confirmType = UIButtonType.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
-        => Confirm(key, Title(key, question, null), body, confirmWord, confirmCommand, confirmType, cancelCommand, middle);
+    public static UIDialog Confirm(string key, UIPhrase question, ParagraphComponent? description, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
+        => Confirm(key, Title(key, question, null), description, confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
 
     /// <summary>The confirmation around its question and words, given the dialog's text roles here.</summary>
-    private static UIDialog Confirm(string key, TextComponent question, ParagraphComponent? body, UIPhrase confirmWord, string confirmCommand, UIButtonType confirmType, string? cancelCommand, ButtonComponent? middle)
+    private static UIDialog Confirm(string key, TextComponent question, ParagraphComponent? description, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant, string? cancelCommand, ButtonComponent? middle)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(confirmCommand);
 
-        if (confirmType is not (UIButtonType.Primary or UIButtonType.Danger))
-            throw new ArgumentException("A confirmation commits with a primary or a danger button.", nameof(confirmType));
+        if (confirmVariant is not (UIButtonVariant.Primary or UIButtonVariant.Danger))
+            throw new ArgumentException("A confirmation commits with a primary or a danger button.", nameof(confirmVariant));
 
         if (cancelCommand is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(cancelCommand);
 
         // A close the viewer makes, as Escape's: OnClose hears both, so a controller cancelling on one cancels on the other.
         ButtonComponent cancel = CloseButton(key);
-        ButtonComponent confirm = (confirmType == UIButtonType.Danger ? UIButtons.Danger(confirmWord) : UIButtons.Primary(confirmWord)).OnClick(confirmCommand);
+        ButtonComponent confirm = (confirmVariant == UIButtonVariant.Danger ? UIButtons.Danger(confirmTitle) : UIButtons.Primary(confirmTitle)).OnClick(confirmCommand);
 
         // The safe answer first, where the focus lands as the dialog opens, and the committing one last.
         StackPanelComponent answers = middle is null ? UIButtons.Pair(cancel, confirm) : UIButtons.Pair(cancel, middle).AddChild(confirm);
@@ -294,8 +294,8 @@ public static class UIDialogs
         // under those. The question is prose, so it wraps.
         StackPanelComponent words = UILayout.Stack(8, question.AsSubtitle().SetTitleWrap(true));
 
-        if (body is not null)
-            _ = words.AddChild(body.SetDescriptionType(UITextAppearance.Body).SetDescriptionColor(UIThemeColor.Default));
+        if (description is not null)
+            _ = words.AddChild(description.SetDescriptionType(UITextAppearance.Body).SetDescriptionColor(UIThemeColor.Default));
 
         UIDialog dialog = new()
         {
@@ -310,15 +310,15 @@ public static class UIDialogs
     }
 
     /// <summary>
-    /// The question with words the controller holds at <paramref name="bodyPath"/> — "Delete «Groceries» and its 12 notes?" — as its own
+    /// The question with words the controller holds at <paramref name="descriptionPath"/> — "Delete «Groceries» and its 12 notes?" — as its own
     /// words, drawn plain (a name in them is the thing's own, never a key that happens to match it, nor markup; a path to a key still
-    /// translates); otherwise <see cref="Confirm(string, UIPhrase, UIPhrase, UIPhrase, string, UIButtonType, string?, ButtonComponent?)"/>.
+    /// translates); otherwise <see cref="Confirm(string, UIPhrase, UIPhrase, UIPhrase, string, UIButtonVariant, string?, ButtonComponent?)"/>.
     /// </summary>
-    public static UIDialog BoundConfirm(string key, UIPhrase question, string bodyPath, UIPhrase confirmWord, string confirmCommand, UIButtonType confirmType = UIButtonType.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
+    public static UIDialog BoundConfirm(string key, UIPhrase question, string descriptionPath, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(bodyPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
 
         // The question stays written: a path in its place would turn every written question into one naming nothing.
-        return Confirm(key, Title(key, question, null), BoundLine(bodyPath), confirmWord, confirmCommand, confirmType, cancelCommand, middle);
+        return Confirm(key, Title(key, question, null), BoundLine(descriptionPath), confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
     }
 }

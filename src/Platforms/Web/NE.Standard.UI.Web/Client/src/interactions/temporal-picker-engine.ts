@@ -1,54 +1,32 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { cssAttributeValue } from "../addressing/dom-attributes.ts";
+import { CalendarBodyClass, CalendarClass, cssAttributeValue, TemporalCellAttribute, TemporalCentredAttribute, TemporalDayAttribute, TemporalInputClass, TemporalInputDayClass, TemporalInputFieldClass, TemporalInputMonthClass, TemporalInputOpenClass, TemporalInputPopupClass, TemporalInputTimeCellClass, TemporalInputTimeColumnClass, TemporalNavAttribute, TemporalToggleAttribute, TemporalUnitAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
-import { formatTemporal, InvariantTemporalLetters, isDigitFormat, temporalPlaceholder } from "../rendering/temporal-format.ts";
-import type { TemporalLetters } from "../rendering/temporal-format.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import type { ClientStringKey } from "../runtime/client-strings.ts";
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { formatTemporal, isDigitFormat, temporalPlaceholder } from "../rendering/temporal-format.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusAsLastInput, focusByPointer } from "./popup-focus.ts";
-import { applyRovingTabIndex, isRovingCandidate, isRovingKey, moveRovingFocus, resolveRovingTarget } from "./roving-focus.ts";
-import { resolveRowTarget } from "./row-cursor.ts";
-import {
-    applyPeriodPreview, applyRovingDay, chooseCalendarDay, createCalendarState, DayAttribute, DayClass, element, moveByKey, navButton,
-    MonthClass, moveMonthByKey, navigateCalendar, NavAttribute, renderCalendar, renderPeriodCaption, startOfMonth
-} from "./temporal-calendar.ts";
+import { applyRovingTabIndex } from "./roving-focus.ts";
+import { activeNavAction, activeTimeUnit, applyPeriodPreview, applyRovingDay, applyTimeColumnKey, centreTimeColumns, centredTimeCell, chooseCalendarDay, createCalendarState, element, fitTimeColumns, followPointerInDial, moveByKey, moveMonthFocus, navigateCalendar, pressedEnd, readCalendarOffer, renderCalendar, renderFooter, renderPeriodCaption, renderTimePane, restoreTimeFocus, startOfMonth } from "./temporal-calendar.ts";
 import type { CalendarState } from "./temporal-calendar.ts";
-import {
-    applyPageLanguage, CalendarRootClass, canonicalOf, clampToRange, defaultMoment, hourLabel, isDayOffered, isEndPart, isRange, isTwelveHour,
-    MaxAttribute, MinAttribute, orderPeriod, parseCanonical, PickerAttributes, readBound, readCulturePack, readDayOffer, readFormat,
-    readMode, readStep, readValue, readValueOf, RootClass, stepFor, TemporalRootSelector, toCanonical, typedValue, unitValue, valueInputOf,
-    withUnit, writeValueOf
-} from "./temporal-dom.ts";
-import type { TemporalMode, TimeStep, TimeUnit } from "./temporal-dom.ts";
+import { PickerAttributes, TemporalRootSelector, applyPageLanguage, canonicalOf, clampToRange, defaultMoment, fieldOf, holdPeriodEnd, isDayOffered, isEndPart, isInline, isRange, isUnmarkedDay, orderPeriod, parseCanonical, periodDistanceRefusal, placeholderLetters, readCulturePack, readFormat, readMode, readValue, readValueOf, surfaceOf, toCanonical, typedValue, valueInputOf, withUnit, writeValueOf } from "./temporal-dom.ts";
+import type { TimeUnit } from "./temporal-dom.ts";
 import type { PeriodEnd } from "./temporal-range.ts";
+import type { FieldValidation } from "./validation-engine.ts";
 import { turnWheel, wheelPixels } from "./wheel-notches.ts";
-
-const FieldClass = "ui-temporal-input__field";
-const PopupClass = "ui-temporal-input__popup";
-const OpenClass = "ui-temporal-input--open";
-/** Where a calendar drawn in place draws its grid, as a temporal input draws it into its popup. */
-const CalendarBodyClass = "ui-calendar__body";
-const TimeCellClass = "ui-temporal-input__time-cell";
-const TimeColumnClass = "ui-temporal-input__time-column";
 
 /** How long a clock column has to stand still before what it brought to the middle counts as chosen. */
 const ScrollSettleDelay = 140;
 
-const ToggleAttribute = "data-ui-temporal-toggle";
-const UnitAttribute = "data-ui-temporal-unit";
-const CellValueAttribute = "data-ui-temporal-cell";
-/** Where the engine parked a clock column's chosen reading; a column standing elsewhere was moved by hand. */
-const CentredAttribute = "data-ui-temporal-centred";
-
 export type TemporalPickerEngineOptions = {
     readonly root?: ParentNode;
 
-    readonly propertyPatchEngine?: PropertyPatchEngine;
+    readonly propertyPatchEngine?: PropertyPatchTarget;
+    /** Where a typed value written back says why, on the field's line. */
+    readonly validation?: FieldValidation;
 };
 
 /**
@@ -61,13 +39,15 @@ export class TemporalPickerEngine {
     private readonly states = new WeakMap<HTMLElement, CalendarState>();
     // The fields this has written once: a field the reader holds is left alone after that, whatever it holds — an empty one too.
     private readonly written = new WeakSet<HTMLInputElement>();
+    // The controls whose line says why a typed value was written back, until the reader gives them another.
+    private readonly refused = new WeakSet<HTMLElement>();
     // The language the page's own temporal names and formats are drawn in: the server's, until a switch.
     private drawnLanguage = document.documentElement.lang;
 
     // Waits for the click, not the press: choosing an hour re-renders the popup from inside that very click.
     private readonly popups = new OwnedPopups({
         show: ({ owner, popup }) => {
-            owner.classList.add(OpenClass);
+            owner.classList.add(TemporalInputOpenClass);
             popup.addEventListener("wheel", this.onColumnWheel, { passive: false });
             this.renderSurface(owner, true);
         },
@@ -81,7 +61,7 @@ export class TemporalPickerEngine {
             this.columnSettles.clear();
             this.wheelTurns.clear();
             popup.removeEventListener("wheel", this.onColumnWheel);
-            owner.classList.remove(OpenClass);
+            owner.classList.remove(TemporalInputOpenClass);
         }
     });
 
@@ -134,6 +114,7 @@ export class TemporalPickerEngine {
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
         this.root.addEventListener("change", domEvent => this.handleFieldChange(domEvent), true);
+        this.root.addEventListener("input", domEvent => this.handleFieldInput(domEvent), true);
 
         // Which of a period's two fields has the caret says which end the calendar sets next.
         this.root.addEventListener("focusin", domEvent => this.handleFieldFocus(domEvent), true);
@@ -203,7 +184,7 @@ export class TemporalPickerEngine {
         if (!(target instanceof Element))
             return null;
 
-        const inline = target.closest(`.${CalendarBodyClass}`)?.closest<HTMLElement>(`.${CalendarRootClass}`) ?? null;
+        const inline = target.closest(`.${CalendarBodyClass}`)?.closest<HTMLElement>(`.${CalendarClass}`) ?? null;
 
         if (inline !== null)
             return inline;
@@ -220,7 +201,7 @@ export class TemporalPickerEngine {
             // A format of digits alone asks a phone for its digit keyboard rather than its letters.
             const inputMode = isDigitFormat(readFormat(picker)) ? "numeric" : "text";
 
-            for (const field of picker.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)) {
+            for (const field of picker.querySelectorAll<HTMLInputElement>(`.${TemporalInputFieldClass}`)) {
                 if (field.placeholder !== placeholder)
                     field.placeholder = placeholder;
 
@@ -253,13 +234,23 @@ export class TemporalPickerEngine {
      * typed, which reads it by the component's `Format` and `Culture` or refuses it.
      */
     private handleFieldChange(domEvent: Event): void {
-        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(FieldClass))
+        if (!(domEvent.target instanceof HTMLInputElement))
             return;
 
-        const picker = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
-        const valueInput = picker === null ? null : valueInputOf(picker, isEndPart(domEvent.target));
+        const picker = domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}`);
 
-        if (picker === null || valueInput === null)
+        if (picker === null)
+            return;
+
+        // A value given another way — a day or an hour chosen in the popup — takes back what a refusal of a typed one said.
+        if (!domEvent.target.classList.contains(TemporalInputFieldClass)) {
+            this.unsayRefusal(picker);
+            return;
+        }
+
+        const valueInput = valueInputOf(picker, isEndPart(domEvent.target));
+
+        if (valueInput === null)
             return;
 
         const typed = typedValue(picker, domEvent.target.value);
@@ -267,13 +258,19 @@ export class TemporalPickerEngine {
         // Past Min or Max it stays as typed, refused in words by the validation engine: never pulled back to the bound.
         const canonical = moment === null ? typed : canonicalOf(picker, moment, isEndPart(domEvent.target));
 
-        // A day the grid would not offer is not taken but written back over: no day near an unmarked one stands for it.
-        if (isUnmarkedDay(picker, canonical)) {
-            const held = readValueOf(picker, isEndPart(domEvent.target));
+        // A day the grid would not offer is not taken, nor is an end nearer the other than a period's least distance, which the server
+        // would refuse — judged once the ends are ordered below. Either stays as typed and says why on the field's line, as a refused
+        // tag does and as a number past its bound does: the error points at a value still on screen, and the server holds the last one
+        // taken, until the reader gives the control another value.
+        const refusal = isUnmarkedDay(picker, canonical) ? { key: "ui.value.unmarked" } : moment === null ? null : periodDistanceRefusal(picker, moment, isEndPart(domEvent.target));
 
-            domEvent.target.value = held === null ? "" : formatTemporal(held, readFormat(picker), readCulturePack(picker));
+        if (refusal !== null) {
+            this.refused.add(picker);
+            this.options.validation?.mark(picker, "error", refusal);
             return;
         }
+
+        this.unsayRefusal(picker);
 
         // A typed end is an end chosen, as a click on the calendar is.
         if (isEndPart(domEvent.target))
@@ -287,11 +284,27 @@ export class TemporalPickerEngine {
         this.applyDisplay([picker]);
     }
 
-    private handleFieldFocus(domEvent: Event): void {
-        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(FieldClass))
+    private unsayRefusal(picker: HTMLElement): void {
+        if (this.refused.delete(picker))
+            this.options.validation?.mark(picker, null);
+    }
+
+    /** The reader editing a field again takes back what the refusal of the value typed there before said. */
+    private handleFieldInput(domEvent: Event): void {
+        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(TemporalInputFieldClass))
             return;
 
-        const picker = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const picker = domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}`);
+
+        if (picker !== null)
+            this.unsayRefusal(picker);
+    }
+
+    private handleFieldFocus(domEvent: Event): void {
+        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(TemporalInputFieldClass))
+            return;
+
+        const picker = domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}`);
 
         if (picker !== null && isRange(picker))
             this.getState(picker).activeEnd = isEndPart(domEvent.target) ? "end" : "start";
@@ -303,9 +316,9 @@ export class TemporalPickerEngine {
         if (picker === null || !(domEvent.target instanceof Element) || !isRange(picker))
             return;
 
-        const day = domEvent.type === "mouseover" ? domEvent.target.closest<HTMLElement>(`[${DayAttribute}]`) : null;
+        const day = domEvent.type === "mouseover" ? domEvent.target.closest<HTMLElement>(`[${TemporalDayAttribute}]`) : null;
         const state = this.getState(picker);
-        const hovered = day === null ? null : parseCanonical(day.getAttribute(DayAttribute) ?? "", "date");
+        const hovered = day === null ? null : parseCanonical(day.getAttribute(TemporalDayAttribute) ?? "", "date");
 
         if ((state.hoverDay?.getTime() ?? null) === (hovered?.getTime() ?? null))
             return;
@@ -315,13 +328,13 @@ export class TemporalPickerEngine {
     }
 
     private handlePointerMove(domEvent: Event): void {
-        const entry = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`[${DayAttribute}], .${TimeCellClass}`) : null;
+        const entry = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`[${TemporalDayAttribute}], .${TemporalInputTimeCellClass}`) : null;
         const picker = this.calendarFor(entry);
 
         if (picker === null || entry === null || entry === document.activeElement || entry.matches(":disabled"))
             return;
 
-        if (entry.classList.contains(TimeCellClass))
+        if (entry.classList.contains(TemporalInputTimeCellClass))
             followPointerInDial(entry);
         else
             this.followPointer(picker, entry);
@@ -330,22 +343,22 @@ export class TemporalPickerEngine {
     /** The day under the pointer takes the keyboard's while the calendar holds the focus, as a native list's entry does. */
     private followPointer(picker: HTMLElement, day: HTMLElement): void {
         const surface = surfaceOf(picker);
-        const moment = parseCanonical(day.getAttribute(DayAttribute) ?? "", "date");
+        const moment = parseCanonical(day.getAttribute(TemporalDayAttribute) ?? "", "date");
 
         if (surface === null || moment === null || !surface.contains(document.activeElement))
             return;
 
         // So no day under a resting pointer is lit beside the keyboard's.
         this.getState(picker).focusedDay = moment;
-        applyRovingTabIndex([...surface.querySelectorAll<HTMLElement>(`.${DayClass}`)], day);
+        applyRovingTabIndex([...surface.querySelectorAll<HTMLElement>(`.${TemporalInputDayClass}`)], day);
         focusByPointer(day);
     }
 
     private handleFieldBlur(domEvent: Event): void {
-        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(FieldClass))
+        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(TemporalInputFieldClass))
             return;
 
-        const picker = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const picker = domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}`);
 
         if (picker !== null)
             this.applyDisplay([picker]);
@@ -355,11 +368,11 @@ export class TemporalPickerEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const toggle = domEvent.target.closest<HTMLElement>(`[${ToggleAttribute}]`);
+        const toggle = domEvent.target.closest<HTMLElement>(`[${TemporalToggleAttribute}]`);
 
         if (toggle !== null) {
             domEvent.preventDefault();
-            this.toggle(toggle.closest<HTMLElement>(`.${RootClass}`));
+            this.toggle(toggle.closest<HTMLElement>(`.${TemporalInputClass}`));
             return;
         }
 
@@ -368,31 +381,31 @@ export class TemporalPickerEngine {
         if (picker === null)
             return;
 
-        const action = domEvent.target.closest<HTMLElement>(`[${NavAttribute}]`);
+        const action = domEvent.target.closest<HTMLElement>(`[${TemporalNavAttribute}]`);
 
         if (action !== null) {
             domEvent.preventDefault();
-            this.applyNavigation(picker, action.getAttribute(NavAttribute) ?? "");
+            this.applyNavigation(picker, action.getAttribute(TemporalNavAttribute) ?? "");
             return;
         }
 
-        const day = domEvent.target.closest<HTMLElement>(`[${DayAttribute}]`);
+        const day = domEvent.target.closest<HTMLElement>(`[${TemporalDayAttribute}]`);
 
         if (day !== null) {
             domEvent.preventDefault();
-            this.chooseDay(picker, day.getAttribute(DayAttribute) ?? "");
+            this.chooseDay(picker, day.getAttribute(TemporalDayAttribute) ?? "");
             return;
         }
 
-        const cell = domEvent.target.closest<HTMLElement>(`[${CellValueAttribute}]`);
+        const cell = domEvent.target.closest<HTMLElement>(`[${TemporalCellAttribute}]`);
 
         if (cell !== null) {
             domEvent.preventDefault();
 
-            const unit = cell.closest<HTMLElement>(`[${UnitAttribute}]`)?.getAttribute(UnitAttribute);
+            const unit = cell.closest<HTMLElement>(`[${TemporalUnitAttribute}]`)?.getAttribute(TemporalUnitAttribute);
 
             if (unit !== null && unit !== undefined)
-                this.chooseTime(picker, unit as TimeUnit, Number(cell.getAttribute(CellValueAttribute)));
+                this.chooseTime(picker, unit as TimeUnit, Number(cell.getAttribute(TemporalCellAttribute)));
         }
     }
 
@@ -409,7 +422,7 @@ export class TemporalPickerEngine {
         switch (action) {
             case "now":
                 state.choosingEnd = false;
-                this.commit(picker, defaultMoment(picker), state.activeEnd === "end");
+                this.commit(picker, defaultMoment(picker, state.activeEnd === "end"), state.activeEnd === "end");
                 return;
             case "clear":
                 // A period is cleared whole: half a period is not a value anyone asked for.
@@ -432,17 +445,15 @@ export class TemporalPickerEngine {
 
     private chooseDay(picker: HTMLElement, canonicalDay: string): void {
         const day = parseCanonical(canonicalDay, "date");
+        const state = this.getState(picker);
 
         // A calendar in place the reader may not change still pages, and a popup does not open on one at all; a day the grid draws
         // disabled takes no press from anything.
-        if (day === null || isReadOnly(picker) || isInert(picker) || !isDayOffered(readDayOffer(picker), canonicalDay))
+        if (day === null || isReadOnly(picker) || isInert(picker) || !isDayOffered(readCalendarOffer(picker, state), canonicalDay))
             return;
 
-        const state = this.getState(picker);
-
-        // A calendar in place has no fields to say which end comes next: once its period is whole, a press starts the next one.
-        if (isInline(picker) && isRange(picker) && !state.choosingEnd && readValueOf(picker, false) !== null && readValueOf(picker, true) !== null)
-            state.activeEnd = "start";
+        if (isRange(picker))
+            state.activeEnd = pressedEnd(picker, state);
 
         const start = valueInputOf(picker, false);
         const before = `${start?.value ?? ""}|${valueInputOf(picker, true)?.value ?? ""}`;
@@ -464,14 +475,20 @@ export class TemporalPickerEngine {
             return;
 
         const end = isRange(picker) && this.getState(picker).activeEnd === "end";
-        const next = withUnit(readValueOf(picker, end) ?? defaultMoment(picker), unit, cellValue);
+        const next = withUnit(readValueOf(picker, end) ?? defaultMoment(picker, end), unit, cellValue);
 
         // Nothing closes here: every unit is on screen at once, and the footer's Done finishes the picker.
         this.commit(picker, next, end);
     }
 
+    /**
+     * Writes a choice of the clock or the footer held inside Min and Max, and a period's end its least distance from the other, as the
+     * cells offer them: an hour partly inside lands on the nearest moment allowed, never one the server would refuse.
+     */
     private commit(picker: HTMLElement, value: Date | null, end = false): void {
-        writeValueOf(picker, value, end);
+        // Each end inside its own share of the bounds — a start no later than Max less the distance — so the hold never pushes the
+        // other past them; clamped again past the hold for an other end the server put where none keeps the distance.
+        writeValueOf(picker, value === null ? null : clampToRange(picker, holdPeriodEnd(picker, clampToRange(picker, value, end), end), end), end);
         orderPeriod(picker);
         this.applyDisplay([picker]);
 
@@ -485,9 +502,9 @@ export class TemporalPickerEngine {
 
         // ArrowDown in the field opens the popup, matching what a native date input does, Alt+Down as a combobox's; a period's end
         // field opens it on the end.
-        if (domEvent.key === "ArrowDown" && isPlainKey(domEvent, { alt: true }) && domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(FieldClass)) {
+        if (domEvent.key === "ArrowDown" && isPlainKey(domEvent, { alt: true }) && domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TemporalInputFieldClass)) {
             domEvent.preventDefault();
-            this.toggle(domEvent.target.closest<HTMLElement>(`.${RootClass}`), isEndPart(domEvent.target) ? "end" : "start");
+            this.toggle(domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}`), isEndPart(domEvent.target) ? "end" : "start");
             return;
         }
 
@@ -496,14 +513,14 @@ export class TemporalPickerEngine {
         if (picker === null)
             return;
 
-        if (domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TimeCellClass)) {
+        if (domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TemporalInputTimeCellClass)) {
             if (isPlainKey(domEvent))
                 applyTimeColumnKey(domEvent);
 
             return;
         }
 
-        if (domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(MonthClass)) {
+        if (domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TemporalInputMonthClass)) {
             if (isPlainKey(domEvent))
                 moveMonthFocus(domEvent, domEvent.target);
 
@@ -511,10 +528,10 @@ export class TemporalPickerEngine {
         }
 
         // Shift only with a page key, which then turns a year.
-        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(DayClass) || !isPlainKey(domEvent, { shift: domEvent.key === "PageUp" || domEvent.key === "PageDown" }))
+        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(TemporalInputDayClass) || !isPlainKey(domEvent, { shift: domEvent.key === "PageUp" || domEvent.key === "PageDown" }))
             return;
 
-        const focused = parseCanonical(domEvent.target.getAttribute(DayAttribute) ?? "", "date");
+        const focused = parseCanonical(domEvent.target.getAttribute(TemporalDayAttribute) ?? "", "date");
 
         if (focused === null)
             return;
@@ -525,7 +542,7 @@ export class TemporalPickerEngine {
             return;
         }
 
-        const moved = moveByKey(picker, focused, domEvent.key, domEvent.shiftKey);
+        const moved = moveByKey(picker, this.getState(picker), focused, domEvent.key, domEvent.shiftKey);
 
         if (moved === null)
             return;
@@ -545,7 +562,7 @@ export class TemporalPickerEngine {
         if (picker === null || !(domEvent.target instanceof Element))
             return;
 
-        const column = domEvent.target.closest<HTMLElement>(`.${TimeColumnClass}`);
+        const column = domEvent.target.closest<HTMLElement>(`.${TemporalInputTimeColumnClass}`);
 
         if (column === null || !picker.contains(column))
             return;
@@ -562,8 +579,8 @@ export class TemporalPickerEngine {
         if (this.openPicker === null || domEvent.deltaY === 0 || !(domEvent.target instanceof Element))
             return;
 
-        const column = domEvent.target.closest<HTMLElement>(`.${TimeColumnClass}`);
-        const unit = column?.getAttribute(UnitAttribute) ?? null;
+        const column = domEvent.target.closest<HTMLElement>(`.${TemporalInputTimeColumnClass}`);
+        const unit = column?.getAttribute(TemporalUnitAttribute) ?? null;
 
         if (column === null || unit === null || !this.openPicker.contains(column))
             return;
@@ -579,12 +596,12 @@ export class TemporalPickerEngine {
             return;
 
         // Only what can be chosen: a reading Min/Max rules out is stepped over rather than landed on.
-        const cells = [...column.querySelectorAll<HTMLButtonElement>(`.${TimeCellClass}`)].filter(cell => !cell.disabled);
-        const current = cells.findIndex(cell => cell.classList.contains(`${TimeCellClass}--selected`));
+        const cells = [...column.querySelectorAll<HTMLButtonElement>(`.${TemporalInputTimeCellClass}`)].filter(cell => !cell.disabled);
+        const current = cells.findIndex(cell => cell.classList.contains(`${TemporalInputTimeCellClass}--selected`));
         const next = cells[Math.min(cells.length - 1, Math.max(0, Math.max(0, current) + steps))];
 
-        if (next !== undefined && !next.classList.contains(`${TimeCellClass}--selected`))
-            this.chooseTime(this.openPicker, unit as TimeUnit, Number(next.getAttribute(CellValueAttribute)));
+        if (next !== undefined && !next.classList.contains(`${TemporalInputTimeCellClass}--selected`))
+            this.chooseTime(this.openPicker, unit as TimeUnit, Number(next.getAttribute(TemporalCellAttribute)));
     }
 
     private chooseCentredTime(picker: HTMLElement, column: HTMLElement): void {
@@ -593,15 +610,15 @@ export class TemporalPickerEngine {
             return;
 
         // Where this engine parked the reading itself, so its own centring cannot commit a value nobody chose.
-        const parked = Number(column.getAttribute(CentredAttribute));
+        const parked = Number(column.getAttribute(TemporalCentredAttribute));
 
         if (Number.isFinite(parked) && Math.abs(column.scrollTop - parked) <= 1)
             return;
 
-        const unit = column.getAttribute(UnitAttribute);
+        const unit = column.getAttribute(TemporalUnitAttribute);
         const cell = centredTimeCell(column);
 
-        if (unit === null || cell === null || cell.classList.contains(`${TimeCellClass}--selected`))
+        if (unit === null || cell === null || cell.classList.contains(`${TemporalInputTimeCellClass}--selected`))
             return;
 
         // A reading Min/Max rules out is not a choice, so the column goes back to the one it holds.
@@ -610,11 +627,11 @@ export class TemporalPickerEngine {
             return;
         }
 
-        this.chooseTime(picker, unit as TimeUnit, Number(cell.getAttribute(CellValueAttribute)));
+        this.chooseTime(picker, unit as TimeUnit, Number(cell.getAttribute(TemporalCellAttribute)));
     }
 
     private toggle(picker: HTMLElement | null, activeEnd?: PeriodEnd): void {
-        const popup = picker?.querySelector<HTMLElement>(`.${PopupClass}`) ?? null;
+        const popup = picker?.querySelector<HTMLElement>(`.${TemporalInputPopupClass}`) ?? null;
 
         if (picker === null || popup === null)
             return;
@@ -644,15 +661,19 @@ export class TemporalPickerEngine {
         state.view = startOfMonth(value ?? clampToRange(picker, new Date()));
         state.focusedDay = value;
 
-        const toggle = picker.querySelector<HTMLElement>(`[${ToggleAttribute}]`);
+        const toggle = picker.querySelector<HTMLElement>(`[${TemporalToggleAttribute}]`);
+        const row = picker.querySelector<HTMLElement>(`.${TemporalInputClass}__row`);
 
         // Anchored to the row, not the centred toggle, which would put the popup over the field; a read-only field is refused here.
+        // Named as the field is, not as its toggle ("open the calendar"): a period's row, the group its caption names, or the field,
+        // whose caption words `nameByOpener` takes rather than its value.
         this.popups.open({
             owner: picker,
             popup,
-            anchor: picker.querySelector<HTMLElement>(`.${RootClass}__row`) ?? picker,
+            anchor: row ?? picker,
             placement: { placement: "bottom-end" },
             openers: toggle === null ? [] : [toggle],
+            namedBy: row?.getAttribute("role") === "group" ? row : fieldOf(picker, false),
             returnFocus: () => fieldOf(picker, this.getState(picker).activeEnd === "end")
         });
     }
@@ -693,29 +714,33 @@ export class TemporalPickerEngine {
 
         surface.replaceChildren();
 
-        // A period says which end the next click sets, above the calendar.
-        if (range)
-            surface.append(renderPeriodCaption(state));
-
         if (inline) {
-            // The grid alone: a press on a day is the choice, so there is nothing to finish and no clock beside it.
+            // The grid, with a period's active-end note tucked beneath its bottom-left corner rather than taking a header row above.
             surface.append(renderCalendar(picker, state, culture, value));
+
+            if (range)
+                surface.append(renderPeriodCaption(picker, state));
         } else {
             // The panes go in their own box: as a sibling of them the footer counted into the popup's shrink-to-fit width.
-            const panes = element("div", `${RootClass}__panes`);
+            const panes = element("div", `${TemporalInputClass}__panes`);
 
             // The clock goes to the right of the calendar; only DateInput and DateTimeInput reach the popup at all.
             panes.append(renderCalendar(picker, state, culture, value));
 
             if (mode === "date-time")
-                panes.append(renderTimePane(picker, value));
+                panes.append(renderTimePane(picker, value, range && state.activeEnd === "end"));
 
-            surface.append(panes, renderFooter(mode));
+            const footer = renderFooter(mode);
+
+            if (range)
+                footer.prepend(renderPeriodCaption(picker, state));
+
+            surface.append(panes, footer);
         }
 
         // A month chosen from the month pane is gone after the rebuild, and a page button that reached a bound is disabled, so the focus
         // of either falls to the day like any other.
-        const navTarget = focusedNav === null ? null : surface.querySelector<HTMLElement>(`[${NavAttribute}="${cssAttributeValue(focusedNav)}"]:not(:disabled)`);
+        const navTarget = focusedNav === null ? null : surface.querySelector<HTMLElement>(`[${TemporalNavAttribute}="${cssAttributeValue(focusedNav)}"]:not(:disabled)`);
 
         applyRovingDay(surface, state, value, moveFocus || (focusWasInside && focusedUnit === null && navTarget === null));
         applyPeriodPreview(picker, state);
@@ -733,313 +758,4 @@ export class TemporalPickerEngine {
         if (!inline)
             this.popups.reposition(picker);
     }
-}
-
-/** Whether a root is a calendar drawn in place rather than a temporal input's. */
-function isInline(picker: HTMLElement): boolean {
-    return picker.classList.contains(CalendarRootClass);
-}
-
-/** Where a picker's grid is drawn: a calendar's body, or a temporal input's popup. */
-function surfaceOf(picker: HTMLElement): HTMLElement | null {
-    return picker.querySelector<HTMLElement>(`.${isInline(picker) ? CalendarBodyClass : PopupClass}`);
-}
-
-/** A typed day that is none of the marked days, where only those are on offer. */
-function isUnmarkedDay(picker: HTMLElement, canonical: string): boolean {
-    const offer = readDayOffer(picker);
-    const day = offer.markedOnly ? parseCanonical(canonical, readMode(picker)) : null;
-
-    return day !== null && !offer.marked.has(toCanonical(day, "date"));
-}
-
-/** Every unit at once, one scrolling column each, scrolled to what is chosen. */
-function renderTimePane(picker: HTMLElement, value: Date | null): HTMLElement {
-    const step = readStep(picker);
-    const pane = element("div", `${RootClass}__time`);
-    const columns = element("div", `${RootClass}__time-columns`);
-
-    for (const unit of timeUnits(step))
-        columns.append(renderTimeColumn(picker, unit, stepFor(step, unit), value));
-
-    pane.append(columns);
-
-    return pane;
-}
-
-function timeUnits(step: TimeStep): TimeUnit[] {
-    if (step.unit === "second")
-        return ["hour", "minute", "second"];
-
-    return step.unit === "hour" ? ["hour"] : ["hour", "minute"];
-}
-
-function renderTimeColumn(picker: HTMLElement, unit: TimeUnit, increment: number, value: Date | null): HTMLElement {
-    const column = element("div", TimeColumnClass);
-
-    column.setAttribute(UnitAttribute, unit);
-    column.setAttribute("role", "listbox");
-    column.setAttribute("aria-label", clientStrings.text(unit === "hour" ? "ui.picker.hours" : unit === "minute" ? "ui.picker.minutes" : "ui.picker.seconds"));
-
-    const count = unit === "hour" ? 24 : 60;
-    const current = value === null ? null : unitValue(value, unit);
-    // The hours are counted as the field's format counts them; a cell's value stays the hour of the day.
-    const twelveHour = unit === "hour" && isTwelveHour(readFormat(picker));
-    const culture = readCulturePack(picker);
-    let roving: HTMLButtonElement | null = null;
-
-    for (let candidate = 0; candidate < count; candidate += increment) {
-        const cell = element("button", TimeCellClass);
-
-        cell.type = "button";
-        cell.tabIndex = -1;
-        cell.textContent = unit === "hour" ? hourLabel(candidate, twelveHour, culture) : String(candidate).padStart(2, "0");
-        cell.setAttribute(CellValueAttribute, String(candidate));
-        // A column is a list of readings with one chosen, the keyboard moving between them: its entries are options, each saying
-        // whether it is the chosen one, as a button with `aria-selected` could not.
-        cell.setAttribute("role", "option");
-        cell.setAttribute("aria-selected", candidate === current ? "true" : "false");
-
-        if (candidate === current)
-            cell.classList.add(`${TimeCellClass}--selected`);
-
-        if (isTimeCellDisabled(picker, unit, candidate, value))
-            cell.disabled = true;
-        else if (roving === null || candidate === current)
-            roving = cell;
-
-        column.append(cell);
-    }
-
-    // One tab stop per column, on what that column has chosen.
-    if (roving !== null)
-        roving.tabIndex = 0;
-
-    return column;
-}
-
-/** Runs the clock to the calendar's measured height, which is five or six week rows depending on the month. */
-function fitTimeColumns(popup: HTMLElement): void {
-    const calendar = popup.querySelector<HTMLElement>(`.${RootClass}__calendar`);
-    const columns = popup.querySelector<HTMLElement>(`.${RootClass}__time-columns`);
-
-    if (calendar !== null && columns !== null)
-        columns.style.maxHeight = `${calendar.clientHeight}px`;
-}
-
-/** Pads each column so any reading can reach the middle, then scrolls the chosen one there. */
-function centreTimeColumns(root: ParentNode): void {
-    for (const column of root.querySelectorAll<HTMLElement>(`.${TimeColumnClass}`)) {
-        const selected = column.querySelector<HTMLElement>(`.${TimeCellClass}--selected`) ?? column.firstElementChild;
-
-        if (!(selected instanceof HTMLElement))
-            continue;
-
-        const padding = Math.max(0, (column.clientHeight - selected.getBoundingClientRect().height) / 2);
-
-        column.style.paddingTop = `${padding}px`;
-        column.style.paddingBottom = `${padding}px`;
-
-        centreCell(column, selected);
-        column.setAttribute(CentredAttribute, String(column.scrollTop));
-    }
-}
-
-/** One cell brought to the middle of its column, measured against the column's own box rather than offsetTop. */
-function centreCell(column: HTMLElement, cell: HTMLElement): void {
-    const box = cell.getBoundingClientRect();
-
-    column.scrollTop += box.top - column.getBoundingClientRect().top - ((column.clientHeight - box.height) / 2);
-}
-
-/** The reading a column has brought to its middle. */
-function centredTimeCell(column: HTMLElement): HTMLElement | null {
-    const middle = column.getBoundingClientRect().top + (column.clientHeight / 2);
-    let closest: HTMLElement | null = null;
-    let distance = Number.POSITIVE_INFINITY;
-
-    for (const cell of column.querySelectorAll<HTMLElement>(`.${TimeCellClass}`)) {
-        const box = cell.getBoundingClientRect();
-        const offset = Math.abs(box.top + (box.height / 2) - middle);
-
-        if (offset < distance) {
-            distance = offset;
-            closest = cell;
-        }
-    }
-
-    return closest;
-}
-
-/** Which clock column holds focus, read before a rebuild throws its cells away. */
-function activeTimeUnit(surface: HTMLElement): string | null {
-    const active = document.activeElement;
-
-    if (!(active instanceof HTMLElement) || !surface.contains(active) || !active.classList.contains(TimeCellClass))
-        return null;
-
-    return active.closest<HTMLElement>(`.${TimeColumnClass}`)?.getAttribute(UnitAttribute) ?? null;
-}
-
-/** Which header or footer button holds focus, read before a rebuild throws it away. */
-function activeNavAction(surface: HTMLElement): string | null {
-    const active = document.activeElement;
-
-    return active instanceof HTMLElement && surface.contains(active) ? active.getAttribute(NavAttribute) : null;
-}
-
-function restoreTimeFocus(popup: HTMLElement, unit: string | null): void {
-    if (unit === null)
-        return;
-
-    const column = popup.querySelector<HTMLElement>(`.${TimeColumnClass}[${UnitAttribute}="${unit}"]`);
-
-    const cell = column?.querySelector<HTMLElement>(`.${TimeCellClass}--selected`) ?? null;
-
-    if (cell !== null)
-        focusAsLastInput(cell);
-}
-
-function renderFooter(mode: TemporalMode): HTMLElement {
-    const footer = element("div", `${RootClass}__popup-footer`);
-
-    footer.append(navButton("now", clientStrings.text(mode === "date" ? "ui.picker.today" : "ui.picker.now")));
-    footer.append(navButton("clear", clientStrings.text("ui.picker.clear")));
-
-    // No choice closes the popup, so every picker has a way to say it is finished.
-    footer.append(navButton("done", clientStrings.text("ui.picker.done")));
-
-    return footer;
-}
-
-/** The letters a placeholder writes a format's units in, from the page's words; a word the table lacks keeps the format's letter. */
-function placeholderLetters(): TemporalLetters {
-    return {
-        year: placeholderLetter("ui.picker.letter.year", InvariantTemporalLetters.year),
-        month: placeholderLetter("ui.picker.letter.month", InvariantTemporalLetters.month),
-        day: placeholderLetter("ui.picker.letter.day", InvariantTemporalLetters.day),
-        hour: placeholderLetter("ui.picker.letter.hour", InvariantTemporalLetters.hour),
-        minute: placeholderLetter("ui.picker.letter.minute", InvariantTemporalLetters.minute),
-        second: placeholderLetter("ui.picker.letter.second", InvariantTemporalLetters.second)
-    };
-}
-
-/** One unit's letter; a word that is missing or blank keeps the format's, as `WebTemporalLetters.FromWords` does. */
-function placeholderLetter(key: ClientStringKey, fallback: string): string {
-    const word = clientStrings.lookup(key);
-
-    return word === undefined || word.trim().length === 0 ? fallback : word;
-}
-
-/** The field holding one end of a period, or the only field. */
-function fieldOf(picker: HTMLElement, end: boolean): HTMLInputElement | null {
-    for (const field of picker.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)) {
-        if (isEndPart(field) === end)
-            return field;
-    }
-
-    return picker.querySelector<HTMLInputElement>(`.${FieldClass}`);
-}
-
-/** The dial's cell under the pointer takes the keyboard's while a dial cell holds the focus, as a day does in the grid. */
-function followPointerInDial(cell: HTMLElement): void {
-    const active = document.activeElement;
-
-    if (active instanceof HTMLElement && active.classList.contains(TimeCellClass))
-        focusByPointer(cell);
-}
-
-/** The month pane's arrows: the keyboard's month moves, choosing nothing until Enter or Space presses it. */
-function moveMonthFocus(domEvent: KeyboardEvent, cell: HTMLElement): void {
-    if (!isRovingKey(domEvent.key, "both"))
-        return;
-
-    // Taken at the grid's edge too, where it stops: the popup must not scroll instead.
-    domEvent.preventDefault();
-
-    const next = moveMonthByKey(cell, domEvent.key);
-
-    moveRovingFocus([...next?.parentElement?.children ?? []] as HTMLElement[], next);
-}
-
-/** Roving focus inside the clock: up and down move within a column, a page key a column's height, left and right move between them. */
-function applyTimeColumnKey(domEvent: KeyboardEvent): void {
-    const cell = domEvent.target as HTMLElement;
-    const column = cell.closest<HTMLElement>(`.${TimeColumnClass}`);
-
-    if (column === null)
-        return;
-
-    const next = domEvent.key === "ArrowLeft" || domEvent.key === "ArrowRight"
-        ? siblingColumnCell(column, domEvent.key === "ArrowRight" ? 1 : -1)
-        : columnCell(column, cell, domEvent.key);
-
-    if (next === null)
-        return;
-
-    domEvent.preventDefault();
-
-    // Focused without scrolling, then brought into its own column by hand, so the page cannot move.
-    next.focus({ preventScroll: true });
-    scrollCellIntoColumn(next);
-}
-
-// No wrap: a column of hours has a top and a bottom.
-function columnCell(column: HTMLElement, cell: HTMLElement, key: string): HTMLElement | null {
-    const cells = [...column.querySelectorAll<HTMLElement>(`.${TimeCellClass}`)];
-
-    // Page Down and Page Up step a list's page (`resolveRowTarget`), the cells out of bounds not counted; held at the column's ends,
-    // where the cursor stays on its cell, the key still spent, so the popup does not scroll instead.
-    if (key === "PageUp" || key === "PageDown")
-        return resolveRowTarget(key, cells.filter(isRovingCandidate), cell, "vertical") ?? cell;
-
-    return resolveRovingTarget({ key, items: cells, current: cell, axis: "vertical", loop: false });
-}
-
-function siblingColumnCell(column: HTMLElement, offset: number): HTMLElement | null {
-    const columns = [...column.parentElement?.querySelectorAll<HTMLElement>(`.${TimeColumnClass}`) ?? []];
-    const target = columns[columns.indexOf(column) + offset];
-
-    if (target === undefined)
-        return null;
-
-    return target.querySelector<HTMLElement>(`.${TimeCellClass}--selected`)
-        ?? target.querySelector<HTMLElement>(`.${TimeCellClass}:not(:disabled)`);
-}
-
-// Brought to the middle rather than merely into view: the middle is where the column reads. Parked there as the engine's own centring
-// is, so the scroll's settle chooses nothing: the arrows move the keyboard, as in the day grid, and Enter or Space presses the reading.
-function scrollCellIntoColumn(cell: HTMLElement): void {
-    const column = cell.closest<HTMLElement>(`.${TimeColumnClass}`);
-
-    if (column === null)
-        return;
-
-    centreCell(column, cell);
-    column.setAttribute(CentredAttribute, String(column.scrollTop));
-}
-
-function isTimeCellDisabled(picker: HTMLElement, unit: TimeUnit, cellValue: number, value: Date | null): boolean {
-    const min = readBound(picker, MinAttribute);
-    const max = readBound(picker, MaxAttribute);
-
-    if (min === null && max === null)
-        return false;
-
-    // The moment a press on the cell would commit: with no value, the clamped default a press starts from, not now.
-    const candidate = withUnit(value ?? defaultMoment(picker), unit, cellValue);
-
-    // Judged against the whole candidate: hour 9 is legal if any minute within 09:00-09:59 falls inside Min/Max.
-    const lower = new Date(candidate);
-    const upper = new Date(candidate);
-
-    if (unit === "hour") {
-        lower.setMinutes(0, 0, 0);
-        upper.setMinutes(59, 59, 999);
-    } else if (unit === "minute") {
-        lower.setSeconds(0, 0);
-        upper.setSeconds(59, 999);
-    }
-
-    return (min !== null && upper.getTime() < min.getTime()) || (max !== null && lower.getTime() > max.getTime());
 }

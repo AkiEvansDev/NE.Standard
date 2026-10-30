@@ -24,7 +24,7 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
     protected override string ComponentRoute => "/actions/language-switcher";
     protected override string Header => "demo.actions.language-switcher.header";
     protected override string HeaderDescription => "demo.actions.language-switcher.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
 
     // The languages offered and what the button shows of them are decided once at render, so each answer is drawn; the field takes the
     // standard rows and its own, not the button's.
@@ -37,35 +37,35 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
 
     private static LanguageSwitcherComponent CreateButton()
         => BindStandard(new LanguageSwitcherComponent())
-            .BindIcon($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Icon)}")
-            .BindIconSize($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.IconSize)}")
-            .BindType($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Type)}")
-            .BindSize($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Size)}")
-            .BindPadding($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Padding)}")
-            .BindTooltip($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.TooltipPlacement)}")
-            .BindBackground($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Background)}")
+            .BindIcon<LanguageSwitcherController>(static x => x.SwitcherGroup.Icon)
+            .BindIconSize<LanguageSwitcherController>(static x => x.SwitcherGroup.IconSize)
+            .BindButtonVariant<LanguageSwitcherController>(static x => x.SwitcherGroup.ButtonVariant)
+            .BindSize<LanguageSwitcherController>(static x => x.SwitcherGroup.Size)
+            .BindPadding<LanguageSwitcherController>(static x => x.SwitcherGroup.Padding)
+            .BindTooltip<LanguageSwitcherController>(static x => x.SwitcherGroup.Tooltip)
+            .BindTooltipPlacement<LanguageSwitcherController>(static x => x.SwitcherGroup.TooltipPlacement)
+            .BindBackground<LanguageSwitcherController>(static x => x.SwitcherGroup.Background)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);
 
     private static LanguageSwitcherComponent CreateField()
         => BindStandard(new LanguageSwitcherComponent().AsField())
-            .BindIcon($"{SwitcherGroup}.{nameof(LanguageSwitcherGroupContext.Icon)}")
-            .BindAppearance($"{FieldGroup}.{nameof(SwitcherFieldGroupContext.Appearance)}")
+            .BindIcon<LanguageSwitcherController>(static x => x.SwitcherGroup.Icon)
+            .BindFieldVariant<LanguageSwitcherController>(static x => x.FieldGroup.FieldVariant)
             .SetWidth(UILayoutLength.Absolute(280))
             .SetPlacement(1, 1, 24, 1);
 
     private static LanguageSwitcherComponent BindStandard(LanguageSwitcherComponent switcher)
         => switcher
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindHorizontalAlignment($"{MainGroup}.{nameof(StandardGroupContext.HorizontalAlignment)}")
-            .BindVerticalAlignment($"{MainGroup}.{nameof(StandardGroupContext.VerticalAlignment)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindWidth($"{MainGroup}.{nameof(StandardGroupContext.Width)}")
-            .BindHeight($"{MainGroup}.{nameof(StandardGroupContext.Height)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}");
+            .BindVisibility<DemoStandardController>(static x => x.MainGroup.Visibility)
+            .BindEnabled<DemoStandardController>(static x => x.MainGroup.Enabled)
+            .BindHorizontalAlignment<DemoStandardController>(static x => x.MainGroup.HorizontalAlignment)
+            .BindVerticalAlignment<DemoStandardController>(static x => x.MainGroup.VerticalAlignment)
+            .BindMargin<DemoStandardController>(static x => x.MainGroup.Margin)
+            .BindWidth<DemoStandardController>(static x => x.MainGroup.Width)
+            .BindHeight<DemoStandardController>(static x => x.MainGroup.Height)
+            .BindTheme<DemoStandardController>(static x => x.MainGroup.Theme)
+            .BindLoading<DemoStandardController>(static x => x.MainGroup.Loading);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
@@ -84,7 +84,7 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
     {
         return DemoUI.CreateExample("Two languages, one press",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetPadding(UIThickness.All(16, 8, 8, 8))
                 .SetContent(UILayout.Ends(
                     UIText.Body("Orvane status", "status.orvane.example"),
@@ -157,7 +157,7 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
                 )
             ), DemoIcons.Outline(DemoIcons.Region))
             .SetMaxWidth(UILayoutLength.Absolute(520)),
-            note: "AsField() draws the switcher as a form's field: its caption (\"Language\" unless set), a box in the form's appearance, Tonal unless set, and the list, whatever the number of languages. The current choice is the session's, and a choice switches as the button does — no command, no binding, no save."
+            note: "AsField() draws the switcher as a form's field: its caption (\"Language\" unless set), a box in the form's appearance, Filled unless set, and the list, whatever the number of languages. The current choice is the session's, and a choice switches as the button does — no command, no binding, no save."
         );
     }
 }

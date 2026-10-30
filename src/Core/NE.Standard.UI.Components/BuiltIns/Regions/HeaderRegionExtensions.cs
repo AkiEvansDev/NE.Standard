@@ -1,6 +1,4 @@
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Regions;
@@ -8,22 +6,15 @@ namespace NE.Standard.UI.Components.BuiltIns.Regions;
 /// <summary>
 /// The default text styling a built-in header region (a card's, an expander's) starts with.
 /// </summary>
-internal static class HeaderRegionExtensions
+internal static class HeaderRegionDefaults
 {
-    /// <summary>
-    /// Applies a header region's default icon, title, description and badge styling.
-    /// </summary>
-    internal static T ApplyHeaderRegionDefaults<T>(this T component) where T : TextComponent<T>, IUIComponentDefinition
-    {
-        _ = component.SetIconAlignment(UITextIconAlignment.Content);
-        _ = component.SetTitleType(UITextAppearance.Title);
-        _ = component.SetDescriptionType(UITextAppearance.Caption);
-        _ = component.SetBadgePlacement(UITextBadgePlacement.Trailing);
-        // A header's description says what the section is about, and is read whole: it runs on rather than ending in an ellipsis.
-        _ = component.SetWrapMode(UITextWrapMode.Wrap);
-
-        // Pinned to the content, not the title: a trailing mark (a chevron, an action) is centred against the whole
-        // block, and a title-line badge would sit above it instead.
-        return component.SetBadgeAlignment(UITextBadgeAlignment.Content);
-    }
+    internal const UITextIconAlignment IconAlignment = UITextIconAlignment.Content;
+    internal static readonly UITextAppearance TitleType = UITextAppearance.Title;
+    internal static readonly UITextAppearance DescriptionType = UITextAppearance.Caption;
+    internal const UITextBadgePlacement BadgePlacement = UITextBadgePlacement.Trailing;
+    // A header's description says what the section is about, and is read whole: it runs on rather than ending in an ellipsis.
+    internal const UITextWrapMode WrapMode = UITextWrapMode.Wrap;
+    // Pinned to the content, not the title: a trailing mark (a chevron, an action) is centred against the whole
+    // block, and a title-line badge would sit above it instead.
+    internal const UITextBadgeAlignment BadgeAlignment = UITextBadgeAlignment.Content;
 }

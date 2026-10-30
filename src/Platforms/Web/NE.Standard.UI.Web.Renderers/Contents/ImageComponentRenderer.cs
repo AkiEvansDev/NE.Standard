@@ -16,7 +16,7 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
 {
     private static readonly WebDomOperation[] SourceOperations = [WebDomOperation.Attribute("src", converter: WebDomConverters.SafeImageSource)];
     private static readonly WebDomOperation[] FallbackSourceOperations = [WebDomOperation.Attribute(WebAttributes.FallbackSrc, converter: WebDomConverters.SafeImageSource)];
-    private static readonly WebDomOperation[] AltTextOperations = [WebDomOperation.Attribute("alt")];
+    private static readonly WebDomOperation[] AltTextOperations = [WebDomOperation.Attribute("alt", converter: WebDomConverters.EmptyText, convertsNull: true)];
     private static readonly WebDomOperation[] FitOperations = [WebDomOperation.Class(converter: WebDomConverters.ImageFitClass)];
     private static readonly WebDomOperation[] ShapeOperations = [WebDomOperation.Class(converter: WebDomConverters.ImageShapeClass)];
 
@@ -40,22 +40,22 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
         // Through the border's radius chain, which the shape's circle outranks in the stylesheet.
         ResponsiveRenderer.ApplyResponsiveRadius(context, root, ImageComponent.BorderRadiusProperty, WebResponsiveCss.BorderRadiusVariable);
 
-        _ = RenderProperty<UIImageShape?>(context, root, ImageComponent.ShapeProperty, static (target, value) =>
+        _ = RenderProperty<UIShape?>(context, root, ImageComponent.ShapeProperty, static (target, value) =>
         {
-            if (value is UIImageShape shape && WebClassNames.ImageShape(shape) is { Length: > 0 } className)
+            if (value is UIShape shape && WebClassNames.ImageShape(shape) is { Length: > 0 } className)
                 _ = target.Class(className);
         }, ShapeOperations);
 
         RenderTooltip(context, root);
 
-        _ = ResolveRenderValue(context, ImageComponent.FallbackIconProperty, out string? fallbackIcon, out _);
+        _ = ResolveRenderValue(context, ImageComponent.IconFallbackProperty, out string? iconFallback, out _);
 
-        if (IconValueRenderer.Draws(fallbackIcon))
-            _ = root.Attribute(WebAttributes.FallbackIcon, fallbackIcon);
+        if (IconValueRenderer.Draws(iconFallback))
+            _ = root.Attribute(WebAttributes.IconFallback, iconFallback);
 
         _ = root.Element("img", picture => RenderPicture(context, picture));
 
-        RenderStandIn(context, root, fallbackIcon);
+        RenderStandIn(context, root, iconFallback);
     }
 
     private static void RenderPicture(WebRenderContext context, IHtmlElementBuilder picture)
@@ -86,7 +86,7 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
     /// A picture with neither a source nor a fallback source shows its glyph from the first paint, the person's on a round one and a
     /// picture's on any other; one that fails later is the client's to answer.
     /// </summary>
-    private static void RenderStandIn(WebRenderContext context, IHtmlElementBuilder root, string? fallbackIcon)
+    private static void RenderStandIn(WebRenderContext context, IHtmlElementBuilder root, string? iconFallback)
     {
         _ = ResolveRenderValue(context, ImageComponent.SourceProperty, out string? source, out _);
         _ = ResolveRenderValue(context, ImageComponent.FallbackSourceProperty, out string? fallbackSource, out _);
@@ -94,8 +94,8 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
         if (WebUrlSafety.IsSafeImageSource(source) || WebUrlSafety.IsSafeImageSource(fallbackSource))
             return;
 
-        _ = ResolveRenderValue(context, ImageComponent.ShapeProperty, out UIImageShape? shape, out _);
+        _ = ResolveRenderValue(context, ImageComponent.ShapeProperty, out UIShape? shape, out _);
         _ = root.Attribute(WebAttributes.ImageFailed);
-        IconValueRenderer.RenderStandInGlyph(root, fallbackIcon, shape == UIImageShape.Circle);
+        IconValueRenderer.RenderStandInGlyph(root, iconFallback, shape == UIShape.Circle);
     }
 }

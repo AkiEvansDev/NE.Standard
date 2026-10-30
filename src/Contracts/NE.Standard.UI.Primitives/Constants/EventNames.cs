@@ -98,8 +98,24 @@ public static class EventNames
     public const string Escape = "escape";
 
     /// <summary>
-    /// Fires when a label is renamed in place; distinct from <see cref="Change"/> because a component may commit more than
-    /// one value that way, e.g. a tab's caption and position.
+    /// Fires when a text field's active trigger (such as <c>@</c> or <c>/</c>) or a server-backed category inside it asks the server for
+    /// suggestions, carrying <c>trigger</c>, <c>scope</c>, and <c>query</c>.
+    /// </summary>
+    public const string TriggerSearch = "trigger-search";
+
+    /// <summary>
+    /// Fires when a leaf suggestion is chosen from a text field's trigger popup, carrying <c>trigger</c>, <c>scope</c>, and <c>key</c>.
+    /// </summary>
+    public const string TriggerSelect = "trigger-select";
+
+    /// <summary>
+    /// Fires when an inserted trigger token in a text field is clicked, carrying <c>trigger</c>, <c>scope</c>, and <c>key</c>.
+    /// </summary>
+    public const string TriggerClick = "trigger-click";
+
+    /// <summary>
+    /// Fires when a tree node's or a tab's title is renamed in place; distinct from <see cref="Change"/> because a component may
+    /// commit more than one value that way, e.g. a tab's caption and position.
     /// </summary>
     public const string Rename = "rename";
 
@@ -112,11 +128,14 @@ public static class EventNames
     /// </summary>
     public const string Move = "move";
 
-    /// <summary>A tree node the viewer asked to remove with the Delete key.</summary>
+    /// <summary>
+    /// A row the viewer asked to remove: a list's, a table's or a tree's on the Delete key, a tab's by its cross, Delete or its menu's
+    /// Close.
+    /// </summary>
     public const string Remove = "remove";
 
-    /// <summary>An entry an application put into a tabs view's tab menu, carrying the entry's key and the tab's.</summary>
-    public const string TabMenuEntry = "tab-menu-entry";
+    /// <summary>An entry an application put into an item's menu (a tabs view's tab menu), carrying the entry's key and the item's.</summary>
+    public const string ItemMenuEntry = "item-menu-entry";
 
     /// <summary>
     /// Fires when a tab is pinned or unpinned from its menu; the framework puts it at the edge of the pinned tabs.

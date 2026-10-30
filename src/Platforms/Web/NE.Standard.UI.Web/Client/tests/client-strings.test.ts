@@ -4,8 +4,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ClientWords, forgetWords } from "../src/runtime/client-strings.ts";
-import type { WordsTable } from "../src/runtime/client-strings.ts";
+import { ClientWords, forgetWords } from "../src/rendering/client-strings.ts";
+import type { WordsTable } from "../src/rendering/client-strings.ts";
 
 function tableOf(language: string, words: Record<string, string>, options: Partial<WordsTable> = {}): WordsTable {
     return { language, complete: true, prefixes: [], words, ...options };
@@ -158,6 +158,67 @@ test("keys an incomplete table lacks are asked about together, once per language
     assert.deepEqual(asked, [["editor.cards", "editor.decks"], ["editor.nothing"]]);
 });
 
+test("keys a failed ask was about are asked once more after a while, not at their next miss", async context => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+
+    const strings = new ClientWords();
+    const asked: string[][] = [];
+
+    strings.useTable(tableOf("ru", {}, { complete: false }));
+    strings.setAsker(async (_, keys) => {
+        asked.push([...keys]);
+
+        if (asked.length === 1)
+            throw new Error("the hub call failed");
+
+        return { "editor.cards": "Карты" };
+    });
+
+    assert.equal(strings.lookup("editor.cards"), undefined);
+    await ticked(context, 0);
+    assert.equal(strings.lookup("editor.cards"), undefined);
+    await ticked(context, 0);
+
+    assert.deepEqual(asked, [["editor.cards"]], "a miss after the failure asks nothing");
+
+    await ticked(context, 5000);
+    await ticked(context, 0);
+
+    assert.deepEqual(asked, [["editor.cards"], ["editor.cards"]]);
+    assert.equal(strings.lookup("editor.cards"), "Карты");
+});
+
+test("keys whose ask failed again are not asked a third time", async context => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+
+    const strings = new ClientWords();
+    const asked: string[][] = [];
+
+    strings.useTable(tableOf("ru", {}, { complete: false }));
+    strings.setAsker(async (_, keys) => {
+        asked.push([...keys]);
+        throw new Error("the hub call failed");
+    });
+
+    strings.lookup("editor.cards");
+    await ticked(context, 0);
+    await ticked(context, 5000);
+    await ticked(context, 0);
+    await ticked(context, 5000);
+    strings.lookup("editor.cards");
+    await ticked(context, 0);
+
+    assert.deepEqual(asked, [["editor.cards"], ["editor.cards"]]);
+});
+
+/** Moves the mocked clock on and lets the ask it ran settle. */
+async function ticked(context: test.TestContext, milliseconds: number): Promise<void> {
+    context.mock.timers.tick(milliseconds);
+
+    for (let turn = 0; turn < 5; turn++)
+        await new Promise(resolve => setImmediate(resolve));
+}
+
 test("where missing words are reported a prefixed key is asked about even from a complete table, and another string never", async () => {
     const strings = new ClientWords();
     const asked: string[][] = [];
@@ -173,6 +234,22 @@ test("where missing words are reported a prefixed key is asked about even from a
     await settle();
 
     assert.deepEqual(asked, [["editor.cards"]]);
+});
+
+test("a phrase with a count probes plural forms without asking about them when the key itself is in the table", async () => {
+    const strings = new ClientWords();
+    const asked: string[][] = [];
+
+    strings.useTable(tableOf("en", { "demo.summary": "Showing {count} of {all}" }, { prefixes: ["demo."], report: true }));
+    strings.setAsker(async (_, keys) => {
+        asked.push([...keys]);
+        return {};
+    });
+
+    assert.equal(strings.translate("demo.summary", { count: 12, all: 128 }), "Showing 12 of 128");
+    await settle();
+
+    assert.deepEqual(asked, []);
 });
 
 test("a word written on an element is marked with its key, and written again in the next language", () => {

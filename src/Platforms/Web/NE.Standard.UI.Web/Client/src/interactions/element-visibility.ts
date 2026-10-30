@@ -53,7 +53,7 @@ export function isLaidOut(element: Element): boolean {
  */
 export function isInSight(element: Element): boolean {
     for (let current: Element | null = element; current !== null; current = current.parentElement) {
-        if (current.checkVisibility())
+        if (current.checkVisibility({ visibilityProperty: true }))
             return true;
 
         if (getComputedStyle(current).display !== "contents")

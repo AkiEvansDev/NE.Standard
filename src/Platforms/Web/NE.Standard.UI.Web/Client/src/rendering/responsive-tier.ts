@@ -1,5 +1,7 @@
 // Reading one breakpoint tier out of a responsive value; the cascade is the stylesheet's, except where CSS cannot express it.
 
+import { registerRuntimeCleanup, withoutRuntimeCleanup } from "../runtime/cleanup-scope.ts";
+
 export const responsiveTiers = ["base", "sm", "md", "xl", "xxl"] as const;
 
 export type ResponsiveTier = (typeof responsiveTiers)[number];
@@ -18,9 +20,6 @@ export function responsiveTierQuery(tier: BreakpointTier): string {
     return `(min-width: ${responsiveBreakpoints[tier]}px)`;
 }
 
-/** The sheet breakpoint as a media query, matching at it and above: below it a list popup is a sheet from the bottom. */
-export const SheetBreakpointQuery = responsiveTierQuery("sm");
-
 // One watch of each breakpoint, made at its first listener and kept for the page's life: every listener of a tier hangs on it.
 const tierWatches = new Map<BreakpointTier, MediaQueryList>();
 
@@ -28,13 +27,28 @@ const tierWatches = new Map<BreakpointTier, MediaQueryList>();
  * Calls `handler` each time the window crosses the breakpoint of one of `tiers` (every tier unless named), either way: the page's one
  * watch of the tiers, for what re-forms, refits or closes as the width changes tier.
  */
-export function onTierChange(handler: () => void, tiers: readonly BreakpointTier[] = breakpointTiers): void {
+export function onTierChange(handler: () => void, tiers: readonly BreakpointTier[] = breakpointTiers): () => void {
     if (typeof matchMedia !== "function")
-        return;
+        return () => {};
 
     // A listener of its own each: one handler that throws leaves the next its turn, the browser reporting it.
-    for (const tier of tiers)
-        watchOf(tier).addEventListener("change", () => handler());
+    const removals = withoutRuntimeCleanup(() => tiers.map(tier => {
+        const watch = watchOf(tier);
+        const listener = (): void => handler();
+
+        watch.addEventListener("change", listener);
+
+        return () => watch.removeEventListener("change", listener);
+    }));
+
+    const stop = (): void => {
+        for (const remove of removals)
+            remove();
+    };
+
+    registerRuntimeCleanup(stop);
+
+    return stop;
 }
 
 function watchOf(tier: BreakpointTier): MediaQueryList {
@@ -63,6 +77,11 @@ export function currentResponsiveTier(): ResponsiveTier {
     }
 
     return "base";
+}
+
+/** Whether the window stands at `tier` or wider, read off the page's one watch of its breakpoint as `currentResponsiveTier` is. */
+export function reachesTier(tier: BreakpointTier): boolean {
+    return typeof matchMedia === "function" && watchOf(tier).matches;
 }
 
 /** The custom property a tier's value is written to: the bare name for the base tier, a suffix for the rest. */

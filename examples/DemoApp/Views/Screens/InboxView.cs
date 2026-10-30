@@ -41,7 +41,7 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
 
     /// <summary>The filters over the list, then the list: three rules, each active while its control holds a value.</summary>
     /// <remarks>
-    /// The filters are Tonal: a toolbar over the list, not a form whose fields stack. Rows, not a stack: the list takes the pane's
+    /// The filters are Filled: a toolbar over the list, not a form whose fields stack. Rows, not a stack: the list takes the pane's
     /// height under them and scrolls in it.
     /// </remarks>
     private static ContainerComponent CreateList()
@@ -51,14 +51,14 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
             .AddRow(UIGridUnit.Star())
             .SetHeight(UILayoutLength.Fill())
             .AddChild(new TextInputComponent(SearchId)
-                .SetAppearance(UIInputAppearance.Tonal)
+                .SetAppearance(UIInputAppearance.Filled)
                 .SetSearch("Search by sender or subject")
                 .SetDebounceMilliseconds(150)
                 .SetPlacement(1, 1, 24, 1)
             )
             .AddChild(UILayout.Columns(12,
                     new SelectComponent(LabelId)
-                        .SetAppearance(UIInputAppearance.Tonal)
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetPlaceholder("Every label")
                         .SetShowClearButton()
                         .SetOptions(
@@ -76,23 +76,23 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
                 .SetPlacement(1, 2, 24, 1)
             )
             .AddChild(new ItemsViewComponent()
-                .BindItems(nameof(InboxController.Messages))
+                .BindItems<InboxController>(static x => x.Messages)
                 .FilterBy(SearchId, IInputComponent.ValueProperty, nameof(DemoMessageItem.SearchText))
                 .FilterBy(LabelId, IInputComponent.ValueProperty, nameof(DemoMessageItem.Label), UIComparisonOperator.Equal)
                 .FilterBy(UnreadId, IInputComponent.ValueProperty, nameof(DemoMessageItem.Unread), UIComparisonOperator.Equal, UIComparisonOperator.Equal, true)
                 .SetSelectionMode(UISelectionMode.One)
-                .BindSelectedKey(nameof(InboxController.SelectedKey))
+                .BindSelectedKey<InboxController>(static x => x.SelectedKey)
                 .SetRowHoverable(true)
                 .SetSpacing(2)
                 .SetTemplate(new TextComponent()
-                    .BindIcon(nameof(DemoMessageItem.Icon), UIBindingScope.Relative)
+                    .BindIcon<DemoMessageItem>(static x => x.Icon, UIBindingScope.Relative)
                     .SetIconColor(UIThemeColor.Muted)
-                    .BindTitle(nameof(DemoMessageItem.Title), UIBindingScope.Relative)
+                    .BindTitle<DemoMessageItem>(static x => x.Title, UIBindingScope.Relative)
                     .AsBody()
-                    .BindDescription(nameof(DemoMessageItem.Description), UIBindingScope.Relative)
+                    .BindDescription<DemoMessageItem>(static x => x.Description, UIBindingScope.Relative)
                     .SetDescriptionColor(UIThemeColor.Muted)
-                    .BindBadgeText(nameof(DemoMessageItem.BadgeText), UIBindingScope.Relative)
-                    .BindBadgeStyle(nameof(DemoMessageItem.BadgeStyle), UIBindingScope.Relative)
+                    .BindBadgeTitle<DemoMessageItem>(static x => x.BadgeTitle, UIBindingScope.Relative)
+                    .BindBadgeVariant<DemoMessageItem>(static x => x.BadgeVariant, UIBindingScope.Relative)
                     .SetBadgePlacement(UITextBadgePlacement.Trailing)
                 )
                 // After the template: an item event is registered on the template in hand, and the default one is replaced above.
@@ -113,7 +113,7 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
     /// </summary>
     private static SurfaceComponent CreateReadingPane()
         => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Raised)
+            .SetSurface(UISurfaceStyle.Surface)
             .SetPadding(UIThickness.Uniform(0))
             .SetHeight(UILayoutLength.Fill())
             // Rows, not a stack: the message scrolls under its header, which stays in sight.
@@ -144,34 +144,35 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
 
     private static StackPanelComponent CreateMessage()
         => UILayout.Stack(16,
-                UIText.Note().BindDescription(nameof(InboxController.FromLine)),
-                UIText.Paragraph().BindDescription(nameof(InboxController.Body)),
+                UIText.Note().BindDescription<InboxController>(static x => x.FromLine),
+                UIText.Paragraph().BindDescription<InboxController>(static x => x.Body),
                 UIText.Paragraph()
-                    .BindDescription(nameof(InboxController.Quote))
+                    .BindDescription<InboxController>(static x => x.Quote)
                     .SetShowQuoteLine(true)
                     .SetDescriptionColor(UIThemeColor.Muted)
-                    .BindVisibility(nameof(InboxController.QuoteVisibility)),
+                    .BindVisibility<InboxController>(static x => x.QuoteVisibility),
                 new ItemsViewComponent()
-                    .BindItems(nameof(InboxController.Attachments))
+                    .BindItems<InboxController>(static x => x.Attachments)
                     .SetLayoutType(UIItemsLayoutType.Wrap)
                     .SetSpacing(8)
-                    .BindVisibility(nameof(InboxController.AttachmentsVisibility))
+                    .BindVisibility<InboxController>(static x => x.AttachmentsVisibility)
                     .SetTemplate(new SurfaceComponent()
                         .SetSurface(UISurfaceStyle.Tinted)
                         .SetPadding(UIThickness.All(10, 6, 10, 6))
                         .SetContent(new TextComponent()
-                            .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
-                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
+                            .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                             .AsCaption()
                         )
                     ),
                 new SeparatorComponent(),
-                // Tonal: the reading pane already frames the reply, and Send is its own button.
+                // Filled: the reading pane already frames the reply, and Send is its own button.
                 new TextAreaComponent()
-                    .SetAppearance(UIInputAppearance.Tonal)
-                    .BindPlaceholder(nameof(InboxController.ReplyPlaceholder))
+                    .SetAppearance(UIInputAppearance.Filled)
+                    .BindPlaceholder<InboxController>(static x => x.ReplyPlaceholder)
+                    .SetAccessibleName("Reply")
                     .SetRows(3)
-                    .BindValue(nameof(InboxController.Reply)),
+                    .BindValue<InboxController>(static x => x.Reply),
                 UIButtons.Pair(
                     UIButtons.Ghost("Discard"),
                     UIButtons.Primary("Send", DemoIcons.Outline(DemoIcons.Send)).OnClick(nameof(InboxController.Send))

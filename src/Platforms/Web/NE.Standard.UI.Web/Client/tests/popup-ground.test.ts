@@ -1,5 +1,5 @@
-// A popup is one step above the ground it opens from: the page's surface colour over the page, a step over a raised panel's fill
-// inside one (a raised surface, the dialog), and the page's again inside a Background or Tinted ground; a popup living on the body
+// A popup is one step above the ground it opens from: the page's surface colour over the page, a step over a surface panel's fill
+// inside one (a surface panel, the dialog), and the page's again inside a Background or Tinted ground; a popup living on the body
 // is given its anchor's step, unless the anchor stands under another theme than the body's.
 
 import assert from "node:assert/strict";
@@ -37,7 +37,7 @@ test("every popup paints the popup ground, and a field or a part inside it stand
 
 test("a field in a dialog mixes its ground from the dialog's own fill, whatever the dialog's surface", () => {
     const grounds: Readonly<Record<string, string>> = {
-        ".ui-dialog__surface": "var(--ui-surface-raised)",
+        ".ui-dialog__surface": "var(--ui-color-surface)",
         ".ui-dialog__surface[data-ui-dialog-surface=\"background\"]": "var(--ui-color-background)",
         ".ui-dialog__surface[data-ui-dialog-surface=\"tinted\"]": "color-mix(in srgb, var(--ui-color-primary) var(--ui-tint-share, 20%), var(--ui-tint-ground, var(--ui-color-background)))"
     };
@@ -49,14 +49,15 @@ test("a field in a dialog mixes its ground from the dialog's own fill, whatever 
     assert.ok(declarations(".ui-dialog__surface[data-ui-dialog-surface=\"tinted\"]")?.includes("background: var(--ui-surface-fill);"), "the tinted dialog paints another mix than its fill");
 });
 
-test("a raised panel lifts the popups opened from it one step above the neutral raised step, and the page's grounds take the step back", () => {
+test("a surface panel lifts the popups opened from it one step above the surface ground, and the page's grounds take the step back", () => {
     // Not its own fill: a colour of the panel's own would be the ground of entries written in the page's ink.
-    assert.ok(declarations(".ui-surface--raised")?.includes(Step("var(--ui-surface-raised)")), "a raised surface leaves its popups at the page's level");
-    assert.ok(declarations(".ui-surface--flat")?.includes(Step("var(--ui-surface-raised)")), "a flat surface is a raised one's ground, its popups lifted alike");
-    assert.ok(declarations(".ui-dialog__surface")?.includes(Step("var(--ui-surface-raised)")), "the dialog leaves its popups at the page's level");
+    assert.ok(declarations(".ui-surface--surface")?.includes(Step("var(--ui-color-surface)")), "a surface panel leaves its popups at the page's level");
+    assert.ok(declarations(".ui-dialog__surface")?.includes(Step("var(--ui-color-surface)")), "the dialog leaves its popups at the page's level");
+    assert.ok(declarations(".ui-notification")?.includes(Step("var(--ui-color-surface)")), "a notification leaves a surface button at the toast's own level");
+    assert.ok(declarations(".ui-button--surface")?.includes(`background-color: var(--ui-surface-color, ${Ground});`), "a surface button does not take the lifted popup ground");
 
     for (const ground of [".ui-surface--background", ".ui-surface--tinted", ".ui-dialog__surface[data-ui-dialog-surface=\"background\"]", ".ui-dialog__surface[data-ui-dialog-surface=\"tinted\"]"])
-        assert.ok(declarations(ground)?.includes("--ui-popup-ground: initial;"), `${ground} keeps a raised ancestor's step`);
+        assert.ok(declarations(ground)?.includes("--ui-popup-ground: initial;"), `${ground} keeps a surface ancestor's step`);
 });
 
 let computedGround = "";
@@ -71,7 +72,7 @@ test("a popup on the body takes its anchor's ground, and gives it back once open
 
     fakeDocument.body.append(anchor, popup);
 
-    computedGround = "color-mix(in srgb, #323232 92%, #e0e0e0 8%)";
+    computedGround = "color-mix(in srgb, #262626 92%, #cccccc 8%)";
     carryPopupGround(real(anchor), real(popup));
 
     assert.equal(popup.style["--ui-popup-ground"], computedGround);
@@ -88,7 +89,7 @@ test("a popup on the body keeps the page's ground for an anchor under another th
 
     fakeDocument.body.append(FakeElement.of("", { "data-ui-theme": "dark" }).append(anchor), popup);
 
-    computedGround = "color-mix(in srgb, #323232 92%, #e0e0e0 8%)";
+    computedGround = "color-mix(in srgb, #262626 92%, #cccccc 8%)";
     carryPopupGround(real(anchor), real(popup));
 
     assert.equal("--ui-popup-ground" in popup.style, false);

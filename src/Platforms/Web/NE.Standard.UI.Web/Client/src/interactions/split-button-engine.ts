@@ -1,17 +1,11 @@
 // A split button's menu: opened from its end part (or its whole, as a menu button), placed under it, closed by the chosen entry.
 
-import { MenuItemClass, MenuRootClass as ListClass, SplitModeAttribute, SplitPlacementAttribute } from "../addressing/dom-attributes.ts";
+import { MenuItemClass, MenuRootClass as ListClass, SplitButtonClass, SplitButtonMainClass, SplitButtonMenuClass, SplitButtonOpenClass, SplitButtonToggleClass, SplitModeAttribute, SplitPlacementAttribute } from "../addressing/dom-attributes.ts";
 import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { choosesMenuEntry, menuWalk } from "./menu-group-engine.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList } from "./popup-focus.ts";
-
-const RootClass = "ui-split-button";
-const MainClass = "ui-split-button__main";
-const ToggleClass = "ui-split-button__toggle";
-const MenuClass = "ui-split-button__menu";
-const OpenClass = "ui-split-button--open";
 
 export type SplitButtonEngineOptions = {
     readonly root?: ParentNode;
@@ -22,8 +16,8 @@ export class SplitButtonEngine {
 
     // The whole button counts as inside: a press on its opener is this engine's to toggle, not the dismissal's to close.
     private readonly menus = new OwnedPopups({
-        show: ({ owner }) => owner.classList.add(OpenClass),
-        hide: ({ owner }) => owner.classList.remove(OpenClass),
+        show: ({ owner }) => owner.classList.add(SplitButtonOpenClass),
+        hide: ({ owner }) => owner.classList.remove(SplitButtonOpenClass),
         closesWhenReadOnly: false,
         closesOnTab: true,
         sheetOnPhone: true
@@ -56,7 +50,7 @@ export class SplitButtonEngine {
         const open = this.menus.current;
 
         // The main part pressed while the list is open runs its command and takes the list away with it.
-        if (open !== null && domEvent.target instanceof Element && domEvent.target.closest(`.${MainClass}`)?.closest(`.${RootClass}`) === open)
+        if (open !== null && domEvent.target instanceof Element && domEvent.target.closest(`.${SplitButtonMainClass}`)?.closest(`.${SplitButtonClass}`) === open)
             this.menus.close(open);
     }
 
@@ -99,12 +93,15 @@ export class SplitButtonEngine {
         // Against the whole pill — under it, its end at the button's end, unless the author placed it otherwise (`PopupPlacement`): the
         // list belongs to the button, not to the part that opened it.
         const token = button.getAttribute(SplitPlacementAttribute) ?? "";
+        const openers = openersOf(button);
         const opened = this.menus.open({
             owner: button,
             popup: menu,
             anchor: button,
             placement: { placement: isAnchoredPopupPlacement(token) ? token : "bottom-end" },
-            openers: openersOf(button)
+            openers,
+            namedBy: openers[0] ?? button,
+            namedPart: list
         });
 
         // Once shown: a hidden entry is no candidate for the keyboard.
@@ -118,20 +115,20 @@ function resolveOpener(target: EventTarget | null): HTMLElement | null {
     if (!(target instanceof Element))
         return null;
 
-    const part = target.closest<HTMLElement>(`.${ToggleClass}, .${MainClass}`);
-    const button = part?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+    const part = target.closest<HTMLElement>(`.${SplitButtonToggleClass}, .${SplitButtonMainClass}`);
+    const button = part?.closest<HTMLElement>(`.${SplitButtonClass}`) ?? null;
 
     if (part === null || button === null)
         return null;
 
-    if (part.classList.contains(MainClass) && button.getAttribute(SplitModeAttribute) !== "menu")
+    if (part.classList.contains(SplitButtonMainClass) && button.getAttribute(SplitModeAttribute) !== "menu")
         return null;
 
     return button;
 }
 
 function menuOf(button: HTMLElement): HTMLElement | null {
-    return button.querySelector<HTMLElement>(`:scope > .${MenuClass}`);
+    return button.querySelector<HTMLElement>(`:scope > .${SplitButtonMenuClass}`);
 }
 
 function openersOf(button: HTMLElement): HTMLElement[] {

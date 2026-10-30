@@ -14,15 +14,15 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 public static class CollapsibleChromeRenderer
 {
     /// <summary>The class the shared stylesheet rules and <c>collapsible-engine.ts</c> key on.</summary>
-    public const string RootClassName = "ui-collapsible";
+    public const string RootClassName = WebClassNames.Collapsible;
 
     /// <summary>The class on what the fold closes, which the engine slides shut and open.</summary>
-    public const string ContentClassName = "ui-collapsible__content";
+    public const string ContentClassName = WebClassNames.CollapsibleContent;
 
     private const string NoSwitchClassName = "ui-collapsible--no-switch";
     private const string ToggleClassName = "ui-collapsible__toggle";
-    private const string BarClassName = "ui-collapsible__bar";
-    private const string BarContentClassName = "ui-collapsible__bar-content";
+    private const string BarClassName = WebClassNames.CollapsibleBar;
+    private const string BarContentClassName = WebClassNames.CollapsibleBarContent;
     private const string PinClassName = "ui-collapsible__pin";
     private const string CollapsedAttribute = WebAttributes.Collapsed;
     private const string ToggleAttribute = WebAttributes.CollapseToggle;

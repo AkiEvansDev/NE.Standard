@@ -1,10 +1,15 @@
 @import "../core/tokens.less";
+@import "../mixins/empty-state.less";
 @import "../mixins/glyphs.less";
+@import "../mixins/placement.less";
 @import "../mixins/field.less";
 @import "../mixins/focus.less";
+@import "../mixins/responsive.less";
 @import "../mixins/text.less";
+@import "../mixins/toggle.less";
 
 // The select's shell (ui-select.less) with the chosen options as chips that wrap; empty, the field keeps an input's height, a chip being shorter.
+// Drawn as checkboxes, no shell at all: a box per option, at the end of this sheet.
 
 .ui-multi-select__chips {
     display: flex;
@@ -21,8 +26,8 @@
         justify-content: flex-end;
     }
 
-// A chip is the chosen option's words and its own cross, tinted with the selection's colour so it reads as chosen on any ground; a badge
-// select's chip is the option's badge instead, below.
+// A chip is the chosen option's words and its own cross, on a calm neutral ground; a badge select's chip is the option's
+// badge instead, below.
 .ui-multi-select__chip:not(.ui-badge) {
     display: inline-flex;
     align-items: center;
@@ -32,9 +37,8 @@
     height: 1.5rem;
     padding: 0 0.125rem 0 @ui-space-2;
     border-radius: var(--ui-radius-input);
-    background: color-mix(in srgb, var(--ui-color-primary) @ui-own-tint-share, transparent);
-    // The brand's ink lifted for its own tint, as a tinted badge's: the plain ink read 3.3:1 on the chip in dark, 3.8:1 in light.
-    color: var(--ui-color-primary-ink-on-tint);
+    background: var(--ui-wash-selected);
+    color: var(--ui-text-selected);
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
     cursor: default;
@@ -134,9 +138,13 @@
         display: none;
     }
 
-// A chip the keyboard walked onto wears the keyboard's frame; its cross, which holds the focus, draws no ring of its own.
+// A chip the keyboard walked onto suppresses the browser ring; its cross, which holds the focus, washes on keyboard focus.
 .ui-multi-select__chip@{ui-keyboard-within} {
     .ui-keyboard-frame();
+}
+
+.ui-multi-select__chip-remove@{ui-keyboard-focus} {
+    background-color: color-mix(in srgb, currentColor 16%, transparent);
 }
 
 .ui-multi-select__chip-remove:focus-visible {
@@ -152,21 +160,37 @@
     padding-right: @ui-space-2;
 }
 
-// A badge select's chip is its option's badge, as the list draws it, in its own size whatever the field's: its words, then its cross inside
+// A chip of the multi-select's badges variant is its option's badge, as the list draws it, in its own size whatever the field's: its words, then its cross inside
 // it, on the badge's ink. A pill always, even round words' (two characters) or a bare icon's, which the cross widens.
 .ui-badge-select .ui-multi-select__chips > .ui-multi-select__chip.ui-badge {
     max-width: 100%;
     aspect-ratio: auto;
-    padding-inline-end: 0.125em;
+    padding-inline-end: 0.375em;
     cursor: default;
 
+    // Brightness alone inside a badge: a round wash sat awkwardly inside a compact badge.
     > .ui-multi-select__chip-remove {
-        width: 1.375em;
-        height: 1.375em;
+        width: @ui-glyph-xs;
+        height: @ui-glyph-xs;
+        border-radius: 0;
+        opacity: 0.64;
+        transition: opacity @ui-motion-fast @ui-motion-ease;
+
+        @media @{ui-can-hover} {
+            &@{ui-adornment-live}:hover {
+                background: none;
+                opacity: 1;
+            }
+        }
+
+        &@{ui-keyboard-focus} {
+            background: none;
+            opacity: 1;
+        }
     }
 
     // Round words keep a pill's start padding: the circle's none (ui-badge.less) stood "P1" against the chip's edge.
-    &[data-ui-badge-text="compact"]:not([data-ui-badge-icon], .ui-badge-style--plain) {
+    &[data-ui-badge-title="compact"]:not([data-ui-badge-icon], .ui-badge-variant--plain) {
         padding-inline-start: 0.5em;
     }
 }
@@ -207,5 +231,21 @@
 
     // A full field refuses the options it does not hold; one disabled by its own item is already dimmed by its template (its row idle).
     .ui-multi-select .ui-select__option[aria-disabled="true"]:not([data-ui-row-idle]) {
+        opacity: var(--ui-disabled-opacity);
+    }
+
+// Drawn as checkboxes (UIMultiSelectVariant.Checkboxes): no field and no list, a checkbox per option laid out as a radio group's
+// radios are (ui-radio-group.less), each box the checkbox's own (ui-checkbox.less). Kept in step by multi-select-checkboxes-engine.ts.
+.ui-multi-select--checkboxes {
+    .ui-toggle-group(~".ui-multi-select__checks"; ~".ui-multi-select__check"; --ui-multi-select-spacing);
+    .ui-empty-state-host(~".ui-multi-select__checks");
+}
+
+    // A full field refuses and dims the options it does not hold, as its list does; one disabled by its own item is dimmed by its template already.
+    .ui-multi-select__check[aria-disabled="true"] {
+        cursor: default;
+    }
+
+    .ui-multi-select__check[aria-disabled="true"]:not([data-ui-row-idle]) {
         opacity: var(--ui-disabled-opacity);
     }

@@ -1,59 +1,33 @@
 // A table's columns sized, hidden and ordered by the viewer: client-only state, laid over the authored order as a permutation.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import {
-    ColumnLimitsAttribute, DragHandleStartClass, RowsDraggableAttribute, RowsDragHandleAttribute, TableColumnAttribute, TableColumnKeyAttribute, TableDraggingAttribute, TableDropAttribute, TableFixedAttribute,
-    TableHeaderClass, TableHiddenAttribute, TableHideBelowAttribute, TableLastAttribute, TableReorderingAttribute, TableResizerClass, TableRowClass,
-    TableScrollbarAttribute, TableScrollClass as ScrollClass, TableScrolledAttribute, TableStartsHiddenAttribute, writeAttribute
-} from "../addressing/dom-attributes.ts";
-import { currentResponsiveTier, onTierChange, responsiveTiers } from "../rendering/responsive-tier.ts";
-import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
-import { OnceWarner } from "../runtime/logger.ts";
+import { ColumnLimitsAttribute, ScrollXAlwaysClass, ScrollXAutoClass, SelectionAttribute, TableCellHiddenAttribute, TableCellLastAttribute, TableClass, TableColumnAttribute, TableDraggingAttribute, TableDropAttribute, TableFixedAttribute, TableHeaderCellClass, TableHeaderCellPinnedClass, TableHiddenAttribute, TableHostClass, TableLastAttribute, TableReorderableClass, TableReorderingAttribute, TableResizerClass, TableScrollbarAttribute, TableScrollClass as ScrollClass, TableScrolledAttribute, TableSelectAllAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
+import { onTierChange } from "../rendering/responsive-tier.ts";
+import { OnceWarner } from "../metadata/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { observeSize } from "./element-size.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { announceMoved } from "./live-announcer.ts";
-import { applyGridTrackLimits, bigStep, formatGridTracks, moveSplit, parseGridTrackLimits, parseGridTracks, pinOffsets, zeroTracks } from "./grid-tracks.ts";
+import { applyGridTrackLimits, bigStep, formatGridTracks, moveSplit, parseGridTrackLimits, parseGridTracks, zeroTracks } from "./grid-tracks.ts";
 import type { GridTrack } from "./grid-tracks.ts";
 import { PointerDrag, swallowReleaseClick } from "./pointer-drag.ts";
 import { trackInnerPointer } from "./surface-press-engine.ts";
-import { OrderVariablePrefix, stampColumnIndices } from "./table-column-layout.ts";
+import { addsTableParts, captionHandle, changesHostRows, clearDropMarks, columnSizes, columnsInOrder, columnsOf, hiddenByAuthor, isArrangementOf, keepColumnFloors, leadsWithGrip, markStickyRows, middleOf, OrderVariablePrefix, pinTableColumns, placesOf, stampColumnIndices } from "./table-column-layout.ts";
+import type { Column, ColumnState } from "./table-column-layout.ts";
 
-const RootClass = "ui-table";
-const ReorderableClass = "ui-table--reorderable";
-const ScrollXAutoClass = "ui-scroll-x--auto";
-const ScrollXAlwaysClass = "ui-scroll-x--always";
+export { hiddenByAuthor, leadsWithGrip };
+
 const ScrollSelector = `:scope > .${ScrollClass}`;
 const ResizerSelector = `.${TableResizerClass}`;
-const HeaderCellClass = "ui-table__header-cell";
-const PinnedModifierClass = `${HeaderCellClass}--pinned`;
-const HeaderCellSelector = `${ScrollSelector} > .${TableHeaderClass} > .${HeaderCellClass}`;
-const PinnedHeaderSelector = `${HeaderCellSelector}--pinned`;
-const HostClass = "ui-table__host";
-const HostSelector = `${ScrollSelector} > .${HostClass}`;
-const TablePartSelector = `.${RootClass}, .${TableRowClass}, [${TableColumnAttribute}]`;
+const HostSelector = `${ScrollSelector} > .${TableHostClass}`;
 
 /** The authored track list (the renderer's variable) and the viewer's, which the stylesheet reads over it. */
 const AuthoredVariable = "--ui-table-columns";
-const StickyTopVariable = "--ui-table-sticky-top";
-const StickyBottomVariable = "--ui-table-sticky-bottom";
 const SizedVariable = "--ui-table-sized-columns";
-/** Where a pinned column after the first sticks, one variable per column (TableComponentRenderer.PinVariablePrefix). */
-const PinVariablePrefix = "--ui-table-pin-";
 
 /** The column indices ui-table.less has rules for; a column past them is written on its own cells, which the boot patch cannot paint. */
 const StyledColumns = 64;
-/** On a cell of a column past the styled ones: hidden, or the one ending the row. */
-const CellHiddenAttribute = "data-ui-table-cell-hidden";
-const CellLastAttribute = "data-ui-table-cell-last";
-
-/** Where the columns stand, which are hidden and which ends the row, as the last layout left them. */
-type ColumnState = {
-    readonly places: readonly number[];
-    readonly hidden: ReadonlySet<number>;
-    readonly last: number;
-};
 
 /** The viewer's widths, hidden columns and order, and the boot patch that paints all three before the runtime runs. */
 const ColumnsSlot = "columns";
@@ -64,18 +38,6 @@ const LayoutSlot = "layout";
 // Narrower than this and a column is a line; the authored floor wins when it is higher.
 const MinimumWidth = 32;
 const Step = 16;
-
-/** One column as the header describes it. */
-type Column = {
-    readonly index: number;
-    readonly key: string;
-    readonly hideBelow: ResponsiveTier | null;
-    /** The author starts the column hidden at every width. */
-    readonly startsHidden: boolean;
-    /** A pinned column and one the control owns keep the places they were written in: no drag moves them, and none is dropped among them. */
-    readonly anchored: boolean;
-    readonly cell: HTMLElement;
-};
 
 /** The viewer's own word on a column, by key: hidden or shown, over whatever the author said. */
 type HiddenChoices = Record<string, boolean>;
@@ -90,8 +52,6 @@ type ReorderContext = {
     readonly middles: readonly number[];
     readonly scroll: HTMLElement | null;
     readonly scrolledAt: number;
-    /** The row runs from the right: a pointer passes a middle going left. */
-    readonly rightToLeft: boolean;
     readonly from: number;
     target: number;
 };
@@ -175,10 +135,10 @@ export class TableColumnsEngine {
         // A column hidden below a tier comes and goes with the viewport; the stylesheet's own queries judge the same edges.
         onTierChange(() => this.layoutAll());
 
-        this.restoreEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.restoreEach(this.root.querySelectorAll<HTMLElement>(`.${TableClass}`));
 
         // A table arriving is restored; rows arriving bring cells past the styled columns to write; a cell's content brings neither.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, relevant: addsTableParts }, tables => {
+        observeComponents(this.root, `.${TableClass}`, { childList: true, relevant: addsTableParts }, tables => {
             for (const table of tables) {
                 if (this.restored.has(table)) {
                     this.stampUnstyledColumns(table, true);
@@ -190,15 +150,20 @@ export class TableColumnsEngine {
         });
 
         // The sideways-scroll mode decides how a content column is written; only the table's own class says it, not a cell's.
-        observeComponents(this.root, `.${RootClass}`, { attributeFilter: ["class"], relevant: mutation => mutation.target instanceof Element && mutation.target.classList.contains(RootClass) }, tables => {
+        observeComponents(this.root, `.${TableClass}`, { attributeFilter: ["class", SelectionAttribute], relevant: mutation => mutation.target instanceof Element && mutation.target.classList.contains(TableClass) }, tables => {
             for (const table of tables) {
-                if (this.restored.has(table))
-                    this.layout(table);
+                if (!this.restored.has(table))
+                    continue;
+
+                this.layout(table);
+
+                if (this.hasStoredLayout(table))
+                    this.rememberBoot(table);
             }
         });
 
         // A host holding a gutter keeps its box when the scrollbar goes, so rows leaving or filtered out say it may have.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, attributeFilter: ["class", "hidden"], relevant: changesHostRows }, tables => {
+        observeComponents(this.root, `.${TableClass}`, { childList: true, attributeFilter: ["class", "hidden"], relevant: changesHostRows }, tables => {
             for (const table of tables) {
                 const host = table.querySelector<HTMLElement>(HostSelector);
 
@@ -271,7 +236,7 @@ export class TableColumnsEngine {
     }
 
     private layoutAll(): void {
-        for (const table of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`))
+        for (const table of this.root.querySelectorAll<HTMLElement>(`.${TableClass}`))
             this.layout(table);
     }
 
@@ -323,7 +288,7 @@ export class TableColumnsEngine {
 
         // A column the viewer may move is a control the keyboard reaches through the header's group, not the Tab order; one the table
         // already made a stop keeps what it has.
-        if (table.classList.contains(ReorderableClass)) {
+        if (table.classList.contains(TableReorderableClass)) {
             for (const column of columns) {
                 if (!column.anchored && !column.cell.hasAttribute("tabindex"))
                     column.cell.setAttribute("tabindex", "-1");
@@ -352,12 +317,12 @@ export class TableColumnsEngine {
             const index = Number(cell.getAttribute(TableColumnAttribute));
 
             // A nested table's cells are its own to write.
-            if (!(index >= StyledColumns) || cell.closest(`.${RootClass}`) !== table)
+            if (!(index >= StyledColumns) || cell.closest(`.${TableClass}`) !== table)
                 continue;
 
             cell.style.order = String(state.places[index] ?? index);
-            cell.toggleAttribute(CellHiddenAttribute, state.hidden.has(index));
-            cell.toggleAttribute(CellLastAttribute, index === state.last);
+            cell.toggleAttribute(TableCellHiddenAttribute, state.hidden.has(index));
+            cell.toggleAttribute(TableCellLastAttribute, index === state.last);
         }
     }
 
@@ -378,46 +343,12 @@ export class TableColumnsEngine {
         stampColumnIndices(table, columnsInOrder(state.places), state.hidden, same);
     }
 
-    /** The columns as the header describes them: index, key, where the author hides each, and whether it ever moves. */
     private columnsOf(table: HTMLElement): Column[] {
-        const columns: Column[] = [];
-
-        for (const cell of table.querySelectorAll<HTMLElement>(HeaderCellSelector)) {
-            const index = Number(cell.getAttribute(TableColumnAttribute));
-            const tier = cell.getAttribute(TableHideBelowAttribute);
-            const anchored = cell.classList.contains(PinnedModifierClass) || cell.hasAttribute(TableFixedAttribute);
-
-            if (Number.isInteger(index))
-                columns.push({ index, key: cell.getAttribute(TableColumnKeyAttribute) ?? String(index), hideBelow: isTier(tier) ? tier : null, startsHidden: cell.hasAttribute(TableStartsHiddenAttribute), anchored, cell });
-        }
-
-        return columns;
+        return columnsOf(table);
     }
 
-    /** Where each column stands, by authored index: anchored ones keep theirs, the rest fill the gaps in the viewer's order. */
     private placesOf(table: HTMLElement, columns: readonly Column[]): number[] {
-        const places: number[] = [];
-
-        for (const column of columns)
-            places[column.index] = column.index;
-
-        const order = this.orders.get(table) ?? null;
-
-        if (order === null)
-            return places;
-
-        const byKey = new Map(columns.map(column => [column.key, column]));
-        const free = columns.filter(column => !column.anchored).map(column => column.index);
-        let slot = 0;
-
-        for (const key of order) {
-            const column = byKey.get(key);
-
-            if (column !== undefined && !column.anchored)
-                places[column.index] = free[slot++];
-        }
-
-        return places;
+        return placesOf(columns, this.orders.get(table) ?? null);
     }
 
     /** The indices hidden now: the viewer's word where there is one, else the author's — hidden outright, or by a tier against the viewport's. */
@@ -426,6 +357,13 @@ export class TableColumnsEngine {
         const hidden = new Set<number>();
 
         for (const column of columns) {
+            if (column.cell.hasAttribute(TableSelectAllAttribute)) {
+                if (table.getAttribute(SelectionAttribute) !== "many")
+                    hidden.add(column.index);
+
+                continue;
+            }
+
             if (choices[column.key] ?? hiddenByAuthor(column))
                 hidden.add(column.index);
         }
@@ -498,16 +436,7 @@ export class TableColumnsEngine {
 
     /** Writes where each pinned column after the first sticks: the laid-out widths before it, read after every change to them. */
     private pin(table: HTMLElement): void {
-        const pinned = table.querySelectorAll(PinnedHeaderSelector).length;
-
-        if (pinned < 2)
-            return;
-
-        const sizes = this.trackSizes(table);
-        const offsets = pinOffsets(sizes, pinned);
-
-        for (let i = 1; i < offsets.length; i++)
-            table.style.setProperty(`${PinVariablePrefix}${i}`, `${offsets[i]}px`);
+        pinTableColumns(table);
     }
 
     /** A table scrolled sideways says so on its root, for the shadow under its last pinned column; the box inside it is the scroller. */
@@ -517,27 +446,9 @@ export class TableColumnsEngine {
         if (!(scroll instanceof HTMLElement) || !scroll.classList.contains(ScrollClass))
             return;
 
-        const table = scroll.closest<HTMLElement>(`.${RootClass}`);
+        const table = scroll.closest<HTMLElement>(`.${TableClass}`);
 
         table?.toggleAttribute(TableScrolledAttribute, scroll.scrollLeft > 0);
-    }
-
-    /**
-     * The laid-out width of every column's track, read off the box that carries them — in the order they are laid out, which is the
-     * viewer's; a start grip's track, which is no column's, left out.
-     */
-    private trackSizes(table: HTMLElement): number[] {
-        const scroll = table.querySelector<HTMLElement>(ScrollSelector);
-        const sizes = scroll === null ? [] : getComputedStyle(scroll).gridTemplateColumns.split(" ").map(parseFloat);
-
-        return leadsWithGrip(table) ? sizes.slice(1) : sizes;
-    }
-
-    /** The same widths by the column they belong to, which is what every reckoning here is in. */
-    private columnSizes(table: HTMLElement, places: readonly number[]): number[] {
-        const laid = this.trackSizes(table);
-
-        return places.map(place => laid[place]);
     }
 
     private handleKeyDown(domEvent: Event): void {
@@ -590,7 +501,7 @@ export class TableColumnsEngine {
      */
     private stepColumn(domEvent: KeyboardEvent, step: number): void {
         const cell = domEvent.target instanceof Element ? this.resolveCaption(domEvent.target) : null;
-        const table = cell?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const table = cell?.closest<HTMLElement>(`.${TableClass}`) ?? null;
 
         if (cell === null || table === null || this.reorder.active)
             return;
@@ -631,7 +542,7 @@ export class TableColumnsEngine {
 
     /** Puts the authored widths back and forgets the viewer's. */
     private reset(handle: HTMLElement): void {
-        const table = handle.closest<HTMLElement>(`.${RootClass}`);
+        const table = handle.closest<HTMLElement>(`.${TableClass}`);
 
         if (table === null)
             return;
@@ -672,6 +583,10 @@ export class TableColumnsEngine {
         this.rememberBoot(table);
     }
 
+    private hasStoredLayout(table: HTMLElement): boolean {
+        return (this.widths.get(table) ?? null) !== null || (this.orders.get(table) ?? null) !== null || Object.keys(this.choicesOf(table)).length > 0;
+    }
+
     private rememberBoot(table: HTMLElement): void {
         const template = table.style.getPropertyValue(SizedVariable).trim();
         const hidden = table.getAttribute(TableHiddenAttribute);
@@ -696,7 +611,7 @@ export class TableColumnsEngine {
 
     /** Everything a gesture needs, read afresh: the widths in force, their laid-out sizes, the column the handle sizes and the visible one after it. */
     private resolveContext(handle: HTMLElement): ResizeContext | null {
-        const table = handle.closest<HTMLElement>(`.${RootClass}`);
+        const table = handle.closest<HTMLElement>(`.${TableClass}`);
 
         if (table === null)
             return null;
@@ -712,7 +627,7 @@ export class TableColumnsEngine {
         const floors = new Map<number, number>();
         const columns = this.columnsOf(table);
         const places = this.placesOf(table, columns);
-        const sizes = this.columnSizes(table, places).filter(size => Number.isFinite(size));
+        const sizes = columnSizes(table, places).filter(size => Number.isFinite(size));
         for (const limit of limits) {
             if (limit.min !== undefined)
                 floors.set(limit.index, limit.min);
@@ -740,18 +655,18 @@ export class TableColumnsEngine {
 
     /** The caption a press landed on, if its column is one the viewer may drag; not the handle at its edge. */
     private resolveCaption(target: Element): HTMLElement | null {
-        const cell = target.closest<HTMLElement>(`.${HeaderCellClass}`);
-        const table = cell?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const cell = target.closest<HTMLElement>(`.${TableHeaderCellClass}`);
+        const table = cell?.closest<HTMLElement>(`.${TableClass}`) ?? null;
 
-        if (cell === null || table === null || !table.classList.contains(ReorderableClass) || target.closest(ResizerSelector) !== null)
+        if (cell === null || table === null || !table.classList.contains(TableReorderableClass) || target.closest(ResizerSelector) !== null)
             return null;
 
-        return cell.classList.contains(PinnedModifierClass) || cell.hasAttribute(TableFixedAttribute) ? null : cell;
+        return cell.classList.contains(TableHeaderCellPinnedClass) || cell.hasAttribute(TableFixedAttribute) ? null : cell;
     }
 
     /** The places a drop may take and where the dragged column starts from. */
     private beginReorder(cell: HTMLElement, origin: number): ReorderContext | null {
-        const table = cell.closest<HTMLElement>(`.${RootClass}`);
+        const table = cell.closest<HTMLElement>(`.${TableClass}`);
         const index = Number(cell.getAttribute(TableColumnAttribute));
 
         if (table === null || !Number.isInteger(index))
@@ -767,12 +682,11 @@ export class TableColumnsEngine {
         // Measured once: a move compares the pointer with them rather than reading every caption's box again.
         const middles = places.map(middleOf);
         const scroll = table.querySelector<HTMLElement>(ScrollSelector);
-        const rightToLeft = getComputedStyle(table).direction === "rtl";
 
         table.setAttribute(TableReorderingAttribute, "");
         cell.setAttribute(TableDraggingAttribute, "");
 
-        return { table, index, origin, places, middles, scroll, scrolledAt: scroll?.scrollLeft ?? 0, rightToLeft, from, target: from };
+        return { table, index, origin, places, middles, scroll, scrolledAt: scroll?.scrollLeft ?? 0, from, target: from };
     }
 
     /** The columns the viewer may drag, in view and in the order they stand. */
@@ -798,7 +712,7 @@ export class TableColumnsEngine {
         const at = context.origin + delta + ((context.scroll?.scrollLeft ?? 0) - context.scrolledAt);
         let passed = 0;
 
-        while (passed < context.middles.length && (context.rightToLeft ? at < context.middles[passed] : at > context.middles[passed]))
+        while (passed < context.middles.length && at > context.middles[passed])
             passed++;
 
         const target = Math.min(Math.max(passed > context.from ? passed - 1 : passed, 0), context.places.length - 1);
@@ -869,108 +783,4 @@ export class TableColumnsEngine {
         this.layout(table);
         this.rememberBoot(table);
     }
-}
-
-/**
- * The height of the table's own rows above its rows' host (the header) and below it (a package's footer), which stick over the rows in
- * a box scrolling both ways: the box keeps a row the keyboard brings into view clear of them (`scroll-padding`, ui-table.less).
- */
-function markStickyRows(table: HTMLElement, scroll: HTMLElement): void {
-    let top = 0;
-    let bottom = 0;
-    let passed = false;
-
-    for (const child of scroll.children) {
-        if (child.matches(`.${HostClass}`))
-            passed = true;
-        else if (!(child instanceof HTMLElement) || child.getAttribute("role") !== "row")
-            continue;
-        else if (passed)
-            bottom += child.offsetHeight;
-        else
-            top += child.offsetHeight;
-    }
-
-    table.style.setProperty(StickyTopVariable, `${top}px`);
-    table.style.setProperty(StickyBottomVariable, `${bottom}px`);
-}
-
-/** The resize handle of the caption a key landed on, where it shows; null for a key elsewhere or a column that does not size. */
-function captionHandle(target: Element): HTMLElement | null {
-    const handle = target.matches(`.${HeaderCellClass}`) ? target.querySelector<HTMLElement>(`:scope > ${ResizerSelector}`) : null;
-
-    return handle !== null && handle.getClientRects().length > 0 ? handle : null;
-}
-
-/** Whether the rows' grips stand in a track before the columns' (`DragHandle` at the start, shown): a track no column owns. */
-export function leadsWithGrip(table: Element): boolean {
-    return table.hasAttribute(RowsDraggableAttribute) && table.hasAttribute(RowsDragHandleAttribute) && table.classList.contains(DragHandleStartClass);
-}
-
-/** Puts the floors of the two columns a drag moved back level with their new widths, as the drag clamped to the author's floor. */
-function keepColumnFloors(tracks: readonly GridTrack[], moved: GridTrack[], indices: readonly number[]): GridTrack[] {
-    for (const index of indices) {
-        if (tracks[index].kind === "star" && tracks[index].min === tracks[index].value && moved[index].kind === "star")
-            moved[index] = { ...moved[index], min: moved[index].value };
-    }
-
-    return moved;
-}
-
-/** Whether a record brought a table, a row or a cell: what the columns are laid out over, as opposed to what a cell shows. */
-function addsTableParts(mutation: MutationRecord): boolean {
-    for (const node of mutation.addedNodes) {
-        if (node instanceof Element && (node.matches(TablePartSelector) || node.querySelector(TablePartSelector) !== null))
-            return true;
-    }
-
-    return false;
-}
-
-/** Whether a record added or removed a row of a table's host, or changed whether one is shown. */
-function changesHostRows(mutation: MutationRecord): boolean {
-    const target = mutation.type === "childList" ? mutation.target : mutation.target.parentElement;
-
-    return target instanceof Element && target.classList.contains(HostClass);
-}
-
-/** The authored index standing at each place along the row, read off the places every column holds. */
-function columnsInOrder(places: readonly number[]): number[] {
-    const order: number[] = [];
-
-    for (let index = 0; index < places.length; index++)
-        order[places[index]] = index;
-
-    return order;
-}
-
-/** Whether a stored order is these columns in some arrangement: every key once, and no other. */
-function isArrangementOf(order: readonly string[], columns: readonly Column[]): boolean {
-    if (order.length !== columns.length)
-        return false;
-
-    const keys = new Set(columns.map(column => column.key));
-
-    return order.every(key => keys.delete(key)) && keys.size === 0;
-}
-
-/** The middle of a column's header cell, which a drop is measured against. */
-function middleOf(column: Column): number {
-    const rect = column.cell.getBoundingClientRect();
-
-    return rect.left + rect.width / 2;
-}
-
-function clearDropMarks(table: HTMLElement): void {
-    for (const marked of table.querySelectorAll(`[${TableDropAttribute}]`))
-        marked.removeAttribute(TableDropAttribute);
-}
-
-/** Whether the author hides the column in the viewport as it is now: at every width, or below its tier. */
-export function hiddenByAuthor(column: Pick<Column, "startsHidden" | "hideBelow">): boolean {
-    return column.startsHidden || (column.hideBelow !== null && responsiveTiers.indexOf(currentResponsiveTier()) < responsiveTiers.indexOf(column.hideBelow));
-}
-
-function isTier(value: string | null): value is ResponsiveTier {
-    return value !== null && (responsiveTiers as readonly string[]).includes(value);
 }

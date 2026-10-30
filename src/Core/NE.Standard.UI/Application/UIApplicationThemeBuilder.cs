@@ -112,7 +112,7 @@ public sealed class UIApplicationThemeBuilder
     /// <summary>
     /// Replaces shape tokens shared by light and dark modes.
     /// </summary>
-    public UIApplicationThemeBuilder UseShape(UIShape shape)
+    public UIApplicationThemeBuilder UseShape(UIThemeShape shape)
     {
         ArgumentNullException.ThrowIfNull(shape);
 
@@ -125,11 +125,11 @@ public sealed class UIApplicationThemeBuilder
     /// <summary>
     /// Configures shape tokens shared by light and dark modes.
     /// </summary>
-    public UIApplicationThemeBuilder ConfigureShape(Func<UIShape, UIShape> configure)
+    public UIApplicationThemeBuilder ConfigureShape(Func<UIThemeShape, UIThemeShape> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
 
-        UIShape shape = configure(_theme.Shape);
+        UIThemeShape shape = configure(_theme.Shape);
         ArgumentNullException.ThrowIfNull(shape);
 
         return UseShape(shape);

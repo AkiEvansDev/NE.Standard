@@ -1,4 +1,3 @@
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Binding;
@@ -49,14 +48,14 @@ public static class DefaultTemplateBindings
             .Bind(ITextBaseComponent.TitleColorProperty, nameof(ITextBaseModel.TitleColor), UIBindingScope.Relative, optional: true)
 
             .Bind(ITextBaseComponent.BadgePlacementProperty, nameof(ITextBaseModel.BadgePlacement), UIBindingScope.Relative, optional: true)
-            .Bind(ITextBaseComponent.BadgeStyleProperty, nameof(IBadgeModel.BadgeStyle), UIBindingScope.Relative, optional: true)
+            .Bind(ITextBaseComponent.BadgeVariantProperty, nameof(IBadgeModel.BadgeVariant), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeColorProperty, nameof(IBadgeModel.BadgeColor), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeFillProperty, nameof(IBadgeModel.BadgeFill), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeIconProperty, nameof(IBadgeModel.BadgeIcon), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeIconColorProperty, nameof(IBadgeModel.BadgeIconColor), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeIconSizeProperty, nameof(IBadgeModel.BadgeIconSize), UIBindingScope.Relative, optional: true)
-            .Bind(ITextBaseComponent.BadgeTextProperty, nameof(IBadgeModel.BadgeText), UIBindingScope.Relative, optional: true)
-            .Bind(ITextBaseComponent.BadgeTextTypeProperty, nameof(IBadgeModel.BadgeTextType), UIBindingScope.Relative, optional: true)
+            .Bind(ITextBaseComponent.BadgeTitleProperty, nameof(IBadgeModel.BadgeTitle), UIBindingScope.Relative, optional: true)
+            .Bind(ITextBaseComponent.BadgeTitleTypeProperty, nameof(IBadgeModel.BadgeTitleType), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeTooltipProperty, nameof(IBadgeModel.BadgeTooltip), UIBindingScope.Relative, optional: true)
             .Bind(ITextBaseComponent.BadgeTooltipPlacementProperty, nameof(IBadgeModel.BadgeTooltipPlacement), UIBindingScope.Relative, optional: true)
 

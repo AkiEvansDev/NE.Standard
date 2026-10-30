@@ -4,12 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Views;
-using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Hosting;
@@ -24,8 +21,8 @@ namespace NE.Standard.UI.Testing;
 
 /// <summary>An application booted from its own startup with no platform under it, whose pages a test opens and drives.</summary>
 /// <remarks>
-/// The scheduler is parked: nothing flushes a <c>Batch</c> runtime but <see cref="UITestPage.FlushAsync"/>, so a test reads what a
-/// command answered and what waits for the flush apart. Framework-agnostic: a failed expectation is the test's to assert, and a
+/// The scheduler is parked: nothing flushes a runtime but <see cref="UITestPage.FlushAsync"/> and an effect pushed outside a command,
+/// which goes out behind what the state holds, so a test reads what a command answered and what waits for the flush apart. Framework-agnostic: a failed expectation is the test's to assert, and a
 /// misuse — a component that is not there, a press on a disabled button — throws <see cref="InvalidOperationException"/>.
 /// </remarks>
 public sealed class UITestApp : IAsyncDisposable, IDisposable
@@ -45,7 +42,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
     /// <summary>Gets the built application: its routes, options and translator.</summary>
     public UIApplication Application => _built.Application;
 
-    internal UIHost Host => _built.Host;
+    internal IUIHost Host => _built.Host;
 
     internal UITestClient Client { get; }
 
@@ -76,8 +73,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
 
                 configureServices?.Invoke(services);
             },
-            configureApplication,
-            static provider => provider.GetService<ILogger<UIHost>>() ?? NullLogger<UIHost>.Instance
+            configureApplication
         );
 
         return new UITestApp(built, client);
@@ -193,16 +189,10 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
     }
 
     /// <summary>Stops the host and every runtime it holds.</summary>
-    public async ValueTask DisposeAsync()
-    {
-        await Host.DisposeAsync().ConfigureAwait(false);
-        await _built.Services.DisposeAsync().ConfigureAwait(false);
-    }
+    public ValueTask DisposeAsync()
+        => _built.Services.DisposeAsync();
 
     /// <summary>Stops the host and every runtime it holds.</summary>
     public void Dispose()
-    {
-        Host.Dispose();
-        _built.Services.Dispose();
-    }
+        => _built.Services.Dispose();
 }

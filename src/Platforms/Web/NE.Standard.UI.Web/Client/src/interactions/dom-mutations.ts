@@ -12,6 +12,8 @@ export type SubtreeObserverInit = {
      * host they joined: for an engine reading a component's own subtree alone, not its siblings or its host. Default: false.
      */
     readonly addedOnly?: boolean;
+    /** Called once for a batch that took nodes out of the tree, so an engine can drop state for elements gone from the page. */
+    readonly removed?: () => void;
 };
 
 /** Past this many components in one batch, finding them costs more than sweeping the root for them. */
@@ -28,11 +30,14 @@ export function observeComponents(root: ParentNode, selector: string, init: Subt
 
         if (components !== null)
             handler(components);
+
+        if (init.removed !== undefined && records.some(mutation => mutation.type === "childList" && mutation.removedNodes.length > 0))
+            init.removed();
     });
 
     observer.observe(root, {
         subtree: true,
-        childList: init.childList ?? false,
+        childList: (init.childList ?? false) || init.removed !== undefined,
         characterData: init.characterData ?? false,
         attributes: init.attributeFilter !== undefined,
         ...(init.attributeFilter === undefined ? {} : { attributeFilter: [...init.attributeFilter] })

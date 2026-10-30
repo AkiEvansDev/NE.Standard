@@ -8,6 +8,8 @@ const ValuePropertyName = "Value";
 const EndValuePropertyName = "EndValue";
 /** A toggle button's value (`aria-pressed`): it has no Value, so a rule on an unbound one's pressed state reads this. */
 const PressedPropertyName = "Pressed";
+/** A strip's or a list's chosen key (`data-ui-selected-key`): a rule on an unbound one reads this. */
+const SelectedKeyPropertyName = "SelectedKey";
 
 export class InteractionIndex {
     private readonly eventInteractions = new Map<string, WebRenderInteractionMetadata[]>();
@@ -115,7 +117,7 @@ export class InteractionIndex {
                     this.copiesValues = true;
 
                 const propertyName = this.metadata.getPropertyDefinition(propertyId)?.propertyName;
-                const byField = propertyName === ValuePropertyName || propertyName === PressedPropertyName ? this.valueInteractions : propertyName === EndValuePropertyName ? this.endValueInteractions : null;
+                const byField = propertyName === ValuePropertyName || propertyName === PressedPropertyName || propertyName === SelectedKeyPropertyName ? this.valueInteractions : propertyName === EndValuePropertyName ? this.endValueInteractions : null;
 
                 if (byField !== null) {
                     const values = byField.get(componentId) ?? [];

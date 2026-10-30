@@ -1,20 +1,24 @@
-import { ThemeAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes";
-import { DomRegistry, readComponentId } from "../addressing/dom-registry";
-import { ValueReaderRegistry, resolveValueHolder, toDomString } from "../extensions/value-readers";
-import { DialogEngine } from "../interactions/dialog-engine";
-import { copySelection } from "../interactions/legacy-commands";
-import { picturesOnPage, showLightbox } from "../interactions/lightbox";
-import type { LightboxPicture } from "../interactions/lightbox";
-import { firstFocusable, FocusableSelector } from "../interactions/popup-focus";
-import { NotificationEngine, offeredAction, offeredActionId } from "../interactions/notification-engine";
-import type { NotificationAction } from "../interactions/notification-engine";
-import { dispatchOpenPicker } from "../interactions/picker-events";
-import { isElsewhere, showSystemNotification, SystemNotificationServices } from "../interactions/system-notifications";
-import { focusedElement, handFocusOnIfHidden } from "../interactions/focus-handoff";
-import { holdAtEnd, isEndAnchored, releaseScrollHolds } from "../interactions/scroll-anchor-engine";
-import { itemsHostOf, revealItem } from "../items/item-reveal";
-import { viewportOf } from "../items/items-viewport";
-import {
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { ThemeAttribute } from "../addressing/dom-attributes.ts";
+import { readComponentId } from "../addressing/dom-registry.ts";
+import type { DomRegistry, EffectContext } from "../addressing/dom-registry.ts";
+import { resolveValueHolder, toDomString } from "../extensions/value-readers.ts";
+import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
+import type { DialogEngine } from "../interactions/dialog-engine.ts";
+import { copySelection } from "../interactions/legacy-commands.ts";
+import { picturesOnPage, showLightbox } from "../interactions/lightbox.ts";
+import type { LightboxPicture } from "../interactions/lightbox.ts";
+import { firstFocusable, FocusableSelector } from "../interactions/popup-focus.ts";
+import { offeredAction, offeredActionId } from "../interactions/notification-engine.ts";
+import type { NotificationAction, NotificationEngine } from "../interactions/notification-engine.ts";
+import { dispatchOpenPicker } from "../interactions/picker-events.ts";
+import { isElsewhere, showSystemNotification } from "../interactions/system-notifications.ts";
+import type { SystemNotificationServices } from "../interactions/system-notifications.ts";
+import { holdAtEnd, isEndAnchored, releaseScrollHolds } from "../interactions/scroll-anchor-engine.ts";
+import { itemsHostOf, revealItem } from "../addressing/item-reveal.ts";
+import { viewportOf } from "../addressing/items-viewport.ts";
+import { getAnnouncePoliteness, getClientEffectKind, getIdValue, getScrollAxis, getScrollPosition, getScrollToBehavior, getScrollToBlock, getThemeMode } from "../metadata/metadata-index.ts";
+import type {
     AddressClientEffect,
     AnnounceClientEffect,
     ClientEffect,
@@ -24,42 +28,30 @@ import {
     DownloadFileClientEffect,
     NavigateBackClientEffect,
     NotificationClientEffect,
+    RenameItemClientEffect,
     ScrollClientEffect,
     SystemNotificationClientEffect,
     ScrollToClientEffect,
     ScrollToItemClientEffect,
     SetThemeClientEffect,
     ShowImageClientEffect,
-    TargetedClientEffect,
-    getAnnouncePoliteness,
-    getClientEffectKind,
-    getIdValue,
-    getScrollAxis,
-    getScrollPosition,
-    getScrollToBehavior,
-    getScrollToBlock,
-    getThemeMode
+    TargetedClientEffect
 } from "../metadata/metadata-index.ts";
-import { prefersReducedMotion } from "../rendering/motion";
-import { isLocalRoute, isSafeLink } from "../rendering/url-safety";
-import { browserNotificationPermission, isOnScreen } from "../runtime/client-state";
-import { clientStrings } from "../runtime/client-strings";
-import { logError, logWarn } from "../runtime/logger";
-import { pageSessionKey } from "../runtime/session-key";
-import type { NotificationClick } from "../runtime/worker-messages";
-import { isAuthorText, isPhrase } from "../runtime/words.ts";
+import { prefersReducedMotion } from "../rendering/motion.ts";
+import { isLocalRoute, isSafeLink } from "../rendering/url-safety.ts";
+import { browserNotificationPermission, isOnScreen } from "../state/client-state.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import { logError, logWarn } from "../metadata/logger.ts";
+import { pageSessionKey } from "../state/session-key.ts";
+import type { NotificationClick } from "../state/worker-messages.ts";
+import { isAuthorText, isPhrase } from "../rendering/words.ts";
 import { writeDevelopmentReport } from "./development-report.ts";
 import { applyInsertText } from "./insert-text.ts";
-import { buildNavigationUrl } from "./navigation-url";
+import { buildNavigationUrl } from "./navigation-url.ts";
 import { resolveScroller } from "./scroller.ts";
 import { shownText } from "./shown-text.ts";
 
-export type EffectContext = {
-    readonly effect: ClientEffect;
-    readonly dom: DomRegistry;
-    // The row an interaction ran for, innermost key last; none for a command's effect.
-    readonly row?: readonly unknown[];
-};
+export type { EffectContext } from "../addressing/dom-registry.ts";
 
 export type EffectRegistryOptions = {
     readonly dialogs?: DialogEngine;
@@ -100,6 +92,9 @@ export type ThemeName = "light" | "dark" | "auto";
 
 export type EffectHandler = (context: EffectContext) => void;
 
+/** Opens the rename field on the item with `key` of a host the renamer's engine owns; false where the host shows no such item. */
+export type ItemRenamer = (host: HTMLElement, key: string) => boolean;
+
 export type EffectRegistration = {
     readonly kind: ClientEffectKindValue;
     readonly handler: EffectHandler;
@@ -107,6 +102,7 @@ export type EffectRegistration = {
 
 export class EffectRegistry {
     private readonly handlers = new Map<string, EffectHandler>();
+    private readonly itemRenamers = new Map<string, ItemRenamer>();
     private readonly dialogs: DialogEngine | undefined;
     private readonly notifications: NotificationEngine | undefined;
     private readonly runAction: ((id: string) => Promise<boolean>) | undefined;
@@ -137,6 +133,11 @@ export class EffectRegistry {
 
     public register(kind: ClientEffectKindValue, handler: EffectHandler): void {
         this.handlers.set(getClientEffectKind(kind), handler);
+    }
+
+    /** Lets `RenameItem` reach the hosts whose root wears `hostClass`: each host family's engine renames its own items. */
+    public registerItemRenamer(hostClass: string, renamer: ItemRenamer): void {
+        this.itemRenamers.set(hostClass, renamer);
     }
 
     public applyAll(effects: readonly ClientEffect[] | null | undefined, dom: DomRegistry): void {
@@ -275,6 +276,25 @@ export class EffectRegistry {
                 logWarn("scroll to item effect names a row the host has not drawn.", context.effect);
         });
 
+        // One kind for every host that renames its items in place; the host's own engine finds the item and opens its field.
+        this.register("RenameItem", context => {
+            const element = resolveTarget(context);
+
+            if (element === null)
+                return;
+
+            const effect = context.effect as RenameItemClientEffect;
+            const renamer = [...this.itemRenamers].find(([hostClass]) => element.classList.contains(hostClass))?.[1];
+
+            if (renamer === undefined || typeof effect.key !== "string" || effect.key.length === 0) {
+                logWarn("rename item effect names no host that renames its items, or no key.", context.effect);
+                return;
+            }
+
+            if (!renamer(element as HTMLElement, effect.key))
+                logWarn("rename item effect names an item the host does not show.", context.effect);
+        });
+
         // Scrolls a container, where ScrollTo brings a component into view.
         this.register("Scroll", context => {
             const element = resolveTarget(context);
@@ -322,19 +342,6 @@ export class EffectRegistry {
                 holdAtEnd(scroller);
 
             scroller.scrollTo(vertical ? { top: next, behavior } : { left: next, behavior });
-        });
-
-        // The three drive the same attributes a bound Visibility property does, every tier, so an effect and a later binding do not fight.
-        this.register("Show", context => {
-            applyVisibility(resolveTarget(context), null);
-        });
-
-        this.register("Hide", context => {
-            applyVisibility(resolveTarget(context), "hidden");
-        });
-
-        this.register("Collapse", context => {
-            applyVisibility(resolveTarget(context), "collapsed");
         });
 
         // Best effort: the clipboard API wants a secure context and a focused document, so a refusal falls back to the selection command.
@@ -441,7 +448,7 @@ export class EffectRegistry {
 
             this.notifications.show({
                 message: effect.message,
-                severity: effect.severity,
+                tone: effect.tone,
                 durationMs: typeof effect.durationMs === "number" ? effect.durationMs : undefined,
                 action: this.runAction === undefined ? undefined : offeredAction(effect.action, this.runAction)
             });
@@ -572,9 +579,9 @@ export class EffectRegistry {
         const navigate = this.navigate;
 
         if (bringTo !== undefined && navigate !== undefined && isElsewhere(bringTo)) {
-            const label = isPhrase(effect.addressLabel) || isAuthorText(effect.addressLabel) ? effect.addressLabel : { key: "ui.notification.open" };
+            const title = isPhrase(effect.addressTitle) || isAuthorText(effect.addressTitle) ? effect.addressTitle : { key: "ui.notification.open" };
 
-            return { label, run: () => navigate(bringTo) };
+            return { title, run: () => navigate(bringTo) };
         }
 
         return this.runAction === undefined ? undefined : offeredAction(effect.action, this.runAction);
@@ -617,24 +624,6 @@ function applicationIcon(): string | undefined {
 /** Where the page stands: what a system notification's click brings back where the page is gone. */
 function ownAddress(): string {
     return window.location.pathname + window.location.search + window.location.hash;
-}
-
-function applyVisibility(target: Element | null, value: string | null): void {
-    if (target === null)
-        return;
-
-    // Hiding what holds the focus (a banner's × answering with HideEffect) hands it on, as a bound Visibility's write does.
-    const focused = focusedElement();
-
-    for (const attribute of VisibilityTierAttributes) {
-        if (value === null)
-            target.removeAttribute(attribute);
-        else
-            target.setAttribute(attribute, value);
-    }
-
-    if (focused !== null)
-        handFocusOnIfHidden(focused);
 }
 
 function resolveTarget(context: EffectContext): Element | null {

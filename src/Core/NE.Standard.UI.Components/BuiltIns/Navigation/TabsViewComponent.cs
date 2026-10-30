@@ -8,6 +8,7 @@ using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
@@ -25,7 +26,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
 [UIComponentPropertyBlock(typeof(ISelectedKeyComponent))]
 [UIComponentPropertyBlock(typeof(IItemsHostAbilitiesComponent))]
-public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent, IEmptyStateComponent, IPressablePartsComponent, ISelectedKeyComponent, IItemsHostAbilitiesComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent, IEmptyStateComponent, IPressablePartsComponent, ISelectedKeyComponent, IItemsHostAbilitiesComponent, IItemRemoveComponent, IItemRenameComponent, IAccessibleNameComponent
     where T : TabsViewComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions;
@@ -35,7 +37,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// <remarks>
     /// Assigning it directly skips the refusal of Close and Delete together that <see cref="SetTabMenuEntries"/> applies. Pin sets
     /// the tab's <see cref="ITabItemModel.Pinned"/> and moves it to the boundary of the pinned tabs, written back as a drag writes
-    /// its order. The remove entry raises what the tab's cross does, so it needs <see cref="OnItemRemoveWithItemKey"/> and is
+    /// its order. The remove entry raises what the tab's cross does, so it needs <c>OnItemRemoveWithItemKey</c> and is
     /// never offered on a pinned tab.
     /// </remarks>
     [UIComponentProperty(DefaultValue = UITabMenuEntries.None, GenerateSetter = false)]
@@ -55,8 +57,6 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
         _ = SetTemplate(new DefaultTabItemTemplate(binds: true));
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
         _ = SortBy(nameof(ITabItemModel.Order));
-
-        TemplateKeyProperty = null;
 
         TabMenu = new MenuComponent();
         ComposeTabMenu();
@@ -117,7 +117,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
 
     /// <summary>Adds entries to the tab menu, between Pin and the remove entry with a rule on either side.</summary>
     /// <remarks>
-    /// A click on one raises <see cref="OnTabMenuEntry(string, string, string)"/>'s command with the entry's key and the tab's.
+    /// A click on one raises <see cref="OnItemMenuEntry(string, string, string)"/>'s command with the entry's key and the tab's.
     /// </remarks>
     public T AddTabMenuEntries(params MenuItem[] entries)
     {
@@ -145,23 +145,23 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// the key of the tab the menu was opened on.
     /// </summary>
     /// <remarks>The built-in entries never reach it.</remarks>
-    public T OnTabMenuEntry(string command, string entryArgumentName = "entry", string tabArgumentName = "id")
-        => OnTabMenuEntry(command, UIAction.Offered(UITabMenu.Entry(entryArgumentName)), UIAction.Offered(UITabMenu.Tab(tabArgumentName)));
+    public T OnItemMenuEntry(string command, string entryArgumentName = "entry", string tabArgumentName = "id")
+        => OnItemMenuEntry(command, UIAction.Offered(UITabMenu.Entry(entryArgumentName)), UIAction.Offered(UITabMenu.Tab(tabArgumentName)));
 
     /// <summary>
     /// Registers a command invoked when an appended tab menu entry is clicked, with UI action arguments —
     /// <see cref="UITabMenu.Entry"/> and <see cref="UITabMenu.Tab"/> name its two keys.
     /// </summary>
     /// <remarks>Raised on the tab the menu was opened on, as its own events are, so the tab's state and abilities answer for it.</remarks>
-    public T OnTabMenuEntry(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnItemTemplate(template => _ = template.On(EventNames.TabMenuEntry, command, arguments));
+    public T OnItemMenuEntry(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => OnItemTemplate(template => _ = template.On(EventNames.ItemMenuEntry, command, arguments));
 
     /// <summary>
     /// Registers a command invoked when an appended tab menu entry is clicked, with literal argument values — neither key, for an entry
     /// the command needs no name of.
     /// </summary>
-    public T OnTabMenuEntryLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnTabMenuEntry(command, UIActionArgument.Literals(arguments));
+    public T OnItemMenuEntryLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnItemMenuEntry(command, UIActionArgument.Literals(arguments));
 
     /// <summary>
     /// Sets the page rendered for every tab, leaving the built-in caption in place.
@@ -175,41 +175,17 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     }
 
     /// <summary>
-    /// Registers a command invoked when a tab's close is pressed, passing the tab's key; the controller removes the tab or leaves it.
+    /// Writes a remove registration on the tab template, now and on every one set later: a tab's close pressed, or the tab menu's
+    /// remove entry; the controller removes the tab or leaves it.
     /// </summary>
-    public T OnItemRemoveWithItemKey(string command, string argumentName = "id")
-        => OnItemRemove(command, UIAction.ArgCurrentItemKey(argumentName));
+    public void OnRemovableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(template => register(template));
 
     /// <summary>
-    /// Registers a command invoked when a tab's close is pressed, with UI action arguments.
+    /// Writes a rename registration on the tab template, now and on every one set later: a caption renamed in place.
     /// </summary>
-    public T OnItemRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnItemTemplate(template => _ = template.OnRemove(command, arguments));
-
-    /// <summary>
-    /// Registers a command invoked when a tab's close is pressed, with literal argument values.
-    /// </summary>
-    public T OnItemRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnItemTemplate(template => _ = template.OnRemoveLiteral(command, arguments));
-
-    /// <summary>
-    /// Registers a command invoked when a caption is renamed in place, passing the tab's key.
-    /// </summary>
-    /// <remarks>Optional: a two-way caption already writes the new text back; this is for refusing or normalizing it.</remarks>
-    public T OnItemRenameWithItemKey(string command, string argumentName = "id")
-        => OnItemRename(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers a command invoked when a caption is renamed in place, with UI action arguments.
-    /// </summary>
-    public T OnItemRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnItemTemplate(template => _ = template.OnRename(command, arguments));
-
-    /// <summary>
-    /// Registers a command invoked when a caption is renamed in place, with literal argument values.
-    /// </summary>
-    public T OnItemRenameLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnItemTemplate(template => _ = template.OnRenameLiteral(command, arguments));
+    public void OnRenamableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(template => register(template));
 }
 
 /// <summary>

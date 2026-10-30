@@ -203,7 +203,7 @@ test("a folded entry's title stands beside it, toward the content, rather than o
     focus(rightFolded);
 
     assert.equal(shows(rightFolded), true);
-    assert.equal(real<HTMLElement>(fakeDocument.body.querySelector(".ui-tooltip")).dataset.uiPlacement, "left");
+    assert.equal(real<HTMLElement>(fakeDocument.body.querySelector(".ui-tooltip")).getAttribute("data-ui-placement"), "left");
 
     blur(rightFolded);
     tooltips.hide();
@@ -213,4 +213,35 @@ test("a group's own entry raises no click of the menu's, nor of anything around 
     assert.equal(groupEntry.hasAttribute("data-ui-no-click"), true);
     assert.equal(groupEntry.hasAttribute("data-ui-event-boundary"), true);
     assert.equal(cut.hasAttribute("data-ui-no-click"), false, "an entry of no group keeps its click");
+});
+
+test("a popup menu's group flies out on pointer hover and closes when the pointer moves to a sibling entry", () => {
+    const popupGroupEntry = entry("Open With", 60, 120);
+    const popupSubmenu = FakeElement.of("ui-menu__submenu").append(
+        FakeElement.of("ui-menu ui-menu--nested").append(
+            FakeElement.of("ui-menu__host").append(FakeElement.of("ui-menu__item").append(FakeElement.of("ui-menu-item", {}, "button")))
+        )
+    );
+    const popupGroup = FakeElement.of("ui-menu__item", { "data-ui-menu-group": "" }).append(popupGroupEntry, popupSubmenu);
+    const popupSibling = entry("Rename", 50, 120);
+    const contextMenu = FakeElement.of("ui-context-menu").append(
+        FakeElement.of("ui-menu ui-orientation--vertical").append(
+            FakeElement.of("ui-menu__host").append(popupGroup, FakeElement.of("ui-menu__item").append(popupSibling))
+        )
+    );
+
+    fakeDocument.body.append(contextMenu);
+
+    const overGroup = new FakeEvent("pointerover");
+    overGroup.target = popupGroupEntry;
+    contextMenu.dispatchEvent(overGroup);
+
+    assert.equal(popupSubmenu.hasAttribute("data-ui-menu-flyout"), true);
+    assert.equal(popupGroup.hasAttribute("data-ui-menu-open"), true);
+
+    const overSibling = new FakeEvent("pointerover");
+    overSibling.target = popupSibling;
+    contextMenu.dispatchEvent(overSibling);
+
+    assert.equal(popupGroup.hasAttribute("data-ui-menu-open"), false);
 });

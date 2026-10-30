@@ -1,6 +1,8 @@
 // A calendar drawn in place is the date input's popup grid, driven by the same engine: it draws on arrival, a press on a day writes
 // the value, a period takes two presses and a third starts the next, a pushed value turns it to its month. Marked days wear their
-// mark in both, and where only they are on offer every other day is disabled, passed over by the arrows and refused when typed.
+// mark in both, and where only they are on offer every other day is disabled, passed over by the arrows and refused when typed. A
+// period's least distance takes the days too near its start off offer for its end, and its clock and typed ends are held to it. A
+// moment chosen on the clock or the grid is held inside Min and Max, and a period's caption names the end the next press sets.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -88,6 +90,15 @@ function calendar(attributes: Readonly<Record<string, string>>, value = "", end:
     };
 }
 
+/** What an engine said on a field's line through the validation engine, in order: null where it took its words back. */
+type Marks = { readonly validation: { mark(field: unknown, severity: string | null, words?: unknown): void }; readonly said: unknown[] };
+
+function marks(): Marks {
+    const said: unknown[] = [];
+
+    return { validation: { mark: (_field, severity, words) => said.push(severity === null ? null : { severity, words }) }, said };
+}
+
 /** A page of its own for each test's engine: an engine of an earlier test listening on the same page would answer too. */
 function place(component: FakeElement): FakeElement {
     const page = new FakeElement("main").append(component);
@@ -164,7 +175,7 @@ test("a reader hears the chosen day as a pressed button, today as the current da
 test("a date-time popup's clock columns are listboxes of options, the chosen reading of each selected", () => {
     const toggle = FakeElement.of("ui-temporal-input__toggle", { "data-ui-temporal-toggle": "" }, "button");
     const popup = FakeElement.of("ui-temporal-input__popup", { role: "dialog" });
-    const value = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-03T14:30:00" });
+    const value = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-03T14:30:00+02:00" });
     const root = FakeElement.of("ui-temporal-input ui-date-time-input", {
         "data-ui-id": "11",
         "data-ui-temporal-mode": "date-time",
@@ -333,7 +344,7 @@ test("a value the controller pushes turns the calendar to its month; a pushed se
     assert.ok(day(scene, "2026-03-02").classes.has("ui-temporal-input__day--selected"));
 });
 
-test("a date input refuses a typed day that is not marked where only marked days are on offer, and writes the field back", () => {
+test("a date input refuses a typed day that is not marked where only marked days are on offer, writes the field back and says why", () => {
     const field = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
     const value = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-03" });
     const root = FakeElement.of("ui-temporal-input ui-date-input", {
@@ -347,22 +358,25 @@ test("a date input refuses a typed day that is not marked where only marked days
 
     const page = place(root);
     const changes: string[] = [];
+    const { validation, said } = marks();
 
     value.addEventListener("change", () => changes.push(value.value));
-    new TemporalPickerEngine({ root: real<ParentNode>(page) });
+    new TemporalPickerEngine({ root: real<ParentNode>(page), validation: real(validation) });
 
     field.value = "2026-09-04";
     field.dispatchEvent(new FakeEvent("change"));
 
     assert.equal(value.value, "2026-09-03");
-    assert.equal(field.value, "2026-09-03");
+    assert.equal(field.value, "2026-09-04");
     assert.deepEqual(changes, []);
+    assert.deepEqual(said, [{ severity: "error", words: { key: "ui.value.unmarked" } }]);
 
     field.value = "2026-09-10";
     field.dispatchEvent(new FakeEvent("change"));
 
     assert.equal(value.value, "2026-09-10");
     assert.deepEqual(changes, ["2026-09-10"]);
+    assert.equal(said.at(-1), null, "a day taken takes the words back");
 });
 
 test("a date input sends a day typed past Max as typed and shows it so: the page refuses it in words, never pulls it to the bound", () => {
@@ -514,18 +528,19 @@ test("a month chosen in the month pane opens its days on the day the keyboard wa
     assert.equal(choose(10), "2026-11-20");
 });
 
-/** A date-time input on 14:30 on a page of its own, its popup opened by the toggle. */
-function dateTimeInput(): { readonly toggle: FakeElement; readonly popup: FakeElement; readonly value: FakeInput } {
+/** A date-time input on 14:30, or the value given, on a page of its own, its popup opened by the toggle. */
+function dateTimeInput(attributes: Readonly<Record<string, string>> = {}, moment = "2026-09-03T14:30:00+02:00"): { readonly toggle: FakeElement; readonly popup: FakeElement; readonly value: FakeInput } {
     const toggle = FakeElement.of("ui-temporal-input__toggle", { "data-ui-temporal-toggle": "" }, "button");
     const popup = FakeElement.of("ui-temporal-input__popup", { role: "dialog" });
-    const value = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-03T14:30:00" });
+    const value = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: moment });
     const root = FakeElement.of("ui-temporal-input ui-date-time-input", {
         "data-ui-id": "12",
         "data-ui-temporal-mode": "date-time",
         "data-ui-temporal-default-format": "yyyy-MM-dd HH:mm",
         "data-ui-temporal-months": Months,
         "data-ui-temporal-months-short": Months,
-        "data-ui-temporal-weekdays": Weekdays
+        "data-ui-temporal-weekdays": Weekdays,
+        ...attributes
     }).append(FakeElement.of("ui-temporal-input__row").append(toggle), popup, value);
 
     new TemporalPickerEngine({ root: real<ParentNode>(place(root)) });
@@ -560,7 +575,7 @@ test("the clock's arrows move the keyboard down a column and choose nothing, as 
     await new Promise(resolve => setTimeout(resolve, 200));
 
     assert.equal(fakeDocument.activeElement?.getAttribute("data-ui-temporal-cell"), "31");
-    assert.equal(value.value, "2026-09-03T14:30:00");
+    assert.equal(value.value, "2026-09-03T14:30:00+02:00");
 });
 
 test("a clock column scrolled and left before it settles takes the reading in its middle as the popup closes", () => {
@@ -574,5 +589,397 @@ test("a clock column scrolled and left before it settles takes the reading in it
     minutes.dispatchEvent(new FakeEvent("scroll"));
     toggle.click();
 
-    assert.match(value.value, /T14:45/);
+    assert.match(value.value, /T14:45:00\+02:00$/);
+});
+
+test("under a least distance the days too near the start are not on offer for its end, and the next period offers them again", () => {
+    const scene = calendar({ "data-ui-temporal-min-distance": "3.00:00:00" }, "2026-09-01", "");
+
+    day(scene, "2026-09-10").click();
+
+    for (const near of ["2026-09-10", "2026-09-11", "2026-09-12"])
+        assert.equal(day(scene, near).disabled, true, `${near} is too near the start`);
+
+    assert.equal(day(scene, "2026-09-13").disabled, false);
+    // A day before the start starts the period over, so it stays on offer.
+    assert.equal(day(scene, "2026-09-09").disabled, false);
+
+    day(scene, "2026-09-12").click();
+    assert.equal(scene.end?.value, "");
+
+    day(scene, "2026-09-13").click();
+    assert.equal(scene.value.value, "2026-09-10");
+    assert.equal(scene.end?.value, "2026-09-13");
+
+    // Whole, the next press is a start: no day is too near anything.
+    assert.equal(day(scene, "2026-09-11").disabled, false);
+});
+
+test("under a least distance a new start drops the end it would stand too near", () => {
+    const scene = calendar({ "data-ui-temporal-min-distance": "2.00:00:00" }, "2026-09-10", "2026-09-20");
+
+    // The popup's start field is a calendar in place's first press after a whole period.
+    day(scene, "2026-09-19").click();
+
+    assert.equal(scene.value.value, "2026-09-19");
+    assert.equal(scene.end?.value, "");
+    // The end went first, so the server never holds a start past it.
+    assert.deepEqual(scene.changes, ["2026-09-10|", "2026-09-19|"]);
+});
+
+/** A date input editing a period as `DateInputRenderer` writes one: two fields, the end's marked, over their hidden inputs. */
+function datePeriod(start: string, end: string, distance: string): { readonly start: FakeInput; readonly end: FakeInput; readonly startField: FakeInput; readonly endField: FakeInput; readonly said: unknown[] } {
+    const startField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
+    const endField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
+    const startInput = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: start });
+    const endInput = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__end-value-input", value: end });
+
+    endField.setAttribute("data-ui-temporal-end", "");
+    endInput.setAttribute("data-ui-temporal-end", "");
+
+    const root = FakeElement.of("ui-temporal-input ui-date-input", {
+        "data-ui-id": "12",
+        "data-ui-temporal-mode": "date",
+        "data-ui-temporal-range": "",
+        "data-ui-temporal-min-distance": distance,
+        "data-ui-temporal-default-format": "yyyy-MM-dd",
+        "data-ui-temporal-months": Months
+    }).append(FakeElement.of("ui-temporal-input__row").append(startField, endField), startInput, endInput);
+    const { validation, said } = marks();
+
+    new TemporalPickerEngine({ root: real<ParentNode>(place(root)), validation: real(validation) });
+
+    return { start: startInput, end: endInput, startField, endField, said };
+}
+
+test("a period's end typed nearer the start than its least distance stays as typed and says why, nor is such a start", () => {
+    const period = datePeriod("2026-09-10", "2026-09-14", "2.00:00:00");
+
+    period.endField.value = "2026-09-11";
+    period.endField.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(period.end.value, "2026-09-14");
+    assert.equal(period.endField.value, "2026-09-11");
+
+    period.startField.value = "2026-09-13";
+    period.startField.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(period.start.value, "2026-09-10");
+    assert.equal(period.startField.value, "2026-09-13");
+
+    period.endField.value = "2026-09-12";
+    period.endField.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(period.end.value, "2026-09-12");
+});
+
+test("a too-near typed end or start refused in words says why: the earliest end, the latest start, as the field shows a day", () => {
+    const period = datePeriod("2026-09-10", "2026-09-14", "2.00:00:00");
+
+    period.endField.value = "2026-09-11";
+    period.endField.dispatchEvent(new FakeEvent("change"));
+
+    assert.deepEqual(period.said, [{ severity: "error", words: { key: "ui.value.near.end", args: { min: "2026-09-12" } } }]);
+
+    // Typing again takes the words back, before the next value is judged.
+    period.startField.dispatchEvent(new FakeEvent("input"));
+
+    assert.equal(period.said.at(-1), null);
+
+    period.startField.value = "2026-09-13";
+    period.startField.dispatchEvent(new FakeEvent("change"));
+
+    assert.deepEqual(period.said.at(-1), { severity: "error", words: { key: "ui.value.near.start", args: { max: "2026-09-12" } } });
+
+    period.endField.value = "2026-09-12";
+    period.endField.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(period.said.at(-1), null, "an end taken takes the words back");
+    assert.equal(period.said.length, 4);
+});
+
+test("a date-time period's end typed nearer the start than its least distance in hours stays as typed and says the earliest end", () => {
+    const startField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
+    const endField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
+    const start = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-10T09:00:00+02:00" });
+    const end = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__end-value-input", value: "2026-09-12T09:00:00+02:00" });
+
+    endField.setAttribute("data-ui-temporal-end", "");
+    end.setAttribute("data-ui-temporal-end", "");
+
+    const root = FakeElement.of("ui-temporal-input ui-date-time-input", {
+        "data-ui-id": "17",
+        "data-ui-temporal-mode": "date-time",
+        "data-ui-temporal-range": "",
+        "data-ui-temporal-min-distance": "1.12:00:00",
+        "data-ui-temporal-default-format": "yyyy-MM-dd HH:mm",
+        "data-ui-temporal-months": Months
+    }).append(FakeElement.of("ui-temporal-input__row").append(startField, endField), start, end);
+    const { validation, said } = marks();
+
+    new TemporalPickerEngine({ root: real<ParentNode>(place(root)), validation: real(validation) });
+
+    // 34.5 hours past the start, under a least distance of 36.
+    endField.value = "2026-09-11 19:30";
+    endField.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(end.value, "2026-09-12T09:00:00+02:00");
+    assert.equal(endField.value, "2026-09-11 19:30");
+    assert.deepEqual(said, [{ severity: "error", words: { key: "ui.value.near.end", args: { min: "2026-09-11 21:00" } } }]);
+});
+
+test("a period's end typed before the start is judged as the ends stand once they trade places, not refused for the order", () => {
+    const period = datePeriod("2026-09-10", "2026-09-14", "2.00:00:00");
+
+    period.endField.value = "2026-09-05";
+    period.endField.dispatchEvent(new FakeEvent("change"));
+
+    assert.deepEqual([period.start.value, period.end.value], ["2026-09-05", "2026-09-10"]);
+
+    period.startField.value = "2026-09-11";
+    period.startField.dispatchEvent(new FakeEvent("change"));
+
+    assert.deepEqual([period.start.value, period.end.value], ["2026-09-05", "2026-09-10"], "a day after the end, nearer it than two days");
+});
+
+test("a moment period's end clock offers no hour wholly too near the start, and holds an hour partly near at the least distance", () => {
+    const toggle = FakeElement.of("ui-temporal-input__toggle", { "data-ui-temporal-toggle": "" }, "button");
+    const endField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
+    const popup = FakeElement.of("ui-temporal-input__popup", { role: "dialog" });
+    const start = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-10T09:30:00+02:00" });
+    const end = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__end-value-input", value: "2026-09-10T14:00:00+02:00" });
+
+    endField.setAttribute("data-ui-temporal-end", "");
+    end.setAttribute("data-ui-temporal-end", "");
+
+    const root = FakeElement.of("ui-temporal-input ui-date-time-input", {
+        "data-ui-id": "13",
+        "data-ui-temporal-mode": "date-time",
+        "data-ui-temporal-range": "",
+        "data-ui-temporal-min-distance": "02:00:00",
+        "data-ui-temporal-default-format": "yyyy-MM-dd HH:mm",
+        "data-ui-temporal-months": Months,
+        "data-ui-temporal-months-short": Months,
+        "data-ui-temporal-weekdays": Weekdays
+    }).append(FakeElement.of("ui-temporal-input__row").append(endField, toggle), popup, start, end);
+
+    new TemporalPickerEngine({ root: real<ParentNode>(place(root)) });
+
+    // Alt+Down in the end's field opens the popup on the end.
+    endField.dispatchEvent(Object.assign(new FakeKeyboardEvent("ArrowDown", endField), { altKey: true }));
+
+    const hours = popup.querySelectorAll(".ui-temporal-input__time-column")[0];
+    const hour = (value: number) => hours.querySelector(`[data-ui-temporal-cell="${value}"]`)!;
+
+    assert.equal(hour(10).disabled, true);
+    assert.equal(hour(11).disabled, false);
+
+    hour(11).click();
+
+    assert.match(end.value, /^2026-09-10T11:30:00\+02:00$/);
+});
+
+test("a date-time clock offers an hour partly inside Min or Max and lands it on the nearest moment allowed; one wholly outside is disabled", () => {
+    const { toggle, popup, value } = dateTimeInput({ "data-ui-temporal-min": "2026-09-10T09:30:00+02:00", "data-ui-temporal-max": "2026-09-10T17:15:00+02:00" }, "2026-09-10T11:00:00+02:00");
+    const cell = (column: number, reading: number) => popup.querySelectorAll(".ui-temporal-input__time-column")[column].querySelector(`[data-ui-temporal-cell="${reading}"]`)!;
+
+    toggle.click();
+
+    assert.equal(cell(0, 8).disabled, true);
+    assert.equal(cell(0, 9).disabled, false);
+    assert.equal(cell(0, 17).disabled, false);
+    assert.equal(cell(0, 18).disabled, true);
+
+    // 09:00 is before Min: the hour lands on Min itself, not on a moment the server refuses.
+    cell(0, 9).click();
+
+    assert.match(value.value, /^2026-09-10T09:30:00\+02:00$/);
+    assert.equal(cell(1, 15).disabled, true);
+    assert.equal(cell(1, 30).disabled, false);
+
+    cell(1, 45).click();
+
+    assert.match(value.value, /^2026-09-10T09:45:00\+02:00$/);
+
+    // 17:45 is past Max, so it lands on Max.
+    cell(0, 17).click();
+
+    assert.match(value.value, /^2026-09-10T17:15:00\+02:00$/);
+    assert.equal(cell(1, 30).disabled, true);
+});
+
+test("a date-time day pressed on Min's day at an earlier time of day takes Min's moment", () => {
+    const { toggle, popup, value } = dateTimeInput({ "data-ui-temporal-min": "2026-09-10T09:30:00+02:00" }, "2026-09-12T08:00:00+02:00");
+
+    toggle.click();
+    popup.querySelector("[data-ui-temporal-day=\"2026-09-10\"]")!.click();
+
+    assert.match(value.value, /^2026-09-10T09:30:00\+02:00$/);
+
+    popup.querySelector("[data-ui-temporal-day=\"2026-09-11\"]")!.click();
+
+    assert.match(value.value, /^2026-09-11T09:30:00\+02:00$/);
+});
+
+test("a date-time period's start pressed on Min's day is held at Min, and an end it then stands too near is dropped", () => {
+    const toggle = FakeElement.of("ui-temporal-input__toggle", { "data-ui-temporal-toggle": "" }, "button");
+    const startField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
+    const popup = FakeElement.of("ui-temporal-input__popup", { role: "dialog" });
+    const start = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-12T08:00:00+02:00" });
+    const end = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__end-value-input", value: "2026-09-14T08:00:00+02:00" });
+
+    end.setAttribute("data-ui-temporal-end", "");
+
+    const root = FakeElement.of("ui-temporal-input ui-date-time-input", {
+        "data-ui-id": "14",
+        "data-ui-temporal-mode": "date-time",
+        "data-ui-temporal-range": "",
+        "data-ui-temporal-min": "2026-09-10T09:30:00+02:00",
+        "data-ui-temporal-default-format": "yyyy-MM-dd HH:mm",
+        "data-ui-temporal-months": Months,
+        "data-ui-temporal-months-short": Months,
+        "data-ui-temporal-weekdays": Weekdays
+    }).append(FakeElement.of("ui-temporal-input__row").append(startField, toggle), popup, start, end);
+
+    new TemporalPickerEngine({ root: real<ParentNode>(place(root)) });
+    toggle.click();
+    popup.querySelector("[data-ui-temporal-day=\"2026-09-10\"]")!.click();
+
+    assert.match(start.value, /^2026-09-10T09:30:00\+02:00$/);
+    assert.match(end.value, /^2026-09-14T08:00:00\+02:00$/);
+
+    // A start pushed before Min, an end an hour past Min: held at Min, the start would stand nearer the end than its least distance.
+    toggle.click();
+    root.setAttribute("data-ui-temporal-min-distance", "01:00:00");
+    start.value = "2026-09-09T08:00:00+02:00";
+    end.value = "2026-09-10T10:00:00+02:00";
+    // The start's field has the caret, so the next press sets the start.
+    startField.focus();
+    toggle.click();
+    popup.querySelector("[data-ui-temporal-day=\"2026-09-10\"]")!.click();
+
+    assert.match(start.value, /^2026-09-10T09:30:00\+02:00$/);
+    assert.equal(end.value, "");
+});
+
+test("a whole period's caption in place names the start its next press sets, and no band runs ahead of that press", () => {
+    const scene = calendar({}, "2026-09-01", "");
+    const caption = () => scene.body.querySelector(".ui-temporal-input__period-caption")?.textContent;
+
+    assert.equal(scene.body.lastElementChild?.className, "ui-temporal-input__period-caption");
+
+    day(scene, "2026-09-10").click();
+
+    assert.equal(caption(), "ui.picker.end");
+
+    day(scene, "2026-09-10").dispatchEvent(new FakeEvent("mouseover"));
+    day(scene, "2026-09-16").dispatchEvent(new FakeEvent("mouseover"));
+
+    assert.ok(day(scene, "2026-09-13").classes.has("ui-temporal-input__day--preview"));
+
+    day(scene, "2026-09-14").click();
+
+    assert.equal(caption(), "ui.picker.start");
+
+    day(scene, "2026-09-20").dispatchEvent(new FakeEvent("mouseover"));
+
+    assert.equal(day(scene, "2026-09-17").classes.has("ui-temporal-input__day--preview"), false);
+    assert.equal(day(scene, "2026-09-20").classes.has("ui-temporal-input__day--preview-end"), false);
+
+    day(scene, "2026-09-20").click();
+
+    assert.equal(scene.value.value, "2026-09-20");
+    assert.equal(caption(), "ui.picker.end");
+});
+
+test("a period's start is not offered so near Max that no end fits after it; the end is then offered up to Max", () => {
+    const scene = calendar({ "data-ui-temporal-min": "2026-09-01", "data-ui-temporal-max": "2026-09-20", "data-ui-temporal-min-distance": "2.00:00:00" }, "", "");
+
+    assert.equal(day(scene, "2026-09-19").disabled, true);
+    assert.equal(day(scene, "2026-09-18").disabled, false);
+
+    day(scene, "2026-09-18").click();
+
+    assert.equal(scene.value.value, "2026-09-18");
+    assert.equal(day(scene, "2026-09-19").disabled, true);
+    assert.equal(day(scene, "2026-09-20").disabled, false);
+});
+
+test("a moment period's start clock offers no hour so near Max that no end fits after it, and lands a step past there on the last that does", () => {
+    const toggle = FakeElement.of("ui-temporal-input__toggle", { "data-ui-temporal-toggle": "" }, "button");
+    const startField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
+    const popup = FakeElement.of("ui-temporal-input__popup", { role: "dialog" });
+    const start = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-10T15:30:00+02:00" });
+    const end = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__end-value-input", value: "" });
+
+    end.setAttribute("data-ui-temporal-end", "");
+
+    const root = FakeElement.of("ui-temporal-input ui-date-time-input", {
+        "data-ui-id": "15",
+        "data-ui-temporal-mode": "date-time",
+        "data-ui-temporal-range": "",
+        "data-ui-temporal-min-distance": "02:00:00",
+        "data-ui-temporal-max": "2026-09-10T18:00:00+02:00",
+        "data-ui-temporal-default-format": "yyyy-MM-dd HH:mm",
+        "data-ui-temporal-months": Months,
+        "data-ui-temporal-months-short": Months,
+        "data-ui-temporal-weekdays": Weekdays
+    }).append(FakeElement.of("ui-temporal-input__row").append(startField, toggle), popup, start, end);
+
+    new TemporalPickerEngine({ root: real<ParentNode>(place(root)) });
+
+    // Alt+Down in the start's field opens the popup on the start.
+    startField.dispatchEvent(Object.assign(new FakeKeyboardEvent("ArrowDown", startField), { altKey: true }));
+
+    const hour = (value: number) => popup.querySelectorAll(".ui-temporal-input__time-column")[0].querySelector(`[data-ui-temporal-cell="${value}"]`)!;
+
+    assert.equal(hour(17).disabled, true);
+    assert.equal(hour(16).disabled, false);
+
+    // 16:30 is past 16:00, the last start an end two hours on still fits after.
+    hour(16).click();
+
+    assert.match(start.value, /^2026-09-10T16:00:00\+02:00$/);
+});
+
+test("a date input's popup is named by its field's caption words, not by the field, whose value a textbox would lend the name", () => {
+    const toggle = FakeElement.of("ui-temporal-input__toggle", { "data-ui-temporal-toggle": "" }, "button");
+    const field = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field", value: "2026-09-10" });
+    const popup = FakeElement.of("ui-temporal-input__popup", { role: "dialog" });
+    const value = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "2026-09-10" });
+
+    field.setAttribute("aria-label", "Due date");
+    field.setAttribute("data-ui-labelled", "");
+
+    const root = FakeElement.of("ui-temporal-input ui-date-input", {
+        "data-ui-id": "16",
+        "data-ui-temporal-mode": "date",
+        "data-ui-temporal-default-format": "yyyy-MM-dd",
+        "data-ui-temporal-months": Months,
+        "data-ui-temporal-weekdays": Weekdays
+    }).append(FakeElement.of("ui-temporal-input__row").append(field, toggle), popup, value);
+
+    new TemporalPickerEngine({ root: real<ParentNode>(place(root)) });
+    toggle.click();
+
+    const labelledBy = popup.getAttribute("aria-labelledby");
+    const caption = root.querySelector("[data-ui-popup-caption]");
+
+    assert.ok(labelledBy !== null && labelledBy !== field.id, "named by the field itself");
+    assert.equal(caption?.id, labelledBy);
+    assert.equal(caption?.textContent, "Due date");
+    assert.equal(caption?.hidden, true);
+});
+
+test("a calendar's arrows say the page they turn: a month in the days, a year in the months", () => {
+    const scene = calendar({}, "2026-09-15");
+    const nav = (action: string) => scene.body.querySelector(`[data-ui-temporal-nav="${action}"]`)!;
+
+    assert.equal(nav("previous").getAttribute("aria-label"), "ui.picker.month.previous");
+    assert.equal(nav("next").getAttribute("aria-label"), "ui.picker.month.next");
+
+    nav("pane").click();
+
+    assert.equal(nav("previous").getAttribute("aria-label"), "ui.picker.year.previous");
+    assert.equal(nav("next").getAttribute("aria-label"), "ui.picker.year.next");
 });

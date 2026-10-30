@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Layouts;
@@ -11,7 +12,7 @@ public sealed class AccordionComponentRenderer : WebComponentRendererBase
 {
     public override string ComponentTypeKey => AccordionComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-accordion";
+    protected override string ClassName => WebClassNames.Accordion;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {

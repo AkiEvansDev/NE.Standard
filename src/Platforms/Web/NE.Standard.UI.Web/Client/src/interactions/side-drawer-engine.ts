@@ -8,27 +8,24 @@
 // from the medium breakpoint up, kept in the browser under the first authored id in the side and written on the root as the parser
 // reaches that id (boot.ts): before the content after it paints, a right side's not before the content ahead of it.
 
-import { BottomBarAttribute, CollapsedAttribute, ComponentNameAttribute, CollapseToggleAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerModelessAttribute, DrawerOpenAttribute, DrawerPinAttribute, DrawerSwitchAttribute, DrawerSwitchRowAttribute, DrawerToggleAttribute, FocusHolderAttribute, MenuItemClass, MenuPopupSelector, pinnedAttribute, RegionAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, CollapseToggleAttribute, CollapsibleBarClass, CollapsibleClass, ComponentNameAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerModelessAttribute, DrawerOpenAttribute, DrawerPinAttribute, DrawerSwitchAttribute, DrawerSwitchRowAttribute, DrawerToggleAttribute, FocusHolderAttribute, MenuItemClass, MenuPopupSelector, pinnedAttribute, RegionAttribute, RootAttribute, SideLeftClass, SideRightClass, ValueKindAttribute } from "../addressing/dom-attributes.ts";
+import { isInSight } from "./element-visibility.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { choosesMenuEntry } from "./menu-group-engine.ts";
 import { isBehindModal } from "./open-dialogs.ts";
 import { hasOpenPopups } from "./popup-dismissal.ts";
 import { motion } from "../rendering/motion.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
 import { onTierChange } from "../rendering/responsive-tier.ts";
 import { DrawerBreakpointTiers, isBottomBarSide, sideIsDrawer } from "../rendering/side-drawer-width.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { PressedKind } from "./toggle-button-engine.ts";
 import { focusAsLastInput, isPointerLast, moveFocusInto, restoreFocusTo, trapTab } from "./popup-focus.ts";
 
-const RootSelector = "[data-ui-root]";
+const RootSelector = `[${RootAttribute}]`;
 const LinkSelector = "a[href]";
-const CollapsibleClass = "ui-collapsible";
-const BarClass = "ui-collapsible__bar";
 const RightSide = "right-side";
-const LeftEdgeClass = "ui-side--left";
-const RightEdgeClass = "ui-side--right";
 const PinnedSlot = "pinned";
 
 export type SideDrawerEngineOptions = {
@@ -203,7 +200,7 @@ export class SideDrawerEngine {
         shell.setAttribute(DrawerOpenAttribute, side);
         this.openers.set(shell, opener);
         this.markToggles(shell);
-        this.hold(drawer, isModal(shell, side));
+        this.hold(drawer, side, isModal(shell, side));
         this.placeSwitch(drawer, opener);
 
         // Into the drawer, not behind the backdrop; retried each frame while its fade-in still hides the controls, unless the reader moved.
@@ -215,12 +212,12 @@ export class SideDrawerEngine {
      * Makes an open drawer focusable, as a press gives it the keyboard, and a modal one a modal dialog — over its backdrop the page
      * behind is out of reach — and a focus holder: a field in it let go by Enter or Escape hands it the keyboard, not the page's body.
      */
-    private hold(drawer: HTMLElement, modal: boolean): void {
+    private hold(drawer: HTMLElement, side: string, modal: boolean): void {
         if (this.holders.has(drawer) || drawer.hasAttribute(FocusHolderAttribute))
             return;
 
         const addsTabIndex = !drawer.hasAttribute("tabindex");
-        // A dialog is named; a side named by its page keeps that name, one with none is called what it is.
+        // A dialog is named; a side named by its page keeps that name, one with none is called the side it is, as the server calls it.
         const addsName = modal && !drawer.hasAttribute("aria-label") && !drawer.hasAttribute("aria-labelledby");
 
         this.holders.set(drawer, { modal, addsTabIndex, addsName, role: drawer.getAttribute("role") });
@@ -236,7 +233,7 @@ export class SideDrawerEngine {
         drawer.setAttribute("aria-modal", "true");
 
         if (addsName)
-            drawer.setAttribute("aria-label", clientStrings.text("ui.side.panel"));
+            drawer.setAttribute("aria-label", clientStrings.text(side === RightSide ? "ui.side.right" : "ui.side.left"));
     }
 
     /**
@@ -256,7 +253,7 @@ export class SideDrawerEngine {
 
         fold.setAttribute("aria-label", clientStrings.text("ui.side.close"));
 
-        const row = fold.parentElement?.classList.contains(BarClass) === true ? fold.parentElement : fold;
+        const row = fold.parentElement?.classList.contains(CollapsibleBarClass) === true ? fold.parentElement : fold;
 
         // A button out of sight — a collapsed header's — leaves the switch where the side's own padding puts it.
         if (target.width === 0 || target.height === 0) {
@@ -368,12 +365,12 @@ export class SideDrawerEngine {
 
         this.openers.delete(shell);
 
-        if (opener?.isConnected === true && opener.getAttribute(DrawerToggleAttribute) === side && opener.checkVisibility())
+        if (opener?.isConnected === true && opener.getAttribute(DrawerToggleAttribute) === side && isInSight(opener))
             return opener;
 
         const toggles = [...shell.querySelectorAll<HTMLElement>(`[${DrawerToggleAttribute}="${cssAttributeValue(side)}"]`)];
 
-        return toggles.find(toggle => toggle.checkVisibility()) ?? toggles[0] ?? null;
+        return toggles.find(toggle => isInSight(toggle)) ?? toggles[0] ?? null;
     }
 
     private markToggles(shell: HTMLElement): void {
@@ -432,7 +429,7 @@ export class SideDrawerEngine {
  */
 function drawerSwitch(drawer: HTMLElement): HTMLElement | null {
     for (const fold of drawer.querySelectorAll<HTMLElement>(`[${CollapseToggleAttribute}]`)) {
-        if (isDrawerFoldSwitch(fold) && fold.checkVisibility() && headsDrawer(fold.closest(`.${CollapsibleClass}`), drawer))
+        if (isDrawerFoldSwitch(fold) && isInSight(fold) && headsDrawer(fold.closest(`.${CollapsibleClass}`), drawer))
             return fold;
     }
 
@@ -474,7 +471,7 @@ export function isDrawerFoldSwitch(toggle: Element): boolean {
     if (panel === null || panel === undefined || panel.hasAttribute(CollapsedAttribute) || side === null || side === undefined || shell === null || shell === undefined)
         return false;
 
-    return shell.matches(RootSelector) && shell.getAttribute(DrawerOpenAttribute) === side && panel.classList.contains(side === RightSide ? RightEdgeClass : LeftEdgeClass);
+    return shell.matches(RootSelector) && shell.getAttribute(DrawerOpenAttribute) === side && panel.classList.contains(side === RightSide ? SideRightClass : SideLeftClass);
 }
 
 /**

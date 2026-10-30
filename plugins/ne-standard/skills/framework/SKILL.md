@@ -62,14 +62,14 @@ holds no application state and decides nothing; state survives a reload exactly 
   `OnClose(command)`/`OnCloseLiteral` for the viewer's close);
   `CreateShortcuts()` returns `UIShortcut("Ctrl+S", command or effect)`; a button's own chord is `SetShortcut`.
 - Fluent naming: `Set*` a value fixed in the view, `Bind*` a controller path, `On*` an event to a command, `Configure(...)` for
-  the rare rest, `AddChild`/`AddChildren` on containers. An authored id (`new StackPanelComponent("sidebar")`) is what remembers a
+  the rare rest, `AddChild`/`AddChildren` and `SetDefaults<T>(Action<T>)` on containers. An authored id (`new StackPanelComponent("sidebar")`) is what remembers a
   reader's own state across reloads.
 - Layout: a 24-column grid per container (`SetPlacement(column, row, span, rows)`, `SetColumn`/`SetRow`/`AddRow` with
   `UIGridUnit.Absolute/Star/Auto`), responsive values `UIResponsive<T>.Create(base, sm:, md:, xl:, xxl:)` written phone first.
   `GridSplitterComponent` lets the reader re-divide tracks (`BindPosition` keeps the share per person), `PaneContainerComponent`
   lets them move whole panes (`AddPane`, `BindLayout`).
 - `SetContextMenu(menu)` on any component (press-and-hold on a phone), `OnClick` on a surface or card (pressable with no
-  `SetClickable`), `SetUrl`/`BindUrl` on a surface, a card, a file tile, a button or an action row (a link: no click command, no control inside — tabs, a pager, a switcher, an expander, a tree, chosen rows, a data grid or a chart with a legend, zoom or point click count as one, a package's own component through `IPressablePartsComponent`; a description's link inside shows as its words), `SetVisibility`,
+  `SetClickable`), `SetUrl`/`BindUrl` on a surface, a card, a file tile, a button or an action row (a link: no click command, no control inside — tabs, a pager, a switcher, an expander, a tree, chosen rows, steps, a data grid or a chart with a legend, zoom or point click count as one, a package's own component through `IPressablePartsComponent`; a description's link inside shows as its words), `SetVisibility`,
   `SetTheme`, `TextSelectable`, inline text markup in a text's words (`SetDescriptionAutolinks(true)` links bare http(s)
   addresses, for a chat's messages; `SetDescriptionPlain(true)` shows the words as written, `SetTooltipPlain(true)` a tooltip's).
 - `WindowFoot` (`SetWindowFoot(true)`) on the composer or the last row at a window's bottom edge colours the phone's system bar.
@@ -85,7 +85,7 @@ holds no application state and decides nothing; state survives a reload exactly 
   a command received: `TryGet(key, out item)`, `Remove(key)`, `Move(key, index)` (clamped) - never a loop over the collection.
 - `[UICommand]` (optional name, `ConcurrencyMode = Exclusive | Background`, `MaxConcurrent`) returns `void`, `Task`,
   `UICommandResult` or `Task<UICommandResult>`; `UICommandResult.Ok(effects)` / `Fail(error, effects)`. Arguments come from the
-  event: `UIAction.Arg`, `ArgCurrentItem`, `ArgCurrentItemKey`, `ArgGroupKey`, `ArgRoot/ArgParent/ArgRelative`, `ArgEventValue`.
+  event: `UIAction.Arg`, `ArgCurrentItem`, `ArgCurrentItemKey`, `ArgGroupKey`, `ArgRoot/ArgParent/ArgRelative` (string path or typed lambda), `ArgEventValue(name, index = 0)`.
   In a row a control's own item is `ArgRelative`/`ArgCurrentItemKey`; `ArgParent` is the scope around the row (a menu inside a
   row reaches the row with it). The compile refuses an argument no press could read (a path the types lack, an item's key outside
   a row) and a value-type parameter nothing supplies; a path only where certain (a template every row is drawn with), else it
@@ -98,31 +98,31 @@ holds no application state and decides nothing; state survives a reload exactly 
   `IDbContextFactory<T>`, a context per command), `Logger`, `Route`, `Handle`, `Connection`, `TimeZone`, `ToLocalTime`,
   `StartOfDayUtc`, `GetSessionAsync`, `SignInAsync`, `SignOutAsync`, `UpdateSessionAsync`, `SendEffectsAsync`,
   `SendEffectsToAllAsync`, `Subscribe`/`Unsubscribe(topic)`, `Runtime`.
-- `Context.Runtime` (`IUIRuntimeAccess`): `InvokeAsync` (run under this runtime's lock and flush), `Post` (queue between
+- `Context.Runtime` (`IUIRuntimeAccess`): `InvokeAsync` (run under this runtime's lock; what it changes goes out with the next flush; throws when called from inside an action), `Post` (queue between
   exclusive commands), `Start` (a long job the runtime owns, outliving the press), `SendEffectsToAllAsync`, `SendEffectsToAsync`.
 - Another person's page is reached through `IUIBroadcast.PostAsync(topic, ...)` / `PostToUserAsync(userId, ...)`, a topic the
   controller subscribed to: chat rooms, a ticket, a dashboard.
-- `[UIControllerRuntime(UpdateMode = Batch | Direct)]`; lifetime `UIPersistenceOptions.Lifetime` (`PerPage`, `PerWindow` default,
+- `[UIControllerRuntime(FlushIntervalMilliseconds = n)]` (else the application's flush interval); lifetime `UIPersistenceOptions.Lifetime` (`PerPage`, `PerWindow` default,
   `PerClient`) through `ConfigurePersistence`.
 
 ## Binding, validation and forms
 
 [binding.html](https://akievansdev.github.io/NE.Standard/binding.html)
 
-- Paths are `RecursivePath` (`Lines[0].Price`); write `nameof(...)` for a property. Scopes `UIBindingScope.Root` (the default of
+- Paths are `RecursivePath` (`Lines[0].Price`); write `Bind*<TSource>(c => c.Lines[0].Price)` or `nameof(...)` for a property. Scopes `UIBindingScope.Root` (the default of
   every `Bind*` but a row's own - an item's `CanSelect`/`CanDrag`/`CanRemove`/`CanRename`/`CanShowContextMenu`, a tree node's
-  `ParentId`/`HasChildren`/`IsFolder`/`Expanded`/`RenamedTitle`/`DropTarget`, which default to `Relative`), `Relative` (inside an
+  `ParentId`/`HasChildren`/`IsFolder`/`Expanded`/`DropTarget`, a node's or a tab's `RenamedTitle`, which default to `Relative`), `Relative` (inside an
   item template - pass it explicitly), `Parent`; `BindContext` moves a subtree's root.
 - Modes `OneWay`, `TwoWay` (an input's `Value` by default), `OneWayToSource`, `OnSubmit` (buffered until
   `ButtonComponent.OnSubmit(formId, command)`; `DiscardFormEffect(formId)` drops the edits). A form nothing submits - no
   button's `OnSubmit(formId, …)`, no field's own submitting event - fails the compile.
 - Rules on an input: `Required`, `Regex`, `RegexEach`, `Validate(trigger, operator, value, message)` with `UIValidationTrigger`
-  and `UIValidationSeverity`; `ValidateAgainst(otherId, operator, message)` compares with another field's value ("Password
-  again"), the same row's or one in no row, judged in the browser as either changes. The server's verdict is `BindValidation` to
+  and `UIValidationSeverity`; `ValidateAgainst(otherFieldOrId, operator, message)` compares with another field's value ("Password
+  again"), the same row's or one in no row, judged in the browser as either changes, and `ValidationInto(targetOrId)` routes messages into another component. The server's verdict is `BindValidation` to
   a `UIValidationMessage`. Keep submit enabled.
 - The server refuses a value outside an input's `Min`/`Max`/`Step`, a write to a read-only or hidden input and a command from a
   disabled, loading or hidden component - by a static value or a controller binding. What an interaction opens (`EnabledWhen`,
-  `ShownWhen`, a hover reveal) it does not refuse, and a command's `ShowEffect` opens a hidden one: what the rule guards, and
+  `ShownWhen`, a hover reveal) it does not refuse; a command reveals one by writing its bound visibility: what the rule guards, and
   permissions, belong in the command, or in a gate bound to the controller.
 
 ## Interactions: one component reacting to another, on the page
@@ -130,12 +130,12 @@ holds no application state and decides nothing; state survives a reload exactly 
 [interactions-and-effects.html](https://akievansdev.github.io/NE.Standard/interactions-and-effects.html). These run in the
 browser with no round trip; reach for them before a command that only flips a flag.
 
-- **The call is made on the target; the id argument names the source.** Written the other way round it compiles and does
+- **The call is made on the target; the source argument (a component instance via `UIComponentReference` or a string id) names the source.** Written the other way round it compiles and does
   nothing.
-- `Interact(sourceComponentId, source, target, UIComparisonOperator, value, whenTrue, whenFalse)` - a property written from
-  another component's value (without the id, `Interact(source, target, …)` reads the component's own property)
-  (`Required`, `Equal`, `NotEqual`, `Greater`..., `Like`, `In`, `Regex`, `LikeIgnoreCase`).
-- `InteractCopyValue(sourceId, target)` - follow a slider or a field live, every input.
+- `Interact(sourceComponentOrId, source, target, UIComparisonOperator, value, whenTrue, whenFalse)` - a property written from
+  another component's value (without the source component, `Interact(source, target, …)` reads the component's own property)
+  (`Required`, `Equal`, `NotEqual`, `Greater`..., `Like`, `In`, `Regex`, `LikeIgnoreCase`, `RegexEach`).
+- `InteractCopyValue(sourceComponentOrId, target)` - follow a slider or a field live, every input.
 - `InteractBefore`/`InteractAfter(eventName, target, value)`, `InteractBeforeClick`/`InteractAfterClick`,
   `InteractOnHoverStart`/`InteractOnHoverEnd`, `InteractOn(eventName, target, value)`; event names from `EventNames`.
 - An effect beside a command goes around it: `InteractBefore`/`InteractAfter(eventName, effect)`,
@@ -152,23 +152,23 @@ browser with no round trip; reach for them before a command that only flips a fl
   the application translates into, or the view does not compile.
   A navigation never: a fixed address is a link. A dialog that only opens needs no command.
 - One menu entry's effect in place of the entries' command: `OnItemClick(entryKey, effect)` (a menu, split button, command bar,
-  button group, breadcrumbs, items view; `OnRowClick`/`OnNodeClick`/`OnActionClick(key, effect)`), declared or bound entries, every
+  button group, breadcrumbs, items view; `OnItemClick`/`OnActionClick(key, effect)`), declared or bound entries, every
   press path (click, keyboard, shortcut, long press, action bar); the other keys keep the command. On a row's own template the same
   is `InteractOnRow(eventName, rowKey, effect)`. A Copy entry is
   `.OnItemClick("copy", CopyToClipboardEffect.ValueOf(textId))`, never a command answering with the text.
-- Presets over them: `ShownWhen`, `HiddenWhen`, `EnabledWhen` (another component's value), `ShownFrom`/`ShownBelow` (a breakpoint).
+- Presets over them: `ShownWhen`, `HiddenWhen`, `EnabledWhen` (another component instance or string id), `ShownFrom`/`ShownBelow` (a breakpoint).
 - Components that scroll together share `SetScrollGroup("name")`.
 
 ## Client effects: what a command asks the page to do
 
 Returned in `UICommandResult.Ok([...])`, pushed with `Context.SendEffectsAsync`, or run by an interaction where allowed:
 `NavigateEffect`, `NavigateBackEffect(fallback)`, `ReplaceAddressEffect`/`PushAddressEffect` (state in the address, no reload),
-`ConfirmLeaveEffect`, `FocusEffect`, `ScrollToEffect`, `ScrollEffect`, `ScrollToItemEffect(listId, key)`, `ShowEffect`,
-`HideEffect`, `CollapseEffect`, `DiscardFormEffect`, `OpenDialogEffect`/`CloseDialogEffect(key)`, `ShowNotificationEffect`,
+`ConfirmLeaveEffect`, `FocusEffect`, `ScrollToEffect`, `ScrollEffect`, `ScrollToItemEffect(listId, key)`,
+`DiscardFormEffect`, `OpenDialogEffect`/`CloseDialogEffect(key)`, `ShowNotificationEffect`,
 `ShowSystemNotificationEffect`, `RequestNotificationPermissionEffect` (from an interaction: a browser asks only inside a press),
 `AnnounceEffect` (screen reader only), `DownloadFileEffect`, `SetThemeEffect`,
-`SetThemeColorsEffect`, `SetLanguageEffect`, `RenameTabEffect`, `RenameNodeEffect`, `CopyToClipboardEffect`, `InsertTextEffect`,
-`OpenPickerEffect`, `ShowImageEffect` (lightbox; `OnClickShowImage` on a surface). `ClientEffectKinds` lists the kinds. A dialog
+`SetThemeColorsEffect`, `SetLanguageEffect`, `RenameItemEffect` (a tree's node, a tab), `CopyToClipboardEffect`, `InsertTextEffect`,
+`OpenPickerEffect`, `ShowImageEffect` (lightbox; `OnClickShowImage` on a surface) — every targeted effect takes a component instance (`UIComponentReference`) or string id. `ClientEffectKinds` lists the kinds. A dialog
 key the view does not declare is refused at compile from an interaction and dropped (logged as an error) from a command; so is an
 effect at a component it cannot act on (a picker at no file input, a row at no list, an insert at no `ICaretFieldComponent` - a
 text input, a text area, a number input, a search, the code editor; a package's caret field implements it), and an address that is a
@@ -183,7 +183,7 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
 
 - `UIPage` - `Header`, `BoundHeader` (the band's name and line bound to the controller), `Section`/`BoundSection`,
   `Heading`/`BoundHeading` (its far end on the title's line; `Heading(component, trailing)` for a heading of your own), `Fold`/`BoundFold`,
-  `Labelled`/`BoundLabelled` (its label counts as a field's caption in a form row), `Band`, `Column` (`UIColumnWidth.Reading/Form/Wide`;
+  `Labelled`/`BoundLabelled` (names an untitled, unnamed control by the label; its label counts as a field's caption in a form row), `Band`, `Column` (`UIColumnWidth.Reading/Form/Wide`;
   `centered: true` in the middle) with `header.InColumn(width)` for the band over it, `Banner`, `Empty`/`BoundEmpty` (nothing chosen
   or made yet; the icon optional, the ways on in a row), `Outcome`/`BoundOutcome` (what a submit came to), `Status`/`BoundStatus` (not found,
   refused, failed). `UIHeaderSize` sizes a header. Words are `UIPhrase`; words the controller holds go through the `Bound*` twin.
@@ -205,25 +205,25 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   `.BindIcon(path).BindTooltip(path)`, the written ones their fallback), `Pair` (a form's foot), `Toolbar`.
   `UIIconButtons.More()` takes bound entries: `.BindItems(path)`. A `Bound*` twin draws the controller's words plain (data, never
   markup) and takes `UIBindingScope scope` after the words' paths (a dialog's, at the view's root, takes none); content beyond words -
-  a link, an emphasis - goes through a component overload (`UIMessage.Create(…, ParagraphComponent body)`,
-  `UIDialogs.Confirm(…, ParagraphComponent body, …)`).
+  a link, an emphasis - goes through a component overload (`UIMessage.Create(…, ParagraphComponent description)`,
+  `UIDialogs.Confirm(…, ParagraphComponent description, …)`).
 - `UIIconButtons` / `UIMenuItems` - the standard actions with their glyph and words: `Add`, `Attach`, `Back`, `Cancel`, `Close`,
   `Copy`, `Delete`, `Done`, `Download`, `Edit`, `Filter`, `Menu`, `More`, `New`, `Open`, `Pin`, `Redo`, `Refresh`, `Remove`,
   `Rename`, `Save`, `Search`, `Send`, `Settings`, `Share`, `SignOut`, `Stop`, `Undo`, `Unpin`, `Upload`. A `UIStandardAction` is a
-  menu's entry by `ToMenuItem(id)` and a command bar's or button group's item by `ToButtonItem(id, type, iconOnly)`, its danger by the
-  one rule `ButtonType(type)`/`ButtonInk(type)` say (a filled button's fill, a bare one's ink); a button in a row's template sends
+  menu's entry by `ToMenuItem(id)` and a command bar's or button group's item by `ToButtonItem(id, variant, iconOnly)`, its danger by the
+  one rule `ButtonVariant(variant)`/`ButtonInk(variant)` say (a filled button's fill, a bare one's ink); a button in a row's template sends
   the row's key with `OnClickWithItemKey(command)`.
 - `UIText` - `Display`, `Title`, `Subtitle`, `Body`, `Caption`, `Label`, `Note`, `Paragraph` (words left out to bind after:
-  `UIText.Note().BindDescription(path)`; never `string.Empty`), `Quote` (a title and a line, or
-  `Quote(content)` round anything, the neutral stroke), `BoundQuote`, `Person` (`UIPersonSize`; or beside words of your own),
+  `UIText.Note().BindDescription(path)`; never `string.Empty`), `Quote` (a title and a description line, or
+  `Quote(content)` round anything, the neutral stroke), `BoundQuote`, `Person` (`UISize.Small`, `Medium` or `Large`; or beside words of your own),
   `BoundPerson` (the avatar path optional), `WithBadges`, `BoundWithBadges`; and on any text `AsDisplay`, `AsTitle`, `AsSubtitle`,
   `AsBody`, `AsCaption`, `AsOverline`, `Muted` (`TextPresetExtensions`).
-- `UIForm` - `Field(input, hint?)` (or a `ParagraphComponent` hint), `BoundField(input, hintPath)`, `Row(fields)`. `UIDetails` -
+- `UIForm` - `Field(input, hint?)` (or a `ParagraphComponent` hint), `BoundField(input, hintPath)`, `Row(fields)`, `Composer(textArea, attachments?, banners)` (a messenger's calm composer panel: optional shelf `FileInputComponent` wired to accept drops across the panel, optional quote banners above the field, and a ghost `TextAreaComponent` that grows to six rows, suppresses its focus halo and moves its outer actions into a bar under the text below `md`). `UIDetails` -
   `List` (bound rows: `.BindItems(path)` of `Row`s), `Row`, `Amount`/`BoundAmount`, `Total`/`BoundTotal` (names and values to read).
 - `UICard` - `Create`/`BoundCreate` (a name and line the controller holds), `Centered` (one card alone: sign-in, refusal).
   Every end icon or quiet button of a band - a header, a card's header, `Ends`, a toolbar's start, a quote's or a message's × - stands
   its glyph or words on the edge, an icon by its own `IconSize`. `UIMessage` - `Create`, `BoundCreate` (words at paths),
-  `Info`, `Success`, `Warning`, `Danger` (`UIMessageSeverity`): a message that stays while true; `dismissCommand` runs as its ×
+  `Info`, `Success`, `Warning`, `Danger` (`UIColorStyle`): a message that stays while true; `dismissCommand` runs as its ×
   hides it, for one gone for good.
 - `UIDialogs` - `Create`/`BoundCreate` (a `UIColumnWidth` keeps its content to a column; `with { ... }` for the rest, `UIDialog`
   being a record), `Header`/`BoundHeader`, `Content`/`BoundContent`, `Form`/`BoundForm` (a real form: the key is its fields' form
@@ -240,9 +240,9 @@ The whole catalogue with a link per page is [components.md](components.md). In s
 (`TextComponent`, `ParagraphComponent`, `IconComponent`, `ImageComponent`, `BadgeComponent`, `LinkComponent`, `StatusComponent`,
 `TimestampComponent`, `FileTileComponent`, `KeyValueActionComponent`, `SeparatorComponent`), actions (`ButtonComponent`,
 `ActionComponent`, `SplitButtonComponent`, `CommandBarComponent`, `ThemeSwitcherComponent`, `LanguageSwitcherComponent`), inputs
-(text, area, number, slider, switch, checkbox, radio, select, multi-select, badge select, search, date, time, date-time,
+(text, area, number, slider, switch, checkbox, radio, select, multi-select — chips, badges or checkboxes — search — option picker or `SetAllowFreeText()` autocomplete —, date, time, date-time,
 calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `TreeComponent`, `PagerComponent`), navigation
-(`MenuComponent`, `TabsComponent`, `TabsViewComponent`, `BreadcrumbsComponent`, `ButtonGroupComponent`), indicators
+(`MenuComponent`, `TabsComponent`, `TabsViewComponent`, `BreadcrumbsComponent`, `StepsComponent`, `ButtonGroupComponent`), indicators
 (`ProgressComponent`, `SpinnerComponent`).
 
 ## Items, lists and windowed sources
@@ -253,8 +253,11 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
   `SetTemplate` with `Relative` bindings; built-in models (`TextItem`, `MenuItem`, `TreeNode`, `TabItem`, `BadgeItem`,
   `OptionItem`, `FileItem`...) and default templates.
 - Grouping, filtering and sorting rules, selection (`SelectedKey`, `SelectedKeys`), item abilities (`CanSelect`, `CanDrag`,
-  `Renamable`...), moving rows (`OnItemMoveWithItemKey`), every row event in three shapes (`…WithItemKey`, arguments, `…Literal`:
-  `OnItemOpenLiteral`, `OnNodeRenameLiteral`, `OnRowRemoveLiteral`), drag and drop between lists, virtualized hosting, the empty template
+  `Renamable`...), moving rows (`OnItemMoveWithItemKey`, which passes the new index too), the row events as blocks
+  (`IItemClickComponent`, `IItemOpenComponent`, `IItemRemoveComponent`, `IItemMoveComponent`, `IItemRenameComponent`,
+  `IItemUnfoldComponent`, in `NE.Standard.UI.Components.Foundation.Items`), each in five forms (`OnItemOpen`, `OnItemOpenLiteral`,
+  `OnItemOpenWithItem`, `OnItemOpenWithItemKey`, `OnItemOpenWith`) on the hosts that raise it, a composite host named by
+  `SetAccessibleName`, drag and drop between lists, virtualized hosting, the empty template
   (`ConfigureDefaultEmptyTemplate` on every items host, putting the built-in one in where there is none,
   `ConfigureDefaultGroupTemplate`, `SetShowEmptyTemplate(false)` - not on a select or a search, whose open list always answers -,
   or `SetEmptyTemplate(UIPage.Empty(...))`, centred in a list
@@ -285,7 +288,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 [routing.html](https://akievansdev.github.io/NE.Standard/routing.html)
 
 - `application.Route<TView>(path)`, `Route<TView, TController>(path, route => route.Require(rule).AllowAnonymous().Identity("id")
-  .CompilationMode(UIViewCompilationMode.Lazy).ControllerUpdates(mode))`.
+  .CompilationMode(UIViewCompilationMode.Lazy).FlushInterval(interval))`.
 - Parameters arrive in `OnNavigatedAsync` (`navigation.TryGetParameter`); a page's state in its address is
   `ReplaceAddressEffect`/`PushAddressEffect`; `Identity(...)` names the parameters that make another runtime.
 - `IUIViewFilter` (`AddViewFilter`, runs twice per page load - test `context.Phase`), `IUICommandFilter` (`AddCommandFilter`);
@@ -315,8 +318,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 
 [files.html](https://akievansdev.github.io/NE.Standard/files.html)
 
-- `FileInputComponent`/`ImageInputComponent` upload on pick and bind `SelectionId` (variants `Picture`, `Avatar`, `Inline`,
-  `Shelf`); read the bytes with `Context.Uploads.GetSelectionAsync`; limits in `ConfigureFiles`, enforced on the server. Give a
+- `FileInputComponent` (`UIFileInputVariant`: `Row`, `Tiles`, `Shelf`, binding `SelectionId` or `SelectionIds`) and `ImageInputComponent` (`UIImageInputVariant`: `Picture`, `Avatar`, `Inline`, plus `SetMultiple(true)` binding `SelectionIds`) upload on pick; read the bytes with `Context.Uploads.GetSelectionAsync`; limits in `ConfigureFiles`, enforced on the server. Give a
   picker the composer's `SetFormId`: the form's `OnSubmit` then waits for its uploads in flight, so the file is never missed.
 - A download is `Context.Downloads.DownloadAsync(Context.Handle, name, type, bytes or stream)` (single-use, sends a
   `DownloadFileEffect`); content kept around (avatars) is `IUIContentProvider` with `IUIContentAddressResolver`.
@@ -342,7 +344,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 [design.html](https://akievansdev.github.io/NE.Standard/design.html)
 
 - `application.ConfigureTheme(theme => theme.ConfigureLightPalette(p => p with { Primary = new ColorVariant(ColorName.X) }) ...)`:
-  `UITheme`, `UIColorPalette`, `UITypography`, `UIShape`; colours by role (`UIThemeColor.Primary`, `Accent`, `Success`,
+  `UITheme`, `UIColorPalette`, `UITypography`, `UIThemeShape`; colours by role (`UIThemeColor.Primary`, `Accent`, `Success`,
   `Warning`, `Danger`, `Info`, `Muted`), never a raw colour for chrome. Reader's mode and colours: `SetThemeEffect`,
   `SetThemeColorsEffect`, `ThemeSwitcherComponent`.
 - The design rules in short: start from the phone; one primary action per area; text by role (`TitleType`), not size; the
@@ -358,7 +360,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
   button's `Menu`; act with
   `SetValueAsync`, `ClickAsync` (`UITestCommandResult.Sent`); read `Value`, `Title`, `IsVisible`, `IsEnabled`,
   `ValidationMessage`, `page.Effects`, `EffectsOf<T>()`, `IsDialogOpen`, `Address`, `Downloads`, `Controller<T>()`;
-  `page.FlushAsync()` delivers what a batch runtime holds; `page.DismissDialogAsync(key)` closes a dialog as Escape does.
+  `page.FlushAsync()` delivers what the runtime holds; `page.CloseAsync()` closes the page as a closed tab does; `page.DismissDialogAsync(key)` closes a dialog as Escape does.
 - `OpenAsync` refuses a view whose binding or path names nothing (`page.CompileWarnings` lists every warning); an advisory one - an
   argument no parameter takes, a Root binding a row's item shadows - is logged only. `app.AllowsCompileWarnings = true` opts out.
   An argument a component of your own adds for its command, which the command may leave untaken, is `UIAction.Offered(arg)`.
@@ -371,7 +373,7 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
 - **Icons** - `NE.Standard.UI.Icons.Material` / `.Web.Icons.Material`: `MaterialIcons.Save`, `MaterialIcons.Outlined(...)`;
   host `services.AddMaterialWebIcons(MaterialIconStyle.Fill | MaterialIconStyle.Outlined, names...)` - only registered names
   draw, a misspelt one fails at startup; `MapUIGlyph` draws the framework's own glyphs from the set.
-- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, Ctrl+S raises `save`:
+- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, Ctrl+S raises `code-save`:
   `OnSave`/`OnSaveLiteral`) and `MarkdownDisplayComponent`; host `services.AddCodeInput()`.
 - **DataGrid** - `DataGridComponent` (a `TableComponent` with `AddTextColumn`, `AddEnumColumn<T>`, `AddNumberColumn`,
   `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, sorting, filters, editing, paging, totals, CSV export),

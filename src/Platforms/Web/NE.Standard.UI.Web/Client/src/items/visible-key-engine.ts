@@ -12,19 +12,20 @@ import {
     GroupHeaderAttribute,
     HiddenClass,
     ItemsHostAttribute,
+    ItemsViewClass,
     LastVisibleKeyAttribute,
     LastVisibleKeyValueKind,
+    OrientationHorizontalClass,
     ValueKindAttribute
 } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "../interactions/dom-mutations.ts";
 import { observeSize } from "../interactions/element-size.ts";
 import { isInert } from "../interactions/interactive-state.ts";
-import { itemBox, viewportOf } from "./items-viewport.ts";
+import { itemBox, viewportOf } from "../addressing/items-viewport.ts";
 
-const ViewSelector = ".ui-items-view";
+const ViewSelector = `.${ItemsViewClass}`;
 const HostSelector = `:scope > [${ItemsHostAttribute}]`;
 const HeaderSelector = `:scope > [${GroupHeaderAttribute}]`;
-const AcrossClass = "ui-orientation--horizontal";
 
 /**
  * How long after its last scroll event the reader's scroll counts as settled: a fling's momentum raises one every frame, so a pause this
@@ -267,8 +268,7 @@ function keyAt(measured: Measured, edge: VisibleEdge): string | null | undefined
 }
 
 function measureRows(view: Element, host: Element): Measured {
-    const across = view.classList.contains(AcrossClass);
-    const backwards = across && getComputedStyle(host).direction === "rtl";
+    const across = view.classList.contains(OrientationHorizontalClass);
     const rows: RowSpan[] = [];
     let hasRows = false;
 
@@ -284,18 +284,18 @@ function measureRows(view: Element, host: Element): Measured {
 
         // A row a filter hides lays out as nothing.
         if (!row.classList.contains(HiddenClass) && (box.width > 0 || box.height > 0))
-            rows.push({ key, ...spanOf(box, across, backwards) });
+            rows.push({ key, ...spanOf(box, across) });
     }
 
-    return hasRows ? { rows, band: visibleBand(host, across, backwards) } : null;
+    return hasRows ? { rows, band: visibleBand(host, across) } : null;
 }
 
-/** A box's stretch along the view's axis: down a column, across a row, and across a right-to-left row read from its right. */
-function spanOf(box: Box, across: boolean, backwards: boolean): Band {
+/** A box's stretch along the view's axis: down a column, across a row. */
+function spanOf(box: Box, across: boolean): Band {
     if (!across)
         return { start: box.top, end: box.bottom };
 
-    return backwards ? { start: -box.right, end: -box.left } : { start: box.left, end: box.right };
+    return { start: box.left, end: box.right };
 }
 
 /**
@@ -303,20 +303,20 @@ function spanOf(box: Box, across: boolean, backwards: boolean): Band {
  * edges (a bar over a feed's top, a composer over its foot) — cut by every box around it that clips and by the window, and below a group
  * header held at its top.
  */
-function visibleBand(host: Element, across: boolean, backwards: boolean): Band {
+function visibleBand(host: Element, across: boolean): Band {
     const viewport = viewportOf(host);
-    let band = spanOf(innerBox(viewport, getComputedStyle(viewport)), across, backwards);
+    let band = spanOf(innerBox(viewport, getComputedStyle(viewport)), across);
 
     for (let ancestor = viewport.parentElement; ancestor !== null; ancestor = ancestor.parentElement) {
         const style = getComputedStyle(ancestor);
 
         if ((across ? style.overflowX : style.overflowY) !== "visible")
-            band = overlap(band, spanOf(innerBox(ancestor, null), across, backwards));
+            band = overlap(band, spanOf(innerBox(ancestor, null), across));
     }
 
-    band = overlap(band, spanOf({ left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }, across, backwards));
+    band = overlap(band, spanOf({ left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }, across));
 
-    return belowHeldHeaders(host, band, across, backwards);
+    return belowHeldHeaders(host, band, across);
 }
 
 /** An element's box inside its border and scrollbar, and inside its padding where its style is given. */
@@ -344,11 +344,11 @@ function overlap(first: Band, second: Band): Band {
 }
 
 /** A group header the stylesheet holds at the top (`position: sticky`) covers the rows under it, so the band starts below it. */
-function belowHeldHeaders(host: Element, band: Band, across: boolean, backwards: boolean): Band {
+function belowHeldHeaders(host: Element, band: Band, across: boolean): Band {
     let start = band.start;
 
     for (const header of host.querySelectorAll(HeaderSelector)) {
-        const span = spanOf(header.getBoundingClientRect(), across, backwards);
+        const span = spanOf(header.getBoundingClientRect(), across);
 
         if (span.start <= start + EdgeSlack && span.end > start && getComputedStyle(header).position === "sticky")
             start = span.end;

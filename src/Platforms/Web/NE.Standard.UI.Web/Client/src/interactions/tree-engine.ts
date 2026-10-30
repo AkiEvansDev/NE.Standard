@@ -2,27 +2,15 @@
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    DragKindAttribute, ItemsHostAttribute, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute,
-    TreeDropTargetAttribute, TreeExpandedAttribute, TreeLoadingAttribute, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute,
-    TreeDropMarkAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeTitleAttribute, TreeUnremovableAttribute, UnrenamableAttribute,
+    DragKindAttribute, ItemsHostAttribute, TextTitleClass, TreeBootAttribute, TreeChildrenAttribute, TreeDraggableAttribute, TreeDropMarkAttribute, TreeDropTargetAttribute, TreeExpandedAttribute,
+    TreeLoadingAttribute, TreeNodeClass, TreeNodeRenameClass, TreeNodeTextClass, TreeNodeToggleClass, TreeParentAttribute, TreeRenamableAttribute, TreeRenameOnDoubleClickAttribute, TreeRootClass, TreeRowClass,
+    TreeRowDraggingClass, TreeRowFilteredClass, TreeRowFoldedClass, TreeRulesEventName, TreeTitleAttribute, TreeUnremovableAttribute, UnfoldSettledEventName, UnrenamableAttribute,
     UnselectableAttribute
 } from "../addressing/dom-attributes.ts";
-import { findOwningComponentId } from "../addressing/dom-registry.ts";
-import type { EffectRegistry } from "../effects/effect-registry.ts";
+import type { EffectRunner } from "../addressing/dom-registry.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
-import { NonItemAttribute } from "../items/items-empty-renderer.ts";
-import { compareItems, getActiveSorts, hasActiveFilters, itemMatchesFilters, readItemsQuery } from "../items/items-filter-sort.ts";
-import type { ActiveSort, ItemsQuery } from "../items/items-filter-sort.ts";
-import { TreeRulesEventName } from "../items/items-host-sync.ts";
-import type { ItemsTemplateRenderer } from "../items/items-template-renderer.ts";
-import { getIdValue } from "../metadata/metadata-index.ts";
-import type { MetadataIndex, RenameNodeClientEffect, WebRenderItemsFilterSortMetadata } from "../metadata/metadata-index.ts";
-import { motion, prefersReducedMotion } from "../rendering/motion.ts";
-import { LegacyTreeFoldSlots, TreeFoldSlot, TreeFoldVersion } from "../rendering/tree-boot-fold.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import { logWarn } from "../runtime/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
-import type { PropertyStateStore } from "../state/property-state-store.ts";
+import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { clearDragMarks, giveDragPayload, leftAltogether, markDragStart } from "./drag-marks.ts";
 import { allowedEffect, beginItemsDrag, carriedRows, isDraggableRow, offeredItems } from "./item-drags.ts";
@@ -39,21 +27,16 @@ import type { SelectionGesture } from "./row-selection.ts";
 import { keyGestureOf, PlainGesture, rowKey } from "./row-selection.ts";
 import type { TreeKeyMove, TreeMovePlace, TreeNodePlace } from "./tree-drop.ts";
 import { folderTakesDrop, keyMovePlace, markTreeDrop, nodeOf, placeMoves, siblingAfter, takesDrop } from "./tree-drop.ts";
+import {
+    authoredExpandedOf, DepthVariable, ExpandedSlot, matchingTreeRows, orderTreeRows, placeLoadingRow, pruneFold, readStoredFold, resolveTreeRules, revealRows, writeBootFold
+} from "./tree-fold.ts";
+import type { Placement, StoredFold, TreeRuleServices } from "./tree-fold.ts";
 
-const FoldedClass = "ui-tree__row--folded";
-const DraggingClass = "ui-tree__row--dragging";
-const LoadingClass = "ui-tree__loading";
-const LoadingRingClass = "ui-tree__loading-ring";
-const TextClass = "ui-tree-node__text";
-const ToggleClass = "ui-tree-node__toggle";
-const RenameClass = "ui-tree-node__rename";
-const TitleSelector = ".ui-text__title";
+export type { TreeRuleServices } from "./tree-fold.ts";
+
+const TitleSelector = `.${TextTitleClass}`;
 // On the place a drag would drop at (`markTreeDrop`).
 const DropAttribute = TreeDropMarkAttribute;
-const DepthVariable = "--ui-tree-depth";
-const ExpandedSlot = "expanded";
-// The folders a tree's stored fold keeps that are not on the page, at most: past it, those folded or unfolded longest ago go first.
-const AbsentFoldKeys = 200;
 // A folder a drag hovers over for this long opens, so a node can be dropped deeper without letting go.
 const SpringOpenMilliseconds = 600;
 // Where a row's height splits for a drop: on a folder the outer quarters are the lines either side of it and the middle goes into it;
@@ -63,8 +46,6 @@ const FolderEdgeShare = 0.25;
 const KeyMoves: Readonly<Record<string, TreeKeyMove>> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "out", ArrowRight: "in" };
 // The keys besides Up, Down, Home and End the tree answers; any other passes without the rows being read.
 const ActionKeys = new Set([" ", "ArrowRight", "ArrowLeft", "Enter", "F2", "Delete"]);
-// Raised on a row once the command its unfold raised has settled, whatever came of it (`TreeUnfoldEvent`).
-const UnfoldSettledEventName = "ui-tree-unfold-settled";
 
 /**
  * How the pipeline reads a node's `unfold`: once its command settles — answered, failed, refused, the connection dropped — the row
@@ -79,39 +60,10 @@ export const TreeUnfoldEvent: { readonly name: string; readonly registration: Om
     }
 };
 
-/**
- * The viewer's fold by node key: true unfolded, false folded; a node not in it keeps its authored start. In the order folded or unfolded
- * last, stored as its pairs: a record would put keys that read as numbers first.
- */
-type StoredFold = Map<string, boolean>;
-
-type Placement = {
-    readonly row: HTMLElement;
-    readonly depth: number;
-    readonly shown: boolean;
-    readonly expanded: boolean;
-    /** Shown under the fold the server rendered, so the boot patch can name only the rows the viewer's fold disagrees on. */
-    readonly authoredShown: boolean;
-};
-
-/** The rules on a tree, resolved once per walk: whether any filter is in force, and the sorts to order siblings by. */
-type TreeRules = {
-    readonly config: WebRenderItemsFilterSortMetadata | undefined;
-    readonly query: ItemsQuery | null;
-    readonly filtering: boolean;
-    readonly sorts: readonly ActiveSort[];
-};
-
-/** What a walk that applies rules reads: the rules by component, their sources' values, and each row's item. */
-export type TreeRuleServices = {
-    readonly metadata: MetadataIndex;
-    readonly state: PropertyStateStore;
-    readonly renderer: ItemsTemplateRenderer;
-};
-
 export type TreeEngineOptions = {
     readonly root?: ParentNode;
-    readonly effects?: EffectRegistry;
+    readonly effects?: EffectRunner;
+    readonly propertyPatchEngine?: Pick<PropertyPatchEngine, "addValueChangeHandler">;
     /** Without these the walk applies no filter and no sort — a test's tree, or a page with no rules. */
     readonly rules?: TreeRuleServices;
 };
@@ -120,6 +72,10 @@ export class TreeEngine {
     private readonly root: ParentNode;
     private readonly store = new ClientStore();
     private readonly rules: TreeRuleServices | undefined;
+    private readonly unsubscribePatches: (() => void) | null;
+
+    // The title a committed rename replaced, put back when the server answers a refused `RenamedTitle` with no text of its own.
+    private readonly beforeRename = new WeakMap<HTMLElement, string>();
 
     // The fold per tree, read from the store once: a tree with no name to store under still folds while the page lives.
     private readonly folds = new WeakMap<Element, StoredFold>();
@@ -169,24 +125,14 @@ export class TreeEngine {
         this.root.addEventListener("dragend", domEvent => this.handleDragEnd(domEvent), true);
 
         // A controller may ask for the field F2 opens, from a menu entry of its own.
-        options.effects?.register("RenameNode", context => {
-            const effect = context.effect as RenameNodeClientEffect;
-            const target = effect.target;
+        options.effects?.registerItemRenamer(TreeRootClass, (tree, key) => {
+            const row = this.rowsOf(tree).find(candidate => rowKey(candidate) === key) ?? null;
 
-            if (target === undefined || target.id === undefined || typeof effect.key !== "string") {
-                logWarn("rename node effect carries no target or key.", effect);
-                return;
-            }
-
-            const tree = context.dom.findComponent(getIdValue(target.id), target.dynamicParameters ?? []);
-            const row = tree === null ? null : this.rowsOf(tree as HTMLElement).find(candidate => rowKey(candidate) === effect.key) ?? null;
-
-            if (row === null) {
-                logWarn("rename node effect names no node on the page.", effect);
-                return;
-            }
+            if (row === null)
+                return false;
 
             this.startRename(row);
+            return true;
         });
 
         this.layoutAll(this.root.querySelectorAll<HTMLElement>(`.${TreeRootClass}`));
@@ -198,6 +144,12 @@ export class TreeEngine {
             { childList: true, attributeFilter: [TreeParentAttribute, TreeChildrenAttribute, TreeExpandedAttribute, TreeDraggableAttribute], relevant: movesRows },
             trees => this.layoutAll(trees)
         );
+
+        this.unsubscribePatches = options.propertyPatchEngine?.addValueChangeHandler(change => this.handlePropertyChange(change)) ?? null;
+    }
+
+    public dispose(): void {
+        this.unsubscribePatches?.();
     }
 
     private layoutAll(trees: Iterable<HTMLElement>): void {
@@ -208,8 +160,9 @@ export class TreeEngine {
     /** Derives every row's depth and fold — the viewer's over the authored — after the sorts and the filter. */
     private layout(tree: HTMLElement): void {
         const stored = this.foldOf(tree);
-        const rules = this.resolveRules(tree);
-        const rows = rules === null ? this.rowsOf(tree) : this.orderRows(tree, rules);
+        const host = this.hostOf(tree);
+        const rules = resolveTreeRules(tree, host, this.rules);
+        const rows = rules === null ? this.rowsOf(tree) : orderTreeRows(host, this.rowsOf(tree), rules, this.rules);
         // Lifted to move among the nodes, or to be offered to another host as a kind (`DragKind`).
         const draggable = tree.hasAttribute(TreeDraggableAttribute) || tree.hasAttribute(DragKindAttribute);
         const children = new Set<string>();
@@ -221,7 +174,7 @@ export class TreeEngine {
                 children.add(parent);
         }
 
-        const kept = rules?.filtering === true ? this.matchingRows(rows, rules) : null;
+        const kept = rules?.filtering === true ? matchingTreeRows(rows, rules, this.rules) : null;
         const placed = new Map<string, Placement>();
 
         for (const row of rows) {
@@ -234,7 +187,7 @@ export class TreeEngine {
             const declared = node?.hasAttribute(TreeChildrenAttribute) === true;
             const hasChildren = declared || children.has(key);
             const authoredExpanded = hasChildren && node?.hasAttribute(TreeExpandedAttribute) === true;
-            const authoredShown = parent === undefined ? true : parent.authoredShown && this.authoredExpandedOf(parent);
+            const authoredShown = parent === undefined ? true : parent.authoredShown && authoredExpandedOf(parent);
             // A folder with a match under it stands open while the filter lasts; the viewer's fold is neither read nor written for it.
             const expanded = hasChildren && (kept !== null ? kept.has(key) : stored.get(key) ?? authoredExpanded);
             const filtered = kept !== null && !kept.has(key);
@@ -242,8 +195,8 @@ export class TreeEngine {
             row.style.setProperty(DepthVariable, String(depth));
             row.setAttribute("aria-level", String(depth + 1));
             // Named by its text, not its content: the chevron's own words ("Expand or collapse") are no part of the node's name.
-            nameRowBy(row, node?.querySelector(`:scope > .${TextClass}`) ?? null);
-            row.classList.toggle(FoldedClass, !shown);
+            nameRowBy(row, node?.querySelector(`:scope > .${TreeNodeTextClass}`) ?? null);
+            row.classList.toggle(TreeRowFoldedClass, !shown);
             row.classList.toggle(TreeRowFilteredClass, filtered);
             row.removeAttribute(TreeBootAttribute);
             // A disabled node is not lifted: its own component is inert, but the row around it would still start a drag.
@@ -273,178 +226,12 @@ export class TreeEngine {
             if (!expanded && !this.inFlight.has(row))
                 this.requested.delete(row);
 
-            this.placeLoadingRow(row, depth + 1, row.hasAttribute(TreeLoadingAttribute), shown && expanded && !filtered);
+            placeLoadingRow(row, depth + 1, row.hasAttribute(TreeLoadingAttribute), shown && expanded && !filtered);
             placed.set(key, { row, depth, shown, expanded, authoredShown });
         }
 
         if (kept === null)
-            this.writeBootFold(tree, stored, placed);
-    }
-
-    /** Whether the server rendered this node open: the authored fold, which the boot patch is measured against. */
-    private authoredExpandedOf(placement: Placement): boolean {
-        return nodeOf(placement.row)?.hasAttribute(TreeExpandedAttribute) === true;
-    }
-
-    /**
-     * Writes the fold the next page paints before the runtime walks (`tree-boot-fold.ts`): the folders the viewer holds open or folded
-     * where that differs from the authored fold, and those not on the page, as the viewer left them.
-     */
-    private writeBootFold(tree: HTMLElement, stored: StoredFold, placed: Map<string, Placement>): void {
-        if (stored.size === 0)
-            return;
-
-        const open: string[] = [];
-        const closed: string[] = [];
-
-        for (const [key, expanded] of stored) {
-            const placement = placed.get(key);
-
-            if (placement === undefined || this.authoredExpandedOf(placement) !== expanded)
-                (expanded ? open : closed).push(key);
-        }
-
-        const written = JSON.stringify([open, closed]);
-        const previous = this.writtenBoot.get(tree);
-
-        if (previous === written)
-            return;
-
-        this.writtenBoot.set(tree, written);
-        this.store.writeBoot(tree, TreeFoldSlot, open.length + closed.length === 0 ? null : { fold: { version: TreeFoldVersion, open, closed } });
-
-        // The selectors per row of the shape before, once a page: the boot script no longer reads them.
-        if (previous === undefined) {
-            for (const slot of LegacyTreeFoldSlots)
-                this.store.writeBoot(tree, slot, null);
-        }
-    }
-
-    /** The rules on this tree, or null when none is in force — the common case, which costs one lookup. */
-    private resolveRules(tree: HTMLElement): TreeRules | null {
-        const host = this.hostOf(tree);
-        const componentId = findOwningComponentId(tree);
-
-        if (this.rules === undefined || host === null || componentId === null)
-            return null;
-
-        const config = this.rules.metadata.getItemsFilterSortMetadata(componentId);
-        const query = readItemsQuery(host);
-
-        if (config === undefined && query === null)
-            return null;
-
-        const sorts = getActiveSorts(config, this.rules.state, query);
-        const filtering = hasActiveFilters(config, this.rules.state, query);
-
-        return filtering || sorts.length > 0 ? { config, query, filtering, sorts } : null;
-    }
-
-    /** The rows in walking order, each group of siblings sorted, moved in the host only when the order changed. */
-    private orderRows(tree: HTMLElement, rules: TreeRules): HTMLElement[] {
-        const rows = this.rowsOf(tree);
-
-        if (rules.sorts.length === 0 || this.rules === undefined)
-            return rows;
-
-        const renderer = this.rules.renderer;
-        const keys = new Set(rows.map(rowKey));
-        const byParent = new Map<string, HTMLElement[]>();
-
-        for (const row of rows) {
-            const declared = nodeOf(row)?.getAttribute(TreeParentAttribute) ?? "";
-            const parent = keys.has(declared) ? declared : "";
-            const group = byParent.get(parent);
-
-            if (group === undefined)
-                byParent.set(parent, [row]);
-            else
-                group.push(row);
-        }
-
-        const ordered: HTMLElement[] = [];
-        const visit = (parent: string): void => {
-            const group = byParent.get(parent);
-
-            if (group === undefined)
-                return;
-
-            group.sort((left, right) => compareItems(renderer.getItemValue(left), renderer.getItemValue(right), rules.sorts));
-
-            for (const row of group) {
-                ordered.push(row);
-                visit(rowKey(row));
-            }
-        };
-
-        visit("");
-
-        if (ordered.length !== rows.length || ordered.every((row, index) => row === rows[index]))
-            return ordered.length === rows.length ? ordered : rows;
-
-        const host = this.hostOf(tree);
-
-        if (host === null)
-            return rows;
-
-        // The rows of waiting go with their nodes: taken out here and put back by the walk that follows.
-        for (const placeholder of host.querySelectorAll(`:scope > .${LoadingClass}`))
-            placeholder.remove();
-
-        for (const row of ordered)
-            host.appendChild(row);
-
-        return ordered;
-    }
-
-    /** The keys of the rows a filter keeps: every match and its ancestors, in one pass from the end. */
-    private matchingRows(rows: readonly HTMLElement[], rules: TreeRules): Set<string> {
-        const kept = new Set<string>();
-
-        if (this.rules === undefined)
-            return kept;
-
-        const state = this.rules.state;
-        const renderer = this.rules.renderer;
-
-        for (let index = rows.length - 1; index >= 0; index--) {
-            const row = rows[index];
-            const key = rowKey(row);
-            const value = renderer.getItemValue(row);
-
-            // Fail open: a row whose value never reached the client cannot be judged, and hiding it would silently empty the tree.
-            const matches = value === undefined || itemMatchesFilters(rules.config, value, state, rules.query);
-
-            if (matches || kept.has(key)) {
-                kept.add(key);
-
-                const parent = nodeOf(row)?.getAttribute(TreeParentAttribute) ?? "";
-
-                if (parent.length > 0)
-                    kept.add(parent);
-            }
-        }
-
-        return kept;
-    }
-
-    /** One row of waiting under a node that asked for its children, in the children's place; gone the moment they arrive. */
-    private placeLoadingRow(row: HTMLElement, depth: number, loading: boolean, shown: boolean): void {
-        const next = row.nextElementSibling;
-        const existing = next instanceof HTMLElement && next.classList.contains(LoadingClass) ? next : null;
-
-        if (!loading) {
-            existing?.remove();
-            return;
-        }
-
-        const placeholder = existing ?? createLoadingRow();
-
-        placeholder.style.setProperty(DepthVariable, String(depth));
-        placeholder.classList.toggle(FoldedClass, !shown);
-
-        if (existing === null)
-            row.after(placeholder);
+            writeBootFold(tree, stored, placed, this.writtenBoot, this.store);
     }
 
     /** An unfold whose command settled, whatever came of it: folding the node lets the next unfold ask again. */
@@ -461,7 +248,7 @@ export class TreeEngine {
             return;
 
         const { tree, row, target } = found;
-        const toggle = target.closest<HTMLElement>(`.${ToggleClass}`);
+        const toggle = target.closest<HTMLElement>(`.${TreeNodeToggleClass}`);
 
         if (toggle === null && (!isItemRefused(row, UnselectableAttribute) || ownControlOf(target, row) !== null))
             return;
@@ -624,7 +411,7 @@ export class TreeEngine {
 
     /** Whether a sort orders the tree's siblings now: a node put among them would be put back by it. */
     private isSorted(tree: HTMLElement): boolean {
-        return (this.resolveRules(tree)?.sorts.length ?? 0) > 0;
+        return (resolveTreeRules(tree, this.hostOf(tree), this.rules)?.sorts.length ?? 0) > 0;
     }
 
     /** The tree renames, and this node has not refused it. */
@@ -650,19 +437,20 @@ export class TreeEngine {
         // A chosen node takes the other chosen ones; one folded away stays, as moving it would be a move nobody saw.
         const carried = carriedRows(row, this.rowsOf(tree));
         const items = offeredItems(tree, host, carried);
+        const picture = nodeOf(row)?.querySelector<HTMLElement>(`.${TreeNodeTextClass}`) ?? undefined;
 
         // Marked as this tree's own drag only where its nodes move among themselves; a tree that only offers them drops nothing on itself.
         if (moves)
-            markDragStart(domEvent, tree, row, DraggingClass, rowKey(row), carried.filter(other => other !== row), allowedEffect(items, true));
+            markDragStart(domEvent, tree, row, TreeRowDraggingClass, rowKey(row), carried.filter(other => other !== row), allowedEffect(items, true), picture);
         else
-            giveDragPayload(domEvent, rowKey(row), allowedEffect(items, false));
+            giveDragPayload(domEvent, rowKey(row), allowedEffect(items, false), picture);
 
         beginItemsDrag(domEvent, items);
     }
 
     /** The rows in the air, in walking order. */
     private draggingRows(tree: HTMLElement): HTMLElement[] {
-        return this.rowsOf(tree).filter(row => row.classList.contains(DraggingClass));
+        return this.rowsOf(tree).filter(row => row.classList.contains(TreeRowDraggingClass));
     }
 
     /** Over a row that is not the dragged one or under it, or over the tree's own ground: the drop is taken and the place marked. */
@@ -786,7 +574,7 @@ export class TreeEngine {
 
         this.markDrop(tree, null);
         this.springOpen(tree, null);
-        clearDragMarks(tree, DraggingClass);
+        clearDragMarks(tree, TreeRowDraggingClass);
 
         this.moveRows(tree, moved, place, into);
     }
@@ -802,7 +590,7 @@ export class TreeEngine {
             this.expand(tree, folder);
 
         rows.forEach((row, position) => {
-            const text = nodeOf(row)?.querySelector<HTMLElement>(`.${TextClass}`) ?? null;
+            const text = nodeOf(row)?.querySelector<HTMLElement>(`.${TreeNodeTextClass}`) ?? null;
 
             if (text === null)
                 return;
@@ -822,7 +610,7 @@ export class TreeEngine {
         if (tree === null)
             return;
 
-        clearDragMarks(tree, DraggingClass);
+        clearDragMarks(tree, TreeRowDraggingClass);
         this.markDrop(tree, null);
         this.springOpen(tree, null);
     }
@@ -870,11 +658,11 @@ export class TreeEngine {
         stored.set(key, expanded);
         pruneFold(stored, rows);
 
-        const folded = expanded ? rows.filter(candidate => candidate.classList.contains(FoldedClass)) : [];
+        const folded = expanded ? rows.filter(candidate => candidate.classList.contains(TreeRowFoldedClass)) : [];
 
         this.store.writeJson(tree, ExpandedSlot, [...stored]);
         this.layout(tree);
-        revealRows(folded.filter(candidate => !candidate.classList.contains(FoldedClass)));
+        revealRows(folded.filter(candidate => !candidate.classList.contains(TreeRowFoldedClass)));
     }
 
     private foldOf(tree: HTMLElement): StoredFold {
@@ -918,15 +706,19 @@ export class TreeEngine {
         if (tree === null || node === null || title === null || isItemRefused(row, UnrenamableAttribute))
             return;
 
+        const previousText = title.textContent ?? "";
+
         this.setFocus(tree, row, null);
 
         openInlineRename({
             container: node,
             title,
-            className: RenameClass,
+            className: TreeNodeRenameClass,
             value: node.getAttribute(TreeTitleAttribute) ?? title.textContent?.trim() ?? "",
             commit: value => {
+                this.beforeRename.set(title, previousText);
                 node.setAttribute(TreeTitleAttribute, value);
+                title.textContent = value;
 
                 // Two events: `change` carries the title back through the node's two-way binding, `rename` is what a command hangs on.
                 node.dispatchEvent(new Event("change", { bubbles: true }));
@@ -934,6 +726,31 @@ export class TreeEngine {
             },
             refocus: () => tree.focus({ preventScroll: true })
         });
+    }
+
+    /** Reconciles the optimistic title when the server answers `RenamedTitle` (for example, refusing a gated write back to the old name). */
+    private handlePropertyChange(change: PropertyValueChange): void {
+        if (change.local || change.propertyName !== "RenamedTitle")
+            return;
+
+        for (const component of change.components) {
+            if (!component.classList.contains(TreeNodeClass))
+                continue;
+
+            const title = component.querySelector<HTMLElement>(TitleSelector);
+
+            if (title === null)
+                continue;
+
+            const pushed = typeof change.value === "string" ? change.value.trim() : "";
+            const fallback = this.beforeRename.get(title) ?? "";
+            const next = pushed.length > 0 ? pushed : fallback;
+
+            this.beforeRename.delete(title);
+
+            if (next.length > 0 && title.textContent !== next)
+                title.textContent = next;
+        }
     }
 
     private hostOf(tree: HTMLElement): HTMLElement | null {
@@ -954,56 +771,6 @@ export class TreeEngine {
 
         return rows;
     }
-}
-
-/**
- * Lets go of the folders folded or unfolded longest ago once more than `AbsentFoldKeys` of those kept are not on the page; one on the
- * page is always kept. A folder not on the page may stand under one not loaded yet, or be gone for good, and the page cannot tell
- * which: a count bounds what the boot script reads before the first paint without guessing.
- */
-function pruneFold(stored: StoredFold, rows: readonly HTMLElement[]): void {
-    if (stored.size <= AbsentFoldKeys)
-        return;
-
-    const onPage = new Set(rows.map(rowKey));
-    let absent = 0;
-
-    for (const key of stored.keys()) {
-        if (!onPage.has(key))
-            absent++;
-    }
-
-    for (const key of [...stored.keys()]) {
-        if (absent <= AbsentFoldKeys)
-            return;
-
-        if (!onPage.has(key)) {
-            stored.delete(key);
-            absent--;
-        }
-    }
-}
-
-/** The stored fold: its pairs in the order kept, or a record of the shape before, read in the order it gives. */
-function readStoredFold(value: unknown): StoredFold {
-    const entries: unknown[] = Array.isArray(value) ? value : value !== null && typeof value === "object" ? Object.entries(value) : [];
-    const fold: StoredFold = new Map();
-
-    for (const entry of entries) {
-        if (Array.isArray(entry) && typeof entry[0] === "string" && typeof entry[1] === "boolean")
-            fold.set(entry[0], entry[1]);
-    }
-
-    return fold;
-}
-
-/** Fades in the rows an unfold brought back, to each row's own opacity, as a menu section's content does. */
-function revealRows(rows: readonly HTMLElement[]): void {
-    if (rows.length === 0 || prefersReducedMotion())
-        return;
-
-    for (const row of rows)
-        row.animate([{ opacity: 0, offset: 0 }], { duration: motion.fast, easing: motion.enter });
 }
 
 /** Whether the row keyed `key` sits under the one keyed `ancestorKey`, by the parent keys the nodes carry. */
@@ -1031,20 +798,6 @@ function movesRows(mutation: MutationRecord): boolean {
     return target instanceof HTMLElement && (target.classList.contains(TreeRowClass) || (target.hasAttribute(ItemsHostAttribute) && target.parentElement?.classList.contains(TreeRootClass) === true));
 }
 
-function createLoadingRow(): HTMLElement {
-    const placeholder = document.createElement("div");
-    const ring = document.createElement("span");
-
-    placeholder.className = LoadingClass;
-    // No node: a collection index past it (an insert, a move) must not count it.
-    placeholder.setAttribute(NonItemAttribute, "");
-    placeholder.setAttribute("aria-hidden", "true");
-    ring.className = LoadingRingClass;
-    placeholder.append(ring, clientStrings.text("ui.tree.loading"));
-
-    return placeholder;
-}
-
 function draggedRow(domEvent: Event): HTMLElement | null {
     return domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${TreeRowClass}`) : null;
 }
@@ -1058,4 +811,3 @@ function nodePlaces(rows: readonly HTMLElement[]): TreeNodePlace[] {
         shown: !row.classList.contains(TreeRowFilteredClass)
     }));
 }
-

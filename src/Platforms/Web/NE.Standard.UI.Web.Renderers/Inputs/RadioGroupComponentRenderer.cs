@@ -19,7 +19,7 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// </summary>
 public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string ItemClassName = "ui-radio-group__item";
+    private const string ItemClassName = WebClassNames.RadioGroupItem;
     private const string HostClassName = "ui-radio-group__host";
     // The client's RadioRowDecorator, which draws the radio and its dot on a row the client builds.
     private const string RowDecoratorKind = "radio";
@@ -31,11 +31,11 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         WebDomOperation.ToggleAttribute("aria-readonly", target: $".{HostClassName}", condition: WebValueCondition.IsTrue, value: "true")
     ];
 
-    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root")];
+    private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.RadioValue, target: "root", converter: WebDomConverters.NonEmptyText)];
 
     public override string ComponentTypeKey => RadioGroupComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-radio-group";
+    protected override string ClassName => WebClassNames.RadioGroup;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -47,6 +47,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
         TextContentRendererBase.RenderInputHeader(context, root);
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-radio-group-spacing");
+        EvenColumnsRenderer.Render(context, root);
 
         OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
         RenderEmptyStateSwitch(context, root);
@@ -87,6 +88,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
     private static void RenderOptions(WebRenderContext context, IHtmlElementBuilder root, string groupName, string? currentValue, CompiledUIBinding? valueBinding)
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
+        var disabled = ReadRenderValue<bool?>(context, IVisualComponent.EnabledProperty, null) == false || ReadRenderValue<bool?>(context, IVisualComponent.LoadingProperty, null) == true;
 
         // Before the option's text, as a checkbox's box is and as the client's RadioRowDecorator prepends it on a row it builds.
         // The host is the radio group, not the root: the caption and the validation line stand outside the choice itself.
@@ -97,7 +99,7 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
                 TextContentRendererBase.RenderFieldLabel(context, host);
                 RenderReadOnly(context, root, host);
             },
-            decorateItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, currentValue, valueBinding)
+            decorateItem: (itemRoot, item, _) => RenderRadioInput(itemRoot, item, groupName, currentValue, valueBinding, disabled)
         );
     }
 
@@ -112,13 +114,13 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
             _ = host.Attribute("aria-readonly", "true");
         }, ReadOnlyOperations);
 
-    private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, string? currentValue, CompiledUIBinding? valueBinding)
+    private static void RenderRadioInput(IHtmlElementBuilder itemRoot, object? item, string groupName, string? currentValue, CompiledUIBinding? valueBinding, bool disabled)
     {
         var optionId = item is IBindableItem bindableItem ? bindableItem.Id : null;
 
         _ = itemRoot.Element("input", input =>
         {
-            _ = input.Class("ui-radio-group__input");
+            _ = input.Class(WebClassNames.RadioGroupInput);
             _ = input.Attribute("type", "radio");
             _ = input.Attribute("name", groupName);
 
@@ -129,11 +131,14 @@ public sealed class RadioGroupComponentRenderer : ItemsCollectionRendererBase
             if (optionId is not null && optionId == currentValue)
                 _ = input.Attribute("checked");
 
+            if (disabled)
+                _ = input.Attribute("disabled");
+
             // Each radio carries the group's single Value binding, so a click reports back through the ordinary two-way channel.
             if (valueBinding is not null)
                 _ = input.Attribute(WebAttributes.BindValue, valueBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
         });
 
-        _ = itemRoot.Element("span", dot => dot.Class("ui-radio-group__dot"));
+        _ = itemRoot.Element("span", dot => dot.Class(WebClassNames.RadioGroupDot));
     }
 }

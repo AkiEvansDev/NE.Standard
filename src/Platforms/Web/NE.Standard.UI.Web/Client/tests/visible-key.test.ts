@@ -41,7 +41,6 @@ installFakeDom({
         overflowX: "visible",
         overflowY: "visible",
         position: "static",
-        direction: "ltr",
         paddingTop: "0px",
         paddingRight: "0px",
         paddingBottom: "0px",

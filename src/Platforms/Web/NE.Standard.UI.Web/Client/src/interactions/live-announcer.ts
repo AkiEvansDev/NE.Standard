@@ -3,10 +3,9 @@
 // words (a keyboard move, a pane lifted) go through the same regions (`announce`).
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { clientStrings } from "../runtime/client-strings.ts";
-import type { AuthorText, Phrase } from "../runtime/words.ts";
-
-const AnnouncerClass = "ui-announcer";
+import { AnnouncerClass } from "../addressing/dom-attributes.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import type { AuthorText, Phrase } from "../rendering/words.ts";
 
 // Long enough for a reader to reach the words in its queue; gone after it, so reading the page later does not meet them.
 const HoldMs = 7000;

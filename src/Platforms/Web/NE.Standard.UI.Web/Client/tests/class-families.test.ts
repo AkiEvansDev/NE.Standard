@@ -44,31 +44,31 @@ function patch(registry: DomOperationRegistry, target: object, converterName: st
 
 test("a badge's first style patch takes off the style the server painted, and leaves its other classes", () => {
     const registry = new DomOperationRegistry();
-    const badge = element("ui-badge", "ui-badge-style--success", "ui-badge--colored");
+    const badge = element("ui-badge", "ui-badge-variant--success", "ui-badge--colored");
 
-    patch(registry, badge, "badgeStyleClass", "Warning");
-    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge--colored", "ui-badge-style--warning"]);
+    patch(registry, badge, "badgeVariantClass", "Warning");
+    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge--colored", "ui-badge-variant--warning"]);
 
-    patch(registry, badge, "badgeStyleClass", "Success");
-    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge--colored", "ui-badge-style--success"]);
+    patch(registry, badge, "badgeVariantClass", "Success");
+    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge--colored", "ui-badge-variant--success"]);
 });
 
 test("a badge's fill and style are families of their own: a fill patched at runtime replaces the fill and leaves the style", () => {
     const registry = new DomOperationRegistry();
-    const badge = element("ui-badge", "ui-badge-style--danger", "ui-badge-fill--outline");
+    const badge = element("ui-badge", "ui-badge-variant--danger", "ui-badge-fill--outline");
 
     patch(registry, badge, "badgeFillClass", "Tinted");
-    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge-style--danger", "ui-badge-fill--tinted"]);
+    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge-variant--danger", "ui-badge-fill--tinted"]);
 
     patch(registry, badge, "badgeFillClass", null);
-    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge-style--danger"]);
+    assert.deepEqual([...badge.classes], ["ui-badge", "ui-badge-variant--danger"]);
 });
 
 test("a button's kind and size share a prefix but not a family: a patch to one leaves the other", () => {
     const registry = new DomOperationRegistry();
     const button = element("ui-button", "ui-button--primary", "ui-button--small");
 
-    patch(registry, button, "buttonClass", "Danger");
+    patch(registry, button, "buttonVariantClass", "Danger");
     assert.deepEqual([...button.classes], ["ui-button", "ui-button--small", "ui-button--danger"]);
 
     patch(registry, button, "buttonSizeClass", "Large");
@@ -105,20 +105,20 @@ test("a class outside the converter's family stays, even under the same prefix",
 });
 
 test("every class a converter writes is in its family, and a converter that writes no class has none", () => {
-    const badge = getClassFamily("badgeStyleClass");
+    const badge = getClassFamily("badgeVariantClass");
 
     assert.ok(badge !== undefined);
 
     for (const style of ["Primary", "Accent", "Info", "Warning", "Success", "Danger", "Surface", "Plain"])
-        assert.ok(badge(convert("badgeStyleClass", style)), style);
+        assert.ok(badge(convert("badgeVariantClass", style)), style);
 
     for (let style = 0; style < 8; style++)
-        assert.ok(badge(convert("badgeStyleClass", style)), String(style));
+        assert.ok(badge(convert("badgeVariantClass", style)), String(style));
 
     assert.equal(badge("ui-badge--colored"), false);
     assert.equal(badge("ui-badge-fill--outline"), false);
-    assert.equal(getClassFamily("badgeFillClass")?.("ui-badge-style--danger"), false);
-    assert.equal(getClassFamily("buttonClass")?.("ui-button--small"), false);
-    assert.equal(getClassFamily("badgeTextFit"), undefined);
+    assert.equal(getClassFamily("badgeFillClass")?.("ui-badge-variant--danger"), false);
+    assert.equal(getClassFamily("buttonVariantClass")?.("ui-button--small"), false);
+    assert.equal(getClassFamily("badgeTitleFit"), undefined);
     assert.equal(getClassFamily("themeColorCss"), undefined);
 });

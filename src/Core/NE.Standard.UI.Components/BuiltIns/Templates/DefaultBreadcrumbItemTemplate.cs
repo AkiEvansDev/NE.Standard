@@ -26,7 +26,7 @@ public abstract class DefaultBreadcrumbItemTemplate<TTemplate> : BreadcrumbItemC
 
             _ = this.BindItemState();
 
-            _ = Bind(UrlProperty, nameof(IBreadcrumbItemModel.Url), UIBindingScope.Relative, optional: true);
+            _ = BindUrl(nameof(IBreadcrumbItemModel.Url), UIBindingScope.Relative, optional: true);
         }
     }
 }

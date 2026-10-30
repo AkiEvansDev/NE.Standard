@@ -1,5 +1,4 @@
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -15,21 +14,16 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// Both glyphs render; the platform shows the one matching the current theme, since the shell is cached across themes. For the same
 /// reason the field's current choice is the page's to write, never the server's.
 /// </remarks>
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultAlignment))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultAlignment))]
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
 [UIComponentPropertyBlock(typeof(ISwitcherComponent))]
-public abstract partial class ThemeSwitcherComponent<T> : VisualComponentBase<T>, ISurfaceComponent, IBorderedComponent, ITooltipComponent, ISwitcherComponent
+public abstract partial class ThemeSwitcherComponent<T>(string? id = null) : VisualComponentBase<T>(id), ISurfaceComponent, IBorderedComponent, ITooltipComponent, ISwitcherComponent
     where T : ThemeSwitcherComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Initializes the switcher centred, as a button.
-    /// </summary>
-    protected ThemeSwitcherComponent(string? id = null) : base(id)
-    {
-        HorizontalAlignment = UIAlignment.Center;
-        VerticalAlignment = UIAlignment.Center;
-    }
+    private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Center;
 
     /// <summary>
     /// Gets or sets the glyph shown while the page is dark — the one that offers the light theme.
@@ -55,7 +49,7 @@ public abstract partial class ThemeSwitcherComponent<T> : VisualComponentBase<T>
     }
 
     /// <summary>A field's caption row over the medium box; the button draws none.</summary>
-    public UIInputSize? CaptionRowBox(UIResponsiveTier tier) => Variant == UISwitcherVariant.Field ? UIInputSize.Medium : null;
+    public UISize? CaptionRowBox(UIResponsiveTier tier) => Variant == UISwitcherVariant.Field ? UISize.Medium : null;
 }
 
 /// <summary>

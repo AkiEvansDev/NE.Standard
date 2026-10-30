@@ -12,7 +12,7 @@ import less from "less";
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 const Editing = ".ui-key-value-action__row[data-ui-row-editing]";
-const Appearances = ":is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline)";
+const Appearances = ":is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline)";
 
 /** The declarations of the first rule whose selector is exactly `selector`. */
 function declarations(selector: string): string {

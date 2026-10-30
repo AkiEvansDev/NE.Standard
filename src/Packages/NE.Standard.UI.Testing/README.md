@@ -39,9 +39,10 @@ all a test project references beside it.
 platform under it: the test is the platform. `configureServices` runs after the startup's own registrations, so a fake
 registered there replaces the real service; `configureApplication` adds to the application as the startup does.
 
-The scheduler is parked. A `Batch` runtime answers a command with the changes it made for the page that asked, and keeps
+The scheduler is parked. A command's changes reach the page that asked before the command returns, and the runtime keeps
 what it owes the rest — a posted action's writes, `OnAttachedAsync`'s — for the flush, which only `page.FlushAsync()`
-runs: what a command answered and what waits for the flush are told apart without timing.
+runs: what a command answered and what waits for the flush are told apart without timing. An effect pushed outside a command
+(`SendEffectsAsync`) goes out at once, behind the values written before it.
 
 ## A page
 
@@ -54,7 +55,8 @@ address bar shows, after every address effect the page received.
 The session is the application's own: `session.SignIn(userId, roles, permissions)`, `InLanguage("ru")` and
 `InTimeZone(...)` are stored in its session store before the page opens and presented as a cookie would present them,
 so the resolver, authorization and filters read them as they read a real session. `WithNotificationPermission(...)` is
-what its pages' browser reports. `page.OpenAsync(address)` opens another page in the same session.
+what its pages' browser reports. `page.OpenAsync(address)` opens another page in the same session; `page.CloseAsync()`
+closes one as a closed tab does and returns once `OnDetachedAsync` ran (the runtime stays for its retention).
 
 A page whose view binds what names nothing — a property the controller lacks, a step the server cannot read — is refused
 when it opens, naming each binding: the server only logs it, and the page would show a blank control. Advice the compile
@@ -123,7 +125,7 @@ stand in the order the server sent them); item windows read on scroll; popups ot
 flyout stand open); a validation message sent into another component; the trimming and debouncing a field does in the
 browser; fields in a list's rows on a submit; what the web hub adds of its own — its call budget, a large value staged
 beside it. A row's item is the server's own object, so a property the server changed
-shows there before a `Batch` runtime's flush sends it. A page's DOM, focus and keyboard are the browser's — for those,
+shows there before the flush sends it. A page's DOM, focus and keyboard are the browser's — for those,
 drive a browser.
 
 ## Licence

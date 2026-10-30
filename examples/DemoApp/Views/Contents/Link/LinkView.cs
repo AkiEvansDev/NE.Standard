@@ -20,12 +20,12 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/contents/link";
     protected override string Header => "demo.contents.link.header";
     protected override string HeaderDescription => "demo.contents.link.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/article", "demo.nav.screens.article");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/article", "demo.nav.screens.article");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new LinkComponent()
             .BindStandard()
-            .BindUrl($"{LinkGroup}.{nameof(LinkGroupContext.Url)}")
+            .BindUrl<LinkController>(static x => x.LinkGroup.Url)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .SetPlacement(1, 1, 24, 1)
@@ -48,7 +48,7 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateExample("What it is for",
+        return DemoUI.CreateExample("Standalone, external & download links",
             new SurfaceComponent()
                 .SetMaxWidth(UILayoutLength.Absolute(372))
                 .SetContent(UILayout.Stack(14)
@@ -86,7 +86,7 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstButtonGroup()
     {
-        return DemoUI.CreateExample("Against a Link-typed button",
+        return DemoUI.CreateExample("LinkComponent vs UIButtons.Link",
             new SurfaceComponent()
                 .SetMaxWidth(UILayoutLength.Absolute(372))
                 .SetContent(UILayout.Stack(12)
@@ -110,7 +110,7 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstMarkupGroup()
     {
-        return DemoUI.CreateExample("Against a link inside a sentence",
+        return DemoUI.CreateExample("Inline markdown link vs standalone LinkComponent",
             new SurfaceComponent()
                 .SetContent(UILayout.Columns(32,
                         DemoUI.CreateLabelled("Inside the sentence", new ParagraphComponent()

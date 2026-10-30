@@ -20,7 +20,7 @@ installFakeDom({
 });
 
 const { ValidationEngine } = await import("../src/interactions/validation-engine.ts");
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 
 const ComponentId = 4;
 const Rule = real<WebRenderValidationMetadata>({ target: { propertyId: "limit.value" }, trigger: "Change", operator: "Greater", value: 0, severity: "Error", message: { text: "zero" } });

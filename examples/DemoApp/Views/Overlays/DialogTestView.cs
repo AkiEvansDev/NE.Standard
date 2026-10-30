@@ -40,7 +40,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 cancelCommand: nameof(DialogTestController.KeepRelease)
             ),
             // Wider than a centred dialog's own cap: the width is the dialog's to name, and the fields stretch to it.
-            // Tonal fields: a short form the dialog already frames, not a long one whose fields stack. Headed by the preset: its mark,
+            // Filled fields: a short form the dialog already frames, not a long one whose fields stack. Headed by the preset: its mark,
             // its title and an × that closes it as Escape does, which cancels the edit as Cancel does.
             new UIDialog
             {
@@ -49,16 +49,16 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                 Width = UILayoutLength.Absolute(640),
                 Content = UIDialogs.Content(DialogTestController.EditKey, Words + "edit.heading", UILayout.Stack(12,
                     new TextInputComponent()
-                        .SetAppearance(UIInputAppearance.Tonal)
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetTitle(Words + "edit.name")
-                        .BindValue($"{EditGroup}.{nameof(EditGroupContext.DraftName)}"),
+                        .BindValue<DialogTestController>(static x => x.EditGroup.DraftName),
                     new TextInputComponent()
-                        .SetAppearance(UIInputAppearance.Tonal)
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetTitle(Words + "edit.owner")
-                        .BindValue($"{EditGroup}.{nameof(EditGroupContext.DraftOwner)}"),
+                        .BindValue<DialogTestController>(static x => x.EditGroup.DraftOwner),
                     CreateButtons(
-                        CreateButton(Words + "cancel", nameof(DialogTestController.CancelEdit), UIButtonType.Ghost),
-                        CreateButton(Words + "save", nameof(DialogTestController.SaveEdit), UIButtonType.Primary)
+                        CreateButton(Words + "cancel", nameof(DialogTestController.CancelEdit), UIButtonVariant.Ghost),
+                        CreateButton(Words + "save", nameof(DialogTestController.SaveEdit), UIButtonVariant.Primary)
                     )
                 ), DemoIcons.Outline(DemoIcons.Edit))
             }.OnClose(nameof(DialogTestController.CancelEdit)),
@@ -67,7 +67,7 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             new UIDialog
             {
                 Key = DialogTestController.FiltersKey,
-                Label = Words + "filters",
+                AccessibleName = Words + "filters",
                 Placement = UIDialogPlacement.Left,
                 Surface = UISurfaceStyle.Background,
                 Modal = false,
@@ -75,37 +75,37 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
                     CreateFilter(Words + "filters.only-failures", nameof(FiltersGroupContext.OnlyFailures)),
                     CreateFilter(Words + "filters.include-retries", nameof(FiltersGroupContext.IncludeRetries)),
                     CreateFilter(Words + "filters.last-day", nameof(FiltersGroupContext.LastDay)),
-                    CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseFilters), UIButtonType.Ghost))
+                    CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseFilters), UIButtonVariant.Ghost))
                 )
             },
             // A sheet at the right edge over a backdrop: a click beside it, or Escape, puts the list back.
             new UIDialog
             {
                 Key = DialogTestController.DetailsKey,
-                Label = Words + "details.label",
+                AccessibleName = Words + "details.name",
                 Placement = UIDialogPlacement.Right,
                 Width = UILayoutLength.Absolute(480),
                 Content = UILayout.Stack(12)
                     .AddChild(new TextComponent()
-                        .BindTitle($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedService)}")
+                        .BindTitle<DialogTestController>(static x => x.DetailsGroup.SelectedService)
                         .SetTitleType(UITextAppearance.Title)
-                        .BindDescription($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedStatus)}")
-                        .BindDescriptionColor($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedColor)}")
+                        .BindDescription<DialogTestController>(static x => x.DetailsGroup.SelectedStatus)
+                        .BindDescriptionColor<DialogTestController>(static x => x.DetailsGroup.SelectedColor)
                     )
                     .AddChild(new ParagraphComponent()
-                        .BindDescription($"{DetailsGroup}.{nameof(DetailsGroupContext.SelectedDetails)}")
+                        .BindDescription<DialogTestController>(static x => x.DetailsGroup.SelectedDetails)
                     )
-                    .AddChild(CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseDetails), UIButtonType.Ghost)))
+                    .AddChild(CreateButtons(CreateButton(Words + "close", nameof(DialogTestController.CloseDetails), UIButtonVariant.Ghost)))
             },
             // Nothing on it closes it: the command that showed it hides it when the work is done.
             new UIDialog
             {
                 Key = DialogTestController.ProgressKey,
-                Label = Words + "progress.label",
+                AccessibleName = Words + "progress.name",
                 CloseOnBackdrop = false,
                 CloseOnEscape = false,
                 Content = new SpinnerComponent()
-                    .SetLabel(Words + "progress.spinner")
+                    .SetTitle(Words + "progress.spinner")
             }
         ];
 
@@ -118,11 +118,11 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(ConfirmGroup, Words + "confirm.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(ConfirmGroupContext.Releases), UIBindingScope.Relative)
+                    .BindDescription<ConfirmGroupContext>(static x => x.Releases, UIBindingScope.Relative)
                 )
                 .AddChild(UILayout.Row(8)
-                    .AddChild(CreateButton(Words + "confirm.delete-latest", nameof(DialogTestController.AskBeforeDelete), UIButtonType.Danger))
-                    .AddChild(CreateButton(Words + "confirm.restore", nameof(DialogTestController.RestoreReleases), UIButtonType.Ghost))
+                    .AddChild(CreateButton(Words + "confirm.delete-latest", nameof(DialogTestController.AskBeforeDelete), UIButtonVariant.Danger))
+                    .AddChild(CreateButton(Words + "confirm.restore", nameof(DialogTestController.RestoreReleases), UIButtonVariant.Ghost))
                 )
             ),
             note: Words + "confirm.note",
@@ -136,12 +136,12 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(EditGroup, Words + "edit.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new TextComponent()
-                    .BindTitle(nameof(EditGroupContext.Name), UIBindingScope.Relative)
+                    .BindTitle<EditGroupContext>(static x => x.Name, UIBindingScope.Relative)
                     .SetTitleType(UITextAppearance.Subtitle)
-                    .BindDescription(nameof(EditGroupContext.Owner), UIBindingScope.Relative)
+                    .BindDescription<EditGroupContext>(static x => x.Owner, UIBindingScope.Relative)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-                .AddChild(CreateButton(Words + "edit", nameof(DialogTestController.BeginEdit), UIButtonType.Ghost))
+                .AddChild(CreateButton(Words + "edit", nameof(DialogTestController.BeginEdit), UIButtonVariant.Ghost))
             ),
             note: Words + "edit.note",
             words: true
@@ -154,11 +154,11 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(ProgressGroup, Words + "progress.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(ProgressGroupContext.Published), UIBindingScope.Relative)
+                    .BindDescription<ProgressGroupContext>(static x => x.Published, UIBindingScope.Relative)
                 )
                 .AddChild(new ButtonComponent()
                     .OnClickShowingLoading(nameof(DialogTestController.PublishAsync))
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle(Words + "progress.publish")
                 )
@@ -174,11 +174,11 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
         return DemoUI.CreateGroup(FiltersGroup, Words + "filters.title",
             content => content.AddChild(DemoUI.CreateStack(12)
                 .AddChild(new ParagraphComponent()
-                    .BindDescription(nameof(FiltersGroupContext.Summary), UIBindingScope.Relative)
+                    .BindDescription<FiltersGroupContext>(static x => x.Summary, UIBindingScope.Relative)
                 )
                 // Opened by the press alone: the sheet shows the filters as they stand, so no command fills it first.
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle(Words + "filters")
                     .SetIcon(DemoIcons.Outline(DemoIcons.Filter))
@@ -197,8 +197,8 @@ internal sealed class DialogTestView : DemoTestView, IUIViewDefinition
             content => content.AddChild(new KeyValueActionComponent()
                 .SetShowActions(false)
                 .SetRowHoverable(true)
-                .BindItems(nameof(DetailsGroupContext.Rows), UIBindingScope.Relative)
-                .OnRowClickWithItemKey(nameof(DialogTestController.ShowDeploy))
+                .BindItems<DetailsGroupContext>(static x => x.Rows, UIBindingScope.Relative)
+                .OnItemClickWithItemKey(nameof(DialogTestController.ShowDeploy))
                 .SetPlacement(1, 1, 24, 1)
             ),
             note: Words + "details.note",

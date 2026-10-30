@@ -9,7 +9,7 @@ export default defineConfig({
         emptyOutDir: false,
         outDir: "dist",
         lib: {
-            entry: resolve(__dirname, "src/boot.ts"),
+            entry: resolve(import.meta.dirname, "src/boot.ts"),
             formats: ["iife"],
             name: "NEStandardUIBoot",
             fileName: () => "ui-boot.js"

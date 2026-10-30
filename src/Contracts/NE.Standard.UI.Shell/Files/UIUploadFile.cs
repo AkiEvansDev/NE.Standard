@@ -11,9 +11,11 @@ public sealed class UIUploadFile
     /// <remarks>Server-issued, never taken from the client: a client-chosen id could collide with or guess at another client's.</remarks>
     public required string FileId { get; init; }
 
-    /// <summary>
-    /// Gets the uploaded file name.
-    /// </summary>
+    /// <summary>Gets the name the client gave the file.</summary>
+    /// <remarks>
+    /// The client's text: the web platform keeps its last segment, without control characters, at most 255 characters, but it is shown,
+    /// never a path to build or a type to trust.
+    /// </remarks>
     public required string FileName { get; init; }
 
     /// <summary>

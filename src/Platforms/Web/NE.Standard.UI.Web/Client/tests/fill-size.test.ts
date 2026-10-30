@@ -1,6 +1,6 @@
 // The client half of the size parity check, against the same corpus WebCssValuesFillTests reads: a component's Fill is the parent's
 // room less its own margins on that axis, pushed live as the render writes it, and a pushed margin keeps that room right by its sides
-// summed per tier; a padding takes each side at least the overlay bar's room where its box keeps it.
+// summed per tier; a padding takes its right side and its bottom at least the overlay bar's room where its box keeps it.
 
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";

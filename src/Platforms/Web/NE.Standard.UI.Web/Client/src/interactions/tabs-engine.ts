@@ -1,26 +1,16 @@
 // Switching tabs: a click moves one attribute over strip and pages already in the DOM, and the new key goes back the two-way path.
 
-import { BindSelectedKeyAttribute, TabActionsAttribute, TabKeyAttribute, TabPageAttribute, TabsSelectedAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { BindSelectedKeyAttribute, TabActionsAttribute, TabCaptionClass, TabCaptionOverflowedClass, TabCaptionSelectedClass, TabKeyAttribute, TabOverflowClass, TabPageAttribute, TabsBandClass, TabsClass, TabsNoOverflowClass, TabsOverflowingClass, TabsSelectedAttribute, TabsStripClass, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
 import { isFieldKey } from "./caret-fields.ts";
 import { happenedInside, observeComponents } from "./dom-mutations.ts";
 import { isLaidOut } from "./element-visibility.ts";
 import { isInert } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { ownDescendants } from "./own-descendants.ts";
-import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
+import { applyRovingTabIndex, moveRovingFocus, resolveRovingTarget } from "./roving-focus.ts";
 import { resolveShownKey, writeSelectedKey } from "./selected-key.ts";
-import { OverflowButtonClass, StripFitter } from "./strip-overflow.ts";
+import { StripFitter } from "./strip-overflow.ts";
 import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch.ts";
-
-const RootClass = "ui-tabs";
-const CaptionClass = "ui-tab-caption";
-const SelectedModifier = "ui-tab-caption--selected";
-const OverflowedModifier = "ui-tab-caption--overflowed";
-const OverflowingModifier = "ui-tabs--overflowing";
-const NoOverflowModifier = "ui-tabs--no-overflow";
-const StripClass = "ui-tabs__strip";
-// The band a strip with actions at its end stands in (TabsComponentRenderer), the strip still the tablist.
-const BandClass = "ui-tabs__band";
 
 export type TabsEngineOptions = {
     readonly root?: ParentNode;
@@ -33,15 +23,15 @@ export class TabsEngine {
     public constructor(options: TabsEngineOptions = {}) {
         this.root = options.root ?? document;
         this.fitter = new StripFitter({
-            rootClass: RootClass,
-            overflowingClass: OverflowingModifier,
-            wraps: root => root.classList.contains(NoOverflowModifier),
-            hiddenClass: OverflowedModifier,
+            rootClass: TabsClass,
+            overflowingClass: TabsOverflowingClass,
+            wraps: root => root.classList.contains(TabsNoOverflowClass),
+            hiddenClass: TabCaptionOverflowedClass,
             refit: root => this.apply(root),
             pick: (root, key) => this.pickFromOverflow(root, key)
         });
 
-        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${TabsClass}`));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
@@ -50,8 +40,8 @@ export class TabsEngine {
         // What happens inside a page is its own: a table patched there must not force a strip layout on every push.
         observeComponents(
             this.root,
-            `.${RootClass}`,
-            { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `[${TabPageAttribute}]`, `.${RootClass}`) },
+            `.${TabsClass}`,
+            { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `[${TabPageAttribute}]`, `.${TabsClass}`) },
             roots => this.applyAll(roots)
         );
     }
@@ -73,17 +63,17 @@ export class TabsEngine {
             return;
         }
 
-        const previous = headers.find(header => header.classList.contains(SelectedModifier)) ?? null;
+        const previous = headers.find(header => header.classList.contains(TabCaptionSelectedClass)) ?? null;
         let current: HTMLElement | null = null;
 
         // A tab's own actions come and go with it, before the captions are fitted into the room they leave.
-        for (const group of ownDescendants(root, `[${TabActionsAttribute}]`, `.${RootClass}`))
+        for (const group of ownDescendants(root, `[${TabActionsAttribute}]`, `.${TabsClass}`))
             group.hidden = (group.getAttribute(TabActionsAttribute) ?? "") !== selected;
 
         for (const header of headers) {
             const own = (header.getAttribute(TabKeyAttribute) ?? "") === selected;
 
-            header.classList.toggle(SelectedModifier, own);
+            header.classList.toggle(TabCaptionSelectedClass, own);
             header.setAttribute("aria-selected", own ? "true" : "false");
             reserveCaptionWidth(header);
 
@@ -95,7 +85,12 @@ export class TabsEngine {
         slideCaptionMark(previous, current);
 
         // Only the captions left on the strip take part in arrow-key travel; a hidden one is reached through the list.
-        applyRovingTabIndex(headers.filter(header => !header.classList.contains(OverflowedModifier)), current);
+        const visibleHeaders = headers.filter(header => !header.classList.contains(TabCaptionOverflowedClass));
+        const stop = previous !== null && previous !== current
+            ? current
+            : visibleHeaders.find(header => header === document.activeElement) ?? current;
+
+        applyRovingTabIndex(visibleHeaders, stop);
 
         for (const page of this.ownPages(root)) {
             page.hidden = (page.getAttribute(TabPageAttribute) ?? "") !== selected;
@@ -107,8 +102,8 @@ export class TabsEngine {
 
     /** Hides the captions past the strip's room and shows the "…" control when any is hidden. */
     private fitHeaders(root: HTMLElement, headers: readonly HTMLElement[], selected: HTMLElement | null): void {
-        const strip = root.querySelector<HTMLElement>(`:scope > .${StripClass}, :scope > .${BandClass} > .${StripClass}`);
-        const button = strip?.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`) ?? null;
+        const strip = root.querySelector<HTMLElement>(`:scope > .${TabsStripClass}, :scope > .${TabsBandClass} > .${TabsStripClass}`);
+        const button = strip?.querySelector<HTMLElement>(`:scope > .${TabOverflowClass}`) ?? null;
 
         if (strip !== null && button !== null)
             this.fitter.fit(root, { room: strip, button, captions: headers, selected });
@@ -136,25 +131,25 @@ export class TabsEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const overflowButton = domEvent.target.closest<HTMLElement>(`.${OverflowButtonClass}`);
-        const overflowRoot = overflowButton?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const overflowButton = domEvent.target.closest<HTMLElement>(`.${TabOverflowClass}`);
+        const overflowRoot = overflowButton?.closest<HTMLElement>(`.${TabsClass}`) ?? null;
 
-        if (overflowButton !== null && overflowRoot !== null && overflowButton.closest(`.${RootClass}`) === overflowRoot) {
+        if (overflowButton !== null && overflowRoot !== null && overflowButton.closest(`.${TabsClass}`) === overflowRoot) {
             domEvent.preventDefault();
             this.toggleOverflow(overflowRoot, overflowButton);
             return;
         }
 
-        const header = domEvent.target.closest<HTMLElement>(`.${CaptionClass}`);
+        const header = domEvent.target.closest<HTMLElement>(`.${TabCaptionClass}`);
 
         if (header === null || isInert(header))
             return;
 
-        const root = header.closest<HTMLElement>(`.${RootClass}`);
+        const root = header.closest<HTMLElement>(`.${TabsClass}`);
         const key = header.getAttribute(TabKeyAttribute);
 
         // Scoped to the strip that owns it: a nested tabs component must not switch the outer one.
-        if (root === null || key === null || header.closest(`.${RootClass}`) !== root)
+        if (root === null || key === null || header.closest(`.${TabsClass}`) !== root)
             return;
 
         domEvent.preventDefault();
@@ -165,16 +160,17 @@ export class TabsEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element) || isFieldKey(domEvent) || !isPlainKey(domEvent))
             return;
 
-        const header = domEvent.target.closest<HTMLElement>(`.${CaptionClass}`);
-        const root = header?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const header = domEvent.target.closest<HTMLElement>(`.${TabCaptionClass}`);
+        const root = header?.closest<HTMLElement>(`.${TabsClass}`) ?? null;
 
         if (header === null || root === null)
             return;
 
-        // A strip runs horizontally, so only the horizontal arrows walk it.
+        // A strip runs horizontally, so only the horizontal arrows walk it; Enter and Space press the caption the caret is on.
+        const headers = this.ownHeaders(root).filter(candidate => !candidate.classList.contains(TabCaptionOverflowedClass));
         const next = resolveRovingTarget({
             key: domEvent.key,
-            items: this.ownHeaders(root),
+            items: headers,
             current: header,
             axis: "horizontal"
         });
@@ -183,10 +179,7 @@ export class TabsEngine {
             return;
 
         domEvent.preventDefault();
-
-        // A strip selects as the caret moves, rather than needing tab-then-Enter.
-        this.select(root, next.getAttribute(TabKeyAttribute) ?? "");
-        next.focus();
+        moveRovingFocus(headers, next);
     }
 
     private select(root: HTMLElement, key: string): void {
@@ -194,16 +187,16 @@ export class TabsEngine {
     }
 
     private ownHeaders(root: HTMLElement): HTMLElement[] {
-        return ownDescendants(root, `.${CaptionClass}`, `.${RootClass}`);
+        return ownDescendants(root, `.${TabCaptionClass}`, `.${TabsClass}`);
     }
 
     private ownPages(root: HTMLElement): HTMLElement[] {
-        return ownDescendants(root, `[${TabPageAttribute}]`, `.${RootClass}`);
+        return ownDescendants(root, `[${TabPageAttribute}]`, `.${TabsClass}`);
     }
 }
 
 /** A caption its author shows: laid out, or hidden only by the fit. */
 function isShown(header: HTMLElement): boolean {
     // By layout alone, a caption the fitter hid would drop out of the next fit and stay hidden with no "…" to reach it.
-    return header.classList.contains(OverflowedModifier) || isLaidOut(header);
+    return header.classList.contains(TabCaptionOverflowedClass) || isLaidOut(header);
 }

@@ -15,6 +15,68 @@ internal static class RecursiveMemberModelFactory
 {
     private const string HintSuffix = "RecursiveMembers";
 
+    public static bool IsCandidateUnannotatedProperty(SyntaxNode node)
+        => node is PropertyDeclarationSyntax { Parent: ClassDeclarationSyntax parent } property
+            && (parent.BaseList is { Types.Count: > 0 } || parent.Modifiers.Any(SyntaxKind.PartialKeyword))
+            && property.Modifiers.Any(SyntaxKind.PublicKeyword)
+            && !property.Modifiers.Any(SyntaxKind.StaticKeyword)
+            && !property.Modifiers.Any(SyntaxKind.AbstractKeyword)
+            && HasPublicMutableSetter(property.AccessorList)
+            && !HasKnownPropertyAttribute(property.AttributeLists);
+
+    public static DiagnosticInfo? CreateUnannotatedDiagnostic(GeneratorSyntaxContext context, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (context.SemanticModel.GetDeclaredSymbol(context.Node, cancellationToken) is not IPropertySymbol property
+            || property.ContainingType is not INamedTypeSymbol containingType
+            || property.FindAttribute(RecursiveMemberNames.AttributeMetadataName) is not null)
+        {
+            return null;
+        }
+
+        INamedTypeSymbol? recursiveObservableType = context.SemanticModel.Compilation.GetTypeByMetadataName(RecursiveMemberNames.RecursiveObservableMetadataName);
+
+        return recursiveObservableType is not null && containingType.InheritsFrom(recursiveObservableType)
+            ? DiagnosticInfo.Create(RecursiveMemberDiagnostics.UnannotatedMutableProperty, property, property.Name, containingType.ToDisplayString())
+            : null;
+    }
+
+    private static bool HasPublicMutableSetter(AccessorListSyntax? accessorList)
+    {
+        if (accessorList is null)
+            return false;
+
+        foreach (AccessorDeclarationSyntax accessor in accessorList.Accessors)
+        {
+            if (accessor.IsKind(SyntaxKind.SetAccessorDeclaration) && accessor.Modifiers.Count == 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasKnownPropertyAttribute(SyntaxList<AttributeListSyntax> attributeLists)
+    {
+        foreach (AttributeListSyntax list in attributeLists)
+        {
+            foreach (AttributeSyntax attribute in list.Attributes)
+            {
+                var name = attribute.Name switch
+                {
+                    IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+                    QualifiedNameSyntax qualified => qualified.Right.Identifier.ValueText,
+                    _ => null
+                };
+
+                if (name is "RecursiveMember" or "RecursiveMemberAttribute" or "UIComponentProperty" or "UIComponentPropertyAttribute")
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     public static RecursiveMemberModel? CreateMemberModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

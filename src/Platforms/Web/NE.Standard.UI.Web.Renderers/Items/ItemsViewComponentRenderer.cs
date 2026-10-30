@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.Components;
@@ -15,13 +16,14 @@ using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Items;
 
 public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string ItemClassName = "ui-items-view__item";
+    private const string ItemClassName = WebClassNames.ItemsViewItem;
     private const string FirstVisibleClassName = "ui-items-view__first-visible";
     private const string LastVisibleClassName = "ui-items-view__last-visible";
 
@@ -37,7 +39,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 
     public override string ComponentTypeKey => ItemsViewComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-items-view";
+    protected override string ClassName => WebClassNames.ItemsView;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -57,6 +59,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         var announces = selectable && listbox;
 
         _ = root.Attribute("role", listbox ? "listbox" : "list");
+        RenderAccessibleName(context, root);
 
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-items-view--row-hover");
@@ -89,7 +92,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         _ = root.Element("div", holder =>
         {
             _ = holder.Class(className).Attribute("hidden").Attribute(WebAttributes.ValueKind, valueKind);
-            _ = RenderProperty<string?>(context, holder, property, static (_, _) => { });
+            _ = RenderValue<string?>(context, holder, property);
         });
     }
 
@@ -137,7 +140,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         UIItemsHostMode hostMode = ResolveHostMode(context);
 
         // Host properties apply either way; only the item content waits for the client.
-        RenderItemsHost(context, root, "ui-items-view__host", items, isBound, ItemClassName, configureHost: host =>
+        RenderItemsHost(context, root, WebClassNames.ItemsViewHost, items, isBound, ItemClassName, configureHost: host =>
         {
             ApplyHostScroll(context, host);
             // On the host, the scroll box: the overlay bar's room its tiers yield to is the scroller's own (ui-items-view.less).
@@ -149,12 +152,20 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
         {
             HashSet<string> selected = ResolveSelectedKeys(context);
             var virtualized = hostMode == UIItemsHostMode.Virtualized;
+            // The first rows alone of all it holds: each says where it stands among them, as the table's rows do (table-row-indices.ts).
+            var setSize = virtualized ? items.Count.ToString(CultureInfo.InvariantCulture) : null;
 
             // A virtualized host hands the client every value and only the first rows: the client draws the rest, headers included.
             RenderItemList(context, host, items, ItemClassName, decorateItem: (itemRoot, item, index) =>
             {
                 _ = itemRoot.Attribute("role", listbox ? "option" : "listitem");
                 MarkSelected(itemRoot, item, selected, announce: announces);
+
+                if (setSize is not null)
+                {
+                    _ = itemRoot.Attribute("aria-setsize", setSize);
+                    _ = itemRoot.Attribute("aria-posinset", (index + 1).ToString(CultureInfo.InvariantCulture));
+                }
             }, appendItem: grip ? (itemRoot, _, _) => RenderRowGrip(context, itemRoot) : null, limit: virtualized ? VirtualizedFirstPaintRows : null, publishValues: virtualized);
         });
     }

@@ -1,314 +1,98 @@
 import { AddressResolver } from "../addressing/address-resolver";
-import { DomRegistry, readComponentId } from "../addressing/dom-registry";
-import { ClientWords, clientStrings, forEachSubtree, marksPageWritten } from "./client-strings";
-import { holdsMoment, holdsPageWritten } from "./words";
+import { DomRegistry } from "../addressing/dom-registry";
+import { AddressHistory } from "../effects/address-history";
+import { EffectRegistration, EffectRegistry } from "../effects/effect-registry";
 import { EventRegistration } from "../events/event-descriptor";
 import { EventPipeline } from "../events/event-pipeline";
-import { InteractionEngine } from "../interactions/interaction-engine";
-import { InteractionEvaluator } from "../interactions/interaction-evaluator";
-import { InteractionIndex } from "../interactions/interaction-index";
-import { FlyoutInteractionEngine } from "../interactions/flyout-interaction-engine";
-import { FileInputEngine } from "../interactions/file-input-engine";
-import { FileUploads, createFileUploads } from "../interactions/file-upload";
-import { uploadsInFlight } from "../interactions/uploads-in-flight";
-import { ItemSelection, itemSelection } from "../interactions/row-selection";
-import { ImageInputEngine } from "../interactions/image-input-engine";
-import { KeyValueActionEngine } from "../interactions/key-value-action-engine";
-import { ToggleButtonEngine } from "../interactions/toggle-button-engine";
-import { FieldBoxPressEngine } from "../interactions/field-box-press-engine";
-import { FieldEnterEvent, FieldKeysEngine } from "../interactions/field-keys-engine";
-import { ImageFallbackEngine } from "../interactions/image-fallback-engine";
-import { TierClassEngine } from "../rendering/tier-class";
-import { RadioGroupSyncEngine } from "../interactions/radio-group-sync-engine";
-import { SelectInteractionEngine } from "../interactions/select-interaction-engine";
-import { SearchEvent, SearchInputEngine } from "../interactions/search-input-engine";
-import { CommitGate } from "../interactions/commit-gate";
-import { commitWaiting, DebouncedCommitEngine, hasWaitingCommits } from "../interactions/debounced-commit-engine";
-import { sizesFieldsToContent, TextAreaGrowEngine } from "../interactions/text-area-grow-engine";
-import { RangeValueEngine } from "../interactions/range-value-engine";
-import { NumberInputEngine } from "../interactions/number-input-engine";
-import { DropEventPrefix, ItemDragEngine, itemDropEvent } from "../interactions/item-drag-engine";
-import { ItemsReorderEngine, itemMoveEvent } from "../interactions/items-reorder-engine";
-import { TemporalPickerEngine } from "../interactions/temporal-picker-engine";
-import { ThemeSwitcherEngine } from "../interactions/theme-switcher-engine";
-import { LanguageSwitcherEngine } from "../interactions/language-switcher-engine";
-import { ActionBarEngine } from "../interactions/action-bar-engine";
-import { ContextMenuEngine, setLaterMenus } from "../interactions/context-menu-engine";
-import { MenuEngine } from "../interactions/menu-engine";
-import { ShortcutEngine, viewShortcutsOf } from "../interactions/shortcut-engine";
-import { PagerEngine } from "../interactions/pager-engine";
-import { MenuGroupEngine } from "../interactions/menu-group-engine";
-import { MenuSearchEngine } from "../interactions/menu-search-engine";
-import { ScreenKeyboardEngine } from "../interactions/screen-keyboard";
-import { WindowFootEngine } from "../interactions/window-foot";
-import { SideDrawerEngine } from "../interactions/side-drawer-engine";
-import { CollapsibleEngine } from "../interactions/collapsible-engine";
-import { GridSplitterEngine } from "../interactions/grid-splitter-engine";
-import { PaneContainerEngine } from "../interactions/pane-container-engine";
-import { SplitButtonEngine } from "../interactions/split-button-engine";
-import { ButtonGroupEngine } from "../interactions/button-group-engine";
-import { AccordionEngine } from "../interactions/accordion-engine";
-import { TabsEngine } from "../interactions/tabs-engine";
-import { CommandBarEngine } from "../interactions/command-bar-engine";
-import { BreadcrumbsEngine } from "../interactions/breadcrumbs-engine";
-import { ColorInputEngine } from "../interactions/color-input-engine";
-import { TableColumns, TableColumnsEngine } from "../interactions/table-columns-engine";
-import { TreeEngine, TreeUnfoldEvent } from "../interactions/tree-engine";
-import { browserNotifications, followClick } from "../interactions/system-notifications";
-import { TabMenuEntryEvent, tabPinEvent, TabsViewEngine } from "../interactions/tabs-view-engine";
-import { TextFoldEngine } from "../interactions/text-fold-engine";
-import { TimeSegmentEngine } from "../interactions/time-segment-engine";
-import { TimestampEngine } from "../interactions/timestamp-engine";
-import { FileTileEngine } from "../interactions/file-tile-engine";
-import { holdAtEnd, holdsOlderWindow, isEndAnchored, ScrollAnchorEngine } from "../interactions/scroll-anchor-engine";
-import { SurfacePressEngine } from "../interactions/surface-press-engine";
-import { TextSelectionEngine } from "../interactions/text-selection-engine";
-import { ScrollGroupEngine } from "../interactions/scroll-group-engine";
-import { PressRippleEngine } from "../interactions/press-ripple-engine";
-import { OverlayScrollbarEngine } from "../interactions/overlay-scrollbar-engine";
-import { startRefusals } from "../interactions/refusal-engine";
-import { ComponentIdAttribute, ComponentSelector, cssAttributeValue, OverlayScrollbarsAttribute, pluginDomNames, PressRippleAttribute, RegionAttribute } from "../addressing/dom-attributes";
-import { endsWithDynamicParameters } from "../addressing/dynamic-parameters";
-import { startTooltips, Tooltips, tooltips } from "../interactions/tooltip-engine";
-import { InlineRenames, openInlineRename } from "../interactions/inline-rename";
-import { createPopups, Popups } from "../interactions/popup-service";
-import { setPopupComponents } from "../interactions/owned-popup";
-import { pluginFocus } from "../interactions/popup-focus";
-import { pluginTypeAhead } from "../interactions/popup-list";
-import { rovingFocus } from "../interactions/roving-focus";
-import { componentStates } from "../interactions/interactive-state";
-import { wheel } from "../interactions/wheel-notches";
-import { seriesColors } from "../rendering/series-colors";
-import { pluginShortcutWords } from "../interactions/caret-fields";
-import { VisibleKeyEngine } from "../items/visible-key-engine";
-import { createItemRows, ItemRows } from "../items/item-rows";
-import { ItemsRuleWatcher } from "../items/items-rule-watcher";
-import { ItemsWindowEngine, ItemWindows } from "../items/items-window-engine";
-import { resolveHostMode } from "../items/items-host-mode";
-import { ItemsSelectionEngine } from "../interactions/items-selection-engine";
-import type { HeldRows } from "../interactions/items-selection-engine";
-import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
-import { ItemsTemplateRegistry } from "../items/items-template-registry";
-import { RowMenus } from "../items/row-menus";
-import { ItemsTemplateRenderer } from "../items/items-template-renderer";
-import {
-    ClientEffectKinds, ConfirmLeaveClientEffect, DiscardFormClientEffect, MetadataIndex, ServerChangeSet, SetLanguageClientEffect, SetThemeColorsClientEffect, WebUIAttachRequest,
-    getIdValue
-} from "../metadata/metadata-index";
-import { applyThemeColors } from "../rendering/theme-colors";
-import { readWebUIMetadata } from "../metadata/metadata-reader";
-import { paintsPageWritten, readHydration } from "./web-hydration";
-import { attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
-import { readTimeZone } from "../transport/reader-time-zone";
-import { ClientStateReporter } from "./client-state";
-import { startServiceWorker } from "./service-worker";
-import type { NotificationClick } from "./worker-messages";
-import { decideReload, forgetReload, sessionMemory } from "./reload-guard";
-import { pageSessionKey, SessionKeyKind, startSessionKeys } from "./session-key";
-import { getOrCreateWindowId } from "./window-id";
-import { ConnectionWatch } from "./connection-watch";
-import { CommandDispatcher } from "../transport/command-dispatcher";
-import { afterAppliedAsync } from "../transport/inbound-order";
-import { PropertyStateStore } from "../state/property-state-store";
-import { SignalRTransport } from "../transport/signalr-transport";
-import { ValueChangeDispatcher } from "../transport/value-change-dispatcher";
-import { fetchStagedValuesAsync, hasStagedValues } from "../transport/value-staging";
-import { ContentRegion } from "../updates/content-fills";
-import { DomOperationRegistration } from "../updates/dom-operation-registry";
-import { ensureFormOwners } from "../updates/form-owner";
-import { EffectRegistration, EffectRegistry } from "../effects/effect-registry";
+import { ValueConverterRegistration } from "../extensions/converters";
+import { resolveValueHolder, ValueReaderRegistration } from "../extensions/value-readers";
+import { commitWaiting } from "../interactions/debounced-commit-engine";
 import { DialogEngine } from "../interactions/dialog-engine";
-import { showLeaveDialog } from "../interactions/leave-dialog";
+import { stopObservedSizes } from "../interactions/element-size";
+import { InteractionIndex } from "../interactions/interaction-index";
 import { LeaveGuard } from "../interactions/leave-guard";
 import { NavigationProgress } from "../interactions/navigation-progress";
-import { AddressHistory, differsInIdentity, readQueryParameters } from "../effects/address-history";
-import { observeComponents } from "../interactions/dom-mutations";
 import { NotificationEngine } from "../interactions/notification-engine";
-import { PropertyPatchEngine } from "../updates/property-patch-engine";
-import { ReactiveSourceRegistry } from "../updates/reactive-source-registry";
-import { UpdateProcessor } from "../updates/update-processor";
-import { EntryValidation, FieldValidation, RuleJudging, ShownValueValidation, ValidationEngine } from "../interactions/validation-engine";
-import { ValueBindingEngine } from "../updates/value-binding-engine";
-import type { UnsavedValue } from "../updates/value-binding-engine";
-import { UnsavedStash } from "./unsaved-stash";
-import type { StashedPage } from "./unsaved-stash";
-import { ExtensionRegistry } from "../extensions/extension-registry";
+import { NumberInputEngine } from "../interactions/number-input-engine";
+import { clearPopupComponents, setPopupComponents } from "../interactions/owned-popup";
+import { registerChoosableKeysReader } from "../interactions/row-selection";
+import { TableColumnsEngine } from "../interactions/table-columns-engine";
+import { ValidationEngine } from "../interactions/validation-engine";
+import { CheckboxRowDecorator } from "../items/checkbox-row-decorator";
+import { ItemsRuleWatcher } from "../items/items-rule-watcher";
+import { ItemsVirtualizationEngine } from "../items/items-virtualization-engine";
+import { ItemsWindowEngine } from "../items/items-window-engine";
 import { MenuRowDecorator } from "../items/menu-row-decorator";
 import { RadioRowDecorator } from "../items/radio-row-decorator";
 import { RowGripDecorator } from "../items/row-grip";
-import { observeSize } from "../interactions/element-size";
-import { applyIconValue } from "../rendering/icon-value";
-import { writeBadgeCount } from "../rendering/web-dom-converters";
-import { numberFormatting } from "../rendering/number-format";
-import { temporalFormatting } from "../rendering/temporal-format";
-import { applyPageCultures } from "../rendering/page-culture";
+import { RowMenus } from "../items/row-menus";
+import { formatMilliseconds, logDebug, logElapsed, logError, logWarn } from "../metadata/logger";
+import { ClientEffectKinds, MetadataIndex, ServerChangeSet, WebUIAttachRequest } from "../metadata/metadata-index";
+import { clientStrings, WordsAsker } from "../rendering/client-strings";
 import { releaseRegions } from "../rendering/region-hold";
-import { asBrowserReads, isExternalLink, isImageSource, isLocalRoute, isSafeLink } from "../rendering/url-safety";
-import { ClientStore } from "../state/client-store";
+import { holdsMoment, holdsPageWritten } from "../rendering/words";
+import { ClientStateReporter } from "../state/client-state";
+import { PropertyStateStore } from "../state/property-state-store";
+import { pageSessionKey } from "../state/session-key";
+import { attachWithRetryAsync, LeftToReconnect } from "../transport/attach-retry";
+import { CommandDispatcher } from "../transport/command-dispatcher";
+import { SignalRTransport } from "../transport/signalr-transport";
+import { ValueChangeDispatcher } from "../transport/value-change-dispatcher";
+import { fetchStagedValuesAsync, hasStagedValues } from "../transport/value-staging";
 import { CollectionSinkRegistration } from "../updates/collection-sinks";
-import { ValueConverterRegistration } from "../extensions/converters";
-import { resolveValueHolder, ValueReaderRegistration, ValueReading } from "../extensions/value-readers";
+import { DomOperationRegistration } from "../updates/dom-operation-registry";
+import { ensureFormOwners } from "../updates/form-owner";
+import { PropertyPatchEngine } from "../updates/property-patch-engine";
+import { ReactiveSourceRegistry } from "../updates/reactive-source-registry";
+import { UpdateProcessor } from "../updates/update-processor";
+import { ValueBindingEngine } from "../updates/value-binding-engine";
+import type { UnsavedValue } from "../updates/value-binding-engine";
+import { CleanupScope } from "./cleanup-scope";
+import {
+    createEventPipelineAndWindows, createItemsSubsystems, createPluginEngineContext, EngineContext, PluginEngine,
+    PluginEngineContext, startCoreComponentEngines
+} from "./component-engines";
+import { ConnectionWatch } from "./connection-watch";
 import { nameOfPackageEngine, startEngine } from "./engine-start";
-import { exposeGlobalApi } from "./global-api";
-import { formatMilliseconds, logDebug, logElapsed, logError, logWarn } from "./logger";
+import { ExtensionRegistry } from "./extension-registry";
+import { FailureNotice } from "./failure-notice";
+import { exposeGlobalApi, unexposeGlobalApi } from "./global-api";
+import { readWebUIMetadata } from "./metadata-reader";
+import { forgetReload, sessionMemory } from "./reload-guard";
 import { WebUIRuntimeOptions } from "./runtime-options";
+import {
+    applyStagedOrImmediateChanges, buildAttachRequest, contentRegion, createFailureNotice, createInteractionEngine,
+    createLeaveGuardOptions, createRuntimeEffectRegistry, createValueBindingEngine, delay, documentParsedAsync,
+    followInPlaceUrl, holdInboundQueue, holdsPaintedPageWritten, registerRuntimeEffects, reloadForFreshRuntimeVerdict,
+    reloadForViewVerdict, revisitRuntimeUrl, rewritePageWords, showConnectionLostNotification, showFromStart,
+    switchRuntimeLanguageAsync, wireTransportCallbacks
+} from "./runtime-words";
+import { StashedPage, UnsavedStash } from "./unsaved-stash";
+import { readHydration } from "./web-hydration";
+import { getOrCreateWindowId } from "./window-id";
+
+export type { Badges, Icons, PluginEngine, PluginEngineContext, PropertyWriting, Urls } from "./component-engines";
 
 const DefaultWindowIdStorageKey = "ne.standard.ui.windowId";
-
-// An attach that throws is retried this many times before giving up, waiting this long before each retry.
 const AttachRetryDelaysMilliseconds = [500, 1000, 2000];
-
-// How many attaches may run back to back, each asked for while the one before it ran, before the page is given up as lost.
 const AttachRunsInARow = 3;
-
-type EngineContext = {
-    readonly root: ParentNode;
-    readonly dom: DomRegistry;
-    readonly propertyPatchEngine: PropertyPatchEngine;
-    readonly effects: EffectRegistry;
-    readonly validation: FieldValidation & EntryValidation & ShownValueValidation;
-    readonly dialogs: DialogEngine;
-    /** A virtualized host's rows past the drawn ones, as the row keyboard walks them. */
-    readonly heldRows: HeldRows;
-};
-
-/** Icons as a package draws them on elements it builds itself: an icon value written the way a renderer writes it. */
-export type Icons = {
-    apply(element: Element, value: unknown): void;
-};
-
-/** Badges a package counts on itself, on a badge a renderer drew: the count written as the renderer would have written it. */
-export type Badges = {
-    writeCount(badge: Element, count: number): void;
-};
-
-/** Addresses judged by the framework's own rule, read as the browser reads them, so a package draws a picture or a link by no other. */
-export type Urls = {
-    isImageSource(address: string): boolean;
-    asBrowserReads(address: string): string;
-    isSafeLink(address: string): boolean;
-    isExternalLink(address: string): boolean;
-};
-
-/** What a package's engine starts from: a built-in engine's services, plus what it cannot import from its own bundle. */
-export type PluginEngineContext = EngineContext & {
-    readonly strings: ClientWords;
-    readonly observeComponents: typeof observeComponents;
-    readonly observeSize: typeof observeSize;
-    readonly store: ClientStore;
-    readonly numbers: typeof numberFormatting;
-    readonly temporal: typeof temporalFormatting;
-    readonly icons: Icons;
-    readonly badges: Badges;
-    readonly urls: Urls;
-    readonly values: ValueReading;
-    readonly properties: PropertyWriting;
-    readonly windows: ItemWindows;
-    readonly tooltips: Tooltips;
-    readonly renames: InlineRenames;
-    readonly tables: TableColumns;
-    readonly rows: ItemRows;
-    readonly uploads: FileUploads;
-    readonly selection: ItemSelection;
-    readonly popups: Popups;
-    readonly roving: typeof rovingFocus;
-    readonly typeAhead: typeof pluginTypeAhead;
-    readonly focus: typeof pluginFocus;
-    readonly states: typeof componentStates;
-    readonly validation: FieldValidation & RuleJudging;
-    readonly wheel: typeof wheel;
-    readonly colors: typeof seriesColors;
-    readonly shortcuts: typeof pluginShortcutWords;
-    readonly names: typeof pluginDomNames;
-};
-
-export type PluginEngine = (context: PluginEngineContext) => unknown;
-
-/** A core component's property set from a package's client the way a push sets it, where its renderer exposed the property. */
-export type PropertyWriting = {
-    set(element: Element, propertyName: string, value: unknown): boolean;
-};
-
-// Engines needing only the root and the shared services, named for the console if one throws; where their order matters, it says so.
-const ComponentEngines: readonly (readonly [name: string, start: (context: EngineContext) => unknown])[] = [
-    ["refusal", ({ root }) => startRefusals(root)],
-    ["file input", ({ root, validation }) => new FileInputEngine({ root, validation })],
-    ["image input", ({ root, validation, propertyPatchEngine, dialogs }) => new ImageInputEngine({ root, validation, propertyPatchEngine, dialogs })],
-    ["key value action", ({ root, dom, propertyPatchEngine, validation }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine, validation })],
-    // Listens in the bubble phase, and every engine with its own Enter or Escape in the capture phase, so theirs runs first.
-    ["field keys", ({ root, propertyPatchEngine }) => new FieldKeysEngine({ root, propertyPatchEngine })],
-    ["field box press", ({ root }) => new FieldBoxPressEngine({ root })],
-    // Ahead of the engines reading a class it sets (an orientation, a size, a list's layout), so they read the width's.
-    ["tier classes", ({ root }) => new TierClassEngine({ root })],
-    ["image fallback", ({ root }) => new ImageFallbackEngine({ root })],
-    ["radio group sync", ({ root }) => new RadioGroupSyncEngine({ root })],
-    ["select interaction", ({ root, validation }) => new SelectInteractionEngine({ root, validation })],
-    ["search input", ({ root }) => new SearchInputEngine({ root })],
-    ["debounced commit", ({ root }) => new DebouncedCommitEngine({ root })],
-    // On the window, ahead of every engine's listener on the root whatever its place here; behind the refusals and a free-text entry's own.
-    ["commit gate", ({ root, propertyPatchEngine }) => new CommitGate({ root, propertyPatchEngine })],
-    // Only where the stylesheet cannot size a growing text area to its text on its own.
-    ["text area grow", ({ root, propertyPatchEngine }) => sizesFieldsToContent() ? undefined : new TextAreaGrowEngine({ root, propertyPatchEngine })],
-    ["items selection", ({ root, heldRows }) => new ItemsSelectionEngine({ root, rows: heldRows })],
-    ["range value", ({ root, propertyPatchEngine }) => new RangeValueEngine({ root, propertyPatchEngine })],
-    ["color input", ({ root, propertyPatchEngine }) => new ColorInputEngine({ root, propertyPatchEngine })],
-    ["temporal picker", ({ root, propertyPatchEngine }) => new TemporalPickerEngine({ root, propertyPatchEngine })],
-    ["theme switcher", ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom })],
-    ["language switcher", ({ root, effects, dom }) => new LanguageSwitcherEngine({ root, effects, dom })],
-    ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine })],
-    ["timestamp", ({ root, propertyPatchEngine }) => new TimestampEngine({ root, propertyPatchEngine })],
-    ["file tile", ({ root, propertyPatchEngine }) => new FileTileEngine({ root, propertyPatchEngine })],
-    ["context menu", ({ root, dom }) => new ContextMenuEngine({ root, dom })],
-    ["split button", ({ root }) => new SplitButtonEngine({ root })],
-    ["toggle button", ({ root }) => new ToggleButtonEngine({ root })],
-    ["button group", ({ root }) => new ButtonGroupEngine({ root })],
-    ["menu", ({ root }) => new MenuEngine({ root })],
-    ["action bar", ({ root, dom }) => new ActionBarEngine({ root, dom })],
-    // Before the group engine: it restores a menu's fold, and groups are opened against the shape that leaves.
-    ["collapsible", ({ root }) => new CollapsibleEngine({ root })],
-    ["menu group", ({ root }) => new MenuGroupEngine({ root })],
-    ["menu search", ({ root }) => new MenuSearchEngine({ root })],
-    ["side drawer", ({ root }) => new SideDrawerEngine({ root })],
-    ["screen keyboard", () => new ScreenKeyboardEngine()],
-    ["window foot", ({ root }) => new WindowFootEngine({ root })],
-    ["grid splitter", ({ root }) => new GridSplitterEngine({ root })],
-    ["pane container", ({ root }) => new PaneContainerEngine({ root })],
-    ["accordion", ({ root }) => new AccordionEngine({ root })],
-    ["tabs", ({ root }) => new TabsEngine({ root })],
-    ["tabs view", ({ root, effects }) => new TabsViewEngine({ root, effects })],
-    ["command bar", ({ root }) => new CommandBarEngine({ root })],
-    ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root })],
-    ["scroll anchor", ({ root }) => new ScrollAnchorEngine({ root })],
-    ["visible keys", ({ root }) => new VisibleKeyEngine({ root })],
-    ["surface press", ({ root }) => new SurfacePressEngine({ root })],
-    ["text selection", ({ root }) => new TextSelectionEngine({ root })],
-    ["scroll group", ({ root }) => new ScrollGroupEngine({ root })],
-    ["flyout interaction", ({ root }) => new FlyoutInteractionEngine({ root })],
-    ["text fold", ({ root }) => new TextFoldEngine({ root })],
-    ["tooltip", ({ root }) => startTooltips(root)]
-];
 
 export class WebUIRuntime {
     public readonly windowId: string;
 
     private readonly options: WebUIRuntimeOptions;
     private readonly root: ParentNode;
-    // The language the page's culture packs were last written in: the render's, until a switch writes them again.
     private culturesLanguage = document.documentElement.lang;
     private readonly metadata = new MetadataIndex(readWebUIMetadata());
     private readonly hydration = readHydration();
-    // The render's place in the runtime's updates, presented by the first attach alone: a later one starts from whatever the page holds.
     private renderSequence = this.hydration?.sequence ?? null;
-    // Writes again the page's words that hold a moment, which the page writes in the reader's zone.
     private readonly rewriteMoments: () => void;
-    // Writes again the page's words that hold a value the page writes itself — a moment, a file size — as the server painted them.
     private readonly rewritePageWritten: () => void;
     private readonly dom: DomRegistry;
     private readonly transport: SignalRTransport;
     private readonly dispatcher: CommandDispatcher;
     private readonly updateProcessor: UpdateProcessor;
     private readonly ruleWatcher: ItemsRuleWatcher;
-    // The rows' menus waiting to be drawn, whose chords the page's registry names before they are.
     private readonly rowMenus: RowMenus;
     private readonly eventPipeline: EventPipeline;
     private readonly extensions: ExtensionRegistry;
@@ -319,571 +103,163 @@ export class WebUIRuntime {
     private readonly tables: TableColumnsEngine;
     private readonly virtualization: ItemsVirtualizationEngine;
     private readonly notifications: NotificationEngine;
+    private readonly failures: FailureNotice;
     private readonly effects: EffectRegistry;
     private readonly leaveGuard: LeaveGuard;
-    // A link's press of its own; a leave the page decides and a switch to another runtime start it here.
-    private readonly navigationProgress = new NavigationProgress({ window });
-    // A sign-in's one-time token on its way to the new key's cookie: every page load the page starts waits for it.
+    private readonly navigationProgress: NavigationProgress;
     private readonly sessionKey = pageSessionKey;
     private readonly address: AddressHistory;
     private readonly clientState: ClientStateReporter;
+    private readonly cleanupScope = new CleanupScope();
+    private readonly unsubscribeWordsChange: () => void;
+    private readonly unsubscribeMomentTick: () => void;
+    private readonly wordsAsker: WordsAsker;
+    private disposed = false;
 
     /** Public so a plugin's own Source-driven config can reuse this dispatch. */
     public readonly reactiveSources: ReactiveSourceRegistry;
 
     private attachTask: Promise<void> | null = null;
-
-    // An attach asked for while one runs: that one may have started before the reason did, so it runs again once it ends.
     private reattachRequested = false;
-
     private connectionLost = false;
-
-    // A reload is under way: what a reload carried over stays kept for the page that loads next.
     private reloading = false;
-
-    // Says a reconnect that outlasts its grace on the page, and that the connection is lost.
     private readonly connection: ConnectionWatch;
-
-    // The runtime the last attach was answered with, which every later attach presents: an answer naming another says the page is stale.
     private heldRuntime: string | null = null;
-
-    // The runtime the render prepared, which an attach presents to claim it, until the page goes to another runtime of its route.
     private pageId = this.hydration?.pageId ?? null;
-
-    // The query the held runtime was attached by — the last answered attach's — so an attach whose address differs from it in an
-    // identity parameter says it goes to another runtime; decided per attach, so two switches in a row each say it.
     private runtimeSearch = window.location.search;
-
-    // The content region a switch to another runtime turned inert, until an attach is answered.
     private inertContent: Element | null = null;
-
-    // Ends the load bar a switch to another runtime started, as its content is given back or the page gives up.
     private endSwitchProgress: (() => void) | null = null;
-
-    // Sends what the page's fields still hold and resolves once every value given is answered; built with the value engine.
     private readonly settleValues: () => Promise<void>;
-
-    // What the fields hold that the server never took, carried over a reload the page has to make; built with the value engine.
     private readonly unsaved = new UnsavedStash();
     private readonly readUnsaved: () => UnsavedValue[];
     private readonly restoreUnsaved: (values: readonly UnsavedValue[]) => number;
-    // Applies an attach's snapshot with the field the reader is typing in held; built with the value engine.
     private readonly holdTypedDuring: (apply: () => void) => void;
-
-    // Settles once the attach after a drop has applied its snapshot: a value that waited out the drop is weighed then.
     private current: Promise<void> = Promise.resolve();
     private currentPending = false;
     private markCurrent: () => void = () => { };
-
-    // The change sets still waiting on a staged value, in order; null while every one has been applied.
     private inbound: Promise<void> | null = null;
-
-    // A package's engine registered before hydration, started once it is done; null once the page is hydrated.
     private enginesAwaitingHydration: PluginEngine[] | null = [];
-
-    // Bumped by every language switch, so one that began later wins over one still waiting on the server.
+    private readonly engineDisposers: (() => void)[] = [];
     private languageSwitches = 0;
-
-    // Counts the colour changes asked for, so an answer arriving after a later one's is dropped.
-    private themeColorChanges = 0;
-
-    // Null only when its start threw: a number field is then read as the text it shows.
-    private numberInputs: NumberInputEngine | null = null;
+    private readonly numberInputs: NumberInputEngine | null = null;
 
     public constructor(options: WebUIRuntimeOptions = {}) {
         this.options = options;
         this.root = options.root ?? document;
-        this.windowId = getOrCreateWindowId(options.windowIdStorageKey ?? DefaultWindowIdStorageKey, id => this.reloadAsOwnTab(id));
-        this.dom = new DomRegistry(this.root);
 
-        // Before any engine: the first thing one draws may already need a word.
-        clientStrings.load(this.root);
-        clientStrings.setLanguage(document.documentElement.lang);
+        const leaveCleanupScope = this.cleanupScope.enter([this.root, window, document, document.documentElement, (window as { navigation?: unknown }).navigation]);
 
-        if (options.strings !== undefined)
-            clientStrings.register(options.strings);
+        try {
+            this.navigationProgress = new NavigationProgress({ window });
+            this.windowId = getOrCreateWindowId(options.windowIdStorageKey ?? DefaultWindowIdStorageKey, id => this.reloadAsOwnTab(id));
+            this.dom = new DomRegistry(this.root);
 
-        // Every change set, the hydration's first, waits for the table, so a value arrives in its words rather than as its key.
-        this.gateInbound(this.hydration?.words === null || this.hydration?.words === undefined ? null : clientStrings.loadTableAsync(this.hydration.words.href));
+            clientStrings.load(this.root);
+            clientStrings.setLanguage(document.documentElement.lang);
 
-        this.extensions = new ExtensionRegistry(options.converters, options.eventDefinitions, options.domOperations, options.valueReaders);
-        this.extensions.registerRowDecorator(MenuRowDecorator);
-        this.extensions.registerRowDecorator(RowGripDecorator);
-        this.extensions.registerRowDecorator(RadioRowDecorator);
-        const addressResolver = new AddressResolver(this.dom, this.metadata);
-        const operations = this.extensions.operations;
-        const propertyState = new PropertyStateStore();
-        const propertyPatchEngine = new PropertyPatchEngine(addressResolver, operations, this.extensions, propertyState);
-        this.reactiveSources = new ReactiveSourceRegistry(propertyPatchEngine, { root: this.root, valueReaders: this.extensions.valueReaders, metadata: this.metadata });
-        // Built before the interaction engine, whose own effects go through the same registry a command's do.
-        // The viewer's close of a dialog discards its form through the effect a preset's × sends, registered below.
-        this.dialogs = new DialogEngine({
-            root: this.root,
-            dom: this.dom,
-            discardForm: formId => this.effects.apply({ effect: { kind: ClientEffectKinds.DiscardForm, formId }, dom: this.dom })
-        });
-        setPopupComponents(this.dom);
-        this.notifications = new NotificationEngine({ root: this.root, dom: this.dom });
-        // Back or Forward to an entry of this route is told to the controller, or goes to its runtime in place where it names another;
-        // to another route, it is a page load.
-        this.address = new AddressHistory({
-            window,
-            revisit: parameters => void this.navigateInPlaceAsync(parameters),
-            switchRuntime: (search, previous) => this.revisitRuntime(search, previous),
-            load: () => this.reload()
-        });
-        // The event pipeline is built further down: a toast's action is pressed long after the constructor ends.
-        const runAction = (id: string): Promise<boolean> => this.eventPipeline.dispatchCommandAsync({ eventId: 0, action: id, dynamicParameters: [] })
-            .catch((error: unknown) => {
-                logWarn("running a notification's action failed.", error);
-                return false;
+            if (options.strings !== undefined)
+                clientStrings.register(options.strings);
+
+            this.gateInbound(this.hydration?.words === null || this.hydration?.words === undefined ? null : clientStrings.loadTableAsync(this.hydration.words.href));
+
+            this.extensions = new ExtensionRegistry(options.converters, options.eventDefinitions, options.domOperations, options.valueReaders);
+            this.extensions.registerRowDecorator(MenuRowDecorator);
+            this.extensions.registerRowDecorator(RowGripDecorator);
+            this.extensions.registerRowDecorator(RadioRowDecorator);
+            this.extensions.registerRowDecorator(CheckboxRowDecorator);
+            const addressResolver = new AddressResolver(this.dom, this.metadata);
+            const operations = this.extensions.operations;
+            const propertyState = new PropertyStateStore();
+            const propertyPatchEngine = new PropertyPatchEngine(addressResolver, operations, this.extensions, propertyState);
+            this.reactiveSources = new ReactiveSourceRegistry(propertyPatchEngine, { root: this.root, valueReaders: this.extensions.valueReaders, metadata: this.metadata });
+            this.dialogs = new DialogEngine({
+                root: this.root,
+                dom: this.dom,
+                discardForm: formId => this.effects.apply({ effect: { kind: ClientEffectKinds.DiscardForm, formId }, dom: this.dom })
             });
-        // A system notification's click, whether the worker showed it or the page itself: to its address through the leave guard,
-        // built further down, or its command as a toast's press runs it.
-        const followNotificationClick = (click: NotificationClick): void => followClick(click, url => this.leaveGuard.navigate(url), id => void runAction(id));
-        const worker = startServiceWorker(document.documentElement, this.windowId, followNotificationClick);
+            setPopupComponents(this.dom);
+            this.notifications = new NotificationEngine({ root: this.root, dom: this.dom });
+            this.failures = createFailureNotice(this.notifications, () => this.connectionLost || this.transport.isReconnecting);
+            this.address = new AddressHistory({
+                window,
+                revisit: parameters => void this.navigateInPlaceAsync(parameters),
+                switchRuntime: (search, previous) => this.revisitRuntime(search, previous),
+                load: () => this.reload()
+            });
+            this.effects = createRuntimeEffectRegistry(this.windowId, this.address, this.dialogs, this.notifications, this.failures, this.extensions, () => this.eventPipeline, () => this.transport, () => this.leaveGuard, () => this.clientState);
 
-        this.effects = new EffectRegistry({
-            address: this.address,
-            dialogs: this.dialogs,
-            notifications: this.notifications,
-            runAction,
-            valueReaders: this.extensions.valueReaders,
-            // Nothing waits on this: the theme is already on screen, and the session only has to catch up.
-            reportTheme: theme => void this.transport.setThemeAsync(theme).catch(error => logWarn("reporting the theme to the session failed.", error)),
-            // The leave guard is built once the value engine is: no effect runs before the constructor ends.
-            navigate: url => this.leaveGuard.navigate(url),
-            clientStateChanged: () => this.clientState.changed(),
-            windowId: this.windowId,
-            followNotificationClick,
-            systemNotifications: browserNotifications(worker)
-        });
+            const interactionIndex = new InteractionIndex(this.metadata);
+            let valueBinding: ValueBindingEngine | undefined;
 
-        const interactionIndex = new InteractionIndex(this.metadata);
+            const interactionEngine = createInteractionEngine(this.root, this.metadata, this.dom, this.effects, this.extensions, propertyPatchEngine, interactionIndex, this.failures, () => valueBinding);
+            const { itemsTemplates, itemsRenderer, rowMenus, virtualization, updateProcessor, ruleWatcher } = createItemsSubsystems(this.root, this.dom, this.metadata, this.extensions, operations, propertyState, propertyPatchEngine, this.reactiveSources);
+            this.rowMenus = rowMenus;
+            this.virtualization = virtualization;
+            this.updateProcessor = updateProcessor;
+            this.ruleWatcher = ruleWatcher;
 
-        // Wired below, once the value engine exists: an interaction's write reaches the server through the same engine a field's does.
-        let valueBinding: ValueBindingEngine | undefined;
+            this.unsubscribeWordsChange = clientStrings.onChange(() => {
+                this.culturesLanguage = rewritePageWords(this.root, this.dom, this.metadata, this.hydration, this.culturesLanguage, propertyPatchEngine, itemsRenderer);
+            });
+            this.rewriteMoments = () => {
+                this.culturesLanguage = rewritePageWords(this.root, this.dom, this.metadata, this.hydration, this.culturesLanguage, propertyPatchEngine, itemsRenderer, holdsMoment);
+            };
+            this.unsubscribeMomentTick = clientStrings.onMomentTick(this.rewriteMoments);
+            this.rewritePageWritten = () => {
+                this.culturesLanguage = rewritePageWords(this.root, this.dom, this.metadata, this.hydration, this.culturesLanguage, propertyPatchEngine, itemsRenderer, holdsPageWritten);
+            };
 
-        const interactionEngine = new InteractionEngine(interactionIndex, propertyPatchEngine, new InteractionEvaluator(), {
-            root: this.root,
-            effects: this.effects,
-            dom: this.dom,
-            metadata: this.metadata,
-            valueReaders: this.extensions.valueReaders,
-            writeBack: (target, dynamicParameters, value) => {
-                void valueBinding?.syncPropertyAsync(getIdValue(target.componentId), target.propertyId, dynamicParameters, value)
-                    .catch(error => logWarn("writing an interaction's value back failed.", error));
-            }
-        });
-        const itemsTemplates = new ItemsTemplateRegistry(this.dom);
-        const itemsRenderer = new ItemsTemplateRenderer(this.metadata, itemsTemplates, this.extensions, operations, propertyState);
-        // Before any row is cloned: a row's menu is taken out of its template, and drawn only when it is wanted.
-        const rowMenus = new RowMenus({
-            root: this.root,
-            render: (template, owner) => itemsRenderer.renderPart(template, owner),
-            drawn: menu => this.updateProcessor.fillDrawnPart(menu),
-            heldRows: visit => this.updateProcessor.forEachHeldRow(visit)
-        });
+            this.transport = new SignalRTransport(this.windowId, (changes, before) => this.applyChanges(changes, before, this.heldRuntime), options.signalR);
+            this.clientState = new ClientStateReporter({ report: state => this.transport.reportClientStateAsync(state) });
+            this.dispatcher = new CommandDispatcher(this.transport);
 
-        rowMenus.scan();
-        setLaterMenus(owner => rowMenus.draw(owner));
-        this.rowMenus = rowMenus;
+            this.wordsAsker = (language, keys) => this.transport.translateAsync(language, keys);
+            clientStrings.setAsker(this.wordsAsker);
 
-        this.virtualization = new ItemsVirtualizationEngine({
-            root: this.root,
-            metadata: this.metadata,
-            templates: itemsTemplates,
-            renderer: itemsRenderer,
-            state: propertyState,
-            dom: this.dom
-        });
+            const valueChangeDispatcher = new ValueChangeDispatcher(this.transport, { whenCurrent: () => this.current });
+            valueBinding = createValueBindingEngine(this.root, this.metadata, this.dom, valueChangeDispatcher, this.extensions, propertyPatchEngine, propertyState, this.ruleWatcher, this.failures, () => validationEngine);
+            this.settleValues = async () => {
+                commitWaiting();
+                await valueChangeDispatcher.whenAnsweredAsync();
+            };
+            this.readUnsaved = () => valueBinding?.unsavedValues() ?? [];
+            this.holdTypedDuring = apply => valueBinding === undefined ? apply() : valueBinding.holdTypedDuring(apply);
+            this.restoreUnsaved = unsaved => valueBinding?.restoreUnsaved(unsaved, (element, bindingId, value) => propertyPatchEngine.writeBoundValue(element, value, bindingId)) ?? 0;
 
-        this.updateProcessor = new UpdateProcessor(
-            this.metadata,
-            propertyPatchEngine,
-            propertyState,
-            itemsRenderer,
-            itemsTemplates,
-            this.dom,
-            this.virtualization,
-            this.extensions.collectionSinks,
-            rowMenus
-        );
+            this.leaveGuard = new LeaveGuard(createLeaveGuardOptions(this.navigationProgress, this.sessionKey, this.transport, this.effects, this.dom, this.dialogs, valueChangeDispatcher, valueBinding, () => this.windows, () => this.settleValues(), target => this.followInPlace(target)));
+            this.updateProcessor.addPageHandler(update => this.leaveGuard.set(update.holdsUnsavedWork === true));
 
-        // First among the listeners, before any engine's: the page's words are written again before a package hears the change.
-        clientStrings.onChange(() => this.rewriteWords(propertyPatchEngine, itemsRenderer));
+            const validationEngine = new ValidationEngine({
+                root: this.root,
+                metadata: this.metadata,
+                dom: this.dom,
+                propertyPatchEngine,
+                updateProcessor: this.updateProcessor,
+                valueReaders: this.extensions.valueReaders,
+                readValue: element => this.readPluginValue(element)
+            });
 
-        // A relative moment in words is kept current as a relative timestamp is.
-        this.rewriteMoments = () => this.rewriteWords(propertyPatchEngine, itemsRenderer, holdsMoment);
-        clientStrings.onMomentTick(this.rewriteMoments);
-        this.rewritePageWritten = () => this.rewriteWords(propertyPatchEngine, itemsRenderer, holdsPageWritten);
+            registerRuntimeEffects(this.effects, this.transport, propertyPatchEngine, valueBinding, validationEngine, this.sessionKey, this.leaveGuard, (language, href) => this.switchLanguageAsync(language, href));
 
-        // Everything that can put a host out of step with its own rules goes through this one watcher.
-        this.ruleWatcher = new ItemsRuleWatcher({
-            root: this.root,
-            metadata: this.metadata,
-            templates: itemsTemplates,
-            renderer: itemsRenderer,
-            state: propertyState,
-            propertyPatchEngine,
-            reactiveSources: this.reactiveSources,
-            virtualization: this.virtualization
-        });
+            this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine, dialogs: this.dialogs, heldRows: this.virtualization };
+            this.numberInputs = startCoreComponentEngines(this.engineContext, this.metadata, propertyState, itemsRenderer, this.virtualization, interactionEngine, this.engineDisposers);
 
-        // Every answer's changes come through here in the order the messages arrived, pushes' too (inbound-order.ts). An answer is the
-        // held runtime's as it arrives: the hub answers one call at a time, so one arriving while an attach to another is on its way is
-        // the left runtime's, dropped once that attach is answered.
-        this.transport = new SignalRTransport(this.windowId, (changes, before) => this.applyChanges(changes, before, this.heldRuntime), options.signalR);
-        this.clientState = new ClientStateReporter({ report: state => this.transport.reportClientStateAsync(state) });
-        this.dispatcher = new CommandDispatcher(this.transport);
+            const { eventPipeline, tables, windows } = createEventPipelineAndWindows(this.root, this.metadata, this.dom, this.dispatcher, interactionEngine, interactionIndex, this.extensions, this.effects, options.events, validationEngine, valueBinding, this.transport, this.failures, this.updateProcessor, this.engineContext, this.rowMenus, this.virtualization, this.engineDisposers);
+            this.eventPipeline = eventPipeline;
+            this.tables = tables;
+            this.windows = windows;
 
-        // A key the table lacks is asked about once per language — a translator that cannot list every word, or a missing word reported.
-        clientStrings.setAsker((language, keys) => this.transport.translateAsync(language, keys));
+            this.pluginContext = createPluginEngineContext(this.engineContext, this.metadata, propertyPatchEngine, valueBinding, validationEngine, itemsTemplates, itemsRenderer, this.virtualization, this.windows, this.tables, element => this.readPluginValue(element));
 
-        // Raised on the page, it asks the server where the words are, which stores the language on the session; pushed, it names them.
-        this.effects.register(ClientEffectKinds.SetLanguage, context => {
-            const effect = context.effect as SetLanguageClientEffect;
-            const language = effect.language;
-
-            if (typeof language !== "string" || language.trim().length === 0) {
-                logWarn("set language effect carries no language.", context.effect);
-                return;
-            }
-
-            const href = typeof effect.href === "string" && effect.href.length > 0 ? effect.href : null;
-
-            void this.switchLanguageAsync(language, href).catch(error => logWarn("switching the page's language failed.", error));
-        });
-
-        // Raised or pushed alike, the session is told the colours and answers the stylesheet they make: the one a render of it carries.
-        this.effects.register(ClientEffectKinds.SetThemeColors, context => {
-            const effect = context.effect as SetThemeColorsClientEffect;
-            const change = ++this.themeColorChanges;
-
-            // Pushed for a session that holds them already, the stylesheet comes named: telling the session would write them again.
-            if (typeof effect.css === "string") {
-                applyThemeColors(document.head, effect.css);
-                return;
-            }
-
-            void this.transport.setThemeColorsAsync(effect.colors ?? null)
-                .then(css => {
-                    if (change === this.themeColorChanges)
-                        applyThemeColors(document.head, css);
-                })
-                .catch(error => logWarn("applying the reader's colours failed.", error));
-        });
-
-        // Value sync is independent of the event pipeline: a component with both does two round-trips on one "change".
-        const valueChangeDispatcher = new ValueChangeDispatcher(this.transport, { whenCurrent: () => this.current });
-        valueBinding = new ValueBindingEngine({
-            root: this.root,
-            metadata: this.metadata,
-            dom: this.dom,
-            dispatcher: valueChangeDispatcher,
-            valueReaders: this.extensions.valueReaders,
-            recordSent: (reference, dynamicParameters, value) => {
-                const change = propertyPatchEngine.recordValue(reference, dynamicParameters, value);
-
-                // A row's field: its item takes the edit, which no push brings back, once the answer is applied (`applyAnswered`).
-                if (change !== null)
-                    this.ruleWatcher.awaitAnswer(change);
-            },
-            // Built below; asked only on a change, which comes after both are.
-            refuses: element => validationEngine.refusesBounds(element),
-            readRecorded: (reference, dynamicParameters) => propertyState.has(reference, dynamicParameters) ? propertyState.get(reference, dynamicParameters) : undefined,
-            markConflict: (component, conflicting) => validationEngine.markConflict(component, conflicting)
-        });
-        propertyPatchEngine.setHeldTargets(valueBinding);
-        this.settleValues = async () => {
-            commitWaiting();
-            await valueChangeDispatcher.whenAnsweredAsync();
-        };
-        this.readUnsaved = () => valueBinding?.unsavedValues() ?? [];
-        this.holdTypedDuring = apply => valueBinding === undefined ? apply() : valueBinding.holdTypedDuring(apply);
-        // Written as a push of the binding writes it, onto the elements of the field's component that carry the binding.
-        this.restoreUnsaved = unsaved => valueBinding?.restoreUnsaved(unsaved, (element, bindingId, value) => propertyPatchEngine.writeBoundValue(element, value, bindingId)) ?? 0;
-
-        // Here rather than with the registry's defaults: it needs the value engine, which is built after the registry.
-        this.effects.register(ClientEffectKinds.DiscardForm, context => {
-            const formId = (context.effect as DiscardFormClientEffect).formId;
-
-            if (typeof formId !== "string" || formId.length === 0)
-                return;
-
-            for (const element of valueBinding?.releaseForm(formId) ?? [])
-                propertyPatchEngine.restoreBoundValue(element, context.dom.resolveNearestComponent(element, () => true)?.dynamicParameters ?? []);
-
-            // After the values: a restore judges a field again, and what was said of the discarded attempt goes with it, changed or not.
-            validationEngine.discardForm(formId);
-        });
-
-        // Asked behind every value given before the leave, so the controller answers on what the reader typed last. A leave loads the
-        // next page once a sign-in's key is traded.
-        this.leaveGuard = new LeaveGuard({
-            window: {
-                location: {
-                    get href(): string {
-                        return window.location.href;
-                    },
-                    assign: url => {
-                    this.navigationProgress.start();
-                    this.sessionKey.load(() => window.location.assign(url));
-                }
-                },
-                addEventListener: (type, listener) => window.addEventListener(type, listener),
-                removeEventListener: (type, listener) => window.removeEventListener(type, listener)
-            },
-            ask: async target => {
-                await valueBinding?.whenSent();
-
-                return (await this.transport.requestLeaveAsync(target)).command?.effects;
-            },
-            apply: effects => {
-                this.effects.applyAll(effects, this.dom);
-                this.windows.reconsider();
-            },
-            confirm: (_target, leave) => showLeaveDialog(this.dialogs, leave),
-            // The first edit's value may be what sets the flag: a leave while one is unanswered waits for its answer.
-            pending: () => hasWaitingCommits() || valueChangeDispatcher.isBusy,
-            settle: () => this.settleValues(),
-            follow: target => this.followInPlace(target)
-        });
-        this.updateProcessor.addPageHandler(update => this.leaveGuard.set(update.holdsUnsavedWork === true));
-        // Started as its push arrives already (onCommandResult); here for one reaching the page another way.
-        this.effects.register(SessionKeyKind, context => this.sessionKey.start(context.effect["token"]));
-        this.effects.register(ClientEffectKinds.ConfirmLeave, context => {
-            const target = (context.effect as ConfirmLeaveClientEffect).target;
-
-            if (!isLocalRoute(target)) {
-                logWarn("confirm leave effect names no address of this site; nothing asked.", context.effect);
-                return;
-            }
-
-            this.leaveGuard.confirm(target as string);
-        });
-
-        const validationEngine = new ValidationEngine({
-            root: this.root,
-            metadata: this.metadata,
-            dom: this.dom,
-            propertyPatchEngine,
-            updateProcessor: this.updateProcessor,
-            valueReaders: this.extensions.valueReaders,
-            readValue: element => this.readPluginValue(element)
-        });
-
-        this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine, dialogs: this.dialogs, heldRows: this.virtualization };
-
-        for (const [name, start] of ComponentEngines)
-            startEngine(name, start, this.engineContext);
-
-        // Apart from the list: the plugin surface reads a number field's invariant value off this engine.
-        startEngine("number input", ({ root, propertyPatchEngine }) => {
-            this.numberInputs = new NumberInputEngine({ root, propertyPatchEngine });
-        }, this.engineContext);
-
-        // Apart from the list: a tree's filter and sort run in its own walk, which needs the rules and the rows' values.
-        startEngine("tree", ({ root, effects }) => new TreeEngine({ root, effects, rules: { metadata: this.metadata, state: propertyState, renderer: itemsRenderer } }), this.engineContext);
-
-        // Apart from the list: whether a sort orders a host is the rules', and a virtualized host's order its values'.
-        startEngine("items reorder", ({ root }) => new ItemsReorderEngine({ root, services: { metadata: this.metadata, state: propertyState, keysOf: host => this.virtualization.keysOf(host) } }), this.engineContext);
-
-        // A theme flag, not a per-page choice: off the flag, a press draws nothing and a finger held for a context menu shows the wash
-        // alone. Apart from the list: a row answers a press where its click is the view's, which the metadata knows.
-        startEngine("press ripple", ({ root }) => new PressRippleEngine({
-            root,
-            clicks: component => this.metadata.hasServerEventForComponent("click", readComponentId(component)) || interactionEngine.hasEventForComponent("click", readComponentId(component)),
-            waves: document.documentElement.hasAttribute(PressRippleAttribute)
-        }), this.engineContext);
-
-        // A theme flag too, and only where a pointer hovers: a touch screen draws no bar at all (core/scrollbar.less).
-        startEngine("overlay scrollbars", () => document.documentElement.hasAttribute(OverlayScrollbarsAttribute)
-            ? new OverlayScrollbarEngine()
-            : undefined, this.engineContext);
-
-        this.eventPipeline = new EventPipeline({
-            root: this.root,
-            metadata: this.metadata,
-            dom: this.dom,
-            dispatcher: this.dispatcher,
-            afterEffects: () => this.windows.reconsider(),
-            interactionEngine,
-            eventCatalog: this.extensions.events,
-            effects: this.effects,
-            events: options.events,
-            validationEngine,
-            valueBinding,
-            uploads: uploadsInFlight,
-            isReattaching: () => this.transport.isReattaching
-        });
-
-        // Every event the compiled view declares, attached bare; a package's `registerEvent` for one of them may attach it its own way.
-        for (const eventName of new Set([...this.metadata.getEventNames(), ...interactionIndex.getSourceEventNames()]))
-            this.eventPipeline.addEvent(eventName);
-
-        // After them, since each is added bare: the tab menu's entry names its own keys, the entry and the tab, as a package's event does.
-        this.eventPipeline.addEvent(TabMenuEntryEvent.name, TabMenuEntryEvent.registration);
-        // A row's move carries the index it takes after its keys, the row standing there until the answer; a tab's strip, which
-        // the drag already reordered, and a tab pinned take the order their data holds once answered.
-        const resort = (host: Element): void => this.updateProcessor.resortHost(host);
-        const itemMove = itemMoveEvent({ ahead: (host, key, index) => this.updateProcessor.moves.ahead(host, key, index), settle: move => this.updateProcessor.moves.settle(move), resort });
-        this.eventPipeline.addEvent(itemMove.name, itemMove.registration);
-        const tabPin = tabPinEvent(resort);
-        this.eventPipeline.addEvent(tabPin.name, tabPin.registration);
-        // A lazy folder's unfold settled, whatever came of it: a fold and an unfold ask again.
-        this.eventPipeline.addEvent(TreeUnfoldEvent.name, TreeUnfoldEvent.registration);
-        // Items of a kind dropped or pasted on a component taking it carry the drop after its keys; rows moved ahead wait for the answer.
-        const itemDrop = itemDropEvent(this.updateProcessor.transfers);
-
-        for (const eventName of this.metadata.getEventNames()) {
-            if (eventName.startsWith(DropEventPrefix))
-                this.eventPipeline.addEvent(eventName, itemDrop);
+            wireTransportCallbacks(this.transport, this.sessionKey, this.dispatcher, this.effects, this.dom, this.windows, this.updateProcessor, this.notifications, (changes, before, runtime) => this.applyChanges(changes, before, runtime), runtime => this.holdsRuntime(runtime), () => this.attachAsync(), () => this.awaitSnapshot(), reason => this.loseConnection(reason));
+            this.connection = new ConnectionWatch({ root: document.documentElement, connection: this.transport, notifications: this.notifications });
         }
-        // A field's Enter waits for the value it committed, so the command reads what was typed.
-        this.eventPipeline.addEvent(FieldEnterEvent.name, FieldEnterEvent.registration);
-        // A search's query waits for its answer, its field's glyph a ring past a moment.
-        this.eventPipeline.addEvent(SearchEvent.name, SearchEvent.registration);
-
-        // After the pipeline, whose events the view's own chords are, and after every engine's keydown, so one that took the key wins.
-        startEngine("shortcuts", ({ root, dom }) => new ShortcutEngine({
-            root,
-            viewShortcuts: viewShortcutsOf(this.metadata.metadata),
-            componentOf: componentId => dom.findComponent(componentId, []),
-            laterChords: this.rowMenus
-        }), this.engineContext);
-        // After the chords, so a view's own Ctrl+C or Ctrl+V is heard first; a drag between hosts lands where the view takes its kind.
-        startEngine("item drag", ({ root, dom }) => new ItemDragEngine({
-            root,
-            targetOf: (element, kind) => {
-                const target = dom.resolveNearestComponent(element, componentId => this.metadata.hasServerEventForComponent(DropEventPrefix + kind, componentId))?.element ?? null;
-
-                return target instanceof HTMLElement ? target : null;
-            },
-            keysOf: host => this.virtualization.keysOf(host)
-        }), this.engineContext);
-
-        // Held by name, since a package's chooser reaches it through the engine context.
-        this.tables = new TableColumnsEngine({ root: this.root });
-
-        // After the transport, since asking for a window is an invoke.
-        this.windows = new ItemsWindowEngine({
-            root: this.root,
-            requestWindow: request => this.transport.requestItemWindowAsync(request)
-        });
-        this.updateProcessor.addWindowRefillHandler(host => this.windows.refilled(host));
-
-        // After the window engine, which it asks for a page; its Page keys are heard on the window, ahead of the row cursor's.
-        startEngine("pager", ({ root, dom }) => new PagerEngine({ root, dom, windows: this.windows }), this.engineContext);
-
-        // Once, for every package engine: the services are the engines and modules themselves, not a face built per start.
-        this.pluginContext = {
-            ...this.engineContext,
-            strings: clientStrings,
-            observeComponents,
-            observeSize,
-            store: new ClientStore(),
-            numbers: numberFormatting,
-            temporal: temporalFormatting,
-            icons: { apply: applyIconValue },
-            badges: { writeCount: writeBadgeCount },
-            urls: { isImageSource, asBrowserReads, isSafeLink, isExternalLink },
-            values: {
-                read: element => this.readPluginValue(element),
-                hold: element => valueBinding?.hold(element),
-                release: element => {
-                    if (valueBinding?.release(element) === true)
-                        propertyPatchEngine.restoreBoundValue(element, this.dom.resolveNearestComponent(element, () => true)?.dynamicParameters ?? []);
-                },
-                write: (element, value) => propertyPatchEngine.writeBoundValue(element, value),
-                whenSettled: async element => {
-                    // Keyed by the component a value is sent from, as a command raised by the same edit waits on it.
-                    const component = this.dom.resolveNearestComponent(element, () => true)?.element ?? element;
-
-                    await valueBinding?.whenSettled(component);
-                }
-            },
-            properties: {
-                set: (element, propertyName, value) => {
-                    // By markup, not the page's index: a part may be set before it is on the page, or drawn several times from one template.
-                    const component = element.closest(ComponentSelector);
-                    const reference = component === null ? undefined : this.metadata.getExposedProperty(readComponentId(component), propertyName);
-
-                    if (component === null || reference === undefined) {
-                        logWarn("a package set a property its component's renderer did not expose.", { propertyName });
-                        return false;
-                    }
-
-                    return propertyPatchEngine.applyToComponent(component, reference, value);
-                }
-            },
-            windows: this.windows,
-            tooltips,
-            renames: { open: openInlineRename },
-            tables: this.tables,
-            rows: createItemRows(itemsTemplates, itemsRenderer, this.virtualization),
-            uploads: createFileUploads(validationEngine, uploadsInFlight),
-            selection: itemSelection,
-            popups: createPopups(this.dom),
-            roving: rovingFocus,
-            typeAhead: pluginTypeAhead,
-            focus: pluginFocus,
-            states: componentStates,
-            validation: validationEngine,
-            wheel,
-            colors: seriesColors,
-            shortcuts: pluginShortcutWords,
-            names: pluginDomNames
-        };
-
-        this.transport.onChanges((changes, runtime) => void this.applyChanges(changes, undefined, runtime));
-
-        // An invoke's returned copy carries no effects, so nothing applies twice; a background command's pushed result settles its dispatch.
-        this.transport.onCommandResult((result, runtime) => {
-            // A sign-in's token is traded as it arrives, before anything the push or the answer behind it runs can start a page load.
-            startSessionKeys(this.sessionKey, result.command?.effects);
-
-            // Applied here in arrival order: through the dispatch they would land behind a later push. The dispatch settles without them.
-            const { changes, ...rest } = result;
-
-            // The effects after the changes, a staged value among them: an effect acts on the page those changes produced.
-            void afterAppliedAsync(() => this.applyChanges(changes, undefined, runtime), () => {
-                // The runtime the page left: its dispatch was let go as the page went, and its effects are not this page's.
-                if (!this.holdsRuntime(runtime) || this.dispatcher.settle(rest))
-                    return;
-
-                this.effects.applyAll(result.command?.effects, this.dom);
-
-                // After the effects: a scroll effect can move a windowed viewport without raising a scroll event.
-                this.windows.reconsider();
-            }).catch(error => logError("a pushed command result could not be applied.", error));
-        });
-        // A controller-asked rebuild takes the same route a dropped connection does.
-        this.updateProcessor.addFullResyncHandler(() => {
-            void this.attachAsync().catch(error => logError("re-attaching after a full resync failed.", error));
-        });
-        this.transport.onReconnecting(error => {
-            logWarn("SignalR reconnecting.", error);
-            this.awaitSnapshot();
-
-            // A result still to come would be pushed to the connection that just dropped, which the new one never hears.
-            this.dispatcher.release(new Error("the connection to the server dropped before the command answered.", { cause: error }));
-        });
-        // A failure here is logged once, by the transport's own onReconnected wrapper.
-        this.transport.onReconnected(async () => {
-            logDebug("SignalR reconnected. Reattaching runtime.");
-            await this.attachAsync();
-        });
-        // Once the reconnect has run past the server's retention, or the connection was stopped: either way it does not come back.
-        this.transport.onClosed(error => this.loseConnection(error ?? new Error("the connection to the server closed.")));
-        // Said, as a refusal is: the press did nothing, and the reader presses again on the page as it now stands.
-        this.transport.onCommandExpired(() => this.notifications.show({ message: clientStrings.text("ui.command.expired"), severity: "warning" }));
-        this.connection = new ConnectionWatch({ root: document.documentElement, connection: this.transport, notifications: this.notifications });
+        finally {
+            leaveCleanupScope();
+        }
     }
 
-    /** From a drop until the next attach's snapshot is applied, `current` waits: what the page holds until then is from before the drop. */
     private awaitSnapshot(): void {
-        // A second drop before the attach keeps the wait already pending: whoever waits on it would otherwise wait for ever.
         if (this.currentPending)
             return;
 
@@ -896,7 +272,6 @@ export class WebUIRuntime {
         });
     }
 
-    /** Holds every change set until `ready` settles — the page's words — and lets them through once it has, failed or not. */
     private gateInbound(ready: Promise<unknown> | null): void {
         if (ready === null)
             return;
@@ -910,82 +285,37 @@ export class WebUIRuntime {
         });
     }
 
-    /** A value as a package reads it: what the binding would send, so a number field answers its invariant text, not its culture's. */
     private readPluginValue(element: Element): unknown {
         const holder = resolveValueHolder(element);
 
-        if (holder === null)
-            return null;
-
-        return this.numberInputs?.readValue(holder) ?? this.extensions.valueReaders.readBound(holder);
+        return holder === null ? null : this.numberInputs?.readValue(holder) ?? this.extensions.valueReaders.readBound(holder);
     }
 
-    /**
-     * Back or Forward from `previous` to an entry of another runtime of this route: gone to in place, answering whether it was. A page
-     * holding unsaved work steps back onto the entry it stood on while its reader is asked, as a link's press asks; going on, the page
-     * follows the entry as it follows a link.
-     */
     private revisitRuntime(search: string, previous: string): boolean {
-        if (!this.switchesTo(window.location.pathname, search, previous))
-            return false;
-
-        if (this.leaveGuard.asks) {
-            const target = `${window.location.pathname}${search}${window.location.hash}`;
-
-            this.address.stepBack();
-            this.leaveGuard.navigate(target);
-
-            return true;
-        }
-
-        void this.switchRuntimeAsync();
-
-        return true;
+        return revisitRuntimeUrl(
+            search,
+            previous,
+            this.hydration?.identity ?? [],
+            this.heldRuntime,
+            this.connectionLost,
+            this.leaveGuard,
+            this.address,
+            () => void this.switchRuntimeAsync().catch(error => this.loseConnection(error))
+        );
     }
 
-    /** Goes to `url` in place where it names another runtime of this route — a link's, a NavigateEffect's — answering whether it did. */
     private followInPlace(url: string): boolean {
-        let target: URL;
-
-        try {
-            target = new URL(url, window.location.href);
-        }
-        catch {
-            return false;
-        }
-
-        if (target.origin !== window.location.origin || !this.switchesTo(target.pathname, target.search, window.location.search))
-            return false;
-
-        this.address.enter(`${target.pathname}${target.search}${target.hash}`);
-        void this.switchRuntimeAsync();
-
-        return true;
+        return followInPlaceUrl(
+            url,
+            this.hydration?.identity ?? [],
+            this.heldRuntime,
+            this.connectionLost,
+            this.address,
+            () => void this.switchRuntimeAsync().catch(error => this.loseConnection(error))
+        );
     }
 
-    /**
-     * Whether an address of this site is another runtime of the route than the address `from` the page stands on (or is on its way
-     * to), which the page goes to in place: an identity parameter differs, and the page is its route's own — attached, not standing
-     * in for another address.
-     */
-    private switchesTo(pathname: string, search: string, from: string): boolean {
-        const identity = this.hydration?.identity ?? [];
-
-        return identity.length > 0
-            && this.heldRuntime !== null
-            && !this.connectionLost
-            && pathname === window.location.pathname
-            && readStandInNavigation() === null
-            && differsInIdentity(search, from, identity);
-    }
-
-    /**
-     * Goes to the runtime the address now names, another of the page's route, over the connection held: the values still on their
-     * way reach the runtime left first, its dialogs close and the commands waiting on it let go; then nothing goes out and the
-     * content takes no press or key until the attach that says so (`createAttachRequest`) is answered with the other's whole state.
-     */
     private async switchRuntimeAsync(): Promise<void> {
-        // A page load to the eye, though nothing unloads: the bar a link's load shows, from the press to the other runtime's state.
         this.endSwitchProgress = this.navigationProgress.start();
 
         try {
@@ -996,11 +326,7 @@ export class WebUIRuntime {
         }
 
         this.dialogs.closeAll();
-
-        // A background command raised on the runtime left is ended with it: what waits on it lets go.
         this.dispatcher.release(new Error("the page went to another runtime of its route before the command answered."));
-
-        // A value or a command raised on the content the left runtime drew would land in the other.
         this.transport.holdCalls();
 
         const content = contentRegion();
@@ -1013,7 +339,6 @@ export class WebUIRuntime {
         await this.attachAsync();
     }
 
-    /** The answer to going back or forward within this route: its changes come in order, its effects run here. */
     private async navigateInPlaceAsync(parameters: Record<string, unknown> | null): Promise<void> {
         try {
             const result = await this.transport.navigateInPlaceAsync(parameters);
@@ -1026,128 +351,14 @@ export class WebUIRuntime {
         }
     }
 
-    /** Switches the page's language in place: the session told unless the server named the words, the table fetched, every word rewritten. */
     private async switchLanguageAsync(language: string, stored: string | null): Promise<void> {
-        // Weighed against the switch under way, not against the language still shown.
-        if (language === clientStrings.requestedLanguage)
-            return;
+        await switchRuntimeLanguageAsync(this.transport, language, stored, () => {
+            const switchNumber = ++this.languageSwitches;
 
-        const switchNumber = ++this.languageSwitches;
-        let href = stored;
-        let target = language;
-
-        clientStrings.setRequested(language);
-
-        try {
-            if (href === null) {
-                try {
-                    const answer = await this.transport.setLanguageAsync(language);
-
-                    href = answer.href;
-                    target = answer.language;
-                }
-                catch (error) {
-                    // The page still switches for as long as it lives; the next page renders in the session's language.
-                    logWarn("the session was not told the page's language.", { language, error });
-                }
-            }
-
-            // A later switch wins, one back to the language shown included, which fetches nothing.
-            if (switchNumber !== this.languageSwitches || target === clientStrings.language || !await clientStrings.switchToAsync(target, href))
-                return;
-
-            clientStrings.notifyChanged();
-        }
-        finally {
-            if (switchNumber === this.languageSwitches)
-                clientStrings.setRequested(null);
-        }
-    }
-
-    /**
-     * Writes the page's words again in the table's language — marks, rendered values, sent values, built rows — then the title and
-     * lang; with `only`, only the words holding what it reads — a moment, or any value the page writes itself.
-     */
-    private rewriteWords(propertyPatchEngine: PropertyPatchEngine, itemsRenderer: ItemsTemplateRenderer, only?: (value: unknown) => boolean): void {
-        const started = performance.now();
-
-        // A package may have put parts on the page meanwhile (a grid's open detail) that the index has not seen.
-        this.dom.invalidate();
-
-        // First: the packs are what a number field and a package's cells draw again by, as they hear the change.
-        if (clientStrings.language !== this.culturesLanguage) {
-            this.culturesLanguage = clientStrings.language;
-            forEachSubtree(this.root, subtree => applyPageCultures(subtree, clientStrings.number, clientStrings.temporal));
-        }
-
-        // Later over earlier: a row's own words last.
-        clientStrings.rewriteMarks(this.root, only);
-        this.rewriteStaticWords(propertyPatchEngine, only);
-        propertyPatchEngine.rewriteWords(only);
-        itemsRenderer.rewriteRowWords(this.root, only);
-
-        const title = this.hydration?.title ?? null;
-
-        if (title !== null && (only === undefined || only(title))) {
-            const words = String(clientStrings.resolve(title, true));
-
-            if (document.title !== words)
-                document.title = words;
-        }
-
-        if (clientStrings.language.length > 0 && document.documentElement.lang !== clientStrings.language)
-            document.documentElement.lang = clientStrings.language;
-
-        logElapsed(only === undefined ? "page's words written again" : "page's written values written again", started, { language: clientStrings.language });
-    }
-
-    /** The values the page was rendered with — only those `only` names, where given — on every instance and inside the templates rows are built from. */
-    private rewriteStaticWords(propertyPatchEngine: PropertyPatchEngine, only?: (value: unknown) => boolean): void {
-        const words = only === undefined ? this.metadata.getWords() : this.metadata.getWords().filter(word => only(word.key));
-
-        if (words.length === 0)
-            return;
-
-        const templates: ParentNode[] = [];
-
-        forEachSubtree(this.root, subtree => {
-            if (subtree !== this.root)
-                templates.push(subtree);
+            return { switchNumber, isCurrent: () => switchNumber === this.languageSwitches };
         });
-
-        for (const word of words) {
-            const componentId = getIdValue(word.componentId);
-            const reference = { componentId, propertyId: word.propertyId };
-            const parameters = word.dynamicParameters ?? [];
-
-            for (const component of this.findWordInstances(componentId, parameters))
-                propertyPatchEngine.rewriteStatic(component, reference, word.key);
-
-            for (const template of templates) {
-                for (const component of template.querySelectorAll(`[${ComponentIdAttribute}="${cssAttributeValue(componentId)}"]`)) {
-                    if (endsWithDynamicParameters(component, parameters))
-                        propertyPatchEngine.rewriteStatic(component, reference, word.key);
-                }
-            }
-        }
     }
 
-    /** The instances a recorded word belongs to: every copy for one without row keys, else those whose rows end with its keys. */
-    private findWordInstances(componentId: number, parameters: readonly unknown[]): Element[] {
-        // A word with no row keys is every copy's: a package's clones of the component as well as the one the server drew.
-        if (parameters.length === 0)
-            return this.dom.findEveryComponent(componentId);
-
-        const exact = this.dom.findAllComponents(componentId, parameters);
-
-        if (exact.length > 0)
-            return exact;
-
-        // A word inside a template names only its inner rows' keys (a cell editor's option): it is that option in every row's copy.
-        return this.dom.findAllComponents(componentId, []).filter(component => endsWithDynamicParameters(component, parameters));
-    }
-
-    /** The connection is gone for good — the reconnect ran past the server's retention, or the page cannot attach: calls fail at once and a reload is offered; said once. */
     private loseConnection(reason: unknown): void {
         if (this.connectionLost)
             return;
@@ -1155,7 +366,6 @@ export class WebUIRuntime {
         this.connectionLost = true;
         logError("the connection to the server is lost; the page offers a reload.", reason);
         this.connection.lost();
-        // A switch to another runtime under way is over: no other runtime's state is coming.
         this.endSwitchProgress?.();
         this.endSwitchProgress = null;
 
@@ -1163,29 +373,15 @@ export class WebUIRuntime {
 
         this.transport.close(lost);
         this.dispatcher.release(lost);
-        // Kept now, as the page can send nothing more: a reload by the browser's own button finds it too.
         this.stashUnsaved();
-        // No snapshot is coming: the values waiting for one fail on the closed gate rather than hold a leave's settle for ever.
         this.markCurrent();
-        this.notifications.show({
-            message: clientStrings.text("ui.connection.lost"),
-            severity: "danger",
-            sticky: true,
-            connection: true,
-            // Unasked: the page can save nothing now, what reached its runtime is still there while the runtime lives, and what did not
-            // is carried over the reload.
-            action: {
-                label: clientStrings.text("ui.connection.reload"),
-                run: () => {
-                    this.stashUnsaved();
-                    this.leaveGuard.release();
-                    this.reload();
-                }
-            }
+        showConnectionLostNotification(this.notifications, () => {
+            this.stashUnsaved();
+            this.leaveGuard.release();
+            this.reload();
         });
     }
 
-    /** Keeps what the fields hold that the server never took, for the reload the page is about to make (`unsaved-stash.ts`). */
     private stashUnsaved(): void {
         this.unsaved.save(this.stashedPage(), this.readUnsaved());
     }
@@ -1194,60 +390,28 @@ export class WebUIRuntime {
         return { windowId: this.windowId, address: `${window.location.pathname}${window.location.search}`, view: this.hydration?.view ?? null };
     }
 
-    /**
-     * Reloads a page the server will not attach as it stands — rendered from another compile of its view, or under a session the server
-     * no longer holds, whose new key only a page load can write — once: asked again (two servers of two builds, a browser keeping no
-     * cookie), it offers the reload instead, as a lost connection does.
-     */
     private reloadForView(view: string): void {
-        const verdict = decideReload(view, navigator.cookieEnabled, sessionMemory());
-
-        // Given up, the page says so and offers the reload by hand: left as it is, it looks live and every call is refused unseen.
-        if (verdict === "no-cookie") {
-            this.loseConnection(new Error(`the server asked for a reload of view '${view}', and this browser keeps no cookie the reload could write.`));
-            return;
-        }
-
-        if (verdict === "asked-again") {
-            this.loseConnection(new Error(`the server asked for a reload of view '${view}' again after one (another compile of the view, or a session cookie the browser does not keep).`));
-            return;
-        }
-
-        logWarn("the server asked for a reload (another compile of the view, or a session it no longer holds); reloading.", { view });
-        this.stashUnsaved();
-        this.leaveGuard.release();
-        this.reload();
+        reloadForViewVerdict(view, error => this.loseConnection(error), () => {
+            this.stashUnsaved();
+            this.leaveGuard.release();
+            this.reload();
+        });
     }
 
-    /**
-     * Reloads a page another live tab shares its id with — one copied from the other while that sat in the back/forward cache — under
-     * the id it was just given (`window-id.ts`), so it gets a runtime of its own. Not attached again in place: a connection attaches to
-     * one page's runtime only, and the PerWindow runtime it held is keyed by the id the other tab keeps, so the server would answer
-     * the attach as a fresh runtime and reload it anyway.
-     */
     private reloadAsOwnTab(id: string): void {
         logWarn("another live tab holds this tab's id; reloading under one of its own.", { id });
         this.leaveGuard.release();
         this.reload();
     }
 
-    /**
-     * Reloads a page whose runtime is gone — a restart, an eviction, a retention run out — rather than apply a new one's snapshot over
-     * what it shows; once, through the same guard, and asked again it offers the reload instead.
-     */
     private reloadForFreshRuntime(view: string): void {
-        if (decideReload(view, navigator.cookieEnabled, sessionMemory()) !== "reload") {
-            this.loseConnection(new Error("the server holds a new runtime for this page again after a reload for one."));
-            return;
-        }
-
-        logWarn("the page's runtime is gone and the server built a new one; reloading.", { view });
-        this.stashUnsaved();
-        this.leaveGuard.release();
-        this.reload();
+        reloadForFreshRuntimeVerdict(view, error => this.loseConnection(error), () => {
+            this.stashUnsaved();
+            this.leaveGuard.release();
+            this.reload();
+        });
     }
 
-    /** Reloads the page once a sign-in's key is traded: a load ahead of the trade carries the old key, which names nothing now. */
     private reload(): void {
         this.reloading = true;
         this.sessionKey.load(() => window.location.reload());
@@ -1260,25 +424,17 @@ export class WebUIRuntime {
     public async startAsync(): Promise<void> {
         exposeGlobalApi(this, this.options.handlerGlobalKey);
 
-        // Development only: the server's log has them too, but the author is looking here.
         for (const warning of this.metadata.metadata.compileWarnings ?? [])
             logWarn(`the view compiled with a warning: ${warning}`);
 
-        // Before DOMContentLoaded, when a browser reads the page's forms: the markup is parsed by the time a module runs.
         ensureFormOwners(this.root);
-
-        // A package's module registers as it runs, after this one; every module has run by DOMContentLoaded, so hydration waits for it.
         await documentParsedAsync();
 
-        // Opened while the page hydrates: the hydration waits for the page's words, and the connection need not wait for either.
         const connected = this.connectAsync();
 
-        // Before the attach: the markup is already the finished page, and this takes the client's copy of it.
         await this.hydrateAsync();
         this.startEnginesAwaitingHydration();
-        // A package's engine draws its part as it starts, so the regions the boot script held for one show whole from here.
         releaseRegions(this.root);
-        // Before the attach, which carries the state read then: a change meanwhile is reported once it is answered.
         this.clientState.start();
 
         if (!await connected)
@@ -1289,12 +445,10 @@ export class WebUIRuntime {
         if (this.connectionLost || this.reloading)
             return;
 
-        // performance.now() counts from the navigation's start, so this is how long the reader waited for a page that answers.
         logDebug(`page live ${formatMilliseconds(performance.now())} after the navigation started.`);
         this.putBackUnsaved();
     }
 
-    /** Puts back what a reload of this page carried over (`stashUnsaved`), into the fields it came from, as the reader's edits. */
     private putBackUnsaved(): void {
         const restored = this.restoreUnsaved(this.unsaved.take(this.stashedPage()));
 
@@ -1302,7 +456,6 @@ export class WebUIRuntime {
             logDebug(`${restored} unsaved value(s) carried over the reload were put back.`);
     }
 
-    /** Opens the connection; the reconnect covers a connection that was open, and one that never opened is lost from the start. */
     private async connectAsync(): Promise<boolean> {
         try {
             const connecting = performance.now();
@@ -1318,7 +471,6 @@ export class WebUIRuntime {
         }
     }
 
-    /** Takes the client's copy of the values the page was rendered with, changing nothing the reader sees. */
     private async hydrateAsync(): Promise<void> {
         if (this.hydration === null)
             return;
@@ -1327,26 +479,14 @@ export class WebUIRuntime {
         const changes = this.hydration.changes;
 
         this.dom.rebuild();
-
-        // Before the change set: its reconcile keeps a row only if it can read what the row holds.
         this.updateProcessor.registerServerRenderedItems(changes);
         await this.applyChanges(changes);
         this.updateProcessor.initializeItemsHosts();
 
-        // The server could paint a moment in words only in UTC and a file size only in English; the page writes them in the reader's
-        // zone and language, as it does a timestamp and a file tile.
-        if (this.holdsPaintedPageWritten())
+        if (holdsPaintedPageWritten(this.root, this.hydration, this.metadata))
             this.rewritePageWritten();
 
         logElapsed("runtime hydrated from the page", started, { pageId: this.hydration.pageId, updates: changes?.updates?.length ?? 0 });
-    }
-
-    /** Whether the render painted a value the page writes itself in words: in a mark, a rendered value, a row the server drew or the title. */
-    private holdsPaintedPageWritten(): boolean {
-        return marksPageWritten(this.root)
-            || paintsPageWritten(this.hydration)
-            || this.metadata.getWords().some(word => holdsPageWritten(word.key))
-            || holdsPageWritten(this.metadata.metadata.itemValues);
     }
 
     private startEnginesAwaitingHydration(): void {
@@ -1355,11 +495,11 @@ export class WebUIRuntime {
         this.enginesAwaitingHydration = null;
 
         for (const start of engines)
-            startEngine(nameOfPackageEngine(start), start, this.pluginContext);
+            this.startPackageEngine(start);
     }
 
     public addEvent<TEvent extends Event = Event>(name: string, registration: Omit<EventRegistration<TEvent>, "name"> = {}): void {
-        this.eventPipeline.addEvent(name, registration);
+        this.eventPipeline.addEvent(name, registration, true);
     }
 
     public addConverter(registration: ValueConverterRegistration): void {
@@ -1386,63 +526,75 @@ export class WebUIRuntime {
         clientStrings.register(words);
     }
 
-    /** Starts a package's engine after every built-in one; one registered before hydration starts after it, reading the page hydrated. */
     public addEngine(start: PluginEngine): void {
         if (this.enginesAwaitingHydration !== null) {
             this.enginesAwaitingHydration.push(start);
             return;
         }
 
-        startEngine(nameOfPackageEngine(start), start, this.pluginContext);
+        this.startPackageEngine(start);
     }
 
-    /**
-     * Applies a change set; one naming a value staged beside the hub waits for its fetch, and every later set waits in turn, in order.
-     * `before` runs in the set's turn: a value's answer lets its field go only once what arrived ahead of it (an attach's snapshot) is in.
-     * `from` is the runtime that sent the set, read in its turn: one of a runtime the page has gone from by then is dropped.
-     */
-    private applyChanges(changes: ServerChangeSet | undefined, before?: () => void, from?: string | null): void | Promise<void> {
-        if (this.inbound === null && !hasStagedValues(changes)) {
-            before?.();
-            this.applyAnswered(this.holdsRuntime(from) ? changes : null);
-
+    public dispose(): void {
+        if (this.disposed)
             return;
-        }
 
-        // The connection the set arrived on is the reader the server named, whatever a reconnect has made of it by the fetch.
-        const instanceId = this.transport.instanceId;
-        const applied = (this.inbound ?? Promise.resolve())
-            .then(async () => {
-                before?.();
+        this.disposed = true;
+        this.enginesAwaitingHydration = [];
+        unexposeGlobalApi(this, this.options.handlerGlobalKey);
 
-                // Not fetched either: a value the left runtime staged is not this page's.
-                this.applyAnswered(this.holdsRuntime(from) ? await fetchStagedValuesAsync(changes, instanceId) : null);
-            })
-            .catch(error => {
-                // The reader's edits it answered go with it: the attach brings what the rows hold.
-                this.ruleWatcher.followAnswered(null);
-                // A value that could not be fetched leaves the page behind the server: it attaches again, as after a dropped connection.
-                logError("a staged value could not be fetched; the page attaches again.", error);
-                void this.attachAsync().catch(attachError => logError("re-attaching after a lost staged value failed.", attachError));
-            });
+        for (const dispose of this.engineDisposers.splice(0).reverse())
+            dispose();
 
-        this.inbound = applied;
-        void applied.then(() => {
-            if (this.inbound === applied)
-                this.inbound = null;
-        });
-
-        return applied;
+        stopObservedSizes(this.root);
+        registerChoosableKeysReader(this.root, undefined);
+        clearPopupComponents(this.dom);
+        this.unsubscribeWordsChange();
+        this.unsubscribeMomentTick();
+        clientStrings.clearAsker(this.wordsAsker);
+        this.windows.dispose();
+        this.dialogs.closeAll();
+        this.leaveGuard.release();
+        this.navigationProgress.stop();
+        this.releaseInertContent();
+        this.connection.dispose();
+        this.clientState.dispose();
+        this.dispatcher.release(new Error("the runtime was disposed."));
+        this.transport.dispose();
+        this.markCurrent();
+        this.cleanupScope.dispose();
     }
 
-    /**
-     * Applies a set, null for one of a runtime the page has left, then lets the rows' items take the reader's edits its answer took
-     * (`before` recorded them): after the set, so an edit it refused stays out of the item.
-     */
+    private startPackageEngine(start: PluginEngine): void {
+        const dispose = startEngine(nameOfPackageEngine(start), start, this.pluginContext);
+
+        if (dispose !== null)
+            this.engineDisposers.push(dispose);
+    }
+
+    private applyChanges(changes: ServerChangeSet | undefined, before?: () => void, from?: string | null): void | Promise<void> {
+        return applyStagedOrImmediateChanges(
+            changes,
+            before,
+            from,
+            this.inbound,
+            (next, expected) => this.setInbound(next, expected),
+            this.transport.instanceId,
+            runtime => this.holdsRuntime(runtime),
+            answered => this.applyAnswered(answered),
+            this.ruleWatcher,
+            () => this.attachAsync()
+        );
+    }
+
+    private setInbound(next: Promise<void> | null, expected?: Promise<void>): void {
+        if (expected === undefined || this.inbound === expected)
+            this.inbound = next;
+    }
+
     private applyAnswered(changes: ServerChangeSet | undefined | null): void {
         let applied: ServerChangeSet | undefined | null = null;
 
-        // Whatever happens: an edit left waiting would be read against the next set's answer.
         try {
             if (changes !== null) {
                 this.applyNow(changes);
@@ -1454,12 +606,10 @@ export class WebUIRuntime {
         }
     }
 
-    /** Whether `from`, the runtime a change set or a result names as its sender, is the one the page holds; one naming none is. */
     private holdsRuntime(from: string | null | undefined): boolean {
         return from === undefined || from === null || this.heldRuntime === null || from === this.heldRuntime;
     }
 
-    // A window that moved leaves its spacers standing for the wrong count; the rows its viewer sees are taken first, for it to keep.
     private applyNow(changes: ServerChangeSet | undefined): void {
         this.windows.noteShownRows();
         this.windows.sync(this.updateProcessor.applyChangeSet(changes));
@@ -1481,7 +631,6 @@ export class WebUIRuntime {
         }
     }
 
-    // Bounded: an attach whose own initial changes keep failing asks for another every time, and would otherwise never stop.
     private async attachRepeatedlyAsync(): Promise<void> {
         for (let run = 1; ; run++) {
             this.reattachRequested = false;
@@ -1496,20 +645,16 @@ export class WebUIRuntime {
         }
     }
 
-    /** Whether the runtime ended attached; false when the attach gave up, was left to the reconnect, or the page is reloading. */
     private async attachCoreAsync(): Promise<boolean> {
         if (this.connectionLost)
             return false;
 
-        // The address the attach is made for, read once: the page may move on while the attach is under way.
         const search = window.location.search;
         const request = this.createAttachRequest(search);
-        // What followed the attach's snapshot may be pushed before the answer lands: every change set from here waits for the snapshot.
         const hold = this.holdInbound();
         const started = performance.now();
 
         try {
-            // Retried with a growing backoff, so a hub call throwing on a live socket needs no reload.
             const result = await attachWithRetryAsync(() => this.transport.attachAsync(request), () => this.transport.isReconnecting, AttachRetryDelaysMilliseconds, delay);
             const answered = performance.now();
 
@@ -1518,7 +663,6 @@ export class WebUIRuntime {
                 return false;
             }
 
-            // The connection dropped again meanwhile: its reconnect attaches, and the page is not given up.
             if (result === LeftToReconnect)
                 return false;
 
@@ -1533,19 +677,15 @@ export class WebUIRuntime {
             }
 
             forgetReload(sessionMemory());
-            // From here what the runtime left pushed, and what its calls answered, is dropped as it comes up (`holdsRuntime`).
             this.heldRuntime = result.runtime ?? null;
             this.runtimeSearch = search;
             this.dom.rebuild();
             this.updateProcessor.registerServerRenderedItems(result.initialChanges);
 
-            // Behind whatever was already queued, and applied here rather than through the queue the hold closes.
             await hold.previous;
 
             const content = contentRegion();
 
-            // Gone to another runtime: the runtime the render prepared is not the page's to claim any more, and the windows its content
-            // read were the left runtime's.
             if (request.switchRuntime) {
                 this.pageId = null;
 
@@ -1553,7 +693,6 @@ export class WebUIRuntime {
                     this.windows.forget(content);
             }
 
-            // The snapshot says the page holds unsaved work only where it does: a runtime that saved meanwhile says nothing.
             this.leaveGuard.set(false);
             await this.applyAttachChangesAsync(result.initialChanges);
             this.markCurrent();
@@ -1563,7 +702,6 @@ export class WebUIRuntime {
             if (request.switchRuntime)
                 showFromStart(content);
 
-            // Already let go of as the snapshot landed, unless it never did.
             this.releaseInertContent();
             this.windows.start();
 
@@ -1581,60 +719,21 @@ export class WebUIRuntime {
         }
     }
 
-    /**
-     * What an attach for the address `search` presents. Whether it goes to another runtime is decided here, per attach, against the
-     * address the held runtime was attached by: an attach run again after a second switch says it too, a reconnect under way to
-     * another runtime says it on the new connection, and one back to the held runtime says nothing.
-     */
     private createAttachRequest(search: string): WebUIAttachRequest {
-        // A page standing in for the one asked for (a sign-in or error page at the address that led there) attaches as itself.
-        const standIn = readStandInNavigation();
-        const switchRuntime = standIn === null && this.heldRuntime !== null && differsInIdentity(search, this.runtimeSearch, this.hydration?.identity ?? []);
-        const request: WebUIAttachRequest = {
-            clientWindowId: this.windowId,
-            route: standIn?.route ?? window.location.pathname,
-            // Presenting the runtime the render prepared claims it rather than building a second one; one going elsewhere claims none.
-            pageId: switchRuntime ? null : this.pageId,
-            view: this.hydration?.view ?? null,
-            // A retry presents it again; the server answers it once and sends the whole page to any attach after that.
-            since: this.renderSequence,
-            // None on the first attach, the render's own or a second tab's: only a page that held a runtime can find it gone.
-            runtime: this.heldRuntime,
-            parameters: standIn !== null ? standIn.parameters : readQueryParameters(search),
-            timeZone: readTimeZone(),
-            clientState: this.clientState.forAttach(),
-            switchRuntime
-        };
-
+        const request = buildAttachRequest(this.windowId, search, this.runtimeSearch, this.heldRuntime, this.pageId, this.renderSequence, this.hydration, this.clientState);
         this.renderSequence = null;
 
         return request;
     }
 
-    /** Closes the inbound queue until `release`: change sets arriving meanwhile wait; `previous` is what was queued before. */
     private holdInbound(): { readonly previous: Promise<void>; readonly release: () => void } {
-        const previous = this.inbound ?? Promise.resolve();
-        let release: () => void = () => { };
-        const held = new Promise<void>(resolve => {
-            release = resolve;
-        });
-        const chained = previous.then(() => held);
-
-        this.inbound = chained;
-        void chained.then(() => {
-            if (this.inbound === chained)
-                this.inbound = null;
-        });
-
-        return { previous, release };
+        return holdInboundQueue(this.inbound, (next, expected) => this.setInbound(next, expected));
     }
 
-    /** The snapshot's changes, a staged value among them fetched first; one that cannot be fetched asks for another attach. */
     private async applyAttachChangesAsync(changes: ServerChangeSet | undefined): Promise<void> {
         try {
             const snapshot = hasStagedValues(changes) ? await fetchStagedValuesAsync(changes, this.transport.instanceId) : changes;
 
-            // In the same turn as the snapshot, so no press lands between: let go of after it, the whole content would restyle twice.
             this.releaseInertContent();
             this.holdTypedDuring(() => this.applyNow(snapshot));
         }
@@ -1644,7 +743,6 @@ export class WebUIRuntime {
         }
     }
 
-    /** Gives the content a switch to another runtime turned inert its presses and keys back. */
     private releaseInertContent(): void {
         this.inertContent?.removeAttribute("inert");
         this.inertContent = null;
@@ -1657,73 +755,9 @@ export async function startWebUIAsync(options: WebUIRuntimeOptions = {}): Promis
     const started = performance.now();
     const runtime = new WebUIRuntime(options);
 
-    // Reading the page's metadata and starting every engine: the whole of what the client does before it looks at the page.
     logElapsed("runtime built", started);
 
     await runtime.startAsync();
 
     return runtime;
-}
-
-/** The page's content region, which going to another runtime of the route redraws; the sides stay the reader's. */
-function contentRegion(): HTMLElement | null {
-    return document.querySelector<HTMLElement>(`[${RegionAttribute}="${ContentRegion}"]`);
-}
-
-/**
- * The document and the content as a page load shows them: every scroller in the content at its start, or at its end where it is
- * anchored there, held at it as a page's first look holds it — a windowed host whose window stops short of the source's end placed
- * after by its engine. A side keeps where its reader left it.
- */
-function showFromStart(content: HTMLElement | null): void {
-    document.scrollingElement?.scrollTo({ top: 0, left: 0, behavior: "instant" });
-
-    if (content === null)
-        return;
-
-    for (const scroller of [content, ...content.querySelectorAll<HTMLElement>("*")]) {
-        // A windowed feed at the source's end is held there too: left at its top, its engine places only a window that starts past
-        // the source's first row, and a padding or a row drawn after the switch would leave it wherever the race put it.
-        if (isEndAnchored(scroller) && !(resolveHostMode(scroller) === "windowed" && holdsOlderWindow(scroller))) {
-            holdAtEnd(scroller);
-            scroller.scrollTo({ top: scroller.scrollHeight, left: 0, behavior: "instant" });
-        }
-        else if (scroller.scrollTop !== 0 || scroller.scrollLeft !== 0) {
-            scroller.scrollTo({ top: 0, left: 0, behavior: "instant" });
-        }
-    }
-}
-
-/** Waits out one of `AttachRetryDelaysMilliseconds` between two retries of a failed attach. */
-function delay(milliseconds: number): Promise<void> {
-    return new Promise(resolve => window.setTimeout(resolve, milliseconds));
-}
-
-/** Resolves once the document is parsed and its deferred and module scripts have run: at once if DOMContentLoaded has already fired. */
-function documentParsedAsync(): Promise<void> {
-    const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
-
-    if (document.readyState === "complete" || (navigation !== undefined && navigation.domContentLoadedEventStart > 0))
-        return Promise.resolve();
-
-    return new Promise(resolve => document.addEventListener("DOMContentLoaded", () => resolve(), { once: true }));
-}
-
-/** The navigation a page standing in for another was rendered for, off the shell's root; null on a page that is what was asked for. */
-function readStandInNavigation(): { route: string; parameters: Record<string, unknown> | null } | null {
-    const text = document.querySelector("[data-ui-root]")?.getAttribute("data-ui-navigation");
-
-    if (text === null || text === undefined)
-        return null;
-
-    try {
-        const parsed = JSON.parse(text) as { route?: unknown; parameters?: unknown };
-
-        return typeof parsed.route === "string"
-            ? { route: parsed.route, parameters: typeof parsed.parameters === "object" ? parsed.parameters as Record<string, unknown> | null : null }
-            : null;
-    }
-    catch {
-        return null;
-    }
 }

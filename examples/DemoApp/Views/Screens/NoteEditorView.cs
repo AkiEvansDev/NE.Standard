@@ -31,21 +31,21 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
     /// The note's two fields, each sending its value as the typing pauses — the controller weighs the flag as the value lands, so a
     /// leave pressed within the first pause is asked of the controller behind that value; the line under them says whether it is saved.
     /// </summary>
-    /// <remarks>Both Tonal: the card already frames them.</remarks>
+    /// <remarks>Both Filled: the card already frames them.</remarks>
     private static CardComponent CreateNote()
         => UICard.Create("The note", "Saved only by Save: the controller holds unsaved work while the text differs from what it kept.", UILayout.Stack(16,
             new TextInputComponent()
                 .SetTitle("Title")
-                .SetAppearance(UIInputAppearance.Tonal)
+                .SetAppearance(UIInputAppearance.Filled)
                 .SetDebounceMilliseconds(300)
-                .BindValue(nameof(NoteEditorController.Title)),
+                .BindValue<NoteEditorController>(static x => x.Title),
             new TextAreaComponent()
                 .SetTitle("Text")
-                .SetAppearance(UIInputAppearance.Tonal)
+                .SetAppearance(UIInputAppearance.Filled)
                 .SetRows(6)
                 .SetDebounceMilliseconds(300)
-                .BindValue(nameof(NoteEditorController.Body)),
-            UIText.Note().BindDescription(nameof(NoteEditorController.Status)),
+                .BindValue<NoteEditorController>(static x => x.Body),
+            UIText.Note().BindDescription<NoteEditorController>(static x => x.Status),
             UIButtons.Pair(
                 UIButtons.Ghost("Revert").OnClick(nameof(NoteEditorController.Revert)),
                 // Ctrl+S from anywhere on the page, the fields included: the browser's own save of the page never opens.
@@ -62,7 +62,7 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
             // Under the switch rather than its description, which keeps one line: the sentence reads whole on a phone.
             UIForm.Field(new SwitchComponent()
                 .SetTitle("Ask in the note's own dialog")
-                .BindValue(nameof(NoteEditorController.OwnDialog)),
+                .BindValue<NoteEditorController>(static x => x.OwnDialog),
                 "Off, OnLeaveRequestedAsync hands the leave to the base."
             ),
             UIText.Paragraph("A press on any page in the sidebar, or on the link below, asks first. So does a command that answers with a NavigateEffect. The browser's back button, a reload or closing the tab ask the browser's own question instead — the only one a browser allows there. The arrow before the page's title is the browser's Back too, and asks as it does; with nothing of this site behind the tab, it goes to the inbox, asking first as a link does."),
@@ -85,7 +85,7 @@ internal sealed class NoteEditorView : DemoScreenView, IUIViewDefinition
             nameof(NoteEditorController.LeaveQuestion),
             "Save",
             nameof(NoteEditorController.SaveAndLeave),
-            UIButtonType.Primary,
+            UIButtonVariant.Primary,
             cancelCommand: nameof(NoteEditorController.StayOnNote),
             middle: UIButtons.Ghost("Don't save").OnClick(nameof(NoteEditorController.DiscardAndLeave))
         );

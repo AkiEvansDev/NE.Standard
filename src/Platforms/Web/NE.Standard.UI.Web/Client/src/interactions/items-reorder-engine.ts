@@ -8,18 +8,15 @@
 // A host offering its rows as a kind (`DragKind`) lifts them too, sorted or not, for another host to take (item-drag-engine.ts).
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import {
-    ComponentIdAttribute, DragKindAttribute, GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, NoRowDragAttribute, RowDropAttribute, RowGripClass,
-    RowsDraggableAttribute, RowsDragHandleAttribute, WindowSpacerAttribute, WindowTotalAttribute
-} from "../addressing/dom-attributes.ts";
+import { ComponentIdAttribute, DragKindAttribute, GroupAttribute, GroupHeaderAttribute, ItemsHostAttribute, ItemsViewItemClass, ItemsViewWrapClass, NoRowDragAttribute, OrientationHorizontalClass, RowDraggingClass, RowDropAttribute, RowGripClass, RowsDraggableAttribute, RowsDragHandleAttribute, TableRowClass, WindowSpacerAttribute, WindowTotalAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId } from "../addressing/dom-registry.ts";
 import { aheadOfAnswer } from "../events/ahead-of-answer.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
-import { getRealItemElements } from "../items/items-empty-renderer.ts";
-import { getActiveSorts, readItemsQuery } from "../items/items-filter-sort.ts";
-import { readWindowNumber, resolveHostMode, windowOffset } from "../items/items-host-mode.ts";
-import { getSourceOrder } from "../items/items-source-order.ts";
-import type { PendingMove, PendingMoves } from "../items/pending-moves.ts";
+import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
+import { getActiveSorts, readItemsQuery } from "./interaction-evaluator.ts";
+import { readWindowNumber, resolveHostMode, windowOffset } from "../addressing/items-host-mode.ts";
+import { getSourceOrder } from "../addressing/items-source-order.ts";
+import type { PendingMove, PendingMoves } from "../state/pending-moves.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
 import { clearDragMarks, leftAltogether, markDragStart } from "./drag-marks.ts";
@@ -32,12 +29,11 @@ import { dispatchRowEvent, focusedRow, hostKeyTarget, lineNeighbour, setRowFocus
 import { hostOf, KeyboardRowsRootSelector, rowBox, rowKey, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 import { stripHostOf } from "./tab-rows.ts";
 
-const RowSelector = ".ui-items-view__item, .ui-table__row";
-const DraggingClass = "ui-row--dragging";
+const RowSelector = `.${ItemsViewItemClass}, .${TableRowClass}`;
 // Written on the marked row's box: how far out from its edge the drop line's middle stands (ui-items-view.less).
 const RowDropOffsetVariable = "--ui-row-drop-offset";
 const MoveEventName = "move";
-const WrapRootSelector = ".ui-items-view--wrap";
+const WrapRootSelector = `.${ItemsViewWrapClass}`;
 
 // The arrows Alt moves a row by.
 const KeyMoves = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
@@ -51,10 +47,9 @@ export type Place = {
     readonly side: DropSide;
 };
 
-/** How a host's rows run: across (a horizontal list, a wrap's lines) or down, and across from the right in a right-to-left one. */
+/** How a host's rows run: across (a horizontal list, a wrap's lines) or down. */
 export type Flow = {
     readonly across: boolean;
-    readonly rightToLeft: boolean;
 };
 
 /** What a row's `move` carries past its keys: the index it takes in its collection — a tab's, its place in the strip. */
@@ -278,7 +273,7 @@ export class ItemsReorderEngine {
         const companions = (items?.rows ?? []).filter(row => row !== found.row).map(row => rowBox(row) ?? row);
 
         // On the box: a wrap's row has none of its own for the ghost's fade to show on.
-        markDragStart(domEvent, found.root, box, DraggingClass, rowKey(found.row), companions, allowedEffect(items, found.moves));
+        markDragStart(domEvent, found.root, box, RowDraggingClass, rowKey(found.row), companions, allowedEffect(items, found.moves));
         beginItemsDrag(domEvent, items, () => this.endDrag());
         this.dropView();
     }
@@ -353,7 +348,7 @@ export class ItemsReorderEngine {
 
         domEvent.preventDefault();
 
-        const place = placeAmong(drag.host, domEvent.target, domEvent, flowOf(drag.root, drag.host), shownRows(drag.host));
+        const place = placeAmong(drag.host, domEvent.target, domEvent, flowOf(drag.root), shownRows(drag.host));
         const index = place === null ? null : this.indexOf(drag, place.anchor, place.side);
 
         this.endDrag();
@@ -372,7 +367,7 @@ export class ItemsReorderEngine {
         if (drag === null)
             return;
 
-        clearDragMarks(drag.root, DraggingClass);
+        clearDragMarks(drag.root, RowDraggingClass);
         markRowDrop(drag.root, null);
     }
 
@@ -393,7 +388,7 @@ export class ItemsReorderEngine {
             return;
 
         const host = hostOf(found.root);
-        const flow = host === null ? null : flowOf(found.root, host);
+        const flow = host === null ? null : flowOf(found.root);
         const across = domEvent.key === "ArrowLeft" || domEvent.key === "ArrowRight";
 
         // Left and Right are the browser's Back and Forward in a list running down.
@@ -461,7 +456,7 @@ export class RowsViewCache {
 
         const rows = shownRows(host);
 
-        this.view = { host, flow: flowOf(root, host), rows, boxes: rows.map(row => (rowBox(row) ?? row).getBoundingClientRect()), order: rowOrder(host, this.keysOf) };
+        this.view = { host, flow: flowOf(root), rows, boxes: rows.map(row => (rowBox(row) ?? row).getBoundingClientRect()), order: rowOrder(host, this.keysOf) };
         this.changes?.observe(host, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden", GroupAttribute, "style"] });
 
         return this.view;
@@ -531,8 +526,7 @@ export function placeAmong(host: Element, target: Element, point: { readonly cli
     const rect = (rowBox(over) ?? over).getBoundingClientRect();
     const beforeMiddle = flow.across ? point.clientX < rect.left + rect.width / 2 : point.clientY < rect.top + rect.height / 2;
 
-    // Along a row that reads right to left, the start is the right-hand side.
-    if (beforeMiddle === flow.rightToLeft)
+    if (!beforeMiddle)
         return { anchor: over, side: "after" };
 
     // Before a row is after the one drawn ahead of it, where that one stands in its group and on its line: one place, one line.
@@ -571,11 +565,9 @@ function groupOf(row: Element): string {
     return row.getAttribute(GroupAttribute) ?? "";
 }
 
-/** How the host's rows run, read off its root and its direction. */
-function flowOf(root: Element, host: Element): Flow {
-    const across = root.matches(".ui-orientation--horizontal, .ui-items-view--wrap");
-
-    return { across, rightToLeft: across && getComputedStyle(host).direction === "rtl" };
+/** How the host's rows run, read off its root. */
+function flowOf(root: Element): Flow {
+    return { across: root.matches(`.${OrientationHorizontalClass}, .${ItemsViewWrapClass}`) };
 }
 
 /** Whether two places are the same, or both none. */
@@ -609,7 +601,7 @@ export function lineOffset(rows: readonly HTMLElement[], place: Place, flow: Flo
 
     const box = (rowBox(place.anchor) ?? place.anchor).getBoundingClientRect();
     const beyond = (rowBox(next) ?? next).getBoundingClientRect();
-    const gap = !flow.across ? beyond.top - box.bottom : flow.rightToLeft ? box.left - beyond.right : beyond.left - box.right;
+    const gap = flow.across ? beyond.left - box.right : beyond.top - box.bottom;
 
     return Math.max(gap, 0) / 2;
 }
@@ -665,6 +657,6 @@ export function markRowDrop(root: HTMLElement, place: Place | null, offset = 0):
 
 /** Takes the dragged mark off a row and off the box a wrap draws it by: read off the row, as a detached row has no box to find. */
 export function unmarkDraggedRow(row: Element): void {
-    row.classList.remove(DraggingClass);
-    row.querySelector(`:scope > [${ComponentIdAttribute}]`)?.classList.remove(DraggingClass);
+    row.classList.remove(RowDraggingClass);
+    row.querySelector(`:scope > [${ComponentIdAttribute}]`)?.classList.remove(RowDraggingClass);
 }

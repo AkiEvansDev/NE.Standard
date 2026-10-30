@@ -1,8 +1,8 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import { ValueEndAttribute } from "../addressing/dom-attributes.ts";
-import type { DomRegistry } from "../addressing/dom-registry.ts";
+import { resolveWritableBinding, ValueSyncEventNames } from "../addressing/dom-registry.ts";
+import type { DomRegistry, EffectRunner } from "../addressing/dom-registry.ts";
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
-import type { EffectRegistry } from "../effects/effect-registry.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { getIdValue, getInteractionActionKind, rowKeysText } from "../metadata/metadata-index.ts";
 import type {
@@ -12,10 +12,9 @@ import type {
     WebRenderInteractionMetadata,
     WebRenderPropertyReferenceMetadata
 } from "../metadata/metadata-index.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logWarn } from "../metadata/logger.ts";
+import type { PropertyPatchTarget, PropertyValueChange } from "../state/property-state-store.ts";
 import { areValuesEqual } from "../state/value-equality.ts";
-import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
-import { ValueSyncEventNames, resolveWritableBinding } from "../updates/value-binding-engine.ts";
 import { focusedElement, handFocusOnIfHidden } from "./focus-handoff.ts";
 import type { InteractionEvaluator } from "./interaction-evaluator.ts";
 import type { InteractionIndex } from "./interaction-index.ts";
@@ -29,7 +28,7 @@ export type InteractionEventContext = {
 
 export type InteractionEngineOptions = {
     readonly root?: ParentNode;
-    readonly effects: EffectRegistry;
+    readonly effects: EffectRunner;
     readonly dom: DomRegistry;
     readonly metadata: Pick<MetadataIndex, "getBindingById">;
     /** Reads a field the reader edited, as its binding would send it. */
@@ -46,7 +45,7 @@ type EditedSource = {
 
 export class InteractionEngine {
     private readonly index: InteractionIndex;
-    private readonly propertyPatchEngine: PropertyPatchEngine;
+    private readonly propertyPatchEngine: PropertyPatchTarget;
     private readonly evaluator: InteractionEvaluator;
     private readonly options: InteractionEngineOptions;
     private applyDepth = 0;
@@ -61,7 +60,7 @@ export class InteractionEngine {
     private frameRequested = false;
 
     // Fields rather than parameter properties, which a type-stripping loader cannot run.
-    public constructor(index: InteractionIndex, propertyPatchEngine: PropertyPatchEngine, evaluator: InteractionEvaluator, options: InteractionEngineOptions) {
+    public constructor(index: InteractionIndex, propertyPatchEngine: PropertyPatchTarget, evaluator: InteractionEvaluator, options: InteractionEngineOptions) {
         this.index = index;
         this.propertyPatchEngine = propertyPatchEngine;
         this.evaluator = evaluator;

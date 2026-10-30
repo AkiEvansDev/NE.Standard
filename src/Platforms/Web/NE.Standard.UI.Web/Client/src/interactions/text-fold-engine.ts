@@ -1,6 +1,8 @@
 // Unfolds a `[caption]{text}` run of the inline markup and folds it back; the state is the button's own and nothing remembers it.
 
-const ToggleSelector = "button.ui-text__fold-toggle";
+import { TextFoldToggleClass } from "../addressing/dom-attributes.ts";
+
+const ToggleSelector = `button.${TextFoldToggleClass}`;
 
 export type TextFoldEngineOptions = {
     readonly root?: ParentNode;

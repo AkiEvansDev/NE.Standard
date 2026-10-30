@@ -12,7 +12,8 @@ internal sealed class PresetsFormView : PresetsViewBase, IUIViewDefinition
         _ = container
             .AddChild(CreateHeading("UIForm — the parts of a form besides its fields"))
             .AddChildren(DemoUI.CreateColumns([CreateFieldGroup()], [CreateFormRowGroup()]))
-            .AddChild(CreateSearchGroup());
+            .AddChild(CreateSearchGroup())
+            .AddChild(CreateComposerGroup());
 
         _ = container
             .AddChild(CreateHeading("ShownWhen, HiddenWhen, EnabledWhen — a rule run in the browser"))

@@ -1,5 +1,5 @@
 // `node --test` loads this module as it is: `.ts` on the value imports, `import type` on the rest.
-import { ensureElementId, FlyoutContentClass } from "../addressing/dom-attributes.ts";
+import { ensureElementId, FlyoutAnchorClass, FlyoutClass, FlyoutContentClass, FlyoutContentIdPrefix, FlyoutNoBackdropCloseAttribute, FlyoutNoEscapeCloseAttribute, FlyoutOpenClass } from "../addressing/dom-attributes.ts";
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
 import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
 import { observeComponents } from "./dom-mutations.ts";
@@ -8,12 +8,6 @@ import { isInert } from "./interactive-state.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { FocusableSelector, isPointerLast } from "./popup-focus.ts";
 import { onTierChange } from "../rendering/responsive-tier.ts";
-
-const FlyoutClass = "ui-flyout";
-const OpenClass = "ui-flyout--open";
-const AnchorClass = "ui-flyout__anchor";
-const NoBackdropCloseAttribute = "data-ui-flyout-no-backdrop-close";
-const NoEscapeCloseAttribute = "data-ui-flyout-no-escape-close";
 
 const PlacementClassPrefix = `${FlyoutClass}--`;
 // What a waiting flyout's line is watched for.
@@ -33,20 +27,21 @@ export class FlyoutInteractionEngine {
     private sightWatch: MutationObserver | null = null;
     private tiersWatched = false;
 
-    // Several at once: a flyout may open inside another. `close` is raised only for the client's own take-down, not a server patch's.
+    // Several at once: a flyout may open inside another. `close` is raised only for a person's dismissal — the anchor pressed, a press
+    // outside, Escape, the keyboard leaving — never for the page taking it down, nor a server patch.
     private readonly flyouts = new OwnedPopups({
-        show: ({ owner }) => owner.classList.add(OpenClass),
-        // Taken down for its owner: one only out of sight stays open, waiting; one disabled or loading raises no `close`, which the
-        // server would refuse.
+        show: ({ owner }) => owner.classList.add(FlyoutOpenClass),
+        // Taken down for its owner (gone, refusing, its anchor scrolled out of sight): one only out of sight stays open, waiting; the rest
+        // tell their two-way IsOpen alone.
         hide: ({ owner }, reason) => {
             if (reason === "owner" && isOnlyOutOfSight(owner))
                 this.wait(owner);
             else
-                this.markClosed(owner, reason !== "owner" || !isInert(owner));
+                this.markClosed(owner, reason !== "owner");
         },
         single: false,
         closesWhenReadOnly: false,
-        canDismiss: ({ owner }, reason) => !owner.hasAttribute(reason === "escape" ? NoEscapeCloseAttribute : NoBackdropCloseAttribute)
+        canDismiss: ({ owner }, reason) => !owner.hasAttribute(reason === "escape" ? FlyoutNoEscapeCloseAttribute : FlyoutNoBackdropCloseAttribute)
     });
 
     public constructor(options: FlyoutInteractionEngineOptions = {}) {
@@ -71,14 +66,14 @@ export class FlyoutInteractionEngine {
      */
     private place(flyout: HTMLElement): void {
         const content = flyout.querySelector<HTMLElement>(`:scope > .${FlyoutContentClass}`);
-        const anchor = flyout.querySelector<HTMLElement>(`:scope > .${AnchorClass}`);
+        const anchor = flyout.querySelector<HTMLElement>(`:scope > .${FlyoutAnchorClass}`);
 
         if (content === null)
             return;
 
         const opener = describeAnchor(anchor, content);
 
-        if (!flyout.classList.contains(OpenClass)) {
+        if (!flyout.classList.contains(FlyoutOpenClass)) {
             this.waiting.delete(flyout);
             this.flyouts.close(flyout);
             opener?.setAttribute("aria-expanded", "false");
@@ -92,6 +87,7 @@ export class FlyoutInteractionEngine {
             anchor: resolveAnchorBox(anchor) ?? flyout,
             placement: { placement: readPlacement(flyout) },
             openers: opener === null ? [] : [opener],
+            namedBy: opener,
             // A press gives it to the panel itself, as the side drawer does: its first field focused at once lit its edge and raised a
             // phone's on-screen keyboard unasked. A key gives it to the first control.
             focus: !this.waiting.has(flyout) && (isPointerLast() ? content : true)
@@ -102,7 +98,7 @@ export class FlyoutInteractionEngine {
         else if (isOnlyOutOfSight(flyout))
             this.wait(flyout);
         else
-            this.markClosed(flyout, !isInert(flyout));
+            this.markClosed(flyout, false);
     }
 
     /** Keeps an open flyout whose owner is only out of sight open, to be placed once it is in sight again. */
@@ -134,7 +130,7 @@ export class FlyoutInteractionEngine {
         const moved = records === undefined || records.some(record => record.type === "attributes") ? null : addedAmong(records, [...this.waiting]);
 
         for (const flyout of [...this.waiting]) {
-            if (!flyout.isConnected || !flyout.classList.contains(OpenClass)) {
+            if (!flyout.isConnected || !flyout.classList.contains(FlyoutOpenClass)) {
                 this.waiting.delete(flyout);
                 continue;
             }
@@ -152,12 +148,12 @@ export class FlyoutInteractionEngine {
         }
     }
 
-    /** Takes the open class off a flyout the client closes, and says so the way a toggle does; `close` only where it can run. */
+    /** Takes the open class off a flyout the client closes, and says so the way a toggle does; `close` only for a person's dismissal. */
     private markClosed(flyout: HTMLElement, raisesClose = true): void {
-        if (!flyout.classList.contains(OpenClass))
+        if (!flyout.classList.contains(FlyoutOpenClass))
             return;
 
-        flyout.classList.remove(OpenClass);
+        flyout.classList.remove(FlyoutOpenClass);
         announce(flyout, false, raisesClose);
     }
 
@@ -165,7 +161,7 @@ export class FlyoutInteractionEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const anchor = domEvent.target.closest<HTMLElement>(`.${AnchorClass}`);
+        const anchor = domEvent.target.closest<HTMLElement>(`.${FlyoutAnchorClass}`);
         const flyout = anchor?.closest<HTMLElement>(`.${FlyoutClass}`) ?? null;
 
         if (flyout === null)
@@ -176,7 +172,7 @@ export class FlyoutInteractionEngine {
             return;
         }
 
-        flyout.classList.add(OpenClass);
+        flyout.classList.add(FlyoutOpenClass);
         this.place(flyout);
 
         if (this.flyouts.isOpen(flyout))
@@ -197,7 +193,7 @@ function describeAnchor(anchor: HTMLElement | null, content: HTMLElement): HTMLE
     const target = anchor.querySelector<HTMLElement>(FocusableSelector) ?? anchor;
 
     target.setAttribute("aria-haspopup", "dialog");
-    target.setAttribute("aria-controls", ensureElementId(content, "ui-flyout-content"));
+    target.setAttribute("aria-controls", ensureElementId(content, FlyoutContentIdPrefix));
 
     return target;
 }
@@ -206,7 +202,7 @@ function describeAnchor(anchor: HTMLElement | null, content: HTMLElement): HTMLE
 function announce(flyout: HTMLElement, open: boolean, raisesCommand = true): void {
     flyout.dispatchEvent(new Event("toggle", { bubbles: true }));
 
-    // Not when its owner turned disabled or loading: the `close` a disabled component raised would be refused.
+    // Only for a person's dismissal: the page taking the flyout down (its owner gone, refusing, scrolled away) is no close of theirs.
     if (raisesCommand)
         flyout.dispatchEvent(new Event(open ? "open" : "close", { bubbles: true }));
 }

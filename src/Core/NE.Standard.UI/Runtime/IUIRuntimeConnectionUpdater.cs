@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Runtime;
@@ -43,12 +42,6 @@ internal interface IUIRuntimeConnectionUpdater
     void DetachConnection(string instanceId);
 
     /// <summary>
-    /// Follows what the host sent one of the runtime's pages itself, as the runtime's own sends are followed: a show it carried opens a
-    /// component authored hidden for that page.
-    /// </summary>
-    void FollowSent(UIHandle page, IReadOnlyList<ClientEffect> effects);
-
-    /// <summary>
     /// Makes what a connection's page reports its handle's, counts it on screen or not, and posts the controller what changed: its
     /// runtime going on or off screen, a changed notification permission.
     /// </summary>
@@ -65,4 +58,10 @@ internal interface IUIRuntimeConnectionUpdater
     /// drained it, so an answer drained after it is sent after it; answers whether it handed over anything to send.
     /// </summary>
     Task<bool> FlushToDispatcherAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// An explicit flush: drains as the scheduled flush does, through the same send queue, and waits for what it queued to be sent or
+    /// dropped; answers the set it drained.
+    /// </summary>
+    Task<ServerChangeSet> FlushAndSendAsync(CancellationToken cancellationToken);
 }

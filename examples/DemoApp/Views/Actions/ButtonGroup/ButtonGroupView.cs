@@ -27,11 +27,11 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new ButtonGroupComponent()
             .BindStandard()
-            .BindSelectedKey($"{SegmentGroup}.{nameof(SegmentGroupContext.SelectedKey)}")
-            .BindSize($"{SegmentGroup}.{nameof(SegmentGroupContext.Size)}")
-            .BindSelectionStyle($"{SegmentGroup}.{nameof(SegmentGroupContext.SelectionStyle)}")
-            .BindPadding($"{SegmentGroup}.{nameof(SegmentGroupContext.Padding)}")
-            .BindBackground($"{SegmentGroup}.{nameof(SegmentGroupContext.Background)}")
+            .BindSelectedKey<ButtonGroupController>(static x => x.SegmentGroup.SelectedKey)
+            .BindSize<ButtonGroupController>(static x => x.SegmentGroup.Size)
+            .BindSelectionStyle<ButtonGroupController>(static x => x.SegmentGroup.SelectionStyle)
+            .BindPadding<ButtonGroupController>(static x => x.SegmentGroup.Padding)
+            .BindBackground<ButtonGroupController>(static x => x.SegmentGroup.Background)
             .BindBorder(BorderGroup)
             .SetItems([
                 new ButtonItem { Id = SegmentGroupContext.ListKey, Icon = DemoIcons.Outline(DemoIcons.List), Title = "List" },
@@ -56,7 +56,7 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateToolbarGroup()
     {
-        return DemoUI.CreateExample("A view switched from a toolbar",
+        return DemoUI.CreateExample("Single-select view switcher",
             new SurfaceComponent()
                 .SetPadding(UIThickness.All(12, 8, 12, 8))
                 .SetContent(UILayout.Ends(
@@ -65,7 +65,7 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
                         .SetDescription("48 in the last day")
                         .SetDescriptionType(UITextAppearance.Caption),
                     new ButtonGroupComponent()
-                        .SetSize(UIButtonSize.Small)
+                        .SetSize(UISize.Small)
                         .SetSelectedKey("list")
                         .SetItems([
                             new ButtonItem { Id = "list", Icon = DemoIcons.Outline(DemoIcons.List), Tooltip = "List" },
@@ -83,7 +83,7 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreatePeriodGroup()
     {
-        return DemoUI.CreateExample("A period chosen by word",
+        return DemoUI.CreateExample("Segmented range selector",
             UILayout.Stack(12)
                 .AddChild(new ButtonGroupComponent()
                     .SetSelectedKey("week")
@@ -95,7 +95,7 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
                     ])
                 )
                 .AddChild(new ButtonGroupComponent()
-                    .SetSize(UIButtonSize.Large)
+                    .SetSize(UISize.Large)
                     .SetSelectedKey("staging")
                     .SetSelectionStyle(UISelectionStyle.Ground(UIThemeColor.Accent))
                     .SetItems([
@@ -111,14 +111,14 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
     /// <summary>
     /// A strip beside a field, on the field's own ground, so the two read as one row.
     /// </summary>
-    /// <remarks>The field is Tonal: a lone field beside its own controls, not a form whose fields stack.</remarks>
+    /// <remarks>The field is Filled: a lone field beside its own controls, not a form whose fields stack.</remarks>
     private static ContainerComponent CreateFieldGroup()
     {
-        return DemoUI.CreateExample("Beside a field",
+        return DemoUI.CreateExample("Attached to an input field",
             new ContainerComponent()
                 .SetColumn(24, UIGridUnit.Auto())
                 .AddChild(new TextInputComponent()
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetTitle("Search deploys")
                     .SetSearch("Service, version or region")
                     .SetPlacement(1, 1, 23, 1)

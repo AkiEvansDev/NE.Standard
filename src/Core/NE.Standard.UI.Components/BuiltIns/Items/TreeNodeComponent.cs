@@ -13,9 +13,19 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// The face of one tree node — chevron, glyph and title — drawn once per node from an <see cref="ITreeNodeModel"/>. A tree
 /// has one by default and one per differing <see cref="ITreeNodeModel.Kind"/>.
 /// </summary>
-public abstract partial class TreeNodeComponent<T> : TextComponent<T>
+[UIComponentPropertyDefault(nameof(ITextComponent.IconColor), nameof(DefaultIconColor))]
+[UIComponentPropertyDefault(nameof(ITextComponent.TitleType), nameof(DefaultTitleType))]
+[UIComponentPropertyDefault(nameof(ITextComponent.TitleColor), nameof(DefaultTitleColor))]
+[UIComponentPropertyDefault(nameof(ITextComponent.BadgePlacement), nameof(DefaultBadgePlacement))]
+[UIComponentPropertyBlock(typeof(IRenamableComponent))]
+public abstract partial class TreeNodeComponent<T> : TextComponent<T>, IRenamableComponent
     where T : TreeNodeComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIThemeColor DefaultIconColor = UIThemeColor.Default;
+    private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Body;
+    private static readonly UIThemeColor DefaultTitleColor = UIThemeColor.FromStyle(UIColorStyle.OnBackground);
+    private const UITextBadgePlacement DefaultBadgePlacement = UITextBadgePlacement.Trailing;
+
     /// <summary>
     /// Gets or sets the key of the node above this one; the tree derives the depth and the fold from it.
     /// </summary>
@@ -42,16 +52,6 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
     public bool? Expanded { get; set; }
 
     /// <summary>
-    /// Gets or sets the title as a rename wrote it back; the text body itself draws the title.
-    /// </summary>
-    [UIComponentProperty(
-        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
-        DefaultBindingMode = UIBindingMode.TwoWay,
-        DefaultBindingScope = UIBindingScope.Relative,
-        DefaultValue = null)]
-    public string? RenamedTitle { get; set; }
-
-    /// <summary>
     /// Gets or sets the key of the folder this one was moved into, written by a move; empty for the tree's top level.
     /// </summary>
     [UIComponentProperty(
@@ -66,11 +66,6 @@ public abstract partial class TreeNodeComponent<T> : TextComponent<T>
     /// </summary>
     protected TreeNodeComponent(bool binds = false, string? id = null) : base(id)
     {
-        IconColor = UIThemeColor.FromStyle(UIColorStyle.Primary);
-        TitleType = UITextAppearance.Body;
-        TitleColor = UIThemeColor.FromStyle(UIColorStyle.OnBackground);
-        BadgePlacement = UITextBadgePlacement.Trailing;
-
         if (!binds)
             return;
 

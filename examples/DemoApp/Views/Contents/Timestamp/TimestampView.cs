@@ -28,7 +28,7 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/contents/timestamp";
     protected override string Header => "demo.contents.timestamp.header";
     protected override string HeaderDescription => "demo.contents.timestamp.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/words", "demo.nav.mechanisms.words");
+    protected override (string Route, string Title)? ComposedIn => ("/mechanisms/words", "demo.nav.mechanisms.words");
 
     // Format is read once at render, so each of the five is drawn, all bound to the one moment.
     protected override ContainerComponent CreatePreview()
@@ -43,11 +43,11 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
     private static TimestampComponent Bind(TimestampComponent timestamp)
         => timestamp
             .BindStandard()
-            .BindValue($"{TimestampGroup}.{nameof(TimestampGroupContext.Value)}")
-            .BindTextType($"{TimestampGroup}.{nameof(TimestampGroupContext.TextType)}")
-            .BindColor($"{TimestampGroup}.{nameof(TimestampGroupContext.Color)}")
-            .BindTooltip($"{TimestampGroup}.{nameof(TimestampGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{TimestampGroup}.{nameof(TimestampGroupContext.TooltipPlacement)}")
+            .BindValue<TimestampController>(static x => x.TimestampGroup.Value)
+            .BindTextType<TimestampController>(static x => x.TimestampGroup.TextType)
+            .BindColor<TimestampController>(static x => x.TimestampGroup.Color)
+            .BindTooltip<TimestampController>(static x => x.TimestampGroup.Tooltip)
+            .BindTooltipPlacement<TimestampController>(static x => x.TimestampGroup.TooltipPlacement)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
@@ -65,30 +65,30 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateStampGroup()
     {
-        return DemoUI.CreateExample("One moment, five ways",
+        return DemoUI.CreateExample("All five UITimestampFormat modes",
             UILayout.Stack(12)
                 .AddChild(DemoUI.CreateLabelled("DateTime", new TimestampComponent()
-                    .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
+                    .BindValue<StampGroupContext>(static x => x.Moment, UIBindingScope.Relative)
                     )
                 )
                 .AddChild(DemoUI.CreateLabelled("Date", new TimestampComponent()
                     .SetFormat(UITimestampFormat.Date)
-                    .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
+                    .BindValue<StampGroupContext>(static x => x.Moment, UIBindingScope.Relative)
                     )
                 )
                 .AddChild(DemoUI.CreateLabelled("Time", new TimestampComponent()
                     .SetFormat(UITimestampFormat.Time)
-                    .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
+                    .BindValue<StampGroupContext>(static x => x.Moment, UIBindingScope.Relative)
                     )
                 )
                 .AddChild(DemoUI.CreateLabelled("Relative", new TimestampComponent()
                     .SetFormat(UITimestampFormat.Relative)
-                    .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
+                    .BindValue<StampGroupContext>(static x => x.Moment, UIBindingScope.Relative)
                     )
                 )
                 .AddChild(DemoUI.CreateLabelled("RelativeDate", new TimestampComponent()
                     .SetFormat(UITimestampFormat.RelativeDate)
-                    .BindValue(nameof(StampGroupContext.Moment), UIBindingScope.Relative)
+                    .BindValue<StampGroupContext>(static x => x.Moment, UIBindingScope.Relative)
                     )
                 ),
             note: "The page writes each in your own time zone and language, and the relative one again every fifteen seconds: it opens on \"5 minutes ago\" and moves on by itself. RelativeDate names the day as a messenger's day header does — \"Today\", \"Yesterday\", \"Tomorrow\", else the date. Stamp now, or switch the language in the header, and all five follow.",
@@ -105,9 +105,9 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFeedGroup()
     {
-        return DemoUI.CreateExample("What happened, and when",
+        return DemoUI.CreateExample("Relative activity feed",
             new ItemsViewComponent()
-                .BindItems(nameof(ActivityGroupContext.Entries), UIBindingScope.Relative)
+                .BindItems<ActivityGroupContext>(static x => x.Entries, UIBindingScope.Relative)
                 .SetSpacing(12)
                 // A plain grid, not a split, which stacks by the window's width: on a phone the moment stood alone between two rows.
                 .SetTemplate(new ContainerComponent()
@@ -115,18 +115,18 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
                     // the moment on a phone, but the air on the moment's own side.
                     .SetColumn(24, UIGridUnit.Auto())
                     .AddChild(new TextComponent()
-                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                        .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
                         .SetIconColor(UIThemeColor.Muted)
-                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                         .AsBody()
-                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                         .SetPlacement(1, 1, 23, 1)
                     )
                     .AddChild(new TimestampComponent()
                         .SetFormat(UITimestampFormat.Relative)
-                        .BindValue(nameof(DemoActivityItem.At), UIBindingScope.Relative)
+                        .BindValue<DemoActivityItem>(static x => x.At, UIBindingScope.Relative)
                         .SetTextType(UITextAppearance.Caption)
                         .SetColor(UIThemeColor.Muted)
                         .SetHorizontalAlignment(UIAlignment.End)
@@ -145,7 +145,7 @@ internal sealed class TimestampView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRecordGroup()
     {
-        return DemoUI.CreateExample("Under a record",
+        return DemoUI.CreateExample("Record metadata timestamps",
             new CardComponent()
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.Alert)

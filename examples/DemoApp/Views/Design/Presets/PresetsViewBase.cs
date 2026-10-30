@@ -108,7 +108,7 @@ internal abstract class PresetsViewBase : DemoView
             }.OnClose(nameof(PresetsController.DialogClosed)),
             UIDialogs.Confirm(PresetsController.ConfirmKey, "Delete db-us-east-2?", "Its snapshots go with it; the nightly backups stay in object-storage for 30 days.", "Delete", nameof(PresetsController.DeleteServer), cancelCommand: nameof(PresetsController.DialogClosed)),
             UIDialogs.Confirm(PresetsController.LeaveKey, "Save the changes to provision.sh?", "The script runs on every new server in eu-north from the next provisioning run.", "Save", nameof(PresetsController.SaveAndLeave),
-                UIButtonType.Primary,
+                UIButtonVariant.Primary,
                 nameof(PresetsController.DialogClosed),
                 UIButtons.Ghost("Don't save").OnClick(nameof(PresetsController.LeaveWithoutSaving))
             ),
@@ -118,11 +118,11 @@ internal abstract class PresetsViewBase : DemoView
             )
             .OnClose(nameof(PresetsController.DialogClosed)),
             UIDialogs.BoundForm(PresetsController.BoundFormKey, nameof(PresetsController.RenameTitle), nameof(PresetsController.RenameLine),
-                new TextInputComponent().SetTitle("Name").BindValue(nameof(PresetsController.RenameName)),
+                new TextInputComponent().SetTitle("Name").BindValue<PresetsController>(static x => x.RenameName),
                 UIButtons.Primary("Rename").OnClickShowingLoading(nameof(PresetsController.RenameServer))
             )
             .OnClose(nameof(PresetsController.DialogClosed)),
-            UIDialogs.BoundConfirm(PresetsController.BoundConfirmKey, "Archive api-eu-west-1?", nameof(PresetsController.ArchiveQuestion), "Archive", nameof(PresetsController.ArchiveServer), UIButtonType.Primary, nameof(PresetsController.DialogClosed))
+            UIDialogs.BoundConfirm(PresetsController.BoundConfirmKey, "Archive api-eu-west-1?", nameof(PresetsController.ArchiveQuestion), "Archive", nameof(PresetsController.ArchiveServer), UIButtonVariant.Primary, nameof(PresetsController.DialogClosed))
         ]);
 
     private static (UIDialog[] Dialogs, string Code) Capture(UIDialog[] dialogs, [CallerArgumentExpression(nameof(dialogs))] string code = "")
@@ -178,7 +178,7 @@ internal abstract class PresetsViewBase : DemoView
             UILayout.Row(32,
                 UIPage.Labelled("Monthly revenue", UIText.Title("€68.9k")),
                 UIPage.Labelled("Servers", UIText.Title("214")),
-                UIPage.Labelled("Region", new BadgeComponent().SetType(UIBadgeType.Surface).SetText("eu-west"))
+                UIPage.Labelled("Region", new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle("eu-west"))
             ),
             note: "A component under an overline label: a value, a sample, a control with no title of its own. The label keeps one line; wrap: true lets a label that is a sentence run on."
         );
@@ -227,7 +227,7 @@ internal abstract class PresetsViewBase : DemoView
                     UIHeaderSize.Pane,
                     UILayout.Row(4,
                         UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md),
-                        new ImageComponent().SetShape(UIImageShape.Circle).SetAltText("Avatar").SetWidth(UILayoutLength.Absolute(32)).SetVerticalAlignment(UIAlignment.Center)
+                        new ImageComponent().SetShape(UIShape.Circle).SetAltText("Avatar").SetWidth(UILayoutLength.Absolute(32)).SetVerticalAlignment(UIAlignment.Center)
                     ),
                     "Meri Tanaka, the nightly build's owner",
                     "Not saved",
@@ -284,7 +284,7 @@ internal abstract class PresetsViewBase : DemoView
     protected static ContainerComponent CreateStripGroup()
         => DemoUI.CreateExample("Header for a strip",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetPadding(UIThickness.All(8, 8, 8, 12))
                 .SetContent(UILayout.Stack(4,
                     UIPage.Header(UIHeaderSize.Strip, null, "Explorer", null, UIIconButtons.New(), UIIconButtons.Refresh()),
@@ -318,11 +318,11 @@ internal abstract class PresetsViewBase : DemoView
     protected static ContainerComponent CreateOutcomeGroup()
         => DemoUI.CreateExample("Outcome",
             UILayout.Stack(16,
-                UIPage.Outcome(null, UIMessageSeverity.Success, "Order placed", "Six servers on Standard in eu-north start within two minutes; the invoice went to billing@bramble.example.",
+                UIPage.Outcome(null, UIColorStyle.Success, "Order placed", "Six servers on Standard in eu-north start within two minutes; the invoice went to billing@bramble.example.",
                     UIButtons.Ghost("Back to the catalogue"),
                     UIButtons.Primary("Open the servers")
                 ),
-                UIPage.BoundOutcome(DemoIcons.Outline(DemoIcons.Mail), UIMessageSeverity.Info, nameof(PresetsController.InviteTitle), nameof(PresetsController.InviteLine),
+                UIPage.BoundOutcome(DemoIcons.Outline(DemoIcons.Mail), UIColorStyle.Info, nameof(PresetsController.InviteTitle), nameof(PresetsController.InviteLine),
                     UIButtons.Ghost("Send another")
                 )
             ),
@@ -331,7 +331,7 @@ internal abstract class PresetsViewBase : DemoView
 
     protected static ContainerComponent CreateStatusGroup()
         => DemoUI.CreateExample("Status",
-            UIPage.Status(DemoIcons.Outline(DemoIcons.Lock), UIMessageSeverity.Warning, "Not for this account", "The billing pages need the Finance role, which this account does not have.",
+            UIPage.Status(DemoIcons.Outline(DemoIcons.Lock), UIColorStyle.Warning, "Not for this account", "The billing pages need the Finance role, which this account does not have.",
                 UIButtons.Ghost("Back to the dashboard"),
                 UIButtons.Primary("Sign in as someone else")
             ),
@@ -358,7 +358,7 @@ internal abstract class PresetsViewBase : DemoView
                 .SetSurface(UISurfaceStyle.Background)
                 .SetPadding(UIThickness.All(16, 0, 16, 0))
                 .SetContent(UICard.Centered(UICard.Create("Sign in", null, UILayout.Stack(16,
-                    new TextInputComponent().SetTitle("User name").SetAppearance(UIInputAppearance.Tonal),
+                    new TextInputComponent().SetTitle("User name").SetAppearance(UIInputAppearance.Filled),
                     UIButtons.Primary("Sign in").SetHorizontalAlignment(UIAlignment.Stretch)
                 ), DemoIcons.Outline(DemoIcons.Lock)))),
             note: "One card alone on an otherwise empty page — a sign-in, an outcome: a form's column (440 px, the whole width on a phone) in the middle, 24 px under the top on a phone and 96 px from md."
@@ -395,7 +395,7 @@ internal abstract class PresetsViewBase : DemoView
                     UIForm.Field(new SwitchComponent().SetTitle("Use TLS"), "Encrypts the connection.")
                 ),
                 UIForm.Row(
-                    UIPage.Labelled("Plan", new BadgeComponent().SetType(UIBadgeType.Surface).SetText("Standard").SetHorizontalAlignment(UIAlignment.Start)),
+                    UIPage.Labelled("Plan", new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle("Standard").SetHorizontalAlignment(UIAlignment.Start)),
                     UILayout.Ends(new SelectComponent().SetTitle("Template").SetItems([new OptionItem { Id = "web", Title = "Web server" }]), UIIconButtons.New(), UIIconButtons.Copy())
                 )
             ),
@@ -412,16 +412,31 @@ internal abstract class PresetsViewBase : DemoView
             columns: 24
         );
 
+    protected static ContainerComponent CreateComposerGroup()
+        => DemoUI.CreateExample("Composer",
+            UIForm.Composer(
+                new TextAreaComponent()
+                    .SetPlaceholder("Write a message")
+                    .AddLeadingAction(UIIconButtons.Attach().InteractOn(EventNames.Click, new OpenPickerEffect("presets-composer-files")))
+                    .AddTrailingAction(UIIconButtons.Send(), inField: true),
+                new FileInputComponent("presets-composer-files").SetMaxFileSize(5 * 1024 * 1024),
+                UIText.Quote("Robin Hale", "Can you take the Friday slot too?", closeCommand: nameof(PresetsController.DropQuote))
+            ),
+            note: "A messenger's composer panel: a calm surface that shows no focus ring of its own, a shelf above the text that appears once a file is chosen or dropped anywhere on the panel, any reply or edit quote banners above the field, and a ghost text area that grows to six rows and moves its outer actions into a bar under the text below md.",
+            columns: 24,
+            context: nameof(PresetsController.QuoteGroup)
+        );
+
     protected static ContainerComponent CreateStackGroup()
         => DemoUI.CreateExample("Stack and Row",
             UILayout.Stack(8,
                 UIText.Subtitle("db-us-east-2"),
                 UIText.Note("Stack: children down a column, the same spacing between each pair. Row: along a line, wrapping when it is too narrow."),
                 UILayout.Row(8,
-                    new BadgeComponent().SetType(UIBadgeType.Success).SetText("Running"),
-                    new BadgeComponent().SetType(UIBadgeType.Primary).SetText("Dedicated"),
-                    new BadgeComponent().SetType(UIBadgeType.Surface).SetText("us-east"),
-                    new BadgeComponent().SetType(UIBadgeType.Surface).SetText("16 vCPU · 64 GB")
+                    new BadgeComponent().SetVariant(UIBadgeVariant.Success).SetTitle("Running"),
+                    new BadgeComponent().SetVariant(UIBadgeVariant.Primary).SetTitle("Dedicated"),
+                    new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle("us-east"),
+                    new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle("16 vCPU · 64 GB")
                 )
             ),
             note: "The spacing comes first, so a stack with children always names it."
@@ -486,7 +501,7 @@ internal abstract class PresetsViewBase : DemoView
                     UIButtons.Ghost("Reset")
                 )
             ),
-            note: "Something at the start and things at the far end of one row: the end as wide as it is, the start the rest, never half and half. On a phone buttons with words stand under the start at the far end; icons keep the row. Beside a titled field the end stands level with its box, as a form row's control does, and so does a thing with no caption in a Row; the last icon's glyph and the last quiet words stand on the row's edge."
+            note: "Something at the start and things at the far end of one row: the end as wide as it is, the start the rest, never half and half. On a phone buttons with words stand under the start at the far end; icons keep the row. Beside a titled field the end stands level with its box, as a form row's control does, and so does a thing with no caption in a Row; the last icon's glyph stands on the row's edge."
         );
 
     protected static ContainerComponent CreateBoardGroup()
@@ -508,7 +523,7 @@ internal abstract class PresetsViewBase : DemoView
             UILayout.Stack(8,
                 UIPage.Header(UIHeaderSize.Strip, null, "Servers", null, UIIconButtons.Refresh())
                     .InPanesList()
-                    .BindVisibility($"{nameof(PresetsController.ServerPanes)}.{nameof(UIPanesState.ListVisibility)}"),
+                    .BindVisibility<PresetsController>(static x => x.ServerPanes.ListVisibility),
                 UILayout.Panes(
                     new MenuComponent()
                         .SetItems(
@@ -520,7 +535,7 @@ internal abstract class PresetsViewBase : DemoView
                         .OnItemClickWithItemKey(nameof(PresetsController.ShowServer)),
                     UILayout.Stack(12,
                         UIPage.BoundHeader(UIHeaderSize.Pane, UIIconButtons.Back().OnClick(nameof(PresetsController.BackToServers)).ShownBelow(UIResponsiveTier.Md), nameof(PresetsController.OpenServer)),
-                        UIText.Paragraph().BindDescription(nameof(PresetsController.OpenServerLine))
+                        UIText.Paragraph().BindDescription<PresetsController>(static x => x.OpenServerLine)
                     ),
                     nameof(PresetsController.ServerPanes),
                     UIPage.Empty(DemoIcons.Outline(DemoIcons.Server), "Pick a server", "Its health opens here.")
@@ -567,9 +582,9 @@ internal abstract class PresetsViewBase : DemoView
         => DemoUI.CreateExample("WithBadges",
             UILayout.Stack(16,
                 UIText.WithBadges("billing · #481", [
-                    new BadgeItem { BadgeText = "production", BadgeStyle = UIBadgeType.Success },
-                    new BadgeItem { BadgeText = "12 of 12", BadgeIcon = DemoIcons.Outline(DemoIcons.Check) },
-                    new BadgeItem { BadgeText = "eu-west", BadgeStyle = UIBadgeType.Surface }
+                    new BadgeItem { BadgeTitle = "production", BadgeVariant = UIBadgeVariant.Success },
+                    new BadgeItem { BadgeTitle = "12 of 12", BadgeIcon = DemoIcons.Outline(DemoIcons.Check) },
+                    new BadgeItem { BadgeTitle = "eu-west", BadgeVariant = UIBadgeVariant.Surface }
                 ], DemoIcons.Outline(DemoIcons.Server)),
                 UIText.BoundWithBadges(nameof(PresetsController.ReleaseTitle), nameof(PresetsController.ReleaseBadges), icon: DemoIcons.Outline(DemoIcons.Replicas))
             ),
@@ -613,15 +628,15 @@ internal abstract class PresetsViewBase : DemoView
         => DemoUI.CreateExample("Person",
             UILayout.Row(32,
                 UIText.Person(DemoImages.Avatar, "Robin Hale", "Admin · on call this week"),
-                UIText.Person(null, "Mika Laine", "Viewer", UIPersonSize.Small),
-                UIText.Person(DemoImages.Avatar, UILayout.Row(8, UIText.Body("Grace Kim"), new BadgeComponent().SetType(UIBadgeType.Success).SetText("On call")))
+                UIText.Person(null, "Mika Laine", "Viewer", UISize.Small),
+                UIText.Person(DemoImages.Avatar, UILayout.Row(8, UIText.Body("Grace Kim"), new BadgeComponent().SetVariant(UIBadgeVariant.Success).SetTitle("On call")))
             ),
             note: "A person as a list's row or a byline shows one: the round picture (the person glyph where there is none), the name in the body's role and a muted caption beside it. Medium is 40 px, Small 32; BoundPerson takes the paths, as a chat's row does, and an overload takes words of your own.",
             columns: 24
         );
 
-    protected static ContainerComponent CreateButtonTypesGroup()
-        => DemoUI.CreateExample("Primary … Link: the six types",
+    protected static ContainerComponent CreateButtonVariantsGroup()
+        => DemoUI.CreateExample("Primary … Link: the six variants",
             UILayout.Stack(12,
                 UILayout.Row(8,
                     UIButtons.Primary("Deploy"),
@@ -659,9 +674,9 @@ internal abstract class PresetsViewBase : DemoView
                     UIButtons.Icon(DemoIcons.Outline(DemoIcons.Refresh), "Refresh"),
                     UIButtons.Icon(DemoIcons.Outline(DemoIcons.Filter), "Filter"),
                     UIButtons.Icon(DemoIcons.Outline(DemoIcons.MoreVertical), "More"),
-                    UIButtons.Icon(UIStandardAction.Send.Glyph, UIStandardAction.Send.Word)
-                        .BindIcon(nameof(PresetsController.SendIcon))
-                        .BindTooltip(nameof(PresetsController.SendTooltip))
+                    UIButtons.Icon(UIStandardAction.Send.Icon, UIStandardAction.Send.Title)
+                        .BindIcon<PresetsController>(static x => x.SendIcon)
+                        .BindTooltip<PresetsController>(static x => x.SendTooltip)
                         .OnClick(nameof(PresetsController.ToggleSend))
                 ),
                 UIButtons.Toolbar(
@@ -708,7 +723,7 @@ internal abstract class PresetsViewBase : DemoView
                 UIIconButtons.More([UIMenuItems.Rename(), UIMenuItems.Share(), UIMenuItems.Delete()])
                     .OnItemClickWithItemKey(nameof(PresetsController.RunAction), "entry"),
                 UIIconButtons.More()
-                    .BindItems(nameof(PresetsController.ServerActions))
+                    .BindItems<PresetsController>(static x => x.ServerActions)
                     .OnItemClickWithItemKey(nameof(PresetsController.RunAction), "entry")
             ),
             note: "Every standard action as an icon button: a ghost button named by its tooltip, in the framework's words; Delete's glyph in the danger colour. Give each its command with OnClick. Done ends an edit made in place with a check, where Save writes a document out; Back takes a NavigateBackEffect or a command of its own. The last ⋮ is More() over entries the controller holds (BindItems)."
@@ -781,7 +796,7 @@ internal abstract class PresetsViewBase : DemoView
             code: CreatePresetDialogs().Code
         );
 
-    protected static ContainerComponent CreateSeverityGroup()
+    protected static ContainerComponent CreateToneGroup()
         => DemoUI.CreateExample("Info, Success, Warning, Danger",
             UILayout.Stack(12,
                 UIMessage.Info(null, "Saved drafts are kept for 30 days, then deleted."),
@@ -789,7 +804,7 @@ internal abstract class PresetsViewBase : DemoView
                 UIMessage.Warning("Your trial ends in 3 days", "Billing starts on the 14th.", UIButtons.Outline("Upgrade")),
                 UIMessage.Danger("2 errors in the form below", "The postcode and the VAT number were not accepted.", dismissible: true),
                 UIMessage.Info("Dark mode is here", "Pick it under Settings, or keep following the system.", dismissCommand: nameof(PresetsController.DismissNews))
-                    .BindVisibility(nameof(PresetsController.NewsVisibility))
+                    .BindVisibility<PresetsController>(static x => x.NewsVisibility)
             ),
             note: "A title, a body or both; an optional action at the bottom end and an optional ×, which hides the message on the page at once and, given a dismiss command, runs it — the last one is gone for good, the controller holding its Visibility. Info and Success are a status to a screen reader, Warning and Danger an alert."
         );
@@ -797,15 +812,15 @@ internal abstract class PresetsViewBase : DemoView
     protected static ContainerComponent CreateMessageCreateGroup()
         => DemoUI.CreateExample("Create",
             UILayout.Stack(12,
-                UIMessage.Create(UIMessageSeverity.Info, "Maintenance on Sunday", "eu-central's databases restart between 02:00 and 03:00 UTC.", icon: DemoIcons.Outline(DemoIcons.Calendar)),
-                UIMessage.BoundCreate(UIMessageSeverity.Success,
+                UIMessage.Create(UIColorStyle.Info, "Maintenance on Sunday", "eu-central's databases restart between 02:00 and 03:00 UTC.", icon: DemoIcons.Outline(DemoIcons.Calendar)),
+                UIMessage.BoundCreate(UIColorStyle.Success,
                     nameof(PresetsController.CheckTitle),
                     nameof(PresetsController.CheckBody),
                     action: UIButtons.Outline("Check now").OnClick(nameof(PresetsController.CheckCertificate))
                 ),
-                UIMessage.Create(UIMessageSeverity.Warning, null, new ParagraphComponent().SetDescription("Billing moves to the 14th of each month: **nothing to do**, the [plan page](/design/presets) says the rest."))
+                UIMessage.Create(UIColorStyle.Warning, null, new ParagraphComponent().SetDescription("Billing moves to the 14th of each month: **nothing to do**, the [plan page](/design/presets) says the rest."))
             ),
-            note: "The severity as an argument and an icon in place of its mark; BoundCreate takes the title and the body from the controller, as its own words drawn plain, for words that change — Check now rewrites them; a body beyond words — a link, an emphasis — is a paragraph of your own."
+            note: "The tone as an argument and an icon in place of its mark; BoundCreate takes the title and the body from the controller, as its own words drawn plain, for words that change — Check now rewrites them; a body beyond words — a link, an emphasis — is a paragraph of your own."
         );
 
     protected static ContainerComponent CreateDetailsListGroup()
@@ -816,7 +831,7 @@ internal abstract class PresetsViewBase : DemoView
 
     protected static ContainerComponent CreateDetailsRowGroup()
         => DemoUI.CreateExample("Row, bound",
-            UIDetails.List().BindItems(nameof(PresetsController.ServerFacts)),
+            UIDetails.List().BindItems<PresetsController>(static x => x.ServerFacts),
             note: "For values that change, the items bound and each row built with UIDetails.Row on the controller: Resize rewrites the plan and the price in place.",
             context: nameof(PresetsController.DetailsGroup),
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>

@@ -20,7 +20,7 @@ installFakeDom({
 
 const { startTooltips } = await import("../src/interactions/tooltip-engine.ts");
 const { noteKey } = await import("../src/interactions/popup-focus.ts");
-const { readsMarkup } = await import("../src/updates/shown-words.ts");
+const { readsMarkup } = await import("../src/rendering/shown-words.ts");
 
 startTooltips();
 

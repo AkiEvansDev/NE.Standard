@@ -9,8 +9,8 @@
 // `node --test` loads this module as it is: `.ts` on the value imports, `import type` on the rest.
 import { ComponentSelector, ContextMenuLaterAttribute, ContextMenuTemplateAttribute, ItemsHostAttribute, ShortcutAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId, readComponentId } from "../addressing/dom-registry.ts";
-import { forEachSubtree } from "../runtime/client-strings.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { forEachSubtree } from "../rendering/client-strings.ts";
+import { logWarn } from "../metadata/logger.ts";
 import { tryReadItemProperty } from "./binding-template-evaluator.ts";
 import type { HeldRow } from "./held-collections";
 

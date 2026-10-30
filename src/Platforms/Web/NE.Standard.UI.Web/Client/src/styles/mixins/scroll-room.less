@@ -2,7 +2,7 @@
 // stands, else the box's own padding there.
 
 // A box's sides with no Padding of its author's — a scroller's, a region's root's; 0 on any other box, which keeps no room.
-@ui-scroll-room-padding: ~"0 max(var(--ui-scroll-room-right), var(--ui-scroll-cap)) var(--ui-scroll-room-x) max(var(--ui-scroll-room-left), var(--ui-scroll-cap))";
+@ui-scroll-room-padding: ~"0 max(var(--ui-scroll-room-right), var(--ui-scroll-cap)) var(--ui-scroll-room-x) var(--ui-scroll-cap)";
 
 @ui-scrollers-y: ~":is(.ui-items-view__host, .ui-items-view > [data-ui-items-host], .ui-tree__host, .ui-scroll):is(.ui-scroll-y--auto, .ui-scroll-y--always), .ui-text-area__field";
 @ui-scrollers-x: ~":is(.ui-items-view__host, .ui-items-view > [data-ui-items-host], .ui-tree__host, .ui-scroll):is(.ui-scroll-x--auto, .ui-scroll-x--always)";
@@ -12,15 +12,10 @@
 @ui-scroll-bound: ~'[style*="--ui-height"], [style*="--ui-max-height"]';
 @ui-scrollers-y-unbounded: ~":is(.ui-items-view:not(@{ui-scroll-bound}) > :is(.ui-items-view__host, [data-ui-items-host]), .ui-tree:not(@{ui-scroll-bound}) > .ui-tree__host, .ui-scroll:not(@{ui-scroll-bound})):is(.ui-scroll-y--auto, .ui-scroll-y--always)";
 
-// Keeps the room down the box's inline end, where an upright bar stands in either direction.
+// Keeps the room down the box's right side, where an upright bar stands.
 .ui-scroll-room-y() {
     --ui-scroll-room-y: var(--ui-scrollbar-room);
     --ui-scroll-room-right: var(--ui-scroll-room-y);
-
-    &:dir(rtl) {
-        --ui-scroll-room-right: 0px;
-        --ui-scroll-room-left: var(--ui-scroll-room-y);
-    }
 }
 
 // Keeps the room down the inline end only while the box holds more than it shows, read off its own scroll timeline: none while it fits,
@@ -35,5 +30,34 @@
                 animation-timeline: scroll(self block);
             }
         }
+    }
+}
+
+
+// Horizontal and vertical scroll-visibility classes shared by every scrolling host (`ui-items-view__host`, `ui-table__host`,
+// `ui-tree__host`, `ui-scroll`).
+.ui-scroll-axes() {
+    &.ui-scroll-x--disabled {
+        overflow-x: hidden;
+    }
+
+    &.ui-scroll-x--auto {
+        overflow-x: auto;
+    }
+
+    &.ui-scroll-x--always {
+        overflow-x: scroll;
+    }
+
+    &.ui-scroll-y--disabled {
+        overflow-y: hidden;
+    }
+
+    &.ui-scroll-y--auto {
+        overflow-y: auto;
+    }
+
+    &.ui-scroll-y--always {
+        overflow-y: scroll;
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Constants;
@@ -16,21 +15,21 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 public sealed class SplitButtonComponentRenderer : ButtonRendererBase
 {
     /// <summary>The parts <c>split-button-engine.ts</c> presses and opens.</summary>
-    public const string MainClassName = "ui-split-button__main";
-    public const string ToggleClassName = "ui-split-button__toggle";
-    public const string MenuClassName = "ui-split-button__menu";
+    public const string MainClassName = WebClassNames.SplitButtonMain;
+    public const string ToggleClassName = WebClassNames.SplitButtonToggle;
+    public const string MenuClassName = WebClassNames.SplitButtonMenu;
 
     /// <summary>A menu button whose chevron is off: its end part is not drawn, the main part being the whole button.</summary>
     public const string NoChevronClassName = "ui-split-button--no-chevron";
 
-    private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Attribute(WebAttributes.SplitPlacement, converter: WebDomConverters.PopupPlacementAttribute)];
+    private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Attribute(WebAttributes.SplitPlacement, converter: WebDomConverters.SplitPlacementAttribute)];
 
     public override string ComponentTypeKey => SplitButtonComponent.ComponentTypeKey;
 
     // A span, not a button: a button may not contain the two buttons the parts are.
     protected override string ElementName => "span";
 
-    protected override string ClassName => "ui-split-button";
+    protected override string ClassName => WebClassNames.SplitButton;
 
     protected override bool IsButtonElement => false;
 

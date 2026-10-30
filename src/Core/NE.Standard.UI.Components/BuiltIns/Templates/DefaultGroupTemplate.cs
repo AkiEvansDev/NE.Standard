@@ -6,23 +6,23 @@ using NE.Standard.UI.Primitives.Binding;
 namespace NE.Standard.UI.Components.BuiltIns.Templates;
 
 /// <summary>
-/// The built-in template rendering a group header's label as a separator, bound to the group's key.
+/// The built-in template rendering a group header's title as a separator, bound to the group's key.
 /// </summary>
 public abstract class DefaultGroupTemplate<TTemplate> : SeparatorComponent<TTemplate>
     where TTemplate : DefaultGroupTemplate<TTemplate>, IUIComponentDefinition
 {
     /// <summary>
-    /// Initializes a new group template, optionally binding its label to the current group's key.
+    /// Initializes a new group template, optionally binding its title to the current group's key.
     /// </summary>
     protected DefaultGroupTemplate(bool binds = false) : base()
     {
         if (binds)
-            _ = Bind(LabelProperty, nameof(IBindableGroup.Group), UIBindingScope.Relative, optional: true);
+            _ = BindTitle(nameof(IBindableGroup.Group), UIBindingScope.Relative, optional: true);
     }
 }
 
 /// <summary>
-/// The built-in template rendering a group header's label as a separator, bound to the group's key.
+/// The built-in template rendering a group header's title as a separator, bound to the group's key.
 /// </summary>
 public sealed class DefaultGroupTemplate(bool binds = false) : DefaultGroupTemplate<DefaultGroupTemplate>(binds), IUIComponentDefinition
 {

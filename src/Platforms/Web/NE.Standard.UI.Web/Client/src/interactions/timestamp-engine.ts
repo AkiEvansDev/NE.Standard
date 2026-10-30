@@ -5,27 +5,28 @@ import { TimestampClass, TimestampFormatAttribute, TimestampTextClass } from "..
 import { componentParts } from "../addressing/dom-registry.ts";
 import { isRelativeFormat, nearDay, readInstant, readTimestampFormat, timestampText } from "../rendering/timestamp-format.ts";
 import type { TimestampFormat } from "../rendering/timestamp-format.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import { needRelativeTicks } from "../runtime/relative-clock.ts";
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import { needRelativeTicks, stopRelativeTicks } from "../rendering/relative-clock.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
 
 const InstantAttribute = "datetime";
 
 export type TimestampEngineOptions = {
     readonly root?: ParentNode;
-    readonly propertyPatchEngine?: PropertyPatchEngine;
+    readonly propertyPatchEngine?: PropertyPatchTarget;
 };
 
 export class TimestampEngine {
     private readonly root: ParentNode;
+    private readonly unsubscribeTable: () => void;
 
     public constructor(options: TimestampEngineOptions = {}) {
         this.root = options.root ?? document;
 
         // The server's text stands until the table's patterns arrive, since it is written in them: then only the time moves.
         this.apply(this.root.querySelectorAll<HTMLElement>(`.${TimestampClass}`), clientStrings.temporal === null);
-        clientStrings.onTable(() => this.apply(this.root.querySelectorAll<HTMLElement>(`.${TimestampClass}`)));
+        this.unsubscribeTable = clientStrings.onTable(() => this.apply(this.root.querySelectorAll<HTMLElement>(`.${TimestampClass}`)));
 
         // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
         options.propertyPatchEngine?.addValueChangeHandler(change => this.apply(componentParts(change.components, `.${TimestampClass}`)));
@@ -78,6 +79,11 @@ export class TimestampEngine {
         this.apply(stamps);
         return true;
     };
+
+    public dispose(): void {
+        this.unsubscribeTable();
+        stopRelativeTicks(this.refreshRelative);
+    }
 }
 
 /** Whether a stamp's text needs no table's patterns: a relative one, and a relative day that is a word of its own ("today"). */

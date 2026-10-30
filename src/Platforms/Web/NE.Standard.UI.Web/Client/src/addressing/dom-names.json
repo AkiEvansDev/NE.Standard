@@ -1,0 +1,3448 @@
+[
+    {
+        "constant":  "ComponentIdAttribute",
+        "value":  "data-ui-id",
+        "plugin":  "componentId"
+    },
+    {
+        "constant":  "ComponentContextAttribute",
+        "value":  "data-ui-context"
+    },
+    {
+        "constant":  "ComponentParameterCountAttribute",
+        "value":  "data-ui-pc"
+    },
+    {
+        "constant":  "ComponentKeyAttribute",
+        "value":  "data-ui-key",
+        "plugin":  "key"
+    },
+    {
+        "constant":  "UnselectableAttribute",
+        "value":  "data-ui-unselectable",
+        "plugin":  "unselectable"
+    },
+    {
+        "constant":  "UndraggableAttribute",
+        "value":  "data-ui-undraggable"
+    },
+    {
+        "constant":  "UnremovableAttribute",
+        "value":  "data-ui-unremovable"
+    },
+    {
+        "constant":  "UnrenamableAttribute",
+        "value":  "data-ui-unrenamable"
+    },
+    {
+        "constant":  "NoContextMenuAttribute",
+        "value":  "data-ui-no-context-menu"
+    },
+    {
+        "constant":  "NoRowOpenAttribute",
+        "value":  "data-ui-no-row-open",
+        "plugin":  "noRowOpen"
+    },
+    {
+        "constant":  "NoRowDragAttribute",
+        "value":  "data-ui-no-row-drag",
+        "clientOnly":  true,
+        "plugin":  "noRowDrag"
+    },
+    {
+        "constant":  "RowsDraggableAttribute",
+        "value":  "data-ui-rows-draggable"
+    },
+    {
+        "constant":  "DragKindAttribute",
+        "value":  "data-ui-drag-kind"
+    },
+    {
+        "constant":  "DragEffectsAttribute",
+        "value":  "data-ui-drag-effects"
+    },
+    {
+        "constant":  "DragSourceAttribute",
+        "value":  "data-ui-drag-source"
+    },
+    {
+        "constant":  "ItemDropOverAttribute",
+        "value":  "data-ui-item-drop-over",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "DropBoxedAttribute",
+        "value":  "data-ui-drop-boxed",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowsDragHandleAttribute",
+        "value":  "data-ui-rows-drag-handle"
+    },
+    {
+        "constant":  "DragHandleStartClass",
+        "value":  "ui-drag-handle--start"
+    },
+    {
+        "constant":  "RowGripClass",
+        "value":  "ui-row__grip"
+    },
+    {
+        "constant":  "NamedByOpenerAttribute",
+        "value":  "data-ui-named-by-opener",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PopupCaptionAttribute",
+        "value":  "data-ui-popup-caption",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowDropAttribute",
+        "value":  "data-ui-row-drop",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowsRemoveAttribute",
+        "value":  "data-ui-rows-remove"
+    },
+    {
+        "constant":  "TreeUnremovableAttribute",
+        "value":  "data-ui-tree-unremovable"
+    },
+    {
+        "constant":  "TabsUnremovableAttribute",
+        "value":  "data-ui-tabs-unremovable"
+    },
+    {
+        "constant":  "TabsNoneRemovableAttribute",
+        "value":  "data-ui-tabs-none-removable"
+    },
+    {
+        "constant":  "TabsRenamableAttribute",
+        "value":  "data-ui-tabs-renamable"
+    },
+    {
+        "constant":  "TabsDraggableAttribute",
+        "value":  "data-ui-tabs-draggable"
+    },
+    {
+        "constant":  "TabsMenuAttribute",
+        "value":  "data-ui-tabs-menu"
+    },
+    {
+        "constant":  "TabsRemovesAttribute",
+        "value":  "data-ui-tabs-removes"
+    },
+    {
+        "constant":  "ContextMenuAttribute",
+        "value":  "data-ui-context-menu",
+        "plugin":  "contextMenu"
+    },
+    {
+        "constant":  "ContextMenuOwnerAttribute",
+        "value":  "data-ui-context-menu-owner"
+    },
+    {
+        "constant":  "ContextMenuLaterAttribute",
+        "value":  "data-ui-context-menu-later"
+    },
+    {
+        "constant":  "ContextMenuTemplateAttribute",
+        "value":  "data-ui-context-menu-template"
+    },
+    {
+        "constant":  "ContextMenuUseAttribute",
+        "value":  "data-ui-context-menu-use",
+        "plugin":  "contextMenuUse"
+    },
+    {
+        "constant":  "ActionBarAttribute",
+        "value":  "data-ui-action-bar",
+        "plugin":  "actionBar"
+    },
+    {
+        "constant":  "ActionBarKeyAttribute",
+        "value":  "data-ui-action-bar-key",
+        "clientOnly":  true,
+        "plugin":  "actionBarKey"
+    },
+    {
+        "constant":  "ActionBarRestAttribute",
+        "value":  "data-ui-action-bar-rest",
+        "plugin":  "actionBarRest"
+    },
+    {
+        "constant":  "MenuLeftOutAttribute",
+        "value":  "data-ui-menu-left-out",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "InActionBarAttribute",
+        "value":  "data-ui-in-action-bar"
+    },
+    {
+        "constant":  "ActionBarClass",
+        "value":  "ui-action-bar",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ActionBarButtonClass",
+        "value":  "ui-action-bar__button",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ActionBarMoreClass",
+        "value":  "ui-action-bar__more",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ActionBarIconButtonClass",
+        "value":  "ui-action-bar__button--icon",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ActionBarOutClass",
+        "value":  "ui-action-bar--out",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ActionBarStripClass",
+        "value":  "ui-action-bar--strip",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowFocusAttribute",
+        "value":  "data-ui-row-focus",
+        "clientOnly":  true,
+        "plugin":  "rowFocus"
+    },
+    {
+        "constant":  "RowCursorWaitsAttribute",
+        "value":  "data-ui-row-cursor-waits",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabOutAttribute",
+        "value":  "data-ui-tab-out",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "CellFocusAttribute",
+        "value":  "data-ui-cell-focus",
+        "clientOnly":  true,
+        "plugin":  "cellFocus"
+    },
+    {
+        "constant":  "CellKeyEventName",
+        "value":  "ui-cell-key",
+        "clientOnly":  true,
+        "plugin":  "cellKey"
+    },
+    {
+        "constant":  "TooltipAttribute",
+        "value":  "data-ui-tooltip",
+        "plugin":  "tooltip"
+    },
+    {
+        "constant":  "TooltipPlacementAttribute",
+        "value":  "data-ui-tooltip-placement",
+        "plugin":  "tooltipPlacement"
+    },
+    {
+        "constant":  "TooltipPlainAttribute",
+        "value":  "data-ui-tooltip-plain"
+    },
+    {
+        "constant":  "TooltipMarkAttribute",
+        "value":  "data-ui-tooltip-mark"
+    },
+    {
+        "constant":  "TooltipSeverityAttribute",
+        "value":  "data-ui-tooltip-severity",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TooltipPressAttribute",
+        "value":  "data-ui-tooltip-press"
+    },
+    {
+        "constant":  "BadgeTitleAttribute",
+        "value":  "data-ui-badge-title",
+        "plugin":  "badgeTitle"
+    },
+    {
+        "constant":  "BadgeSetAttribute",
+        "value":  "data-ui-badge-set"
+    },
+    {
+        "constant":  "BadgeIconAttribute",
+        "value":  "data-ui-badge-icon"
+    },
+    {
+        "constant":  "FoldsAttribute",
+        "value":  "data-ui-folds"
+    },
+    {
+        "constant":  "ComponentNameAttribute",
+        "value":  "data-ui-name"
+    },
+    {
+        "constant":  "BindingAttributePrefix",
+        "value":  "data-ui-bind-"
+    },
+    {
+        "constant":  "IntoAttributePrefix",
+        "value":  "data-ui-into-"
+    },
+    {
+        "constant":  "ValueBindingAttribute",
+        "value":  "data-ui-bind-value",
+        "plugin":  "bindValue"
+    },
+    {
+        "constant":  "EventBoundaryAttribute",
+        "value":  "data-ui-event-boundary",
+        "plugin":  "eventBoundary"
+    },
+    {
+        "constant":  "ImageCaptionAttribute",
+        "value":  "data-ui-image-caption"
+    },
+    {
+        "constant":  "ImageCropAttribute",
+        "value":  "data-ui-image-crop"
+    },
+    {
+        "constant":  "ImageCropSizeAttribute",
+        "value":  "data-ui-image-crop-size"
+    },
+    {
+        "constant":  "ImageClass",
+        "value":  "ui-image"
+    },
+    {
+        "constant":  "ImagePictureClass",
+        "value":  "ui-image__picture"
+    },
+    {
+        "constant":  "ImageCircleClass",
+        "value":  "ui-image--circle"
+    },
+    {
+        "constant":  "FallbackSrcAttribute",
+        "value":  "data-ui-fallback-src"
+    },
+    {
+        "constant":  "IconFallbackAttribute",
+        "value":  "data-ui-icon-fallback"
+    },
+    {
+        "constant":  "ImageFailedAttribute",
+        "value":  "data-ui-image-failed"
+    },
+    {
+        "constant":  "IconFailedAttribute",
+        "value":  "data-ui-icon-failed"
+    },
+    {
+        "constant":  "SurfaceImageBlurAttribute",
+        "value":  "data-ui-surface-image-blur"
+    },
+    {
+        "constant":  "SplitModeAttribute",
+        "value":  "data-ui-split-mode"
+    },
+    {
+        "constant":  "SplitPlacementAttribute",
+        "value":  "data-ui-split-placement"
+    },
+    {
+        "constant":  "ItemsHostAttribute",
+        "value":  "data-ui-items-host",
+        "plugin":  "itemsHost"
+    },
+    {
+        "constant":  "ItemsEmptyAttribute",
+        "value":  "data-ui-items-empty"
+    },
+    {
+        "constant":  "CollectionSinkAttribute",
+        "value":  "data-ui-collection-sink"
+    },
+    {
+        "constant":  "ItemsQueryAttribute",
+        "value":  "data-ui-items-query",
+        "plugin":  "itemsQuery"
+    },
+    {
+        "constant":  "FirstVisibleKeyAttribute",
+        "value":  "data-ui-first-visible-key",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LastVisibleKeyAttribute",
+        "value":  "data-ui-last-visible-key",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NumberCultureAttribute",
+        "value":  "data-ui-number-culture"
+    },
+    {
+        "constant":  "PageCultureAttribute",
+        "value":  "data-ui-page-culture"
+    },
+    {
+        "constant":  "PagerTargetAttribute",
+        "value":  "data-ui-pager-target"
+    },
+    {
+        "constant":  "PagerPageAttribute",
+        "value":  "data-ui-pager-page"
+    },
+    {
+        "constant":  "PagerSizeAttribute",
+        "value":  "data-ui-pager-size"
+    },
+    {
+        "constant":  "NumberFormatAttribute",
+        "value":  "data-ui-number-format"
+    },
+    {
+        "constant":  "TemporalCultureAttribute",
+        "value":  "data-ui-temporal-culture"
+    },
+    {
+        "constant":  "PageTemporalAttribute",
+        "value":  "data-ui-temporal"
+    },
+    {
+        "constant":  "TemporalModeAttribute",
+        "value":  "data-ui-temporal-mode"
+    },
+    {
+        "constant":  "TemporalFormatAttribute",
+        "value":  "data-ui-temporal-format"
+    },
+    {
+        "constant":  "TemporalDefaultFormatAttribute",
+        "value":  "data-ui-temporal-default-format"
+    },
+    {
+        "constant":  "TemporalMinAttribute",
+        "value":  "data-ui-temporal-min"
+    },
+    {
+        "constant":  "TemporalMaxAttribute",
+        "value":  "data-ui-temporal-max"
+    },
+    {
+        "constant":  "TemporalStepAttribute",
+        "value":  "data-ui-temporal-step"
+    },
+    {
+        "constant":  "TemporalStepUnitAttribute",
+        "value":  "data-ui-temporal-step-unit"
+    },
+    {
+        "constant":  "TemporalMarkedDaysAttribute",
+        "value":  "data-ui-temporal-marked-days"
+    },
+    {
+        "constant":  "TemporalMarkedOnlyAttribute",
+        "value":  "data-ui-temporal-marked-only"
+    },
+    {
+        "constant":  "TemporalRangeAttribute",
+        "value":  "data-ui-temporal-range"
+    },
+    {
+        "constant":  "TemporalEndAttribute",
+        "value":  "data-ui-temporal-end"
+    },
+    {
+        "constant":  "TemporalMinDistanceAttribute",
+        "value":  "data-ui-temporal-min-distance"
+    },
+    {
+        "constant":  "TemporalPageCultureAttribute",
+        "value":  "data-ui-temporal-page-culture"
+    },
+    {
+        "constant":  "TemporalMonthsAttribute",
+        "value":  "data-ui-temporal-months"
+    },
+    {
+        "constant":  "TemporalMonthsGenitiveAttribute",
+        "value":  "data-ui-temporal-months-genitive"
+    },
+    {
+        "constant":  "TemporalMonthsShortAttribute",
+        "value":  "data-ui-temporal-months-short"
+    },
+    {
+        "constant":  "TemporalDayNamesAttribute",
+        "value":  "data-ui-temporal-daynames"
+    },
+    {
+        "constant":  "TemporalWeekdaysAttribute",
+        "value":  "data-ui-temporal-weekdays"
+    },
+    {
+        "constant":  "TemporalAmAttribute",
+        "value":  "data-ui-temporal-am"
+    },
+    {
+        "constant":  "TemporalPmAttribute",
+        "value":  "data-ui-temporal-pm"
+    },
+    {
+        "constant":  "TemporalFirstDayAttribute",
+        "value":  "data-ui-temporal-first-day"
+    },
+    {
+        "constant":  "TemporalToggleAttribute",
+        "value":  "data-ui-temporal-toggle"
+    },
+    {
+        "constant":  "TemporalStepDirectionAttribute",
+        "value":  "data-ui-temporal-step-direction"
+    },
+    {
+        "constant":  "TemporalNavAttribute",
+        "value":  "data-ui-temporal-nav",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalDayAttribute",
+        "value":  "data-ui-temporal-day",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalUnitAttribute",
+        "value":  "data-ui-temporal-unit",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalCellAttribute",
+        "value":  "data-ui-temporal-cell",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalCentredAttribute",
+        "value":  "data-ui-temporal-centred",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalSegmentAttribute",
+        "value":  "data-ui-temporal-segment",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalSegmentsOfAttribute",
+        "value":  "data-ui-temporal-segments-of",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PageWrittenAttribute",
+        "value":  "data-ui-page-written"
+    },
+    {
+        "constant":  "AwaitsDrawAttribute",
+        "value":  "data-ui-awaits-draw"
+    },
+    {
+        "constant":  "TimestampClass",
+        "value":  "ui-timestamp"
+    },
+    {
+        "constant":  "TimestampTextClass",
+        "value":  "ui-timestamp__text"
+    },
+    {
+        "constant":  "TimestampFormatAttribute",
+        "value":  "data-ui-timestamp-format"
+    },
+    {
+        "constant":  "FileTileClass",
+        "value":  "ui-file-tile"
+    },
+    {
+        "constant":  "FileTileGlyphClass",
+        "value":  "ui-file-tile__glyph"
+    },
+    {
+        "constant":  "FileTileNameClass",
+        "value":  "ui-file-tile__name"
+    },
+    {
+        "constant":  "FileTileSizeClass",
+        "value":  "ui-file-tile__size"
+    },
+    {
+        "constant":  "FileTileNameAttribute",
+        "value":  "data-ui-file-name"
+    },
+    {
+        "constant":  "FileTileTypeAttribute",
+        "value":  "data-ui-file-type"
+    },
+    {
+        "constant":  "FileTileSizeAttribute",
+        "value":  "data-ui-file-size"
+    },
+    {
+        "constant":  "FileTileIconAttribute",
+        "value":  "data-ui-file-icon"
+    },
+    {
+        "constant":  "EmptyTemplateAttribute",
+        "value":  "data-ui-empty-template"
+    },
+    {
+        "constant":  "GroupTemplateAttribute",
+        "value":  "data-ui-group-template"
+    },
+    {
+        "constant":  "EmptyPlaceholderAttribute",
+        "value":  "data-ui-empty-placeholder"
+    },
+    {
+        "constant":  "GroupHeaderAttribute",
+        "value":  "data-ui-group-header"
+    },
+    {
+        "constant":  "GroupAnchorAttribute",
+        "value":  "data-ui-group-anchor"
+    },
+    {
+        "constant":  "GroupAttribute",
+        "value":  "data-ui-group"
+    },
+    {
+        "constant":  "ValueHolderAttribute",
+        "value":  "data-ui-value-holder",
+        "plugin":  "valueHolder"
+    },
+    {
+        "constant":  "ValueEndAttribute",
+        "value":  "data-ui-value-end"
+    },
+    {
+        "constant":  "ValueKindAttribute",
+        "value":  "data-ui-value-kind",
+        "plugin":  "valueKind"
+    },
+    {
+        "constant":  "HostModeAttribute",
+        "value":  "data-ui-host-mode",
+        "plugin":  "hostMode"
+    },
+    {
+        "constant":  "HostViewportAttribute",
+        "value":  "data-ui-host-viewport"
+    },
+    {
+        "constant":  "ScrollGroupAttribute",
+        "value":  "data-ui-scroll-group"
+    },
+    {
+        "constant":  "ScrollViewportAttribute",
+        "value":  "data-ui-scroll-viewport"
+    },
+    {
+        "constant":  "ScrollLinesAttribute",
+        "value":  "data-ui-scroll-lines"
+    },
+    {
+        "constant":  "SourceLineAttribute",
+        "value":  "data-ui-source-line",
+        "clientOnly":  true,
+        "plugin":  "sourceLine"
+    },
+    {
+        "constant":  "WindowSpacerAttribute",
+        "value":  "data-ui-window-spacer",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "WindowPendingAttribute",
+        "value":  "data-ui-window-pending",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "WindowPagedAttribute",
+        "value":  "data-ui-window-paged"
+    },
+    {
+        "constant":  "WindowSizeAttribute",
+        "value":  "data-ui-window-size",
+        "plugin":  "windowSize"
+    },
+    {
+        "constant":  "WindowOffsetAttribute",
+        "value":  "data-ui-window-offset",
+        "plugin":  "windowOffset"
+    },
+    {
+        "constant":  "WindowTotalAttribute",
+        "value":  "data-ui-window-total",
+        "plugin":  "windowTotal"
+    },
+    {
+        "constant":  "WindowMoreBeforeAttribute",
+        "value":  "data-ui-window-more-before"
+    },
+    {
+        "constant":  "WindowMoreAfterAttribute",
+        "value":  "data-ui-window-more-after",
+        "plugin":  "windowMoreAfter"
+    },
+    {
+        "constant":  "WindowGroupBeforeAttribute",
+        "value":  "data-ui-window-group-before"
+    },
+    {
+        "constant":  "WindowAggregatesAttribute",
+        "value":  "data-ui-window-aggregates",
+        "plugin":  "windowAggregates"
+    },
+    {
+        "constant":  "FormIdAttribute",
+        "value":  "data-ui-form-id"
+    },
+    {
+        "constant":  "FormsHolderAttribute",
+        "value":  "data-ui-forms"
+    },
+    {
+        "constant":  "VisibilityAttribute",
+        "value":  "data-ui-visibility"
+    },
+    {
+        "constant":  "CollapsedAttribute",
+        "value":  "data-ui-collapsed",
+        "plugin":  "collapsed"
+    },
+    {
+        "constant":  "MenuGroupAttribute",
+        "value":  "data-ui-menu-group"
+    },
+    {
+        "constant":  "MenuSelectAttribute",
+        "value":  "data-ui-menu-select"
+    },
+    {
+        "constant":  "MenuOpenAttribute",
+        "value":  "data-ui-menu-open"
+    },
+    {
+        "constant":  "MenuEntryActingAttribute",
+        "value":  "data-ui-menu-entry-acting"
+    },
+    {
+        "constant":  "MenuHoldsCurrentAttribute",
+        "value":  "data-ui-menu-holds-current"
+    },
+    {
+        "constant":  "MenuIconsAttribute",
+        "value":  "data-ui-menu-icons"
+    },
+    {
+        "constant":  "MenuPassiveRowAttribute",
+        "value":  "data-ui-menu-passive"
+    },
+    {
+        "constant":  "MenuItemShortcutAttribute",
+        "value":  "data-ui-menu-item-shortcut"
+    },
+    {
+        "constant":  "MenuSurfaceAttribute",
+        "value":  "data-ui-menu-surface"
+    },
+    {
+        "constant":  "MenuSearchAttribute",
+        "value":  "data-ui-menu-search"
+    },
+    {
+        "constant":  "MenuSearchingAttribute",
+        "value":  "data-ui-menu-searching",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "MenuUnmatchedAttribute",
+        "value":  "data-ui-menu-unmatched",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "DrawerToggleAttribute",
+        "value":  "data-ui-drawer-toggle"
+    },
+    {
+        "constant":  "DrawerBackdropAttribute",
+        "value":  "data-ui-drawer-backdrop"
+    },
+    {
+        "constant":  "DrawerOpenAttribute",
+        "value":  "data-ui-drawer-open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "DrawerSwitchAttribute",
+        "value":  "data-ui-drawer-switch",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "DrawerSwitchRowAttribute",
+        "value":  "data-ui-drawer-switch-row",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SideDrawersAttribute",
+        "value":  "data-ui-side-drawers"
+    },
+    {
+        "constant":  "DrawerModelessAttribute",
+        "value":  "data-ui-drawer-modeless"
+    },
+    {
+        "constant":  "DrawerPinAttribute",
+        "value":  "data-ui-drawer-pin"
+    },
+    {
+        "constant":  "BottomBarAttribute",
+        "value":  "data-ui-bottom-bar"
+    },
+    {
+        "constant":  "RailDrawerAttribute",
+        "value":  "data-ui-rail-drawer"
+    },
+    {
+        "constant":  "MenuRailTiersAttribute",
+        "value":  "data-ui-menu-rail-tiers"
+    },
+    {
+        "constant":  "TierOrientationAttribute",
+        "value":  "data-ui-tier-orientation"
+    },
+    {
+        "constant":  "TierSizeAttribute",
+        "value":  "data-ui-tier-size"
+    },
+    {
+        "constant":  "TierLayoutAttribute",
+        "value":  "data-ui-tier-layout"
+    },
+    {
+        "constant":  "WindowFootAttribute",
+        "value":  "data-ui-window-foot"
+    },
+    {
+        "constant":  "ContentFillsAttribute",
+        "value":  "data-ui-content-fills"
+    },
+    {
+        "constant":  "RegionAttribute",
+        "value":  "data-ui-region"
+    },
+    {
+        "constant":  "MenuItemKindAttribute",
+        "value":  "data-ui-menu-item-kind",
+        "plugin":  "menuItemKind"
+    },
+    {
+        "constant":  "MenuRootClass",
+        "value":  "ui-menu"
+    },
+    {
+        "constant":  "MenuItemClass",
+        "value":  "ui-menu-item",
+        "plugin":  "menuItemClass"
+    },
+    {
+        "constant":  "MenuItemCheckedClass",
+        "value":  "ui-menu-item--checked",
+        "plugin":  "menuItemCheckedClass"
+    },
+    {
+        "constant":  "MenuItemSelectedClass",
+        "value":  "ui-menu-item--selected"
+    },
+    {
+        "constant":  "MenuRailClass",
+        "value":  "ui-menu--rail"
+    },
+    {
+        "constant":  "NestedMenuClass",
+        "value":  "ui-menu--nested"
+    },
+    {
+        "constant":  "ShortcutAttribute",
+        "value":  "data-ui-shortcut"
+    },
+    {
+        "constant":  "SliderMinDistanceAttribute",
+        "value":  "data-ui-slider-min-distance"
+    },
+    {
+        "constant":  "CollapseToggleAttribute",
+        "value":  "data-ui-collapse-toggle",
+        "plugin":  "collapseToggle"
+    },
+    {
+        "constant":  "FoldingAttribute",
+        "value":  "data-ui-folding",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ColumnLimitsAttribute",
+        "value":  "data-ui-column-limits"
+    },
+    {
+        "constant":  "RowLimitsAttribute",
+        "value":  "data-ui-row-limits"
+    },
+    {
+        "constant":  "SplitterStepAttribute",
+        "value":  "data-ui-splitter-step"
+    },
+    {
+        "constant":  "SplitterPositionAttribute",
+        "value":  "data-ui-splitter-position"
+    },
+    {
+        "constant":  "BindPositionAttribute",
+        "value":  "data-ui-bind-position"
+    },
+    {
+        "constant":  "PaneLayoutAttribute",
+        "value":  "data-ui-pane-layout"
+    },
+    {
+        "constant":  "PanePlaceAttribute",
+        "value":  "data-ui-pane-place"
+    },
+    {
+        "constant":  "PaneAttribute",
+        "value":  "data-ui-pane"
+    },
+    {
+        "constant":  "BindLayoutAttribute",
+        "value":  "data-ui-bind-layout"
+    },
+    {
+        "constant":  "PaneKeepsSizeAttribute",
+        "value":  "data-ui-pane-keeps-size"
+    },
+    {
+        "constant":  "PaneCellsAttribute",
+        "value":  "data-ui-pane-cells"
+    },
+    {
+        "constant":  "PaneColumnsAttribute",
+        "value":  "data-ui-pane-columns"
+    },
+    {
+        "constant":  "PaneRowsAttribute",
+        "value":  "data-ui-pane-rows"
+    },
+    {
+        "constant":  "TableColumnAttribute",
+        "value":  "data-ui-table-column"
+    },
+    {
+        "constant":  "TableColumnKeyAttribute",
+        "value":  "data-ui-table-column-key"
+    },
+    {
+        "constant":  "TableHideBelowAttribute",
+        "value":  "data-ui-table-hide-below"
+    },
+    {
+        "constant":  "TableStartsHiddenAttribute",
+        "value":  "data-ui-table-starts-hidden"
+    },
+    {
+        "constant":  "TableFixedAttribute",
+        "value":  "data-ui-table-fixed"
+    },
+    {
+        "constant":  "TableSelectAttribute",
+        "value":  "data-ui-table-select"
+    },
+    {
+        "constant":  "TableSelectAllAttribute",
+        "value":  "data-ui-table-select-all"
+    },
+    {
+        "constant":  "TableBoxOffAttribute",
+        "value":  "data-ui-table-box-off",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableHiddenAttribute",
+        "value":  "data-ui-table-hidden",
+        "plugin":  "tableHidden"
+    },
+    {
+        "constant":  "TableRowClass",
+        "value":  "ui-table__row",
+        "plugin":  "tableRowClass"
+    },
+    {
+        "constant":  "TableScrollClass",
+        "value":  "ui-table__scroll",
+        "plugin":  "tableScrollClass"
+    },
+    {
+        "constant":  "TableHeaderClass",
+        "value":  "ui-table__header",
+        "plugin":  "tableHeaderClass"
+    },
+    {
+        "constant":  "TableResizerClass",
+        "value":  "ui-table__resizer",
+        "plugin":  "tableResizerClass"
+    },
+    {
+        "constant":  "TreeRootClass",
+        "value":  "ui-tree"
+    },
+    {
+        "constant":  "TreeRowClass",
+        "value":  "ui-tree__row"
+    },
+    {
+        "constant":  "TreeNodeClass",
+        "value":  "ui-tree-node"
+    },
+    {
+        "constant":  "TreeDropMarkAttribute",
+        "value":  "data-ui-tree-drop",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TreeRowFilteredClass",
+        "value":  "ui-tree__row--filtered",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableLastAttribute",
+        "value":  "data-ui-table-last",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableReorderingAttribute",
+        "value":  "data-ui-table-reordering",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableDraggingAttribute",
+        "value":  "data-ui-table-dragging",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableDropAttribute",
+        "value":  "data-ui-table-drop",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableScrolledAttribute",
+        "value":  "data-ui-table-scrolled",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableScrollbarAttribute",
+        "value":  "data-ui-table-scrollbar",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NoRowSelectAttribute",
+        "value":  "data-ui-no-row-select"
+    },
+    {
+        "constant":  "TreeParentAttribute",
+        "value":  "data-ui-tree-parent"
+    },
+    {
+        "constant":  "TreeChildrenAttribute",
+        "value":  "data-ui-tree-children"
+    },
+    {
+        "constant":  "TreeFolderAttribute",
+        "value":  "data-ui-tree-folder"
+    },
+    {
+        "constant":  "TreeExpandedAttribute",
+        "value":  "data-ui-tree-expanded"
+    },
+    {
+        "constant":  "TreeTitleAttribute",
+        "value":  "data-ui-tree-title"
+    },
+    {
+        "constant":  "TreeRenamableAttribute",
+        "value":  "data-ui-tree-renamable"
+    },
+    {
+        "constant":  "TreeLoadingAttribute",
+        "value":  "data-ui-tree-loading",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TreeDropTargetAttribute",
+        "value":  "data-ui-tree-drop-target"
+    },
+    {
+        "constant":  "TreeBootAttribute",
+        "value":  "data-ui-tree-boot",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TreeDraggableAttribute",
+        "value":  "data-ui-tree-draggable"
+    },
+    {
+        "constant":  "TreeRenameOnDoubleClickAttribute",
+        "value":  "data-ui-tree-rename-dblclick"
+    },
+    {
+        "constant":  "RowEditingAttribute",
+        "value":  "data-ui-row-editing"
+    },
+    {
+        "constant":  "BoxedEditorAttribute",
+        "value":  "data-ui-boxed-editor",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowIdleAttribute",
+        "value":  "data-ui-row-idle"
+    },
+    {
+        "constant":  "StepCollapsedAttribute",
+        "value":  "data-ui-step-collapsed"
+    },
+    {
+        "constant":  "StepEndAttribute",
+        "value":  "data-ui-step-end"
+    },
+    {
+        "constant":  "StepCompletedAttribute",
+        "value":  "data-ui-step-completed"
+    },
+    {
+        "constant":  "StepsStackedAttribute",
+        "value":  "data-ui-steps-stacked",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowBarAttribute",
+        "value":  "data-ui-row-bar",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageSourceAttribute",
+        "value":  "data-ui-image-source"
+    },
+    {
+        "constant":  "FileMaxSizeAttribute",
+        "value":  "data-ui-file-max-size"
+    },
+    {
+        "constant":  "FilePickAttribute",
+        "value":  "data-ui-file-pick"
+    },
+    {
+        "constant":  "FileDropTargetIdAttribute",
+        "value":  "data-ui-file-drop-target-id"
+    },
+    {
+        "constant":  "PressRippleAttribute",
+        "value":  "data-ui-press-ripple"
+    },
+    {
+        "constant":  "OverlayScrollbarsAttribute",
+        "value":  "data-ui-overlay-scrollbars"
+    },
+    {
+        "constant":  "ServiceWorkerAttribute",
+        "value":  "data-ui-service-worker"
+    },
+    {
+        "constant":  "ServiceWorkerImportedAttribute",
+        "value":  "data-ui-service-worker-imported"
+    },
+    {
+        "constant":  "ThemeAttribute",
+        "value":  "data-ui-theme"
+    },
+    {
+        "constant":  "ThemeColorsAttribute",
+        "value":  "data-ui-theme-colors"
+    },
+    {
+        "constant":  "ThemeStylesheetAttribute",
+        "value":  "data-ui-theme-sheet"
+    },
+    {
+        "constant":  "SecretFieldAttribute",
+        "value":  "data-ui-secret"
+    },
+    {
+        "constant":  "WordsAttribute",
+        "value":  "data-ui-words"
+    },
+    {
+        "constant":  "LanguageSwitcherAttribute",
+        "value":  "data-ui-language-switcher"
+    },
+    {
+        "constant":  "ThemeSwitcherAttribute",
+        "value":  "data-ui-theme-switcher"
+    },
+    {
+        "constant":  "ThemeChoiceAttribute",
+        "value":  "data-ui-theme-choice"
+    },
+    {
+        "constant":  "LanguageAttribute",
+        "value":  "data-ui-language"
+    },
+    {
+        "constant":  "SplittingAttribute",
+        "value":  "data-ui-splitting",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "KeyboardUpAttribute",
+        "value":  "data-ui-keyboard-up",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "WindowFootEdgeAttribute",
+        "value":  "data-ui-window-foot-edge",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ConnectionAttribute",
+        "value":  "data-ui-connection",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PendingAttribute",
+        "value":  "data-ui-pending",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SplitFoldedAttribute",
+        "value":  "data-ui-split-folded",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SplitEdgeAttribute",
+        "value":  "data-ui-split-edge",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PointerFocusAttribute",
+        "value":  "data-ui-pointer-focus",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FocusWithinAttribute",
+        "value":  "data-ui-focus-within",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PopupHoverAttribute",
+        "value":  "data-ui-popup-hover",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "InnerPointerAttribute",
+        "value":  "data-ui-inner-pointer",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SelectionAttribute",
+        "value":  "data-ui-selection"
+    },
+    {
+        "constant":  "SelectedAttribute",
+        "value":  "data-ui-selected",
+        "plugin":  "selected"
+    },
+    {
+        "constant":  "SelectedKeyAttribute",
+        "value":  "data-ui-selected-key",
+        "plugin":  "selectedKey"
+    },
+    {
+        "constant":  "SelectedKeysAttribute",
+        "value":  "data-ui-selected-keys",
+        "plugin":  "selectedKeys"
+    },
+    {
+        "constant":  "SelectMaxAttribute",
+        "value":  "data-ui-select-max"
+    },
+    {
+        "constant":  "BindSelectedKeyAttribute",
+        "value":  "data-ui-bind-selected-key"
+    },
+    {
+        "constant":  "TabsSelectedAttribute",
+        "value":  "data-ui-tabs-selected"
+    },
+    {
+        "constant":  "TabCaptionAttribute",
+        "value":  "data-ui-tab-caption"
+    },
+    {
+        "constant":  "TabKeyAttribute",
+        "value":  "data-ui-tab-key"
+    },
+    {
+        "constant":  "TabPageAttribute",
+        "value":  "data-ui-tab-page"
+    },
+    {
+        "constant":  "TabActionsAttribute",
+        "value":  "data-ui-tab-actions"
+    },
+    {
+        "constant":  "TabPinnedAttribute",
+        "value":  "data-ui-tab-pinned"
+    },
+    {
+        "constant":  "SubmitFormIdAttribute",
+        "value":  "data-ui-submit-form-id"
+    },
+    {
+        "constant":  "HrefAttribute",
+        "value":  "data-ui-href"
+    },
+    {
+        "constant":  "DisabledClass",
+        "value":  "ui-disabled",
+        "plugin":  "disabledClass"
+    },
+    {
+        "constant":  "LoadingClass",
+        "value":  "ui-loading",
+        "plugin":  "loadingClass"
+    },
+    {
+        "constant":  "ReadOnlyClass",
+        "value":  "ui-readonly",
+        "plugin":  "readOnlyClass"
+    },
+    {
+        "constant":  "HiddenClass",
+        "value":  "ui-hidden",
+        "plugin":  "hiddenClass"
+    },
+    {
+        "constant":  "DialogSurfaceClass",
+        "value":  "ui-dialog__surface"
+    },
+    {
+        "constant":  "FlyoutContentClass",
+        "value":  "ui-flyout__content"
+    },
+    {
+        "constant":  "FocusHolderAttribute",
+        "value":  "data-ui-focus-holder",
+        "plugin":  "focusHolder"
+    },
+    {
+        "constant":  "OwnsKeysAttribute",
+        "value":  "data-ui-owns-keys",
+        "clientOnly":  true,
+        "plugin":  "ownsKeys"
+    },
+    {
+        "constant":  "ListTriggerClass",
+        "value":  "ui-select__trigger"
+    },
+    {
+        "constant":  "ButtonClass",
+        "value":  "ui-button",
+        "plugin":  "buttonClass"
+    },
+    {
+        "constant":  "GhostButtonClass",
+        "value":  "ui-button--ghost",
+        "plugin":  "ghostButtonClass"
+    },
+    {
+        "constant":  "SmallButtonClass",
+        "value":  "ui-button--small",
+        "plugin":  "smallButtonClass"
+    },
+    {
+        "constant":  "SelectClass",
+        "value":  "ui-select",
+        "plugin":  "selectClass"
+    },
+    {
+        "constant":  "TextTitleAttribute",
+        "value":  "data-ui-text-title"
+    },
+    {
+        "constant":  "TextDescriptionAttribute",
+        "value":  "data-ui-text-description",
+        "plugin":  "textDescription"
+    },
+    {
+        "constant":  "TextDescriptionClass",
+        "value":  "ui-text__description"
+    },
+    {
+        "constant":  "PlainTextAttribute",
+        "value":  "data-ui-plain-text"
+    },
+    {
+        "constant":  "AutolinksAttribute",
+        "value":  "data-ui-autolinks"
+    },
+    {
+        "constant":  "TextIconAttribute",
+        "value":  "data-ui-text-icon"
+    },
+    {
+        "constant":  "TextBadgeIconAttribute",
+        "value":  "data-ui-text-badge-icon"
+    },
+    {
+        "constant":  "TextBadgeTitleAttribute",
+        "value":  "data-ui-text-badge-title"
+    },
+    {
+        "constant":  "CardHeaderClass",
+        "value":  "ui-card__header"
+    },
+    {
+        "constant":  "CardHeaderEmptyClass",
+        "value":  "ui-card__header--empty"
+    },
+    {
+        "constant":  "ScrollYDisabledClass",
+        "value":  "ui-scroll-y--disabled"
+    },
+    {
+        "constant":  "TextInputClass",
+        "value":  "ui-text-input",
+        "plugin":  "textInputClass"
+    },
+    {
+        "constant":  "InvalidClass",
+        "value":  "ui-invalid",
+        "plugin":  "invalidClass"
+    },
+    {
+        "constant":  "ValidationMessageAttribute",
+        "value":  "data-ui-validation-message",
+        "plugin":  "validationMessage"
+    },
+    {
+        "constant":  "RootAttribute",
+        "value":  "data-ui-root"
+    },
+    {
+        "constant":  "TrimInputAttribute",
+        "value":  "data-ui-trim-input"
+    },
+    {
+        "constant":  "TriggersAttribute",
+        "value":  "data-ui-triggers"
+    },
+    {
+        "constant":  "TriggerItemsAttribute",
+        "value":  "data-ui-trigger-items"
+    },
+    {
+        "constant":  "TriggerSearchAttribute",
+        "value":  "data-ui-trigger-search"
+    },
+    {
+        "constant":  "TriggerClickAttribute",
+        "value":  "data-ui-trigger-click"
+    },
+    {
+        "constant":  "TriggerTokenHoveredAttribute",
+        "value":  "data-ui-trigger-hovered",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TriggerLayerClass",
+        "value":  "ui-text-trigger__layer",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TriggerTokenClass",
+        "value":  "ui-text-trigger__token",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FlyoutOpenClass",
+        "value":  "ui-flyout--open"
+    },
+    {
+        "constant":  "AccordionClass",
+        "value":  "ui-accordion"
+    },
+    {
+        "constant":  "TreeNodeWrapperClass",
+        "value":  "ui-tree__node"
+    },
+    {
+        "constant":  "ItemsViewItemClass",
+        "value":  "ui-items-view__item"
+    },
+    {
+        "constant":  "ButtonContentClass",
+        "value":  "ui-button__content"
+    },
+    {
+        "constant":  "TextTitleClass",
+        "value":  "ui-text__title"
+    },
+    {
+        "constant":  "TextIconClass",
+        "value":  "ui-text__icon"
+    },
+    {
+        "constant":  "PopupStoodInAttribute",
+        "value":  "data-ui-popup-stood-in",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PopupLiftedAttribute",
+        "value":  "data-ui-popup-lifted",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SheetAttribute",
+        "value":  "data-ui-sheet",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PopupCappedAttribute",
+        "value":  "data-ui-popup-capped",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PopupPlacementAttribute",
+        "value":  "data-ui-placement",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "BreadcrumbsClass",
+        "value":  "ui-breadcrumbs"
+    },
+    {
+        "constant":  "BreadcrumbsItemClass",
+        "value":  "ui-breadcrumbs__item"
+    },
+    {
+        "constant":  "StepsClass",
+        "value":  "ui-steps"
+    },
+    {
+        "constant":  "StepsItemClass",
+        "value":  "ui-steps__item"
+    },
+    {
+        "constant":  "BreadcrumbClass",
+        "value":  "ui-breadcrumb"
+    },
+    {
+        "constant":  "BreadcrumbCurrentClass",
+        "value":  "ui-breadcrumb--current",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ButtonGroupClass",
+        "value":  "ui-button-group"
+    },
+    {
+        "constant":  "ButtonGroupItemClass",
+        "value":  "ui-button-group__item"
+    },
+    {
+        "constant":  "CollapsibleClass",
+        "value":  "ui-collapsible"
+    },
+    {
+        "constant":  "CollapsibleContentClass",
+        "value":  "ui-collapsible__content"
+    },
+    {
+        "constant":  "CollapsibleBarContentClass",
+        "value":  "ui-collapsible__bar-content"
+    },
+    {
+        "constant":  "SideTopClass",
+        "value":  "ui-side--top"
+    },
+    {
+        "constant":  "SideBottomClass",
+        "value":  "ui-side--bottom"
+    },
+    {
+        "constant":  "CollapsibleBarClass",
+        "value":  "ui-collapsible__bar"
+    },
+    {
+        "constant":  "ColorInputClass",
+        "value":  "ui-color-input"
+    },
+    {
+        "constant":  "ColorInputPopupClass",
+        "value":  "ui-color-input__popup"
+    },
+    {
+        "constant":  "ColorInputTextClass",
+        "value":  "ui-color-input__text"
+    },
+    {
+        "constant":  "ColorInputRowClass",
+        "value":  "ui-color-input__row"
+    },
+    {
+        "constant":  "ColorInputValueInputClass",
+        "value":  "ui-color-input__value-input"
+    },
+    {
+        "constant":  "ColorInputSquareThumbClass",
+        "value":  "ui-color-input__square-thumb"
+    },
+    {
+        "constant":  "ColorInputHueThumbClass",
+        "value":  "ui-color-input__hue-thumb"
+    },
+    {
+        "constant":  "ColorToggleAttribute",
+        "value":  "data-ui-color-toggle"
+    },
+    {
+        "constant":  "ColorTabAttribute",
+        "value":  "data-ui-color-tab"
+    },
+    {
+        "constant":  "ColorPaneAttribute",
+        "value":  "data-ui-color-pane"
+    },
+    {
+        "constant":  "ColorSquareAttribute",
+        "value":  "data-ui-color-square"
+    },
+    {
+        "constant":  "ColorHueAttribute",
+        "value":  "data-ui-color-hue"
+    },
+    {
+        "constant":  "ColorHexAttribute",
+        "value":  "data-ui-color-hex"
+    },
+    {
+        "constant":  "ColorChannelAttribute",
+        "value":  "data-ui-color-channel"
+    },
+    {
+        "constant":  "ColorFactorAttribute",
+        "value":  "data-ui-color-factor"
+    },
+    {
+        "constant":  "ColorOpacityAttribute",
+        "value":  "data-ui-color-opacity"
+    },
+    {
+        "constant":  "ColorNameAttribute",
+        "value":  "data-ui-color-name"
+    },
+    {
+        "constant":  "ColorFormatAttribute",
+        "value":  "data-ui-color-format"
+    },
+    {
+        "constant":  "ColorNoOpacityAttribute",
+        "value":  "data-ui-color-no-opacity"
+    },
+    {
+        "constant":  "ColorNoPaletteAttribute",
+        "value":  "data-ui-color-no-palette"
+    },
+    {
+        "constant":  "ColorInputOpenClass",
+        "value":  "ui-color-input--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ColorTabSelectedAttribute",
+        "value":  "data-ui-color-tab-selected",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ColorPaneSelectedAttribute",
+        "value":  "data-ui-color-pane-selected",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ColorNameSelectedAttribute",
+        "value":  "data-ui-color-name-selected",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "CommandBarClass",
+        "value":  "ui-command-bar"
+    },
+    {
+        "constant":  "CommandBarHostClass",
+        "value":  "ui-command-bar__host"
+    },
+    {
+        "constant":  "CommandBarItemClass",
+        "value":  "ui-command-bar__item"
+    },
+    {
+        "constant":  "CommandBarOverflowClass",
+        "value":  "ui-command-bar__overflow"
+    },
+    {
+        "constant":  "OrientationVerticalClass",
+        "value":  "ui-orientation--vertical"
+    },
+    {
+        "constant":  "CommandBarOverflowingClass",
+        "value":  "ui-command-bar--overflowing",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "CommandBarOverflowedClass",
+        "value":  "ui-command-bar__overflowed",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ContextMenuOpenClass",
+        "value":  "ui-context-menu--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ContextMenuOpeningEventName",
+        "value":  "ui-context-menu-opening",
+        "clientOnly":  true,
+        "plugin":  "menuOpeningEvent"
+    },
+    {
+        "constant":  "InputDebounceAttribute",
+        "value":  "data-ui-input-debounce"
+    },
+    {
+        "constant":  "DraftDroppedEventName",
+        "value":  "ui-draft-dropped",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageInputSurfaceClass",
+        "value":  "ui-image-input__surface"
+    },
+    {
+        "constant":  "DragPictureClass",
+        "value":  "ui-drag-picture",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "DragPartAttribute",
+        "value":  "data-ui-drag-part",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldClass",
+        "value":  "ui-field"
+    },
+    {
+        "constant":  "RunsOnEscapeAttribute",
+        "value":  "data-ui-runs-on-escape"
+    },
+    {
+        "constant":  "KeyValueActionRowClass",
+        "value":  "ui-key-value-action__row"
+    },
+    {
+        "constant":  "KeyValueActionValueInputClass",
+        "value":  "ui-key-value-action__value-input"
+    },
+    {
+        "constant":  "KeyValueActionEditActionClass",
+        "value":  "ui-key-value-action__edit-action"
+    },
+    {
+        "constant":  "KeyValueActionActionClass",
+        "value":  "ui-key-value-action__action"
+    },
+    {
+        "constant":  "SubmitOnEnterAttribute",
+        "value":  "data-ui-submit-on-enter"
+    },
+    {
+        "constant":  "RunsOnEnterAttribute",
+        "value":  "data-ui-runs-on-enter"
+    },
+    {
+        "constant":  "CommitInPlaceEventName",
+        "value":  "ui-commit-in-place",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FileDropOverAttribute",
+        "value":  "data-ui-file-drop-over",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FileInputClass",
+        "value":  "ui-file-input"
+    },
+    {
+        "constant":  "FileInputRowClass",
+        "value":  "ui-file-input__row"
+    },
+    {
+        "constant":  "FileInputNativeClass",
+        "value":  "ui-file-input__native"
+    },
+    {
+        "constant":  "FileInputFieldClass",
+        "value":  "ui-file-input__field"
+    },
+    {
+        "constant":  "FileInputSelectionClass",
+        "value":  "ui-file-input__selection"
+    },
+    {
+        "constant":  "FileDraggingAttribute",
+        "value":  "data-ui-file-dragging",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FlyoutClass",
+        "value":  "ui-flyout"
+    },
+    {
+        "constant":  "FlyoutAnchorClass",
+        "value":  "ui-flyout__anchor"
+    },
+    {
+        "constant":  "FlyoutNoBackdropCloseAttribute",
+        "value":  "data-ui-flyout-no-backdrop-close"
+    },
+    {
+        "constant":  "FlyoutNoEscapeCloseAttribute",
+        "value":  "data-ui-flyout-no-escape-close"
+    },
+    {
+        "constant":  "FlyoutContentIdPrefix",
+        "value":  "ui-flyout-content",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "GridSplitterClass",
+        "value":  "ui-grid-splitter"
+    },
+    {
+        "constant":  "ContainerClass",
+        "value":  "ui-container"
+    },
+    {
+        "constant":  "TextTypeSubtitleClass",
+        "value":  "ui-text-type--subtitle"
+    },
+    {
+        "constant":  "ButtonPrimaryClass",
+        "value":  "ui-button--primary"
+    },
+    {
+        "constant":  "ImageCropTitleId",
+        "value":  "ui-image-crop-title",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropFrameAttribute",
+        "value":  "data-ui-image-crop-frame",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropClass",
+        "value":  "ui-image-crop",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropPartAttribute",
+        "value":  "data-ui-image-crop-part",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropSurfaceClass",
+        "value":  "ui-image-crop__surface",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropTitleClass",
+        "value":  "ui-image-crop__title",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropStageClass",
+        "value":  "ui-image-crop__stage",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropCanvasClass",
+        "value":  "ui-image-crop__canvas",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropFrameClass",
+        "value":  "ui-image-crop__frame",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageCropZoomClass",
+        "value":  "ui-image-crop__zoom",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageInputClass",
+        "value":  "ui-image-input"
+    },
+    {
+        "constant":  "ImageInputMultipleClass",
+        "value":  "ui-image-input--multiple"
+    },
+    {
+        "constant":  "ImageInputNativeClass",
+        "value":  "ui-image-input__native"
+    },
+    {
+        "constant":  "ImageInputPictureClass",
+        "value":  "ui-image-input__picture"
+    },
+    {
+        "constant":  "ImageInputTextClass",
+        "value":  "ui-image-input__text",
+        "plugin":  "pictureTextClass"
+    },
+    {
+        "constant":  "ImageInputSelectionClass",
+        "value":  "ui-image-input__selection",
+        "plugin":  "pictureSelectionClass"
+    },
+    {
+        "constant":  "ImageInputSelectionsClass",
+        "value":  "ui-image-input__selections"
+    },
+    {
+        "constant":  "ImageInputTilesClass",
+        "value":  "ui-image-input__tiles"
+    },
+    {
+        "constant":  "ImageInputTileClass",
+        "value":  "ui-image-input__tile",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageInputRemoveClass",
+        "value":  "ui-image-input__remove",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageInputProgressClass",
+        "value":  "ui-image-input__progress",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageDraggingAttribute",
+        "value":  "data-ui-image-dragging",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImageTilesAttribute",
+        "value":  "data-ui-image-tiles",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ImagePreviewAttribute",
+        "value":  "data-ui-image-preview",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RenameFieldAttribute",
+        "value":  "data-ui-rename-field",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowCutClass",
+        "value":  "ui-row--cut",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ItemsViewWrapClass",
+        "value":  "ui-items-view--wrap"
+    },
+    {
+        "constant":  "OrientationHorizontalClass",
+        "value":  "ui-orientation--horizontal"
+    },
+    {
+        "constant":  "RowDraggingClass",
+        "value":  "ui-row--dragging",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableClass",
+        "value":  "ui-table"
+    },
+    {
+        "constant":  "KeyValueActionClass",
+        "value":  "ui-key-value-action"
+    },
+    {
+        "constant":  "KeyValueActionValueClass",
+        "value":  "ui-key-value-action__value"
+    },
+    {
+        "constant":  "KeyValueActionEditableClass",
+        "value":  "ui-key-value-action--editable"
+    },
+    {
+        "constant":  "InputFilledClass",
+        "value":  "ui-input--filled"
+    },
+    {
+        "constant":  "InputOutlineClass",
+        "value":  "ui-input--outline"
+    },
+    {
+        "constant":  "InputGhostClass",
+        "value":  "ui-input--ghost"
+    },
+    {
+        "constant":  "InputUnderlineClass",
+        "value":  "ui-input--underline"
+    },
+    {
+        "constant":  "LanguageSwitcherLabelTextClass",
+        "value":  "ui-language-switcher__label-text"
+    },
+    {
+        "constant":  "LanguageSwitcherLabelTextCurrentClass",
+        "value":  "ui-language-switcher__label-text--current"
+    },
+    {
+        "constant":  "LanguageSwitcherChoiceClass",
+        "value":  "ui-language-switcher__choice"
+    },
+    {
+        "constant":  "LanguageSwitcherTriggerClass",
+        "value":  "ui-language-switcher__trigger"
+    },
+    {
+        "constant":  "LanguageSwitcherMenuClass",
+        "value":  "ui-language-switcher__menu"
+    },
+    {
+        "constant":  "LanguageSwitcherLabelTextPageClass",
+        "value":  "ui-language-switcher__label-text--page"
+    },
+    {
+        "constant":  "LanguageSwitcherOpenClass",
+        "value":  "ui-language-switcher--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TextTypeBodyClass",
+        "value":  "ui-text-type--body"
+    },
+    {
+        "constant":  "ButtonDangerClass",
+        "value":  "ui-button--danger"
+    },
+    {
+        "constant":  "LeaveDialogKey",
+        "value":  "ui-leave",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LeavePartAttribute",
+        "value":  "data-ui-leave-part",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LeaveDialogClass",
+        "value":  "ui-leave-dialog",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LeaveTitleId",
+        "value":  "ui-leave-title",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LeaveMessageId",
+        "value":  "ui-leave-message",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LeaveDialogTitleClass",
+        "value":  "ui-leave-dialog__title",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LeaveDialogMessageClass",
+        "value":  "ui-leave-dialog__message",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TextTypeCaptionClass",
+        "value":  "ui-text-type--caption"
+    },
+    {
+        "constant":  "LightboxTitleId",
+        "value":  "ui-lightbox-title",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxClass",
+        "value":  "ui-lightbox",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxPartAttribute",
+        "value":  "data-ui-lightbox-part",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxSurfaceClass",
+        "value":  "ui-lightbox__surface",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxTitleClass",
+        "value":  "ui-lightbox__title",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxCloseClass",
+        "value":  "ui-lightbox__close",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxStageClass",
+        "value":  "ui-lightbox__stage",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxNavClass",
+        "value":  "ui-lightbox__nav",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxStepClass",
+        "value":  "ui-lightbox__step",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxStepPreviousClass",
+        "value":  "ui-lightbox__step--previous",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxStepNextClass",
+        "value":  "ui-lightbox__step--next",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxCounterClass",
+        "value":  "ui-lightbox__counter",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxCountRoomClass",
+        "value":  "ui-lightbox__count-room",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxCountClass",
+        "value":  "ui-lightbox__count",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxCaptionClass",
+        "value":  "ui-lightbox__caption",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxFigureClass",
+        "value":  "ui-lightbox__figure",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxPictureClass",
+        "value":  "ui-lightbox__picture",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxSetAttribute",
+        "value":  "data-ui-lightbox-set",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxSlotAttribute",
+        "value":  "data-ui-lightbox-slot",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LightboxStillAttribute",
+        "value":  "data-ui-lightbox-still",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "AnnouncerClass",
+        "value":  "ui-announcer",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LongPressHoldEventName",
+        "value":  "ui-long-press-hold",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "LongPressHoldEndEventName",
+        "value":  "ui-long-press-hold-end",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "MenuHostClass",
+        "value":  "ui-menu__host"
+    },
+    {
+        "constant":  "MenuItemWrapperClass",
+        "value":  "ui-menu__item"
+    },
+    {
+        "constant":  "TextBodyClass",
+        "value":  "ui-text__body"
+    },
+    {
+        "constant":  "TextHeaderClass",
+        "value":  "ui-text__header"
+    },
+    {
+        "constant":  "MenuSubmenuClass",
+        "value":  "ui-menu__submenu"
+    },
+    {
+        "constant":  "SideRightClass",
+        "value":  "ui-side--right"
+    },
+    {
+        "constant":  "MenuFlyoutAttribute",
+        "value":  "data-ui-menu-flyout",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "MenuUnfoldedAttribute",
+        "value":  "data-ui-menu-unfolded",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "MultiSelectCheckClass",
+        "value":  "ui-multi-select__check"
+    },
+    {
+        "constant":  "SelectValueInputClass",
+        "value":  "ui-select__value-input"
+    },
+    {
+        "constant":  "MultiSelectCheckboxesClass",
+        "value":  "ui-multi-select--checkboxes"
+    },
+    {
+        "constant":  "ProgressClass",
+        "value":  "ui-progress"
+    },
+    {
+        "constant":  "ProgressLinearClass",
+        "value":  "ui-progress--linear"
+    },
+    {
+        "constant":  "ProgressTrackClass",
+        "value":  "ui-progress__track"
+    },
+    {
+        "constant":  "ProgressFillClass",
+        "value":  "ui-progress__fill"
+    },
+    {
+        "constant":  "NavigationProgressClass",
+        "value":  "ui-navigation-progress",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NotificationHostClass",
+        "value":  "ui-notification-host",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NotificationClass",
+        "value":  "ui-notification",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NotificationLeavingClass",
+        "value":  "ui-notification--leaving",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NotificationMessageClass",
+        "value":  "ui-notification__message",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NotificationTitleClass",
+        "value":  "ui-notification__title",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NotificationActionClass",
+        "value":  "ui-notification__action",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NotificationCloseClass",
+        "value":  "ui-notification__close",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NotificationConnectionClass",
+        "value":  "ui-notification--connection",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "NumberInputClass",
+        "value":  "ui-number-input"
+    },
+    {
+        "constant":  "NumberInputFieldClass",
+        "value":  "ui-number-input__field"
+    },
+    {
+        "constant":  "NumberNoDecimalsAttribute",
+        "value":  "data-ui-number-no-decimals"
+    },
+    {
+        "constant":  "NumberNoNegativeAttribute",
+        "value":  "data-ui-number-no-negative"
+    },
+    {
+        "constant":  "NumberThousandsAttribute",
+        "value":  "data-ui-number-thousands"
+    },
+    {
+        "constant":  "NumberNoThousandsAttribute",
+        "value":  "data-ui-number-no-thousands"
+    },
+    {
+        "constant":  "NumberTrimZerosAttribute",
+        "value":  "data-ui-number-trim-zeros"
+    },
+    {
+        "constant":  "NumberStepAttribute",
+        "value":  "data-ui-number-step"
+    },
+    {
+        "constant":  "NumberMinAttribute",
+        "value":  "data-ui-number-min"
+    },
+    {
+        "constant":  "NumberMaxAttribute",
+        "value":  "data-ui-number-max"
+    },
+    {
+        "constant":  "NumberStepDirectionAttribute",
+        "value":  "data-ui-number-step-direction"
+    },
+    {
+        "constant":  "NumberInputRowClass",
+        "value":  "ui-number-input__row"
+    },
+    {
+        "constant":  "DialogAttribute",
+        "value":  "data-ui-dialog"
+    },
+    {
+        "constant":  "DialogModalAttribute",
+        "value":  "data-ui-dialog-modal"
+    },
+    {
+        "constant":  "DialogBackdropAttribute",
+        "value":  "data-ui-dialog-backdrop"
+    },
+    {
+        "constant":  "DialogCloseBackdropAttribute",
+        "value":  "data-ui-dialog-close-backdrop"
+    },
+    {
+        "constant":  "DialogCloseEscapeAttribute",
+        "value":  "data-ui-dialog-close-escape"
+    },
+    {
+        "constant":  "DialogPlacementAttribute",
+        "value":  "data-ui-dialog-placement"
+    },
+    {
+        "constant":  "OverlayScrollbarClass",
+        "value":  "ui-overlay-scrollbar",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "OverlayScrollbarBoxClass",
+        "value":  "ui-overlay-scrollbar__box",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "OverlayScrollbarThumbClass",
+        "value":  "ui-overlay-scrollbar__thumb",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "OverlayScrollbarShownClass",
+        "value":  "ui-overlay-scrollbar--shown",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "OverlayScrollbarThumbHeldClass",
+        "value":  "ui-overlay-scrollbar__thumb--held",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TextInputRowClass",
+        "value":  "ui-text-input__row"
+    },
+    {
+        "constant":  "TemporalInputRowClass",
+        "value":  "ui-temporal-input__row"
+    },
+    {
+        "constant":  "FieldBoxClass",
+        "value":  "ui-field-box"
+    },
+    {
+        "constant":  "PopupOpenerIdPrefix",
+        "value":  "ui-popup-opener",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PopupCaptionIdPrefix",
+        "value":  "ui-popup-caption",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "DialogClass",
+        "value":  "ui-dialog"
+    },
+    {
+        "constant":  "DialogBackdropClass",
+        "value":  "ui-dialog__backdrop"
+    },
+    {
+        "constant":  "DialogActionsClass",
+        "value":  "ui-dialog__actions",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PagerClass",
+        "value":  "ui-pager"
+    },
+    {
+        "constant":  "PagerButtonClass",
+        "value":  "ui-pager__button"
+    },
+    {
+        "constant":  "PagerPagesClass",
+        "value":  "ui-pager__pages"
+    },
+    {
+        "constant":  "PagerRangeClass",
+        "value":  "ui-pager__range"
+    },
+    {
+        "constant":  "PagerSizeClass",
+        "value":  "ui-pager__size"
+    },
+    {
+        "constant":  "PagerSizeTriggerClass",
+        "value":  "ui-pager__size-trigger"
+    },
+    {
+        "constant":  "PagerSizeLabelClass",
+        "value":  "ui-pager__size-label"
+    },
+    {
+        "constant":  "PagerSizesClass",
+        "value":  "ui-pager__sizes"
+    },
+    {
+        "constant":  "PagerSizeChoiceClass",
+        "value":  "ui-pager__size-choice"
+    },
+    {
+        "constant":  "PagerNumberClass",
+        "value":  "ui-pager__number",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PagerGapClass",
+        "value":  "ui-pager__gap",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PagerSizeOpenClass",
+        "value":  "ui-pager__size--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PaneContainerClass",
+        "value":  "ui-pane-container"
+    },
+    {
+        "constant":  "PaneContainerPlaceClass",
+        "value":  "ui-pane-container__place"
+    },
+    {
+        "constant":  "PaneContainerPaneClass",
+        "value":  "ui-pane-container__pane"
+    },
+    {
+        "constant":  "PaneContainerGripClass",
+        "value":  "ui-pane-container__grip"
+    },
+    {
+        "constant":  "TextTypeDisplayClass",
+        "value":  "ui-text-type--display"
+    },
+    {
+        "constant":  "TextTypeTitleClass",
+        "value":  "ui-text-type--title"
+    },
+    {
+        "constant":  "PaneLiftedAttribute",
+        "value":  "data-ui-pane-lifted",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PaneTargetAttribute",
+        "value":  "data-ui-pane-target",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PaneMovingAttribute",
+        "value":  "data-ui-pane-moving",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PaneNearAttribute",
+        "value":  "data-ui-pane-near",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PaneRaisedAttribute",
+        "value":  "data-ui-pane-raised",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "OpenPickerEventName",
+        "value":  "ui-open-picker",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ActiveAttribute",
+        "value":  "data-ui-active",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SheetScrimClass",
+        "value":  "ui-sheet-scrim",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SheetBackClass",
+        "value":  "ui-sheet__back",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SheetBackMarkClass",
+        "value":  "ui-sheet__back-mark",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SheetCoveredAttribute",
+        "value":  "data-ui-sheet-covered",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SheetScrimLeavingAttribute",
+        "value":  "data-ui-sheet-scrim-leaving",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabItemCaptionClass",
+        "value":  "ui-tab-item__caption"
+    },
+    {
+        "constant":  "SplitButtonClass",
+        "value":  "ui-split-button"
+    },
+    {
+        "constant":  "SplitButtonMainClass",
+        "value":  "ui-split-button__main"
+    },
+    {
+        "constant":  "SplitButtonToggleClass",
+        "value":  "ui-split-button__toggle"
+    },
+    {
+        "constant":  "ActionClass",
+        "value":  "ui-action"
+    },
+    {
+        "constant":  "SelectOptionClass",
+        "value":  "ui-select__option"
+    },
+    {
+        "constant":  "ExpanderHeaderClass",
+        "value":  "ui-expander__header"
+    },
+    {
+        "constant":  "TabItemCloseClass",
+        "value":  "ui-tab-item__close"
+    },
+    {
+        "constant":  "PressingClass",
+        "value":  "ui-pressing",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PressHeldClass",
+        "value":  "ui-press-held",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabItemRenameClass",
+        "value":  "ui-tab-item__rename",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PressPlacedClass",
+        "value":  "ui-press-placed",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PressWaveClass",
+        "value":  "ui-press-wave",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "PressWaveInkClass",
+        "value":  "ui-press-wave__ink",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RadioValueAttribute",
+        "value":  "data-ui-radio-value"
+    },
+    {
+        "constant":  "RadioGroupClass",
+        "value":  "ui-radio-group"
+    },
+    {
+        "constant":  "RadioGroupItemClass",
+        "value":  "ui-radio-group__item"
+    },
+    {
+        "constant":  "RadioGroupNameAttribute",
+        "value":  "data-ui-radio-group-name"
+    },
+    {
+        "constant":  "RadioBindValueIdAttribute",
+        "value":  "data-ui-radio-bind-value-id"
+    },
+    {
+        "constant":  "SliderInputClass",
+        "value":  "ui-slider__input"
+    },
+    {
+        "constant":  "SliderInputEndClass",
+        "value":  "ui-slider__input--end"
+    },
+    {
+        "constant":  "SliderValueClass",
+        "value":  "ui-slider__value"
+    },
+    {
+        "constant":  "SliderBubbleClass",
+        "value":  "ui-slider__bubble"
+    },
+    {
+        "constant":  "SliderTrackClass",
+        "value":  "ui-slider__track"
+    },
+    {
+        "constant":  "SliderThumbAnchorClass",
+        "value":  "ui-slider__thumb-anchor"
+    },
+    {
+        "constant":  "SliderClass",
+        "value":  "ui-slider"
+    },
+    {
+        "constant":  "SliderRangeClass",
+        "value":  "ui-slider--range"
+    },
+    {
+        "constant":  "SliderInputHeldClass",
+        "value":  "ui-slider__input--held",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowNameIdPrefix",
+        "value":  "ui-row-name",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowIdPrefix",
+        "value":  "ui-row",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "CellIdPrefix",
+        "value":  "ui-cell",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "RowPressEventName",
+        "value":  "ui-row-press",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "BindSelectedKeysAttribute",
+        "value":  "data-ui-bind-selected-keys"
+    },
+    {
+        "constant":  "ItemsViewClass",
+        "value":  "ui-items-view"
+    },
+    {
+        "constant":  "ScrollAnchorAttribute",
+        "value":  "data-ui-scroll-anchor"
+    },
+    {
+        "constant":  "SearchDebounceAttribute",
+        "value":  "data-ui-search-debounce"
+    },
+    {
+        "constant":  "SearchMinLengthAttribute",
+        "value":  "data-ui-search-min-length"
+    },
+    {
+        "constant":  "SearchManualAttribute",
+        "value":  "data-ui-search-manual"
+    },
+    {
+        "constant":  "SearchInputClass",
+        "value":  "ui-search__input"
+    },
+    {
+        "constant":  "SearchFieldClass",
+        "value":  "ui-search__field"
+    },
+    {
+        "constant":  "SearchAnsweredAttribute",
+        "value":  "data-ui-search-answered"
+    },
+    {
+        "constant":  "SelectListClass",
+        "value":  "ui-select__list"
+    },
+    {
+        "constant":  "SearchWaitingAttribute",
+        "value":  "data-ui-search-waiting",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SelectValueAttribute",
+        "value":  "data-ui-select-value"
+    },
+    {
+        "constant":  "SelectTriggerContentClass",
+        "value":  "ui-select__trigger-content"
+    },
+    {
+        "constant":  "SelectPlaceholderClass",
+        "value":  "ui-select__placeholder"
+    },
+    {
+        "constant":  "SelectPopupClass",
+        "value":  "ui-select__popup"
+    },
+    {
+        "constant":  "SelectClearAttribute",
+        "value":  "data-ui-select-clear"
+    },
+    {
+        "constant":  "MultiSelectChipsClass",
+        "value":  "ui-multi-select__chips"
+    },
+    {
+        "constant":  "MultiSelectChipClass",
+        "value":  "ui-multi-select__chip"
+    },
+    {
+        "constant":  "MultiSelectChipLabelClass",
+        "value":  "ui-multi-select__chip-label"
+    },
+    {
+        "constant":  "MultiSelectChipRemoveClass",
+        "value":  "ui-multi-select__chip-remove"
+    },
+    {
+        "constant":  "TextBadgeClass",
+        "value":  "ui-text__badge"
+    },
+    {
+        "constant":  "BadgeClass",
+        "value":  "ui-badge",
+        "plugin":  "badgeClass"
+    },
+    {
+        "constant":  "BadgeIconClass",
+        "value":  "ui-badge__icon"
+    },
+    {
+        "constant":  "BadgeTitleClass",
+        "value":  "ui-badge__title",
+        "plugin":  "badgeTitleClass"
+    },
+    {
+        "constant":  "TextTypeOverlineClass",
+        "value":  "ui-text-type--overline"
+    },
+    {
+        "constant":  "MultiSelectEntryClass",
+        "value":  "ui-multi-select__entry"
+    },
+    {
+        "constant":  "BadgeVariantInfoClass",
+        "value":  "ui-badge-variant--info"
+    },
+    {
+        "constant":  "IconClass",
+        "value":  "ui-icon"
+    },
+    {
+        "constant":  "SelectPlacementAttribute",
+        "value":  "data-ui-select-placement"
+    },
+    {
+        "constant":  "SelectContentAttribute",
+        "value":  "data-ui-select-content"
+    },
+    {
+        "constant":  "ClearableAttribute",
+        "value":  "data-ui-clearable"
+    },
+    {
+        "constant":  "SearchClass",
+        "value":  "ui-search"
+    },
+    {
+        "constant":  "MultiSelectClass",
+        "value":  "ui-multi-select"
+    },
+    {
+        "constant":  "BadgeSelectClass",
+        "value":  "ui-badge-select"
+    },
+    {
+        "constant":  "SelectChipAttribute",
+        "value":  "data-ui-select-chip"
+    },
+    {
+        "constant":  "SelectChipsAttribute",
+        "value":  "data-ui-select-chips"
+    },
+    {
+        "constant":  "SelectFreeTextAttribute",
+        "value":  "data-ui-select-free-text"
+    },
+    {
+        "constant":  "InputAffixIconPrefixClass",
+        "value":  "ui-input__affix-icon--prefix"
+    },
+    {
+        "constant":  "SelectTagEntryAttribute",
+        "value":  "data-ui-select-tag-entry"
+    },
+    {
+        "constant":  "SelectOpenClass",
+        "value":  "ui-select--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SelectListIdPrefix",
+        "value":  "ui-select-list",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SelectOptionIdPrefix",
+        "value":  "ui-select-option",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ListKeyboardAttribute",
+        "value":  "data-ui-list-keyboard",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SheetDraggingAttribute",
+        "value":  "data-ui-sheet-dragging",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "MenuItemShortcutClass",
+        "value":  "ui-menu-item__shortcut"
+    },
+    {
+        "constant":  "SideLeftClass",
+        "value":  "ui-side--left"
+    },
+    {
+        "constant":  "SplitButtonMenuClass",
+        "value":  "ui-split-button__menu"
+    },
+    {
+        "constant":  "SplitButtonOpenClass",
+        "value":  "ui-split-button--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabOverflowClass",
+        "value":  "ui-tab-overflow"
+    },
+    {
+        "constant":  "TabOverflowMenuClass",
+        "value":  "ui-tab-overflow__menu",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabOverflowMenuOpenClass",
+        "value":  "ui-tab-overflow__menu--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabOverflowEntryClass",
+        "value":  "ui-tab-overflow__entry",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabOverflowEntryCurrentClass",
+        "value":  "ui-tab-overflow__entry--current",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SurfaceClickableClass",
+        "value":  "ui-surface--clickable"
+    },
+    {
+        "constant":  "SurfaceClass",
+        "value":  "ui-surface"
+    },
+    {
+        "constant":  "CardClass",
+        "value":  "ui-card"
+    },
+    {
+        "constant":  "TabItemClass",
+        "value":  "ui-tab-item"
+    },
+    {
+        "constant":  "CaptionTextAttribute",
+        "value":  "data-ui-caption-text",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableReorderableClass",
+        "value":  "ui-table--reorderable"
+    },
+    {
+        "constant":  "ScrollXAutoClass",
+        "value":  "ui-scroll-x--auto"
+    },
+    {
+        "constant":  "ScrollXAlwaysClass",
+        "value":  "ui-scroll-x--always"
+    },
+    {
+        "constant":  "TableHeaderCellClass",
+        "value":  "ui-table__header-cell"
+    },
+    {
+        "constant":  "TableHeaderCellPinnedClass",
+        "value":  "ui-table__header-cell--pinned"
+    },
+    {
+        "constant":  "TableHostClass",
+        "value":  "ui-table__host"
+    },
+    {
+        "constant":  "TableCellLastAttribute",
+        "value":  "data-ui-table-cell-last",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TableCellHiddenAttribute",
+        "value":  "data-ui-table-cell-hidden",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabsClass",
+        "value":  "ui-tabs"
+    },
+    {
+        "constant":  "TabCaptionClass",
+        "value":  "ui-tab-caption"
+    },
+    {
+        "constant":  "TabCaptionSelectedClass",
+        "value":  "ui-tab-caption--selected"
+    },
+    {
+        "constant":  "TabsNoOverflowClass",
+        "value":  "ui-tabs--no-overflow"
+    },
+    {
+        "constant":  "TabsStripClass",
+        "value":  "ui-tabs__strip"
+    },
+    {
+        "constant":  "TabsBandClass",
+        "value":  "ui-tabs__band"
+    },
+    {
+        "constant":  "TabCaptionOverflowedClass",
+        "value":  "ui-tab-caption--overflowed",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabsOverflowingClass",
+        "value":  "ui-tabs--overflowing",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabsViewClass",
+        "value":  "ui-tabs-view"
+    },
+    {
+        "constant":  "TabItemLabelClass",
+        "value":  "ui-tab-item__label"
+    },
+    {
+        "constant":  "TabItemPinClass",
+        "value":  "ui-tab-item__pin"
+    },
+    {
+        "constant":  "TabsViewNoOverflowClass",
+        "value":  "ui-tabs-view--no-overflow"
+    },
+    {
+        "constant":  "TabItemPageClass",
+        "value":  "ui-tab-item__page"
+    },
+    {
+        "constant":  "TabItemSelectedClass",
+        "value":  "ui-tab-item--selected"
+    },
+    {
+        "constant":  "TabsViewTablistClass",
+        "value":  "ui-tabs-view__tablist"
+    },
+    {
+        "constant":  "TabItemDraggingClass",
+        "value":  "ui-tab-item--dragging",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabItemCaptionOverflowedClass",
+        "value":  "ui-tab-item__caption--overflowed",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabsViewOverflowingClass",
+        "value":  "ui-tabs-view--overflowing",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabIdPrefix",
+        "value":  "ui-tab",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TabPanelIdPrefix",
+        "value":  "ui-tab-panel",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalInputDayClass",
+        "value":  "ui-temporal-input__day",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalInputMonthClass",
+        "value":  "ui-temporal-input__month",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalInputClass",
+        "value":  "ui-temporal-input"
+    },
+    {
+        "constant":  "TemporalInputValueInputClass",
+        "value":  "ui-temporal-input__value-input"
+    },
+    {
+        "constant":  "CalendarClass",
+        "value":  "ui-calendar"
+    },
+    {
+        "constant":  "TemporalInputEndValueInputClass",
+        "value":  "ui-temporal-input__end-value-input"
+    },
+    {
+        "constant":  "TemporalInputFieldClass",
+        "value":  "ui-temporal-input__field"
+    },
+    {
+        "constant":  "TemporalInputPopupClass",
+        "value":  "ui-temporal-input__popup"
+    },
+    {
+        "constant":  "CalendarBodyClass",
+        "value":  "ui-calendar__body"
+    },
+    {
+        "constant":  "TemporalInputOpenClass",
+        "value":  "ui-temporal-input--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalInputTimeCellClass",
+        "value":  "ui-temporal-input__time-cell",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalInputTimeColumnClass",
+        "value":  "ui-temporal-input__time-column",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TextAreaGrowAttribute",
+        "value":  "data-ui-text-area-grow"
+    },
+    {
+        "constant":  "TextAreaFieldClass",
+        "value":  "ui-text-area__field"
+    },
+    {
+        "constant":  "TextFoldToggleClass",
+        "value":  "ui-text__fold-toggle"
+    },
+    {
+        "constant":  "ThemeSwitcherChoiceClass",
+        "value":  "ui-theme-switcher__choice"
+    },
+    {
+        "constant":  "ThemeSwitcherMenuClass",
+        "value":  "ui-theme-switcher__menu"
+    },
+    {
+        "constant":  "ThemeSwitcherOpenClass",
+        "value":  "ui-theme-switcher--open",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalInputSegmentsClass",
+        "value":  "ui-temporal-input__segments"
+    },
+    {
+        "constant":  "TemporalInputSegmentClass",
+        "value":  "ui-temporal-input__segment",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalInputSegmentLiteralClass",
+        "value":  "ui-temporal-input__segment-literal",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemporalInputSegmentEmptyClass",
+        "value":  "ui-temporal-input__segment--empty",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TooltipVisibleClass",
+        "value":  "ui-tooltip--visible",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TooltipTextAttribute",
+        "value":  "data-ui-tooltip-text",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TooltipClass",
+        "value":  "ui-tooltip",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TooltipLinkedClass",
+        "value":  "ui-tooltip--linked",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TreeRowFoldedClass",
+        "value":  "ui-tree__row--folded"
+    },
+    {
+        "constant":  "TreeNodeTextClass",
+        "value":  "ui-tree-node__text"
+    },
+    {
+        "constant":  "TreeNodeToggleClass",
+        "value":  "ui-tree-node__toggle"
+    },
+    {
+        "constant":  "TreeRowDraggingClass",
+        "value":  "ui-tree__row--dragging",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TreeLoadingClass",
+        "value":  "ui-tree__loading",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TreeLoadingRingClass",
+        "value":  "ui-tree__loading-ring",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TreeNodeRenameClass",
+        "value":  "ui-tree-node__rename",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "UnfoldSettledEventName",
+        "value":  "ui-tree-unfold-settled",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ValidationWarningClass",
+        "value":  "ui-validation--warning"
+    },
+    {
+        "constant":  "ValidationInfoClass",
+        "value":  "ui-validation--info"
+    },
+    {
+        "constant":  "ValidationMessageMarkerClass",
+        "value":  "ui-validation-message--marker",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ValidationMarkClass",
+        "value":  "ui-validation-mark",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "CheckboxInputClass",
+        "value":  "ui-checkbox__input",
+        "plugin":  "checkboxInputClass"
+    },
+    {
+        "constant":  "CheckboxBoxClass",
+        "value":  "ui-checkbox__box",
+        "plugin":  "checkboxBoxClass"
+    },
+    {
+        "constant":  "NonItemAttribute",
+        "value":  "data-ui-non-item",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TreeRulesEventName",
+        "value":  "ui-tree-rules",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TemplateAttribute",
+        "value":  "data-ui-template"
+    },
+    {
+        "constant":  "ItemsViewStackClass",
+        "value":  "ui-items-view--stack"
+    },
+    {
+        "constant":  "RadioGroupInputClass",
+        "value":  "ui-radio-group__input"
+    },
+    {
+        "constant":  "RadioGroupDotClass",
+        "value":  "ui-radio-group__dot"
+    },
+    {
+        "constant":  "TableNoHeaderClass",
+        "value":  "ui-table--no-header"
+    },
+    {
+        "constant":  "ItemsViewHostClass",
+        "value":  "ui-items-view__host"
+    },
+    {
+        "constant":  "MetadataAttribute",
+        "value":  "data-ui-metadata"
+    },
+    {
+        "constant":  "IconAttribute",
+        "value":  "data-ui-icon"
+    },
+    {
+        "constant":  "IconImageClass",
+        "value":  "ui-icon--image"
+    },
+    {
+        "constant":  "IconMaskClass",
+        "value":  "ui-icon--mask"
+    },
+    {
+        "constant":  "TextFoldClass",
+        "value":  "ui-text__fold"
+    },
+    {
+        "constant":  "TextFoldContentClass",
+        "value":  "ui-text__fold-content"
+    },
+    {
+        "constant":  "TextCodeClass",
+        "value":  "ui-text__code"
+    },
+    {
+        "constant":  "TextLinkClass",
+        "value":  "ui-text__link"
+    },
+    {
+        "constant":  "TextIconInlineClass",
+        "value":  "ui-text__icon-inline"
+    },
+    {
+        "constant":  "MenuRailListAttribute",
+        "value":  "data-ui-menu-rail-list",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "ThemeSwitcherLabelTextCurrentClass",
+        "value":  "ui-theme-switcher__label-text--current",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "IconCircleClass",
+        "value":  "ui-icon--circle"
+    },
+    {
+        "constant":  "BadgeColoredClass",
+        "value":  "ui-badge--colored"
+    },
+    {
+        "constant":  "ExpanderQuietClass",
+        "value":  "ui-expander--quiet"
+    },
+    {
+        "constant":  "TextMaxLinesClass",
+        "value":  "ui-text--max-lines"
+    },
+    {
+        "constant":  "TextAreaGrowClass",
+        "value":  "ui-text-area--grow"
+    },
+    {
+        "constant":  "StringsAttribute",
+        "value":  "data-ui-strings"
+    },
+    {
+        "constant":  "HydrationAttribute",
+        "value":  "data-ui-hydration"
+    },
+    {
+        "constant":  "NavigationAttribute",
+        "value":  "data-ui-navigation"
+    },
+    {
+        "constant":  "IconStandInClass",
+        "value":  "ui-icon-stand-in"
+    },
+    {
+        "constant":  "ClearAttribute",
+        "value":  "data-ui-clear"
+    },
+    {
+        "constant":  "ClearTargetAttribute",
+        "value":  "data-ui-clear-target"
+    },
+    {
+        "constant":  "CheckboxClass",
+        "value":  "ui-checkbox",
+        "plugin":  "checkboxClass"
+    },
+    {
+        "constant":  "SmallInputClass",
+        "value":  "ui-input--small",
+        "plugin":  "smallInputClass"
+    },
+    {
+        "constant":  "MenuItemValueClass",
+        "value":  "ui-menu-item__value",
+        "plugin":  "menuItemValueClass"
+    },
+    {
+        "constant":  "TextInputActionClass",
+        "value":  "ui-text-input__action",
+        "plugin":  "textInputActionClass"
+    },
+    {
+        "constant":  "BadgeDangerClass",
+        "value":  "ui-badge-variant--danger",
+        "plugin":  "badgeDangerClass"
+    },
+    {
+        "constant":  "BadgeWarningClass",
+        "value":  "ui-badge-variant--warning",
+        "plugin":  "badgeWarningClass"
+    },
+    {
+        "constant":  "BadgeSurfaceClass",
+        "value":  "ui-badge-variant--surface",
+        "plugin":  "badgeSurfaceClass"
+    }
+]

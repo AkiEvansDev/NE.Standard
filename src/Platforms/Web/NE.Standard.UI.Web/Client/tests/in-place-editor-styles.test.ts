@@ -26,10 +26,10 @@ function rule(selector: string): string {
 
 const Border = "var(--ui-border-width, 1px)";
 const Rows = ".ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .ui-select__trigger";
-const Appearances = ":is(.ui-input--filled, .ui-input--tonal, .ui-input--outline, .ui-input--ghost, .ui-input--underline)";
+const Appearances = ":is(.ui-input--filled, .ui-input--outline, .ui-input--ghost, .ui-input--underline)";
 
 test("every appearance and size publishes its text's inset, the start padding it draws and its border", () => {
-    assert.match(rule(":is(.ui-input--filled, .ui-input--tonal, .ui-input--outline)"), new RegExp(`--ui-field-inset: calc\\(0\\.75rem \\+ ${escape(Border)}\\);`));
+    assert.match(rule(":is(.ui-input--filled, .ui-input--outline)"), new RegExp(`--ui-field-inset: calc\\(0\\.75rem \\+ ${escape(Border)}\\);`));
     assert.match(rule(".ui-input--ghost"), new RegExp(`--ui-field-inset: calc\\(0\\.5rem \\+ ${escape(Border)}\\);`));
     assert.match(rule(`.ui-input--ghost > :is(${Rows})`), /padding-left: 0\.5rem;/);
     assert.match(rule(".ui-input--small"), new RegExp(`--ui-field-inset: calc\\(0\\.375rem \\+ ${escape(Border)}\\);`));
@@ -68,7 +68,7 @@ function escape(text: string): string {
 }
 
 test("a field's note stands where the field's words and message do: the field's inset, read off the field before it", () => {
-    assert.match(rule(":is(.ui-input--filled, .ui-input--tonal, .ui-input--outline) + .ui-paragraph--field-note"), new RegExp(`--ui-field-inset: calc\\(0\\.75rem \\+ ${escape(Border)}\\);`));
+    assert.match(rule(":is(.ui-input--filled, .ui-input--outline) + .ui-paragraph--field-note"), new RegExp(`--ui-field-inset: calc\\(0\\.75rem \\+ ${escape(Border)}\\);`));
     assert.match(rule(".ui-input--underline + .ui-paragraph--field-note"), /--ui-field-inset: 0px;/);
     assert.match(rule(".ui-paragraph--field-note > .ui-text__body"), /padding-inline: var\(--ui-field-inset, 0px\) var\(--ui-field-note-end, var\(--ui-field-inset, 0px\)\);/);
 });

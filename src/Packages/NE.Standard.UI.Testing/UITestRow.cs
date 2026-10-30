@@ -28,7 +28,7 @@ public sealed class UITestRow
     public string Key => _entry.Key;
 
     /// <summary>Gets the item the server sent for the row.</summary>
-    /// <remarks>The server's own object: a property it changed since shows here before a <c>Batch</c> runtime's flush sends it.</remarks>
+    /// <remarks>The server's own object: a property it changed since shows here before the flush sends it.</remarks>
     public object? Item => _entry.Item;
 
     /// <summary>Gets the component the row's template drew it with: the variant its item names, a composite's row, else the list's template.</summary>

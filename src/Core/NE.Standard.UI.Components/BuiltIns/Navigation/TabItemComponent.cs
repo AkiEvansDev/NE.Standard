@@ -16,7 +16,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// </summary>
 /// <remarks>Not a <see cref="Actions.ButtonComponent{T}"/>: the caption carries a close button, and a button inside a button is invalid markup.</remarks>
 [UIComponentPropertyBlock(typeof(IItemAbilitiesComponent))]
-public abstract partial class TabItemComponent<T> : RegionContainerComponentBase<T>, ITabItemComponent, IItemAbilitiesComponent
+[UIComponentPropertyBlock(typeof(IRenamableComponent))]
+public abstract partial class TabItemComponent<T> : RegionContainerComponentBase<T>, ITabItemComponent, IItemAbilitiesComponent, IRenamableComponent
     where T : TabItemComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -28,15 +29,6 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     /// Gets the page this tab opens.
     /// </summary>
     public virtual IVisualComponent? Page => GetRegionOrDefault(RegionNames.Content);
-
-    /// <summary>
-    /// Gets or sets the caption as a rename wrote it back; the caption region itself draws the title.
-    /// </summary>
-    [UIComponentProperty(
-        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
-        DefaultBindingMode = UIBindingMode.TwoWay,
-        DefaultValue = null)]
-    public string? RenamedTitle { get; set; }
 
     /// <summary>
     /// Gets or sets where this tab sits in the strip, ascending.

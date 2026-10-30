@@ -51,7 +51,7 @@ function listed(element: FakeElement): FakeElement {
 installFakeDom({ NodeFilter: { SHOW_ELEMENT: 1 } });
 Object.assign(fakeDocument, { createTreeWalker });
 
-const { setLogLevel } = await import("../src/runtime/logger.ts");
+const { setLogLevel } = await import("../src/metadata/logger.ts");
 const { ConverterRegistry } = await import("../src/extensions/converters.ts");
 const { DomOperationRegistry } = await import("../src/updates/dom-operation-registry.ts");
 const { ItemsTemplateRenderer } = await import("../src/items/items-template-renderer.ts");

@@ -26,22 +26,22 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/navigation/tabs-view";
     protected override string Header => "demo.navigation.tabs-view.header";
     protected override string HeaderDescription => "demo.navigation.tabs-view.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/files", "demo.nav.screens.files");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/files", "demo.nav.screens.files");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TabsViewComponent()
             .BindStandard()
-            .BindSelectedKey($"{TabsViewGroup}.{nameof(TabsViewGroupContext.SelectedKey)}")
-            .BindRenamable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Renamable)}")
-            .BindDraggable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Draggable)}")
-            .BindTabMenuEntries($"{TabsViewGroup}.{nameof(TabsViewGroupContext.TabMenuEntries)}")
-            .BindRemovable($"{TabsViewGroup}.{nameof(TabsViewGroupContext.Removable)}")
-            .BindShowOverflow($"{TabsViewGroup}.{nameof(TabsViewGroupContext.ShowOverflow)}")
-            .BindItems(nameof(TabsViewController.Documents))
+            .BindSelectedKey<TabsViewController>(static x => x.TabsViewGroup.SelectedKey)
+            .BindRenamable<TabsViewController>(static x => x.TabsViewGroup.Renamable)
+            .BindDraggable<TabsViewController>(static x => x.TabsViewGroup.Draggable)
+            .BindTabMenuEntries<TabsViewController>(static x => x.TabsViewGroup.TabMenuEntries)
+            .BindRemovable<TabsViewController>(static x => x.TabsViewGroup.Removable)
+            .BindShowOverflow<TabsViewController>(static x => x.TabsViewGroup.ShowOverflow)
+            .BindItems<TabsViewController>(static x => x.Documents)
             .OnItemRemoveWithItemKey(nameof(TabsViewController.RemoveDocument))
             // The page is a template over the item, bound to whichever document the tab stands for.
             .SetPageTemplate(new ParagraphComponent()
-                .BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative)
+                .BindDescription<DemoDocumentItem>(static x => x.Body, UIBindingScope.Relative)
                 .SetDescriptionType(UITextAppearance.Body)
                 .SetMargin(UIThickness.All(0, 4, 0, 0))
             )
@@ -70,7 +70,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
             CreateDocument("status", DemoIcons.Alert, "Status", 3, "status.orvane.example", "All systems operational. Last incident 12 days ago.")
         ];
 
-        return DemoUI.CreateExample("A browser",
+        return DemoUI.CreateExample("Dynamic closable & reorderable tabs",
             new SurfaceComponent()
                 .SetWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsViewComponent()
@@ -79,12 +79,12 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
                         .SetMargin(UIThickness.All(0, 4, 0, 0))
                         .AddChild(new TextComponent()
                             .SetIcon(DemoIcons.Outline(DemoIcons.Lock))
-                            .BindTitle(nameof(DemoDocumentItem.Address), UIBindingScope.Relative)
+                            .BindTitle<DemoDocumentItem>(static x => x.Address, UIBindingScope.Relative)
                             .SetTitleType(UITextAppearance.Caption)
                             .SetTitleColor(UIThemeColor.Muted)
                         )
                         .AddChild(new ParagraphComponent()
-                            .BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative)
+                            .BindDescription<DemoDocumentItem>(static x => x.Body, UIBindingScope.Relative)
                             .SetDescriptionType(UITextAppearance.Body)
                         )
                     )
@@ -129,13 +129,13 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
                     .SetIcon(DemoIcons.Alert)
                     .SetTitle("INC-4812 · Elevated errors in eu-west")
                     .SetDescription("Resolved · 39 minutes")
-                    .SetBadgeText("Sev 2")
-                    .SetBadgeStyle(UIBadgeType.Warning)
+                    .SetBadgeTitle("Sev 2")
+                    .SetBadgeVariant(UIBadgeVariant.Warning)
                 )
                 .SetContent(new TabsViewComponent()
                     .SetItems(sections)
                     .SetPageTemplate(new ParagraphComponent()
-                        .BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative)
+                        .BindDescription<DemoDocumentItem>(static x => x.Body, UIBindingScope.Relative)
                         .SetDescriptionType(UITextAppearance.Body)
                         .SetMargin(UIThickness.All(0, 4, 0, 0))
                     )
@@ -148,10 +148,10 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateEmptyGroup()
     {
-        return DemoUI.CreateExample("Starts empty",
+        return DemoUI.CreateExample("Empty state with add button",
             new SurfaceComponent()
                 .SetContent(new TabsViewComponent()
-                    .BindItems(nameof(EmptyStripGroupContext.Documents), UIBindingScope.Relative)
+                    .BindItems<EmptyStripGroupContext>(static x => x.Documents, UIBindingScope.Relative)
                     .ConfigureDefaultEmptyTemplate(template => _ = template
                         .SetIcon(DemoIcons.Outline(DemoIcons.File))
                         .SetTitle("No documents open")
@@ -159,7 +159,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
-                    .SetPageTemplate(new ParagraphComponent().BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative))
+                    .SetPageTemplate(new ParagraphComponent().BindDescription<DemoDocumentItem>(static x => x.Body, UIBindingScope.Relative))
                 ),
             columns: 24,
             note: "With no tabs there is no strip either: the empty template is the whole control, and the first tab added brings the strip with it.",
@@ -178,10 +178,10 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateGroup(DriveGroup, "The controller drives the strip",
             content => content.AddChild(new TabsViewComponent()
-                .BindItems(nameof(DriveGroupContext.Steps), UIBindingScope.Relative)
-                .BindSelectedKey(nameof(DriveGroupContext.SelectedKey), UIBindingScope.Relative)
+                .BindItems<DriveGroupContext>(static x => x.Steps, UIBindingScope.Relative)
+                .BindSelectedKey<DriveGroupContext>(static x => x.SelectedKey, UIBindingScope.Relative)
                 .SetPageTemplate(new ParagraphComponent()
-                    .BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative)
+                    .BindDescription<DemoDocumentItem>(static x => x.Body, UIBindingScope.Relative)
                     .SetDescriptionType(UITextAppearance.Body)
                     .SetMargin(UIThickness.All(0, 4, 0, 0))
                 )

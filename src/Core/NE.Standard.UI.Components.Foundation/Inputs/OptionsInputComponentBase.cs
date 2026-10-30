@@ -1,6 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Binding;
@@ -52,6 +53,12 @@ public abstract partial class OptionsInputComponentBase<TComponent, TItem, TValu
     /// </summary>
     public TComponent BindOptions(RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
         => BindItems(path, scope, mode);
+
+    /// <summary>
+    /// Binds the list of options to a property at the given typed path expression.
+    /// </summary>
+    public TComponent BindOptions<TSource>(Expression<Func<TSource, object?>> path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
+        => BindItems(RecursivePath.FromExpression(path), scope, mode);
 }
 
 /// <summary>

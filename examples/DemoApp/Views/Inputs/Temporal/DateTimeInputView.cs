@@ -41,25 +41,26 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
     private static DateTimeInputComponent Bind(DateTimeInputComponent input)
         => input
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(DateTimeValueGroupContext.Value)}")
-            .BindMin($"{ValueGroup}.{nameof(DateTimeValueGroupContext.Min)}")
-            .BindMax($"{ValueGroup}.{nameof(DateTimeValueGroupContext.Max)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(DateTimeValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(DateTimeValueGroupContext.Size)}")
-            .BindDisplayFormat($"{FieldGroup}.{nameof(TemporalFieldGroupContext.DisplayFormat)}")
-            .BindAppearance($"{FieldGroup}.{nameof(TemporalFieldGroupContext.Appearance)}")
-            .BindPrefixIcon($"{FieldGroup}.{nameof(TemporalFieldGroupContext.PrefixIcon)}")
-            .BindSuffixIcon($"{FieldGroup}.{nameof(TemporalFieldGroupContext.SuffixIcon)}")
+            .BindValue<DateTimeInputController>(static x => x.ValueGroup.Value)
+            .BindMin<DateTimeInputController>(static x => x.ValueGroup.Min)
+            .BindMax<DateTimeInputController>(static x => x.ValueGroup.Max)
+            .BindIsReadOnly<DateTimeInputController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<DateTimeInputController>(static x => x.ValueGroup.Size)
+            .BindDisplayFormat<DateTimeInputController>(static x => x.FieldGroup.DisplayFormat)
+            .BindAppearance<DateTimeInputController>(static x => x.FieldGroup.Appearance)
+            .BindPrefixIcon<DateTimeInputController>(static x => x.FieldGroup.PrefixIcon)
+            .BindSuffixIcon<DateTimeInputController>(static x => x.FieldGroup.SuffixIcon)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
-            .BindEndValue($"{ValueGroup}.{nameof(DateTimeValueGroupContext.EndValue)}")
+            .BindEndValue<DateTimeInputController>(static x => x.ValueGroup.EndValue)
+            .BindMinDistance<DateTimeInputController>(static x => x.ValueGroup.MinDistance)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value", note: "EndValue and MinDistance are the period's: an end nearer the other than the distance is not on offer."),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
             DemoUI.CreateOptionSection(ContentGroup, "Content"),
             DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
@@ -75,7 +76,7 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateExample("Where it is used",
+        return DemoUI.CreateExample("Timestamp & date-time range",
             UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
@@ -92,8 +93,8 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
                     .SetValue(WindowOpens)
                     .SetEndValue(WindowCloses)
                     .SetStepMinutes(30)
-                    .SetBadgeText("UTC")
-                    .SetBadgeStyle(UIBadgeType.Info)
+                    .SetBadgeTitle("UTC")
+                    .SetBadgeVariant(UIBadgeVariant.Info)
                 )
                 .AddChild(new DateTimeInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
@@ -111,7 +112,7 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
-        return DemoUI.CreateExample("How it is written down",
+        return DemoUI.CreateExample("Display formats",
             UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
                     .SetTitle("Unset — yyyy-MM-dd HH:mm")
@@ -140,7 +141,7 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateExample("Bounds, and the calendar it opens",
+        return DemoUI.CreateExample("Min/max bounds & week start",
             UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
                     .SetTitle("Inside the maintenance window")
@@ -167,7 +168,7 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstNarrowerGroup()
     {
-        return DemoUI.CreateExample("Against a date and a time",
+        return DemoUI.CreateExample("Combined vs separate date and time fields",
             UILayout.Stack(16)
                 .AddChild(new DateTimeInputComponent()
                     .SetTitle("One field")

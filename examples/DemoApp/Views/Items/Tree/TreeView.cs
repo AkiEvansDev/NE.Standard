@@ -24,7 +24,6 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     private const string FilesGroup = nameof(TreeController.FilesGroup);
     private const string LazyGroup = nameof(TreeController.LazyGroup);
     private const string TransferGroup = nameof(TreeController.TransferGroup);
-    private const string SettingsGroup = nameof(TreeController.SettingsGroup);
     private const string NotesGroup = nameof(TreeController.NotesGroup);
 
     public static string ViewKey => "demo.items.tree";
@@ -32,25 +31,25 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/items/tree";
     protected override string Header => "demo.items.tree.header";
     protected override string HeaderDescription => "demo.items.tree.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/files", "demo.nav.screens.files");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/files", "demo.nav.screens.files");
 
     // The tree is named, so the fold a viewer chooses is kept in the browser between visits.
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TreeComponent("bucket-objects")
-            .BindItems($"{NodesGroup}.{nameof(TreeNodesGroupContext.Items)}")
+            .BindItems<TreeController>(static x => x.NodesGroup.Items)
             .BindStandard()
-            .BindSurface($"{TreeGroup}.{nameof(TreeGroupContext.Surface)}")
-            .BindIndent($"{TreeGroup}.{nameof(TreeGroupContext.Indent)}")
-            .BindRenamable($"{TreeGroup}.{nameof(TreeGroupContext.Renamable)}")
-            .BindRenameOnDoubleClick($"{TreeGroup}.{nameof(TreeGroupContext.RenameOnDoubleClick)}")
-            .BindRemovable($"{TreeGroup}.{nameof(TreeGroupContext.Removable)}")
-            .BindShowFoldChevron($"{TreeGroup}.{nameof(TreeGroupContext.ShowFoldChevron)}")
-            .BindRowHoverable($"{TreeGroup}.{nameof(TreeGroupContext.RowHoverable)}")
-            .BindVerticalScroll($"{TreeGroup}.{nameof(TreeGroupContext.VerticalScroll)}")
-            .BindSelectionMode($"{TreeGroup}.{nameof(TreeGroupContext.SelectionMode)}")
-            .BindSelectedKey($"{TreeGroup}.{nameof(TreeGroupContext.SelectedKey)}")
-            .BindSelectedKeys($"{TreeGroup}.{nameof(TreeGroupContext.SelectedKeys)}")
-            .BindSelectionStyle($"{TreeGroup}.{nameof(TreeGroupContext.SelectionStyle)}")
+            .BindSurface<TreeController>(static x => x.TreeGroup.Surface)
+            .BindIndent<TreeController>(static x => x.TreeGroup.Indent)
+            .BindRenamable<TreeController>(static x => x.TreeGroup.Renamable)
+            .BindRenameOnDoubleClick<TreeController>(static x => x.TreeGroup.RenameOnDoubleClick)
+            .BindRemovable<TreeController>(static x => x.TreeGroup.Removable)
+            .BindShowChevron<TreeController>(static x => x.TreeGroup.ShowChevron)
+            .BindRowHoverable<TreeController>(static x => x.TreeGroup.RowHoverable)
+            .BindVerticalScroll<TreeController>(static x => x.TreeGroup.VerticalScroll)
+            .BindSelectionMode<TreeController>(static x => x.TreeGroup.SelectionMode)
+            .BindSelectedKey<TreeController>(static x => x.TreeGroup.SelectedKey)
+            .BindSelectedKeys<TreeController>(static x => x.TreeGroup.SelectedKeys)
+            .BindSelectionStyle<TreeController>(static x => x.TreeGroup.SelectionStyle)
             .BindBorder(BorderGroup)
             .SetMaxHeight(UILayoutLength.Absolute(260))
             .SetPlacement(1, 1, 24, 1)
@@ -75,16 +74,16 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFilesGroup()
     {
-        return DemoUI.CreateExample("A bucket's objects",
+        return DemoUI.CreateExample("Hierarchical object browser",
             UILayout.Stack(0)
                 .AddChild(new TextInputComponent(FilesFilterId)
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetSearch("Filter objects")
                     .SetDebounceMilliseconds(150)
                     .SetMargin(UIThickness.All(0, 0, 0, 8))
                 )
                 .AddChild(new TreeComponent(TreeController.FilesTreeId)
-                    .BindItems($"{FilesGroup}.{nameof(TreeFilesGroupContext.Items)}")
+                    .BindItems<TreeController>(static x => x.FilesGroup.Items)
                     // A node stays while it or something under it matches, and its folders stand open for as long as the box holds a word.
                     .FilterBy(FilesFilterId, IInputComponent.ValueProperty, nameof(TreeNode.Title))
                     // One order for every folder's children: folders first, then by name — the same whatever a drag or a rename did.
@@ -119,15 +118,15 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                             .OnItemClick(nameof(TreeController.NodeAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TreeNode.Id)))
                         )
                     )
-                    .OnNodeOpenWithItemKey(nameof(TreeController.OpenNode))
-                    .OnNodeRenameWithItemKey(nameof(TreeController.RenameNode))
-                    .OnNodeMoveWithItemKey(nameof(TreeController.MoveNode))
-                    .OnNodeRemoveWithItemKey(nameof(TreeController.DeleteNode))
+                    .OnItemOpenWithItemKey(nameof(TreeController.OpenNode))
+                    .OnItemRenameWithItemKey(nameof(TreeController.RenameNode))
+                    .OnItemMoveWithItemKey(nameof(TreeController.MoveNode))
+                    .OnItemRemoveWithItemKey(nameof(TreeController.DeleteNode))
                 )
                 .AddChild(new TextAreaComponent()
                     .SetTitle("Attachments")
                     .SetPlaceholder("Drag objects here to attach them")
-                    .BindValue($"{FilesGroup}.{nameof(TreeFilesGroupContext.Attachments)}")
+                    .BindValue<TreeController>(static x => x.FilesGroup.Attachments)
                     .OnDrop(TreeFilesGroupContext.ObjectKind, nameof(TreeController.AttachObjects))
                     .SetMargin(UIThickness.All(0, 12, 0, 0))
                 ),
@@ -144,12 +143,12 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateTransferGroup()
     {
-        return DemoUI.CreateExample("Between trees and a list",
+        return DemoUI.CreateExample("Cross-tree & list drag and drop",
             UILayout.Columns(24,
                 DemoUI.CreateLabelled("eu-west", CreateTransferTree(TreeTransferGroupContext.EuWest, nameof(TreeTransferGroupContext.EuWestNodes))),
                 DemoUI.CreateLabelled("us-east", CreateTransferTree(TreeTransferGroupContext.UsEast, nameof(TreeTransferGroupContext.UsEastNodes))),
                 DemoUI.CreateLabelled("To review", new ItemsViewComponent(TreeTransferGroupContext.Review)
-                    .BindItems(nameof(TreeTransferGroupContext.ReviewFiles), UIBindingScope.Relative)
+                    .BindItems<TreeTransferGroupContext>(static x => x.ReviewFiles, UIBindingScope.Relative)
                     .SetDragKind(TreeTransferGroupContext.DragKind)
                     .SetDraggable(true)
                     .SetSelectionMode(UISelectionMode.Many)
@@ -158,11 +157,11 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                     .SetSpacing(4)
                     .SetMinHeight(UILayoutLength.Absolute(160))
                     .SetTemplate(new TextComponent()
-                        .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                        .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
                         .SetIconColor(UIThemeColor.Muted)
-                        .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                        .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                         .AsBody()
-                        .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                        .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                 )
@@ -182,7 +181,7 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
             .SetSelectionMode(UISelectionMode.Many)
             .SetDraggable(true)
             .SetDragKind(TreeTransferGroupContext.DragKind)
-            .OnNodeMove(nameof(TreeController.MoveTransferNode), UIAction.Arg("tree", id), UIAction.ArgCurrentItemKey("id"), UIAction.ArgEventValue("index"))
+            .OnItemMove(nameof(TreeController.MoveTransferNode), UIAction.Arg("tree", id), UIAction.ArgCurrentItemKey("id"), UIAction.ArgEventValue("index"))
             .OnDrop(TreeTransferGroupContext.DragKind, nameof(TreeController.DropIntoTree), UIAction.Arg("tree", id))
             .SetMinHeight(UILayoutLength.Absolute(160));
 
@@ -193,12 +192,12 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateNotesGroup()
     {
-        return DemoUI.CreateExample("Opened on a press",
+        return DemoUI.CreateExample("Single-click expand & command",
             UILayout.Columns(16,
                 new TreeComponent()
-                    .BindItems($"{NotesGroup}.{nameof(TreeNotesGroupContext.Items)}")
+                    .BindItems<TreeController>(static x => x.NotesGroup.Items)
                     .SetSelectionMode(UISelectionMode.One)
-                    .BindSelectedKey($"{NotesGroup}.{nameof(TreeNotesGroupContext.SelectedKey)}")
+                    .BindSelectedKey<TreeController>(static x => x.NotesGroup.SelectedKey)
                     .ConfigureDefaultEmptyTemplate(empty => empty
                         .SetIcon(DemoIcons.Outline(DemoIcons.FileText))
                         .SetTitle("No notes")
@@ -206,12 +205,12 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
                         .SetWrapMode(UITextWrapMode.Wrap)
                     )
                     .SetDraggable(true)
-                    .OnNodeClickWithItemKey(nameof(TreeController.OpenNote))
-                    .OnNodeMoveWithItemKey(nameof(TreeController.MoveNote)),
+                    .OnItemClickWithItemKey(nameof(TreeController.OpenNote))
+                    .OnItemMoveWithItemKey(nameof(TreeController.MoveNote)),
                 new TextComponent()
-                    .BindTitle($"{NotesGroup}.{nameof(TreeNotesGroupContext.OpenTitle)}")
+                    .BindTitle<TreeController>(static x => x.NotesGroup.OpenTitle)
                     .AsBody()
-                    .BindDescription($"{NotesGroup}.{nameof(TreeNotesGroupContext.OpenText)}")
+                    .BindDescription<TreeController>(static x => x.NotesGroup.OpenText)
                     .SetDescriptionColor(UIThemeColor.Muted)
                     .SetWrapMode(UITextWrapMode.Wrap)
             ),
@@ -237,13 +236,12 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Settings as a tree",
             UILayout.Stack(0)
                 .AddChild(new TreeComponent()
-                    .BindItems($"{SettingsGroup}.{nameof(TreeSettingsGroupContext.Items)}")
+                    .BindItems<TreeController>(static x => x.SettingsGroup.Items)
                     .SetSelectionMode(UISelectionMode.One)
-                    .BindSelectedKey($"{SettingsGroup}.{nameof(TreeSettingsGroupContext.SelectedKey)}")
-                    .SetSelectionStyle(UISelectionStyle.Marked(UISelectionMark.Left))
+                    .BindSelectedKey<TreeController>(static x => x.SettingsGroup.SelectedKey)
                 )
                 .AddChild(UIText.Label("Chosen")
-                    .BindDescription($"{SettingsGroup}.{nameof(TreeSettingsGroupContext.SelectedKey)}")
+                    .BindDescription<TreeController>(static x => x.SettingsGroup.SelectedKey)
                     .SetMargin(UIThickness.All(0, 8, 0, 0))
                 )
         );
@@ -254,10 +252,10 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLazyGroup()
     {
-        return DemoUI.CreateExample("Filled in as it opens",
+        return DemoUI.CreateExample("Lazy child loading on expand",
             new TreeComponent()
-                .BindItems($"{LazyGroup}.{nameof(TreeLazyGroupContext.Items)}")
-                .OnNodeUnfoldWithItemKey(nameof(TreeController.LoadChildren)),
+                .BindItems<TreeController>(static x => x.LazyGroup.Items)
+                .OnItemUnfoldWithItemKey(nameof(TreeController.LoadChildren)),
             note: "Every folder here starts empty and claims children; the first unfold asks the controller, which adds them, and the next folder down does the same.",
             context: LazyGroup
         );

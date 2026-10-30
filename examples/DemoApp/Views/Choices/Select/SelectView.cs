@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Choices.Select;
-using DemoApp.Controllers.Inputs;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Components.Foundation;
 
@@ -26,21 +25,21 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/choices/select";
     protected override string Header => "demo.choices.select.header";
     protected override string HeaderDescription => "demo.choices.select.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new SelectComponent()
             .BindStandard()
-            .BindItems($"{OptionsGroup}.{nameof(OptionListGroupContext.Options)}")
-            .BindValue($"{ValueGroup}.{nameof(OptionValueGroupContext.Value)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(OptionValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(OptionValueGroupContext.Size)}")
-            .BindAppearance($"{FieldGroup}.{nameof(SelectFieldGroupContext.Appearance)}")
-            .BindPlaceholder($"{FieldGroup}.{nameof(SelectFieldGroupContext.Placeholder)}")
-            .BindPrefixIcon($"{FieldGroup}.{nameof(SelectFieldGroupContext.PrefixIcon)}")
-            .BindSuffixIcon($"{FieldGroup}.{nameof(SelectFieldGroupContext.SuffixIcon)}")
-            .BindShowClearButton($"{FieldGroup}.{nameof(SelectFieldGroupContext.ShowClearButton)}")
-            .BindShowChevron($"{FieldGroup}.{nameof(SelectFieldGroupContext.ShowChevron)}")
+            .BindItems<SelectController>(static x => x.OptionsGroup.Options)
+            .BindValue<SelectController>(static x => x.ValueGroup.Value)
+            .BindIsReadOnly<SelectController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<SelectController>(static x => x.ValueGroup.Size)
+            .BindAppearance<SelectController>(static x => x.FieldGroup.Appearance)
+            .BindPlaceholder<SelectController>(static x => x.FieldGroup.Placeholder)
+            .BindPrefixIcon<SelectController>(static x => x.FieldGroup.PrefixIcon)
+            .BindSuffixIcon<SelectController>(static x => x.FieldGroup.SuffixIcon)
+            .BindShowClearButton<SelectController>(static x => x.FieldGroup.ShowClearButton)
+            .BindShowChevron<SelectController>(static x => x.FieldGroup.ShowChevron)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
@@ -67,7 +66,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
             new UIDialog
             {
                 Key = SelectController.RosterKey,
-                Label = "Roster",
+                AccessibleName = "Roster",
                 Width = UILayoutLength.Absolute(820),
                 // A dialog is a sample as a whole, its copy shown as written: content for the unkeyed report.
                 Content = UILayout.Stack(16)
@@ -80,7 +79,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                     .AddChild(CreateRosterRow("robin", "platform", 32, true))
                     .AddChild(CreateRosterRow("sam", "billing", 16, false))
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Primary)
+                        .SetVariant(UIButtonVariant.Primary)
                         .SetTitle("Done")
                         .SetHorizontalAlignment(UIAlignment.End)
                         .OnClick(nameof(SelectController.CloseRoster))
@@ -122,7 +121,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     /// <summary>The ordinary case: a name per option, headed by the group each belongs to.</summary>
     private static ContainerComponent CreatePlainGroup()
     {
-        return DemoUI.CreateExample("A list of names",
+        return DemoUI.CreateExample("Grouped options & clear button",
             UILayout.Stack(12)
                 .AddChild(new SelectComponent()
                     .SetTitle("Region")
@@ -145,11 +144,11 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateNarrowGroup()
     {
-        return DemoUI.CreateExample("Four fields to a row",
+        return DemoUI.CreateExample("Compact multi-column form row",
             UILayout.Stack(12)
                 .AddChild(CreateRosterRow("alex", "platform", 40, true))
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("Open the roster card")
                     .InteractOn(EventNames.Click, new OpenDialogEffect(SelectController.RosterKey))
@@ -164,7 +163,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreatePlacementGroup()
     {
-        return DemoUI.CreateExample("Where the list opens",
+        return DemoUI.CreateExample("Popup placement",
             UILayout.Stack(12)
                 .AddChild(new SelectComponent()
                     .SetTitle("From the end edge")
@@ -176,7 +175,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                 )
                 .AddChild(new SelectComponent()
                     .SetTitle("Small, above")
-                    .SetSize(UIInputSize.Small)
+                    .SetSize(UISize.Small)
                     .SetPopupPlacement(UIPopupPlacement.TopStart)
                     .SetOptions(RegionOptions())
                     .SetValue("eu-west")
@@ -192,7 +191,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     /// <remarks>A literal in the template wins wherever the item says nothing; a template of your own starts from a bare <c>TextComponent</c>.</remarks>
     private static ContainerComponent CreateRichGroup()
     {
-        return DemoUI.CreateExample("An option with more than a name",
+        return DemoUI.CreateExample("Rich options & custom item template",
             UILayout.Stack(16)
                 .AddChild(DemoUI.CreateLabelled("The default row — glyph, second line and badge", new SelectComponent()
                     .SetTitle("Target environment")
@@ -209,7 +208,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                     .SetPlaceholder("Pick an environment")
                     .SetTemplate(new TextComponent()
                         .BindText()
-                        .SetIconSize(UIIconSize.Large)
+                        .SetIconSize(UISize.Large)
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Accent))
                         .SetTitleType(UITextAppearance.Body)
                         .SetDescriptionType(UITextAppearance.Caption)

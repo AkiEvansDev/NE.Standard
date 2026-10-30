@@ -1,7 +1,7 @@
 // The action bar read back from the compiled stylesheet: a floating layer placed as a popup is, above the item it was chosen over and
 // never clipped by a box around it, under the popups, its icons wrapping rather than running past the window; atop a menu it is a
-// row of the menu's. Its buttons wear the keyboard's frame and a glyph on whole pixels. A menu's owner, where a long press opens the
-// menu, shows no callout and on a screen with no hover starts no selection.
+// row of the menu's. Its buttons wear the hover wash on keyboard focus and a glyph on whole pixels. A menu's owner, where a long press
+// opens the menu, shows no callout and on a screen with no hover starts no selection.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -88,15 +88,15 @@ function nestedRule(selector: string): string {
 const IconButton = ".ui-action-bar:not(.ui-action-bar--strip) > .ui-action-bar__button:is(.ui-action-bar__button--icon, .ui-action-bar__more)";
 const KeyboardFocus = ":focus-visible:not([data-ui-pointer-focus])";
 
-test("every button of a bar wears the keyboard's frame where the keyboard stands, never after a pointer, whatever the theme's ring", () => {
+test("every button of a bar wears the hover wash where the keyboard stands, never after a pointer", () => {
     for (const selector of [
         `${IconButton}${KeyboardFocus}`,
-        `.ui-action-bar--strip > .ui-action-bar__button${KeyboardFocus},\n  .ui-action-bar > .ui-action-bar__button:not(.ui-action-bar__button--icon, .ui-action-bar__more)${KeyboardFocus}`
+        `.ui-action-bar--strip > .ui-action-bar__button${KeyboardFocus},\n.ui-action-bar > .ui-action-bar__button:not(.ui-action-bar__button--icon, .ui-action-bar__more)${KeyboardFocus}`
     ]) {
         const frame = nestedRule(selector);
 
-        assert.match(frame, /outline: 2px solid var\(--ui-mark-keyboard\);/);
-        assert.match(frame, /outline-offset: -2px;/);
+        assert.match(frame, /background-color: var\(--ui-wash-hover\);/);
+        assert.match(frame, /outline: none;/);
     }
 });
 

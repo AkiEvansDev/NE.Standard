@@ -1,6 +1,6 @@
 using System;
 using System.Globalization;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -22,14 +22,14 @@ public sealed class FileTileComponentRenderer : WebComponentRendererBase
     // Every tile registers these same lists, so they are built once rather than per tile.
     private static readonly WebDomOperation[] NameOperations =
     [
-        WebDomOperation.Attribute(WebAttributes.FileTileName),
-        WebDomOperation.Attribute("title"),
+        WebDomOperation.Attribute(WebAttributes.FileTileName, converter: WebDomConverters.NonEmptyText),
+        WebDomOperation.Attribute("title", converter: WebDomConverters.NonEmptyText),
         WebDomOperation.Text(target: $".{WebClassNames.FileTileName}")
     ];
 
-    private static readonly WebDomOperation[] ContentTypeOperations = [WebDomOperation.Attribute(WebAttributes.FileTileType)];
-    private static readonly WebDomOperation[] FileSizeOperations = [WebDomOperation.Attribute(WebAttributes.FileTileSize)];
-    private static readonly WebDomOperation[] IconOperations = [WebDomOperation.Attribute(WebAttributes.FileTileIcon)];
+    private static readonly WebDomOperation[] ContentTypeOperations = [WebDomOperation.Attribute(WebAttributes.FileTileType, converter: WebDomConverters.NonEmptyText)];
+    private static readonly WebDomOperation[] FileSizeOperations = [WebDomOperation.Attribute(WebAttributes.FileTileSize, converter: WebDomConverters.NonNegativeCount)];
+    private static readonly WebDomOperation[] IconOperations = [WebDomOperation.Attribute(WebAttributes.FileTileIcon, converter: WebDomConverters.DrawnIcon)];
 
     public override string ComponentTypeKey => FileTileComponent.ComponentTypeKey;
 

@@ -16,7 +16,7 @@ public sealed class CardComponentRenderer : SurfaceRendererBase
 {
     public override string ComponentTypeKey => CardComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-card";
+    protected override string ClassName => WebClassNames.Card;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {

@@ -13,7 +13,7 @@ namespace NE.Standard.UI.Authoring.Components;
 public static class UIFieldBoxes
 {
     /// <summary>The size of the box <paramref name="component"/>'s caption row stands over at <paramref name="tier"/>, or null where it draws none.</summary>
-    public static UIInputSize? CaptionRowBox(IVisualComponent component, UIResponsiveTier tier)
+    public static UISize? CaptionRowBox(IVisualComponent component, UIResponsiveTier tier)
     {
         ArgumentNullException.ThrowIfNull(component);
 
@@ -33,13 +33,13 @@ public static class UIFieldBoxes
     }
 
     /// <summary>The box of the first of <paramref name="children"/> that draws a caption row at <paramref name="tier"/>, or null where none does.</summary>
-    public static UIInputSize? FirstCaptionRowBox(IReadOnlyList<IVisualComponent> children, UIResponsiveTier tier)
+    public static UISize? FirstCaptionRowBox(IReadOnlyList<IVisualComponent> children, UIResponsiveTier tier)
     {
         ArgumentNullException.ThrowIfNull(children);
 
         for (var i = 0; i < children.Count; i++)
         {
-            if (CaptionRowBox(children[i], tier) is UIInputSize box)
+            if (CaptionRowBox(children[i], tier) is UISize box)
                 return box;
         }
 
@@ -54,11 +54,11 @@ public static class UIFieldBoxes
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        UIInputSize? size = null;
+        UISize? size = null;
 
         foreach (IVisualComponent item in items)
         {
-            if (CaptionRowBox(item, tier) is not UIInputSize own)
+            if (CaptionRowBox(item, tier) is not UISize own)
                 continue;
 
             // Fields that differ stand on the medium box.
@@ -71,8 +71,8 @@ public static class UIFieldBoxes
         return size switch
         {
             null => null,
-            UIInputSize.Small => UIFieldBoxAlignment.Small,
-            UIInputSize.Large => UIFieldBoxAlignment.Large,
+            UISize.Small => UIFieldBoxAlignment.Small,
+            UISize.Large => UIFieldBoxAlignment.Large,
             _ => UIFieldBoxAlignment.Medium
         };
     }

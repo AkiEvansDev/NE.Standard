@@ -3,6 +3,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -15,7 +16,7 @@ public sealed class CalendarComponentRenderer : TextContentRendererBase
 {
     public override string ComponentTypeKey => CalendarComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-calendar";
+    protected override string ClassName => WebClassNames.Calendar;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -34,6 +35,7 @@ public sealed class CalendarComponentRenderer : TextContentRendererBase
         TemporalCalendarRenderer.RenderBounds<DateOnly?>(context, root, CalendarComponent.MinProperty, CalendarComponent.MaxProperty, CanonicalDay);
         TemporalCalendarRenderer.RenderFirstDay(context, root);
         TemporalCalendarRenderer.RenderMarkedDays(context, root);
+        TemporalCalendarRenderer.RenderMinDistance(context, root);
 
         // The page's culture, followed at a language switch as a date input's is.
         _ = root.Attribute(WebAttributes.TemporalPageCulture);
@@ -44,10 +46,10 @@ public sealed class CalendarComponentRenderer : TextContentRendererBase
 
         _ = root.Element("div", body =>
         {
-            _ = body.Class("ui-calendar__body");
+            _ = body.Class(WebClassNames.CalendarBody);
             _ = body.Attribute("role", "group");
 
-            RenderFieldLabel(context, body);
+            RenderGroupLabel(context, body);
         });
 
         TemporalCalendarRenderer.RenderValueInput<DateOnly?>(context, root, IInputComponent.ValueProperty, end: false, CanonicalDay);

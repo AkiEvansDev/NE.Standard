@@ -29,6 +29,10 @@ internal static class WebContentEndpoint
 
     private static async Task<IResult> GetAsync(HttpContext http, string key, CancellationToken cancellationToken)
     {
+        // The session's own content, as an upload read back is: another site's page embedding it would read it with the reader's cookie.
+        if (WebRequestGuards.IsCrossSiteRequest(http))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+
         UserSessionState? session = await http.GetAuthorizedUISessionAsync(cancellationToken).ConfigureAwait(false);
 
         if (session is null)

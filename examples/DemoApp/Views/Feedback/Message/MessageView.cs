@@ -6,7 +6,7 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Feedback.Message;
 
 /// <summary>
-/// The inline message preset in each severity and every property that can be bound to it; then the messages a page keeps in its flow
+/// The inline message preset in each tone and every property that can be bound to it; then the messages a page keeps in its flow
 /// until they are no longer true, and the banner across this page's own top.
 /// </summary>
 /// <remarks>A preset, not a component: a Tinted surface holding a mark, the words, an action and a ×, which the browser hides.</remarks>
@@ -23,7 +23,7 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/feedback/message";
     protected override string Header => "demo.feedback.message.header";
     protected override string HeaderDescription => "demo.feedback.message.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/checkout", "demo.nav.screens.checkout");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/checkout", "demo.nav.screens.checkout");
 
     /// <summary>
     /// A banner across the content's top, over the page's own padded content, so it runs edge to edge at every width. Not in the
@@ -35,22 +35,22 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
             base.CreateContent()
         );
 
-    // The severity is the preset's choice, made once, so the preview draws all four, each bound to the same words.
+    // The tone is the preset's choice, made once, so the preview draws all four, each bound to the same words.
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(640,
-            ("Info", frame => frame.AddChild(Bind(UIMessageSeverity.Info))),
-            ("Success", frame => frame.AddChild(Bind(UIMessageSeverity.Success))),
-            ("Warning", frame => frame.AddChild(Bind(UIMessageSeverity.Warning))),
-            ("Danger", frame => frame.AddChild(Bind(UIMessageSeverity.Danger)))
+            ("Info", frame => frame.AddChild(Bind(UIColorStyle.Info))),
+            ("Success", frame => frame.AddChild(Bind(UIColorStyle.Success))),
+            ("Warning", frame => frame.AddChild(Bind(UIColorStyle.Warning))),
+            ("Danger", frame => frame.AddChild(Bind(UIColorStyle.Danger)))
         );
 
-    private static SurfaceComponent Bind(UIMessageSeverity severity)
+    private static SurfaceComponent Bind(UIColorStyle tone)
     {
         ButtonComponent action = UIButtons.Outline("Upgrade")
             .OnClick(nameof(MessageController.Upgrade))
-            .BindVisibility($"{MessageGroup}.{nameof(MessageGroupContext.ActionVisibility)}");
+            .BindVisibility<MessageController>(static x => x.MessageGroup.ActionVisibility);
 
-        return UIMessage.BoundCreate(severity, $"{MessageGroup}.{nameof(MessageGroupContext.Title)}", $"{MessageGroup}.{nameof(MessageGroupContext.Body)}", action: action, dismissible: true)
+        return UIMessage.BoundCreate(tone, $"{MessageGroup}.{nameof(MessageGroupContext.Title)}", $"{MessageGroup}.{nameof(MessageGroupContext.Body)}", action: action, dismissible: true)
             .BindStandard()
             .SetPlacement(1, 1, 24, 1);
     }
@@ -62,33 +62,21 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateSeverityGroup(), CreateDismissGroup()], [CreateActionGroup(), CreateLiveGroup(), CreateBannerGroup()]);
+        => DemoUI.CreateColumns([CreateToneGroup(), CreateDismissGroup()], [CreateActionGroup(), CreateLiveGroup(), CreateBannerGroup()]);
 
     /// <summary>
     /// The four, each the words it would really carry: a body alone where a title would only repeat it.
     /// </summary>
-    private static ContainerComponent CreateSeverityGroup()
+    private static ContainerComponent CreateToneGroup()
     {
-        return DemoUI.CreateExample("Each severity",
+        return DemoUI.CreateExample("Severities",
             UILayout.Stack(12,
                 UIMessage.Info(null, "Saved drafts are kept for 30 days, then deleted."),
                 UIMessage.Success("Payment received", "INV-2026-0412 is paid; the receipt went to billing@bramble.example."),
                 UIMessage.Warning("Certificate expires in 3 days", "bramble.example renews itself on Friday unless the DNS check fails again."),
                 UIMessage.Danger("2 errors in the form below", "The postcode and the VAT number were not accepted.")
             ),
-            note: "Info and Success are a status to a screen reader, read when it is free; Warning and Danger an alert, read at once. The mark is the framework's own glyph, drawn with no icon pack installed."
-        );
-    }
-
-    /// <summary>
-    /// A message with something to do about it: the button is the author's, with its own command.
-    /// </summary>
-    private static ContainerComponent CreateActionGroup()
-    {
-        return DemoUI.CreateExample("With an action",
-            UIMessage.Warning("Your trial ends in 3 days", "Billing starts on the 14th.", UIButtons.Outline("Upgrade").OnClick(nameof(MessageController.Upgrade))),
-            note: "The action stands at the message's bottom end, as a toast's does: beside the words from the medium breakpoint, under them on a phone.",
-            context: ActionGroup
+            note: "Info and Success announce as `status`; Warning and Danger announce immediately as `alert`. The leading glyph is built in with no icon pack required."
         );
     }
 
@@ -97,13 +85,25 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateDismissGroup()
     {
-        return DemoUI.CreateExample("Dismissible",
+        return DemoUI.CreateExample("Client-side dismiss",
             UILayout.Stack(12,
                 UIMessage.Info("Two-step sign-in is on", "Every new device asks for a code from your phone.", dismissible: true)
                     .InteractOn(ShowAgainId, EventNames.Click, IVisualComponent.VisibilityProperty, UIVisibility.Visible),
-                new ButtonComponent(ShowAgainId).SetType(UIButtonType.Ghost).SetTitle("Show it again").SetHorizontalAlignment(UIAlignment.Start)
+                new ButtonComponent(ShowAgainId).SetVariant(UIButtonVariant.Ghost).SetTitle("Show it again").SetHorizontalAlignment(UIAlignment.Start)
             ),
-            note: "Both presses stay in the page: the server never hears them, so a reload shows the message again. The × hands the keyboard's focus to the next control. A message the server should stop showing binds its Visibility instead."
+            note: "Dismissing hides the message client-side without a server round trip and moves focus to the next control. Bind `Visibility` when dismissal should persist across reloads."
+        );
+    }
+
+    /// <summary>
+    /// A message with something to do about it: the button is the author's, with its own command.
+    /// </summary>
+    private static ContainerComponent CreateActionGroup()
+    {
+        return DemoUI.CreateExample("Inline action",
+            UIMessage.Warning("Your trial ends in 3 days", "Billing starts on the 14th.", UIButtons.Outline("Upgrade").OnClick(nameof(MessageController.Upgrade))),
+            note: "The action button defaults to `UISize.Small` and shares one vertical centreline with the icon, text and dismiss button from the medium breakpoint up, moving under the text on narrow screens.",
+            context: ActionGroup
         );
     }
 
@@ -112,9 +112,9 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLiveGroup()
     {
-        return DemoUI.CreateExample("Words the server rewrites",
-            UIMessage.BoundCreate(UIMessageSeverity.Info, null, nameof(SyncGroupContext.SyncLine), UIBindingScope.Relative),
-            note: "Sync now: the line changes in place and, being a status, is read out when the reader is free.",
+        return DemoUI.CreateExample("Live status updates",
+            UIMessage.BoundCreate(UIColorStyle.Info, null, nameof(SyncGroupContext.SyncLine), UIBindingScope.Relative),
+            note: "Press Sync now: the bound status line updates in place and announces to assistive technology.",
             context: SyncGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
@@ -128,14 +128,14 @@ internal sealed class MessageView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBannerGroup()
     {
-        return DemoUI.CreateExample("Across the top of a page",
+        return DemoUI.CreateExample("Page banner (UIPage.Banner)",
             new SurfaceComponent()
                 .SetPadding(UIThickness.Uniform(0))
                 .SetContent(UILayout.Stack(0)
                     .AddChild(UIPage.Banner(UIMessage.Warning("Read-only until 18:00 UTC", "The database is moving to a larger server.", dismissible: true)))
                     .AddChild(UIText.Note("The page's content starts here, its edge where the banner's mark stands.").SetMargin(UIThickness.All(24, 16, 24, 16)))
                 ),
-            note: "UIPage.Banner lays a message across: square, a rule under it, its mark in line with the page's name. This page wears one over its content."
+            note: "`UIPage.Banner` renders a full-bleed square strip with a bottom rule, aligning its leading icon with the page header."
         );
     }
 }

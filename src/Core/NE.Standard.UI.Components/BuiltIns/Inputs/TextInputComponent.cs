@@ -16,13 +16,16 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A single-line text input for entering free-form text.
 /// </summary>
+[UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyBlock(typeof(IFieldInputComponent))]
+[UIComponentPropertyBlock(typeof(IAffixedInputComponent))]
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
 [UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextLengthComponent))]
 [UIComponentPropertyBlock(typeof(IClearableInputComponent))]
-public abstract partial class TextInputComponent<T>(string? id = null) : AffixedInputComponentBase<T, string?>(id), IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, IClearableInputComponent, ITextLengthComponent, ICaretFieldComponent
+public abstract partial class TextInputComponent<T>(string? id = null) : InputComponentBase<T, string?>(id), IBorderedComponent, IFieldInputComponent, IAffixedInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, IClearableInputComponent, ITextLengthComponent, ICaretFieldComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
     // UIStrings.SearchField: the Shell's key, written out, as the components reference no Shell.
@@ -215,12 +218,6 @@ public abstract partial class TextInputComponent<T>(string? id = null) : Affixed
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIInputMode? InputMode { get; set; }
-
-    /// <summary>
-    /// Enables trimming leading and trailing whitespace from the input.
-    /// </summary>
-    public T SetTrimInput()
-        => SetTrimInput(true);
 
     /// <summary>
     /// Makes the field a search box: the search type, the search glyph before the text, a clear button, and

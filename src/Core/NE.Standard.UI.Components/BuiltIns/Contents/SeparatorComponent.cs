@@ -8,7 +8,7 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Contents;
 
 /// <summary>
-/// A thin dividing line, optionally with a centered label, used to separate content groups.
+/// A thin dividing line, optionally with a centered title, used to separate content groups.
 /// </summary>
 [UIComponentPropertyBlock(typeof(IOrientationComponent))]
 [UIComponentPropertyDefault(nameof(IOrientationComponent.Orientation), nameof(DefaultOrientation))]
@@ -18,11 +18,11 @@ public abstract partial class SeparatorComponent<T>(string? id = null) : VisualC
     private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Horizontal;
 
     /// <summary>
-    /// Gets or sets the label text shown on the separator.
+    /// Gets or sets the words shown on the separator.
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public UIPhrase? Label { get; set; }
+    public UIPhrase? Title { get; set; }
 
     /// <summary>
     /// Gets or sets the line's colour; unset leaves the stylesheet's own line colour.
@@ -32,7 +32,7 @@ public abstract partial class SeparatorComponent<T>(string? id = null) : VisualC
 }
 
 /// <summary>
-/// A thin dividing line, optionally with a centered label, used to separate content groups.
+/// A thin dividing line, optionally with a centered title, used to separate content groups.
 /// </summary>
 public sealed class SeparatorComponent(string? id = null) : SeparatorComponent<SeparatorComponent>(id), IUIComponentDefinition
 {

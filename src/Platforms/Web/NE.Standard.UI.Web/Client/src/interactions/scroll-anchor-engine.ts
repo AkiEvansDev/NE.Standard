@@ -1,11 +1,9 @@
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { HostModeAttribute, VisibilityAttribute, WindowMoreAfterAttribute, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
+import { HostModeAttribute, ScrollAnchorAttribute, VisibilityTierAttributes, WindowMoreAfterAttribute, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
-import { letGoOfRowsUnder } from "../items/item-reveal.ts";
-import { readWindowFlag } from "../items/items-host-mode.ts";
+import { letGoOfRowsUnder } from "../addressing/item-reveal.ts";
+import { readWindowFlag } from "../addressing/items-host-mode.ts";
 
-/** The end-anchor contract, shared with the virtualization engine, which keeps its own host at the end the same way. */
-const ScrollAnchorAttribute = "data-ui-scroll-anchor";
 const EndAnchor = "End";
 const EndAnchoredSelector = `[${ScrollAnchorAttribute}="${EndAnchor}"]`;
 
@@ -70,7 +68,7 @@ export class ScrollAnchorEngine {
         observeComponents(
             this.root,
             `[${ScrollAnchorAttribute}="${EndAnchor}"]`,
-            { childList: true, characterData: true, attributeFilter: [VisibilityAttribute] },
+            { childList: true, characterData: true, attributeFilter: VisibilityTierAttributes },
             containers => this.followEach(containers)
         );
 

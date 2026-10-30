@@ -32,5 +32,7 @@ test("a waiting button wears its loading look: the ring in its icon's place, or 
 
     assert.ok(ringed(".ui-button[data-ui-pending][data-ui-text-icon] .ui-text__icon::before"), "a button's icon does not turn into the ring");
     assert.ok(ringed(".ui-button[data-ui-pending]:not([data-ui-text-icon])::before"), "a button with no icon shows no ring");
-    assert.ok(bodiesOf(".ui-button[data-ui-pending]:not([data-ui-text-icon]) > .ui-button__content").some(body => body.includes("opacity: 0.35")), "a button's label does not fade under the ring");
+    assert.ok(bodiesOf(".ui-button[data-ui-pending]:not([data-ui-text-icon]) > .ui-button__content").some(body => body.includes("opacity: 0;")), "a button's label does not hide under the ring");
+    assert.ok(bodiesOf(".ui-button[data-ui-pending]:not([data-ui-text-icon])::before").some(body => body.includes("font-size: 1rem;")), "a button's ring is not sized to its glyph");
+    assert.ok(bodiesOf(".ui-button--large[data-ui-pending]:not([data-ui-text-icon])::before").some(body => body.includes("font-size: 1.25rem;")), "a large button's ring is not sized to its glyph");
 });

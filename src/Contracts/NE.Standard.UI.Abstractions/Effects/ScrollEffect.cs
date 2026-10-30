@@ -1,4 +1,6 @@
 using System;
+using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -47,10 +49,18 @@ public sealed class ScrollEffect(UIComponentReference target, ScrollPosition pos
         : this(new UIComponentReference(targetComponentId, dynamicParameters), position)
     { }
 
+    /// <summary>
+    /// Creates an effect that scrolls <paramref name="targetComponent"/> to the given position.
+    /// </summary>
+    public ScrollEffect(IBindableComponent targetComponent, ScrollPosition position, params object?[]? dynamicParameters)
+        : this(new UIComponentReference(targetComponent, dynamicParameters), position)
+    { }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.Scroll;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>
@@ -87,6 +97,7 @@ internal sealed class CompiledScrollEffect(UIComponentAddress target, ScrollPosi
     public override string Kind => ClientEffectKinds.Scroll;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     public ScrollPosition Position { get; } = position;

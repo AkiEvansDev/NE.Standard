@@ -141,7 +141,7 @@ internal sealed partial class UIViewCompilationContext
             throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', a '{host.TypeKey}', which has no window to page; aim it at an items view or a table.");
 
         if (itemsHost.HostMode != UIItemsHostMode.Windowed)
-            throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', which holds its rows whole ({itemsHost.HostMode}); a pager turns the pages of a source: bind the host with BindSource(...) and SetPaging(true).");
+            throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', which holds its rows whole ({itemsHost.HostMode ?? UIItemsHostMode.Plain}); a pager turns the pages of a source: bind the host with BindSource(...) and SetPaging(true).");
 
         if (itemsHost.Paging != true && FindBinding(host, IItemsHostComponent.PagingProperty) is null)
             throw new InvalidOperationException($"Pager '{component.Id}' names Target '{target}', whose window is not a page: its scroll reads the next window. Say SetPaging(true) on it, or bind Paging.");

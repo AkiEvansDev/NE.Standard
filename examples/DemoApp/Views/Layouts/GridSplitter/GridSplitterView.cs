@@ -61,9 +61,9 @@ internal sealed class GridSplitterView : DemoComponentView, IUIViewDefinition
         => splitter
             .SetOrientation(orientation)
             .BindStandard()
-            .BindStep($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Step)}")
-            .BindColor($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Color)}")
-            .BindPosition($"{SplitterGroup}.{nameof(GridSplitterGroupContext.Position)}");
+            .BindStep<GridSplitterController>(static x => x.SplitterGroup.Step)
+            .BindColor<GridSplitterController>(static x => x.SplitterGroup.Color)
+            .BindPosition<GridSplitterController>(static x => x.SplitterGroup.Position);
 
     /// <summary>On the page's own ground, with no edge of its own: the bar is the border between the two panes.</summary>
     private static SurfaceComponent Pane(string title, string description)

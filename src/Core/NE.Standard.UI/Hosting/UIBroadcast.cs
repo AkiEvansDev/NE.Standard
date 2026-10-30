@@ -35,7 +35,7 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
     }
 
     /// <summary>Adds a topic to a runtime's; refused once the runtime was asked to go, since its topics were dropped then.</summary>
-    internal void Subscribe(UIRuntimeBase runtime, string topic)
+    internal void Subscribe(UIRuntime runtime, string topic)
     {
         lock (_sync)
         {
@@ -219,6 +219,7 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentNullException.ThrowIfNull(notification);
+        UIRuntime.ThrowIfInsideAction("A flush or a push of effects");
 
         if (notification.Action is not null)
             throw new ArgumentException("A notification sent to a user offers no action: its command would belong to one page's runtime, and it reaches pages of any. Give it an Address instead.", nameof(notification));
@@ -229,7 +230,7 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
 
         foreach (List<IUIRuntime> session in await FindUserSessionsAsync(userId, cancellationToken).ConfigureAwait(false))
         {
-            foreach ((UIRuntimeBase runtime, List<UIHandle> pages) in PickSessionPages(session, notification.When))
+            foreach ((UIRuntime runtime, List<UIHandle> pages) in PickSessionPages(session, notification.When))
             {
                 try
                 {
@@ -251,16 +252,16 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
 
     /// <summary>
     /// The pages of one session a notification goes to, by runtime, picked as a runtime's send to all picks them
-    /// (<see cref="UIRuntimeBase.GetsSystemNotification"/>), so it sounds once.
+    /// (<see cref="UIRuntime.GetsSystemNotification"/>), so it sounds once.
     /// </summary>
-    private static List<(UIRuntimeBase Runtime, List<UIHandle> Pages)> PickSessionPages(List<IUIRuntime> session, UINotificationWhen when)
+    private static List<(UIRuntime Runtime, List<UIHandle> Pages)> PickSessionPages(List<IUIRuntime> session, UINotificationWhen when)
     {
         List<UIHandle> pages = [];
-        List<UIRuntimeBase> owners = [];
+        List<UIRuntime> owners = [];
 
         for (var i = 0; i < session.Count; i++)
         {
-            if (session[i] is not UIRuntimeBase { IsStarted: true } runtime)
+            if (session[i] is not UIRuntime { IsStarted: true } runtime)
                 continue;
 
             foreach (UIHandle page in runtime.ViewerHandles)
@@ -270,19 +271,19 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
             }
         }
 
-        List<(UIRuntimeBase Runtime, List<UIHandle> Pages)> picked = [];
-        UIHandle? shower = UIRuntimeBase.PickSystemNotificationPage(pages, except: null, when);
+        List<(UIRuntime Runtime, List<UIHandle> Pages)> picked = [];
+        UIHandle? shower = UIRuntime.PickSystemNotificationPage(pages, except: null, when);
 
         for (var i = 0; i < pages.Count; i++)
         {
-            if (UIRuntimeBase.GetsSystemNotification(pages[i], when, shower))
+            if (UIRuntime.GetsSystemNotification(pages[i], when, shower))
                 AddPage(picked, owners[i], pages[i]);
         }
 
         return picked;
     }
 
-    private static void AddPage(List<(UIRuntimeBase Runtime, List<UIHandle> Pages)> picked, UIRuntimeBase runtime, UIHandle page)
+    private static void AddPage(List<(UIRuntime Runtime, List<UIHandle> Pages)> picked, UIRuntime runtime, UIHandle page)
     {
         for (var i = 0; i < picked.Count; i++)
         {

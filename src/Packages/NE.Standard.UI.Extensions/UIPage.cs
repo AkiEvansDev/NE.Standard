@@ -1,9 +1,9 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Regions;
 using NE.Standard.UI.Components.BuiltIns.Templates;
@@ -98,7 +98,7 @@ public static class UIPage
         _ = header
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Vertical)
-                .SetFirstLineOnControl(UIButtonSize.Medium)
+                .SetFirstLineOnControl(UISize.Medium)
                 .SetVerticalAlignment(UIAlignment.Start)
                 .SetVisibility(phone)
                 .SetPlacement(first, 1, actionsUnder ? 25 - first : span, 1)
@@ -113,12 +113,12 @@ public static class UIPage
 
         // A paragraph rather than a text, which has no cap on its lines. On a phone it runs under the far end too, its whole words a
         // long press away (its tooltip), since the one line cuts them; under the name, never under the leading action.
-        if (words.HasLine)
+        if (words.HasDescription)
         {
-            ParagraphComponent line = HeaderLine(words, 1, phone);
+            ParagraphComponent description = HeaderLine(words, 1, phone);
 
             _ = header
-                .AddChild((words.LinePath is null ? line.SetTooltip(words.Line) : line.BindTooltip(words.LinePath, words.Scope).SetTooltipPlain(true).AsContent(ITooltipComponent.TooltipProperty)).SetPlacement(first, 2, 25 - first, 1))
+                .AddChild((words.DescriptionPath is null ? description.SetTooltip(words.Description) : description.BindTooltip(words.DescriptionPath, words.Scope).SetTooltipPlain(true).AsContent(ITooltipComponent.TooltipProperty)).SetPlacement(first, 2, 25 - first, 1))
                 .AddChild(HeaderLine(words, 3, wide).SetPlacement(first, 2, span, 1));
         }
 
@@ -156,7 +156,7 @@ public static class UIPage
     /// <summary>The page's name in the background's ink, written out or bound.</summary>
     private static TextComponent HeaderTitle(BandWords words)
     {
-        TextComponent text = new TextComponent().SetTitleColor(UIThemeColor.OnBackground);
+        TextComponent text = new TextComponent().SetHeadingLevel(1).SetTitleColor(UIThemeColor.OnBackground);
 
         // A bound name is the thing's own (a note's, a person's), never a key that happens to match it.
         return words.TitlePath is null ? text.SetTitle(words.Title) : text.BindTitle(words.TitlePath, words.Scope).AsContent(ITextBaseComponent.TitleProperty);
@@ -165,14 +165,14 @@ public static class UIPage
     /// <summary>The muted line under the name, at most <paramref name="lines"/> lines, where <paramref name="visibility"/> shows it.</summary>
     private static ParagraphComponent HeaderLine(BandWords words, int lines, UIResponsive<UIVisibility> visibility)
     {
-        ParagraphComponent line = new ParagraphComponent()
+        ParagraphComponent description = new ParagraphComponent()
             .SetMaxLines(lines)
             .SetDescriptionType(UITextAppearance.Body)
             .SetDescriptionColor(UIThemeColor.Muted)
             .SetVisibility(visibility);
 
         // A bound line is the thing's own too (a note's status), as its name is: data, drawn as written rather than read as markup.
-        return words.LinePath is null ? line.SetDescription(words.Line) : line.BindDescription(words.LinePath, words.Scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty);
+        return words.DescriptionPath is null ? description.SetDescription(words.Description) : description.BindDescription(words.DescriptionPath, words.Scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty);
     }
 
     /// <summary>
@@ -257,16 +257,16 @@ public static class UIPage
         switch (component)
         {
             case ButtonComponent { Size: null } button:
-                _ = button.SetSize(UIButtonSize.Small);
+                _ = button.SetSize(UISize.Small);
                 break;
             case SplitButtonComponent { Size: null } menu:
-                _ = menu.SetSize(UIButtonSize.Small);
+                _ = menu.SetSize(UISize.Small);
                 break;
             case ThemeSwitcherComponent { Size: null } theme:
-                _ = theme.SetSize(UIButtonSize.Small);
+                _ = theme.SetSize(UISize.Small);
                 break;
             case LanguageSwitcherComponent { Size: null } language:
-                _ = language.SetSize(UIButtonSize.Small);
+                _ = language.SetSize(UISize.Small);
                 break;
             // A row at any width: one turning across at md holds the strip's buttons there too.
             case StackPanelComponent row when RunsAcrossAnywhere(row):
@@ -313,7 +313,7 @@ public static class UIPage
             : name.BindTitle(words.TitlePath, words.Scope).BindTooltip(words.TitlePath, words.Scope).SetTooltipPlain(true).AsContent(ITextBaseComponent.TitleProperty, ITooltipComponent.TooltipProperty)
         );
 
-        if (!words.HasLine)
+        if (!words.HasDescription)
             return row;
 
         TextComponent caption = new TextComponent()
@@ -323,7 +323,7 @@ public static class UIPage
             .SetVerticalAlignment(UIAlignment.Center)
             .SetPlacement(2, 1, 1, 1);
 
-        return row.AddChild(words.LinePath is null ? caption.SetTitle(words.Line) : caption.BindTitle(words.LinePath, words.Scope).AsContent(ITextBaseComponent.TitleProperty));
+        return row.AddChild(words.DescriptionPath is null ? caption.SetTitle(words.Description) : caption.BindTitle(words.DescriptionPath, words.Scope).AsContent(ITextBaseComponent.TitleProperty));
     }
 
     /// <summary>
@@ -419,7 +419,7 @@ public static class UIPage
     {
         // The heading and its note sit closer to each other than to the content: two stacks, not one spacing. A heading is prose, so on
         // a phone a long one wraps rather than losing its end.
-        StackPanelComponent heading = UILayout.Stack(4).AddChild(title.SetTitleWrap(true));
+        StackPanelComponent heading = UILayout.Stack(4).AddChild(title.SetHeadingLevel(title.HeadingLevel ?? 2).SetTitleWrap(true));
 
         return note is null ? heading : heading.AddChild(note);
     }
@@ -436,12 +436,15 @@ public static class UIPage
 
         ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
 
-        return (title, new ParagraphComponent()
+        return (
+            title,
+            new ParagraphComponent()
             .SetDescriptionType(UITextAppearance.Caption)
             .Muted()
             .BindDescription(descriptionPath, scope)
             .SetDescriptionPlain(true)
-            .AsContent(ITextComponent.DescriptionProperty));
+                .AsContent(ITextComponent.DescriptionProperty)
+        );
     }
 
     /// <summary>
@@ -484,7 +487,7 @@ public static class UIPage
     {
         ArgumentNullException.ThrowIfNull(trailing);
 
-        return UILayout.Ends(title.SetTitleWrap(true), note, trailing, titleLine: true);
+        return UILayout.Ends(title.SetHeadingLevel(title.HeadingLevel ?? 2).SetTitleWrap(true), note, trailing, titleLine: true);
     }
 
     /// <summary>
@@ -538,6 +541,10 @@ public static class UIPage
     {
         PresetWords.Require(label);
 
+        // A control that has no title of its own is named by the label over it; an author's own name, said at the component, wins.
+        if (content is IAccessibleNameComponent named && IsUnnamed(named))
+            named.AccessibleName = label;
+
         return Labelled(UIText.Label(label), content, wrap);
     }
 
@@ -550,8 +557,22 @@ public static class UIPage
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(labelPath);
 
+        // The name follows the label the controller holds, as the static one follows the label said here.
+        if (content is IAccessibleNameComponent and IPropertyBindingComponent named && IsUnnamed((IAccessibleNameComponent)content))
+            _ = named.BindProperty(IAccessibleNameComponent.AccessibleNameProperty, labelPath, scope);
+
         return Labelled(new TextComponent().AsOverline().Muted().BindTitle(labelPath, scope).AsContent(ITextBaseComponent.TitleProperty), content, wrap);
     }
+
+    /// <summary>Whether <paramref name="content"/> has neither a visible name of its own nor an <c>AccessibleName</c>, written or bound.</summary>
+    private static bool IsUnnamed(IAccessibleNameComponent content)
+        => content.AccessibleName is null
+            && !PresetBindings.Binds(content, IAccessibleNameComponent.AccessibleNameProperty)
+            && content is not ITextBaseComponent { Title: not null }
+            && content is not SpinnerComponent { Title: not null }
+            && content is not FileTileComponent { FileName: not null }
+            && !PresetBindings.Binds(content, ITextBaseComponent.TitleProperty)
+            && !PresetBindings.Binds(content, FileTileComponent.FileNameProperty);
 
     private static StackPanelComponent Labelled(TextComponent overline, IVisualComponent content, bool wrap)
     {
@@ -575,36 +596,36 @@ public static class UIPage
     /// makes the first one, a link to where they are) in a row under the words, each as wide as it is. The block stands in the middle of
     /// the room it is given, and runs on past its end, not its top, where the room is shorter than it.
     /// </summary>
-    public static ContainerComponent Empty(string? icon, UIPhrase title, UIPhrase? line = null, params IVisualComponent[] actions)
+    public static ContainerComponent Empty(string? icon, UIPhrase title, UIPhrase? description = null, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
-        PresetWords.RequireIfGiven(line);
+        PresetWords.RequireIfGiven(description);
 
         DefaultEmptyTemplate words = new DefaultEmptyTemplate().SetTitle(title);
 
-        return Empty(icon, line is null ? words : words.SetDescription(line), actions);
+        return Empty(icon, description is null ? words : words.SetDescription(description), actions);
     }
 
     /// <summary>
-    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="linePath"/>, as content
+    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content
     /// — what a filter found nothing for, whose chat is empty.
     /// </summary>
-    public static ContainerComponent BoundEmpty(string? icon, string titlePath, string? linePath = null, params IVisualComponent[] actions)
-        => BoundEmpty(icon, titlePath, linePath, UIBindingScope.Root, actions);
+    public static ContainerComponent BoundEmpty(string? icon, string titlePath, string? descriptionPath = null, params IVisualComponent[] actions)
+        => BoundEmpty(icon, titlePath, descriptionPath, UIBindingScope.Root, actions);
 
     /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
-    public static ContainerComponent BoundEmpty(string? icon, string titlePath, string? linePath, UIBindingScope scope, params IVisualComponent[] actions)
+    public static ContainerComponent BoundEmpty(string? icon, string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
 
         DefaultEmptyTemplate words = new DefaultEmptyTemplate().BindTitle(titlePath, scope).AsContent(ITextBaseComponent.TitleProperty);
 
-        if (linePath is null)
+        if (descriptionPath is null)
             return Empty(icon, words, actions);
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(linePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
 
-        return Empty(icon, words.BindDescription(linePath, scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty), actions);
+        return Empty(icon, words.BindDescription(descriptionPath, scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty), actions);
     }
 
     /// <summary>The words with their mark where one is given, the ways on under them, the block in the middle of its room.</summary>
@@ -653,9 +674,10 @@ public static class UIPage
     /// <summary>
     /// What came of a press, in place of the form it ends — "Check your inbox", "Thank you": a raised panel
     /// with the mark in <paramref name="tone"/>'s colour (<paramref name="icon"/>, else the tone's own) before the title, the line
-    /// under it, and the ways on from it at its far end, the safe one first. One on an empty page is <see cref="UICard.Centered"/>.
+    /// under it, and the ways on from it at its far end, the safe one first; a message's tone (Info, Success, Warning or Danger). One
+    /// on an empty page is <see cref="UICard.Centered"/>.
     /// </summary>
-    public static SurfaceComponent Outcome(string? icon, UIMessageSeverity tone, UIPhrase title, params IVisualComponent[] actions)
+    public static SurfaceComponent Outcome(string? icon, UIColorStyle tone, UIPhrase title, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
 
@@ -663,49 +685,50 @@ public static class UIPage
     }
 
     /// <summary>The same with a line under the title — where the mail went, what happens next.</summary>
-    public static SurfaceComponent Outcome(string? icon, UIMessageSeverity tone, UIPhrase title, UIPhrase? line, params IVisualComponent[] actions)
+    public static SurfaceComponent Outcome(string? icon, UIColorStyle tone, UIPhrase title, UIPhrase? description, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
-        PresetWords.RequireIfGiven(line);
+        PresetWords.RequireIfGiven(description);
 
-        return Outcome(icon, tone, new TextComponent().SetTitle(title), line is null ? null : new ParagraphComponent().SetDescription(line), actions);
+        return Outcome(icon, tone, new TextComponent().SetTitle(title), description is null ? null : new ParagraphComponent().SetDescription(description), actions);
     }
 
     /// <summary>
     /// The same with a line of the author's — inline links, emphasis — given the note's role here.
     /// </summary>
-    public static SurfaceComponent Outcome(string? icon, UIMessageSeverity tone, UIPhrase title, ParagraphComponent? line, params IVisualComponent[] actions)
+    public static SurfaceComponent Outcome(string? icon, UIColorStyle tone, UIPhrase title, ParagraphComponent? description, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
 
-        return Outcome(icon, tone, new TextComponent().SetTitle(title), line, actions);
+        return Outcome(icon, tone, new TextComponent().SetTitle(title), description, actions);
     }
 
     /// <summary>
-    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="linePath"/> — the
+    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> — the
     /// address a mail went to — as content.
     /// </summary>
-    public static SurfaceComponent BoundOutcome(string? icon, UIMessageSeverity tone, string titlePath, string? linePath, params IVisualComponent[] actions)
-        => BoundOutcome(icon, tone, titlePath, linePath, UIBindingScope.Root, actions);
+    public static SurfaceComponent BoundOutcome(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, params IVisualComponent[] actions)
+        => BoundOutcome(icon, tone, titlePath, descriptionPath, UIBindingScope.Root, actions);
 
     /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
-    public static SurfaceComponent BoundOutcome(string? icon, UIMessageSeverity tone, string titlePath, string? linePath, UIBindingScope scope, params IVisualComponent[] actions)
+    public static SurfaceComponent BoundOutcome(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
 
-        if (linePath is not null)
-            ArgumentException.ThrowIfNullOrWhiteSpace(linePath);
+        if (descriptionPath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
 
         TextComponent title = new TextComponent().BindTitle(titlePath, scope).AsContent(ITextBaseComponent.TitleProperty);
-        ParagraphComponent? line = linePath is null ? null : new ParagraphComponent().BindDescription(linePath, scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty);
+        ParagraphComponent? description = descriptionPath is null ? null : new ParagraphComponent().BindDescription(descriptionPath, scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty);
 
-        return Outcome(icon, tone, title, line, actions);
+        return Outcome(icon, tone, title, description, actions);
     }
 
     /// <summary>The raised panel round the mark and the title, the line in the note's role and the ways on at its far end.</summary>
-    private static SurfaceComponent Outcome(string? icon, UIMessageSeverity tone, TextComponent title, ParagraphComponent? line, IVisualComponent[] actions)
+    private static SurfaceComponent Outcome(string? icon, UIColorStyle tone, TextComponent title, ParagraphComponent? description, IVisualComponent[] actions)
     {
         ArgumentNullException.ThrowIfNull(actions);
+        UIMessage.RequireTone(tone);
 
         if (icon is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(icon);
@@ -713,13 +736,13 @@ public static class UIPage
         // The line keeps close under the title, as one text's two lines do; the room is between the words and the ways on.
         StackPanelComponent words = UILayout.Stack(8, title
             .SetIcon(icon ?? UIMessage.GlyphOf(tone))
-            .SetIconColor(UIThemeColor.FromStyle(UIMessage.ColorOf(tone)))
+            .SetIconColor(UIThemeColor.FromStyle(tone))
             .AsTitle()
             .SetTitleWrap(true)
         );
 
-        if (line is not null)
-            _ = words.AddChild(line.SetDescriptionType(UITextAppearance.Caption).Muted());
+        if (description is not null)
+            _ = words.AddChild(description.SetDescriptionType(UITextAppearance.Caption).Muted());
 
         StackPanelComponent content = UILayout.Stack(16, words);
 
@@ -737,54 +760,56 @@ public static class UIPage
 
         // Read out as it replaces the form, as a message shown later is.
         return new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Raised)
+            .SetSurface(UISurfaceStyle.Surface)
             .SetPadding(UIThickness.Uniform(24))
-            .SetLiveRegion(tone is UIMessageSeverity.Warning or UIMessageSeverity.Danger ? UILiveRegion.Alert : UILiveRegion.Status)
+            .SetLiveRegion(tone.IsUrgent() ? UILiveRegion.Alert : UILiveRegion.Status)
             .SetContent(content);
     }
 
     /// <summary>
     /// A page's state standing in for all of it — not found, refused, failed — as the framework's own not-found and error pages draw
     /// theirs (<see cref="StatusComponent"/>): the mark on a faint disc in <paramref name="tone"/>'s colour (<paramref name="icon"/>,
-    /// else the tone's own), the title, the line under it and the ways on, the safe one first, centred. Words the controller says
-    /// are <see cref="BoundStatus(string?, UIMessageSeverity, string, string?, IVisualComponent[])"/>'s; what ends a form, in the form's place, is an <see cref="Outcome(string?, UIMessageSeverity, UIPhrase, UIPhrase, IVisualComponent[])"/>.
+    /// else the tone's own; Info, Success, Warning or Danger), the title, the line under it and the ways on, the safe one first, centred. Words the controller says
+    /// are <see cref="BoundStatus(string?, UIColorStyle, string, string?, IVisualComponent[])"/>'s; what ends a form, in the form's place, is an <see cref="Outcome(string?, UIColorStyle, UIPhrase, UIPhrase, IVisualComponent[])"/>.
     /// </summary>
-    public static StatusComponent Status(string? icon, UIMessageSeverity tone, UIPhrase title, UIPhrase? line, params IVisualComponent[] actions)
+    public static StatusComponent Status(string? icon, UIColorStyle tone, UIPhrase title, UIPhrase? description, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
-        PresetWords.RequireIfGiven(line);
+        PresetWords.RequireIfGiven(description);
 
-        return WithActions(new StatusComponent(StatusMark(icon, tone), UIMessage.ColorOf(tone), title, line), actions);
+        return WithActions(new StatusComponent(StatusMark(icon, tone), tone, title, description), actions);
     }
 
     /// <summary>
-    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="linePath"/> — what
+    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> — what
     /// was refused, why it failed — as content.
     /// </summary>
-    public static StatusComponent BoundStatus(string? icon, UIMessageSeverity tone, string titlePath, string? linePath, params IVisualComponent[] actions)
-        => BoundStatus(icon, tone, titlePath, linePath, UIBindingScope.Root, actions);
+    public static StatusComponent BoundStatus(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, params IVisualComponent[] actions)
+        => BoundStatus(icon, tone, titlePath, descriptionPath, UIBindingScope.Root, actions);
 
     /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
-    public static StatusComponent BoundStatus(string? icon, UIMessageSeverity tone, string titlePath, string? linePath, UIBindingScope scope, params IVisualComponent[] actions)
+    public static StatusComponent BoundStatus(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
 
-        if (linePath is not null)
-            ArgumentException.ThrowIfNullOrWhiteSpace(linePath);
+        if (descriptionPath is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
 
-        StatusComponent status = new(StatusMark(icon, tone), UIMessage.ColorOf(tone));
+        StatusComponent status = new(StatusMark(icon, tone), tone);
 
         _ = status.Words.BindTitle(titlePath, scope).AsContent(ITextBaseComponent.TitleProperty);
 
-        if (linePath is not null)
-            _ = status.Words.BindDescription(linePath, scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty);
+        if (descriptionPath is not null)
+            _ = status.Words.BindDescription(descriptionPath, scope).SetDescriptionPlain(true).AsContent(ITextComponent.DescriptionProperty);
 
         return WithActions(status, actions);
     }
 
-    /// <summary>The status's glyph: the one given, else the tone's own.</summary>
-    private static string StatusMark(string? icon, UIMessageSeverity tone)
+    /// <summary>The status's glyph: the one given, else the tone's own, of the tones a message has.</summary>
+    private static string StatusMark(string? icon, UIColorStyle tone)
     {
+        UIMessage.RequireTone(tone);
+
         if (icon is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(icon);
 
@@ -891,19 +916,19 @@ public static class UIPage
         _ => throw new ArgumentOutOfRangeException(nameof(width), width, "A column is one of the widths UIColumnWidth names.")
     };
 
-    /// <summary>The words of a band — its name and line — written out as phrases, or bound at paths as the thing's own words.</summary>
-    private readonly record struct BandWords(UIPhrase? Title, UIPhrase? Line, string? TitlePath, string? LinePath, UIBindingScope Scope = UIBindingScope.Root)
+    /// <summary>The words of a band — its name and description — written out as phrases, or bound at paths as the thing's own words.</summary>
+    private readonly record struct BandWords(UIPhrase? Title, UIPhrase? Description, string? TitlePath, string? DescriptionPath, UIBindingScope Scope = UIBindingScope.Root)
     {
-        public bool HasLine => Line is not null || LinePath is not null;
+        public bool HasDescription => Description is not null || DescriptionPath is not null;
 
-        public static BandWords Bound(string titlePath, string? linePath, UIBindingScope scope)
+        public static BandWords Bound(string titlePath, string? descriptionPath, UIBindingScope scope)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
 
-            if (linePath is not null)
-                ArgumentException.ThrowIfNullOrWhiteSpace(linePath);
+            if (descriptionPath is not null)
+                ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
 
-            return new BandWords(null, null, titlePath, linePath, scope);
+            return new BandWords(null, null, titlePath, descriptionPath, scope);
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -12,7 +13,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// muted line under it, centred, and the ways on from it in a row under the words. The framework's own not-found and error pages
 /// are drawn with it.
 /// </summary>
-public abstract class StatusComponent<T> : StackPanelComponent<T>
+[UIComponentPropertyDefault(nameof(ISpacingComponent.Spacing), nameof(DefaultSpacing))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.Width), nameof(DefaultWidth))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.MaxWidth), nameof(DefaultMaxWidth))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultAlignment))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultAlignment))]
+public abstract partial class StatusComponent<T> : StackPanelComponent<T>
     where T : StatusComponent<T>, IUIComponentDefinition
 {
     /// <summary>The column the words keep to, however wide the page: a line a reader takes in at once.</summary>
@@ -20,6 +26,11 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
 
     /// <summary>The glyph's size; the disc round it is twice that.</summary>
     private const double MarkSize = 32;
+
+    private static readonly UIResponsive<double> DefaultSpacing = 16d;
+    private static readonly UIResponsive<UILayoutLength> DefaultWidth = UILayoutLength.Fill();
+    private static readonly UIResponsive<UILayoutLength> DefaultMaxWidth = UILayoutLength.Absolute(MaxColumnWidth);
+    private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Center;
 
     private StackPanelComponent? _actions;
 
@@ -54,7 +65,7 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
 
         Mark = new IconComponent()
             .SetIcon(icon)
-            .SetShape(UIIconShape.Circle)
+            .SetShape(UIShape.Circle)
             .SetWidth(UILayoutLength.Absolute(MarkSize))
             .SetColor(UIThemeColor.FromStyle(tone))
             .SetHorizontalAlignment(UIAlignment.Center);
@@ -67,13 +78,7 @@ public abstract class StatusComponent<T> : StackPanelComponent<T>
             .SetTextAlignment(UITextAlignment.Center)
             .SetWrapMode(UITextWrapMode.Wrap);
 
-        _ = SetOrientation(UIOrientation.Vertical)
-            .SetSpacing(16)
-            .SetWidth(UILayoutLength.Fill())
-            .SetMaxWidth(UILayoutLength.Absolute(MaxColumnWidth))
-            .SetHorizontalAlignment(UIAlignment.Center)
-            .SetVerticalAlignment(UIAlignment.Center)
-            .AddChild(Mark)
+        _ = AddChild(Mark)
             .AddChild(Words);
     }
 

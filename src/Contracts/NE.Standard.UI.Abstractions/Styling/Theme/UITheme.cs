@@ -24,7 +24,7 @@ public sealed record UITheme
     /// <summary>
     /// The shape tokens used by UI components.
     /// </summary>
-    public UIShape Shape { get; init; } = new();
+    public UIThemeShape Shape { get; init; } = new();
 
     /// <summary>
     /// Whether a keyboard focus ring is drawn on everything that takes focus; off by default since it can land oddly over
@@ -32,9 +32,9 @@ public sealed record UITheme
     /// </summary>
     public bool FocusRing { get; init; }
 
-    /// <summary>Whether a press on a button, action row or menu entry answers with a wash spreading from the pointer; on by default.</summary>
+    /// <summary>Whether a press on a button, action row or menu entry answers with a wash spreading from the pointer; off by default.</summary>
     /// <remarks>Ignored by platforms that can't animate and by reduced-motion viewers.</remarks>
-    public bool PressRipple { get; init; } = true;
+    public bool PressRipple { get; init; }
 
     /// <summary>
     /// Whether, where a pointer hovers, a scroller shows a thin thumb over its edge only while the reader scrolls it or the pointer nears
@@ -43,11 +43,8 @@ public sealed record UITheme
     /// </summary>
     public bool OverlayScrollbars { get; init; } = true;
 
-    /// <summary>The colour of the frame round what the keyboard stands on: a list's entry, a button, a tab; the brand's by default.</summary>
-    public UIMarkTone KeyboardMark { get; init; }
-
-    /// <summary>The colour of a focused or open field's edge, outlined, filled or underlined alike; the brand's by default.</summary>
-    public UIMarkTone FieldFocus { get; init; }
+    /// <summary>The colour of a focused or open field's edge, outlined, filled or underlined alike; neutral by default.</summary>
+    public UIMarkTone FieldFocus { get; init; } = UIMarkTone.Neutral;
 
     /// <summary>
     /// The colour of the line that says chosen — a tab's, a menu's or a list's current entry, a chosen node — and of the line or

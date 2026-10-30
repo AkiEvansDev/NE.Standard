@@ -21,26 +21,18 @@
     }
 
     // The current choice's words, every choice's stacked in one cell so the box keeps one width; from its start, as a select's value.
+    .ui-theme-switcher__label {
+        .ui-stacked-choice-label(~".ui-theme-switcher__label-text"; ~".ui-theme-switcher__label-text--current");
+    }
+
     .ui-switcher-field .ui-language-switcher__label,
     .ui-theme-switcher__label {
-        display: inline-grid;
         flex: 1 1 auto;
-        grid-template-columns: minmax(0, auto);
-        min-width: 0;
-        white-space: nowrap;
     }
 
         .ui-switcher-field .ui-language-switcher__label-text,
         .ui-theme-switcher__label-text {
-            grid-area: 1 / 1;
             justify-self: start;
-            max-width: 100%;
-            .ui-text-nowrap();
-        }
-
-        // Shown once the page marks it (theme-choice.ts): the server cannot know the theme of a shell cached outside it.
-        .ui-theme-switcher__label-text:not(.ui-theme-switcher__label-text--current) {
-            visibility: hidden;
         }
 
 // The theme field's list, as the language's (ui-language-switcher.less), placed by theme-switcher-engine.ts.

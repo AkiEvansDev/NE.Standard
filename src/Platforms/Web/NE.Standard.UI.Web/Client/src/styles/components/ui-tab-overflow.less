@@ -2,6 +2,7 @@
 @import "../mixins/glyphs.less";
 @import "../mixins/interactive.less";
 @import "../mixins/popup.less";
+@import "../mixins/selected.less";
 @import "../mixins/text.less";
 
 // The "…" at the end of a tab strip: hidden until the strip's engine hides captions for want of room, then a square ghost control.
@@ -51,7 +52,12 @@
 }
 
 .ui-tab-overflow__entry--current {
-    font-weight: 600;
+    .ui-selected-ground();
+    .ui-selected-ink(@weight: @ui-chosen-weight);
+    .ui-reveal-hover-off({
+        .ui-selected-ground();
+        .ui-selected-ink(@weight: @ui-chosen-weight);
+    });
 }
 
 // The entry the arrows reached, lit only while a key put it there; a resting pointer's entry stays quiet (strip-overflow.ts).

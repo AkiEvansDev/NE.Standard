@@ -1,13 +1,13 @@
 using System;
-using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
+using System.Linq.Expressions;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
-using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -32,7 +32,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
 [UIComponentPropertyBlock(typeof(IDraggableRowsComponent))]
 [UIComponentPropertyBlock(typeof(IDragSourceComponent))]
-public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IOrientationComponent, ISpacingComponent, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent, IItemClickComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<T, object, IVisualComponent>, IOrientationComponent, ISpacingComponent, IItemsHostComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDraggableRowsComponent, IDragSourceComponent, IEmptyStateComponent, IItemClickComponent, IItemOpenComponent, IItemMoveComponent, IItemRemoveComponent, IAccessibleNameComponent
     where T : ItemsViewComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<UIItemsLayoutType> DefaultLayoutType = UIItemsLayoutType.Stack;
@@ -60,69 +61,45 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     }
 
     /// <summary>
+    /// Binds the view's items to a windowed source on the controller.
+    /// </summary>
+    /// <remarks>The path names the source; the compiler appends the property holding its realized window.</remarks>
+    public T BindSource<TSource>(Expression<Func<TSource, object?>> path, UIBindingScope scope = UIBindingScope.Root)
+    {
+        HostMode = ItemsHostModes.Window(HostMode);
+
+        return BindItems(RecursivePath.FromExpression(path), scope);
+    }
+
+    /// <summary>
     /// Writes a click registration on the item template, now and on every one set later.
     /// </summary>
     public void OnClickableItemTemplates(Action<IVisualComponent> register)
         => _ = OnItemTemplate(register);
 
     /// <summary>
-    /// Registers a command invoked when an item is opened — Enter on the keyboard's item, or a double click — with the item's key.
+    /// Writes an open registration on the item template — Enter on the keyboard's item, or a double click —, now and on every one set later.
     /// </summary>
-    public T OnItemOpenWithItemKey(string command, string argumentName = "id")
-        => OnItemOpen(command, UIAction.ArgCurrentItemKey(argumentName));
+    public void OnOpenableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(register);
 
     /// <summary>
-    /// Registers a command invoked when an item is opened — Enter on the keyboard's item, or a double click.
-    /// </summary>
-    public T OnItemOpen(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnItemTemplate(template => _ = template.On(EventNames.Open, command, arguments));
-
-    /// <summary>
-    /// Registers a command invoked when an item is opened, with literal argument values.
-    /// </summary>
-    public T OnItemOpenLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnItemOpen(command, UIActionArgument.Literals(arguments));
-
-    /// <summary>
-    /// Registers the command a row dropped at another place among the rows raises — by a drag with <c>Draggable</c> on, or Alt+Up and
-    /// Alt+Down — with the item's key and the index it now takes in the collection. The row stands there at once; the controller's
-    /// Move of it keeps it there or puts it where the controller did, and an answer without one puts it back.
+    /// Writes a move registration on the item template, now and on every one set later: a row dropped at another place among the rows
+    /// by a drag with <c>Draggable</c> on, or Alt+Up and Alt+Down.
     /// </summary>
     /// <remarks>
-    /// The index is where <c>RecursiveCollection.Move</c> puts it; in a windowed host, its place in the source's whole query.
+    /// The row stands there at once; the controller's Move of it keeps it there or puts it where the controller did, and an answer
+    /// without one puts it back. The index is where <c>RecursiveCollection.Move</c> puts it; in a windowed host, its place in the
+    /// source's whole query.
     /// </remarks>
-    public T OnItemMoveWithItemKey(string command, string keyArgumentName = "id", string indexArgumentName = "index")
-        => OnItemMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.Offered(UIAction.ArgEventValue(indexArgumentName)));
+    public void OnMovableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(register);
 
     /// <summary>
-    /// Registers the command a row dropped at another place raises; <c>UIAction.ArgEventValue</c> reads the index it takes.
+    /// Writes a remove registration on the item template — the Delete key on an item that may be removed —, now and on every one set later.
     /// </summary>
-    public T OnItemMove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnItemTemplate(template => _ = template.On(EventNames.Move, command, arguments));
-
-    /// <summary>
-    /// Registers the command a row dropped at another place raises, with literal argument values.
-    /// </summary>
-    public T OnItemMoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnItemMove(command, UIActionArgument.Literals(arguments));
-
-    /// <summary>
-    /// Registers a command invoked when the Delete key is pressed on an item that may be removed, with the item's key.
-    /// </summary>
-    public T OnItemRemoveWithItemKey(string command, string argumentName = "id")
-        => OnItemRemove(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers a command invoked when the Delete key is pressed on an item that may be removed; the controller removes it or leaves it.
-    /// </summary>
-    public T OnItemRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnItemTemplate(template => _ = template.On(EventNames.Remove, command, arguments));
-
-    /// <summary>
-    /// Registers a command invoked when the Delete key is pressed on an item that may be removed, with literal argument values.
-    /// </summary>
-    public T OnItemRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnItemRemove(command, UIActionArgument.Literals(arguments));
+    public void OnRemovableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnItemTemplate(register);
 
     /// <summary>
     /// Gets or sets what a windowed view shows while it reads rows it does not have yet: grey bars in the rows' shape, the default,

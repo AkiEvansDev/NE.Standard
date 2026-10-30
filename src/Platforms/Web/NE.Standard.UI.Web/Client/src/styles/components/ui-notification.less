@@ -3,9 +3,18 @@
 @import "../mixins/focus.less";
 @import "../mixins/glyph-edge.less";
 @import "../mixins/interactive.less";
+@import "../mixins/lift.less";
 
+// A manual popover (notification-engine.ts), so it stands in the top layer over a native modal dialog too: the browser's popover box —
+// centred, framed, filled, clipped — is undone first, then the host's own corner, air and stack written over it.
 .ui-notification-host {
     position: fixed;
+    inset: auto;
+    margin: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    overflow: visible;
     // Clear of a phone's cut-out where it is turned on its side.
     right: env(safe-area-inset-right, 0px);
     // Above a phone's bottom bar, whose height the engine writes as each toast comes (notification-engine.ts), and with no bar above
@@ -43,7 +52,7 @@
     .ui-visually-hidden();
 }
 
-// A bordered surface with an accent down its leading edge, not filled edge to edge with a saturated severity colour.
+// A bordered surface with an accent down its left edge, not filled edge to edge with a saturated tone colour.
 // The message and the cross on the first line; an action, where there is one, on its own line under the message.
 .ui-notification {
     position: relative;
@@ -55,26 +64,37 @@
     // One width for every toast, so a stack reads as a column rather than a ragged edge; the view sets it (`NotificationWidth`).
     width: min(var(--ui-notification-width, 400px), calc(100vw - (@ui-space-4 * 2)));
     padding: @ui-space-3 @ui-space-4;
-    padding-left: calc(@ui-space-4 + @ui-severity-stroke);
+    padding-left: calc(@ui-space-4 + @ui-accent-stroke);
     border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     border-radius: var(--ui-radius-notification);
     background: var(--ui-color-surface);
     color: var(--ui-color-on-surface);
+    .ui-popup-ground-lifted(var(--ui-color-surface));
     pointer-events: auto;
-    .ui-elevation-3();
     animation: ui-notification-in @ui-motion-normal @ui-motion-enter;
 }
 
-    // The severity, and the only place it shows.
+    // The shadow, under every toast of the stack: drawn by the toast itself, it lay over the next one's edge, a gap away.
+    .ui-notification::after {
+        content: "";
+        position: absolute;
+        inset: calc(-1 * var(--ui-border-width, 1px));
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        .ui-elevation-3();
+    }
+
+    // The tone, and the only place it shows: a border, not a filled bar, so forced colours keep it, as a validation tooltip's
+    // (ui-tooltip.less).
     .ui-notification::before {
         content: "";
         position: absolute;
         top: 0;
         bottom: 0;
         left: 0;
-        width: @ui-severity-stroke;
+        border-left: @ui-accent-stroke solid var(--ui-notification-accent, var(--ui-color-border));
         border-radius: var(--ui-radius-notification) 0 0 var(--ui-radius-notification);
-        background: var(--ui-notification-accent, var(--ui-color-border));
     }
 
 .ui-notification--leaving {
@@ -121,29 +141,29 @@
     .ui-cross-glyph(@ui-glyph-md);
 }
 
-// Severity sets the bar, not the surface, so a toast reads as one of this application's panels.
+// The tone sets the bar, not the surface, so a toast reads as one of this application's panels.
 .ui-notification--info {
-    --ui-notification-accent: var(--ui-color-info);
+    --ui-notification-accent: var(--ui-color-info-ink);
 }
 
 .ui-notification--success {
-    --ui-notification-accent: var(--ui-color-success);
+    --ui-notification-accent: var(--ui-color-success-ink);
 }
 
 .ui-notification--warning {
-    --ui-notification-accent: var(--ui-color-warning);
+    --ui-notification-accent: var(--ui-color-warning-ink);
 }
 
 .ui-notification--danger {
-    --ui-notification-accent: var(--ui-color-danger);
+    --ui-notification-accent: var(--ui-color-danger-ink);
 }
 
 .ui-notification--primary {
-    --ui-notification-accent: var(--ui-color-primary);
+    --ui-notification-accent: var(--ui-color-primary-ink);
 }
 
 .ui-notification--accent {
-    --ui-notification-accent: var(--ui-color-accent);
+    --ui-notification-accent: var(--ui-color-accent-ink);
 }
 
 @keyframes ui-notification-in {

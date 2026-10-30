@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -28,6 +29,12 @@ public sealed class InsertTextEffect : TargetedClientEffect
         => Literal(new UIComponentReference(targetComponentId, dynamicParameters), text);
 
     /// <summary>
+    /// Inserts <paramref name="text"/> as given into <paramref name="targetComponent"/>.
+    /// </summary>
+    public static InsertTextEffect Literal(IBindableComponent targetComponent, string text, params object?[]? dynamicParameters)
+        => Literal(new UIComponentReference(targetComponent, dynamicParameters), text);
+
+    /// <summary>
     /// Inserts <paramref name="text"/> as given into the given field.
     /// </summary>
     public static InsertTextEffect Literal(UIComponentReference target, string text)
@@ -42,6 +49,13 @@ public sealed class InsertTextEffect : TargetedClientEffect
     /// </summary>
     public static InsertTextEffect CurrentItemKey(string targetComponentId, params object?[]? dynamicParameters)
         => CurrentItemKey(new UIComponentReference(targetComponentId, dynamicParameters));
+
+    /// <summary>
+    /// Inserts the key of the row whose press raised the effect into <paramref name="targetComponent"/>;
+    /// an interaction's alone.
+    /// </summary>
+    public static InsertTextEffect CurrentItemKey(IBindableComponent targetComponent, params object?[]? dynamicParameters)
+        => CurrentItemKey(new UIComponentReference(targetComponent, dynamicParameters));
 
     /// <summary>
     /// Inserts the key of the row whose press raised the effect into the given field; an interaction's alone.

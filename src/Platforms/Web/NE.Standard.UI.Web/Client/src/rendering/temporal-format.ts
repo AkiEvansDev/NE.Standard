@@ -65,38 +65,15 @@ export function formatTemporal(value: Date, format: string | null | undefined, c
     let result = "";
     const genitiveMonth = hasDayNumberToken(format);
 
-    for (let index = 0; index < format.length;) {
-        const token = matchTemporalToken(format, index);
-
-        if (token === null) {
-            result += format[index];
-            index++;
-            continue;
-        }
-
-        result += render(token, value, culture, genitiveMonth);
-        index += token.length;
-    }
+    walkTemporalPattern(format, (token, index) => {
+        result += token === null ? format[index] : render(token, value, culture, genitiveMonth);
+    });
 
     return result;
 }
 
 function hasDayNumberToken(format: string): boolean {
-    for (let index = 0; index < format.length;) {
-        const token = matchTemporalToken(format, index);
-
-        if (token === null) {
-            index++;
-            continue;
-        }
-
-        if (token === "d" || token === "dd")
-            return true;
-
-        index += token.length;
-    }
-
-    return false;
+    return !walkTemporalPattern(format, token => token !== "d" && token !== "dd");
 }
 
 /** The marks between a format's numbers that stand for one another when the reader types them. */
@@ -110,22 +87,11 @@ const WordTokens = new Set(["MMMM", "MMM", "dddd", "ddd", "tt"]);
  * no month or weekday by name, no AM or PM, no other letter.
  */
 export function isDigitFormat(format: string): boolean {
-    for (let index = 0; index < format.length;) {
-        const token = matchTemporalToken(format, index);
-
-        if (token !== null && WordTokens.has(token))
-            return false;
-
-        if (token === null && !Separators.test(format[index]) && !/\s/.test(format[index]))
-            return false;
-
-        index += token?.length ?? 1;
-    }
-
-    return format.trim().length > 0;
+    return format.trim().length > 0 && walkTemporalPattern(format, (token, index) =>
+        token !== null ? !WordTokens.has(token) : Separators.test(format[index]) || /\s/.test(format[index]));
 }
 
-export function matchTemporalToken(format: string, index: number): string | null {
+function matchTemporalToken(format: string, index: number): string | null {
     for (const token of TemporalTokens) {
         if (format.startsWith(token, index))
             return token;
@@ -134,35 +100,50 @@ export function matchTemporalToken(format: string, index: number): string | null
     return null;
 }
 
+/** Walks a pattern's pieces in order — each token greedily, each other character alone — stopping early and returning false when `visit` returns false. */
+export function walkTemporalPattern(format: string, visit: (token: string | null, index: number) => boolean | void): boolean {
+    for (let index = 0; index < format.length;) {
+        const token = matchTemporalToken(format, index);
+
+        if (visit(token, index) === false)
+            return false;
+
+        index += token?.length ?? 1;
+    }
+
+    return true;
+}
+
 function render(token: string, value: Date, culture: TemporalCulturePack, genitiveMonth: boolean): string {
     const hour = value.getHours();
     const hour12 = clockHour12(hour);
 
     switch (token) {
         case "yyyy": return pad(value.getFullYear(), 4);
-        case "yy": return pad(value.getFullYear() % 100, 2);
+        case "yy": return pad(value.getFullYear() % 100);
         case "MMMM": return genitiveMonth ? culture.monthGenitiveNames[value.getMonth()] : culture.monthNames[value.getMonth()];
         case "MMM": return culture.abbreviatedMonthNames[value.getMonth()];
-        case "MM": return pad(value.getMonth() + 1, 2);
+        case "MM": return pad(value.getMonth() + 1);
         case "M": return String(value.getMonth() + 1);
         case "dddd": return culture.dayNames[value.getDay()];
         case "ddd": return culture.abbreviatedDayNames[value.getDay()];
-        case "dd": return pad(value.getDate(), 2);
+        case "dd": return pad(value.getDate());
         case "d": return String(value.getDate());
-        case "HH": return pad(hour, 2);
+        case "HH": return pad(hour);
         case "H": return String(hour);
-        case "hh": return pad(hour12, 2);
+        case "hh": return pad(hour12);
         case "h": return String(hour12);
-        case "mm": return pad(value.getMinutes(), 2);
+        case "mm": return pad(value.getMinutes());
         case "m": return String(value.getMinutes());
-        case "ss": return pad(value.getSeconds(), 2);
+        case "ss": return pad(value.getSeconds());
         case "s": return String(value.getSeconds());
         case "tt": return hour < 12 ? culture.amDesignator : culture.pmDesignator;
         default: return token;
     }
 }
 
-function pad(value: number, length: number): string {
+/** A number zero-padded to the given width (two digits by default). */
+export function pad(value: number, length = 2): string {
     return String(value).padStart(length, "0");
 }
 
@@ -179,7 +160,10 @@ export type WrittenMoment = {
 };
 
 /** The wire's shape of a moment: the fields, then nothing or a zone; matched whole, so another tail is no moment, as on the server. */
-const WrittenMomentPattern = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d+))?)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?$/i;
+const WrittenMomentPattern = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{1,2})(?::(\d{1,2})(?:\.(\d+))?)?)?(?:Z|([+-])(\d{2})(?::?(\d{2}))?)?$/i;
+
+const FirstMomentInstant = -62135596800000;
+const LastMomentInstant = 253402300799999;
 
 /** The wall clock a text is written with, or null for text that names no moment. */
 export function parseWrittenMoment(text: string): WrittenMoment | null {
@@ -204,6 +188,15 @@ export function parseWrittenMoment(text: string): WrittenMoment | null {
 
     read.setUTCFullYear(moment.year, moment.month - 1, moment.day);
     read.setUTCHours(moment.hour, moment.minute, moment.second, moment.millisecond);
+
+    if (written[8] !== undefined) {
+        const offsetHours = Number(written[9]);
+        const offsetMinutes = Number(written[10] ?? "0");
+        const utc = read.getTime() - (written[8] === "-" ? -1 : 1) * ((offsetHours * 60 + offsetMinutes) * 60000);
+
+        if (offsetHours > 14 || offsetMinutes > 59 || (offsetHours === 14 && offsetMinutes > 0) || utc < FirstMomentInstant || utc > LastMomentInstant)
+            return null;
+    }
 
     // A field out of range names no moment: the browser would roll it into another day, where the server refuses it. No year 0 either.
     return moment.year >= 1 && read.getUTCFullYear() === moment.year && read.getUTCMonth() === moment.month - 1 && read.getUTCDate() === moment.day
@@ -245,18 +238,9 @@ export const InvariantTemporalLetters: TemporalLetters = { year: "y", month: "M"
 export function temporalPlaceholder(format: string, letters: TemporalLetters): string {
     let result = "";
 
-    for (let index = 0; index < format.length;) {
-        const token = matchTemporalToken(format, index);
-
-        if (token === null) {
-            result += format[index];
-            index++;
-            continue;
-        }
-
-        result += placeholderLetter(token, letters).repeat(token.length);
-        index += token.length;
-    }
+    walkTemporalPattern(format, (token, index) => {
+        result += token === null ? format[index] : placeholderLetter(token, letters).repeat(token.length);
+    });
 
     return result;
 }
@@ -285,22 +269,8 @@ export function readTemporal(text: string, format: string, culture: TemporalCult
     const input = text.trim();
     const read: ReadFields = { position: 0, year: null, month: null, day: null, hour: null, hour12: null, minute: 0, second: 0, afternoon: null };
 
-    for (let index = 0; index < format.length;) {
-        const token = matchTemporalToken(format, index);
-
-        if (token === null) {
-            if (!readLiteral(input, read, format[index]))
-                return null;
-
-            index++;
-            continue;
-        }
-
-        if (!readToken(input, read, token, culture))
-            return null;
-
-        index += token.length;
-    }
+    if (!walkTemporalPattern(format, (token, index) => token === null ? readLiteral(input, read, format[index]) : readToken(input, read, token, culture)))
+        return null;
 
     return input.length > 0 && read.position === input.length ? writtenFields(read) : null;
 }
@@ -466,7 +436,8 @@ export const temporalFormatting = {
     readCulture: readTemporalCulture,
     format: formatTemporal,
     parse: parseWrittenMoment,
-    toDate: writtenMomentDate
+    toDate: writtenMomentDate,
+    pad
 };
 
 /** An hour of the day as a 12-hour clock counts it: 12 for noon and midnight, 1-11 for the rest. */

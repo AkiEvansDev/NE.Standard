@@ -8,7 +8,7 @@ import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import less from "less";
-import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 let reducedMotion = false;
 const slides: { element: FakeElement; keyframes: Record<string, unknown>[]; options: KeyframeAnimationOptions }[] = [];
@@ -100,6 +100,23 @@ test("under reduced motion the line moves at once", () => {
     assert.equal(headers[2].classes.has("ui-tab-caption--selected"), true);
     assert.equal(real<HTMLElement>(pages[2]).hidden, false);
     assert.equal(slides.length, 0);
+});
+
+test("arrow keys move roving focus across captions without switching the selected tab", () => {
+    headers[2].focus();
+    headers[2].dispatchEvent(new FakeKeyboardEvent("ArrowLeft", headers[2]));
+
+    assert.equal(fakeDocument.activeElement, headers[1]);
+    assert.deepEqual(headers.map(caption => caption.tabIndex), [-1, 0, -1]);
+    assert.equal(root.getAttribute("data-ui-tabs-selected"), "settings");
+    assert.equal(headers[1].classes.has("ui-tab-caption--selected"), false);
+    assert.equal(headers[2].classes.has("ui-tab-caption--selected"), true);
+
+    headers[1].dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(root.getAttribute("data-ui-tabs-selected"), "activity");
+    assert.equal(headers[1].classes.has("ui-tab-caption--selected"), true);
+    assert.deepEqual(headers.map(caption => caption.tabIndex), [-1, 0, -1]);
 });
 
 test("the reserve is the title's words set bold and unseen beneath it, taking no height; the line scales from its start", async () => {

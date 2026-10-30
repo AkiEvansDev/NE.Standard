@@ -51,10 +51,10 @@ installFakeDom({
 });
 
 const { PagerEngine } = await import("../src/interactions/pager-engine.ts");
-const { openPageNumbers, pageNumbers, pageOffset } = await import("../src/items/item-pages.ts");
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { openPageNumbers, pageNumbers, pageOffset } = await import("../src/addressing/item-pages.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 
-type PageState = import("../src/items/item-pages.ts").PageState;
+type PageState = import("../src/addressing/item-pages.ts").PageState;
 
 clientStrings.register({
     "ui.pager.page": "Page {page}",

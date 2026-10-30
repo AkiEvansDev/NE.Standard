@@ -1,9 +1,12 @@
-// A period chosen on one calendar: the first click is the start, the second the end, and a wrong-way-round pair rights itself.
+// A period chosen on one calendar: the first click is the start, the second the end, and a wrong-way-round pair rights itself; a least
+// distance holds the two ends that far apart.
 
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { chooseDay, isChosenPeriodSpanning, isWithinChosenPeriod, isWithinPeriod, orderPeriod } from "../src/interactions/temporal-range.ts";
+import {
+    chooseDay, fromWallTime, holdApart, isChosenPeriodSpanning, isHeldApart, isWithinChosenPeriod, isWithinPeriod, nearestEnd, orderPeriod, wallTime
+} from "../src/interactions/temporal-range.ts";
 
 const day = (date: number, hour = 0) => new Date(2026, 8, date, hour, 30);
 
@@ -84,4 +87,48 @@ test("a band joins a period's ends once it runs past its first day, and not whil
     assert.equal(isChosenPeriodSpanning({ start: day(10), end: day(10) }, false), false);
     assert.equal(isChosenPeriodSpanning({ start: day(10), end: null }, false), false);
     assert.equal(isChosenPeriodSpanning({ start: day(10), end: day(14) }, true), false);
+});
+
+const Hour = 3_600_000;
+const Days = (count: number) => ({ distance: count * 24 * Hour, days: true });
+const Hours = (count: number) => ({ distance: count * Hour, days: false });
+
+test("under a least distance a new start drops an end nearer than it, and keeps one far enough", () => {
+    assert.equal(chooseDay({ start: day(1), end: day(12) }, "start", day(11), Days(2)).end, null);
+    assert.equal(chooseDay({ start: day(1), end: day(12) }, "start", day(10), Days(2)).end?.getDate(), 12);
+});
+
+test("under a least distance an end is held that far past the start, on the day it was chosen on", () => {
+    const choice = chooseDay({ start: day(10, 9), end: null }, "end", day(11), Hours(36));
+
+    assert.equal(choice.end?.getDate(), 11);
+    assert.equal(choice.end?.getHours(), 21);
+    assert.equal(choice.end?.getMinutes(), 30);
+    assert.equal(choice.complete, true);
+});
+
+test("a period of days is measured by its days, whatever time of day its values carry", () => {
+    assert.equal(isHeldApart(day(10, 14), day(12), Days(2)), true);
+    assert.equal(isHeldApart(day(10, 14), day(11, 23), Days(2)), false);
+    // A part of a day asks for one whole day more.
+    assert.equal(nearestEnd(day(10, 14), "end", { distance: 36 * Hour, days: true }).getDate(), 12);
+    assert.equal(nearestEnd(day(14, 9), "start", { distance: 36 * Hour, days: true }).getDate(), 12);
+});
+
+test("an end is held its least distance from the other as a slider's handle is, and one far enough is left alone", () => {
+    assert.equal(holdApart(day(10, 10), "end", day(10, 9), Hours(2)).getHours(), 11);
+    assert.equal(holdApart(day(10, 10), "start", day(10, 11), Hours(2)).getHours(), 9);
+    assert.equal(holdApart(day(10, 15), "end", day(10, 9), Hours(2)).getHours(), 15);
+    assert.equal(holdApart(day(10, 10), "end", null, Hours(2)).getHours(), 10);
+    assert.equal(holdApart(day(10, 10), "end", day(10, 12), null).getHours(), 10);
+});
+
+test("a wall clock read as milliseconds reads back as the same clock, the years before 100 as themselves", () => {
+    const early = new Date(2000, 0, 1, 8, 15, 30);
+
+    early.setFullYear(42);
+
+    assert.equal(fromWallTime(wallTime(early)).getFullYear(), 42);
+    assert.equal(fromWallTime(wallTime(early)).getMinutes(), 15);
+    assert.equal(wallTime(day(11, 9)) - wallTime(day(10, 9)), 24 * Hour);
 });

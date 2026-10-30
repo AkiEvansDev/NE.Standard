@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -13,6 +14,13 @@ public sealed class FocusEffect(UIComponentReference target) : TargetedClientEff
     /// </summary>
     public FocusEffect(string targetComponentId, params object?[]? dynamicParameters)
         : this(new UIComponentReference(targetComponentId, dynamicParameters))
+    { }
+
+    /// <summary>
+    /// Creates an effect that focuses <paramref name="targetComponent"/>.
+    /// </summary>
+    public FocusEffect(IBindableComponent targetComponent, params object?[]? dynamicParameters)
+        : this(new UIComponentReference(targetComponent, dynamicParameters))
     { }
 
     /// <inheritdoc />

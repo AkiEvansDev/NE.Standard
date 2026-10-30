@@ -238,18 +238,18 @@ internal sealed partial class PinnedServicesGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<DemoPinnableService> Services { get; } =
     [
-        Service(0, "billing", "Billing", "12 replicas · eu-west", "Europe West", "Healthy", UIBadgeType.Success, DemoIcons.Shield),
-        Service(1, "panel", "Panel", "4 replicas · eu-west", "Europe West", "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
-        Service(2, "dns", "DNS", "2 replicas · eu-west", "Europe West", "Degraded", UIBadgeType.Warning, DemoIcons.Link),
-        Service(3, "mail-relay", "Mail Relay", "1 replica · us-east", "US East", "Paused", UIBadgeType.Surface, DemoIcons.Mail),
-        Service(4, "metrics", "Metrics", "3 replicas · us-east", "US East", "Healthy", UIBadgeType.Success, DemoIcons.FileText),
-        Service(5, "status-page", "Status Page", "2 replicas · us-east", "US East", "Healthy", UIBadgeType.Success, DemoIcons.Bell),
-        Service(6, "scheduler", "Scheduler", "1 replica · ap-south", "Asia South", "Healthy", UIBadgeType.Success, DemoIcons.Clock),
-        Service(7, "audit-log", "Audit Log", "2 replicas · ap-south", "Asia South", "Healthy", UIBadgeType.Success, DemoIcons.History)
+        Service(0, "billing", "Billing", "12 replicas · eu-west", "Europe West", "Healthy", UIBadgeVariant.Success, DemoIcons.Shield),
+        Service(1, "panel", "Panel", "4 replicas · eu-west", "Europe West", "Healthy", UIBadgeVariant.Success, DemoIcons.LayoutDashboard),
+        Service(2, "dns", "DNS", "2 replicas · eu-west", "Europe West", "Degraded", UIBadgeVariant.Warning, DemoIcons.Link),
+        Service(3, "mail-relay", "Mail Relay", "1 replica · us-east", "US East", "Paused", UIBadgeVariant.Surface, DemoIcons.Mail),
+        Service(4, "metrics", "Metrics", "3 replicas · us-east", "US East", "Healthy", UIBadgeVariant.Success, DemoIcons.FileText),
+        Service(5, "status-page", "Status Page", "2 replicas · us-east", "US East", "Healthy", UIBadgeVariant.Success, DemoIcons.Bell),
+        Service(6, "scheduler", "Scheduler", "1 replica · ap-south", "Asia South", "Healthy", UIBadgeVariant.Success, DemoIcons.Clock),
+        Service(7, "audit-log", "Audit Log", "2 replicas · ap-south", "Asia South", "Healthy", UIBadgeVariant.Success, DemoIcons.History)
     ];
 
-    private static DemoPinnableService Service(int order, string id, string title, string description, string region, string badge, UIBadgeType badgeStyle, string icon)
-        => new() { Id = id, IsContent = true, Order = order, Icon = icon, Title = title, Description = description, BadgeText = badge, BadgeStyle = badgeStyle, Group = region, Region = region };
+    private static DemoPinnableService Service(int order, string id, string title, string description, string region, string badge, UIBadgeVariant badgeVariant, string icon)
+        => new() { Id = id, IsContent = true, Order = order, Icon = icon, Title = title, Description = description, BadgeTitle = badge, BadgeVariant = badgeVariant, Group = region, Region = region };
 
     /// <summary>Pins the service keyed <paramref name="id"/> at the list's head, or takes its pin off and puts it back in its region.</summary>
     public void TogglePin(string id)
@@ -310,9 +310,9 @@ internal sealed partial class DeployQueueGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<TextItem> Deploys { get; } =
     [
-        new() { Id = "billing-482", IsContent = true, Icon = DemoIcons.Upload, Title = "billing #482", Description = "Running now", BadgeText = "running", BadgeStyle = UIBadgeType.Info, CanDrag = false },
+        new() { Id = "billing-482", IsContent = true, Icon = DemoIcons.Upload, Title = "billing #482", Description = "Running now", BadgeTitle = "running", BadgeVariant = UIBadgeVariant.Info, CanDrag = false },
         new() { Id = "panel-311", IsContent = true, Icon = DemoIcons.Upload, Title = "panel #311", Description = "Queued by Robin" },
-        new() { Id = FrozenId, IsContent = true, Icon = DemoIcons.Upload, Title = "dns #97", Description = "Held until the zone audit ends", BadgeText = "frozen", BadgeStyle = UIBadgeType.Warning },
+        new() { Id = FrozenId, IsContent = true, Icon = DemoIcons.Upload, Title = "dns #97", Description = "Held until the zone audit ends", BadgeTitle = "frozen", BadgeVariant = UIBadgeVariant.Warning },
         new() { Id = "metrics-58", IsContent = true, Icon = DemoIcons.Upload, Title = "metrics #58", Description = "Queued by Alex" },
         new() { Id = "mail-12", IsContent = true, Icon = DemoIcons.Upload, Title = "mail #12", Description = "Queued by Robin" }
     ];

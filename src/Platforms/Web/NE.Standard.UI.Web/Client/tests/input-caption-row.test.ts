@@ -1,5 +1,5 @@
 // An input's caption row is one caption line whatever stands in it, so a badge taller than the line never moves the field away
-// from its caption; a caption's badge with words is a tab stop, so it wears the keyboard's ring even where the theme draws none.
+// from its caption; a caption's badge with words is a tab stop, asking for help under the pointer and suppressing the browser ring.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -28,9 +28,9 @@ test("an input's caption row is exactly one line of its caption, a badge centred
     assert.match(declarations(".ui-text__header") ?? "", /align-items: center;/);
 });
 
-test("a caption's badge with words wears the keyboard's frame round it, and asks for help under the pointer", () => {
+test("a caption's badge with words asks for help under the pointer and suppresses the browser focus ring", () => {
     const badge = ".ui-text__badge[data-ui-tooltip-press][data-ui-tooltip]";
 
     assert.match(declarations(badge) ?? "", /cursor: help;/);
-    assert.match(css, /\.ui-text__badge\[data-ui-tooltip-press\]\[data-ui-tooltip\]:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*outline: 2px solid var\(--ui-mark-keyboard\);\s*outline-offset: 2px;/);
+    assert.match(css, /\.ui-text__badge\[data-ui-tooltip-press\]\[data-ui-tooltip\]:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*outline: none;/);
 });

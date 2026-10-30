@@ -327,6 +327,27 @@ test("a tab stop a roving engine gave a link is its own, through a disable and b
     assert.equal(link.getAttribute("tabindex"), "-1");
 });
 
+test("a page menu entry's role follows its row's address: a button while it holds none, the anchor's link while it does", () => {
+    const entry = new FakeElement(["ui-menu-item"], { "data-ui-menu-entry-acting": "", "data-ui-href": "/reports", href: "/reports", "data-ui-id": "1" });
+    const { setClass, setAddress } = page(entry);
+
+    assert.equal(entry.hasAttribute("role"), false, "an addressed entry carries no role");
+
+    setAddress(entry, null);
+
+    assert.equal(entry.getAttribute("role"), "button");
+
+    setAddress(entry, "/reports");
+
+    assert.equal(entry.hasAttribute("role"), false);
+
+    // Blocked state turns away only the live href, not the address, so an addressed entry keeps the anchor's role.
+    setClass(entry, "ui-menu-item", "ui-disabled");
+
+    assert.equal(entry.hasAttribute("href"), false);
+    assert.equal(entry.hasAttribute("role"), false);
+});
+
 test("a press on anything inert runs nothing, a disabled root's included, and Enter on it presses nothing", () => {
     const label = new FakeElement();
     const button = component(["ui-button", "ui-disabled"], label);

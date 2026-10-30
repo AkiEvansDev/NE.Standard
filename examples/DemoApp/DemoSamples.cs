@@ -16,8 +16,8 @@ internal static class DemoSamples
                 Icon = DemoIcons.Shield,
                 Title = "Production",
                 Description = "eu-west · 12 replicas",
-                BadgeText = "Locked",
-                BadgeStyle = UIBadgeType.Danger
+                BadgeTitle = "Locked",
+                BadgeVariant = UIBadgeVariant.Danger
             },
             new()
             {
@@ -25,8 +25,8 @@ internal static class DemoSamples
                 Icon = DemoIcons.BadgeCheck,
                 Title = "Staging",
                 Description = "eu-west · 3 replicas",
-                BadgeText = "Open",
-                BadgeStyle = UIBadgeType.Success
+                BadgeTitle = "Open",
+                BadgeVariant = UIBadgeVariant.Success
             },
             new()
             {
@@ -34,8 +34,8 @@ internal static class DemoSamples
                 Icon = DemoIcons.Settings,
                 Title = "Development",
                 Description = "eu-central · 1 replica",
-                BadgeText = "Rebuilt daily",
-                BadgeStyle = UIBadgeType.Info
+                BadgeTitle = "Rebuilt daily",
+                BadgeVariant = UIBadgeVariant.Info
             }
         ];
 
@@ -43,17 +43,17 @@ internal static class DemoSamples
     public static DemoServiceItem[] Services()
         =>
         [
-            Service("billing", "Billing", "12 replicas · eu-west", "Europe West", "Healthy", UIBadgeType.Success, DemoIcons.Shield),
-            Service("panel", "Panel", "4 replicas · eu-west", "Europe West", "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
-            Service("dns", "DNS", "2 replicas · eu-west", "Europe West", "Degraded", UIBadgeType.Warning, DemoIcons.Link),
-            Service("mail-relay", "Mail Relay", "1 replica · us-east", "US East", "Paused", UIBadgeType.Surface, DemoIcons.Mail),
-            Service("metrics", "Metrics", "3 replicas · us-east", "US East", "Healthy", UIBadgeType.Success, DemoIcons.FileText),
-            Service("status-page", "Status Page", "2 replicas · us-east", "US East", "Healthy", UIBadgeType.Success, DemoIcons.Bell),
-            Service("scheduler", "Scheduler", "1 replica · ap-south", "Asia South", "Healthy", UIBadgeType.Success, DemoIcons.Clock),
-            Service("audit-log", "Audit Log", "2 replicas · ap-south", "Asia South", "Healthy", UIBadgeType.Success, DemoIcons.History)
+            Service("billing", "Billing", "12 replicas · eu-west", "Europe West", "Healthy", UIBadgeVariant.Success, DemoIcons.Shield),
+            Service("panel", "Panel", "4 replicas · eu-west", "Europe West", "Healthy", UIBadgeVariant.Success, DemoIcons.LayoutDashboard),
+            Service("dns", "DNS", "2 replicas · eu-west", "Europe West", "Degraded", UIBadgeVariant.Warning, DemoIcons.Link),
+            Service("mail-relay", "Mail Relay", "1 replica · us-east", "US East", "Paused", UIBadgeVariant.Surface, DemoIcons.Mail),
+            Service("metrics", "Metrics", "3 replicas · us-east", "US East", "Healthy", UIBadgeVariant.Success, DemoIcons.FileText),
+            Service("status-page", "Status Page", "2 replicas · us-east", "US East", "Healthy", UIBadgeVariant.Success, DemoIcons.Bell),
+            Service("scheduler", "Scheduler", "1 replica · ap-south", "Asia South", "Healthy", UIBadgeVariant.Success, DemoIcons.Clock),
+            Service("audit-log", "Audit Log", "2 replicas · ap-south", "Asia South", "Healthy", UIBadgeVariant.Success, DemoIcons.History)
         ];
 
     /// <summary>One service row; its region is kept apart from its group, so a cleared group can be put back.</summary>
-    public static DemoServiceItem Service(string id, string title, string description, string region, string badge, UIBadgeType badgeStyle, string icon)
-        => new() { Id = id, Icon = icon, Title = title, Description = description, BadgeText = badge, BadgeStyle = badgeStyle, Group = region, Region = region };
+    public static DemoServiceItem Service(string id, string title, string description, string region, string badge, UIBadgeVariant badgeVariant, string icon)
+        => new() { Id = id, Icon = icon, Title = title, Description = description, BadgeTitle = badge, BadgeVariant = badgeVariant, Group = region, Region = region };
 }

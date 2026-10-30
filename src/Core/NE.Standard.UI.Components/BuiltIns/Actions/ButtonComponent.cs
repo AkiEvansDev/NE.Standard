@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -15,6 +14,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// <summary>
 /// A clickable bordered region that invokes UI commands and hosts text/icon content.
 /// </summary>
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultAlignment))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultAlignment))]
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
@@ -26,27 +27,28 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 [UIComponentPropertyDefault(nameof(ITextComponent.TextAlignment), nameof(DefaultTextAlignment))]
 [UIComponentPropertyBlock(typeof(ITextMarkAlignmentComponent))]
 [UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
-public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButtonComponent, ISurfaceComponent, IBorderedComponent, IOverflowComponent, ITextComponent, ITextMarkAlignmentComponent, IAccessibleNameComponent
+public abstract partial class ButtonComponent<T>(string? id = null) : VisualComponentBase<T>(id), IButtonComponent, ISurfaceComponent, IBorderedComponent, IOverflowComponent, ITextComponent, ITextMarkAlignmentComponent, IAccessibleNameComponent
     where T : ButtonComponent<T>, IUIComponentDefinition
 {
     // Declared as registered defaults, not set in the constructor, so tooling reads the value a button wears. Default resolves to
     // `color: inherit`, so the glyph follows the button's contrast colour.
+    private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Center;
     private static readonly UIThemeColor DefaultIconColor = UIThemeColor.Default;
     private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Body;
     private const UITextBadgePlacement DefaultBadgePlacement = UITextBadgePlacement.Trailing;
     private static readonly UITextAppearance DefaultDescriptionType = UITextAppearance.Caption;
-    private static readonly UIResponsive<UIButtonSize> DefaultSize = UIButtonSize.Medium;
+    private static readonly UIResponsive<UISize> DefaultSize = UISize.Medium;
 
-    // Centred; a row-shaped control that wears the button (an action, a menu entry, a breadcrumb) left-aligns it in its own constructor.
+    // Centred; a row-shaped control that wears the button (an action, a menu entry, a breadcrumb) left-aligns it in its own defaults.
     private const UITextAlignment DefaultTextAlignment = UITextAlignment.Center;
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = UIButtonType.Primary)]
-    public UIButtonType? Type { get; set; }
+    [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = UIButtonVariant.Primary)]
+    public UIButtonVariant? Variant { get; set; }
 
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValueMember = nameof(DefaultSize))]
-    public UIResponsive<UIButtonSize>? Size { get; set; }
+    public UIResponsive<UISize>? Size { get; set; }
 
     /// <inheritdoc/>
     /// <remarks>Not translatable: a chord names physical keys. A literal one is checked when the view compiles.</remarks>
@@ -57,10 +59,7 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     /// Gets or sets whether the button is a toggle and its pressed state: null is an ordinary button, true/false a toggle;
     /// two-way, so a press writes back.
     /// </summary>
-    [UIComponentProperty(
-        BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
-        DefaultBindingMode = UIBindingMode.TwoWay,
-        DefaultValue = null)]
+    [UIComponentProperty(BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.TwoWay, DefaultValue = null)]
     public bool? Pressed { get; set; }
 
     /// <summary>
@@ -101,15 +100,6 @@ public abstract partial class ButtonComponent<T> : VisualComponentBase<T>, IButt
     {
         get;
         set => field = value is null or UISide.Left or UISide.Right ? value : throw new ArgumentOutOfRangeException(nameof(value), value, "A drawer is a left or a right side.");
-    }
-
-    /// <summary>
-    /// Initializes the button centred, with the in-control label defaults.
-    /// </summary>
-    protected ButtonComponent(string? id = null) : base(id)
-    {
-        HorizontalAlignment = UIAlignment.Center;
-        VerticalAlignment = UIAlignment.Center;
     }
 
     /// <summary>

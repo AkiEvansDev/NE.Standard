@@ -2,10 +2,10 @@
 // container's Columns/Rows are not bindable. A bound Position also gives the share to the controller and takes it from there.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { BindPositionAttribute, ColumnLimitsAttribute, RowLimitsAttribute, SplitEdgeAttribute, SplitFoldedAttribute, SplitterPositionAttribute, SplitterStepAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
+import { BindPositionAttribute, ColumnLimitsAttribute, ContainerClass, GridSplitterClass, OrientationVerticalClass, RowLimitsAttribute, SplitEdgeAttribute, SplitFoldedAttribute, SplitterPositionAttribute, SplitterStepAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
 import { currentResponsiveTier, resolveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier.ts";
 import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
-import { OnceWarner } from "../runtime/logger.ts";
+import { OnceWarner } from "../metadata/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
 import type { ClientBootPatch } from "../state/client-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
@@ -32,9 +32,6 @@ import {
 } from "./grid-tracks.ts";
 import type { GridSplitRuns, GridTrack, SplitMove } from "./grid-tracks.ts";
 
-const RootClass = "ui-grid-splitter";
-const ContainerClass = "ui-container";
-const VerticalClass = "ui-orientation--vertical";
 const DefaultStep = 16;
 
 // A drag follows the pointer, under a side's floor too, and the side folds or springs back as it is let go (settle); a step (a key, a
@@ -124,7 +121,7 @@ export class GridSplitterEngine {
 
         this.drag = new PointerDrag<SplitContext>({
             root: this.root,
-            resolveHandle: target => target.closest<HTMLElement>(`.${RootClass}`),
+            resolveHandle: target => target.closest<HTMLElement>(`.${GridSplitterClass}`),
             begin: splitter => this.resolveContext(splitter),
             coordinate: context => context.axis.coordinate,
             // The bar follows the pointer all the way, a side too narrow for its panes showing none of them; let go there, it folds.
@@ -144,12 +141,12 @@ export class GridSplitterEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
 
-        this.prepareEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.prepareEach(this.root.querySelectorAll<HTMLElement>(`.${GridSplitterClass}`));
 
-        observeComponents(this.root, `.${RootClass}`, { childList: true }, splitters => this.prepareEach(splitters));
+        observeComponents(this.root, `.${GridSplitterClass}`, { childList: true }, splitters => this.prepareEach(splitters));
 
         // A share the controller pushed; none on a bound bar puts the authored tracks back.
-        observeComponents(this.root, `.${RootClass}`, { attributeFilter: [SplitterPositionAttribute] }, splitters => this.takeEach(splitters));
+        observeComponents(this.root, `.${GridSplitterClass}`, { attributeFilter: [SplitterPositionAttribute] }, splitters => this.takeEach(splitters));
 
         // Another width may bring another tier's tracks: a folded pane is measured again, and given back once its tracks have room;
         // a bound bar is placed on the new tier's tracks at its share.
@@ -266,7 +263,7 @@ export class GridSplitterEngine {
     private reportEach(): void {
         const tier = currentResponsiveTier();
 
-        for (const splitter of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`)) {
+        for (const splitter of this.root.querySelectorAll<HTMLElement>(`.${GridSplitterClass}`)) {
             // A placed bar on the tracks of a tier it was not placed at yet; one not placed for want of a box waits for it (waitForBox).
             if (this.placedTiers.has(splitter) && this.placedTiers.get(splitter) !== tier)
                 this.place(splitter);
@@ -279,7 +276,7 @@ export class GridSplitterEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element) || !isPlainKey(domEvent))
             return;
 
-        const splitter = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const splitter = domEvent.target.closest<HTMLElement>(`.${GridSplitterClass}`);
 
         if (splitter === null || this.drag.active || isInert(splitter))
             return;
@@ -375,7 +372,7 @@ export class GridSplitterEngine {
     }
 
     private handleDoubleClick(domEvent: Event): void {
-        const splitter = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${RootClass}`) : null;
+        const splitter = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${GridSplitterClass}`) : null;
 
         if (splitter !== null)
             this.reset(splitter);
@@ -533,7 +530,7 @@ function foldEmptyPanes(container: HTMLElement, narrow: { readonly axis: SplitAx
             continue;
 
         const style = getComputedStyle(child);
-        const own = child.classList.contains(RootClass) ? axisOf(child) : null;
+        const own = child.classList.contains(GridSplitterClass) ? axisOf(child) : null;
         const folded = axes.some(({ axis, sizes }) => axis !== own && coversNoRoom(style[axis.lineStart], style[axis.lineEnd], sizes, narrow?.axis === axis ? narrow.tracks : undefined));
 
         if (folded !== child.hasAttribute(SplitFoldedAttribute))
@@ -549,7 +546,7 @@ function containerOf(splitter: HTMLElement): HTMLElement | null {
 
 /** The splitter's own class, not the nearest ancestor carrying it: `ui-orientation--vertical` is shared with the layout panels. */
 function axisOf(splitter: HTMLElement): SplitAxis {
-    return splitter.classList.contains(VerticalClass) ? Columns : Rows;
+    return splitter.classList.contains(OrientationVerticalClass) ? Columns : Rows;
 }
 
 /** The template in force at this tier: the viewer's for this tier or the nearest narrower one, else the authored. */
@@ -585,7 +582,7 @@ function ownSplitters(container: HTMLElement, axis: SplitAxis): HTMLElement[] {
     const splitters: HTMLElement[] = [];
 
     for (const child of container.children) {
-        if (child instanceof HTMLElement && child.classList.contains(RootClass) && axisOf(child) === axis)
+        if (child instanceof HTMLElement && child.classList.contains(GridSplitterClass) && axisOf(child) === axis)
             splitters.push(child);
     }
 

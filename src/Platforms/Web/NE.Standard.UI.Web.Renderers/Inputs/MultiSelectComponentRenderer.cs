@@ -21,39 +21,53 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 /// <summary>
 /// The select's shell down to its <c>ui-select__*</c> names, so one client engine drives both; the field holds a chip per chosen
-/// option and the list says it takes several. The value is a JSON list of keys, read the way an items view's chosen keys are.
+/// option — its badge, as <see cref="UIMultiSelectVariant.Badges"/> — and the list says it takes several. As
+/// <see cref="UIMultiSelectVariant.Checkboxes"/>, a checkbox per option instead of both. The value is a JSON list of keys, read the
+/// way an items view's chosen keys are.
 /// </summary>
-public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
+public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string ChipLabelClassName = "ui-multi-select__chip-label";
+    /// <summary>The root's mark beside <c>ui-multi-select</c> as <see cref="UIMultiSelectVariant.Badges"/>, which the stylesheet and the select engine read.</summary>
+    public const string BadgeSelectClassName = WebClassNames.BadgeSelect;
+
+    private const string ChipLabelClassName = WebClassNames.MultiSelectChipLabel;
 
     private static readonly WebDomOperation[] MaxSelectedOperations = [WebDomOperation.Attribute(WebAttributes.SelectMax, target: "root", converter: WebDomConverters.PositiveCount)];
-    private static readonly WebDomOperation[] SelectedKeysOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKeys, target: "root")];
+    private static readonly WebDomOperation[] SelectedKeysOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKeys, target: "root", converter: WebDomConverters.UniqueSelectedKeysAttribute)];
 
     public override string ComponentTypeKey => MultiSelectComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-multi-select";
-
-    /// <summary>Whether each chip is its option's badge (<see cref="BadgeSelectComponentRenderer"/>) rather than its words on the selection's tint.</summary>
-    protected virtual bool ChipsAreBadges => false;
+    protected override string ClassName => WebClassNames.MultiSelect;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
+        UIMultiSelectVariant variant = ReadRenderValue<UIMultiSelectVariant?>(context, MultiSelectComponent.VariantProperty, null) ?? UIMultiSelectVariant.Chips;
+
+        // Free text never reaches here with checkboxes: the compiler refuses the pair.
+        if (variant == UIMultiSelectVariant.Checkboxes)
+        {
+            RenderCheckboxes(context, root);
+            return;
+        }
+
+        var freeText = ReadRenderValue<bool?>(context, MultiSelectComponent.AllowFreeTextProperty, null) == true;
+
+        // Each chip its option's badge, rather than its words on the selection's tint.
+        var badges = variant == UIMultiSelectVariant.Badges;
+
         _ = root.Class(WebClassNames.Select);
 
-        if (ChipsAreBadges)
-            _ = root.Class(BadgeSelectComponentRenderer.BadgeSelectClassName);
+        if (badges)
+            _ = root.Class(BadgeSelectClassName);
 
         RenderTooltip(context, root);
         TextContentRendererBase.RenderInputAppearance(context, root);
         TextContentRendererBase.RenderInputHeader(context, root, titleCanGoInside: true);
         SelectComponentRenderer.RenderAdornmentState(context, root);
         RenderMaxSelected(context, root);
-
-        var freeText = ReadRenderValue<bool?>(context, MultiSelectComponent.AllowFreeTextProperty, null) == true;
 
         if (freeText)
             _ = root.Attribute(WebAttributes.SelectFreeText);
@@ -69,7 +83,7 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        RenderTrigger(context, root, items, chosenKeys, freeText, ChipsAreBadges);
+        RenderTrigger(context, root, items, chosenKeys, freeText, badges);
         RenderValueInput(context, root, valueKind, chosenKeys, valueBinding);
         SelectComponentRenderer.RenderPopup(context, root, items, isBound, new HashSet<string>(chosenKeys, StringComparer.Ordinal));
 
@@ -95,8 +109,8 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
         _ = RenderProperty<IReadOnlyList<string>?>(context, root, IInputComponent.ValueProperty, static (target, value) =>
         {
-            if (value is { Count: > 0 })
-                _ = target.Attribute(WebAttributes.SelectedKeys, JsonSerializer.Serialize(Distinct(value)));
+            if (Distinct(value) is { Count: > 0 } distinct)
+                _ = target.Attribute(WebAttributes.SelectedKeys, JsonSerializer.Serialize(distinct));
         }, SelectedKeysOperations);
 
         return valueKind;
@@ -146,7 +160,7 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
             _ = trigger.Element("span", chips =>
             {
-                _ = chips.Class("ui-multi-select__chips");
+                _ = chips.Class(WebClassNames.MultiSelectChips);
 
                 // The chips drawn on the first frame, so the field is not empty until the engine starts; the list's order is not theirs.
                 var drawn = 0;
@@ -203,7 +217,7 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
     /// </summary>
     private static void RenderEntry(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder entry)
     {
-        _ = entry.Class("ui-multi-select__entry");
+        _ = entry.Class(WebClassNames.MultiSelectEntry);
         _ = entry.Attribute("type", "text");
         _ = entry.Attribute("autocomplete", "off");
         _ = entry.Attribute("enterkeyhint", "enter");
@@ -229,7 +243,7 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
                 badge = items[i] as IBadgeModel;
 
                 // A blank title from data falls to the key, and a blank key stands as it is: data must not fail the page.
-                UIPhrase title = badges && badge?.BadgeText is UIPhrase badgeWords && UIPhrase.HasWords(badgeWords) ? badgeWords
+                UIPhrase title = badges && badge?.BadgeTitle is UIPhrase badgeWords && UIPhrase.HasWords(badgeWords) ? badgeWords
                     : items[i] is ITextBaseModel { Title: { } words } && UIPhrase.HasWords(words) ? words
                     : UIPhrase.Text(key);
 
@@ -252,7 +266,7 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
     {
         _ = chips.Element("span", chip =>
         {
-            _ = chip.Class("ui-multi-select__chip");
+            _ = chip.Class(WebClassNames.MultiSelectChip);
             _ = chip.Attribute(WebAttributes.SelectChip, key);
 
             // A badge chip is the option's badge itself, its words the badge's text and its remove inside it.
@@ -275,7 +289,7 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
             _ = chip.Element("button", remove =>
             {
-                _ = remove.Class("ui-multi-select__chip-remove");
+                _ = remove.Class(WebClassNames.MultiSelectChipRemove);
                 _ = remove.Attribute("type", "button");
                 // Out of the tab order: Backspace in the field and the list's own toggle reach every chip without a stop per chip.
                 _ = remove.Attribute("tabindex", "-1");
@@ -306,7 +320,7 @@ public class MultiSelectComponentRenderer : ItemsCollectionRendererBase
 
     /// <summary>The one value-bearing element: the chosen keys as JSON under the kind an items view's chosen keys are read by.</summary>
     private static void RenderValueInput(WebRenderContext context, IHtmlElementBuilder root, WebRenderValueKind valueKind, IReadOnlyList<string> chosenKeys, CompiledUIBinding? valueBinding)
-        => NativeInputRendererBase.RenderHiddenValueInput(context, root, "ui-select__value-input", input =>
+        => NativeInputRendererBase.RenderHiddenValueInput(context, root, WebClassNames.SelectValueInput, input =>
         {
             _ = input.Attribute(WebAttributes.ValueKind, WebValueKinds.SelectedKeys);
 

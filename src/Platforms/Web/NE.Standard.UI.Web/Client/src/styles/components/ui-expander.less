@@ -57,6 +57,7 @@
     // Square: the expander clips to the inside of its edge (above). A corner of its own was the outer edge's, a pixel too round inside
     // the border; the keyboard's frame takes the card's all round (core/keyboard.less).
     cursor: pointer;
+    transition: background-color @ui-motion-fast @ui-motion-ease;
 }
 
     .ui-expander__header::-webkit-details-marker {
@@ -98,9 +99,12 @@
     transition: color @ui-motion-fast @ui-motion-ease;
 }
 
-// Hover inks the chevron alone, as a tree row's fold mark: a wash would fill the band the surface already frames. A press inks it too,
-// with no wave (press-ripple-engine.ts): the fold opening at once is what a finger, which never hovers, sees of its press.
+// Hover washes the header band and steps up the chevron's ink; a press inks it too, with no wave (press-ripple-engine.ts).
 @media @{ui-can-hover} {
+    .ui-expander:not(.ui-expander--quiet)@{ui-button-live} > .ui-expander__header:hover {
+        background-color: var(--ui-wash-hover);
+    }
+
     :where(.ui-expander@{ui-button-live} > .ui-expander__header:hover .ui-expander__chevron) {
         color: @ui-text-ink;
     }
@@ -115,11 +119,11 @@
 }
 
 // Quiet: a line of muted words with the chevron right after them, standing on the ground of what holds it — no edge (unless authored),
-// fill or rule, and the content flush under it. It answers in its ink alone, as a link does: no wash, and no wave as no expander has
+// fill or rule, and the content flush under it. Its header spans the row and answers hover and keyboard focus with `--ui-wash-hover` and 2nd-degree ink; no wave as no expander has
 // (press-ripple-engine.ts). Its header is padded for the keyboard's frame and pulled back out by as much, so the words stand on the
 // content's edge at rest and the frame, inside the padding as a ghost button's, clears them; a clip leaves it its reach (runtime.less),
 // square unless authored: a clip margin keeps the box's curve, which cut the frame's corners where the header stands out past it.
-// Whatever its Surface: a Raised one's shadow goes, and a Tinted one's ground and ink, written `!important`, give way here too.
+// Whatever its Surface: an authored Surface or Tinted ground and ink, written `!important`, give way here too.
 .ui-expander.ui-expander--quiet {
     --ui-surface-fill: inherit;
     --ui-faint-base: inherit !important;
@@ -131,15 +135,22 @@
     box-shadow: none;
 }
 
+    // A quiet expander's header hangs out by its own inline padding so its words align with surrounding content at rest; when
+    // runtime.less clips the root, give the clip that same margin so the protruding hover pill is not cut off.
+    .ui-expander--quiet[data-ui-id][style*="overflow: clip"] {
+        overflow-clip-margin: @ui-space-2;
+    }
+
     .ui-expander--quiet > .ui-expander__header {
         grid-template-columns: minmax(0, auto) auto;
         justify-content: start;
         width: fit-content;
-        max-width: calc(100% + 2 * @ui-quiet-header-air-x);
-        margin: -@ui-quiet-header-air-y -@ui-quiet-header-air-x;
-        padding: @ui-quiet-header-air-y @ui-quiet-header-air-x;
+        max-width: calc(100% + 2 * @ui-space-2);
+        margin: -@ui-space-1 -@ui-space-2;
+        padding: @ui-space-1 @ui-space-2;
+        border-radius: @ui-list-entry-radius;
         color: @ui-text-muted;
-        transition: color @ui-motion-fast @ui-motion-ease;
+        transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
     }
 
         .ui-expander--quiet > .ui-expander__header > .ui-expander__chevron {
@@ -149,11 +160,13 @@
 
     @media @{ui-can-hover} {
         .ui-expander--quiet@{ui-button-live} > .ui-expander__header:hover {
+            background-color: var(--ui-wash-hover);
             color: @ui-text-ink;
         }
     }
 
     .ui-expander--quiet@{ui-button-live} > .ui-expander__header:active {
+        background-color: var(--ui-wash-active);
         color: @ui-text-ink;
     }
 

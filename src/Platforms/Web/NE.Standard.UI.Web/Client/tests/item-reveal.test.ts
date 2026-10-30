@@ -13,7 +13,7 @@ installFakeDom({
     }
 });
 
-const { itemsHostOf, keepHeldRow, letGoOfRow, revealItem } = await import("../src/items/item-reveal.ts");
+const { itemsHostOf, keepHeldRow, letGoOfRow, revealItem } = await import("../src/addressing/item-reveal.ts");
 const { ScrollAnchorEngine } = await import("../src/interactions/scroll-anchor-engine.ts");
 
 // The page's one listener for the reader's own scroll, which lets go of a held row.

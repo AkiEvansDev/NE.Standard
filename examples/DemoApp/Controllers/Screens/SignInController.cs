@@ -72,16 +72,16 @@ internal sealed partial class SignInController : UIControllerBase
 
     [UICommand]
     public void UseAdmin()
-        => Fill("robin");
+        => Fill("robin", DemoAccounts.RobinPassword);
 
     [UICommand]
     public void UseViewer()
-        => Fill("mika");
+        => Fill("mika", DemoAccounts.MikaPassword);
 
-    private void Fill(string userName)
+    private void Fill(string userName, string password)
     {
         UserName = userName;
-        Password = userName;
+        Password = password;
         Notice = null;
     }
 }

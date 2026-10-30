@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
@@ -7,7 +6,7 @@ using NE.Standard.UI.Primitives.Constants;
 namespace NE.Standard.UI.Components.Foundation;
 
 /// <summary>
-/// Base class for single-region components with border/background/padding styling (Button, Card, Expander).
+/// Base class for single-region components with border/background/padding styling (Surface and Card on it, Expander).
 /// </summary>
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]

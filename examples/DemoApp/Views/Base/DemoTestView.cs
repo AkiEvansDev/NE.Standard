@@ -7,10 +7,10 @@ namespace DemoApp.Views.Base;
 internal abstract class DemoTestView : DemoView
 {
     /// <summary>A button asking for one thing: <paramref name="command"/>, at the start of its row.</summary>
-    protected static ButtonComponent CreateButton(string title, string command, UIButtonType type)
+    protected static ButtonComponent CreateButton(string title, string command, UIButtonVariant variant)
         => new ButtonComponent()
             .OnClick(command)
-            .SetType(type)
+            .SetVariant(variant)
             .SetHorizontalAlignment(UIAlignment.Start)
             .SetTitle(title);
 }

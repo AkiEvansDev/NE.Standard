@@ -8,34 +8,34 @@ namespace DemoApp.Views.Contents.Badge;
 /// <summary>
 /// One badge and every property that can be bound to it; then where a badge is, and when it is a component rather than a property.
 /// </summary>
-/// <remarks>Most badges are a text control's own <c>BadgeText</c>; the component is for the cases that are not.</remarks>
+/// <remarks>Most badges are a text control's own <c>BadgeTitle</c>; the component is for the cases that are not.</remarks>
 internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string BadgeGroup = nameof(BadgeController.BadgeGroup);
 
-    private static readonly UIBadgeType[] FillRowTypes = [UIBadgeType.Primary, UIBadgeType.Accent, UIBadgeType.Info, UIBadgeType.Warning, UIBadgeType.Success, UIBadgeType.Danger, UIBadgeType.Surface];
+    private static readonly UIBadgeVariant[] FillRowVariants = [UIBadgeVariant.Primary, UIBadgeVariant.Accent, UIBadgeVariant.Info, UIBadgeVariant.Warning, UIBadgeVariant.Success, UIBadgeVariant.Danger, UIBadgeVariant.Surface];
 
     public static string ViewKey => "demo.contents.badge";
 
     protected override string ComponentRoute => "/contents/badge";
     protected override string Header => "demo.contents.badge.header";
     protected override string HeaderDescription => "demo.contents.badge.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new BadgeComponent()
             .BindStandard()
-            .BindType($"{BadgeGroup}.{nameof(BadgeGroupContext.Type)}")
-            .BindColor($"{BadgeGroup}.{nameof(BadgeGroupContext.Color)}")
-            .BindFill($"{BadgeGroup}.{nameof(BadgeGroupContext.Fill)}")
-            .BindIcon($"{BadgeGroup}.{nameof(BadgeGroupContext.Icon)}")
-            .BindIconColor($"{BadgeGroup}.{nameof(BadgeGroupContext.IconColor)}")
-            .BindIconSize($"{BadgeGroup}.{nameof(BadgeGroupContext.IconSize)}")
-            .BindText($"{BadgeGroup}.{nameof(BadgeGroupContext.Text)}")
-            .BindTextType($"{BadgeGroup}.{nameof(BadgeGroupContext.TextType)}")
-            .BindTooltip($"{BadgeGroup}.{nameof(BadgeGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{BadgeGroup}.{nameof(BadgeGroupContext.TooltipPlacement)}")
+            .BindVariant<BadgeController>(static x => x.BadgeGroup.Variant)
+            .BindColor<BadgeController>(static x => x.BadgeGroup.Color)
+            .BindFill<BadgeController>(static x => x.BadgeGroup.Fill)
+            .BindIcon<BadgeController>(static x => x.BadgeGroup.Icon)
+            .BindIconColor<BadgeController>(static x => x.BadgeGroup.IconColor)
+            .BindIconSize<BadgeController>(static x => x.BadgeGroup.IconSize)
+            .BindTitle<BadgeController>(static x => x.BadgeGroup.Title)
+            .BindTitleType<BadgeController>(static x => x.BadgeGroup.TitleType)
+            .BindTooltip<BadgeController>(static x => x.BadgeGroup.Tooltip)
+            .BindTooltipPlacement<BadgeController>(static x => x.BadgeGroup.TooltipPlacement)
             .SetPlacement(1, 1, 24, 1)
         ));
 
@@ -49,11 +49,11 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateColumns([CreateCarriedGroup(), CreateCountGroup()], [CreateStatusGroup(), CreateCategoryGroup(), CreateFillGroup()]);
 
     /// <summary>
-    /// The badge as a property of something else: a <c>BadgeText</c> laid out with the words it qualifies, or several under a title.
+    /// The badge as a property of something else: a <c>BadgeTitle</c> laid out with the words it qualifies, or several under a title.
     /// </summary>
     private static ContainerComponent CreateCarriedGroup()
     {
-        return DemoUI.CreateExample("Carried by something else",
+        return DemoUI.CreateExample("Inline component badges & UIText.WithBadges",
             UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(400))
                 .AddChild(new CardComponent()
@@ -61,8 +61,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                         .SetIcon(DemoIcons.FileText)
                         .SetTitle("Release 2.4")
                         .SetDescription("Scheduled for Friday")
-                        .SetBadgeText("Latest")
-                        .SetBadgeStyle(UIBadgeType.Success)
+                        .SetBadgeTitle("Latest")
+                        .SetBadgeVariant(UIBadgeVariant.Success)
                     )
                     .SetContent(UIText.Note("A card header is a text component, so its badge is the same pair of properties."))
                 )
@@ -71,8 +71,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Access")
-                        .SetBadgeText("Owner only")
-                        .SetBadgeStyle(UIBadgeType.Warning)
+                        .SetBadgeTitle("Owner only")
+                        .SetBadgeVariant(UIBadgeVariant.Warning)
                     )
                     .SetContent(UIText.Note("So is an expander's, which is why the two look identical closed."))
                 )
@@ -80,39 +80,39 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                     .SetIcon(DemoIcons.Bell)
                     .SetTitle("Notifications")
                     .SetDescription("Mailed to on-call")
-                    .SetBadgeText("3 new")
-                    .SetBadgeStyle(UIBadgeType.Info)
+                    .SetBadgeTitle("3 new")
+                    .SetBadgeVariant(UIBadgeVariant.Info)
                 )
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetWrap(true)
                     .SetSpacing(8)
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Mail))
                         .SetTitle("Inbox")
-                        .SetBadgeText("12")
-                        .SetBadgeStyle(UIBadgeType.Danger)
+                        .SetBadgeTitle("12")
+                        .SetBadgeVariant(UIBadgeVariant.Danger)
                     )
                     .AddChild(new TextComponent()
                         .SetIcon(DemoIcons.User)
                         .SetTitle("Robin Hale")
-                        .SetBadgeText("Admin")
+                        .SetBadgeTitle("Admin")
                         .SetVerticalAlignment(UIAlignment.Center)
                     )
                 )
                 // A list's row: the badges under the title in place of a description, the row's actions at its end.
                 .AddChild(UILayout.Ends(
                     UIText.WithBadges("billing · #481", [
-                        new BadgeItem { BadgeText = "production", BadgeStyle = UIBadgeType.Success },
-                        new BadgeItem { BadgeText = "12 of 12", BadgeIcon = DemoIcons.Outline(DemoIcons.Check) },
-                        new BadgeItem { BadgeText = "eu-west", BadgeStyle = UIBadgeType.Surface }
+                        new BadgeItem { BadgeTitle = "production", BadgeVariant = UIBadgeVariant.Success },
+                        new BadgeItem { BadgeTitle = "12 of 12", BadgeIcon = DemoIcons.Outline(DemoIcons.Check) },
+                        new BadgeItem { BadgeTitle = "eu-west", BadgeVariant = UIBadgeVariant.Surface }
                     ], DemoIcons.Outline(DemoIcons.Server)),
                     UIIconButtons.Edit(),
                     UIIconButtons.Delete()
                     )
                 ),
-            note: "A text's BadgeText is one badge beside its title; UIText.WithBadges puts several under it, a service's state at a glance."
+            note: "A text's BadgeTitle is one badge beside its title; UIText.WithBadges puts several under it, a service's state at a glance."
         );
     }
 
@@ -121,7 +121,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateStatusGroup()
     {
-        return DemoUI.CreateExample("A value, and what it means",
+        return DemoUI.CreateExample("Status badges on metric rows",
             // On a panel: the pills only read as one column of verdicts sharing a right edge and a ground.
             new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
@@ -134,8 +134,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                             .SetDescription("0.4%")
                             .SetDescriptionType(UITextAppearance.Body),
                         new BadgeComponent()
-                            .SetType(UIBadgeType.Success)
-                            .SetText("Normal")
+                            .SetVariant(UIBadgeVariant.Success)
+                            .SetTitle("Normal")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -146,8 +146,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                             .SetDescription("412 ms")
                             .SetDescriptionType(UITextAppearance.Body),
                         new BadgeComponent()
-                            .SetType(UIBadgeType.Warning)
-                            .SetText("Watch")
+                            .SetVariant(UIBadgeVariant.Warning)
+                            .SetTitle("Watch")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -158,8 +158,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                             .SetDescription("18 400")
                             .SetDescriptionType(UITextAppearance.Body),
                         new BadgeComponent()
-                            .SetType(UIBadgeType.Danger)
-                            .SetText("Over")
+                            .SetVariant(UIBadgeVariant.Danger)
+                            .SetTitle("Over")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -170,8 +170,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                             .SetDescription("expires in 3 days")
                             .SetDescriptionType(UITextAppearance.Body),
                         new BadgeComponent()
-                            .SetType(UIBadgeType.Warning)
-                            .SetText("Renew")
+                            .SetVariant(UIBadgeVariant.Warning)
+                            .SetTitle("Renew")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -182,8 +182,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                             .SetDescription("4 minutes ago")
                             .SetDescriptionType(UITextAppearance.Body),
                         new BadgeComponent()
-                            .SetType(UIBadgeType.Success)
-                            .SetText("Healthy")
+                            .SetVariant(UIBadgeVariant.Success)
+                            .SetTitle("Healthy")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -196,7 +196,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCountGroup()
     {
-        return DemoUI.CreateExample("A count on its own",
+        return DemoUI.CreateExample("Numeric counters & dot indicators",
             new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetPadding(UIThickness.Uniform(8))
@@ -207,8 +207,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                             .SetTitle("Inbox")
                             .SetTitleType(UITextAppearance.Body),
                         new BadgeComponent()
-                            .SetType(UIBadgeType.Danger)
-                            .SetText("12")
+                            .SetVariant(UIBadgeVariant.Danger)
+                            .SetTitle("12")
                         )
                         .SetWidth(UILayoutLength.Absolute(200))
                         .SetPadding(UIThickness.All(4, 4, 4, 4))
@@ -219,8 +219,8 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                             .SetTitle("Alerts")
                             .SetTitleType(UITextAppearance.Body),
                         new BadgeComponent()
-                            .SetType(UIBadgeType.Warning)
-                            .SetText("3")
+                            .SetVariant(UIBadgeVariant.Warning)
+                            .SetTitle("3")
                         )
                         .SetWidth(UILayoutLength.Absolute(200))
                         .SetPadding(UIThickness.All(4, 4, 4, 4))
@@ -232,7 +232,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                             .SetTitle("Done")
                             .SetTitleType(UITextAppearance.Body),
                         new BadgeComponent()
-                            .SetType(UIBadgeType.Success)
+                            .SetVariant(UIBadgeVariant.Success)
                             .SetTooltip("Nothing waiting")
                         )
                         .SetWidth(UILayoutLength.Absolute(200))
@@ -243,11 +243,11 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// A row of pills, each one a thing rather than a state; this is where <c>Color</c> earns its place over <c>Type</c>.
+    /// A row of pills, each one a thing rather than a state; this is where <c>Color</c> earns its place over <c>Variant</c>.
     /// </summary>
     private static ContainerComponent CreateCategoryGroup()
     {
-        return DemoUI.CreateExample("A row of them, one thing each",
+        return DemoUI.CreateExample("Tag strips with custom colors",
             // The head of a server's page, which is where a row of tags actually lives.
             new CardComponent()
                 .SetWidth(UILayoutLength.Absolute(420))
@@ -258,14 +258,14 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
                 .SetContent(UILayout.Row(6)
-                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Info)).SetText("Pro"))
-                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Accent)).SetText("us-east"))
-                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Success)).SetText("backups on"))
-                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetText("Degraded"))
+                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Info)).SetTitle("Pro"))
+                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Accent)).SetTitle("us-east"))
+                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Success)).SetTitle("backups on"))
+                    .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Degraded"))
                     .AddChild(new BadgeComponent()
-                        .SetType(UIBadgeType.Surface)
+                        .SetVariant(UIBadgeVariant.Surface)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Clock))
-                        .SetText("maintenance tonight")
+                        .SetTitle("maintenance tonight")
                     )
                 )
         );
@@ -276,7 +276,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFillGroup()
     {
-        return DemoUI.CreateExample("Filled, tinted or outlined",
+        return DemoUI.CreateExample("Fill styles (Filled, Tinted, Outline)",
             // Unset, a Type fills and a Color tints; Fill names one for either, so a tag can be outlined and a status tinted.
             new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
@@ -292,11 +292,11 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
     {
         StackPanelComponent row = UILayout.Row(6).SetWrap(true);
 
-        foreach (UIBadgeType type in FillRowTypes)
-            _ = row.AddChild(new BadgeComponent().SetType(type).SetFill(fill).SetText(type.ToString()));
+        foreach (UIBadgeVariant variant in FillRowVariants)
+            _ = row.AddChild(new BadgeComponent().SetVariant(variant).SetFill(fill).SetTitle(variant.ToString()));
 
         return row
-            .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromColorVariant(ColorName.NebulaRose)).SetFill(fill).SetText("Tag"))
-            .AddChild(new BadgeComponent().SetType(UIBadgeType.Danger).SetFill(fill).SetText("12"));
+            .AddChild(new BadgeComponent().SetColor(UIThemeColor.FromColorVariant(ColorName.NebulaRose)).SetFill(fill).SetTitle("Tag"))
+            .AddChild(new BadgeComponent().SetVariant(UIBadgeVariant.Danger).SetFill(fill).SetTitle("12"));
     }
 }

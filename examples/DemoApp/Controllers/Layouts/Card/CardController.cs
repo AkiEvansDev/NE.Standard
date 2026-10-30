@@ -75,7 +75,7 @@ internal sealed partial class CardSurfaceGroupContext : DemoGroupContext
     public void CycleBackgroundImageFit()
         => SetLastChange(nameof(BackgroundImageFit), BackgroundImageFit = CycleEnum(BackgroundImageFit));
 
-    // The browser draws the dim and the blur over the picture it already has: the ground's colour, so the text reads in either theme.
+    // The browser draws the dim and the blur over the picture it already has.
     public void CycleBackgroundImageDim()
         => SetLastChange(nameof(BackgroundImageDim), BackgroundImageDim = CycleValue(BackgroundImageDim, 0.3, 0.6, 0.9, null));
 

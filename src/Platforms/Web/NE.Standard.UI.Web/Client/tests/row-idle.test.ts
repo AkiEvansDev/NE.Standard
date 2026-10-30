@@ -8,7 +8,7 @@ import { FakeElement, installFakeDom } from "./fake-dom.ts";
 installFakeDom({});
 
 const { DomOperationRegistry } = await import("../src/updates/dom-operation-registry.ts");
-const { markRowIdle, RowIdleOperationKind } = await import("../src/updates/row-idle.ts");
+const { markRowIdle, RowIdleOperationKind } = await import("../src/rendering/row-idle.ts");
 const { componentStates } = await import("../src/interactions/interactive-state.ts");
 type DomOperationContext = import("../src/updates/dom-operation-registry.ts").DomOperationContext;
 

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -17,6 +18,7 @@ public sealed class SetThemeColorsEffect(UIThemeColors? colors = null) : ClientE
     public override string Kind => ClientEffectKinds.SetThemeColors;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>

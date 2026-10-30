@@ -116,7 +116,7 @@ internal sealed partial class KeyValueActionRowsGroupContext : DemoGroupContext
             Id = id,
             Key = new TextItem { Title = key },
             Value = new TextItem { Title = value, TitleColor = UIThemeColor.Muted },
-            Action = new ButtonItem { Id = id, Icon = DemoIcons.Outline(DemoIcons.Edit), Type = UIButtonType.Ghost, Size = UIButtonSize.Small }
+            Action = new ButtonItem { Id = id, Tooltip = $"Edit {key}", Icon = DemoIcons.Outline(DemoIcons.Edit), Variant = UIButtonVariant.Ghost, Size = UISize.Small }
         };
 }
 
@@ -149,7 +149,7 @@ internal sealed partial class KeyValueActionArgumentGroupContext : DemoGroupCont
             Id = id,
             Key = new TextItem { Title = key, TitleColor = UIThemeColor.Muted },
             Value = new TextItem { Title = value },
-            Action = new ButtonItem { Id = id, Icon = DemoIcons.Outline(DemoIcons.Edit), Type = UIButtonType.Ghost }
+            Action = new ButtonItem { Id = id, Tooltip = $"Edit {key}", Icon = DemoIcons.Outline(DemoIcons.Edit), Variant = UIButtonVariant.Ghost }
         };
 }
 
@@ -312,43 +312,93 @@ internal sealed partial class KeyValueActionEditGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// One row per input kind, each opened by the controller with a draft of the type that input wants, and saved as the text of what came back.
+/// A row carrying a server-controlled validation message: shown under the open input and as a severity mark beside the closed value.
+/// </summary>
+internal sealed partial class ValidatedRowItem : KeyValueActionItem
+{
+    [RecursiveMember]
+    public partial UIValidationMessage? Validation { get; set; }
+}
+
+/// <summary>
+/// Three rows demonstrating client-side Error/Warning rules and server-bound row validation in <see cref="KeyValueActionComponent"/>.
+/// </summary>
+internal sealed partial class KeyValueActionValidationGroupContext : DemoGroupContext
+{
+    [RecursiveMember(false)]
+    public RecursiveCollection<KeyValueActionItem> Items { get; } =
+    [
+        CreateRow(new KeyValueActionItem { Id = "limit", EditValue = 150m }, "Daily limit", "150"),
+        CreateRow(new KeyValueActionItem { Id = "owner" }, "On-call owner", "on-call", open: true),
+        CreateRow(new ValidatedRowItem { Id = "region", Validation = UIValidationMessage.Info("Primary replicas already run in eu-west.") }, "Region", "eu-west")
+    ];
+
+    public void Save(string id)
+    {
+        foreach (KeyValueActionItem row in Items)
+        {
+            if (row.Id != id)
+                continue;
+
+            var text = Convert.ToString(row.EditValue, CultureInfo.InvariantCulture)?.Trim() ?? string.Empty;
+
+            if (row is ValidatedRowItem validated)
+            {
+                if (string.Equals(text, "ap-south", StringComparison.OrdinalIgnoreCase))
+                {
+                    validated.Validation = UIValidationMessage.Error("ap-south is not provisioned for this workspace.");
+                    LogEvent("refused region -> ap-south");
+                    return;
+                }
+
+                validated.Validation = string.Equals(text, "eu-west", StringComparison.OrdinalIgnoreCase)
+                    ? UIValidationMessage.Info("Primary replicas already run in eu-west.")
+                    : null;
+            }
+
+            ((TextItem)row.Value).Title = text;
+            row.ShowInput = false;
+            LogEvent($"saved {id} -> {text}");
+            return;
+        }
+    }
+
+    private static KeyValueActionItem CreateRow(KeyValueActionItem row, string key, string value, bool open = false)
+    {
+        row.Key = new TextItem { Title = key, TitleColor = UIThemeColor.Muted };
+        row.Value = new TextItem { Title = value };
+        row.EditValue ??= value;
+        row.InputTemplate = row.Id;
+        row.ShowInput = open;
+
+        return row;
+    }
+}
+
+/// <summary>
+/// Six representative input kinds in rows, opened by the controller with typed drafts and saved as formatted text.
 /// </summary>
 internal sealed partial class KeyValueActionInputsGroupContext : DemoGroupContext
 {
     private readonly Dictionary<string, object?> _drafts = new(StringComparer.Ordinal)
     {
         ["text"] = "Billing",
-        ["number"] = 3m,
-        ["switch"] = true,
-        ["checkbox"] = false,
+        ["number"] = 4m,
         ["select"] = "cover",
-        ["search"] = "contain",
-        ["radio"] = "fill",
-        ["slider"] = 40m,
-        ["date"] = new DateOnly(2026, 9, 7),
-        ["time"] = new TimeOnly(9, 30),
-        ["datetime"] = new DateTimeOffset(2026, 9, 7, 9, 30, 0, TimeSpan.Zero),
-        ["color"] = UIThemeColor.FromStyle(UIColorStyle.Primary),
-        ["file"] = null
+        ["switch"] = true,
+        ["date"] = new DateOnly(2026, 9, 8),
+        ["color"] = UIThemeColor.FromStyle(UIColorStyle.Primary)
     };
 
     [RecursiveMember(false)]
     public RecursiveCollection<KeyValueActionItem> Items { get; } =
     [
-        CreateRow("text", "Text"),
-        CreateRow("number", "Number"),
-        CreateRow("switch", "Switch"),
-        CreateRow("checkbox", "Checkbox"),
-        CreateRow("select", "Select"),
-        CreateRow("search", "Search"),
-        CreateRow("radio", "Radio group"),
-        CreateRow("slider", "Slider"),
-        CreateRow("date", "Date"),
-        CreateRow("time", "Time"),
-        CreateRow("datetime", "Date and time"),
-        CreateRow("color", "Colour"),
-        CreateRow("file", "File")
+        CreateRow("text", "Text", "Billing"),
+        CreateRow("number", "Number", "4"),
+        CreateRow("select", "Select", "cover"),
+        CreateRow("switch", "Switch", "on"),
+        CreateRow("date", "Date", "2026-09-08"),
+        CreateRow("color", "Color", "Primary")
     ];
 
     public void Open(string id)
@@ -381,12 +431,12 @@ internal sealed partial class KeyValueActionInputsGroupContext : DemoGroupContex
         throw new ArgumentException($"No row '{id}'.", nameof(id));
     }
 
-    private static KeyValueActionItem CreateRow(string id, string key)
+    private static KeyValueActionItem CreateRow(string id, string key, string initial)
         => new()
         {
             Id = id,
             Key = new TextItem { Title = key, TitleColor = UIThemeColor.Muted },
-            Value = new TextItem { Title = "—" },
+            Value = new TextItem { Title = initial },
             InputTemplate = id == "text" ? null : id
         };
 
@@ -396,14 +446,15 @@ internal sealed partial class KeyValueActionInputsGroupContext : DemoGroupContex
             null => "—",
             bool flag => flag ? "on" : "off",
             UIThemeColor color => color.ToString() ?? "a colour",
+            DateOnly date => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "—"
         };
 }
 
 /// <summary>
-/// One list and every property that can be bound to it, and the examples' rows that answer: a press, an input in a row, and an edit in
-/// place.
+/// One list and every property that can be bound to it, and the examples' rows that answer: a press, in-place editing, row validation,
+/// and typed row editors.
 /// </summary>
 internal sealed partial class KeyValueActionController() : DemoStandardController
 {
@@ -421,6 +472,9 @@ internal sealed partial class KeyValueActionController() : DemoStandardControlle
 
     [RecursiveMember]
     public partial KeyValueActionEditGroupContext EditGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial KeyValueActionValidationGroupContext ValidationGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial KeyValueActionInputsGroupContext InputsGroup { get; set; } = new();
@@ -483,6 +537,10 @@ internal sealed partial class KeyValueActionController() : DemoStandardControlle
     [UICommand]
     public void SaveLocalRow(string id)
         => EditGroup.SaveLocal(id);
+
+    [UICommand]
+    public void SaveValidatedRow(string id)
+        => ValidationGroup.Save(id);
 
     [UICommand]
     public void OpenInputRow(string id)

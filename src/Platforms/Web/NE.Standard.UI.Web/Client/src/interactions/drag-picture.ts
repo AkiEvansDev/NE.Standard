@@ -4,17 +4,17 @@
 // neither. The copy wears its look inline, frozen from the element as it stands, and none of its marks: no rule and no engine that
 // looks for a row finds it.
 
-import { PressWaveClass } from "./press-wave.ts";
+import { DragPartAttribute, DragPictureClass, PressWaveClass } from "../addressing/dom-attributes.ts";
 
-/** The picture's frame: the ground, corners and elevation of something lifted off the page (core/runtime.less). */
-const PictureClass = "ui-drag-picture";
-
-// On a part of the copy whose `::before` or `::after` draws something (an icon's mask, a box's tick): the rule written for it.
-const PartAttribute = "data-ui-drag-part";
 const Pseudos = ["::before", "::after"] as const;
 
 // A transparent pixel in place of the browser's picture: made ahead of the first drag, which takes no picture still loading.
 const BlankPixel = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+// A compact pill's room around a sub-part lifted out of a full-width row (a tree node's icon and title).
+const CompactPadX = 8;
+const CompactPadY = 4;
+const CompactMaxWidth = "240px";
 
 // The marks a copy keeps: the ones a picture or a drawing is made of. A class, an id or a data mark would let a rule or an engine
 // take it for the element it copies.
@@ -30,25 +30,61 @@ if (typeof Image === "function")
     blankPixel();
 
 /**
- * Gives a starting drag the page's own picture of the element, held where the press took it. Where the page cannot lift one into the
- * top layer, the browser's, offset from the element's own box: its default measures all it paints, a press's wave included, and
- * lifted the picture off the pointer.
+ * Gives a starting drag the page's own picture of the element (or a compact part inside it, such as a tree node's label), held where
+ * the press took it. Where the page cannot lift one into the top layer, the browser's, offset from the picture's own box: its default
+ * measures all it paints, a press's wave included, and lifted the picture off the pointer.
  */
-export function giveDragPicture(domEvent: DragEvent, dataTransfer: DataTransfer, element: HTMLElement): void {
-    const bounds = element.getBoundingClientRect();
-    const offsetX = domEvent.clientX - bounds.left;
-    const offsetY = domEvent.clientY - bounds.top;
+export function giveDragPicture(domEvent: DragEvent, dataTransfer: DataTransfer, element: HTMLElement, pictureSource: HTMLElement = element): void {
     const pixel = blankPixel();
 
     finishShown?.();
 
-    if (pixel === null || typeof element.showPopover !== "function") {
-        dataTransfer.setDragImage(element, offsetX, offsetY);
-        return;
-    }
+    if (pictureSource === element) {
+        const bounds = element.getBoundingClientRect();
+        const offsetX = domEvent.clientX - bounds.left;
+        const offsetY = domEvent.clientY - bounds.top;
 
-    dataTransfer.setDragImage(pixel, 0, 0);
-    show(element, bounds, offsetX, offsetY);
+        if (pixel === null || typeof element.showPopover !== "function") {
+            dataTransfer.setDragImage(element, offsetX, offsetY);
+            return;
+        }
+
+        dataTransfer.setDragImage(pixel, 0, 0);
+        show(element, element, bounds.left, bounds.top, bounds.width, bounds.height, false, offsetX, offsetY);
+    }
+    else {
+        const previousFlex = pictureSource.style.flex;
+        const previousWidth = pictureSource.style.width;
+        const previousMaxWidth = pictureSource.style.maxWidth;
+
+        // A stretched row part (`flex: 1`) is measured and frozen at its own content width so the pill carries only the label, not the row's tail.
+        try {
+            pictureSource.style.flex = "0 0 auto";
+            pictureSource.style.width = "max-content";
+            pictureSource.style.maxWidth = CompactMaxWidth;
+
+            const bounds = pictureSource.getBoundingClientRect();
+            const width = bounds.width + CompactPadX * 2;
+            const height = bounds.height + CompactPadY * 2;
+            const naturalLeft = bounds.left - CompactPadX;
+            const naturalTop = bounds.top - CompactPadY;
+            const offsetX = clamp(domEvent.clientX - naturalLeft, CompactPadX, Math.max(CompactPadX, width - CompactPadX));
+            const offsetY = clamp(domEvent.clientY - naturalTop, CompactPadY, Math.max(CompactPadY, height - CompactPadY));
+
+            if (pixel === null || typeof element.showPopover !== "function") {
+                dataTransfer.setDragImage(pictureSource, clamp(domEvent.clientX - bounds.left, 0, bounds.width), clamp(domEvent.clientY - bounds.top, 0, bounds.height));
+                return;
+            }
+
+            dataTransfer.setDragImage(pixel, 0, 0);
+            show(element, pictureSource, domEvent.clientX - offsetX, domEvent.clientY - offsetY, width, height, true, offsetX, offsetY);
+        }
+        finally {
+            pictureSource.style.flex = previousFlex;
+            pictureSource.style.width = previousWidth;
+            pictureSource.style.maxWidth = previousMaxWidth;
+        }
+    }
 
     // A listener after this one may still refuse the drag, which then neither drops nor ends.
     setTimeout(() => {
@@ -66,19 +102,26 @@ function blankPixel(): HTMLImageElement | null {
     return blank;
 }
 
-function show(element: HTMLElement, bounds: DOMRect, offsetX: number, offsetY: number): void {
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+}
+
+function show(element: HTMLElement, source: HTMLElement, left: number, top: number, width: number, height: number, compact: boolean, offsetX: number, offsetY: number): void {
     const picture = document.createElement("div");
-    const copy = element.cloneNode(true) as HTMLElement;
+    const copy = source.cloneNode(true) as HTMLElement;
     const rules: string[] = [];
 
-    picture.className = PictureClass;
+    picture.className = DragPictureClass;
     picture.setAttribute("popover", "manual");
     picture.setAttribute("aria-hidden", "true");
     picture.inert = true;
-    picture.style.width = `${bounds.width}px`;
-    picture.style.height = `${bounds.height}px`;
+    picture.style.width = `${width}px`;
+    picture.style.height = `${height}px`;
 
-    freeze(element, copy, rules);
+    if (compact)
+        picture.style.padding = `${CompactPadY}px ${CompactPadX}px`;
+
+    freeze(source, copy, rules);
 
     // In the frame rather than where the element stood among its siblings, and at full strength: it is what is carried.
     for (const [name, value] of [["position", "relative"], ["inset", "auto"], ["margin", "0"], ["transform", "none"], ["translate", "none"], ["opacity", "1"]])
@@ -124,7 +167,7 @@ function show(element: HTMLElement, bounds: DOMRect, offsetX: number, offsetY: n
     element.addEventListener("dragend", finish);
     finishShown = finish;
 
-    place(picture, bounds.left, bounds.top);
+    place(picture, left, top);
     document.body.append(picture);
     picture.showPopover();
 }
@@ -170,10 +213,22 @@ function freeze(source: Element, copy: Element, rules: string[]): void {
     }
 }
 
-/** A subgrid's tracks are its parents', which the copy stands without (a table's row): it takes the ones it spans, in pixels. */
+/** A subgrid's tracks and `normal` gap are its parents', which the copy stands without (a table's row) or un-subgrids into its own grid. */
 function unSubgrid(source: Element, target: CSSStyleDeclaration, axis: "columns" | "rows"): void {
-    if (target.getPropertyValue(`grid-template-${axis}`).startsWith("subgrid"))
-        target.setProperty(`grid-template-${axis}`, resolvedTracks(source, axis).join(" "));
+    if (!target.getPropertyValue(`grid-template-${axis}`).startsWith("subgrid"))
+        return;
+
+    target.setProperty(`grid-template-${axis}`, resolvedTracks(source, axis).join(" "));
+
+    const gapProperty = axis === "columns" ? "column-gap" : "row-gap";
+    const ownGap = target.getPropertyValue(gapProperty);
+
+    if (ownGap === "normal" || ownGap === "") {
+        const gap = resolvedGap(source.parentElement, axis, gapProperty);
+
+        if (gap !== null)
+            target.setProperty(gapProperty, gap);
+    }
 }
 
 /** The tracks a grid lays out on, a subgrid's taken from the grid above it by the lines it is placed on. */
@@ -198,6 +253,22 @@ function resolvedTracks(element: Element, axis: "columns" | "rows"): string[] {
     return tracks.slice(from, to);
 }
 
+/** A subgrid whose own gap is `normal` lays out across the gap of the ancestor grid that defines its tracks. */
+function resolvedGap(element: Element | null, axis: "columns" | "rows", gapProperty: string): string | null {
+    for (let current = element; current !== null; current = current.parentElement) {
+        const style = getComputedStyle(current);
+        const gap = style.getPropertyValue(gapProperty);
+
+        if (gap !== "normal" && gap !== "")
+            return gap;
+
+        if (!style.getPropertyValue(`grid-template-${axis}`).startsWith("subgrid"))
+            return null;
+    }
+
+    return null;
+}
+
 function freezePseudos(source: Element, copy: Element, rules: string[]): void {
     for (const pseudo of Pseudos) {
         const style = getComputedStyle(source, pseudo);
@@ -205,13 +276,13 @@ function freezePseudos(source: Element, copy: Element, rules: string[]): void {
         if (style.content === undefined || style.content === "none" || style.content === "normal")
             continue;
 
-        if (!copy.hasAttribute(PartAttribute))
-            copy.setAttribute(PartAttribute, String(rules.length));
+        if (!copy.hasAttribute(DragPartAttribute))
+            copy.setAttribute(DragPartAttribute, String(rules.length));
 
         const declarations: string[] = [];
 
         copyStyle(style, (name, value) => declarations.push(`${name}: ${value};`));
-        rules.push(`.${PictureClass} [${PartAttribute}="${copy.getAttribute(PartAttribute)}"]${pseudo} { ${declarations.join(" ")} }`);
+        rules.push(`.${DragPictureClass} [${DragPartAttribute}="${copy.getAttribute(DragPartAttribute)}"]${pseudo} { ${declarations.join(" ")} }`);
     }
 }
 

@@ -4,7 +4,7 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Screens;
 
 /// <summary>
-/// The account form: a card in the middle of the page, its fields Tonal as a short form's on a neat centred card are, the rules a
+/// The account form: a card in the middle of the page, its fields Filled as a short form's on a neat centred card are, the rules a
 /// real sign-up has, and a switch that reveals the company part. Every rule but the taken address runs in the browser.
 /// </summary>
 internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
@@ -26,19 +26,19 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
         => UICard.Create("Start with the basics", "Servers from €6 a month, in five regions. No card until the first one.", UILayout.Stack(16,
                 new TextInputComponent()
                     .SetTitle("Full name")
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetAutocomplete(UIAutocomplete.Name)
                     .SetFormId(FormId)
-                    .BindValue(nameof(SignUpController.FullName))
+                    .BindValue<SignUpController>(static x => x.FullName)
                     .Required("Your name goes on what you send.", UIValidationTrigger.Submit),
                 new TextInputComponent()
                     .SetTitle("Work email")
                     .SetType(UITextInputType.Email)
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetAutocomplete(UIAutocomplete.Email)
                     .SetFormId(FormId)
-                    .BindValue(nameof(SignUpController.Email))
-                    .BindValidation(nameof(SignUpController.EmailNotice))
+                    .BindValue<SignUpController>(static x => x.Email)
+                    .BindValidation<SignUpController>(static x => x.EmailNotice)
                     .Required("An address is how you get in.", UIValidationTrigger.Submit)
                     .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur),
                 UIForm.Field(CreatePasswordField(), "Eight characters or more. A phrase beats a word."),
@@ -46,30 +46,30 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                 new TextInputComponent()
                     .SetTitle("Password again")
                     .SetType(UITextInputType.Password)
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetAutocomplete(UIAutocomplete.NewPassword)
                     .SetFormId(FormId)
-                    .BindValue(nameof(SignUpController.PasswordAgain))
+                    .BindValue<SignUpController>(static x => x.PasswordAgain)
                     .Required("Type the password once more.", UIValidationTrigger.Submit)
                     .ValidateAgainst(PasswordId, UIComparisonOperator.Equal, "The two passwords differ."),
                 // A sentence a toggle's one-line description would cut on a phone goes under it, starting where its title does.
                 UIForm.Field(new SwitchComponent(CompanySwitchId)
                     .SetTitle("I'm signing up for a company")
-                    .BindValue(nameof(SignUpController.ForCompany)),
+                    .BindValue<SignUpController>(static x => x.ForCompany),
                     "Invoices carry its name, and VAT goes by its country."
                 ),
                 // Revealed by the switch, in the browser: nothing here is required, so the fields can stay folded away.
                 UILayout.Stack(16,
                     new TextInputComponent()
                         .SetTitle("Company name")
-                        .SetAppearance(UIInputAppearance.Tonal)
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetPlaceholder("As it goes on the invoice")
                         .SetAutocomplete(UIAutocomplete.Organization)
                         .SetFormId(FormId)
-                        .BindValue(nameof(SignUpController.CompanyName)),
+                        .BindValue<SignUpController>(static x => x.CompanyName),
                     new SelectComponent()
                         .SetTitle("Country")
-                        .SetAppearance(UIInputAppearance.Tonal)
+                        .SetAppearance(UIInputAppearance.Filled)
                         .SetPlaceholder("Where the company is registered")
                         .SetOptions(
                         [
@@ -83,14 +83,14 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                             new OptionItem { Id = "pt", Title = "Portugal" }
                         ])
                         .SetFormId(FormId)
-                        .BindValue(nameof(SignUpController.Country))
+                        .BindValue<SignUpController>(static x => x.Country)
                 )
                 .ShownWhen(CompanySwitchId),
                 // The links live in a note under the box, which takes inline marks and runs on; a title is one line of plain words.
                 UIForm.Field(new CheckboxComponent()
                     .SetTitle("I agree to the terms")
                     .SetFormId(FormId)
-                    .BindValue(nameof(SignUpController.AcceptsTerms))
+                    .BindValue<SignUpController>(static x => x.AcceptsTerms)
                     .Required("You have to agree before we can make the account.", UIValidationTrigger.Submit),
                     "The [terms of service](https://orvane.example/terms) and the [privacy policy](https://orvane.example/privacy), a page each."
                 ),
@@ -100,17 +100,17 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                         .OnSubmitShowingLoading(FormId, nameof(SignUpController.CreateAccountAsync))
                 )
             ), DemoIcons.Outline(DemoIcons.Shield))
-            .BindVisibility(nameof(SignUpController.FormVisibility));
+            .BindVisibility<SignUpController>(static x => x.FormVisibility);
 
     /// <summary>Two rules on one field, the graver heard first; the info one only says its piece.</summary>
     private static TextInputComponent CreatePasswordField()
         => new TextInputComponent(PasswordId)
             .SetTitle("Password")
             .SetType(UITextInputType.Password)
-            .SetAppearance(UIInputAppearance.Tonal)
+            .SetAppearance(UIInputAppearance.Filled)
             .SetAutocomplete(UIAutocomplete.NewPassword)
             .SetFormId(FormId)
-            .BindValue(nameof(SignUpController.Password))
+            .BindValue<SignUpController>(static x => x.Password)
             .Required("A password is required.", UIValidationTrigger.Submit)
             .Regex("^.{8,}$", "Eight characters at least.", UIValidationTrigger.Blur)
             .Regex("[^A-Za-z0-9 ]", "A symbol or two makes it harder to guess.", UIValidationTrigger.Blur, UIValidationSeverity.Info);
@@ -119,7 +119,7 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
     private static SurfaceComponent CreateDone()
         => UIPage.BoundOutcome(
             DemoIcons.Outline(DemoIcons.BadgeCheck),
-            UIMessageSeverity.Success,
+            UIColorStyle.Success,
             nameof(SignUpController.DoneTitle),
             // Words the reader typed (a company's name, an address) are data: the bound twin draws them as written.
             nameof(SignUpController.DoneLine),
@@ -128,5 +128,5 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
             // interaction may run.
             UIButtons.Primary("Open the inbox").OnClick(nameof(SignUpController.OpenInbox))
         )
-        .BindVisibility(nameof(SignUpController.DoneVisibility));
+        .BindVisibility<SignUpController>(static x => x.DoneVisibility);
 }

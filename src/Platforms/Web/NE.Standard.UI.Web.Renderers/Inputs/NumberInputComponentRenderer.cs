@@ -15,7 +15,7 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// </summary>
 public sealed class NumberInputComponentRenderer : TextContentRendererBase
 {
-    private static readonly WebDomOperation[] DisplayFormatOperations = [WebDomOperation.Attribute(WebAttributes.NumberFormat, target: "root")];
+    private static readonly WebDomOperation[] DisplayFormatOperations = [WebDomOperation.Attribute(WebAttributes.NumberFormat, target: "root", converter: WebDomConverters.NonBlankText)];
 
     private static readonly WebDomOperation[] ThousandsOperations =
     [
@@ -23,7 +23,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
         WebDomOperation.ToggleAttribute(WebAttributes.NumberNoThousands, condition: WebValueCondition.IsFalse)
     ];
 
-    protected override string ClassName => "ui-number-input";
+    protected override string ClassName => WebClassNames.NumberInput;
 
     private static readonly WebDomOperation[] StepOperations = [WebDomOperation.Attribute(WebAttributes.NumberStep)];
     private static readonly WebDomOperation[] MinOperations = [WebDomOperation.Attribute(WebAttributes.NumberMin)];
@@ -76,7 +76,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
             _ = row.Element("input", input =>
             {
                 _ = input.Class($"{ClassName}__field");
-                _ = input.Class("ui-field");
+                _ = input.Class(WebClassNames.Field);
                 _ = input.Attribute("type", "text");
                 _ = input.Attribute("inputmode", "decimal");
                 _ = input.Attribute("autocomplete", "off");

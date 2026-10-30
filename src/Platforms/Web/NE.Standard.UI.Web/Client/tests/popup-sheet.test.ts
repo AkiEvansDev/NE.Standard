@@ -12,7 +12,7 @@ let phone = true;
 installFakeDom({
     window: { addEventListener: () => undefined, removeEventListener: () => undefined, setTimeout, innerWidth: 390, innerHeight: 844 },
     // Asked of the small breakpoint (`min-width: 640px`), which a phone is under.
-    matchMedia: () => ({ matches: !phone, addEventListener: () => undefined }),
+    matchMedia: () => ({ get matches() { return !phone; }, addEventListener: () => undefined }),
     getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr", transitionProperty: "all", transitionDuration: "0s", getPropertyValue: () => "" }),
     ResizeObserver: class {
         public observe(): void {

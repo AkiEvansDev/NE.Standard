@@ -17,12 +17,17 @@ class FakeDragEvent extends FakeEvent {
 
 /** A computed style of two properties and a custom one; a row's icon draws a `::before`. */
 function computed(element: FakeElement, pseudo?: string): Record<string, unknown> {
+    const gridProps: Record<string, string> = element.classes.has("ui-tree-node__text")
+        ? { "grid-template-columns": "16px 80px", "column-gap": "6px" }
+        : element.classes.has("ui-text__body")
+            ? { "grid-template-columns": "subgrid", "column-gap": "normal", "grid-column-start": "1", "grid-column-end": "-1" }
+            : {};
     const values: Record<string, string> = pseudo === undefined
-        ? { color: element.classes.has("ui-icon") ? "red" : "white", opacity: "0.45", "--ui-wash": "x" }
+        ? { color: element.classes.has("ui-icon") ? "red" : "white", opacity: "0.45", "--ui-wash": "x", ...gridProps }
         : { content: element.classes.has("ui-icon") && pseudo === "::before" ? "\"\"" : "none", "mask-image": "url(\"a.svg\")" };
     const names = Object.keys(values);
 
-    return { ...Object.fromEntries(names.map((name, index) => [index, name])), length: names.length, content: values.content, getPropertyValue: (name: string) => values[name] };
+    return { ...Object.fromEntries(names.map((name, index) => [index, name])), length: names.length, content: values.content, getPropertyValue: (name: string) => values[name] ?? "" };
 }
 
 installFakeDom({ Image: FakeImage, DragEvent: FakeDragEvent, getComputedStyle: computed });
@@ -105,4 +110,38 @@ test("a drop on the page takes the picture away, and a new drag one a drag left 
     assert.equal(fakeDocument.body.querySelectorAll(".ui-drag-picture").length, 1);
 
     first.row.remove();
+});
+
+test("a compact pictureSource lifts a padded label pill instead of the full-width row and clamps a far-end press under the pointer", () => {
+    const body = FakeElement.of("ui-text__body").append(FakeElement.of("ui-text__title"));
+    const label = FakeElement.of("ui-tree-node__text").append(FakeElement.of("ui-icon"), body);
+    const row = FakeElement.of("ui-tree__row", { "data-ui-key": "a", role: "treeitem" }).append(label);
+    const start = Object.assign(new FakeDragEvent("dragstart"), { clientX: 400, clientY: 114 });
+    const transfer = { setDragImage: () => undefined };
+
+    row.rect = { left: 20, top: 100, width: 500, height: 28 };
+    label.rect = { left: 68, top: 104, width: 102, height: 20 };
+    fakeDocument.body.append(row);
+
+    giveDragPicture(real<DragEvent>(start), real<DataTransfer>(transfer), real(row), real(label));
+
+    const picture = fakeDocument.body.querySelector(".ui-drag-picture")!;
+    const copyLabel = picture.children.find(child => child.tagName === "div")!;
+    const copyBody = copyLabel.children[1];
+
+    assert.equal(picture.style.width, "118px");
+    assert.equal(picture.style.height, "28px");
+    assert.equal(picture.style.padding, "4px 8px");
+    // Un-subgridded `.ui-text__body` inherits its parent `.ui-tree-node__text` column-gap so icon and title stay spaced apart.
+    assert.equal(copyBody.style["grid-template-columns"], "16px 80px");
+    assert.equal(copyBody.style["column-gap"], "6px");
+    // Pressed at x=400 in the empty tail of the 500 px row: clamped to the pill's right inner edge (offsetX = 118 - 8 = 110 -> left = 290).
+    assert.equal(picture.style.transform, "translate(290px, 100px)");
+    assert.equal(label.style.flex, undefined);
+    assert.equal(label.style.width, undefined);
+    assert.equal(label.style.maxWidth, undefined);
+
+    row.dispatchEvent(new FakeDragEvent("dragend"));
+    assert.equal(fakeDocument.body.querySelector(".ui-drag-picture"), null);
+    row.remove();
 });

@@ -38,3 +38,11 @@ test("the cap comes after the layouts' cap at their room, as specific as it, so 
 test("the calendar's own rule leaves the width to the cap, not to an authored MaxWidth", () => {
     assert.doesNotMatch(declarations(".ui-calendar") ?? "", /max-width/);
 });
+
+test("the calendar's navigation buttons are at least as wide as a row is tall, and the popup footer sits centred below its divider", () => {
+    assert.match(declarations(".ui-temporal-input__nav") ?? "", /min-width: 1\.75rem;/);
+    assert.match(declarations(".ui-temporal-input__nav") ?? "", /min-height: 1\.75rem;/);
+    assert.match(declarations(".ui-temporal-input__popup") ?? "", /padding: 0\.5rem;/);
+    assert.match(declarations(".ui-temporal-input__popup") ?? "", /gap: 0\.5rem;/);
+    assert.match(declarations(".ui-temporal-input__popup-footer") ?? "", /padding-top: 0\.5rem;/);
+});

@@ -17,6 +17,7 @@ using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
@@ -129,7 +130,12 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
                 // A `section`, not `header`/`main`/`nav`, keeps the grid's rules; the role makes it a landmark.
                 if (LandmarkRole(view, region.Key) is string role)
+                {
                     _ = section.Attribute("role", role);
+
+                    if (IsSide(region.Key))
+                        RenderSideName(view, region.Key, section, viewResolution.Session.Language);
+                }
 
                 // On the region rather than on the root: sticking is a property of this band of the page.
                 if (view.Options.StickyHeader && string.Equals(region.Key, RegionNames.Header, StringComparison.Ordinal))
@@ -298,6 +304,40 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             _ => SideMenu(view, side) is null ? "complementary" : "navigation"
         };
 
+    private static bool IsSide(string key)
+        => string.Equals(key, RegionNames.LeftSide, StringComparison.Ordinal) || string.Equals(key, RegionNames.RightSide, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Names a side's landmark, so a reader's list of landmarks tells the two sides from the page's other parts: by its menu's
+    /// <c>AccessibleName</c>, referring to the menu's root (<see cref="WebAttributes.MenuNameId"/>) so a pushed name renames the side
+    /// with the menu, else as the left or the right panel, so the two sides differ too. A bound name keeps the panel's word under the
+    /// reference, which a reader hears while the name is empty. A drawer keeps the name (side-drawer-engine.ts).
+    /// </summary>
+    private void RenderSideName(CompiledView view, string side, IHtmlElementBuilder section, string language)
+    {
+        UIComponentNode? menu = SideMenu(view, side);
+        CompiledUIPropertyValue? name = null;
+        var named = menu is not null
+            && view.State.TryGetValue(menu.ComponentId, IAccessibleNameComponent.AccessibleNameProperty, out name)
+            && (name.IsBind || HoldsWords(name.Value));
+
+        if (named)
+            _ = section.Attribute("aria-labelledby", WebAttributes.MenuNameId(menu!.ComponentId));
+
+        if (!named || name!.IsBind)
+            WebWords.Write(_translator, language, section, "aria-label", string.Equals(side, RegionNames.RightSide, StringComparison.Ordinal) ? UIStrings.RightPanel : UIStrings.LeftPanel);
+    }
+
+    /// <summary>Whether a written name — a phrase, or the author's text — holds words, as the menu's renderer names its root by them.</summary>
+    private static bool HoldsWords(object? name)
+        => name switch
+        {
+            UIPhrase { IsText: true } text => UIPhrase.HasWords(text),
+            UIPhrase => true,
+            string words => !string.IsNullOrWhiteSpace(words),
+            _ => false
+        };
+
     private static bool IsDrawer(string key, bool leftDrawer, bool rightDrawer)
         => (leftDrawer && string.Equals(key, RegionNames.LeftSide, StringComparison.Ordinal))
             || (rightDrawer && string.Equals(key, RegionNames.RightSide, StringComparison.Ordinal));
@@ -370,7 +410,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
             _ = html.Element("div", layer =>
             {
                 _ = layer
-                    .Class("ui-dialog")
+                    .Class(WebClassNames.Dialog)
                     .Attribute(WebAttributes.Dialog, dialog.Key)
                     .Attribute("hidden");
 
@@ -388,7 +428,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                     _ = layer.Attribute(WebAttributes.DialogPlacement, dialog.Placement.ToString().ToLowerInvariant());
 
                 _ = layer.Element("div", backdrop => _ = backdrop
-                    .Class("ui-dialog__backdrop")
+                    .Class(WebClassNames.DialogBackdrop)
                     .Attribute(WebAttributes.DialogBackdrop)
                 );
 
@@ -399,14 +439,14 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                         .Attribute("role", "dialog")
                         .Attribute("tabindex", "-1");
 
-                    // Named by its title where it shows one, so a bound title names it as it changes; its label otherwise.
+                    // Named by its title where it shows one, so a bound title names it as it changes; its accessible name otherwise.
                     if (dialog.TitleComponentId is UIComponentId title)
                         _ = surface.Attribute("aria-labelledby", WebAttributes.DialogTitleId(title));
-                    else if (!string.IsNullOrWhiteSpace(dialog.Label))
-                        WebWords.WriteText(_translator, viewResolution.Session.Language, surface, "aria-label", dialog.Label);
+                    else
+                        _ = TryWriteAriaLabel(surface, dialog.AccessibleName, viewResolution.Session.Language);
 
                     // Render-time only: a dialog is not a component, so a live patch has nothing to address.
-                    if (dialog.Surface is not (UISurfaceStyle.Raised or UISurfaceStyle.Flat))
+                    if (dialog.Surface != UISurfaceStyle.Surface)
                         _ = surface.Attribute(DialogSurfaceAttribute, dialog.Surface.ToString().ToLowerInvariant());
 
                     RenderDialogLayout(dialog, surface);
@@ -418,6 +458,25 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                     RenderRoot(viewResolution, dialog.RootComponentId, surface, metadata, values);
                 });
             });
+        }
+    }
+
+    /// <summary>Writes a name — a phrase, or the author's text — as the element's <c>aria-label</c>; false where it holds no words.</summary>
+    private bool TryWriteAriaLabel(IHtmlElementBuilder element, object? name, string language)
+    {
+        switch (name)
+        {
+            case UIPhrase { IsText: true } text when UIPhrase.HasWords(text):
+                WebWords.WriteText(_translator, language, element, "aria-label", text.Key);
+                return true;
+            case UIPhrase { IsText: false } phrase:
+                WebWords.Write(_translator, language, element, "aria-label", phrase.Key, phrase.Arguments);
+                return true;
+            case string words when !string.IsNullOrWhiteSpace(words):
+                WebWords.WriteText(_translator, language, element, "aria-label", words);
+                return true;
+            default:
+                return false;
         }
     }
 

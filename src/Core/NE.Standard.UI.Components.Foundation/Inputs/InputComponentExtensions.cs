@@ -20,6 +20,15 @@ public static class InputComponentExtensions
     /// <summary>
     /// Sends this field's validation message to another component's property, leaving the field its edge colour alone.
     /// </summary>
+    public static T ValidationInto<T>(this T component, IVisualComponent targetComponent, UIProperty property) where T : IInputComponent
+    {
+        ArgumentNullException.ThrowIfNull(targetComponent);
+        return component.ValidationInto(targetComponent.Id, property);
+    }
+
+    /// <summary>
+    /// Sends this field's validation message to another component's property, leaving the field its edge colour alone.
+    /// </summary>
     public static T ValidationInto<T>(this T component, string componentId, UIProperty property) where T : IInputComponent
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(componentId);
@@ -39,7 +48,7 @@ public static class InputComponentExtensions
         ArgumentNullException.ThrowIfNull(component);
         ThrowIfNoWords(help);
 
-        return component.SetBadgeIcon(UIGlyphs.Help).SetBadgeStyle(UIBadgeType.Plain).SetBadgeTooltip(help);
+        return component.SetBadgeIcon(UIGlyphs.Help).SetBadgeVariant(UIBadgeVariant.Plain).SetBadgeTooltip(help);
     }
 
     /// <summary>A help with nothing to say is refused: a blank text would draw a badge naming nothing.</summary>
@@ -60,7 +69,7 @@ public static class InputComponentExtensions
         ArgumentNullException.ThrowIfNull(component);
         ThrowIfNoWords(help);
 
-        return component.SetBadgeIcon(UIGlyphs.Help).SetBadgeStyle(UIBadgeType.Plain).SetBadgeTooltip(help);
+        return component.SetBadgeIcon(UIGlyphs.Help).SetBadgeVariant(UIBadgeVariant.Plain).SetBadgeTooltip(help);
     }
 
     /// <summary>
@@ -184,11 +193,32 @@ public static class InputComponentExtensions
     /// Adds a rule comparing the value with another field's — "Password again" <c>Equal</c> to "New password" — judged in the browser as
     /// either changes; its message is the author's text or a key.
     /// </summary>
+    public static T ValidateAgainst<T>(this T component, IInputComponent sourceComponent, UIComparisonOperator @operator, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.ValidateAgainst(sourceComponent.Id, @operator, message, trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds a rule comparing the value with another field's — "Password again" <c>Equal</c> to "New password" — judged in the browser as
+    /// either changes; its message is the author's text or a key.
+    /// </summary>
     public static T ValidateAgainst<T>(this T component, string componentId, UIComparisonOperator @operator, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
         where T : IInputComponent
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         return component.ValidateAgainst(componentId, @operator, UIPhrase.Text(message), trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds a rule comparing the value with another field's, whose message is a phrase, such as a key with its arguments.
+    /// </summary>
+    public static T ValidateAgainst<T>(this T component, IInputComponent sourceComponent, UIComparisonOperator @operator, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.ValidateAgainst(sourceComponent.Id, @operator, message, trigger, severity);
     }
 
     /// <summary>

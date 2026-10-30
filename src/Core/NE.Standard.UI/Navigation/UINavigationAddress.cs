@@ -12,7 +12,7 @@ namespace NE.Standard.UI.Navigation;
 /// Writes a navigation request as the address a browser names it by, the way the client's <c>buildNavigationUrl</c> does, and reads
 /// one back as the host and the page read a query.
 /// </summary>
-internal static class UINavigationAddress
+public static class UINavigationAddress
 {
     /// <summary>
     /// The route with its parameters as a query — what a return address must carry: a deep link's <c>?id=42</c> is what the

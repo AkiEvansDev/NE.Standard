@@ -1,8 +1,8 @@
 // Keeps one section of an accordion open at a time; the sections stay ordinary <details>.
 
+import { AccordionClass } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations";
 
-const RootClass = "ui-accordion";
 const SectionSelector = "details";
 
 export type AccordionEngineOptions = {
@@ -21,9 +21,9 @@ export class AccordionEngine {
         // Still the toggle, for a section opened from anywhere else; capture, because it does not bubble.
         this.root.addEventListener("toggle", domEvent => this.handleToggle(domEvent), true);
 
-        this.normalizeAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.normalizeAll(this.root.querySelectorAll<HTMLElement>(`.${AccordionClass}`));
 
-        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true }, accordions => this.normalizeAll(accordions));
+        observeComponents(this.root, `.${AccordionClass}`, { childList: true, addedOnly: true }, accordions => this.normalizeAll(accordions));
     }
 
     /** Leaves the first open section open and closes the rest. */
@@ -70,7 +70,7 @@ export class AccordionEngine {
         const accordion = section.parentElement;
 
         // Direct children only: a nested accordion must not close the outer one's sections.
-        if (accordion === null || !accordion.classList.contains(RootClass))
+        if (accordion === null || !accordion.classList.contains(AccordionClass))
             return;
 
         for (const sibling of this.sectionsOf(accordion)) {

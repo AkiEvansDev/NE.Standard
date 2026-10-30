@@ -29,12 +29,12 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/items/table";
     protected override string Header => "demo.items.table.header";
     protected override string HeaderDescription => "demo.items.table.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/lists", "demo.nav.mechanisms.lists");
+    protected override (string Route, string Title)? ComposedIn => ("/mechanisms/lists", "demo.nav.mechanisms.lists");
 
     // The table is named, so the widths a viewer drags are kept in the browser between visits.
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TableComponent("deployments")
-            .BindItems($"{ItemsGroup}.{nameof(TableRowsGroupContext.Items)}")
+            .BindItems<TableController>(static x => x.ItemsGroup.Items)
             .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), UIGridUnit.Auto(min: 112))
             .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), UIGridUnit.Auto(min: 88))
             .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(110), UITextAlignment.End)
@@ -42,24 +42,24 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
             // Sideways on a phone, rather than the name and the region squeezed to nothing beside the two fixed columns.
             .SetHorizontalScroll(UIScrollMode.Auto)
             .BindStandard()
-            .BindSurface($"{TableGroup}.{nameof(TableGroupContext.Surface)}")
-            .BindShowHeader($"{TableGroup}.{nameof(TableGroupContext.ShowHeader)}")
-            .BindStriped($"{TableGroup}.{nameof(TableGroupContext.Striped)}")
-            .BindShowColumnSeparators($"{TableGroup}.{nameof(TableGroupContext.ShowColumnSeparators)}")
-            .BindShowRowSeparators($"{TableGroup}.{nameof(TableGroupContext.ShowRowSeparators)}")
-            .BindRowHoverable($"{TableGroup}.{nameof(TableGroupContext.RowHoverable)}")
-            .BindResizableColumns($"{TableGroup}.{nameof(TableGroupContext.ResizableColumns)}")
-            .BindVerticalScroll($"{TableGroup}.{nameof(TableGroupContext.VerticalScroll)}")
-            .BindSelectionMode($"{TableGroup}.{nameof(TableGroupContext.SelectionMode)}")
-            .BindSelectedKey($"{TableGroup}.{nameof(TableGroupContext.SelectedKey)}")
-            .BindSelectedKeys($"{TableGroup}.{nameof(TableGroupContext.SelectedKeys)}")
-            .BindSelectionStyle($"{TableGroup}.{nameof(TableGroupContext.SelectionStyle)}")
-            .BindDraggable($"{TableGroup}.{nameof(TableGroupContext.Draggable)}")
-            .BindDragHandle($"{TableGroup}.{nameof(TableGroupContext.DragHandle)}")
-            .BindDragHandlePlacement($"{TableGroup}.{nameof(TableGroupContext.DragHandlePlacement)}")
-            .OnRowMoveWithItemKey(nameof(TableController.MoveRow))
+            .BindSurface<TableController>(static x => x.TableGroup.Surface)
+            .BindShowHeader<TableController>(static x => x.TableGroup.ShowHeader)
+            .BindStriped<TableController>(static x => x.TableGroup.Striped)
+            .BindShowColumnSeparators<TableController>(static x => x.TableGroup.ShowColumnSeparators)
+            .BindShowRowSeparators<TableController>(static x => x.TableGroup.ShowRowSeparators)
+            .BindRowHoverable<TableController>(static x => x.TableGroup.RowHoverable)
+            .BindResizableColumns<TableController>(static x => x.TableGroup.ResizableColumns)
+            .BindVerticalScroll<TableController>(static x => x.TableGroup.VerticalScroll)
+            .BindSelectionMode<TableController>(static x => x.TableGroup.SelectionMode)
+            .BindSelectedKey<TableController>(static x => x.TableGroup.SelectedKey)
+            .BindSelectedKeys<TableController>(static x => x.TableGroup.SelectedKeys)
+            .BindSelectionStyle<TableController>(static x => x.TableGroup.SelectionStyle)
+            .BindDraggable<TableController>(static x => x.TableGroup.Draggable)
+            .BindDragHandle<TableController>(static x => x.TableGroup.DragHandle)
+            .BindDragHandlePlacement<TableController>(static x => x.TableGroup.DragHandlePlacement)
+            .OnItemMoveWithItemKey(nameof(TableController.MoveRow))
             .BindBorder(BorderGroup)
-            .SetMaxHeight(UILayoutLength.Absolute(240))
+            .SetMaxHeight(UILayoutLength.Absolute(228))
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 320);
 
@@ -82,27 +82,27 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     /// <remarks>Named, so the order a viewer drags is kept in the browser between visits, as the widths are.</remarks>
     private static ContainerComponent CreateColumnKindsGroup()
     {
-        return DemoUI.CreateExample("A column per kind of cell",
+        return DemoUI.CreateExample("Typed columns (text, badge, link, actions)",
             new TableComponent("fleet-columns")
                 .SetHorizontalScroll(UIScrollMode.Auto)
                 .SetItems(DemoDeploymentRow.CreateDeployments())
                 .AddColumn("", new TextComponent()
-                    .BindIcon(nameof(DemoDeploymentRow.Icon), UIBindingScope.Relative)
-                    .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Primary)),
+                    .BindIcon<DemoDeploymentRow>(static x => x.Icon, UIBindingScope.Relative)
+                    .SetIconColor(UIThemeColor.Default),
                     UIGridUnit.Absolute(48), UITextAlignment.Center
                 )
                 .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), icon: DemoIcons.Outline(DemoIcons.Server))
                 .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), UIGridUnit.Auto(min: 96), key: "region", icon: DemoIcons.Outline(DemoIcons.Region))
                 .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(120), UITextAlignment.End, key: "replicas", icon: DemoIcons.Outline(DemoIcons.Replicas))
                 .AddColumn("Status", new TextComponent()
-                    .BindBadgeText(nameof(DemoDeploymentRow.Status), UIBindingScope.Relative)
-                    .BindBadgeStyle(nameof(DemoDeploymentRow.StatusStyle), UIBindingScope.Relative),
+                    .BindBadgeTitle<DemoDeploymentRow>(static x => x.Status, UIBindingScope.Relative)
+                    .BindBadgeVariant<DemoDeploymentRow>(static x => x.StatusVariant, UIBindingScope.Relative),
                     UIGridUnit.Absolute(120), key: "status"
                 )
                 // The button's click is its own, never the row's: a control inside a row keeps its press.
                 .AddColumn("", new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
-                    .SetSize(UIButtonSize.Small)
+                    .SetVariant(UIButtonVariant.Ghost)
+                    .SetSize(UISize.Small)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
                     .SetTooltip("Restart")
                     .OnClick(nameof(TableController.RestartRow), UIAction.ArgCurrentItemKey("id")),
@@ -120,12 +120,12 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// Rows chosen with the items view's vocabulary: a mark on the left names the chosen ones, and any number may be chosen. A row is also
-    /// the control that opens it, so the pointer's wash says so; striped as well, since that is the pair most tables are built from.
+    /// Rows chosen with the items view's vocabulary: a leading column of checkboxes ticks a row, the header's box ticks them all, and the chosen ground and ink name the chosen ones. A row is
+    /// also the control that opens it, so the pointer's wash says so; striped as well, since that is the pair most tables are built from.
     /// </summary>
     private static ContainerComponent CreateChosenGroup()
     {
-        return DemoUI.CreateExample("Chosen rows",
+        return DemoUI.CreateExample("Row selection",
             new TableComponent()
                 .SetHorizontalScroll(UIScrollMode.Auto)
                 .SetItems(DemoDeploymentRow.CreateDeployments().GetRange(0, 6))
@@ -135,12 +135,11 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
                 .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110))
                 .SetSelectionMode(UISelectionMode.Many)
                 .SetSelectedKeys(["panel", "status-page"])
-                .SetSelectionStyle(UISelectionStyle.Marked(UISelectionMark.Left))
                 .SetRowHoverable(true)
                 .SetStriped(true)
                 // The row Enter and a double click open, so the group's line says which one that was and what stayed chosen.
-                .OnRowOpenWithItemKey(nameof(TableController.OpenChosenRow)),
-            note: "Ctrl and Shift choose as a file manager's rows do. Enter or a double click opens the row and leaves the group chosen; the pointer's wash answers on a striped row too.",
+                .OnItemOpenWithItemKey(nameof(TableController.OpenChosenRow)),
+            note: "A leading column of checkboxes ticks a row, Shift-clicking a box ticks or clears the range from the last one, and the header's box ticks them all; clicking a row leaves selection alone so Enter or a double click opens it. The pointer's wash answers on a striped row too.",
             context: ChosenGroup
         );
     }
@@ -151,7 +150,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreatePressedGroup()
     {
-        return DemoUI.CreateExample("Rows that open on a press",
+        return DemoUI.CreateExample("Expandable detail rows",
             new TableComponent()
                 .SetHorizontalScroll(UIScrollMode.Auto)
                 .SetItems(DemoDeploymentRow.CreateDeployments().GetRange(0, 5))
@@ -160,7 +159,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
                 .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(96), UITextAlignment.End)
                 .SetRowHoverable(true)
                 .SetResizableColumns(true)
-                .OnRowClickWithItemKey(nameof(TableController.OpenPressedRow)),
+                .OnItemClickWithItemKey(nameof(TableController.OpenPressedRow)),
             note: "Nothing is chosen here: a click on a row, or Enter or Space on the keyboard's cell, runs the row's click. The table is one stop of the Tab order and a grid to the keyboard: the arrows walk its cells, Home and End the row's ends, Ctrl+Home and Ctrl+End the first and last row, Page Up and Page Down a page; Up from the first row goes to the caption of the cell's column, where Shift with Left or Right sizes a column, and Down comes back.",
             context: PressedGroup
         );
@@ -172,10 +171,10 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateGripGroup()
     {
-        return DemoUI.CreateExample("Put in order by a grip",
+        return DemoUI.CreateExample("Row reordering via drag handle",
             new TableComponent()
                 .SetHorizontalScroll(UIScrollMode.Auto)
-                .BindItems(nameof(TableRolloutGroupContext.Rows), UIBindingScope.Relative)
+                .BindItems<TableRolloutGroupContext>(static x => x.Rows, UIBindingScope.Relative)
                 .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), UIGridUnit.Absolute(140), pinned: true)
                 .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), UIGridUnit.Absolute(160))
                 .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(120), UITextAlignment.End)
@@ -183,7 +182,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
                 .SetSelectionMode(UISelectionMode.One)
                 .SetDraggable(true)
                 .SetDragHandle(UIDragHandlePlacement.Start)
-                .OnRowMoveWithItemKey(nameof(TableController.MoveGripRow)),
+                .OnItemMoveWithItemKey(nameof(TableController.MoveGripRow)),
             note: "The grip is a column of its own before the author's, not one of them: the columns engine never counts it, and it stays with the pinned Service column as the table scrolls sideways. Only it drags a row; a press on the rest of the row chooses it, and the keyboard moves the chosen row by Alt+Up and Alt+Down. `SetDragHandle(UIDragHandlePlacement.Start)`; the end is the default.",
             context: GripGroup
         );
@@ -195,7 +194,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCellListGroup()
     {
-        return DemoUI.CreateExample("A list in a cell",
+        return DemoUI.CreateExample("Nested list inside a cell",
             new TableComponent()
                 .SetHorizontalScroll(UIScrollMode.Auto)
                 .SetItems(
@@ -206,15 +205,15 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
                 ])
                 .AddTextColumn("Service", nameof(DemoServiceServers.Service), UIGridUnit.Absolute(120))
                 .AddColumn("Servers", new ItemsViewComponent()
-                    .BindItems(nameof(DemoServiceServers.Servers), UIBindingScope.Relative)
+                    .BindItems<DemoServiceServers>(static x => x.Servers, UIBindingScope.Relative)
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetLayoutType(UIItemsLayoutType.Wrap)
                     .SetSpacing(4)
                     // Stretched to the cell's line, a list starts its chips at the line's top, above the row's other words.
                     .SetVerticalAlignment(UIAlignment.Center)
                     .SetTemplate(new TextComponent()
-                        .BindBadgeText(nameof(TextItem.Title), UIBindingScope.Relative)
-                        .SetBadgeStyle(UIBadgeType.Surface)
+                        .BindBadgeTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
+                        .SetBadgeVariant(UIBadgeVariant.Surface)
                     )
                 )
                 .SetTextSelectable(true),

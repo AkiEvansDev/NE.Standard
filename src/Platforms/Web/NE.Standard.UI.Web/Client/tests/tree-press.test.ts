@@ -1,5 +1,5 @@
 // A press on a tree's node: the selection follows it, as in an items view, and the press reaches the row, whose click is the
-// command the tree's `OnNodeClick` hangs there. The chevron only folds and an open rename field keeps its presses: both are behind
+// command the tree's `OnItemClick` hangs there. The chevron only folds and an open rename field keeps its presses: both are behind
 // an event boundary, so neither hands its click to the node or the row.
 
 import assert from "node:assert/strict";

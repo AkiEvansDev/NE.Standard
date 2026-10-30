@@ -23,14 +23,14 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new ProgressComponent()
             .BindStandard()
-            .BindLabel($"{ProgressGroup}.{nameof(ProgressGroupContext.Label)}")
-            .BindValue($"{ProgressGroup}.{nameof(ProgressGroupContext.Value)}")
-            .BindMin($"{ProgressGroup}.{nameof(ProgressGroupContext.Min)}")
-            .BindMax($"{ProgressGroup}.{nameof(ProgressGroupContext.Max)}")
-            .BindVariant($"{ProgressGroup}.{nameof(ProgressGroupContext.Variant)}")
-            .BindColor($"{ProgressGroup}.{nameof(ProgressGroupContext.Color)}")
-            .BindShowValue($"{ProgressGroup}.{nameof(ProgressGroupContext.ShowValue)}")
-            .BindValueUnit($"{ProgressGroup}.{nameof(ProgressGroupContext.ValueUnit)}")
+            .BindTitle<ProgressController>(static x => x.ProgressGroup.Title)
+            .BindValue<ProgressController>(static x => x.ProgressGroup.Value)
+            .BindMin<ProgressController>(static x => x.ProgressGroup.Min)
+            .BindMax<ProgressController>(static x => x.ProgressGroup.Max)
+            .BindVariant<ProgressController>(static x => x.ProgressGroup.Variant)
+            .BindColor<ProgressController>(static x => x.ProgressGroup.Color)
+            .BindShowValue<ProgressController>(static x => x.ProgressGroup.ShowValue)
+            .BindValueUnit<ProgressController>(static x => x.ProgressGroup.ValueUnit)
             .SetPlacement(1, 1, 24, 1)
         ));
 
@@ -48,7 +48,7 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateQuotaGroup()
     {
-        return DemoUI.CreateExample("Under the thing it measures",
+        return DemoUI.CreateExample("Labeled quota bars",
             new SurfaceComponent()
                 .SetContent(UILayout.Stack(16)
                     .SetWidth(UILayoutLength.Absolute(360))
@@ -102,7 +102,7 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateScaleGroup()
     {
-        return DemoUI.CreateExample("The same value, three windows",
+        return DemoUI.CreateExample("Custom Min & Max ranges",
             UILayout.Stack(16)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .AddChild(UILayout.Stack(6)
@@ -140,7 +140,7 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateKnownGroup()
     {
-        return DemoUI.CreateExample("How far, and whether that is known",
+        return DemoUI.CreateExample("Determinate vs indeterminate (null Value)",
             UILayout.Stack(16)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .AddChild(UIText.Label("Known — the value is a number"))
@@ -163,10 +163,10 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateTileGroup()
     {
-        return DemoUI.CreateExample("A ring, where a bar has no room",
+        return DemoUI.CreateExample("Circular variant (UIProgressVariant.Circular)",
             UILayout.Row(12)
                 .AddChild(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetWidth(UILayoutLength.Absolute(150))
                     .SetContent(UILayout.Stack(10)
                         .SetHorizontalAlignment(UIAlignment.Center)
@@ -185,7 +185,7 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
                     )
                 )
                 .AddChild(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetWidth(UILayoutLength.Absolute(150))
                     .SetContent(UILayout.Stack(10)
                         .SetHorizontalAlignment(UIAlignment.Center)
@@ -204,7 +204,7 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
                     )
                 )
                 .AddChild(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetWidth(UILayoutLength.Absolute(150))
                     .SetContent(UILayout.Stack(10)
                         .SetHorizontalAlignment(UIAlignment.Center)

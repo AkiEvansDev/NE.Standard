@@ -9,23 +9,18 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// One caption in a <see cref="TabsComponent"/>'s strip.
 /// </summary>
 /// <remarks>A component rather than a string, so a caption can carry a bindable <c>Visible</c>, an icon and a badge.</remarks>
-public abstract partial class TabCaptionComponent<T> : ButtonComponent<T>
+[UIComponentPropertyDefault(nameof(IButtonComponent.Variant), nameof(DefaultVariant))]
+public abstract partial class TabCaptionComponent<T>(string? id = null) : ButtonComponent<T>(id)
     where T : TabCaptionComponent<T>, IUIComponentDefinition
 {
+    private const UIButtonVariant DefaultVariant = UIButtonVariant.Ghost;
+
     /// <summary>
     /// Gets or sets the key of the page this caption selects.
     /// </summary>
     /// <remarks>Render-time only: authored once by <c>TabsComponent.AddTab</c> and never patched.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public string? TabKey { get; set; }
-
-    /// <summary>
-    /// Initializes the caption as an untinted, content-sized label.
-    /// </summary>
-    protected TabCaptionComponent(string? id = null) : base(id)
-    {
-        Type = UIButtonType.Ghost;
-    }
 }
 
 /// <summary>

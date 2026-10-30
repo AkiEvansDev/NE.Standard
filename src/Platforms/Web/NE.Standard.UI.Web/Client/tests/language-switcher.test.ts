@@ -31,7 +31,7 @@ installFakeDom({
 });
 
 const { LanguageSwitcherEngine } = await import("../src/interactions/language-switcher-engine.ts");
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 
 const asked: string[] = [];
 
@@ -284,4 +284,15 @@ test("an author's own tooltip stays at a switch, even one whose words are the bu
     show("ru");
 
     assert.equal(switcher.getAttribute("data-ui-tooltip"), own);
+});
+
+test("the open list is called what its button is", () => {
+    const at = scene(["en", "zh-Hans", "ru"]);
+    const switcher = fakeDocument.body.children[0];
+
+    at.trigger.dispatchEvent(new FakeEvent("click"));
+
+    assert.notEqual(at.trigger.id, "");
+    assert.equal(switcher.children[1].getAttribute("aria-labelledby"), at.trigger.id);
+    at.trigger.dispatchEvent(new FakeEvent("click"));
 });

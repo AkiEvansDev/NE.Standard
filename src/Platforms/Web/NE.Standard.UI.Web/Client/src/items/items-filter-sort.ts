@@ -1,89 +1,22 @@
 // `.ts` on value imports and `import type` on the rest: `node --test` resolves files literally and would load a type-only module whole.
 import { readItemPropertyPath } from "./binding-template-evaluator.ts";
-import { ComponentSelector, HiddenClass, ItemsQueryAttribute } from "../addressing/dom-attributes.ts";
-import { logWarn } from "../runtime/logger.ts";
-import { getRealItemElements } from "./items-empty-renderer.ts";
+import { HiddenClass } from "../addressing/dom-attributes.ts";
+import { logWarn } from "../metadata/logger.ts";
+import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
-import { comparable, evaluateOperator } from "../interactions/interaction-evaluator.ts";
+import { comparable, compareValues, evaluateOperator, isRuleActive, readItemsQuery } from "../interactions/interaction-evaluator.ts";
+import { isAuthorText, isPhrase } from "../rendering/words.ts";
+import type { ActiveSort, ItemsQuery } from "../interactions/interaction-evaluator.ts";
 import { getItemsSortDirection } from "../metadata/metadata-index.ts";
 import type {
     MetadataIndex,
-    WebInteractionOperator,
     WebRenderItemsFilterMetadata,
-    WebRenderItemsFilterSortMetadata,
-    WebRenderItemsSortMetadata,
-    WebRenderPropertyReferenceMetadata
+    WebRenderItemsFilterSortMetadata
 } from "../metadata/metadata-index";
 import type { PropertyStateStore } from "../state/property-state-store";
 
-/** One term of the viewer's query, the shape `UIItemFilterTerm` travels in. */
-type ItemsQueryFilter = {
-    readonly itemProperty: string;
-    readonly operator: WebInteractionOperator;
-    readonly value?: unknown;
-};
-
-type ItemsQuerySort = {
-    readonly itemProperty: string;
-    readonly direction: WebRenderItemsSortMetadata["direction"];
-};
-
-/** The terms the viewer set after the view compiled, applied beside the authored rules. */
-export type ItemsQuery = {
-    readonly filters?: readonly ItemsQueryFilter[] | null;
-    readonly sorts?: readonly ItemsQuerySort[] | null;
-};
-
-/** A sort in force, whether authored or the viewer's: what the comparison reads. */
-export type ActiveSort = Pick<WebRenderItemsSortMetadata, "itemProperty" | "direction">;
-
-// The query last parsed off each element carrying one, by its text: a patch to every row of a list reads it, and would parse it as often.
-const parsedQueries = new WeakMap<Element, { readonly text: string; readonly query: ItemsQuery | null }>();
-
-/** The viewer's query off the element the host's component carries it on; null when there is none or it does not parse. */
-export function readItemsQuery(host: Element): ItemsQuery | null {
-    const carrier = queryCarrier(host);
-    const text = carrier?.getAttribute(ItemsQueryAttribute) ?? null;
-
-    if (carrier === null || text === null || text.length === 0)
-        return null;
-
-    const parsed = parsedQueries.get(carrier);
-
-    if (parsed !== undefined && parsed.text === text)
-        return parsed.query;
-
-    const query = parseItemsQuery(host, text);
-
-    parsedQueries.set(carrier, { text, query });
-
-    return query;
-}
-
-/** The element carrying the viewer's query: one of the component's own children, looked for among them alone, never through its rows. */
-function queryCarrier(host: Element): Element | null {
-    const owner = host.closest(ComponentSelector);
-
-    if (owner === null)
-        return null;
-
-    for (const child of owner.children) {
-        if (child.hasAttribute(ItemsQueryAttribute))
-            return child;
-    }
-
-    return null;
-}
-
-function parseItemsQuery(host: Element, text: string): ItemsQuery | null {
-    try {
-        return JSON.parse(text) as ItemsQuery;
-    }
-    catch {
-        logWarn("the items query on the page does not parse; the authored rules alone apply.", { host, text });
-        return null;
-    }
-}
+export { compareValues, getActiveSorts, readItemsQuery } from "../interactions/interaction-evaluator.ts";
+export type { ActiveSort, ItemsQuery } from "../interactions/interaction-evaluator.ts";
 
 export function applyItemFilters(host: Element, componentId: number, metadata: MetadataIndex, itemsRenderer: ItemsTemplateRenderer, state: PropertyStateStore): void {
     const config = metadata.getItemsFilterSortMetadata(componentId);
@@ -114,22 +47,38 @@ export function applyItemFilters(host: Element, componentId: number, metadata: M
 /** Whether one item's value passes every authored filter that is active, and every term of the viewer's query. */
 export function itemMatchesFilters(config: WebRenderItemsFilterSortMetadata | undefined, item: unknown, state: PropertyStateStore, query: ItemsQuery | null = null): boolean {
     return (config?.filters ?? []).every(filter => filterMatches(filter, item, state))
-        && (query?.filters ?? []).every(term => evaluateOperator(readItemPropertyPath(item, term.itemProperty), term.operator, term.value));
+        && (query?.filters ?? []).every(term => evaluateOperator(readItemPropertyPath(item, term.itemProperty), term.operator, term.value))
+        && itemMatchesSearch(item, query?.search);
 }
 
-/** Whether any authored filter is active or the viewer's query carries a term: a tree keeps every row until one is. */
-export function hasActiveFilters(config: WebRenderItemsFilterSortMetadata | undefined, state: PropertyStateStore, query: ItemsQuery | null = null): boolean {
-    return (config?.filters ?? []).some(filter => isRuleActive(filter.source, filter.activeOperator, filter.activeValue, state))
-        || (query?.filters?.length ?? 0) > 0;
+function itemMatchesSearch(item: unknown, search: string | null | undefined): boolean {
+    const trimmed = search?.trim() ?? "";
+
+    if (trimmed.length === 0)
+        return true;
+
+    const words = trimmed.toLowerCase().split(/\s+/);
+
+    return words.every(word => valueContainsWord(item, word));
 }
 
-/** The sorts in force: the viewer's first, since a sort chosen by a header outranks the authored one, then the active authored ones by priority. */
-export function getActiveSorts(config: WebRenderItemsFilterSortMetadata | undefined, state: PropertyStateStore, query: ItemsQuery | null = null): ActiveSort[] {
-    const authored = (config?.sorts ?? [])
-        .filter(sort => isRuleActive(sort.source, sort.activeOperator, sort.activeValue, state))
-        .sort((left, right) => left.priority - right.priority);
+function valueContainsWord(value: unknown, word: string): boolean {
+    if (typeof value === "string")
+        return value.toLowerCase().includes(word);
 
-    return [...(query?.sorts ?? []), ...authored];
+    if (typeof value === "number")
+        return Number.isFinite(value) && String(value).toLowerCase().includes(word);
+
+    if (isAuthorText(value))
+        return value.text.toLowerCase().includes(word);
+
+    if (isPhrase(value) || value === null || typeof value !== "object")
+        return false;
+
+    if (Array.isArray(value))
+        return value.some(entry => valueContainsWord(entry, word));
+
+    return Object.values(value).some(entry => valueContainsWord(entry, word));
 }
 
 export function sortElements(elements: readonly Element[], activeSorts: readonly ActiveSort[], itemsRenderer: ItemsTemplateRenderer): Element[] {
@@ -158,56 +107,4 @@ function filterMatches(filter: WebRenderItemsFilterMetadata, itemValue: unknown,
     const compareValue = filter.source !== null && filter.source !== undefined ? state.get(filter.source, []) : filter.value;
 
     return evaluateOperator(readItemPropertyPath(itemValue, filter.itemProperty), filter.operator, compareValue);
-}
-
-function isRuleActive(
-    source: WebRenderPropertyReferenceMetadata | null | undefined,
-    activeOperator: WebInteractionOperator,
-    activeValue: unknown,
-    state: PropertyStateStore
-): boolean {
-    if (source === null || source === undefined)
-        return true;
-
-    return evaluateOperator(state.get(source, []), activeOperator, activeValue);
-}
-
-/** Orders two values in one order over a column: nothing first, then numbers by value, then the rest as locale-aware text. */
-export function compareValues(left: unknown, right: unknown): number {
-    if (left === right)
-        return 0;
-
-    const leftRank = rankOf(left);
-    const rightRank = rankOf(right);
-
-    // Ranked before compared: number-or-text decided per pair gives "2" < "10" < "1a" < "2", which no sort can keep.
-    if (leftRank !== rightRank)
-        return leftRank - rightRank;
-
-    if (leftRank === ValueRank.Nothing)
-        return 0;
-
-    if (leftRank === ValueRank.Number) {
-        const difference = Number(left) - Number(right);
-
-        return Number.isNaN(difference) ? 0 : Math.sign(difference);
-    }
-
-    return String(left).localeCompare(String(right));
-}
-
-// Plain numbers rather than an enum: `node --test` strips types and cannot compile one.
-const ValueRank = { Nothing: 0, Number: 1, Text: 2 } as const;
-
-function rankOf(value: unknown): number {
-    if (value === null || value === undefined)
-        return ValueRank.Nothing;
-
-    if (typeof value === "number")
-        return Number.isNaN(value) ? ValueRank.Nothing : ValueRank.Number;
-
-    if (typeof value === "string" && value.trim().length === 0)
-        return ValueRank.Nothing;
-
-    return Number.isNaN(Number(value)) ? ValueRank.Text : ValueRank.Number;
 }

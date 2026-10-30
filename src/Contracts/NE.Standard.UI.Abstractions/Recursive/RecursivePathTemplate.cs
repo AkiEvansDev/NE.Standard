@@ -189,6 +189,12 @@ public sealed class RecursivePathTemplate
 
             if (span[i] == '[')
             {
+                if (expectSegment && i > 0)
+                {
+                    error = $"Invalid path template '{template}'.";
+                    return false;
+                }
+
                 if (i + 1 >= span.Length || span[i + 1] != ']')
                 {
                     error = $"Invalid parameter segment in path template '{template}'.";
@@ -201,6 +207,12 @@ public sealed class RecursivePathTemplate
                 i += 2;
                 expectSegment = false;
                 continue;
+            }
+
+            if (!expectSegment)
+            {
+                error = $"Invalid path template '{template}'.";
+                return false;
             }
 
             var start = i;

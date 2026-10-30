@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Shell.Runtime;
 
@@ -13,19 +12,22 @@ namespace NE.Standard.UI.Shell.Runtime;
 public interface IUIRuntimeAccess
 {
     /// <summary>
-    /// Executes an action on the runtime and returns produced server changes.
+    /// Executes an action on the runtime; what it changes reaches the pages with the next flush.
     /// </summary>
-    Task<ServerChangeSet> InvokeAsync(Action action, CancellationToken cancellationToken = default);
+    /// <remarks>Throws <see cref="InvalidOperationException"/> called from inside an action, as the asynchronous overload does.</remarks>
+    Task InvokeAsync(Action action, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Executes an asynchronous action on the runtime and returns produced server changes.
+    /// Executes an asynchronous action on the runtime; what it changes reaches the pages with the next flush.
     /// </summary>
     /// <remarks>
     /// Runs under the runtime's lock, which values and a flush take too, but not in a command's turn: called from outside, it runs
     /// beside an exclusive command's body; called from a command, posted work or a lifecycle hook, which all run outside that lock,
-    /// it is how that code writes what a value also writes.
+    /// it is how that code writes what a value also writes. Called from inside an action — this runtime's or another's — it throws
+    /// <see cref="InvalidOperationException"/> rather than wait on that action's lock for good: work for another runtime goes through
+    /// <see cref="Post"/>.
     /// </remarks>
-    Task<ServerChangeSet> InvokeAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken = default);
+    Task InvokeAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Queues an action to run on the thread pool between the runtime's exclusive commands, as a command's body runs, and returns at
@@ -35,10 +37,14 @@ public interface IUIRuntimeAccess
     /// For work one runtime hands another — an event every subscriber reacts to — which must not run inline in the sender's command.
     /// It waits for an exclusive command under way, so a page may redraw both from posts and inside its own commands; a
     /// <c>Background</c> command, a value and an <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/> from
-    /// outside still run beside it, so a write they share goes through <c>InvokeAsync</c>, as in a command. A failure goes to the controller's exception handler. The runtime is kept until the action
-    /// finishes; one queued after the runtime was asked to go is dropped.
+    /// outside still run beside it, so a write they share goes through <c>InvokeAsync</c>, as in a command. A failure goes to the
+    /// controller's exception handler. The runtime is kept until the action finishes, and the token it is given is cancelled when the
+    /// runtime is asked to go; one queued after that is dropped.
     /// </remarks>
     void Post(Func<CancellationToken, Task> action);
+
+    /// <summary>Completes once the work posted so far has run — at once where none is queued.</summary>
+    Task WhenPostedRanAsync();
 
     /// <summary>
     /// Starts a long job the runtime owns — a reply streamed for a minute, an import — on the thread pool, and returns at once.
@@ -77,8 +83,9 @@ public interface IUIRuntimeAccess
     /// Under <c>PerClient</c>, every tab sharing it; the effects are resolved as <see cref="ResolveEffects"/> resolves them. Where
     /// <see cref="UIContext.SendEffectsAsync"/> reaches the one connection a command runs for. A system notification sounds once: one
     /// shown only off screen reaches the pages on screen, or with none on screen one page off screen; one shown always reaches one
-    /// page, the first on screen, else one off screen. A send that fails does not stop the others; the first failure is rethrown once
-    /// every page has been tried.
+    /// page, the first on screen, else one off screen. What the state holds is drained first and the effects are queued behind it, so
+    /// they act on the page the writes before them made; called from inside an action, it throws as <c>InvokeAsync</c> does. A send
+    /// that fails does not stop the others; the first failure is rethrown once every page has been tried.
     /// </remarks>
     Task SendEffectsToAllAsync(IReadOnlyList<ClientEffect> effects, UIHandle? except = null, CancellationToken cancellationToken = default);
 

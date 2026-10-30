@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// </summary>
 internal static class TabsSelectionRenderer
 {
-    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.TabsSelected, target: "root")];
+    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.TabsSelected, target: "root", converter: WebDomConverters.NonEmptyText)];
 
     public static void RenderSelectedKey(WebRenderContext context, IHtmlElementBuilder root)
         => WebComponentRendererBase.RenderSelectedKey(context, root, WebValueKinds.TabsSelected, WebAttributes.TabsSelected, SelectedKeyOperations);

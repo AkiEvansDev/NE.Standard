@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using NE.Colors;
 
@@ -11,24 +13,27 @@ public sealed record UIColorPalette
     // WCAG's floor for words: an on-colour and an ink derived from a colour clear it.
     private const double ReadableRatio = 4.5;
 
-    // WCAG's floor for graphics: a series' line, bar or sector clears it on the page and on a card; a control's mark on a raised card too.
+    // WCAG's floor for graphics: a series' line, bar or sector clears it on the page and on a card.
     private const double GraphicRatio = 3;
 
-    // The text's share in a raised card's ground: `--ui-surface-raised`, which WebThemeCssBuilder writes from the same number.
-    private const double RaisedCardShare = 0.08;
+    // Soft graphic floor for a dark-mode selection or focus mark: AstralTeal (#006E64) clears 2.46:1 on #262626 and stays raw,
+    // while very dark custom primaries lift by the fewest tenths to read on both dark grounds.
+    private const double DarkMarkRatio = 2.4;
 
-    // Eight, far apart on the wheel; the Info and Success hues are among them, the warning and danger ones are not.
+    // Eight, far apart on the wheel; the Primary, Accent and Info hues are among them, the danger one is not.
     private static readonly ColorVariant[] DefaultSeries =
     [
         new(ColorName.QuantumBlue),
-        new(ColorName.SolarAmber),
-        new(ColorName.AuroraGreen),
+        new(ColorName.BronzeDusk),
+        new(ColorName.NebulaMint),
         new(ColorName.NebulaRose),
         new(ColorName.NovaPurple),
-        new(ColorName.NebulaCyan),
-        new(ColorName.BronzeDusk),
-        new(ColorName.LunarFern)
+        new(ColorName.AstralTeal),
+        new(ColorName.LunarLavender),
+        new(ColorName.NebulaViolet)
     ];
+
+    private static readonly ConcurrentDictionary<(ColorVariant Background, ColorVariant Surface), IReadOnlyList<ColorVariant>> DefaultSeriesByGrounds = [];
 
     /// <summary>
     /// The categorical run a chart's series take in turn — <c>--ui-color-series-{n}</c> on the page, cycled by the count.
@@ -40,8 +45,8 @@ public sealed record UIColorPalette
     /// </remarks>
     public IReadOnlyList<ColorVariant> Series
     {
-        // Null until an author sets a run: the default hues are drawn for this palette's grounds.
-        get => field ?? DefaultSeriesOn(Background, Surface);
+        // Null until an author sets a run: the default hues are drawn once per pair of grounds.
+        get => field ?? DefaultSeriesByGrounds.GetOrAdd((Background, Surface), static grounds => DefaultSeriesOn(grounds.Background, grounds.Surface));
         init;
     }
 
@@ -55,17 +60,17 @@ public sealed record UIColorPalette
     /// </summary>
     public ColorVariant Accent { get; init; } = new(ColorName.NovaPurple);
 
-    // The dark grounds are neutral greys a small step apart, the page near black; a card stands off by its edge more than its fill.
+    // The dark grounds are neutral greys a small step apart; a card stands off by its edge and fill.
 
     /// <summary>
     /// The page/surface background color.
     /// </summary>
-    public ColorVariant Background { get; init; } = ColorVariant.FromRgb(19, 19, 19);
+    public ColorVariant Background { get; init; } = ColorVariant.FromRgb(32, 32, 32);
 
     /// <summary>
-    /// A raised surface's background color (e.g. a card).
+    /// A surface's background color (e.g. a card, popup, or dialog).
     /// </summary>
-    public ColorVariant Surface { get; init; } = ColorVariant.FromRgb(25, 25, 25);
+    public ColorVariant Surface { get; init; } = ColorVariant.FromRgb(38, 38, 38);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Primary"/>.
@@ -77,17 +82,17 @@ public sealed record UIColorPalette
     /// </summary>
     public ColorVariant OnAccent { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
-    // One ink on both grounds, a touch warm: a dimmer grey reads soft on a near-black ground.
+    // One neutral ink on both grounds, leaving room above it for the selected state's brighter step.
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Background"/>.
     /// </summary>
-    public ColorVariant OnBackground { get; init; } = ColorVariant.FromRgb(240, 240, 236);
+    public ColorVariant OnBackground { get; init; } = ColorVariant.FromRgb(220, 220, 220);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Surface"/>.
     /// </summary>
-    public ColorVariant OnSurface { get; init; } = ColorVariant.FromRgb(240, 240, 236);
+    public ColorVariant OnSurface { get; init; } = ColorVariant.FromRgb(220, 220, 220);
 
     /// <summary>
     /// The informational status color.
@@ -130,15 +135,15 @@ public sealed record UIColorPalette
     public ColorVariant OnDanger { get; init; } = new(ColorName.IronFog, ColorAdjustment.Tint, 10);
 
     // A status ink is lifted until it clears 4.5:1 on its own 16 % tinted badge over the page and over a card. The brand inks clear
-    // the page (Primary stays at Tint 2 since it's nearly always marked current some other way); a tinted brand badge lifts its own words.
-    /// <summary><see cref="Primary"/> as ink: the colour text, icons and badge-text take when using that brand colour.</summary>
+    // the page; a tinted brand badge lifts its own words.
+    /// <summary><see cref="Primary"/> as ink: the colour text, icons and badge titles take when using that brand colour.</summary>
     /// <remarks>Read against the page rather than <see cref="OnPrimary"/>; backgrounds and fills use <see cref="Primary"/> itself.</remarks>
-    public ColorVariant PrimaryInk { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 2);
+    public ColorVariant PrimaryInk { get; init; } = new(ColorName.AstralTeal, ColorAdjustment.Tint, 3);
 
     /// <summary>
     /// <see cref="Accent"/> as ink — see <see cref="PrimaryInk"/>.
     /// </summary>
-    public ColorVariant AccentInk { get; init; } = new(ColorName.NovaPurple, ColorAdjustment.Tint, 3);
+    public ColorVariant AccentInk { get; init; } = new(ColorName.NovaPurple, ColorAdjustment.Tint, 4);
 
     /// <summary>
     /// <see cref="Info"/> as ink — see <see cref="PrimaryInk"/>.
@@ -171,27 +176,15 @@ public sealed record UIColorPalette
     public ColorVariant FocusRing { get; init; } = new(ColorName.NovaPurple);
 
     /// <summary>
-    /// The default border color.
+    /// The default border color (subtle structural divider / Border1).
     /// </summary>
-    public ColorVariant Border { get; init; } = ColorVariant.FromRgb(255, 255, 255, ColorAdjustment.None, 0, 26);
+    public ColorVariant Border { get; init; } = ColorVariant.FromRgb(52, 52, 52);
 
     /// <summary>
-    /// The edge that says a control is there: a field's border or line, an unchecked box's, radio's or switch's ring — a graphic
-    /// read against what it stands on, where <see cref="Border"/> only parts one region from another.
+    /// The stronger control/frame border color (Border2): a field's resting border, an unchecked box's or switch's ring, or a
+    /// button group's frame, where <see cref="Border"/> parts structural regions and frames popups.
     /// </summary>
-    /// <remarks>
-    /// Unset, <see cref="OnSurface"/> at the least opacity that reads 3:1 over <see cref="Background"/>, over <see cref="Surface"/>
-    /// and over a raised card (the surface with 8 % of the text), so it stands off whichever ground the control is on. Drawn when
-    /// read, so a palette with other grounds or another text colour draws its own.
-    /// </remarks>
-    public ColorVariant Mark
-    {
-        get => _mark ?? MarkOn(OnSurface, Background, Surface);
-        init => _mark = value;
-    }
-
-    // Null until an author sets one: drawn for this palette's grounds and text.
-    private readonly ColorVariant? _mark;
+    public ColorVariant Mark { get; init; } = ColorVariant.FromRgb(64, 64, 64);
 
     /// <summary>
     /// The color used for drop shadows.
@@ -206,7 +199,7 @@ public sealed record UIColorPalette
     /// <summary>
     /// Opacity applied to disabled interactive elements, in the 0-255 range.
     /// </summary>
-    public byte DisabledOpacity { get; init; } = 145;
+    public byte DisabledOpacity { get; init; } = 102;
 
     /// <summary>
     /// The palette with another <see cref="Primary"/>, and the colours that stand on it, write in it or share its hue following it.
@@ -258,6 +251,13 @@ public sealed record UIColorPalette
     }
 
     /// <summary>
+    /// <see cref="Primary"/> as a selection or focus mark on this palette's grounds: shaded to read on a light page so pale custom
+    /// primaries read over their own wash, and lifted only where a dark custom primary falls below 2.4:1 on the dark grounds.
+    /// </summary>
+    public ColorVariant ResolvePrimaryMark()
+        => Background.IsLight() ? InkOnPage(Primary) : FirstClearing(Primary, ColorAdjustment.Tint, DarkMarkRatio, Background, Surface);
+
+    /// <summary>
     /// The palette's own on-colour where it reads on the ground, else the better of the page's two ends, moved on toward white or
     /// black by the fewest tenths that read where it does not yet (a mid-tone ground).
     /// </summary>
@@ -306,33 +306,6 @@ public sealed record UIColorPalette
             series[i] = FirstClearing(DefaultSeries[i], toText, GraphicRatio, background, surface);
 
         return series;
-    }
-
-    /// <summary>
-    /// <paramref name="ink"/> at the least opacity that reads 3:1 laid over the page, a card and a raised card; opaque where none does.
-    /// </summary>
-    private static ColorVariant MarkOn(ColorVariant ink, ColorVariant background, ColorVariant surface)
-    {
-        System.Drawing.Color drawn = ink.ToColor();
-        ColorVariant raised = UIColorContrast.Composite(drawn, RaisedCardShare, surface);
-
-        for (var opacity = 1; opacity < byte.MaxValue; opacity++)
-        {
-            ColorVariant step = ColorVariant.FromRgb(drawn.R, drawn.G, drawn.B, ColorAdjustment.None, 0, (byte)opacity);
-
-            if (ReadsOver(step, background) && ReadsOver(step, surface) && ReadsOver(step, raised))
-                return step;
-        }
-
-        return ColorVariant.FromRgb(drawn.R, drawn.G, drawn.B);
-    }
-
-    /// <summary>Whether a translucent colour, laid over the ground, reads as a graphic against it.</summary>
-    private static bool ReadsOver(ColorVariant color, ColorVariant ground)
-    {
-        System.Drawing.Color top = color.ToColor();
-
-        return UIColorContrast.Ratio(UIColorContrast.Composite(top, top.A / 255d, ground), ground) >= GraphicRatio;
     }
 
     /// <summary>The colour as words on the page: moved toward the page's text a tenth at a time until it reads there.</summary>
@@ -394,7 +367,12 @@ public sealed record UIColorPalette
         Shadow.Validate();
         Overlay.Validate();
 
-        foreach (ColorVariant color in Series)
+        IReadOnlyList<ColorVariant> series = Series;
+
+        if (series is not { Count: > 0 })
+            throw new InvalidOperationException("Series must contain at least one colour.");
+
+        foreach (ColorVariant color in series)
             color.Validate();
     }
 }

@@ -40,7 +40,7 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
 
     public override string ComponentTypeKey => ContainerComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-container";
+    protected override string ClassName => WebClassNames.Container;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -115,7 +115,7 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
                 if (css.Tiers[(int)tier] is string own)
                     _ = target.Style(WebResponsiveCss.TierName(key.Variable, tier), own);
             }
-        }, [WebDomOperation.Style(key.Variable, converter: WebDomConverters.GridTemplateCss)]));
+        }, [.. ResponsiveRenderer.TierOperations(key.Variable, WebDomConverters.ResponsiveGridTemplateCss), WebDomOperation.Attribute(key.LimitsAttribute, converter: WebDomConverters.GridTrackLimitsAttribute)]));
 
         _ = RenderProperty<IReadOnlyList<UIResponsive<UIGridUnit>>?>(context, root, property, tracks.Render, tracks.Operations);
     }

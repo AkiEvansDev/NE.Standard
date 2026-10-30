@@ -1,6 +1,5 @@
-// A colour input shown as a swatch alone keeps to the size set on the control, read back from the compiled stylesheet: its default
-// width is an intrinsic size, never a min-width as wide as its text, its height a floor a smaller Height goes under, and narrower
-// than its value it is the colour alone.
+// A colour input's closed row carries its swatch button on the left (`.ui-color-input__swatch`) and its formatted value beside it,
+// while the popup's mode switcher (`.ui-color-input__tabs`) is a right-aligned segmented ButtonGroup capsule.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -19,20 +18,42 @@ function declarations(selector: string): string | null {
     return start < 0 ? null : css.slice(start + selector.length + 3, css.indexOf("}", start));
 }
 
-const swatch = ".ui-color-input__swatch--button";
+const swatch = ".ui-color-input__swatch";
 
-test("a swatch is as wide as the control, its default an intrinsic width its text does not widen", () => {
+test("the swatch is a clickable square button inside the field row, with a checkerboard and an inset mark border", () => {
     const own = declarations(swatch) ?? "";
 
-    assert.match(own, /min-width: 0;/, "a min-width as wide as the text stood it over what came after");
-    assert.match(own, /container-type: inline-size;\s*contain-intrinsic-inline-size: 8ch;/);
-    assert.match(declarations(`.ui-color-input:not([data-ui-color-no-opacity]) > ${swatch}`) ?? "", /contain-intrinsic-inline-size: 10ch;/);
+    assert.match(own, /width: 1\.4em;/);
+    assert.match(own, /height: 1\.4em;/);
+    assert.match(own, /cursor: pointer;/);
+    assert.match(own, /box-shadow: inset 0 0 0 1px var\(--ui-color-mark\);/);
 });
 
-test("a swatch is a field's height unless a smaller Height is set on the control", () => {
-    assert.match(declarations(swatch) ?? "", /min-height: [^;]*min\(2\.5rem, var\(--ui-height-xxl, [^;]*var\(--ui-height, 2\.5rem\)/);
+test("the popup's mode switcher is a right-aligned segmented capsule framed in the mark", () => {
+    const tabs = declarations(".ui-color-input__tabs") ?? "";
+    const selectedTab = declarations(".ui-color-input__tab[data-ui-color-tab-selected]") ?? "";
+
+    assert.match(tabs, /align-self: flex-end;/);
+    assert.match(tabs, /border: 1px solid var\(--ui-color-mark\);/);
+    assert.match(tabs, /padding: 2px;/);
+    assert.match(selectedTab, /background: var\(--ui-selected-background, var\(--ui-wash-selected\)\);/);
+    assert.match(selectedTab, /color: var\(--ui-selected-foreground, var\(--ui-text-selected\)\);/);
 });
 
-test("a swatch narrower than an opaque value drops its text", () => {
-    assert.match(css, /@container \(width < 7\.5ch\) \{\s*\.ui-color-input__swatch--button > \.ui-color-input__text--over \{\s*display: none;/);
+test("without the palette, the switcher and palette pane hide cleanly and the picker pane adds no top spacing", () => {
+    const hidden = declarations(".ui-color-input[data-ui-color-no-palette] :is(.ui-color-input__tabs, [data-ui-color-pane=\"palette\"]),\n.ui-color-input[data-ui-color-no-opacity] .ui-color-input__slider--opacity") ?? "";
+    const pickerOnly = declarations(".ui-color-input[data-ui-color-no-palette] .ui-color-input__pane[data-ui-color-pane=\"picker\"]") ?? "";
+    const pane = declarations(".ui-color-input__pane") ?? "";
+
+    assert.match(hidden, /display: none;/);
+    assert.match(pickerOnly, /display: flex;/);
+    assert.doesNotMatch(pane, /margin|padding/);
+    assert.equal(css.includes("data-ui-color-no-picker"), false);
+});
+
+test("a focused selected palette chip keeps its 2px selected mark outline", () => {
+    const focusedSelected = declarations(".ui-color-input__chip[data-ui-color-name-selected]:focus-visible:not([data-ui-pointer-focus])") ?? "";
+
+    assert.match(focusedSelected, /outline: 2px solid var\(--ui-mark-selected\);/);
+    assert.match(focusedSelected, /outline-offset: 1px;/);
 });

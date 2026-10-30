@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { readSelectionAsync } from "../src/interactions/file-upload.ts";
-import { SessionKeyExchange, pageSessionKey, startSessionKeys } from "../src/runtime/session-key.ts";
+import { SessionKeyExchange, pageSessionKey, startSessionKeys } from "../src/state/session-key.ts";
 import { fetchStagedValuesAsync, stageValueAsync } from "../src/transport/value-staging.ts";
 
 /** A trade the test answers by hand, recording the tokens it was asked for. */

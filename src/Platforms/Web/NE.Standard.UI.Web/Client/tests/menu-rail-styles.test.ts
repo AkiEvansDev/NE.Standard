@@ -1,5 +1,5 @@
 // A folded menu and a rail read back from the compiled stylesheet: a folded entry keeps its title for a screen reader and its badge
-// on the icon's corner, an empty badge text is a dot, and a rail stands its entries icon over label, filling the current one's icon.
+// on the icon's corner, an empty badge title is a dot, and a rail stands its entries icon over label, filling the current one's icon.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -23,7 +23,7 @@ const collapsedEntry = ".ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-m
 const collapsedLine = '.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail) .ui-menu-item:not([data-ui-menu-flyout] *, [data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"])';
 const railEntry = '.ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:where(:not([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]))';
 const header = " > .ui-button__content > .ui-text__body > .ui-text__header";
-const dot = ".ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon])";
+const dot = ".ui-text__badge[data-ui-badge-set]:not([data-ui-badge-title], [data-ui-badge-icon])";
 
 test("a folded entry's words leave the eye but not a screen reader, and its body stays for the badge", () => {
     assert.doesNotMatch(css, /\.ui-menu-item > \.ui-button__content > \.ui-text__body \{\s*display: none;/, "the body, badge and all, is gone again");

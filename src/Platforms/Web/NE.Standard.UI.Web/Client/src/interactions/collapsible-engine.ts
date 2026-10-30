@@ -1,16 +1,12 @@
-// The fold switch for every collapsible control, and the viewer's own choice kept in the browser rather than sent to the controller.
+// The fold switch for every collapsible control, and the viewer's own choice kept in the browser rather than sent to the controller;
+// the controller hears of a fold only through the `expand` or `collapse` event it raises on the component.
 
-import { CollapsedAttribute, CollapseToggleAttribute, FoldingAttribute } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, CollapseToggleAttribute, CollapsibleBarClass, CollapsibleBarContentClass, CollapsibleClass, CollapsibleContentClass, FoldingAttribute, SideBottomClass, SideTopClass } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { isDrawerFoldSwitch } from "./side-drawer-engine.ts";
 
-const RootClass = "ui-collapsible";
-const ContentClass = "ui-collapsible__content";
-// The row a toggle shares with content set beside it (CollapsibleChromeRenderer).
-const BarClass = "ui-collapsible__bar";
-const BarContentClass = "ui-collapsible__bar-content";
 const CollapsedSlot = "collapsed";
 
 export type CollapsibleEngineOptions = {
@@ -30,10 +26,10 @@ export class CollapsibleEngine {
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
 
-        this.restoreEach(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.restoreEach(this.root.querySelectorAll<HTMLElement>(`.${CollapsibleClass}`));
 
         // The fold a bound value pushes lands on the root alone; its switch is told here, as a press tells it.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true, attributeFilter: [CollapsedAttribute] }, components => this.restoreEach(components));
+        observeComponents(this.root, `.${CollapsibleClass}`, { childList: true, addedOnly: true, attributeFilter: [CollapsedAttribute] }, components => this.restoreEach(components));
     }
 
     private restoreEach(components: Iterable<HTMLElement>): void {
@@ -64,7 +60,7 @@ export class CollapsibleEngine {
             return;
 
         const toggle = domEvent.target.closest<HTMLElement>(`[${CollapseToggleAttribute}]`);
-        const component = toggle?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const component = toggle?.closest<HTMLElement>(`.${CollapsibleClass}`) ?? null;
 
         // An open drawer's own switch puts the drawer away (side-drawer-engine.ts) rather than fold the sidebar inside it.
         if (toggle === null || component === null || isDrawerFoldSwitch(toggle))
@@ -84,6 +80,9 @@ export class CollapsibleEngine {
 
         // The patch is what the next page applies before its first paint, so a folded panel never arrives open.
         this.store.write(component, CollapsedSlot, collapsed ? "true" : "false", collapsed ? { attributes: { [CollapsedAttribute]: "" } } : null);
+
+        // The press alone: a bound value pushed and a stored fold put back raise nothing.
+        component.dispatchEvent(new Event(collapsed ? "collapse" : "expand", { bubbles: true }));
     }
 
     private apply(component: HTMLElement, collapsed: boolean): void {
@@ -94,15 +93,15 @@ export class CollapsibleEngine {
 
     private partsOf(component: HTMLElement, toggle: HTMLElement): FoldParts {
         return {
-            content: component.querySelector<HTMLElement>(`:scope > .${ContentClass}`),
-            bar: component.querySelector<HTMLElement>(`:scope > .${BarClass} > .${BarContentClass}`),
+            content: component.querySelector<HTMLElement>(`:scope > .${CollapsibleContentClass}`),
+            bar: component.querySelector<HTMLElement>(`:scope > .${CollapsibleBarClass} > .${CollapsibleBarContentClass}`),
             toggle
         };
     }
 
     /** This component's own switch — the root's child, or in the row it shares with content — not one of a collapsible inside it. */
     private toggleOf(component: HTMLElement): HTMLElement | null {
-        return component.querySelector<HTMLElement>(`:scope > [${CollapseToggleAttribute}], :scope > .${BarClass} > [${CollapseToggleAttribute}]`);
+        return component.querySelector<HTMLElement>(`:scope > [${CollapseToggleAttribute}], :scope > .${CollapsibleBarClass} > [${CollapseToggleAttribute}]`);
     }
 
     // Measured and slid, not transitioned: an auto size is not a length CSS can interpolate.
@@ -180,7 +179,7 @@ export type FoldSize = {
 };
 
 function foldAxis(component: HTMLElement): FoldAxis {
-    return component.classList.contains("ui-side--top") || component.classList.contains("ui-side--bottom") ? "height" : "width";
+    return component.classList.contains(SideTopClass) || component.classList.contains(SideBottomClass) ? "height" : "width";
 }
 
 function measureFold(component: HTMLElement, parts: FoldParts): FoldSize {

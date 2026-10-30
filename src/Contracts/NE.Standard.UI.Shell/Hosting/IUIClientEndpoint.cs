@@ -11,8 +11,9 @@ using NE.Standard.UI.Shell.Updates.Server;
 namespace NE.Standard.UI.Shell.Hosting;
 
 /// <summary>
-/// Defines the client-facing endpoint used to attach runtimes and process UI updates.
+/// Defines the client-facing endpoint used to attach runtimes and process UI updates, whatever carries them to the client.
 /// </summary>
+/// <remarks>A platform that draws a page on the server before the client attaches uses <see cref="IUIRenderEndpoint"/> too.</remarks>
 public interface IUIClientEndpoint
 {
     /// <summary>
@@ -24,22 +25,6 @@ public interface IUIClientEndpoint
     /// Attaches a runtime for a resolved view and client window.
     /// </summary>
     Task<RuntimeResolution> AttachRuntimeAsync(UIViewResolution resolution, UIInstance instance, CancellationToken cancellationToken = default);
-
-    /// <summary>The runtime a page render may read its values from, when the host can say which one this load belongs to.</summary>
-    /// <remarks>
-    /// Null means "render a fresh page": a render knows the session and address, not the window, so this answers only
-    /// when unambiguous without it.
-    /// </remarks>
-    IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution);
-
-    /// <summary>
-    /// Tells a kept runtime a page render is about to paint what moved in its session since it last heard, so the paint is already in
-    /// it; one that heard it all is left alone.
-    /// </summary>
-    Task HearBeforeRenderAsync(IUIRuntime runtime, UIViewResolution resolution, CancellationToken cancellationToken = default);
-
-    /// <summary>Takes the key a sign-in issued while a page render ran the controller's code, for that render's response to hand out.</summary>
-    UISessionSecret? TakeRenderKey(UIHandle handle);
 
     /// <summary>Whether an attach from <paramref name="clientWindowId"/> resolved to the very runtime <paramref name="handle"/> is attached to.</summary>
     bool NamesRuntimeOf(UIHandle handle, UIViewResolution resolution, string clientWindowId);
@@ -57,12 +42,13 @@ public interface IUIClientEndpoint
     /// <summary>
     /// Processes client-originated value changes.
     /// </summary>
+    /// <exception cref="System.InvalidOperationException">Called from inside an <c>InvokeAsync</c> action, which holds a runtime's lock.</exception>
     Task<ServerChangeSet> ProcessChangeSetAsync(UIHandle handle, ClientChangeSet changeSet, CancellationToken cancellationToken = default);
 
     /// <summary>Processes a client-originated UI event.</summary>
     /// <remarks>
-    /// A background command answered as accepted keeps <paramref name="cancellationToken"/> while it runs on, so a transport
-    /// passes one that lives as long as the connection, not the request.
+    /// Only an awaited command runs on <paramref name="cancellationToken"/>; a background command answered as accepted lives on its tab's
+    /// stay on the runtime, so a dropped connection does not cancel it and the page attaching again from the same window hears its result.
     /// </remarks>
     Task<UICommandExecutionResult> ProcessEventAsync(UIHandle handle, UICommandRequest request, CancellationToken cancellationToken = default);
 
@@ -78,11 +64,14 @@ public interface IUIClientEndpoint
     /// <summary>
     /// Reads a window of items for a windowed host.
     /// </summary>
+    /// <exception cref="System.InvalidOperationException">Called from inside an <c>InvokeAsync</c> action, which holds a runtime's lock.</exception>
     Task<ServerChangeSet> RequestItemWindowAsync(UIHandle handle, UIItemWindowClientRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Flushes pending server-originated changes for a runtime.
+    /// Flushes a runtime's pending server-originated changes to every page attached to it now, through its send queue as the scheduled
+    /// flush does — behind any set already queued — and answers what it drained once that is sent.
     /// </summary>
+    /// <exception cref="System.InvalidOperationException">Called from inside an <c>InvokeAsync</c> action, which holds a runtime's lock.</exception>
     Task<ServerChangeSet> FlushAsync(UIHandle handle, CancellationToken cancellationToken = default);
 
     /// <summary>

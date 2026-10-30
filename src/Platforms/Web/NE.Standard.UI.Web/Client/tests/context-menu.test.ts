@@ -65,7 +65,7 @@ installFakeDom({
     }
 });
 
-const { ContextMenuEngine, contextMenuAt, setLaterMenus } = await import("../src/interactions/context-menu-engine.ts");
+const { ContextMenuEngine, contextMenuAt, keyboardPlace, setLaterMenus } = await import("../src/interactions/context-menu-engine.ts");
 const { MenuEngine } = await import("../src/interactions/menu-engine.ts");
 const { noteKey, notePress } = await import("../src/interactions/popup-focus.ts");
 
@@ -324,4 +324,17 @@ test("a refused row's waiting menu is never drawn, nor an inert owner's", () => 
     bubble.removeAttribute("inert");
     assert.equal(contextMenuAt(real(bubble))?.menu, real<HTMLElement>(drawn[0]));
     setLaterMenus(null);
+});
+
+test("a menu asked for from a wrap list's tile, which holds its row's focus, is its row's, as a list's row holding the focus itself", () => {
+    const tile = FakeElement.of("ui-button", { "data-ui-id": "11" }, "button");
+    const row = FakeElement.of("ui-items-view__item", { role: "listitem", "data-ui-key": "a", "data-ui-row-focus": "", "data-ui-context-menu-owner": "" }).append(tile);
+    const root = FakeElement.of("ui-items-view ui-items-view--wrap", { "data-ui-id": "5", role: "list", tabindex: "-1" })
+        .append(FakeElement.of("ui-items-view__host", { "data-ui-items-host": "" }).append(row));
+
+    row.laidOut = false;
+    fakeDocument.body.replaceChildren(root);
+    tile.focus();
+
+    assert.equal(keyboardPlace(), real<Element>(row));
 });

@@ -1,10 +1,11 @@
 using System;
+using System.Globalization;
 
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
 /// <summary>
-/// The range checks every ordered value shares — a minimum, a maximum and a value between them, a period's end after its start —
-/// differing only in the noun their messages carry.
+/// The range checks every ordered value shares — a minimum, a maximum and a value between them, a period's end after its start and
+/// its least distance from it — differing only in the noun their messages carry.
 /// </summary>
 public static class OrderedRange
 {
@@ -35,5 +36,35 @@ public static class OrderedRange
     {
         if (start.HasValue && end.HasValue && end.Value.CompareTo(start.Value) < 0)
             throw new ArgumentOutOfRangeException(nameof(end), end, $"The end {noun} cannot be earlier than the start {noun}.");
+    }
+
+    /// <summary>
+    /// Throws when the least distance is negative, or a period's end falls before its start or nearer it than that distance, as
+    /// <paramref name="distance"/> measures the two; an unset start or end checks nothing, an unset distance only the order.
+    /// </summary>
+    public static void ValidatePeriod<T>(T? start, T? end, TimeSpan? minDistance, Func<T, T, TimeSpan> distance, string noun)
+        where T : struct, IComparable<T>
+    {
+        ArgumentNullException.ThrowIfNull(distance);
+
+        if (minDistance < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(minDistance), minDistance, "The least distance cannot be negative.");
+
+        ValidatePeriod(start, end, noun);
+
+        if (start is T from && end is T to && minDistance is TimeSpan least && distance(from, to) < least)
+            throw new ArgumentOutOfRangeException(nameof(end), end, string.Create(CultureInfo.InvariantCulture, $"The end {noun} must lie at least {least} after the start {noun}."));
+    }
+
+    /// <summary>
+    /// <see cref="ValidatePeriod{T}(T?, T?, TimeSpan?, Func{T, T, TimeSpan}, string)"/> for a period of days, which lie whole days apart:
+    /// a distance with a part of a day is refused too.
+    /// </summary>
+    public static void ValidateDayPeriod(DateOnly? start, DateOnly? end, TimeSpan? minDistance)
+    {
+        if (minDistance is TimeSpan least && least.Ticks % TimeSpan.TicksPerDay != 0)
+            throw new ArgumentOutOfRangeException(nameof(minDistance), minDistance, "A period of days keeps a whole number of days apart.");
+
+        ValidatePeriod(start, end, minDistance, static (from, to) => TimeSpan.FromDays(to.DayNumber - from.DayNumber), "date");
     }
 }

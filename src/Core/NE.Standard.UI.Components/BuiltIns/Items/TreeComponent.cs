@@ -1,15 +1,11 @@
 using System;
-using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Components.BuiltIns.Items;
 
@@ -18,8 +14,10 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 /// Selected and pressed like an items view, opened by double click or Enter, renamed in place, with a menu by kind. Nodes are a flat
 /// keyed list in walking order, each naming the node above it. A <c>Draggable</c> node drops onto a folder (<c>IsFolder</c>, else a
 /// node holding children), between two nodes or onto the tree's own ground: the move writes <c>DropTarget</c> and raises <c>move</c>
-/// with the node's place in that folder (<see cref="OnNodeMoveWithItemKey"/>); the controller moves the node, since nothing moves on
-/// the client. <c>Renamable</c> renames by F2 or a <c>RenameNodeEffect</c>; <c>Removable</c> gates the Delete key's <c>remove</c>.
+/// with the node's place in that folder (<c>OnItemMoveWithItemKey</c>); the controller moves the node, since nothing moves on
+/// the client. <c>Renamable</c> renames by F2 or a <c>RenameItemEffect</c>; <c>Removable</c> gates the Delete key's <c>remove</c>.
+/// On a node's click the selection follows the press first; a press on the chevron only folds. Enter on a node presses it and then
+/// opens it, as on an items view's row; Space presses it in a tree that chooses nothing.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
@@ -31,7 +29,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
 [UIComponentPropertyBlock(typeof(IDragSourceComponent))]
 [UIComponentPropertyBlock(typeof(IItemsHostAbilitiesComponent))]
-public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDragSourceComponent, IEmptyStateComponent, IPressablePartsComponent, IItemsHostAbilitiesComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeNodeModel, DefaultRowTemplate>, IBorderedComponent, ISurfaceStyleComponent, IScrollableComponent, ISelectableItemsComponent, ISelectionStyleComponent, IRowHoverableComponent, IDragSourceComponent, IEmptyStateComponent, IPressablePartsComponent, IItemsHostAbilitiesComponent, IItemMoveComponent, IItemRenameComponent, IItemUnfoldComponent, IAccessibleNameComponent
     where T : TreeComponent<T>, IUIComponentDefinition
 {
     private const double DefaultIndent = 16;
@@ -56,7 +55,7 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// click folds only an unselectable node.
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
-    public bool? ShowFoldChevron { get; set; }
+    public bool? ShowChevron { get; set; }
 
     /// <summary>
     /// Gets the node template a node is drawn with when no variant matches its kind.
@@ -111,143 +110,31 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     }
 
     /// <summary>
-    /// Registers the command a press on a node runs, with the node's key as an argument.
+    /// Writes an unfold registration on the row template, now and on every one set later: a node that says it has children, unfolded
+    /// before any are in the list.
     /// </summary>
-    public T OnNodeClickWithItemKey(string command, string argumentName = "id")
-        => OnNodeClick(command, UIAction.ArgCurrentItemKey(argumentName));
+    /// <remarks>The controller adds children or clears <c>HasChildren</c>.</remarks>
+    public void OnUnfoldableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnRowTemplate(row => register(row));
 
     /// <summary>
-    /// Registers the command a press on a node runs, with the node's item as an argument.
+    /// Writes a rename registration on the row template, now and on every one set later: raised after a rename wrote the node's
+    /// <c>RenamedTitle</c> back.
     /// </summary>
-    public T OnNodeClickWithItem(string command, string argumentName = "item")
-        => OnNodeClick(command, UIAction.ArgCurrentItem(argumentName));
+    public void OnRenamableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnRowTemplate(row => register(row));
 
     /// <summary>
-    /// Registers the command a press on a node runs, after the selection has followed the press; a press on the chevron only folds.
-    /// Enter on a node presses it and then opens it, as on an items view's row; Space presses it in a tree that chooses nothing.
-    /// </summary>
-    public T OnNodeClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowClick(command, arguments);
-
-    /// <summary>
-    /// Runs a client effect when the node whose key is <paramref name="key"/> is pressed, with no round trip; the other nodes keep the
-    /// command <c>OnNodeClick</c> gave them.
-    /// </summary>
-    public T OnNodeClick(string key, ClientEffect effect)
-        => OnRowClick(key, effect);
-
-    /// <summary>
-    /// Registers the command a press on a node runs, with an argument derived from the specified <paramref name="argumentKind"/>.
-    /// </summary>
-    public T OnNodeClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
-        => OnNodeClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
-
-    /// <summary>
-    /// Registers the command a press on a node runs, with literal argument values.
-    /// </summary>
-    public T OnNodeClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowClickLiteral(command, arguments);
-
-    /// <summary>
-    /// Registers the command a double click or Enter on a node runs, with the node's key as an argument.
-    /// </summary>
-    public T OnNodeOpenWithItemKey(string command, string argumentName = "id")
-        => OnNodeOpen(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers the command a double click or Enter on a node runs.
-    /// </summary>
-    public T OnNodeOpen(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowOpen(command, arguments);
-
-    /// <summary>
-    /// Registers the command a double click or Enter on a node runs, with literal argument values.
-    /// </summary>
-    public T OnNodeOpenLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowOpenLiteral(command, arguments);
-
-    /// <summary>
-    /// Registers the command run when an unfold-capable node with no children yet is unfolded, with the node's key as an
-    /// argument; the controller adds children or clears <c>HasChildren</c>.
-    /// </summary>
-    public T OnNodeUnfoldWithItemKey(string command, string argumentName = "id")
-        => OnNodeUnfold(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers the command run when a node that says it has children is unfolded before any are in the list.
-    /// </summary>
-    public T OnNodeUnfold(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowTemplate(row => _ = row.On(EventNames.Unfold, command, arguments));
-
-    /// <summary>
-    /// Registers the command run when a node that says it has children is unfolded before any are in the list, with literal argument
-    /// values.
-    /// </summary>
-    public T OnNodeUnfoldLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Unfold, command, arguments));
-
-    /// <summary>
-    /// Registers the command run after a rename wrote the node's <c>RenamedTitle</c> back, with the node's key as an argument.
-    /// </summary>
-    /// <remarks>Optional: the two-way title already carries the new text; this is for refusing or normalizing it.</remarks>
-    public T OnNodeRenameWithItemKey(string command, string argumentName = "id")
-        => OnNodeRename(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers the command run after a rename wrote the node's <c>RenamedTitle</c> back.
-    /// </summary>
-    public T OnNodeRename(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowTemplate(row => _ = row.On(EventNames.Rename, command, arguments));
-
-    /// <summary>
-    /// Registers the command run after a rename wrote the node's <c>RenamedTitle</c> back, with literal argument values.
-    /// </summary>
-    public T OnNodeRenameLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Rename, command, arguments));
-
-    /// <summary>
-    /// Registers the command a node moved to another place raises — dropped onto a folder or between two nodes, or moved by Alt with an
-    /// arrow — with the node's key and the index it takes among the nodes of the folder it lands in, which its <c>DropTarget</c> names;
-    /// the controller moves the node or refuses by doing nothing.
+    /// Writes a move registration on the row template, now and on every one set later: a node dropped onto a folder or between two
+    /// nodes, or moved by Alt with an arrow, raised after its <c>DropTarget</c> was written.
     /// </summary>
     /// <remarks>
-    /// The index counts that folder's own nodes in their order, the node itself taken out first, as <c>RecursiveCollection.Move</c>
-    /// counts; a drop onto a folder puts it after the folder's last node.
+    /// The index counts the nodes of the folder it lands in, in their order, the node itself taken out first, as
+    /// <c>RecursiveCollection.Move</c> counts; a drop onto a folder puts it after the folder's last node. The controller moves the node
+    /// or refuses by doing nothing.
     /// </remarks>
-    public T OnNodeMoveWithItemKey(string command, string keyArgumentName = "id", string indexArgumentName = "index")
-        => OnNodeMove(command, UIAction.ArgCurrentItemKey(keyArgumentName), UIAction.Offered(UIAction.ArgEventValue(indexArgumentName)));
-
-    /// <summary>
-    /// Registers the command a node moved to another place raises, after its <c>DropTarget</c> was written; <c>UIAction.ArgEventValue</c>
-    /// reads the index it takes among that folder's nodes.
-    /// </summary>
-    public T OnNodeMove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowTemplate(row => _ = row.On(EventNames.Move, command, arguments));
-
-    /// <summary>
-    /// Registers the command a node moved to another place raises, with literal argument values.
-    /// </summary>
-    public T OnNodeMoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Move, command, arguments));
-
-    /// <summary>
-    /// Registers the command the Delete key runs on the node the keyboard is on, with the node's key as an argument; a node
-    /// whose <c>CanRemove</c> is false raises nothing.
-    /// </summary>
-    public T OnNodeRemoveWithItemKey(string command, string argumentName = "id")
-        => OnNodeRemove(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers the command the Delete key runs on the node the keyboard is on.
-    /// </summary>
-    public T OnNodeRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowRemove(command, arguments);
-
-    /// <summary>
-    /// Registers the command the Delete key runs on the node the keyboard is on, with literal argument values.
-    /// </summary>
-    public T OnNodeRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowRemoveLiteral(command, arguments);
+    public void OnMovableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnRowTemplate(row => register(row));
 }
 
 /// <summary>

@@ -5,6 +5,7 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -15,7 +16,7 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 /// </summary>
 public sealed class SliderComponentRenderer : TextContentRendererBase
 {
-    private const string EndInputClass = "ui-slider__input--end";
+    private const string EndInputClass = WebClassNames.SliderInputEnd;
 
     // A range's end handle and its readings: optional targets, since a property registers one list for both kinds of slider.
     private static readonly WebDomOperation[] EndValueOperations =
@@ -31,8 +32,8 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
     private static readonly WebDomOperation[] ValueOperations =
     [
         WebDomOperation.Property("value"),
-        WebDomOperation.Text(target: ".ui-slider__value"),
-        WebDomOperation.Text(target: ".ui-slider__bubble")
+        WebDomOperation.Text(target: $".{WebClassNames.SliderValue}"),
+        WebDomOperation.Text(target: $".{WebClassNames.SliderBubble}")
     ];
 
     private static readonly WebDomOperation[] MinOperations = [WebDomOperation.Attribute("min"), WebDomOperation.Text(target: ".ui-slider__min")];
@@ -41,7 +42,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
 
     public override string ComponentTypeKey => SliderComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-slider";
+    protected override string ClassName => WebClassNames.Slider;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -64,10 +65,10 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         // Two handles are one control to a screen reader: a group named by the caption, each handle by its end.
         if (isRange)
         {
-            _ = root.Class("ui-slider--range");
+            _ = root.Class(WebClassNames.SliderRange);
             _ = root.Attribute("role", "group");
 
-            RenderFieldLabel(context, root);
+            RenderGroupLabel(context, root);
         }
 
         _ = RenderProperty<decimal?>(context, root, SliderComponent.MinDistanceProperty, static (target, value) =>
@@ -96,7 +97,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
 
             _ = row.Element("span", track =>
             {
-                _ = track.Class("ui-slider__track");
+                _ = track.Class(WebClassNames.SliderTrack);
 
                 // Written here so the bubble stands over the handle before any script runs.
                 _ = track.Style("--ui-slider-fraction", Fraction(initialValue, initialMin, initialMax).ToString(CultureInfo.InvariantCulture));
@@ -163,7 +164,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
     /// </summary>
     private static void RenderHandle(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder input, string? words, string? part)
     {
-        _ = input.Class("ui-slider__input");
+        _ = input.Class(WebClassNames.SliderInput);
         _ = input.Attribute("type", "range");
 
         // The same lists on both handles, so a bound bound reaches both; the text beside the track is the first handle's to write.
@@ -200,7 +201,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
     {
         _ = track.Element("span", anchor =>
         {
-            _ = anchor.Class("ui-slider__thumb-anchor");
+            _ = anchor.Class(WebClassNames.SliderThumbAnchor);
 
             if (end)
                 _ = anchor.Class("ui-slider__thumb-anchor--end");
@@ -209,7 +210,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         // After the input, so the states that show it are a sibling selector rather than a client-toggled class.
         _ = track.Element("span", bubble =>
         {
-            _ = bubble.Class("ui-slider__bubble");
+            _ = bubble.Class(WebClassNames.SliderBubble);
 
             if (end)
                 _ = bubble.Class("ui-slider__bubble--end");
@@ -224,7 +225,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
     {
         _ = parent.Element("output", output =>
         {
-            _ = output.Class("ui-slider__value");
+            _ = output.Class(WebClassNames.SliderValue);
 
             if (end)
                 _ = output.Class("ui-slider__value--end");

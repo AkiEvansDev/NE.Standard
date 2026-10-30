@@ -2,28 +2,19 @@
 // and hands the value binding invariant text, the shape the value travels in whatever the page's language.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { NumberFormatAttribute } from "../addressing/dom-attributes.ts";
+import { NumberFormatAttribute, NumberInputClass, NumberInputFieldClass, NumberInputRowClass, NumberMaxAttribute, NumberMinAttribute, NumberNoDecimalsAttribute, NumberNoNegativeAttribute, NumberNoThousandsAttribute, NumberStepAttribute, NumberStepDirectionAttribute, NumberThousandsAttribute, NumberTrimZerosAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
 import { readNumberCulture } from "../rendering/number-format.ts";
 import type { NumberCulturePack } from "../rendering/number-format.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import type { Phrase } from "../runtime/words.ts";
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import type { Phrase } from "../rendering/words.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { displayNumberText, editNumberText, parseNumberText, sanitizeNumberText, trimTrailingZeros } from "./number-text.ts";
 
-const RootClass = "ui-number-input";
-const FieldClass = "ui-number-input__field";
-const NoDecimalsAttribute = "data-ui-number-no-decimals";
-const NoNegativeAttribute = "data-ui-number-no-negative";
-const ThousandsAttribute = "data-ui-number-thousands";
-const NoThousandsAttribute = "data-ui-number-no-thousands";
-const TrimZerosAttribute = "data-ui-number-trim-zeros";
-const StepAttribute = "data-ui-number-step";
-const MinAttribute = "data-ui-number-min";
-const MaxAttribute = "data-ui-number-max";
-const StepDirectionAttribute = "data-ui-number-step-direction";
+/** A number field's root, which carries its component. */
+export const NumberRootSelector = `.${NumberInputClass}`;
 
 // The steps a key takes: an arrow one, a page key the big step.
 const StepKeys: ReadonlyMap<string, number> = new Map([["ArrowUp", 1], ["ArrowDown", -1], ["PageUp", 10], ["PageDown", -10]]);
@@ -31,7 +22,7 @@ const StepKeys: ReadonlyMap<string, number> = new Map([["ArrowUp", 1], ["ArrowDo
 export type NumberInputEngineOptions = {
     readonly root?: ParentNode;
 
-    readonly propertyPatchEngine?: PropertyPatchEngine;
+    readonly propertyPatchEngine?: PropertyPatchTarget;
 };
 
 export class NumberInputEngine {
@@ -47,6 +38,8 @@ export class NumberInputEngine {
         this.root = options.root ?? document;
 
         this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
+        // On the window when rooted at the document, ahead of CommitGate's focusin capture so edit text is shown before it snapshots.
+        (this.root === document ? window : this.root).addEventListener("focusin", domEvent => this.handleFocus(domEvent), true);
         this.root.addEventListener("focus", domEvent => this.handleFocus(domEvent), true);
         this.root.addEventListener("blur", domEvent => this.handleBlur(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleStepClick(domEvent), true);
@@ -57,15 +50,15 @@ export class NumberInputEngine {
         window.addEventListener("change", domEvent => this.handleChangeDone(domEvent));
 
         // Formatting runs at attach and after every server-pushed value, not only on blur.
-        this.showAtRest(this.root.querySelectorAll<HTMLInputElement>(`.${FieldClass}`));
+        this.showAtRest(this.root.querySelectorAll<HTMLInputElement>(`.${NumberInputFieldClass}`));
 
         // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
-            this.showAtRest(componentParts(change.components, `.${FieldClass}`) as HTMLInputElement[]);
+            this.showAtRest(componentParts(change.components, `.${NumberInputFieldClass}`) as HTMLInputElement[]);
         });
 
         // A switch wrote the page's culture pack again (`page-culture.ts`), ahead of every engine: each field at rest is drawn in it.
-        clientStrings.onChange(() => this.showAtRest(this.root.querySelectorAll<HTMLInputElement>(`.${FieldClass}`)));
+        clientStrings.onChange(() => this.showAtRest(this.root.querySelectorAll<HTMLInputElement>(`.${NumberInputFieldClass}`)));
     }
 
     /** Shows each field's value as it stands at rest; a focused field is the reader's and is left alone. */
@@ -103,6 +96,10 @@ export class NumberInputEngine {
         if (input === null)
             return undefined;
 
+        // A freshly cloned template field not yet formatted or focused still holds the invariant text the template renderer wrote.
+        if (!this.shown.has(input))
+            return input.value.trim();
+
         return this.keptValue(input) ?? readTyped(input) ?? input.value.trim();
     }
 
@@ -112,7 +109,7 @@ export class NumberInputEngine {
      */
     private show(input: HTMLInputElement): void {
         const kept = this.values.get(input) ?? input.value;
-        const value = input.hasAttribute(TrimZerosAttribute) ? trimTrailingZeros(kept) : kept;
+        const value = input.hasAttribute(NumberTrimZerosAttribute) ? trimTrailingZeros(kept) : kept;
         const culture = readNumberCulture(input);
         const text = input === document.activeElement ? editNumberText(value, culture, formatOf(input)) : restText(input, value, culture);
 
@@ -126,8 +123,8 @@ export class NumberInputEngine {
         if (input === null)
             return;
 
-        const allowDecimals = !input.hasAttribute(NoDecimalsAttribute);
-        const allowNegative = !input.hasAttribute(NoNegativeAttribute);
+        const allowDecimals = !input.hasAttribute(NumberNoDecimalsAttribute);
+        const allowNegative = !input.hasAttribute(NumberNoNegativeAttribute);
         const cursor = input.selectionStart ?? input.value.length;
         const sanitized = sanitizeNumberText(input.value, cursor, readNumberCulture(input), allowDecimals, allowNegative);
 
@@ -160,7 +157,7 @@ export class NumberInputEngine {
             this.values.set(input, typed);
 
         // Not on a field the reader cannot change: a focus and a blur there are no edit, and the server's text stands.
-        if (input.hasAttribute(TrimZerosAttribute) && !isReadOnly(input) && !isInert(input)) {
+        if (input.hasAttribute(NumberTrimZerosAttribute) && !isReadOnly(input) && !isInert(input)) {
             const value = this.values.get(input) ?? "";
             const trimmed = trimTrailingZeros(value);
 
@@ -179,7 +176,7 @@ export class NumberInputEngine {
         if (input === null)
             return;
 
-        const value = readTyped(input);
+        const value = this.keptValue(input) ?? readTyped(input);
 
         if (value === null)
             return;
@@ -189,11 +186,11 @@ export class NumberInputEngine {
         this.shown.set(input, value);
     }
 
-    /** The event done, a field still under the caret shows its edit text again; one left behind is shown at rest on its blur. */
+    /** The event done, the field shows its text for where it stands: edit text under the caret, the formatted one at rest. */
     private handleChangeDone(domEvent: Event): void {
         const input = asField(domEvent.target);
 
-        if (input !== null && input === document.activeElement)
+        if (input !== null)
             this.show(input);
     }
 
@@ -208,19 +205,19 @@ export class NumberInputEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const button = domEvent.target.closest<HTMLButtonElement>("[" + StepDirectionAttribute + "]");
+        const button = domEvent.target.closest<HTMLButtonElement>("[" + NumberStepDirectionAttribute + "]");
 
         if (button === null)
             return;
 
-        const row = button.closest(".ui-number-input__row");
-        const input = row?.querySelector<HTMLInputElement>(`.${FieldClass}`) ?? null;
+        const row = button.closest(`.${NumberInputRowClass}`);
+        const input = row?.querySelector<HTMLInputElement>(`.${NumberInputFieldClass}`) ?? null;
 
         if (input === null || input.readOnly || input.disabled)
             return;
 
         domEvent.preventDefault();
-        this.step(input, button.getAttribute(StepDirectionAttribute) === "down" ? -1 : 1);
+        this.step(input, button.getAttribute(NumberStepDirectionAttribute) === "down" ? -1 : 1);
     }
 
     /**
@@ -244,16 +241,24 @@ export class NumberInputEngine {
 
     /**
      * Moves the field one step up or down from what it shows, held inside Min and Max as a slider's handle is — a step is never past
-     * them, where a typed value may be and is refused in words — and reports it as a typed value is reported.
+     * them, where a typed value may be and is refused in words — and to the marks typing is held to: a whole number, in the direction
+     * stepped, where it takes no decimals, and no lower than zero where it takes no negative. Reports it as a typed value is reported.
      */
     private step(input: HTMLInputElement, steps: number): void {
-        const step = Number(input.getAttribute(StepAttribute) ?? "1");
+        const step = Number(input.getAttribute(NumberStepAttribute) ?? "1");
         const current = Number(this.showsOwnText(input) ? this.valueOf(input) : readTyped(input) ?? "0") || 0;
 
-        let next = current + (step * steps);
+        // Through the noise first: 0.1 three times is 0.30000000000000004, whose ceiling would be 1.
+        let next = Number(trimFloatingPointNoise(current + (step * steps)));
 
-        const min = input.getAttribute(MinAttribute);
-        const max = input.getAttribute(MaxAttribute);
+        if (input.hasAttribute(NumberNoDecimalsAttribute))
+            next = steps < 0 ? Math.floor(next) : Math.ceil(next);
+
+        if (input.hasAttribute(NumberNoNegativeAttribute))
+            next = Math.max(next, 0);
+
+        const min = input.getAttribute(NumberMinAttribute);
+        const max = input.getAttribute(NumberMaxAttribute);
 
         if (min !== null)
             next = Math.max(next, Number(min));
@@ -267,7 +272,7 @@ export class NumberInputEngine {
 }
 
 function asField(target: EventTarget | null): HTMLInputElement | null {
-    return target instanceof HTMLInputElement && target.classList.contains(FieldClass) ? target : null;
+    return target instanceof HTMLInputElement && target.classList.contains(NumberInputFieldClass) ? target : null;
 }
 
 /**
@@ -275,14 +280,14 @@ function asField(target: EventTarget | null): HTMLInputElement | null {
  * for a value inside them, an empty one, text that is no number, or an element that is no number field's root.
  */
 export function numberBoundRefusal(root: Element, read: (field: HTMLInputElement) => unknown): Phrase | null {
-    const input = root.classList.contains(RootClass) ? root.querySelector<HTMLInputElement>(`.${FieldClass}`) : null;
+    const input = root.classList.contains(NumberInputClass) ? root.querySelector<HTMLInputElement>(`.${NumberInputFieldClass}`) : null;
     const value = input === null ? null : read(input);
 
     if (input === null || typeof value !== "string" || value.trim().length === 0 || !Number.isFinite(Number(value)))
         return null;
 
-    const min = readNumberBound(input, MinAttribute);
-    const max = readNumberBound(input, MaxAttribute);
+    const min = readNumberBound(input, NumberMinAttribute);
+    const max = readNumberBound(input, NumberMaxAttribute);
 
     if (min !== null && Number(value) < Number(min))
         return { key: "ui.value.min", args: { min: restText(input, min, readNumberCulture(input)) } };
@@ -291,6 +296,26 @@ export function numberBoundRefusal(root: Element, read: (field: HTMLInputElement
         return { key: "ui.value.max", args: { max: restText(input, max, readNumberCulture(input)) } };
 
     return null;
+}
+
+/**
+ * Whether a number field — the element given or the one it stands in — refuses what it holds as the server would: text that is no
+ * number, a negative where it takes none, a fraction where it takes whole numbers, or a value past its Min or Max. An empty one does not.
+ */
+export function refusesNumber(element: Element, read: (field: HTMLInputElement) => unknown): boolean {
+    const root = element.closest(NumberRootSelector);
+    const input = root?.querySelector<HTMLInputElement>(`.${NumberInputFieldClass}`) ?? null;
+    const value = input === null ? null : read(input);
+
+    if (root === null || input === null || typeof value !== "string" || value.trim().length === 0)
+        return false;
+
+    const number = Number(value);
+
+    return !Number.isFinite(number)
+        || (number < 0 && input.hasAttribute(NumberNoNegativeAttribute))
+        || (!Number.isInteger(number) && input.hasAttribute(NumberNoDecimalsAttribute))
+        || numberBoundRefusal(root, read) !== null;
 }
 
 function readNumberBound(input: HTMLInputElement, attribute: string): string | null {
@@ -306,10 +331,10 @@ function restText(input: HTMLInputElement, invariant: string, culture: NumberCul
 
 /** The author's word on grouping: one flag or the other, or neither, leaving it to the format. */
 function thousandsOf(input: HTMLInputElement): boolean | null {
-    if (input.hasAttribute(ThousandsAttribute))
+    if (input.hasAttribute(NumberThousandsAttribute))
         return true;
 
-    return input.hasAttribute(NoThousandsAttribute) ? false : null;
+    return input.hasAttribute(NumberNoThousandsAttribute) ? false : null;
 }
 
 /** The field's text read in its culture and format as invariant text, or null for text that is no number. */
@@ -319,7 +344,7 @@ function readTyped(input: HTMLInputElement): string | null {
 
 /** The author's DisplayFormat, off the field's own component rather than whatever ancestor carries one. */
 function formatOf(input: HTMLInputElement): string | null {
-    return input.closest(`.${RootClass}`)?.getAttribute(NumberFormatAttribute) ?? null;
+    return input.closest(`.${NumberInputClass}`)?.getAttribute(NumberFormatAttribute) ?? null;
 }
 
 function trimFloatingPointNoise(value: number): string {

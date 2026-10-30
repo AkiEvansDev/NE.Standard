@@ -7,16 +7,16 @@ import type { WebDomOperation, WebDomOperationKind, WebValueCondition } from "..
 import { toIconClassName } from "../rendering/icon-value.ts";
 import { applyInlineMarkup } from "../rendering/inline-markup.ts";
 import { getClassFamily } from "../rendering/web-dom-converters.ts";
-import { forgetWords } from "../runtime/client-strings.ts";
-import { logError, logWarn } from "../runtime/logger.ts";
+import { forgetWords } from "../rendering/client-strings.ts";
+import { logError, logWarn } from "../metadata/logger.ts";
 import { CardHeaderShownOperationKind, writeCardHeaderShown } from "./card-header.ts";
 import { ContentFillsOperationKind, writeContentFills } from "./content-fills.ts";
 import { FormOwnerOperationKind, writeFormOwner } from "./form-owner.ts";
-import { IconStandInOperationKind, writeIconStandIn } from "./icon-stand-in.ts";
-import { MenuCurrentOperationKind, writeMenuCurrent } from "./menu-current.ts";
-import { MenuIconsOperationKind, writeMenuIcons } from "./menu-icons.ts";
+import { IconStandInOperationKind, writeIconStandIn } from "../rendering/icon-stand-in.ts";
+import { MenuCurrentOperationKind, writeMenuCurrent } from "../rendering/menu-current.ts";
+import { MenuIconsOperationKind, writeMenuIcons } from "../rendering/menu-icons.ts";
 import { MenuSurfaceOperationKind, writeMenuSurface } from "./menu-surface.ts";
-import { RowIdleOperationKind, writeRowIdle } from "./row-idle.ts";
+import { RowIdleOperationKind, writeRowIdle } from "../rendering/row-idle.ts";
 import { TooltipNameOperationKind, writeTooltipName } from "./tooltip-name.ts";
 
 export type DomOperationContext = {
@@ -85,7 +85,9 @@ export class DomOperationRegistry {
                 return;
             }
 
-            applyInlineMarkup(context.target, isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue), { autolinks: context.target.hasAttribute(AutolinksAttribute), insideLink: context.target.closest("a") !== null });
+            const raw = isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue);
+
+            applyInlineMarkup(context.target, raw.trim().length === 0 ? "" : raw, { autolinks: context.target.hasAttribute(AutolinksAttribute), insideLink: context.target.closest("a") !== null });
             forgetWords(context.target, null);
         });
 
@@ -115,8 +117,9 @@ export class DomOperationRegistry {
             const name = requireOperationName(context.operation);
             const condition = context.operation.condition ?? "HasValue";
             const enabled = !isNullishValue(context.value) && evaluateCondition(context.value, condition);
-            // A flag a boolean switches is written empty, as the first paint writes it, never as the word "true" or "false".
-            const value = context.operation.value ?? (isNullishValue(context.convertedValue) || isBooleanCondition(condition) ? "" : toDomString(context.convertedValue));
+            const hasConverter = context.operation.converter !== null && context.operation.converter !== undefined && context.operation.converter.length > 0;
+            // A presence flag with no value or converter of its own is written empty, as the first paint writes it.
+            const value = context.operation.value ?? (!hasConverter || isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue));
 
             toggleTrackedAttribute(context.target, createClassOperationKey(context), name, enabled, value);
         });
@@ -188,8 +191,8 @@ export class DomOperationRegistry {
         this.register("Property", context => {
             const name = requireOperationName(context.operation);
             const target = context.target as unknown as Record<string, unknown>;
-            // A field's `value` stringifies what it is given, and an absent fallback reaches here as undefined — the literal word.
-            const value = isNullishValue(context.convertedValue) ? "" : context.convertedValue;
+            // A field's `value` stringifies what it is given, and an absent fallback reaches here as undefined — the literal word; a box's `checked` is a boolean.
+            const value = name === "checked" ? context.convertedValue === true : (isNullishValue(context.convertedValue) ? "" : toDomString(context.convertedValue));
 
             // Replaying an unchanged value moves the caret to the end on a field the viewer is typing in.
             if (target[name] !== value)
@@ -200,7 +203,8 @@ export class DomOperationRegistry {
 
 /** Writes the value as the element's text, guarded by what it holds; a word the chrome marked there is the property's from then on. */
 function writeText(context: DomOperationContext): void {
-    const text = toDomString(context.convertedValue);
+    const raw = toDomString(context.convertedValue);
+    const text = raw.trim().length === 0 ? "" : raw;
 
     if (context.target.textContent !== text)
         context.target.textContent = text;
@@ -227,12 +231,6 @@ function evaluateCondition(value: unknown, condition: WebValueCondition): boolea
         default:
             return !isNullishValue(value);
     }
-}
-
-function isBooleanCondition(condition: WebValueCondition): boolean {
-    const name = getValueCondition(condition);
-
-    return name === "IsTrue" || name === "IsFalse";
 }
 
 // An attribute two properties both assert stays until neither wants it.

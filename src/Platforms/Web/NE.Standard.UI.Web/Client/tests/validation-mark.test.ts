@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeInput, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 import type { MetadataIndex } from "../src/metadata/metadata-index.ts";
-import type { WordsTable } from "../src/runtime/client-strings.ts";
+import type { WordsTable } from "../src/rendering/client-strings.ts";
 import type { PropertyPatchEngine, PropertyValueChange } from "../src/updates/property-patch-engine.ts";
 
 let presentation = "";
@@ -22,7 +22,7 @@ installFakeDom({
     }
 });
 
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 const { ValidationEngine } = await import("../src/interactions/validation-engine.ts");
 const { applyInlineMarkup, inlineMarkupToPlainText } = await import("../src/rendering/inline-markup.ts");
 

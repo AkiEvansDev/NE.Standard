@@ -28,7 +28,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/actions/split-button";
     protected override string Header => "demo.actions.split-button.header";
     protected override string HeaderDescription => "demo.actions.split-button.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(360,
@@ -52,7 +52,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
             .AddChild(new TextComponent()
                 .SetTitleType(UITextAppearance.Caption)
                 .SetTitleColor(UIThemeColor.Muted)
-                .BindTitle(nameof(SplitButtonController.LastPress))
+                .BindTitle<SplitButtonController>(static x => x.LastPress)
             )
             .SetPlacement(1, 1, 24, 1);
     }
@@ -98,7 +98,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                     ])
                 )
                 .AddChild(new SplitButtonComponent()
-                    .SetType(UIButtonType.Outline)
+                    .SetVariant(UIButtonVariant.Outline)
                     .SetTitle("Restart")
                     .SetItems([
                         new MenuItem { Id = "restart-graceful", Title = "Restart gracefully", Shortcut = "F5" },
@@ -107,8 +107,8 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                     ])
                 )
                 .AddChild(new SplitButtonComponent()
-                    .SetType(UIButtonType.Danger)
-                    .SetSize(UIButtonSize.Small)
+                    .SetVariant(UIButtonVariant.Danger)
+                    .SetSize(UISize.Small)
                     .SetTitle("Delete")
                     .SetItems([
                         new MenuItem { Id = "delete-all", Title = "Delete the snapshots too" },
@@ -130,8 +130,8 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                 .SetContent(UILayout.Row(4)
                     .AddChild(new SplitButtonComponent()
                         .SetMode(UISplitButtonMode.Menu)
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetIcon(DemoIcons.Outline(DemoIcons.File))
                         .SetTitle("New")
                         .SetItems([
@@ -142,8 +142,8 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                     )
                     .AddChild(new SplitButtonComponent()
                         .SetMode(UISplitButtonMode.Menu)
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetIcon(DemoIcons.Outline(DemoIcons.LayoutDashboard))
                         .SetTitle("View")
                         .SetItems([
@@ -156,8 +156,8 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                     )
                     .AddChild(new SplitButtonComponent()
                         .SetMode(UISplitButtonMode.Menu)
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Send))
                         .SetTitle("Share")
                         .SetItems([
@@ -176,17 +176,17 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateTargetsGroup()
     {
-        return DemoUI.CreateExample("A list the controller keeps",
+        return DemoUI.CreateExample("Bound dynamic menu items",
             UILayout.Row(16)
                 .AddChild(new SplitButtonComponent()
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
                     .SetTitle("Deploy")
-                    .BindItems($"{TargetsGroup}.{nameof(SplitButtonTargetsGroupContext.Targets)}")
+                    .BindItems<SplitButtonController>(static x => x.TargetsGroup.Targets)
                     .OnItemClickWithItemKey(nameof(SplitButtonController.DeployTo))
                     .OnClick(nameof(SplitButtonController.Deploy))
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Add))
                     .SetTitle("Add a target")
                     .OnClick(nameof(SplitButtonController.AddTarget))
@@ -201,7 +201,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFieldGroup()
     {
-        return DemoUI.CreateExample("At the end of a field",
+        return DemoUI.CreateExample("Split button paired with an input",
             UILayout.Row(32)
                 .AddChild(new TextInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
@@ -210,7 +210,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                     .SetValue("orv_live_4f9c…d21e")
                     .SetIsReadOnly(true)
                     .SetTrailingAction(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
                         .SetTooltip("Generate a new key")
                     )
@@ -222,7 +222,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                     .SetValue("Grace Kim")
                     .SetTrailingAction(new SplitButtonComponent()
                         .SetMode(UISplitButtonMode.Menu)
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetTitle("Assign")
                         .SetItems([
                             new MenuItem { Id = "me", Title = "Assign to me", Icon = DemoIcons.Outline(DemoIcons.User) },

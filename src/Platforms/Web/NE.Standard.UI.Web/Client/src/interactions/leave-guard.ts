@@ -2,7 +2,7 @@
 import { EventBoundaryAttribute } from "../addressing/dom-attributes.ts";
 import type { ClientEffect } from "../metadata/metadata-index.ts";
 import { isLocalRoute } from "../rendering/url-safety.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logWarn } from "../metadata/logger.ts";
 
 // Keeps the reader from leaving a page whose controller holds unsaved work (`HoldsUnsavedWork`). A leave the page starts itself — a
 // press on one of its links, a NavigateEffect — asks the controller instead (`OnLeaveRequestedAsync`), whose answer runs as the

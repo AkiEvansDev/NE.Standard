@@ -3,6 +3,7 @@ using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 using NE.Standard.UI.Web.Renderers.Layouts;
 
@@ -14,7 +15,7 @@ public sealed class DefaultRowTemplateRenderer : WebComponentRendererBase
 {
     public override string ComponentTypeKey => DefaultRowTemplate.ComponentTypeKey;
 
-    protected override string ClassName => "ui-container";
+    protected override string ClassName => WebClassNames.Container;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {

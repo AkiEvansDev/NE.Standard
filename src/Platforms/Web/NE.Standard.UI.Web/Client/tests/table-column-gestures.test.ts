@@ -35,7 +35,7 @@ installFakeDom({
         }
     },
     // The three columns as laid out, whatever the widths written: a drag measures from the press, not from the last move.
-    getComputedStyle: () => ({ gridTemplateColumns: "100px 100px 100px", direction: "ltr", overflowY: "visible" })
+    getComputedStyle: () => ({ gridTemplateColumns: "100px 100px 100px", overflowY: "visible" })
 });
 
 const { TableColumnsEngine } = await import("../src/interactions/table-columns-engine.ts");

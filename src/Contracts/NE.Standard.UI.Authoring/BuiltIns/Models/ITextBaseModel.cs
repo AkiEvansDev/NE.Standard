@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
@@ -42,14 +43,14 @@ public interface ITextBaseModel : IBadgeModel, ITooltipModel
     /// Gets the leading icon size; left unset the glyph is as tall as the title beside it.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
-    UIIconSize? IconSize { get; }
+    UISize? IconSize { get; }
 
     /// <summary>
-    /// Gets the shape a leading icon that is a picture is drawn in — <see cref="UIIconShape.Circle"/> for a person's avatar; a glyph
+    /// Gets the shape a leading icon that is a picture is drawn in — <see cref="UIShape.Circle"/> for a person's avatar; a glyph
     /// keeps its own.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
-    UIIconShape? IconShape { get; }
+    UIShape? IconShape { get; }
 
     /// <summary>
     /// Gets the glyph a picture icon shows while it has no picture — a round one (<see cref="IconShape"/> Circle) none given or one that
@@ -63,7 +64,7 @@ public interface ITextBaseModel : IBadgeModel, ITooltipModel
     /// </summary>
     /// <remarks>
     /// A string (an author's text) or a <see cref="UIPhrase"/>, as every text of the model contracts is — the description, the tooltip,
-    /// the badge's text and tooltip, a select entry's value — so a moment can stand in it.
+    /// the badge's title and tooltip, a select entry's value — so a moment can stand in it.
     /// </remarks>
     [Translatable]
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]

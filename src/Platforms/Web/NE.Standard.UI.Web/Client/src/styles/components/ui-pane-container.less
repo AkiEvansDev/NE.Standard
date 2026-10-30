@@ -91,7 +91,7 @@
     }
 
     .ui-pane-container__grip@{ui-keyboard-focus} {
-        .ui-keyboard-frame(@takes: false);
+        .ui-keyboard-frame();
     }
 
 // On its way the pane stands over the others, raised, and the place it would trade with is edged as a drop target is.
@@ -125,7 +125,7 @@
     z-index: 1;
     inset: 0;
     border-radius: @ui-part-radius-sm;
-    background-color: color-mix(in srgb, var(--ui-mark-selected-fill) 8%, transparent);
+    background-color: color-mix(in srgb, var(--ui-mark-selected) 8%, transparent);
     .ui-drop-edge();
     pointer-events: none;
 }

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -11,6 +12,7 @@ public sealed class SetThemeEffect(UIThemeMode? mode = null) : ClientEffect
     public override string Kind => ClientEffectKinds.SetTheme;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>

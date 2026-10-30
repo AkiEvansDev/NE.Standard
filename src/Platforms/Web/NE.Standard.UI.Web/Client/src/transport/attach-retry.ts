@@ -2,7 +2,7 @@
 // because the connection dropped again is left to the reconnect, which attaches again itself once the connection is back.
 
 // `.ts` on the value import: `node --test` loads this module as it is.
-import { logError, logWarn } from "../runtime/logger.ts";
+import { logError, logWarn } from "../metadata/logger.ts";
 
 /** An attach left to the reconnect under way, which attaches again itself. */
 export const LeftToReconnect = "reconnecting";

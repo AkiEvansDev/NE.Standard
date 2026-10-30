@@ -7,7 +7,7 @@ import { isCaretField } from "../interactions/caret-fields.ts";
 import { isInert, isReadOnly } from "../interactions/interactive-state.ts";
 import { insertTextAsTyped } from "../interactions/legacy-commands.ts";
 import type { InsertTextClientEffect } from "../metadata/metadata-index.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logWarn } from "../metadata/logger.ts";
 
 type CaretField = HTMLInputElement | HTMLTextAreaElement;
 

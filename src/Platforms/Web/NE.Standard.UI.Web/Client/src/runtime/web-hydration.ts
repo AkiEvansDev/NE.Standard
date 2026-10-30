@@ -1,10 +1,11 @@
 // `.ts` on the value import and the metadata's types type-only, so `npm test` can load this module directly.
+import { HydrationAttribute } from "../addressing/dom-attributes.ts";
 import type { ServerChangeSet } from "../metadata/metadata-index";
-import { holdsPageWritten } from "./words.ts";
+import { holdsPageWritten } from "../rendering/words.ts";
 
 // What the shell render put in the page: the values it rendered with, and the id of the runtime it read them from.
 
-const HydrationSelector = "script[type='application/json'][data-ui-hydration]";
+const HydrationSelector = `script[type='application/json'][${HydrationAttribute}]`;
 
 export type WebHydrationPayload = {
     // The runtime the render prepared for the attach to claim; null where the render reused an existing one.

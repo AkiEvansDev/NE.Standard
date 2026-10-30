@@ -23,29 +23,29 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/inputs/number-input";
     protected override string Header => "demo.inputs.number-input.header";
     protected override string HeaderDescription => "demo.inputs.number-input.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/values", "demo.nav.mechanisms.values");
+    protected override (string Route, string Title)? ComposedIn => ("/mechanisms/values", "demo.nav.mechanisms.values");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new NumberInputComponent()
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(NumberValueGroupContext.Value)}")
-            .BindMin($"{ValueGroup}.{nameof(NumberValueGroupContext.Min)}")
-            .BindMax($"{ValueGroup}.{nameof(NumberValueGroupContext.Max)}")
-            .BindStep($"{ValueGroup}.{nameof(NumberValueGroupContext.Step)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(NumberValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(NumberValueGroupContext.Size)}")
-            .BindAppearance($"{FieldGroup}.{nameof(NumberFieldGroupContext.Appearance)}")
-            .BindPlaceholder($"{FieldGroup}.{nameof(NumberFieldGroupContext.Placeholder)}")
-            .BindPrefixText($"{FieldGroup}.{nameof(NumberFieldGroupContext.PrefixText)}")
-            .BindSuffixText($"{FieldGroup}.{nameof(NumberFieldGroupContext.SuffixText)}")
-            .BindPrefixIcon($"{FieldGroup}.{nameof(NumberFieldGroupContext.PrefixIcon)}")
-            .BindSuffixIcon($"{FieldGroup}.{nameof(NumberFieldGroupContext.SuffixIcon)}")
-            .BindShowStepper($"{FieldGroup}.{nameof(NumberFieldGroupContext.ShowStepper)}")
-            .BindDisplayFormat($"{FormatGroup}.{nameof(NumberFormatGroupContext.DisplayFormat)}")
-            .BindAllowDecimals($"{FormatGroup}.{nameof(NumberFormatGroupContext.AllowDecimals)}")
-            .BindAllowNegative($"{FormatGroup}.{nameof(NumberFormatGroupContext.AllowNegative)}")
-            .BindAllowThousandsSeparator($"{FormatGroup}.{nameof(NumberFormatGroupContext.AllowThousandsSeparator)}")
-            .BindTrimTrailingZeros($"{FormatGroup}.{nameof(NumberFormatGroupContext.TrimTrailingZeros)}")
+            .BindValue<NumberInputController>(static x => x.ValueGroup.Value)
+            .BindMin<NumberInputController>(static x => x.ValueGroup.Min)
+            .BindMax<NumberInputController>(static x => x.ValueGroup.Max)
+            .BindStep<NumberInputController>(static x => x.ValueGroup.Step)
+            .BindIsReadOnly<NumberInputController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<NumberInputController>(static x => x.ValueGroup.Size)
+            .BindAppearance<NumberInputController>(static x => x.FieldGroup.Appearance)
+            .BindPlaceholder<NumberInputController>(static x => x.FieldGroup.Placeholder)
+            .BindPrefixText<NumberInputController>(static x => x.FieldGroup.PrefixText)
+            .BindSuffixText<NumberInputController>(static x => x.FieldGroup.SuffixText)
+            .BindPrefixIcon<NumberInputController>(static x => x.FieldGroup.PrefixIcon)
+            .BindSuffixIcon<NumberInputController>(static x => x.FieldGroup.SuffixIcon)
+            .BindShowStepper<NumberInputController>(static x => x.FieldGroup.ShowStepper)
+            .BindDisplayFormat<NumberInputController>(static x => x.FormatGroup.DisplayFormat)
+            .BindAllowDecimals<NumberInputController>(static x => x.FormatGroup.AllowDecimals)
+            .BindAllowNegative<NumberInputController>(static x => x.FormatGroup.AllowNegative)
+            .BindAllowThousandsSeparator<NumberInputController>(static x => x.FormatGroup.AllowThousandsSeparator)
+            .BindTrimTrailingZeros<NumberInputController>(static x => x.FormatGroup.TrimTrailingZeros)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
@@ -71,7 +71,7 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateQuantityGroup()
     {
-        return DemoUI.CreateExample("A number with a unit",
+        return DemoUI.CreateExample("Steppers, units & affixes",
             UILayout.Stack(12)
                 .AddChild(new NumberInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
@@ -115,7 +115,7 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
-        return DemoUI.CreateExample("What may be typed",
+        return DemoUI.CreateExample("Decimal, sign & display formatting",
             UILayout.Stack(12)
                 .AddChild(new NumberInputComponent()
                     .SetTitle("Replicas — a count, so no decimals and no minus")
@@ -156,7 +156,7 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
     /// <remarks>Full width, three across: the three are read against each other, not down a column.</remarks>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateExample("What it says about a value",
+        return DemoUI.CreateExample("Range bounds & multi-rule validation",
             UILayout.Row(24)
                 .AddChild(DemoUI.CreateLabelled("Both ends — the stepper stops at them, a number typed past one is refused", new NumberInputComponent()
                     .SetTitle("Replicas")

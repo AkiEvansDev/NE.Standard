@@ -52,7 +52,7 @@ function place(anchor: { left: number; top: number; width: number; height: numbe
     placeAnchoredPopup(real(anchorElement), real(popupElement), { placement, gap: 4 });
     releaseAnchoredPopup(real(popupElement));
 
-    return { side: popupElement.dataset.uiPlacement, left: Number.parseFloat(String(popupElement.style.left)), top: Number.parseFloat(String(popupElement.style.top)) };
+    return { side: popupElement.getAttribute("data-ui-placement") ?? "", left: Number.parseFloat(String(popupElement.style.left)), top: Number.parseFloat(String(popupElement.style.top)) };
 }
 
 test("a popup with room below stays below, and one with room only above flips above", () => {
@@ -101,7 +101,7 @@ test("a popup with room nowhere takes the side of its axis with the more room, c
     releaseAnchoredPopup(real(popup));
 
     assert.equal(popup.style["max-height"], undefined);
-    assert.equal(popup.dataset.uiPlacement, "bottom-start");
+    assert.equal(popup.getAttribute("data-ui-placement"), "bottom-start");
 });
 
 test("a capped list keeps its scroll: its own scroll places nothing again, and a placement for its anchor's sake keeps where it stood", () => {
@@ -164,12 +164,12 @@ test("a boundary is the room a side is chosen in: a popup the window has room fo
     fakeDocument.body.append(box.append(anchor), popup);
 
     placeAnchoredPopup(real(anchor), real(popup), { placement: "top-end", gap: 6 });
-    assert.equal(popup.dataset.uiPlacement, "top-end");
+    assert.equal(popup.getAttribute("data-ui-placement"), "top-end");
 
     placeAnchoredPopup(real(anchor), real(popup), { placement: "top-end", gap: 6, boundary: real(box) });
     releaseAnchoredPopup(real(popup));
 
-    assert.equal(popup.dataset.uiPlacement, "bottom-end");
+    assert.equal(popup.getAttribute("data-ui-placement"), "bottom-end");
     assert.equal(Number.parseFloat(String(popup.style.top)), 256);
 });
 
@@ -223,16 +223,16 @@ test("an open popup keeps its side while it fits there: a list narrowed above it
     fakeDocument.body.append(anchor, popup);
 
     placeAnchoredPopup(real(anchor), real(popup), { placement: "bottom-start", gap: 4 });
-    assert.equal(popup.dataset.uiPlacement, "top-start");
+    assert.equal(popup.getAttribute("data-ui-placement"), "top-start");
 
     // Narrowed to one row, which its size observer hears: below would have the room now, and it stays above.
     popup.rect = { left: 0, top: 0, width: 200, height: 40 };
     observed?.([{ target: popup }]);
-    assert.equal(popup.dataset.uiPlacement, "top-start");
+    assert.equal(popup.getAttribute("data-ui-placement"), "top-start");
 
     // Its anchor moved instead: the side is chosen afresh.
     repositionAnchoredPopup(real(popup));
-    assert.equal(popup.dataset.uiPlacement, "bottom-start");
+    assert.equal(popup.getAttribute("data-ui-placement"), "bottom-start");
 
     releaseAnchoredPopup(real(popup));
 });
@@ -254,7 +254,7 @@ function submenuParts(menuLeft = 100): { readonly menu: FakeElement; readonly en
 }
 
 function placedAt(popup: FakeElement): { readonly side: string; readonly left: number; readonly top: number } {
-    return { side: popup.dataset.uiPlacement, left: Number.parseFloat(String(popup.style.left)), top: Number.parseFloat(String(popup.style.top)) };
+    return { side: popup.getAttribute("data-ui-placement") ?? "", left: Number.parseFloat(String(popup.style.left)), top: Number.parseFloat(String(popup.style.top)) };
 }
 
 test("a gap left unset is the framework's one popup gap", () => {
@@ -302,15 +302,38 @@ test("a submenu aligned by its entries stands with its first entry level with th
 
     placeAnchoredPopup(real(down.entry), real(down.submenu), { placement: "right-start", surface: real(down.menu), alignEntries: true });
     releaseAnchoredPopup(real(down.submenu));
-    // Up by its top padding and border: its first entry's row starts where the entry's does.
-    assert.equal(placedAt(down.submenu).top, 105 - 5);
+    // Flush against the parent menu's edge, and up by its top padding and border so its first entry's row starts where the entry's does.
+    assert.deepEqual(placedAt(down.submenu), { side: "right-start", left: 300, top: 105 - 5 });
 
     const up = submenuParts();
 
     placeAnchoredPopup(real(up.entry), real(up.submenu), { placement: "right-end", surface: real(up.menu), alignEntries: true });
     releaseAnchoredPopup(real(up.submenu));
     // Its last entry's row ends where the entry's does: down by its bottom padding and border.
-    assert.equal(placedAt(up.submenu).top, 135 - 120 + 7);
+    assert.deepEqual(placedAt(up.submenu), { side: "right-end", left: 300, top: 135 - 120 + 7 });
+
+    // When the parent popup has a 1 px border, a docked submenu overlaps that 1 px seam on whichever side it lands; `docked: false`
+    // (an on-page surface wrapping a menu) keeps `PopupGap` outside the surface instead.
+    const borderedRight = submenuParts();
+
+    boxStyles.set(borderedRight.menu, { borderRightWidth: "1px", borderLeftWidth: "1px" });
+    placeAnchoredPopup(real(borderedRight.entry), real(borderedRight.submenu), { placement: "right-start", surface: real(borderedRight.menu), alignEntries: true });
+    releaseAnchoredPopup(real(borderedRight.submenu));
+    assert.deepEqual(placedAt(borderedRight.submenu), { side: "right-start", left: 299, top: 100 });
+
+    const borderedLeft = submenuParts(700);
+
+    boxStyles.set(borderedLeft.menu, { borderRightWidth: "1px", borderLeftWidth: "1px" });
+    placeAnchoredPopup(real(borderedLeft.entry), real(borderedLeft.submenu), { placement: "right-start", surface: real(borderedLeft.menu), alignEntries: true });
+    releaseAnchoredPopup(real(borderedLeft.submenu));
+    assert.deepEqual(placedAt(borderedLeft.submenu), { side: "left-start", left: 700 + 1 - 160, top: 100 });
+
+    const undocked = submenuParts();
+
+    boxStyles.set(undocked.menu, { borderRightWidth: "1px", borderLeftWidth: "1px" });
+    placeAnchoredPopup(real(undocked.entry), real(undocked.submenu), { placement: "right-start", surface: real(undocked.menu), docked: false, alignEntries: true });
+    releaseAnchoredPopup(real(undocked.submenu));
+    assert.deepEqual(placedAt(undocked.submenu), { side: "right-start", left: 300 + PopupGap, top: 100 });
 });
 
 /** A 200 × 150 menu placed at a point of a 1000 × 600 window. */

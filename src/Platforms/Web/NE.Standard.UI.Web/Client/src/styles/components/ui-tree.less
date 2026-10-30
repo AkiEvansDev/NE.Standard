@@ -39,6 +39,7 @@
     min-height: 0;
     // The overlay bar's room, on the side the bar stands while the rows scroll (core/scrollbar.less).
     padding: @ui-scroll-room-padding;
+    .ui-scroll-axes();
 }
 
     .ui-tree__host > [data-ui-empty-placeholder] {
@@ -49,30 +50,6 @@
     .ui-tree {
         .ui-empty-state-host(~".ui-tree__host");
     }
-
-.ui-tree__host.ui-scroll-x--disabled {
-    overflow-x: hidden;
-}
-
-.ui-tree__host.ui-scroll-x--auto {
-    overflow-x: auto;
-}
-
-.ui-tree__host.ui-scroll-x--always {
-    overflow-x: scroll;
-}
-
-.ui-tree__host.ui-scroll-y--disabled {
-    overflow-y: hidden;
-}
-
-.ui-tree__host.ui-scroll-y--auto {
-    overflow-y: auto;
-}
-
-.ui-tree__host.ui-scroll-y--always {
-    overflow-y: scroll;
-}
 
 // The row steps in by its level times the tree's indent, both unitless; the wash and the selected ground run the row's full width.
 .ui-tree__row {
@@ -141,7 +118,7 @@
         inset-inline-end: 0;
         height: 2px;
         z-index: 1;
-        background: var(--ui-mark-selected-fill);
+        background: var(--ui-mark-selected);
         pointer-events: none;
     }
 
@@ -257,7 +234,7 @@
     --ui-icon-fill: 0;
 }
 
-    @{ui-tree-dress}:is(.ui-color--primary, :not([class*="ui-color--"])) {
+    @{ui-tree-dress}:is(.ui-color--default, :not([class*="ui-color--"])) {
         color: inherit;
     }
 
@@ -267,7 +244,7 @@
 }
 
     // NE.Colors' SolarGold, a shade of 3 on the light page and a tint of 2 on the dark: 3:1 on either.
-    @{ui-tree-dress-folder}:is(.ui-color--primary, :not([class*="ui-color--"])) {
+    @{ui-tree-dress-folder}:is(.ui-color--default, :not([class*="ui-color--"])) {
         color: light-dark(#a17e15, #ebc34b);
     }
 

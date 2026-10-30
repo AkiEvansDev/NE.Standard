@@ -10,30 +10,21 @@
 // and goes as a cancelled press's does when the hold is let go. Under reduced motion, or a theme without the ripple, the hold shows
 // the wash alone: the wave drawn whole, unmoving.
 
-import { ButtonClass, ComponentIdAttribute, MenuItemClass, NoRowSelectAttribute, PopupRoleSelector, RowEditingAttribute, SelectionAttribute, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
+import { ActionClass, ButtonClass, ComponentIdAttribute, ExpanderHeaderClass, KeyValueActionRowClass, LanguageSwitcherChoiceClass, LongPressHoldEndEventName, LongPressHoldEventName, MenuItemClass, NoRowSelectAttribute, PagerSizeChoiceClass, PopupRoleSelector, PressHeldClass, PressingClass, PressPlacedClass, PressWaveClass, PressWaveInkClass, RowEditingAttribute, SelectionAttribute, SelectOptionClass, SplitButtonClass, SplitButtonMainClass, SplitButtonToggleClass, SplitModeAttribute, TabCaptionClass, TabItemCaptionClass, TabItemCloseClass, TabItemRenameClass, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
-import { LongPressHoldEndEventName, LongPressHoldEventName } from "./long-press.ts";
 import type { LongPressHoldDetail, LongPressHoldEndDetail } from "./long-press.ts";
 import { ownControlOf } from "./own-control.ts";
-import { PressInkClass, PressWaveClass } from "./press-wave.ts";
 import { rowBox, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
 // A press inside one of these is its own, ahead of the button around it: a tabs view's whole caption (its label a button only for its
 // focus), and either part of a split button, washed alone as its hover is. A menu split button is one press, and the pill takes it.
-const OwnPressSelector = ".ui-tab-item__caption, .ui-split-button:not([data-ui-split-mode='menu']) > :is(.ui-split-button__main, .ui-split-button__toggle)";
-const EntrySelector = `.${ButtonClass}, .ui-action, .${MenuItemClass}, .ui-select__option, .ui-language-switcher__choice, .ui-pager__size-choice, .ui-color-input__swatch--button, .ui-expander__header, ${OwnPressSelector}`;
+const OwnPressSelector = `.${TabItemCaptionClass}, .${SplitButtonClass}:not([${SplitModeAttribute}='menu']) > :is(.${SplitButtonMainClass}, .${SplitButtonToggleClass})`;
+const EntrySelector = `.${ButtonClass}, .${ActionClass}, .${MenuItemClass}, .${SelectOptionClass}, .${LanguageSwitcherChoiceClass}, .${PagerSizeChoiceClass}, .${ExpanderHeaderClass}, ${OwnPressSelector}`;
 // An expander's header answers a press in its ink alone: the fold opening at once is the answer, and a wave across the band read as a
 // button. It is an entry still, so it takes the press from a row around it (ui-expander.less).
-const InkOnlySelector = ".ui-expander__header";
-const KeyValueRowClass = "ui-key-value-action__row";
-const RowSelector = `${SelectionRowSelector}, .${KeyValueRowClass}`;
-const TargetSelector = `${EntrySelector}, ${RowSelector}`;
-
-const PressingClass = "ui-pressing";
-const HeldClass = "ui-press-held";
-// On a held part not positioned of its own while its wave stands on it: any component may own a menu, so the stylesheet cannot list them.
-const PlacedClass = "ui-press-placed";
+const InkOnlySelector = `.${ExpanderHeaderClass}, .${TabCaptionClass}, .${TabItemCaptionClass}`;
+const TargetSelector = `${EntrySelector}, ${SelectionRowSelector}`;
 
 export type PressRippleEngineOptions = {
     readonly root?: ParentNode;
@@ -93,7 +84,7 @@ export class PressRippleEngine {
             return;
 
         this.start(domEvent.pointerId, element, domEvent.clientX, domEvent.clientY, motion.ripple, false);
-        element.classList.add(HeldClass);
+        element.classList.add(PressHeldClass);
     }
 
     /** Whether a wave may grow on the element: the theme's flag, and no reduced motion. */
@@ -157,7 +148,7 @@ export class PressRippleEngine {
         this.start(detail.pointerId, part, detail.clientX, detail.clientY, moves ? detail.duration : null, true);
 
         if (getComputedStyle(part).position === "static")
-            part.classList.add(PlacedClass);
+            part.classList.add(PressPlacedClass);
     }
 
     /** Sets the circle growing to reach the frame at `fills`; a wave already there stays. */
@@ -190,7 +181,7 @@ export class PressRippleEngine {
     /** The element a press lands on that answers it with the wave, or null: the nearest one, and only if it takes the press. */
     private pressedElement(target: Element): HTMLElement | null {
         // A tab's close and rename field are presses of their own, with no wave.
-        if (target.closest(".ui-tab-item__close, .ui-tab-item__rename") !== null)
+        if (target.closest(`.${TabItemCloseClass}, .${TabItemRenameClass}`) !== null)
             return null;
 
         const element = target.closest<HTMLElement>(OwnPressSelector) ?? target.closest<HTMLElement>(TargetSelector);
@@ -213,7 +204,7 @@ export class PressRippleEngine {
             return null;
 
         const root = row.closest(SelectionRootSelector);
-        const chooses = root !== null && !row.classList.contains(KeyValueRowClass) && !root.hasAttribute(NoRowSelectAttribute)
+        const chooses = root !== null && !row.classList.contains(KeyValueActionRowClass) && !root.hasAttribute(NoRowSelectAttribute)
             && (root.getAttribute(SelectionAttribute) === "one" || root.getAttribute(SelectionAttribute) === "many");
         const folds = row.classList.contains(TreeRowClass) && isItemRefused(row, UnselectableAttribute);
 
@@ -265,7 +256,7 @@ export class PressRippleEngine {
             return;
         }
 
-        press.element.classList.remove(HeldClass);
+        press.element.classList.remove(PressHeldClass);
 
         const now = performance.now();
         const remaining = Math.max(0, press.fills - now);
@@ -286,7 +277,7 @@ export class PressRippleEngine {
         press.grow?.cancel();
         press.fade?.cancel();
         press.wave.remove();
-        press.element.classList.remove(PressingClass, HeldClass, PlacedClass);
+        press.element.classList.remove(PressingClass, PressHeldClass, PressPlacedClass);
 
         if (this.presses.get(pointerId) === press)
             this.presses.delete(pointerId);
@@ -300,7 +291,7 @@ function createWave(x: number, y: number, radius: number): { readonly wave: HTML
 
     wave.className = PressWaveClass;
     wave.setAttribute("aria-hidden", "true");
-    ink.className = PressInkClass;
+    ink.className = PressWaveInkClass;
     ink.style.setProperty("left", `${x - radius}px`);
     ink.style.setProperty("top", `${y - radius}px`);
     ink.style.setProperty("width", `${radius * 2}px`);

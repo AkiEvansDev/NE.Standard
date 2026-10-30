@@ -11,7 +11,7 @@ export const UnrenamableAttribute = "data-ui-unrenamable";
 export const NoContextMenuAttribute = "data-ui-no-context-menu";
 /** On an element inside a row: a double click there is the element's own (a cell that opens its editor), not the row's open; nor is a control in it the row's. */
 export const NoRowOpenAttribute = "data-ui-no-row-open";
-/** On a part inside a row that is not the row's to lift (a grid's open detail): a press there never drags the row. */
+/** Client-only: on a part inside a row that is not the row's to lift (an action bar, a grid's open detail): a press there never drags the row. */
 export const NoRowDragAttribute = "data-ui-no-row-drag";
 /** On an items view's or a table's root: its rows may be dragged to another place among them, or moved by Alt with an arrow. */
 export const RowsDraggableAttribute = "data-ui-rows-draggable";
@@ -21,9 +21,9 @@ export const DragKindAttribute = "data-ui-drag-kind";
 export const DragEffectsAttribute = "data-ui-drag-effects";
 /** On a drag source's root: the id the view gave it, which a drop names as its source. */
 export const DragSourceAttribute = "data-ui-drag-source";
-/** On a component a dragged or pasted item of a kind it takes would land on (not a list, whose rows mark the place); the stylesheet reads it. */
+/** Client-only: on a component a dragged or pasted item of a kind it takes would land on (not a list, whose rows mark the place); the stylesheet reads it. */
 export const ItemDropOverAttribute = "data-ui-item-drop-over";
-/** Beside a drop's mark on a field that draws a box of its own: the box wears the drop's edge, and the root none (`ui-input.less`). */
+/** Client-only: beside a drop's mark on a field that draws a box of its own: the box wears the drop's edge, and the root none (`ui-input.less`). */
 export const DropBoxedAttribute = "data-ui-drop-boxed";
 /** On an items view's or a table's root: a row is dragged only by the grip at its end (`DragHandle`). */
 export const RowsDragHandleAttribute = "data-ui-rows-drag-handle";
@@ -31,6 +31,10 @@ export const RowsDragHandleAttribute = "data-ui-rows-drag-handle";
 export const DragHandleStartClass = "ui-drag-handle--start";
 /** The grip a host dragged by grips draws in each row (`ItemsCollectionRendererBase.RenderRowGrip`, `row-grip.ts`). */
 export const RowGripClass = "ui-row__grip";
+/** Client-only: on a popup panel named by what opened it (`owned-popup.ts` `nameByOpener`), so an author's name, once it comes, takes its place. */
+export const NamedByOpenerAttribute = "data-ui-named-by-opener";
+/** Client-only: the hidden words a popup opened from a field is named by — the field's caption as it stood at the opening. */
+export const PopupCaptionAttribute = "data-ui-popup-caption";
 /** Client-only: on a row's box while another is dragged over it, the side the dragged row would land on. */
 export const RowDropAttribute = "data-ui-row-drop";
 /** On an items view's, a table's or a tree's root: a row's removal raises a command, so Delete raises it; without it the key is the page's. */
@@ -64,7 +68,7 @@ export const ContextMenuUseAttribute = "data-ui-context-menu-use";
  * it — `end`, `start` or `center`.
  */
 export const ActionBarAttribute = "data-ui-action-bar";
-/** On a host a package draws anew (a node redrawn with its document): what it stands for, so a bar chosen over it outlives the redraw. */
+/** Client-only: on a host a package draws anew (a node redrawn with its document): what it stands for, so a bar chosen over it outlives the redraw. */
 export const ActionBarKeyAttribute = "data-ui-action-bar-key";
 /** On a host carrying `ActionBarAttribute` whose bar's "more" opens the rest of its menu: the entries the bar shows are left out. */
 export const ActionBarRestAttribute = "data-ui-action-bar-rest";
@@ -74,7 +78,15 @@ export const MenuLeftOutAttribute = "data-ui-menu-left-out";
 export const InActionBarAttribute = "data-ui-in-action-bar";
 /** Client-only: the bar the action bar engine draws inside its host, and the row of its icons atop a menu a long press opened. */
 export const ActionBarClass = "ui-action-bar";
-/** On the row the keyboard is on in a host with rows; the host's engine moves it. */
+export const ActionBarButtonClass = "ui-action-bar__button";
+export const ActionBarMoreClass = "ui-action-bar__more";
+/** Client-only: an entry's button that shows its icon, which ui-action-bar.less squares; a title's keeps its frame. */
+export const ActionBarIconButtonClass = "ui-action-bar__button--icon";
+/** Client-only: on a bar whose host the scroll took wholly out of sight: it stays chosen, and shows again as the host comes back. */
+export const ActionBarOutClass = "ui-action-bar--out";
+/** Client-only: the row of icons atop a menu a long press opened, as against a bar standing over its host. */
+export const ActionBarStripClass = "ui-action-bar--strip";
+/** Client-only: on the row the keyboard is on in a host with rows; the host's engine moves it. */
 export const RowFocusAttribute = "data-ui-row-focus";
 /** Client-only: on a host's cursor root while the cursor's row is not drawn (scrolled out of a virtualized host): that row's key. */
 export const RowCursorWaitsAttribute = "data-ui-row-cursor-waits";
@@ -83,9 +95,9 @@ export const RowCursorWaitsAttribute = "data-ui-row-cursor-waits";
  * is not on): the tabindex it had, empty for none (`tab-out.ts`).
  */
 export const TabOutAttribute = "data-ui-tab-out";
-/** On the cell the keyboard's cursor stands on, in a table acting as a grid (row-cursor.ts). */
+/** Client-only: on the cell the keyboard's cursor stands on, in a table acting as a grid (row-cursor.ts). */
 export const CellFocusAttribute = "data-ui-cell-focus";
-/** What the cursor's cell raises before Enter, F2 or a typed character acts on it (`row-cursor.ts`'s `claimCellKey`). */
+/** Client-only: what the cursor's cell raises before Enter, F2 or a typed character acts on it (`row-cursor.ts`'s `claimCellKey`). */
 export const CellKeyEventName = "ui-cell-key";
 /** The words of a component's tooltip, where it shows them, and a mark inside a control the tooltip belongs to instead. */
 export const TooltipAttribute = "data-ui-tooltip";
@@ -93,12 +105,12 @@ export const TooltipPlacementAttribute = "data-ui-tooltip-placement";
 /** On an element whose tooltip is shown as written (`TooltipPlain`): its words, written and pushed, are text, never inline markup. */
 export const TooltipPlainAttribute = "data-ui-tooltip-plain";
 export const TooltipMarkAttribute = "data-ui-tooltip-mark";
-/** On a validation mark speaking through the tooltip, its severity (`error`, `warning`, `info`), which the tooltip wears while it speaks. */
+/** Client-only: on a validation mark speaking through the tooltip, its severity (`error`, `warning`, `info`), which the tooltip wears while it speaks. */
 export const TooltipSeverityAttribute = "data-ui-tooltip-severity";
 /** On a control whose tooltip is all it has to say (a caption's badge): a press shows the tooltip, and the next press hides it. */
 export const TooltipPressAttribute = "data-ui-tooltip-press";
 /** On a badge: its text shown, "compact" while it fits a circle; and its text given at all, blank included (a menu corner's dot). */
-export const BadgeTextAttribute = "data-ui-badge-text";
+export const BadgeTitleAttribute = "data-ui-badge-title";
 export const BadgeSetAttribute = "data-ui-badge-set";
 export const BadgeIconAttribute = "data-ui-badge-icon";
 /** On an element inline markup was written into while it holds a fold, which then wraps (`InlineMarkupRenderer`'s mark too). */
@@ -106,6 +118,8 @@ export const FoldsAttribute = "data-ui-folds";
 
 /** The author's own name for a component, written only when the author gave it one. */
 export const ComponentNameAttribute = "data-ui-name";
+/** What every attribute the framework writes begins with. */
+export const FrameworkAttributePrefix = "data-ui-";
 export const BindingAttributePrefix = "data-ui-bind-";
 
 /** On the element holding a property some field sends its validation words to; the rest is the property name in kebab-case. */
@@ -128,8 +142,8 @@ export const ImagePictureClass = "ui-image__picture";
 export const ImageCircleClass = "ui-image--circle";
 /** On a picture: the author's stand-in, shown when its own source is missing or fails (`WebAttributes.FallbackSrc`). */
 export const FallbackSrcAttribute = "data-ui-fallback-src";
-/** On a round picture or picture icon: the glyph it shows while it has no picture, where its author named one (`WebAttributes.FallbackIcon`). */
-export const FallbackIconAttribute = "data-ui-fallback-icon";
+/** On a round picture or picture icon: the glyph it shows while it has no picture, where its author named one (`WebAttributes.IconFallback`). */
+export const IconFallbackAttribute = "data-ui-icon-fallback";
 /** On a picture's box showing the framework's own stand-in (`WebAttributes.ImageFailed`); the stylesheet lays it on the wash (ui-image.less). */
 export const ImageFailedAttribute = "data-ui-image-failed";
 /** On a round picture icon showing its fallback glyph (`WebAttributes.IconFailed`): "missing" with no value, "failed" when its picture failed. */
@@ -147,9 +161,8 @@ export const ItemsEmptyAttribute = "data-ui-items-empty";
 export const CollectionSinkAttribute = "data-ui-collection-sink";
 /** On an items component's query element: the viewer's filter and sort terms as JSON. */
 export const ItemsQueryAttribute = "data-ui-items-query";
-/** On an items view's first-visible element: the key of the row at its top, as the page last wrote it back (`WebAttributes.FirstVisibleKey`). */
+/** Client-only: on an items view's first-visible element, the key of the row at its top as the page last wrote it back; on its last-visible one, the row at its foot. */
 export const FirstVisibleKeyAttribute = "data-ui-first-visible-key";
-/** On an items view's last-visible element: the key of the row at its foot (`WebAttributes.LastVisibleKey`). */
 export const LastVisibleKeyAttribute = "data-ui-last-visible-key";
 /** The number culture pack as JSON; an engine formats by the nearest one above the element. */
 export const NumberCultureAttribute = "data-ui-number-culture";
@@ -167,6 +180,52 @@ export const NumberFormatAttribute = "data-ui-number-format";
 export const TemporalCultureAttribute = "data-ui-temporal-culture";
 /** On the head's JSON script: the page's language's names and patterns for dates and times, the words table's `temporal` (`WebAttributes.Temporal`). */
 export const PageTemporalAttribute = "data-ui-temporal";
+/** On a temporal control's root (`WebAttributes.Temporal*`): its mode — `date`, `time` or `date-time` — and the format it shows, the author's or its default. */
+export const TemporalModeAttribute = "data-ui-temporal-mode";
+export const TemporalFormatAttribute = "data-ui-temporal-format";
+export const TemporalDefaultFormatAttribute = "data-ui-temporal-default-format";
+/** Its Min, Max and Step, and the unit the Step counts in. */
+export const TemporalMinAttribute = "data-ui-temporal-min";
+export const TemporalMaxAttribute = "data-ui-temporal-max";
+export const TemporalStepAttribute = "data-ui-temporal-step";
+export const TemporalStepUnitAttribute = "data-ui-temporal-step-unit";
+/** Its marked days, each canonical, separated by spaces; the second on a root that offers only them. */
+export const TemporalMarkedDaysAttribute = "data-ui-temporal-marked-days";
+export const TemporalMarkedOnlyAttribute = "data-ui-temporal-marked-only";
+/** On a root editing a period; on the part — a field, a clock, a hidden input — that holds the period's end. */
+export const TemporalRangeAttribute = "data-ui-temporal-range";
+export const TemporalEndAttribute = "data-ui-temporal-end";
+/** On a period: the least distance between its two ends, as a `TimeSpan`'s invariant text. */
+export const TemporalMinDistanceAttribute = "data-ui-temporal-min-distance";
+/** On a control whose culture is the page's: a language switch writes its names and default format again. */
+export const TemporalPageCultureAttribute = "data-ui-temporal-page-culture";
+/** Its culture's names, each list separated by `|`, and the AM and PM words. */
+export const TemporalMonthsAttribute = "data-ui-temporal-months";
+export const TemporalMonthsGenitiveAttribute = "data-ui-temporal-months-genitive";
+export const TemporalMonthsShortAttribute = "data-ui-temporal-months-short";
+export const TemporalDayNamesAttribute = "data-ui-temporal-daynames";
+export const TemporalWeekdaysAttribute = "data-ui-temporal-weekdays";
+export const TemporalAmAttribute = "data-ui-temporal-am";
+export const TemporalPmAttribute = "data-ui-temporal-pm";
+/** The day a calendar's week starts on, by the culture's: 0 for Sunday. */
+export const TemporalFirstDayAttribute = "data-ui-temporal-first-day";
+/** On the button that opens a temporal input's popup. */
+export const TemporalToggleAttribute = "data-ui-temporal-toggle";
+/** On a time input's stepper button: `up` or `down`. */
+export const TemporalStepDirectionAttribute = "data-ui-temporal-step-direction";
+/** Client-only: on a calendar's header, footer and month buttons, the action each takes — `previous`, `pane`, `month:3`, `now`. */
+export const TemporalNavAttribute = "data-ui-temporal-nav";
+/** Client-only: on a calendar's day, the day it stands for, canonical. */
+export const TemporalDayAttribute = "data-ui-temporal-day";
+/** Client-only: on a clock column, the unit it sets; on its cell, the reading it sets. */
+export const TemporalUnitAttribute = "data-ui-temporal-unit";
+export const TemporalCellAttribute = "data-ui-temporal-cell";
+/** Client-only: on a clock column, where the engine parked its chosen reading; a column standing elsewhere was moved by hand. */
+export const TemporalCentredAttribute = "data-ui-temporal-centred";
+/** Client-only: on a time input's segment, the unit it edits. */
+export const TemporalSegmentAttribute = "data-ui-temporal-segment";
+/** Client-only: on a time input's segments, the format they were built from, so a live DisplayFormat patch rebuilds them. */
+export const TemporalSegmentsOfAttribute = "data-ui-temporal-segments-of";
 /**
  * On an element a phrase holding values the page writes itself was painted into — moments, file sizes — those values, whose first paint
  * the boot script writes again (`WebAttributes.PageWritten`).
@@ -223,14 +282,14 @@ export const ScrollGroupAttribute = "data-ui-scroll-group";
 export const ScrollViewportAttribute = "data-ui-scroll-viewport";
 /** On an element whose children are a source's lines in order, the first child line 1. */
 export const ScrollLinesAttribute = "data-ui-scroll-lines";
-/** On an element drawn from a source line: the line's number, from 1. */
+/** Client-only: on an element drawn from a source line (a package's own client writes it): the line's number, from 1. */
 export const SourceLineAttribute = "data-ui-source-line";
 
-/** Marks a windowed or virtualized host's stand-in for the rows it is not drawing: "top", "bottom", or "pending" for rows on their way. */
+/** Client-only: marks a windowed or virtualized host's stand-in for the rows it is not drawing: "top", "bottom", or "pending" for rows on their way. */
 export const WindowSpacerAttribute = "data-ui-window-spacer";
 
 /**
- * On a windowed host while it reads a window, the edge it reads at (`before`, `after`, `offset`, `start`, `end`), and on its component's
+ * Client-only: on a windowed host while it reads a window, the edge it reads at (`before`, `after`, `offset`, `start`, `end`), and on its component's
  * root as well: a skeleton shimmers, an indicator stands at that edge (`ui-items-view.less`).
  */
 export const WindowPendingAttribute = "data-ui-window-pending";
@@ -251,7 +310,7 @@ export const FormIdAttribute = "data-ui-form-id";
 /** The hidden holder of the page's FormId forms, beside the root (`form-owner.ts`). */
 export const FormsHolderAttribute = "data-ui-forms";
 
-export const VisibilityAttribute = "data-ui-visibility";
+const VisibilityAttribute = "data-ui-visibility";
 
 /** A collapsible component's state, and its switch. */
 export const CollapsedAttribute = "data-ui-collapsed";
@@ -259,6 +318,9 @@ export const CollapsedAttribute = "data-ui-collapsed";
 export const MenuGroupAttribute = "data-ui-menu-group";
 export const MenuSelectAttribute = "data-ui-menu-select";
 export const MenuOpenAttribute = "data-ui-menu-open";
+// On a page-standing menu entry that acts (`WebAttributes.MenuEntryActing`): its role follows its row's address — a button while it
+// holds none, an anchor's link while it does (syncLink; a row built with none takes the button's role as it is stamped).
+export const MenuEntryActingAttribute = "data-ui-menu-entry-acting";
 /** On a group wrapper holding the current entry, its own or one below (`WebAttributes.MenuHoldsCurrent`): kept by menu-current.ts. */
 export const MenuHoldsCurrentAttribute = "data-ui-menu-holds-current";
 /** On a menu's host where an entry of its own carries an icon (`WebAttributes.MenuIcons`): kept by menu-icons.ts. */
@@ -271,14 +333,15 @@ export const MenuItemShortcutAttribute = "data-ui-menu-item-shortcut";
 export const MenuSurfaceAttribute = "data-ui-menu-surface";
 /** On a menu with a search beside its switch (MenuComponent.SetSearch), which menu-search-engine.ts narrows the entries by. */
 export const MenuSearchAttribute = "data-ui-menu-search";
-/** On a searchable menu while something is typed into its search, and on an entry the search leaves out. */
+/** Client-only: on a searchable menu while something is typed into its search, and on an entry the search leaves out. */
 export const MenuSearchingAttribute = "data-ui-menu-searching";
 export const MenuUnmatchedAttribute = "data-ui-menu-unmatched";
-/** A side's drawer button (naming the side's region), the root while one is open, and the backdrop under it (UIViewOptions.SideDrawers). */
+/** A side's drawer button (naming the side's region), and the backdrop under an open drawer (UIViewOptions.SideDrawers). */
 export const DrawerToggleAttribute = "data-ui-drawer-toggle";
-export const DrawerOpenAttribute = "data-ui-drawer-open";
 export const DrawerBackdropAttribute = "data-ui-drawer-backdrop";
-/** On an open drawer's own switch standing where the button that opened it is, and on the row it moves with (side-drawer-engine.ts). */
+/** Client-only: on the root while a side's drawer is open, naming its region. */
+export const DrawerOpenAttribute = "data-ui-drawer-open";
+/** Client-only: on an open drawer's own switch standing where the button that opened it is, and on the row it moves with (side-drawer-engine.ts). */
 export const DrawerSwitchAttribute = "data-ui-drawer-switch";
 export const DrawerSwitchRowAttribute = "data-ui-drawer-switch-row";
 /** On the root: the width below which the sides are drawers (`md`, `xl`, `xxl` or `always`; UIViewOptions.SideDrawers), none where they never are. */
@@ -365,6 +428,11 @@ export const TableHideBelowAttribute = "data-ui-table-hide-below";
 export const TableStartsHiddenAttribute = "data-ui-table-starts-hidden";
 /** On the header cell of a column the control owns: the viewer neither sizes it nor moves it. */
 export const TableFixedAttribute = "data-ui-table-fixed";
+/** On the cells of a table's column of checkboxes, and on that column's header cell (`WebAttributes.TableSelect`, `TableSelectAll`). */
+export const TableSelectAttribute = "data-ui-table-select";
+export const TableSelectAllAttribute = "data-ui-table-select-all";
+/** Client-only: on the root of a table's row or header checkbox turned off, which takes back the root's hand (`ui-table.less`). */
+export const TableBoxOffAttribute = "data-ui-table-box-off";
 /** On a table's root, the indices of the columns hidden now, which the stylesheet puts out of sight: the author's at render, then the columns engine's. */
 export const TableHiddenAttribute = "data-ui-table-hidden";
 /** A table's parts a package reaches: its row, its scrolling box, its header row, a column's resizer. */
@@ -402,11 +470,11 @@ export const TreeExpandedAttribute = "data-ui-tree-expanded";
 export const TreeTitleAttribute = "data-ui-tree-title";
 /** On a tree's root: its nodes may be renamed in place. */
 export const TreeRenamableAttribute = "data-ui-tree-renamable";
-/** On a tree's row: the node was unfolded and its children are being asked for. */
+/** Client-only: on a tree's row: the node was unfolded and its children are being asked for. */
 export const TreeLoadingAttribute = "data-ui-tree-loading";
 /** On a tree node's text: the key of the node it was dropped on. */
 export const TreeDropTargetAttribute = "data-ui-tree-drop-target";
-/** On a tree's row: "hidden" or "shown" where the viewer's remembered fold differs from the authored one; the first walk takes it off. */
+/** Client-only: on a tree's row: "hidden" or "shown" where the viewer's remembered fold differs from the authored one; the first walk takes it off. */
 export const TreeBootAttribute = "data-ui-tree-boot";
 /** On a tree's root: its nodes may be dragged onto one another; a double click renames rather than opens. */
 export const TreeDraggableAttribute = "data-ui-tree-draggable";
@@ -500,6 +568,8 @@ export const SelectionAttribute = "data-ui-selection";
 export const SelectedAttribute = "data-ui-selected";
 export const SelectedKeyAttribute = "data-ui-selected-key";
 export const SelectedKeysAttribute = "data-ui-selected-keys";
+/** On a multi-select's root, how many options it takes at most, whichever way it is drawn (`WebAttributes.SelectMax`). */
+export const SelectMaxAttribute = "data-ui-select-max";
 /** The generic binding attribute `RenderProperty` emits for a two-way `SelectedKey`, on strips and on the items view alike. */
 export const BindSelectedKeyAttribute = "data-ui-bind-selected-key";
 
@@ -547,7 +617,7 @@ export const MenuPopupSelector = `${MenuHostPopupSelector}, .${FlyoutContentClas
 /** On a focusable layer a package draws (a canvas, a panel over it): it takes the keyboard back from a field inside it. */
 export const FocusHolderAttribute = "data-ui-focus-holder";
 /**
- * On an element whose keys are its own while the focus is inside it (a grid's cell editor): no host around it acts on them — a row
+ * Client-only: on an element whose keys are its own while the focus is inside it (a grid's cell editor): no host around it acts on them — a row
  * cursor, a list, a menu — and no popup, dialog or drawer closes on its Escape.
  */
 export const OwnsKeysAttribute = "data-ui-owns-keys";
@@ -559,8 +629,8 @@ const ListTriggerSelector = `.${ListTriggerClass}` as const;
 /** A button's root, a select family's root, a text input's root, and the mark of a field whose value was refused. */
 export const ButtonClass = "ui-button";
 /** A button's Ghost look and its Small size, as WebClassNames writes them. */
-const GhostButtonClass = "ui-button--ghost";
-const SmallButtonClass = "ui-button--small";
+export const GhostButtonClass = "ui-button--ghost";
+export const SmallButtonClass = "ui-button--small";
 /** A small ghost button's look, as the page draws one of its own (an action bar's icon, a strip's overflow entry). */
 export const SmallGhostButtonClasses = `${ButtonClass} ${GhostButtonClass} ${SmallButtonClass}`;
 export const SelectClass = "ui-select";
@@ -575,7 +645,7 @@ export const PlainTextAttribute = "data-ui-plain-text";
 export const AutolinksAttribute = "data-ui-autolinks";
 export const TextIconAttribute = "data-ui-text-icon";
 export const TextBadgeIconAttribute = "data-ui-text-badge-icon";
-export const TextBadgeTextAttribute = "data-ui-text-badge-text";
+export const TextBadgeTitleAttribute = "data-ui-text-badge-title";
 /** A card's header band, and its mark while the text in it shows nothing (`card-header.ts`, `CardComponentRenderer`). */
 export const CardHeaderClass = "ui-card__header";
 export const CardHeaderEmptyClass = "ui-card__header--empty";
@@ -585,6 +655,693 @@ const TextInputClass = "ui-text-input";
 export const InvalidClass = "ui-invalid";
 // A field's message, which the validation engine writes as a line or a mark; a package's cell may carry one to speak through.
 export const ValidationMessageAttribute = "data-ui-validation-message";
+
+export const RootAttribute = "data-ui-root";
+
+export const TrimInputAttribute = "data-ui-trim-input";
+export const TriggersAttribute = "data-ui-triggers";
+export const TriggerItemsAttribute = "data-ui-trigger-items";
+export const TriggerSearchAttribute = "data-ui-trigger-search";
+export const FlyoutOpenClass = "ui-flyout--open";
+
+export const AccordionClass = "ui-accordion";
+
+export const TreeNodeWrapperClass = "ui-tree__node";
+export const ItemsViewItemClass = "ui-items-view__item";
+
+export const ButtonContentClass = "ui-button__content";
+export const TextTitleClass = "ui-text__title";
+export const TextIconClass = "ui-text__icon";
+
+// Client-only: on a popup placed against a stand-in: its part is `visibility: hidden`, and the popup shows itself over that.
+export const PopupStoodInAttribute = "data-ui-popup-stood-in";
+// Client-only: on a popup lifted into the top layer, for the stylesheet to take the popover's own box back off it.
+export const PopupLiftedAttribute = "data-ui-popup-lifted";
+/** Client-only: on a list popup shown as a phone's sheet (popup-sheet.ts) rather than beside its anchor: "root", or "nested" over another sheet. */
+export const SheetAttribute = "data-ui-sheet";
+// Client-only: on a popup capped to its side's room, which `uncap` takes back off before it is measured again.
+export const PopupCappedAttribute = "data-ui-popup-capped";
+/** Client-only: on an anchored popup, the side it stands at after any flip, which its arrow follows. */
+export const PopupPlacementAttribute = "data-ui-placement";
+
+export const BreadcrumbsClass = "ui-breadcrumbs";
+export const BreadcrumbsItemClass = "ui-breadcrumbs__item";
+export const BreadcrumbClass = "ui-breadcrumb";
+/** Client-only: on the trail's step the breadcrumbs engine marks as the current page. */
+export const BreadcrumbCurrentClass = "ui-breadcrumb--current";
+
+export const ButtonGroupClass = "ui-button-group";
+export const ButtonGroupItemClass = "ui-button-group__item";
+
+export const CollapsibleClass = "ui-collapsible";
+export const CollapsibleContentClass = "ui-collapsible__content";
+export const CollapsibleBarContentClass = "ui-collapsible__bar-content";
+export const SideTopClass = "ui-side--top";
+export const SideBottomClass = "ui-side--bottom";
+// The row a toggle shares with content set beside it (CollapsibleChromeRenderer).
+export const CollapsibleBarClass = "ui-collapsible__bar";
+
+export const ColorInputClass = "ui-color-input";
+export const ColorInputPopupClass = "ui-color-input__popup";
+export const ColorInputTextClass = "ui-color-input__text";
+export const ColorInputRowClass = "ui-color-input__row";
+export const ColorInputValueInputClass = "ui-color-input__value-input";
+export const ColorInputSquareThumbClass = "ui-color-input__square-thumb";
+export const ColorInputHueThumbClass = "ui-color-input__hue-thumb";
+export const ColorToggleAttribute = "data-ui-color-toggle";
+export const ColorTabAttribute = "data-ui-color-tab";
+export const ColorPaneAttribute = "data-ui-color-pane";
+export const ColorSquareAttribute = "data-ui-color-square";
+export const ColorHueAttribute = "data-ui-color-hue";
+export const ColorHexAttribute = "data-ui-color-hex";
+export const ColorChannelAttribute = "data-ui-color-channel";
+export const ColorFactorAttribute = "data-ui-color-factor";
+export const ColorOpacityAttribute = "data-ui-color-opacity";
+export const ColorNameAttribute = "data-ui-color-name";
+export const ColorFormatAttribute = "data-ui-color-format";
+// On the root: the optional parts the author turned off; each is offered unless marked.
+export const ColorNoOpacityAttribute = "data-ui-color-no-opacity";
+export const ColorNoPaletteAttribute = "data-ui-color-no-palette";
+/** Client-only: a color input's mark while its picker is open, and on the tab, pane and palette chip the picker shows as chosen. */
+export const ColorInputOpenClass = "ui-color-input--open";
+export const ColorTabSelectedAttribute = "data-ui-color-tab-selected";
+export const ColorPaneSelectedAttribute = "data-ui-color-pane-selected";
+export const ColorNameSelectedAttribute = "data-ui-color-name-selected";
+
+export const CommandBarClass = "ui-command-bar";
+export const CommandBarHostClass = "ui-command-bar__host";
+export const CommandBarItemClass = "ui-command-bar__item";
+export const CommandBarOverflowClass = "ui-command-bar__overflow";
+export const OrientationVerticalClass = "ui-orientation--vertical";
+/** Client-only: a command bar's mark while its entries overflow, and on each entry folded into its overflow menu. */
+export const CommandBarOverflowingClass = "ui-command-bar--overflowing";
+export const CommandBarOverflowedClass = "ui-command-bar__overflowed";
+
+// Client-only: on a menu while it is open; the action bar reads it to keep "more" standing under the menu it opened.
+export const ContextMenuOpenClass = "ui-context-menu--open";
+/** Client-only: raised on a menu just before it opens, with the pressed element: an engine sets its entries here, or cancels to keep it shut. */
+export const ContextMenuOpeningEventName = "ui-context-menu-opening";
+
+export const InputDebounceAttribute = "data-ui-input-debounce";
+
+/** Client-only: what a closing row's editor raises so every engine holding a draft inside it lets the draft go. */
+export const DraftDroppedEventName = "ui-draft-dropped";
+
+export const ImageInputSurfaceClass = "ui-image-input__surface";
+
+/** Client-only: the picture's frame: the ground, corners and elevation of something lifted off the page (core/runtime.less). */
+export const DragPictureClass = "ui-drag-picture";
+// Client-only: on a part of the copy whose `::before` or `::after` draws something (an icon's mask, a box's tick): the rule written for it.
+export const DragPartAttribute = "data-ui-drag-part";
+
+export const FieldClass = "ui-field";
+
+export const RunsOnEscapeAttribute = "data-ui-runs-on-escape";
+// A key-value row and the parts of its open editor, which key-value-action-engine.ts reads by the same names.
+export const KeyValueActionRowClass = "ui-key-value-action__row";
+export const KeyValueActionValueInputClass = "ui-key-value-action__value-input";
+export const KeyValueActionEditActionClass = "ui-key-value-action__edit-action";
+// A row's own action: its Edit, where the list edits in place (`EnableEditing`).
+export const KeyValueActionActionClass = "ui-key-value-action__action";
+
+// On a text area whose Enter submits its form (`TextAreaComponent.SubmitOnEnter`); Shift+Enter still breaks the line.
+export const SubmitOnEnterAttribute = "data-ui-submit-on-enter";
+// On a field with `OnEnter` (`TextInputComponent.OnEnter`, `TextAreaComponent.OnEnter`): Enter alone commits the value and raises `enter`.
+export const RunsOnEnterAttribute = "data-ui-runs-on-enter";
+/**
+ * Client-only: raised on a field that keeps the focus while a chord presses something (`shortcut-engine.ts`): what was typed is committed where it
+ * stands, as Enter commits it, so the command reads it.
+ */
+export const CommitInPlaceEventName = "ui-commit-in-place";
+
+/** Client-only: on a drop target while a file is over it, as a field's own dragging attribute is on the field; the stylesheet reads it. */
+export const FileDropOverAttribute = "data-ui-file-drop-over";
+
+export const FileInputClass = "ui-file-input";
+export const FileInputRowClass = "ui-file-input__row";
+export const FileInputNativeClass = "ui-file-input__native";
+export const FileInputFieldClass = "ui-file-input__field";
+export const FileInputSelectionClass = "ui-file-input__selection";
+/** Client-only: on the root while a file is dragged over its row. */
+export const FileDraggingAttribute = "data-ui-file-dragging";
+
+export const FlyoutClass = "ui-flyout";
+export const FlyoutAnchorClass = "ui-flyout__anchor";
+export const FlyoutNoBackdropCloseAttribute = "data-ui-flyout-no-backdrop-close";
+export const FlyoutNoEscapeCloseAttribute = "data-ui-flyout-no-escape-close";
+/** Client-only: the id a flyout's content takes when its trigger names it as what it controls. */
+export const FlyoutContentIdPrefix = "ui-flyout-content";
+
+export const GridSplitterClass = "ui-grid-splitter";
+export const ContainerClass = "ui-container";
+
+export const TextTypeSubtitleClass = "ui-text-type--subtitle";
+export const ButtonPrimaryClass = "ui-button--primary";
+/** Client-only: the image crop dialog the page builds, its parts, and its title's id. */
+export const ImageCropTitleId = "ui-image-crop-title";
+export const ImageCropFrameAttribute = "data-ui-image-crop-frame";
+export const ImageCropClass = "ui-image-crop";
+export const ImageCropPartAttribute = "data-ui-image-crop-part";
+export const ImageCropSurfaceClass = "ui-image-crop__surface";
+export const ImageCropTitleClass = "ui-image-crop__title";
+export const ImageCropStageClass = "ui-image-crop__stage";
+export const ImageCropCanvasClass = "ui-image-crop__canvas";
+export const ImageCropFrameClass = "ui-image-crop__frame";
+export const ImageCropZoomClass = "ui-image-crop__zoom";
+
+export const ImageInputClass = "ui-image-input";
+export const ImageInputMultipleClass = "ui-image-input--multiple";
+export const ImageInputNativeClass = "ui-image-input__native";
+export const ImageInputPictureClass = "ui-image-input__picture";
+export const ImageInputTextClass = "ui-image-input__text";
+export const ImageInputSelectionClass = "ui-image-input__selection";
+export const ImageInputSelectionsClass = "ui-image-input__selections";
+export const ImageInputTilesClass = "ui-image-input__tiles";
+/** Client-only: an image input's shelf as its engine draws it: the tiles, their remove buttons and progress, and the marks while files are dragged over or tiles are shown. */
+export const ImageInputTileClass = "ui-image-input__tile";
+export const ImageInputRemoveClass = "ui-image-input__remove";
+export const ImageInputProgressClass = "ui-image-input__progress";
+export const ImageDraggingAttribute = "data-ui-image-dragging";
+export const ImageTilesAttribute = "data-ui-image-tiles";
+/**
+ * Client-only: on the root while the file the viewer chose stands in for the controller's picture; while a drag is over it; while a
+ * square stands on its shelf.
+ */
+export const ImagePreviewAttribute = "data-ui-image-preview";
+
+// Client-only: on every rename field, whatever class its caller dresses it in: what an engine asks before it takes the field's Enter or Escape.
+export const RenameFieldAttribute = "data-ui-rename-field";
+
+// Client-only: on the rows a Ctrl+X took, until they are pasted or let go of: the stylesheet dims them.
+export const RowCutClass = "ui-row--cut";
+
+export const ItemsViewWrapClass = "ui-items-view--wrap";
+export const OrientationHorizontalClass = "ui-orientation--horizontal";
+/** Client-only: on the row being dragged among its siblings. */
+export const RowDraggingClass = "ui-row--dragging";
+
+export const TableClass = "ui-table";
+
+export const KeyValueActionClass = "ui-key-value-action";
+export const KeyValueActionValueClass = "ui-key-value-action__value";
+export const KeyValueActionEditableClass = "ui-key-value-action--editable";
+export const InputFilledClass = "ui-input--filled";
+export const InputOutlineClass = "ui-input--outline";
+export const InputGhostClass = "ui-input--ghost";
+export const InputUnderlineClass = "ui-input--underline";
+
+export const LanguageSwitcherLabelTextClass = "ui-language-switcher__label-text";
+export const LanguageSwitcherLabelTextCurrentClass = "ui-language-switcher__label-text--current";
+export const LanguageSwitcherChoiceClass = "ui-language-switcher__choice";
+export const LanguageSwitcherTriggerClass = "ui-language-switcher__trigger";
+export const LanguageSwitcherMenuClass = "ui-language-switcher__menu";
+// The page's language where the switcher does not offer it: shown only while the page is in it, and never a choice.
+export const LanguageSwitcherLabelTextPageClass = "ui-language-switcher__label-text--page";
+/** Client-only: a language switcher's mark while its list is open. */
+export const LanguageSwitcherOpenClass = "ui-language-switcher--open";
+
+export const TextTypeBodyClass = "ui-text-type--body";
+export const ButtonDangerClass = "ui-button--danger";
+/** Client-only: the leave question the page builds, its parts, and the ids its words take. */
+export const LeaveDialogKey = "ui-leave";
+export const LeavePartAttribute = "data-ui-leave-part";
+export const LeaveDialogClass = "ui-leave-dialog";
+export const LeaveTitleId = "ui-leave-title";
+export const LeaveMessageId = "ui-leave-message";
+export const LeaveDialogTitleClass = "ui-leave-dialog__title";
+export const LeaveDialogMessageClass = "ui-leave-dialog__message";
+
+export const TextTypeCaptionClass = "ui-text-type--caption";
+/** Client-only: the lightbox the page builds, its parts, and its title's id. */
+export const LightboxTitleId = "ui-lightbox-title";
+export const LightboxClass = "ui-lightbox";
+export const LightboxPartAttribute = "data-ui-lightbox-part";
+export const LightboxSurfaceClass = "ui-lightbox__surface";
+export const LightboxTitleClass = "ui-lightbox__title";
+export const LightboxCloseClass = "ui-lightbox__close";
+export const LightboxStageClass = "ui-lightbox__stage";
+export const LightboxNavClass = "ui-lightbox__nav";
+export const LightboxStepClass = "ui-lightbox__step";
+export const LightboxStepPreviousClass = "ui-lightbox__step--previous";
+export const LightboxStepNextClass = "ui-lightbox__step--next";
+export const LightboxCounterClass = "ui-lightbox__counter";
+export const LightboxCountRoomClass = "ui-lightbox__count-room";
+export const LightboxCountClass = "ui-lightbox__count";
+export const LightboxCaptionClass = "ui-lightbox__caption";
+export const LightboxFigureClass = "ui-lightbox__figure";
+export const LightboxPictureClass = "ui-lightbox__picture";
+/** Client-only: on the lightbox while it shows a set, which its arrows and counter walk; a single picture shows neither. */
+export const LightboxSetAttribute = "data-ui-lightbox-set";
+/** Client-only: a figure's place in the strip: `previous`, `current` or `next`, which the stylesheet sets a pitch apart. */
+export const LightboxSlotAttribute = "data-ui-lightbox-slot";
+/** Client-only: on the stage while the strip follows a finger or goes back under a picture that slid in: it moves at once, with no transition. */
+export const LightboxStillAttribute = "data-ui-lightbox-still";
+
+/** Client-only: the visually hidden live regions the page speaks to a screen reader through. */
+export const AnnouncerClass = "ui-announcer";
+
+/** Client-only: raised on the part a finger is held on once the hold is shown, with the time left until it opens the menu. */
+export const LongPressHoldEventName = "ui-long-press-hold";
+/** Client-only: raised where a shown hold ended: the menu it asked for opened, or the finger let go, moved on or became a scroll. */
+export const LongPressHoldEndEventName = "ui-long-press-hold-end";
+
+export const MenuHostClass = "ui-menu__host";
+export const MenuItemWrapperClass = "ui-menu__item";
+export const TextBodyClass = "ui-text__body";
+export const TextHeaderClass = "ui-text__header";
+export const MenuSubmenuClass = "ui-menu__submenu";
+
+export const SideRightClass = "ui-side--right";
+/** Client-only: on a submenu's popup while it opens as a flyout beside its entry. */
+export const MenuFlyoutAttribute = "data-ui-menu-flyout";
+// Client-only: on a menu once the reader has unfolded a section of it by hand: only then does a section slide open, never as the page arrives.
+export const MenuUnfoldedAttribute = "data-ui-menu-unfolded";
+
+export const MultiSelectCheckClass = "ui-multi-select__check";
+export const SelectValueInputClass = "ui-select__value-input";
+// MultiSelectComponentRenderer.CheckboxesClassName, beside `ui-multi-select`; never `ui-select`, so the select engine passes it by.
+export const MultiSelectCheckboxesClass = "ui-multi-select--checkboxes";
+
+export const ProgressClass = "ui-progress";
+export const ProgressLinearClass = "ui-progress--linear";
+export const ProgressTrackClass = "ui-progress__track";
+export const ProgressFillClass = "ui-progress__fill";
+/** Client-only: the bar the page draws across its top while a navigation is under way. */
+export const NavigationProgressClass = "ui-navigation-progress";
+
+/** Client-only: the toasts the notification engine draws, their host and parts, and the mark on the connection's own toast. */
+export const NotificationHostClass = "ui-notification-host";
+export const NotificationClass = "ui-notification";
+export const NotificationLeavingClass = "ui-notification--leaving";
+export const NotificationMessageClass = "ui-notification__message";
+export const NotificationTitleClass = "ui-notification__title";
+export const NotificationActionClass = "ui-notification__action";
+export const NotificationCloseClass = "ui-notification__close";
+export const NotificationConnectionClass = "ui-notification--connection";
+
+export const NumberInputClass = "ui-number-input";
+export const NumberInputFieldClass = "ui-number-input__field";
+export const NumberNoDecimalsAttribute = "data-ui-number-no-decimals";
+export const NumberNoNegativeAttribute = "data-ui-number-no-negative";
+export const NumberThousandsAttribute = "data-ui-number-thousands";
+export const NumberNoThousandsAttribute = "data-ui-number-no-thousands";
+export const NumberTrimZerosAttribute = "data-ui-number-trim-zeros";
+export const NumberStepAttribute = "data-ui-number-step";
+export const NumberMinAttribute = "data-ui-number-min";
+export const NumberMaxAttribute = "data-ui-number-max";
+export const NumberStepDirectionAttribute = "data-ui-number-step-direction";
+export const NumberInputRowClass = "ui-number-input__row";
+
+export const DialogAttribute = "data-ui-dialog";
+export const DialogModalAttribute = "data-ui-dialog-modal";
+export const DialogBackdropAttribute = "data-ui-dialog-backdrop";
+export const DialogCloseBackdropAttribute = "data-ui-dialog-close-backdrop";
+export const DialogCloseEscapeAttribute = "data-ui-dialog-close-escape";
+/** The edge a sheet stands against: "left", "right", "top" or "bottom"; none on a centred dialog. */
+export const DialogPlacementAttribute = "data-ui-dialog-placement";
+
+/** Client-only: the overlay scrollbars the engine draws over a scroller, their boxes and thumbs, and their shown and held marks. */
+export const OverlayScrollbarClass = "ui-overlay-scrollbar";
+export const OverlayScrollbarBoxClass = "ui-overlay-scrollbar__box";
+export const OverlayScrollbarThumbClass = "ui-overlay-scrollbar__thumb";
+export const OverlayScrollbarShownClass = "ui-overlay-scrollbar--shown";
+export const OverlayScrollbarThumbHeldClass = "ui-overlay-scrollbar__thumb--held";
+
+export const TextInputRowClass = "ui-text-input__row";
+export const TemporalInputRowClass = "ui-temporal-input__row";
+export const FieldBoxClass = "ui-field-box";
+
+/** Client-only: the id an opener takes when a popup is named by it. */
+export const PopupOpenerIdPrefix = "ui-popup-opener";
+/** Client-only: the id a field's caption takes when a popup the field opens is named by it. */
+export const PopupCaptionIdPrefix = "ui-popup-caption";
+
+export const DialogClass = "ui-dialog";
+export const DialogBackdropClass = "ui-dialog__backdrop";
+/** Client-only: the row of buttons at the foot of a dialog the page builds. */
+export const DialogActionsClass = "ui-dialog__actions";
+
+export const PagerClass = "ui-pager";
+export const PagerButtonClass = "ui-pager__button";
+export const PagerPagesClass = "ui-pager__pages";
+export const PagerRangeClass = "ui-pager__range";
+export const PagerSizeClass = "ui-pager__size";
+export const PagerSizeTriggerClass = "ui-pager__size-trigger";
+export const PagerSizeLabelClass = "ui-pager__size-label";
+export const PagerSizesClass = "ui-pager__sizes";
+export const PagerSizeChoiceClass = "ui-pager__size-choice";
+/** Client-only: a pager's page numbers, its gap between them and its size menu's open mark, as the pager engine draws them. */
+export const PagerNumberClass = "ui-pager__number";
+export const PagerGapClass = "ui-pager__gap";
+export const PagerSizeOpenClass = "ui-pager__size--open";
+
+export const PaneContainerClass = "ui-pane-container";
+export const PaneContainerPlaceClass = "ui-pane-container__place";
+export const PaneContainerPaneClass = "ui-pane-container__pane";
+export const PaneContainerGripClass = "ui-pane-container__grip";
+export const TextTypeDisplayClass = "ui-text-type--display";
+export const TextTypeTitleClass = "ui-text-type--title";
+/** Client-only: a pane container's marks while a pane is carried: the pane lifted, the place it would land at, the container moving, the pane near the pointer. */
+export const PaneLiftedAttribute = "data-ui-pane-lifted";
+export const PaneTargetAttribute = "data-ui-pane-target";
+export const PaneMovingAttribute = "data-ui-pane-moving";
+export const PaneNearAttribute = "data-ui-pane-near";
+// Client-only: on a lifted pane stood in the top layer (`raise`), for the stylesheet to take the popover's own box off it.
+export const PaneRaisedAttribute = "data-ui-pane-raised";
+
+/** Client-only: what `OpenPickerEffect` raises on a file field so its engine opens the native chooser. */
+export const OpenPickerEventName = "ui-open-picker";
+
+/**
+ * Client-only: a list's current entry, the keyboard's or the pointer's, marked outright: `:focus` fails in an unfocused window, and a
+ * search keeps its focus (`@ui-list-keyboard` frames it while it is not the pointer's).
+ */
+export const ActiveAttribute = "data-ui-active";
+
+/** Client-only: the scrim behind a popup shown as a bottom sheet, and the back row atop a sheet's submenu. */
+export const SheetScrimClass = "ui-sheet-scrim";
+export const SheetBackClass = "ui-sheet__back";
+export const SheetBackMarkClass = "ui-sheet__back-mark";
+/** Client-only: on a sheet a nested list stands over, which steps aside as the nested one slides in. */
+export const SheetCoveredAttribute = "data-ui-sheet-covered";
+// Client-only: on the veil once its sheets have gone under a press still going on: unseen, it takes the rest of that press.
+export const SheetScrimLeavingAttribute = "data-ui-sheet-scrim-leaving";
+
+export const TabItemCaptionClass = "ui-tab-item__caption";
+export const SplitButtonClass = "ui-split-button";
+export const SplitButtonMainClass = "ui-split-button__main";
+export const SplitButtonToggleClass = "ui-split-button__toggle";
+export const ActionClass = "ui-action";
+export const SelectOptionClass = "ui-select__option";
+export const ExpanderHeaderClass = "ui-expander__header";
+export const TabItemCloseClass = "ui-tab-item__close";
+/** Client-only: on a control while it is pressed and while a long press holds it; the rename field a tab's caption opens. */
+export const PressingClass = "ui-pressing";
+export const PressHeldClass = "ui-press-held";
+export const TabItemRenameClass = "ui-tab-item__rename";
+// Client-only: on a held part not positioned of its own while its wave stands on it: any component may own a menu, so the stylesheet cannot list them.
+export const PressPlacedClass = "ui-press-placed";
+
+/** Client-only: the wave: the pressed thing's frame and corners, cutting the ink's circle to them. */
+export const PressWaveClass = "ui-press-wave";
+/** Client-only: the circle that grows inside the wave. */
+export const PressWaveInkClass = "ui-press-wave__ink";
+
+export const RadioValueAttribute = "data-ui-radio-value";
+export const RadioGroupClass = "ui-radio-group";
+export const RadioGroupItemClass = "ui-radio-group__item";
+export const RadioGroupNameAttribute = "data-ui-radio-group-name";
+export const RadioBindValueIdAttribute = "data-ui-radio-bind-value-id";
+
+export const SliderInputClass = "ui-slider__input";
+export const SliderInputEndClass = "ui-slider__input--end";
+export const SliderValueClass = "ui-slider__value";
+export const SliderBubbleClass = "ui-slider__bubble";
+export const SliderTrackClass = "ui-slider__track";
+export const SliderThumbAnchorClass = "ui-slider__thumb-anchor";
+export const SliderClass = "ui-slider";
+export const SliderRangeClass = "ui-slider--range";
+/** Client-only: on a slider's input whose thumb the pointer holds. */
+export const SliderInputHeldClass = "ui-slider__input--held";
+
+/** Client-only: the ids a row, its name and a cell take when a host's cursor points at them. */
+export const RowNameIdPrefix = "ui-row-name";
+export const RowIdPrefix = "ui-row";
+export const CellIdPrefix = "ui-cell";
+/** Client-only: what a row pressed from the keyboard raises in place of a click: the event pipeline runs the row's click command for it. */
+export const RowPressEventName = "ui-row-press";
+
+export const BindSelectedKeysAttribute = "data-ui-bind-selected-keys";
+export const ItemsViewClass = "ui-items-view";
+
+/** The end-anchor contract, shared with the virtualization engine, which keeps its own host at the end the same way. */
+export const ScrollAnchorAttribute = "data-ui-scroll-anchor";
+
+export const SearchDebounceAttribute = "data-ui-search-debounce";
+export const SearchMinLengthAttribute = "data-ui-search-min-length";
+export const SearchManualAttribute = "data-ui-search-manual";
+export const SearchInputClass = "ui-search__input";
+export const SearchFieldClass = "ui-search__field";
+// On the field of a search whose list is the server's answer to `OnSearch` (SearchComponentRenderer).
+export const SearchAnsweredAttribute = "data-ui-search-answered";
+// The listbox the options stand in: the popup itself in a select, the part under the field in a search's.
+export const SelectListClass = "ui-select__list";
+// Client-only: on the field's box while a query is past its moment unanswered: the glyph in it is the loading ring (ui-search.less).
+export const SearchWaitingAttribute = "data-ui-search-waiting";
+
+export const SelectValueAttribute = "data-ui-select-value";
+export const SelectTriggerContentClass = "ui-select__trigger-content";
+export const SelectPlaceholderClass = "ui-select__placeholder";
+export const SelectPopupClass = "ui-select__popup";
+export const SelectClearAttribute = "data-ui-select-clear";
+export const MultiSelectChipsClass = "ui-multi-select__chips";
+export const MultiSelectChipClass = "ui-multi-select__chip";
+export const MultiSelectChipLabelClass = "ui-multi-select__chip-label";
+export const MultiSelectChipRemoveClass = "ui-multi-select__chip-remove";
+export const TextBadgeClass = "ui-text__badge";
+export const BadgeClass = "ui-badge";
+export const BadgeIconClass = "ui-badge__icon";
+export const BadgeTitleClass = "ui-badge__title";
+export const TextTypeOverlineClass = "ui-text-type--overline";
+export const MultiSelectEntryClass = "ui-multi-select__entry";
+export const BadgeVariantInfoClass = "ui-badge-variant--info";
+/** The box an icon value is drawn in, the mark that says a glyph is there — `.ui-icon::before` stays hidden without it — and the picture's. */
+export const IconClass = "ui-icon";
+// Where the list opens when the author said so; below from the start edge otherwise.
+export const SelectPlacementAttribute = "data-ui-select-placement";
+// What the render leaves on the content it drew, naming the option it drew — read once and taken off.
+export const SelectContentAttribute = "data-ui-select-content";
+// On a select, multi-select or search that shows its clear (ShowClearButton).
+export const ClearableAttribute = "data-ui-clearable";
+// A select whose open list carries a text field over its options; the field holds the keyboard while the list is open.
+export const SearchClass = "ui-search";
+// A multi-select wears the select's shell: its value is the JSON list on the root's chosen-keys attribute, shown as chips.
+export const MultiSelectClass = "ui-multi-select";
+// A multi-select drawn as badges (UIMultiSelectVariant.Badges): each chip is a copy of the badge its option's row draws, its remove inside it.
+export const BadgeSelectClass = "ui-badge-select";
+// On a chip, the key of the option it stands for.
+export const SelectChipAttribute = "data-ui-select-chip";
+// On the chips' host while a chip stands, as the render writes it: the field's clear shows by it.
+export const SelectChipsAttribute = "data-ui-select-chips";
+// On a multi-select's root that takes the reader's own text: its entry after the chips is the control the reader types in.
+export const SelectFreeTextAttribute = "data-ui-select-free-text";
+// A field's icon before its text, which a select's trigger draws the chosen option after.
+export const InputAffixIconPrefixClass = "ui-input__affix-icon--prefix";
+// On a free-text multi-select whose first suggestion Enter takes, marked as the reader types: "first-suggestion".
+export const SelectTagEntryAttribute = "data-ui-select-tag-entry";
+/** Client-only: a select's mark while its list is open, and the ids its list and options take. */
+export const SelectOpenClass = "ui-select--open";
+export const SelectListIdPrefix = "ui-select-list";
+export const SelectOptionIdPrefix = "ui-select-option";
+// Client-only: on the list while its current option is the keyboard's rather than the pointer's: the options' wash then moves without a fade.
+export const ListKeyboardAttribute = "data-ui-list-keyboard";
+
+/** Client-only: on a sheet while a finger or the pointer drags it: its transform follows at once, with no transition. */
+export const SheetDraggingAttribute = "data-ui-sheet-dragging";
+
+export const MenuItemShortcutClass = "ui-menu-item__shortcut";
+
+export const SideLeftClass = "ui-side--left";
+
+export const SplitButtonMenuClass = "ui-split-button__menu";
+/** Client-only: a split button's mark while its menu is open. */
+export const SplitButtonOpenClass = "ui-split-button--open";
+
+export const TabOverflowClass = "ui-tab-overflow";
+/** Client-only: the menu a strip's overflow button opens, its entries, and their open and current marks. */
+export const TabOverflowMenuClass = "ui-tab-overflow__menu";
+export const TabOverflowMenuOpenClass = "ui-tab-overflow__menu--open";
+export const TabOverflowEntryClass = "ui-tab-overflow__entry";
+export const TabOverflowEntryCurrentClass = "ui-tab-overflow__entry--current";
+
+export const SurfaceClickableClass = "ui-surface--clickable";
+export const SurfaceClass = "ui-surface";
+export const CardClass = "ui-card";
+
+/** A tab's own element: what the strip's engine reads and the tab's events are raised on. */
+export const TabItemClass = "ui-tab-item";
+
+/** Client-only: on a caption's title: its own words, which the stylesheet lays out bold and unseen under it (`.ui-tab-caption-reserve()`). */
+export const CaptionTextAttribute = "data-ui-caption-text";
+
+export const TableReorderableClass = "ui-table--reorderable";
+export const ScrollXAutoClass = "ui-scroll-x--auto";
+export const ScrollXAlwaysClass = "ui-scroll-x--always";
+export const TableHeaderCellClass = "ui-table__header-cell";
+export const TableHeaderCellPinnedClass = "ui-table__header-cell--pinned";
+export const TableHostClass = "ui-table__host";
+/** Client-only: on a table's cell in its row's last column. */
+export const TableCellLastAttribute = "data-ui-table-cell-last";
+/** Client-only: on a cell of a column past the styled ones: hidden, or the one ending the row. */
+export const TableCellHiddenAttribute = "data-ui-table-cell-hidden";
+
+export const TabsClass = "ui-tabs";
+export const TabCaptionClass = "ui-tab-caption";
+export const TabCaptionSelectedClass = "ui-tab-caption--selected";
+export const TabsNoOverflowClass = "ui-tabs--no-overflow";
+export const TabsStripClass = "ui-tabs__strip";
+// The band a strip with actions at its end stands in (TabsComponentRenderer), the strip still the tablist.
+export const TabsBandClass = "ui-tabs__band";
+/** Client-only: a tab strip's mark while its captions overflow, and on each caption folded into its overflow menu. */
+export const TabCaptionOverflowedClass = "ui-tab-caption--overflowed";
+export const TabsOverflowingClass = "ui-tabs--overflowing";
+
+export const TabsViewClass = "ui-tabs-view";
+export const TabItemLabelClass = "ui-tab-item__label";
+export const TabItemPinClass = "ui-tab-item__pin";
+export const TabsViewNoOverflowClass = "ui-tabs-view--no-overflow";
+export const TabItemPageClass = "ui-tab-item__page";
+export const TabItemSelectedClass = "ui-tab-item--selected";
+export const TabsViewTablistClass = "ui-tabs-view__tablist";
+/** Client-only: a tabs view's marks while its captions overflow, on each folded caption and the dragged tab; the ids a tab and its page take. */
+export const TabItemDraggingClass = "ui-tab-item--dragging";
+export const TabItemCaptionOverflowedClass = "ui-tab-item__caption--overflowed";
+export const TabsViewOverflowingClass = "ui-tabs-view--overflowing";
+export const TabIdPrefix = "ui-tab";
+export const TabPanelIdPrefix = "ui-tab-panel";
+
+/** Client-only: a date picker's day and month cells, as the calendar engine draws them. */
+export const TemporalInputDayClass = "ui-temporal-input__day";
+export const TemporalInputMonthClass = "ui-temporal-input__month";
+
+export const TemporalInputClass = "ui-temporal-input";
+export const TemporalInputValueInputClass = "ui-temporal-input__value-input";
+/** A calendar drawn in place (`CalendarComponent`): its root carries the attributes a temporal input's does, and its grid is the popup's. */
+export const CalendarClass = "ui-calendar";
+/** The period's end, beside the start's hidden input; the two are told apart by the end attribute below. */
+export const TemporalInputEndValueInputClass = "ui-temporal-input__end-value-input";
+
+export const TemporalInputFieldClass = "ui-temporal-input__field";
+export const TemporalInputPopupClass = "ui-temporal-input__popup";
+/** Where a calendar drawn in place draws its grid, as a temporal input draws it into its popup. */
+export const CalendarBodyClass = "ui-calendar__body";
+/** Client-only: a temporal input's mark while its picker is open, and the clock's columns and cells. */
+export const TemporalInputOpenClass = "ui-temporal-input--open";
+export const TemporalInputTimeCellClass = "ui-temporal-input__time-cell";
+export const TemporalInputTimeColumnClass = "ui-temporal-input__time-column";
+
+export const TextAreaGrowAttribute = "data-ui-text-area-grow";
+export const TextAreaFieldClass = "ui-text-area__field";
+
+export const TextFoldToggleClass = "ui-text__fold-toggle";
+
+export const ThemeSwitcherChoiceClass = "ui-theme-switcher__choice";
+export const ThemeSwitcherMenuClass = "ui-theme-switcher__menu";
+/** Client-only: a theme switcher's mark while its list is open. */
+export const ThemeSwitcherOpenClass = "ui-theme-switcher--open";
+
+export const TemporalInputSegmentsClass = "ui-temporal-input__segments";
+/** Client-only: a time field's segments as the segment engine draws them, the literals between them, and the mark on an empty one. */
+export const TemporalInputSegmentClass = "ui-temporal-input__segment";
+export const TemporalInputSegmentLiteralClass = "ui-temporal-input__segment-literal";
+export const TemporalInputSegmentEmptyClass = "ui-temporal-input__segment--empty";
+
+/** Client-only: the tooltip's shown mark, and the plain words it read off an element for a copy. */
+export const TooltipVisibleClass = "ui-tooltip--visible";
+export const TooltipTextAttribute = "data-ui-tooltip-text";
+/** Client-only: the page's one tooltip, which takes its class as its id too. */
+export const TooltipClass = "ui-tooltip";
+// Client-only: words carrying a link, which the pointer may press: any other tooltip lets a press through to the control under it.
+export const TooltipLinkedClass = "ui-tooltip--linked";
+
+export const TreeRowFoldedClass = "ui-tree__row--folded";
+export const TreeNodeTextClass = "ui-tree-node__text";
+export const TreeNodeToggleClass = "ui-tree-node__toggle";
+/** Client-only: a tree's dragged row, the row standing for children being asked for and its ring, and a node's rename field. */
+export const TreeRowDraggingClass = "ui-tree__row--dragging";
+export const TreeLoadingClass = "ui-tree__loading";
+export const TreeLoadingRingClass = "ui-tree__loading-ring";
+export const TreeNodeRenameClass = "ui-tree-node__rename";
+// Client-only: raised on a row once the command its unfold raised has settled, whatever came of it (`TreeUnfoldEvent`).
+export const UnfoldSettledEventName = "ui-tree-unfold-settled";
+
+export const ValidationWarningClass = "ui-validation--warning";
+export const ValidationInfoClass = "ui-validation--info";
+/** Client-only: a validation message drawn as a mark, and the mark beside a field mirroring its severity. */
+export const ValidationMessageMarkerClass = "ui-validation-message--marker";
+export const ValidationMarkClass = "ui-validation-mark";
+
+export const CheckboxInputClass = "ui-checkbox__input";
+export const CheckboxBoxClass = "ui-checkbox__box";
+
+/** Client-only: on a child an engine puts into a host that stands for no item (a tree's row of waiting): a collection index does not count it. */
+export const NonItemAttribute = "data-ui-non-item";
+
+/** Client-only: raised on a tree's host when its rules or their sources changed; the tree engine answers with a walk. */
+export const TreeRulesEventName = "ui-tree-rules";
+
+export const TemplateAttribute = "data-ui-template";
+
+export const ItemsViewStackClass = "ui-items-view--stack";
+
+export const RadioGroupInputClass = "ui-radio-group__input";
+export const RadioGroupDotClass = "ui-radio-group__dot";
+
+export const TableNoHeaderClass = "ui-table--no-header";
+export const ItemsViewHostClass = "ui-items-view__host";
+
+export const MetadataAttribute = "data-ui-metadata";
+
+export const IconAttribute = "data-ui-icon";
+/** The class an untinted picture wears: painted as it is. */
+export const IconImageClass = "ui-icon--image";
+/** The class a tinted picture wears: the one form `.ui-icon::before` paints, a mask filled with the text colour. */
+export const IconMaskClass = "ui-icon--mask";
+
+export const TextFoldClass = "ui-text__fold";
+export const TextFoldContentClass = "ui-text__fold-content";
+export const TextCodeClass = "ui-text__code";
+export const TextLinkClass = "ui-text__link";
+export const TextIconInlineClass = "ui-text__icon-inline";
+
+// Client-only: on a rail kept a drawer while it is drawn as a list there, so the rail's class can be given back: its tiers, where it has them, say so.
+export const MenuRailListAttribute = "data-ui-menu-rail-list";
+
+/** Client-only: the box's words for the theme the page is set to. */
+export const ThemeSwitcherLabelTextCurrentClass = "ui-theme-switcher__label-text--current";
+
+export const IconCircleClass = "ui-icon--circle";
+export const BadgeColoredClass = "ui-badge--colored";
+export const ExpanderQuietClass = "ui-expander--quiet";
+export const TextMaxLinesClass = "ui-text--max-lines";
+export const TextAreaGrowClass = "ui-text-area--grow";
+
+export const StringsAttribute = "data-ui-strings";
+
+export const HydrationAttribute = "data-ui-hydration";
+
+export const NavigationAttribute = "data-ui-navigation";
+
+/** `IconValueRenderer.StandInClassName`. */
+export const IconStandInClass = "ui-icon-stand-in";
+
+export const ClearAttribute = "data-ui-clear";
+// The field a clear empties where the bound value is not what the reader edits: a date's text, which its engine reads into the value.
+export const ClearTargetAttribute = "data-ui-clear-target";
+
+const CheckboxClass = "ui-checkbox";
+const SmallInputClass = "ui-input--small";
+const MenuItemValueClass = "ui-menu-item__value";
+const TextInputActionClass = "ui-text-input__action";
+const BadgeDangerClass = "ui-badge-variant--danger";
+const BadgeWarningClass = "ui-badge-variant--warning";
+const BadgeSurfaceClass = "ui-badge-variant--surface";
+
+export const StepCompletedAttribute = "data-ui-step-completed";
+
+export const StepsStackedAttribute = "data-ui-steps-stacked";
+
+export const StepsClass = "ui-steps";
+
+export const StepsItemClass = "ui-steps__item";
+
+export const TriggerClickAttribute = "data-ui-trigger-click";
+
+export const TriggerTokenHoveredAttribute = "data-ui-trigger-hovered";
+
+export const TriggerLayerClass = "ui-text-trigger__layer";
+
+export const TriggerTokenClass = "ui-text-trigger__token";
 
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {
@@ -643,7 +1400,24 @@ export const pluginDomNames = {
     itemsQueryKind: ItemsQueryValueKind,
     menuItemClass: MenuItemClass,
     menuItemKind: MenuItemKindAttribute,
-    menuItemCheckedClass: MenuItemCheckedClass
+    menuItemCheckedClass: MenuItemCheckedClass,
+    menuItemValueClass: MenuItemValueClass,
+    menuOpeningEvent: ContextMenuOpeningEventName,
+    collapsed: CollapsedAttribute,
+    collapseToggle: CollapseToggleAttribute,
+    checkboxClass: CheckboxClass,
+    checkboxInputClass: CheckboxInputClass,
+    checkboxBoxClass: CheckboxBoxClass,
+    smallInputClass: SmallInputClass,
+    pictureSelectionClass: ImageInputSelectionClass,
+    pictureTextClass: ImageInputTextClass,
+    textInputActionClass: TextInputActionClass,
+    badgeClass: BadgeClass,
+    badgeTitleClass: BadgeTitleClass,
+    badgeTitle: BadgeTitleAttribute,
+    badgeDangerClass: BadgeDangerClass,
+    badgeWarningClass: BadgeWarningClass,
+    badgeSurfaceClass: BadgeSurfaceClass
 } as const;
 
 /** A value as the inside of a quoted attribute selector: a quote, a backslash and a control character escaped. */

@@ -37,7 +37,7 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
     /// <summary>
     /// Gets the named template variants, untyped.
     /// </summary>
-    protected IReadOnlyDictionary<string, IVisualComponent> Templates => _templates;
+    protected virtual IReadOnlyDictionary<string, IVisualComponent> Templates => _templates;
 
     /// <inheritdoc/>
     public IVisualComponent? EmptyTemplate { get; private set; }
@@ -55,7 +55,7 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
     public bool HasTemplate => Template is not null;
 
     /// <inheritdoc/>
-    public bool HasTemplates => _templates.Count > 0;
+    public bool HasTemplates => Templates.Count > 0;
 
     /// <summary>
     /// Declares a composite slot: the base variant key every row wears unless its <paramref name="keyPropertyName"/> names a
@@ -130,6 +130,17 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
         _templates[key] = Accept(visualTemplate);
         WriteTemplateEvents(key, visualTemplate);
 
+        return Self;
+    }
+
+    /// <summary>
+    /// Removes a named template variant when present.
+    /// </summary>
+    protected TComponent RemoveTemplateVariantCore(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        _ = _templates.Remove(key);
         return Self;
     }
 

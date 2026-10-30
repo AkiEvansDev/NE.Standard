@@ -164,6 +164,9 @@ internal sealed partial class TextInputController() : DemoStandardController
     [RecursiveMember]
     public partial TextInputLabelsGroupContext LabelsGroup { get; set; } = new();
 
+    [RecursiveMember]
+    public partial DemoGroupContext TriggersGroup { get; set; } = new();
+
     [UICommand]
     public void AddLabel()
         => LabelsGroup.AddLabel();
@@ -179,4 +182,8 @@ internal sealed partial class TextInputController() : DemoStandardController
     [UICommand]
     public void SaveRelease()
         => LabelsGroup.Save();
+
+    [UICommand]
+    public void ClickTriggerToken(string trigger, string key)
+        => TriggersGroup.LogEvent($"{trigger}{key} clicked");
 }

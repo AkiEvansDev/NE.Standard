@@ -30,7 +30,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/inputs/date-input";
     protected override string Header => "demo.inputs.date-input.header";
     protected override string HeaderDescription => "demo.inputs.date-input.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/values", "demo.nav.mechanisms.values");
+    protected override (string Route, string Title)? ComposedIn => ("/mechanisms/values", "demo.nav.mechanisms.values");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(360,
@@ -42,25 +42,26 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     private static DateInputComponent Bind(DateInputComponent input)
         => input
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(DateValueGroupContext.Value)}")
-            .BindMin($"{ValueGroup}.{nameof(DateValueGroupContext.Min)}")
-            .BindMax($"{ValueGroup}.{nameof(DateValueGroupContext.Max)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(DateValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(DateValueGroupContext.Size)}")
-            .BindDisplayFormat($"{FieldGroup}.{nameof(TemporalFieldGroupContext.DisplayFormat)}")
-            .BindAppearance($"{FieldGroup}.{nameof(TemporalFieldGroupContext.Appearance)}")
-            .BindPrefixIcon($"{FieldGroup}.{nameof(TemporalFieldGroupContext.PrefixIcon)}")
-            .BindSuffixIcon($"{FieldGroup}.{nameof(TemporalFieldGroupContext.SuffixIcon)}")
+            .BindValue<DateInputController>(static x => x.ValueGroup.Value)
+            .BindMin<DateInputController>(static x => x.ValueGroup.Min)
+            .BindMax<DateInputController>(static x => x.ValueGroup.Max)
+            .BindIsReadOnly<DateInputController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<DateInputController>(static x => x.ValueGroup.Size)
+            .BindDisplayFormat<DateInputController>(static x => x.FieldGroup.DisplayFormat)
+            .BindAppearance<DateInputController>(static x => x.FieldGroup.Appearance)
+            .BindPrefixIcon<DateInputController>(static x => x.FieldGroup.PrefixIcon)
+            .BindSuffixIcon<DateInputController>(static x => x.FieldGroup.SuffixIcon)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
-            .BindEndValue($"{ValueGroup}.{nameof(DateValueGroupContext.EndValue)}")
+            .BindEndValue<DateInputController>(static x => x.ValueGroup.EndValue)
+            .BindMinDistance<DateInputController>(static x => x.ValueGroup.MinDistance)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value", note: "EndValue and MinDistance are the period's: an end nearer the other than the distance is not on offer."),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
             DemoUI.CreateOptionSection(ContentGroup, "Content"),
             DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
@@ -75,7 +76,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateExample("Where it is used",
+        return DemoUI.CreateExample("Single date & date range",
             UILayout.Stack(16)
                 .AddChild(new DateInputComponent()
                     .SetTitle("Reporting period")
@@ -89,8 +90,8 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
                 .AddChild(new DateInputComponent()
                     .SetTitle("Release date")
                     .SetValue(Release)
-                    .SetBadgeText("frozen")
-                    .SetBadgeStyle(UIBadgeType.Warning)
+                    .SetBadgeTitle("frozen")
+                    .SetBadgeVariant(UIBadgeVariant.Warning)
                 )
                 .AddChild(new DateInputComponent()
                     .SetTitle("Snapshots are kept until")
@@ -106,7 +107,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFormatGroup()
     {
-        return DemoUI.CreateExample("How it is written down",
+        return DemoUI.CreateExample("Display formats",
             UILayout.Stack(16)
                 .AddChild(new DateInputComponent()
                     .SetTitle("Unset — yyyy-MM-dd")
@@ -131,7 +132,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCalendarGroup()
     {
-        return DemoUI.CreateExample("The calendar it opens",
+        return DemoUI.CreateExample("Calendar bounds & week start",
             // Three to a row at the page's width, as the language group's columns are.
             UILayout.Row(24)
                 .AddChild(new DateInputComponent()
@@ -167,7 +168,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLanguageGroup()
     {
-        return DemoUI.CreateExample("In the page's language",
+        return DemoUI.CreateExample("Culture-aware month & day names",
             // Three to a row at the page's width: at 320 a column each, the third wrapped onto a row alone.
             UILayout.Row(24)
                 .AddChild(UILayout.Stack(16)

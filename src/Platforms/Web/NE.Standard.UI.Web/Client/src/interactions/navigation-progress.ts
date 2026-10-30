@@ -5,6 +5,7 @@
 // page nothing in a browser without the Navigation API.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
+import { NavigationProgressClass, ProgressClass, ProgressFillClass, ProgressLinearClass, ProgressTrackClass } from "../addressing/dom-attributes.ts";
 import { leaveTarget } from "./leave-guard.ts";
 
 /** How long a load may take unseen. */
@@ -12,8 +13,6 @@ const ShownAfterMilliseconds = 200;
 
 /** How long the bar stands for a load no page has answered. */
 const GivenUpAfterMilliseconds = 10_000;
-
-const ProgressClass = "ui-navigation-progress";
 
 /** What the bar reaches of the window: its address, where presses and the page's comings and goings are heard, and its timers. */
 type ProgressWindow = {
@@ -128,11 +127,11 @@ function createBar(): HTMLElement {
     const track = document.createElement("span");
     const fill = document.createElement("span");
 
-    bar.className = `${ProgressClass} ui-progress ui-progress--linear`;
+    bar.className = `${NavigationProgressClass} ${ProgressClass} ${ProgressLinearClass}`;
     // The browser says a load is under way itself; the bar is for the eye.
     bar.setAttribute("aria-hidden", "true");
-    track.className = "ui-progress__track";
-    fill.className = "ui-progress__fill";
+    track.className = ProgressTrackClass;
+    fill.className = ProgressFillClass;
     track.append(fill);
     bar.append(track);
 

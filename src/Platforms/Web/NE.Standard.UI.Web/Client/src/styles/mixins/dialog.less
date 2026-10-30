@@ -7,16 +7,16 @@
     background: var(--ui-color-overlay);
 }
 
-// A dialog's panel: the raised ground and what stands on it — a field's fill, muted ink, the ground a part cut out of it paints, a
+// A dialog's panel: the surface ground and what stands on it — a field's fill, muted ink, the ground a part cut out of it paints, a
 // popup opened in it lifted once more — for the framework's dialog and a package's own <dialog> alike, so the two are one ground.
 .ui-dialog-look() {
     border-radius: var(--ui-radius-card);
-    background: var(--ui-surface-raised);
+    background: var(--ui-color-surface);
     color: var(--ui-color-on-surface);
     --ui-faint-base: initial;
-    --ui-ground: var(--ui-surface-raised);
-    --ui-surface-fill: var(--ui-surface-raised);
-    .ui-popup-ground-lifted(var(--ui-surface-raised));
+    --ui-ground: var(--ui-color-surface);
+    --ui-surface-fill: var(--ui-color-surface);
+    .ui-popup-ground-lifted(var(--ui-color-surface));
     .ui-elevation-4();
 }
 

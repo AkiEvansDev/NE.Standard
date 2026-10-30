@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
@@ -20,25 +19,21 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 [UIComponentPropertyDefault(nameof(ITextBaseComponent.IconColor), nameof(DefaultIconColor))]
 [UIComponentPropertyDefault(nameof(ITextBaseComponent.TitleType), nameof(DefaultTitleType))]
 [UIComponentPropertyDefault(nameof(ITextBaseComponent.BadgePlacement), nameof(DefaultBadgePlacement))]
-public abstract partial class InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate> : GroupedItemsComponentBase<TComponent, TItem, TTemplate>, IInputComponent, ITextBaseComponent, IAccessibleNameComponent, ICaptionRowComponent
+[UIComponentPropertyDefault(nameof(VerticalAlignment), nameof(DefaultVerticalAlignment))]
+public abstract partial class InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate>(string? id = null) : GroupedItemsComponentBase<TComponent, TItem, TTemplate>(id), IInputComponent, ITextBaseComponent, IAccessibleNameComponent, ICaptionRowComponent
     where TComponent : InputTemplatedComponentBase<TComponent, TItem, TValue, TTemplate>, IUIComponentDefinition
     where TItem : class
     where TTemplate : class, IVisualComponent
 {
     private readonly List<UIValidationRule> _validations = [];
 
-    // A field's caption differs from a text's on these three, the same in InputComponentBase and InputTemplatedComponentBase.
-    private static readonly UIThemeColor DefaultIconColor = UIThemeColor.FromStyle(UIColorStyle.Primary);
+    // A field's caption defaults, the same in InputComponentBase and InputTemplatedComponentBase.
+    private static readonly UIThemeColor DefaultIconColor = UIThemeColor.Default;
     private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Caption;
     private const UITextBadgePlacement DefaultBadgePlacement = UITextBadgePlacement.Trailing;
 
-    /// <summary>
-    /// Initializes a field centred in its track, as <see cref="InputComponentBase{TComponent, TValue}"/> does.
-    /// </summary>
-    protected InputTemplatedComponentBase(string? id = null) : base(id)
-    {
-        VerticalAlignment = UIAlignment.Center;
-    }
+    // Centers the field in its track, as InputComponentBase does.
+    private static readonly UIResponsive<UIAlignment> DefaultVerticalAlignment = UIAlignment.Center;
 
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IInputComponent), BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource | UIBindingCapabilities.SubmitBufferedTargetToSource, DefaultBindingMode = UIBindingMode.TwoWay)]
@@ -57,5 +52,5 @@ public abstract partial class InputTemplatedComponentBase<TComponent, TItem, TVa
     public void AddValidation(UIValidationRule rule) => _validations.Add(rule);
 
     /// <inheritdoc/>
-    public virtual UIInputSize? CaptionRowBox(UIResponsiveTier tier) => InputCaptionRow.Box(this, tier);
+    public virtual UISize? CaptionRowBox(UIResponsiveTier tier) => InputCaptionRow.Box(this, tier);
 }

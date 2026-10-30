@@ -6,8 +6,7 @@ namespace NE.Standard.UI.Primitives.Styling;
 public enum UIInputAppearance
 {
     /// <summary>
-    /// One fill and a line under it: the field reads as the surface one level above the page it sits on, and the line, in the
-    /// theme's mark, reads 3:1 against the page.
+    /// The elevated field ground with a subtle border at rest and a full-perimeter focus contour: the default input appearance.
     /// </summary>
     Filled = 0,
 
@@ -17,19 +16,13 @@ public enum UIInputAppearance
     Outline = 1,
 
     /// <summary>
-    /// No fill, and a single rule under the text — what an edit-in-place field wants.
+    /// No fill, and a single rule under the text — what an edit-in-place or dense node field wants.
     /// </summary>
     Underline = 2,
 
     /// <summary>
-    /// No box until touched: the text sits on whatever is behind it, and a wash under it shows it is being edited. Tighter than
-    /// the others, for a field in a list row.
+    /// No box at rest: looks like plain text, reveals a hover wash on pointer hover, keeps the hover wash while focused, and steps
+    /// text brightness up when hovered while focused.
     /// </summary>
     Ghost = 3,
-
-    /// <summary>
-    /// The fill alone, no line: for a field something else already frames — a card's separators, a node on a canvas — where
-    /// the line would only add weight.
-    /// </summary>
-    Tonal = 4,
 }

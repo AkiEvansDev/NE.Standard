@@ -1,8 +1,5 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
-import {
-    ActionBarClass, ContextMenuOwnerAttribute, PointerFocusAttribute, TooltipAttribute, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPlainAttribute as PlainAttribute,
-    TooltipPressAttribute as PressAttribute, TooltipSeverityAttribute as SeverityAttribute
-} from "../addressing/dom-attributes.ts";
+import { ActionBarClass, ContextMenuOwnerAttribute, PointerFocusAttribute, TooltipAttribute, TooltipClass, TooltipLinkedClass, TooltipMarkAttribute as MarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPlainAttribute as PlainAttribute, TooltipPressAttribute as PressAttribute, TooltipSeverityAttribute as SeverityAttribute, TooltipTextAttribute, TooltipVisibleClass } from "../addressing/dom-attributes.ts";
 import { applyInlineMarkup, escapeInlineMarkup, inlineMarkupToPlainText } from "../rendering/inline-markup.ts";
 import type { AnchoredPopupPlacement } from "./anchored-popup.ts";
 import { carryPopupGround, isAnchoredPopupPlacement, placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
@@ -13,13 +10,9 @@ import { LongPress } from "./long-press.ts";
 import { onTierChange } from "../rendering/responsive-tier.ts";
 
 // The library's own tooltip, in place of the browser's `title`: one floating element shared by the whole page.
-
 // A control speaking through a mark inside it (a validation dot, `data-ui-tooltip-mark`) shows the mark's tooltip, drawn against the mark.
-const TooltipClass = "ui-tooltip";
-const TooltipId = "ui-tooltip";
-const VisibleClass = "ui-tooltip--visible";
-// Words carrying a link, which the pointer may press: any other tooltip lets a press through to the control under it.
-const LinkedClass = "ui-tooltip--linked";
+
+const TooltipId = TooltipClass;
 // A control's own popup trigger while its list or panel is open; a disclosure that is merely expanded names no popup.
 const OpenSelector = "[aria-haspopup][aria-expanded=\"true\"]";
 // What takes a press for itself: a link or a button inside the part a mark speaks for keeps its own press.
@@ -415,14 +408,14 @@ function show(target: Element, words?: string): void {
 
     // Nothing in a tooltip can be pressed, so a fold in it is written open.
     applyInlineMarkup(element, text, { staticFolds: true });
-    element.classList.toggle(LinkedClass, element.querySelector("a[href]") !== null);
-    element.classList.add(VisibleClass);
+    element.classList.toggle(TooltipLinkedClass, element.querySelector("a[href]") !== null);
+    element.classList.add(TooltipVisibleClass);
 
     anchor = target;
 
     // The control names its tooltip; the element is aria-hidden, so the text is announced once, from the control.
     describe(describedElement(target));
-    element.setAttribute("data-ui-tooltip-text", inlineMarkupToPlainText(text));
+    element.setAttribute(TooltipTextAttribute, inlineMarkupToPlainText(text));
     wearSeverity(element, target.getAttribute(SeverityAttribute));
 
     carryPopupGround(target, element);
@@ -604,7 +597,7 @@ function hide(immediate: boolean): void {
         orphanWatch?.disconnect();
 
         if (tooltip !== null) {
-            tooltip.classList.remove(VisibleClass);
+            tooltip.classList.remove(TooltipVisibleClass);
             releaseAnchoredPopup(tooltip);
         }
 

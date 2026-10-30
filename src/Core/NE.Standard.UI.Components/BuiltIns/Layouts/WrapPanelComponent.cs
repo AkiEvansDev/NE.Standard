@@ -9,12 +9,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// <summary>A layout container that flows children left to right, wrapping onto additional lines as needed.</summary>
 /// <remarks>
 /// A child takes its content's width, or a placement's span of the 24-column grid instead (a span of 6 fits four to a line); with
-/// <see cref="ItemMinWidth"/> every child takes one of the even columns instead. <c>Spacing</c> is the gap between children in a line.
+/// <c>ItemMinWidth</c> every child takes one of the even columns instead. <c>Spacing</c> is the gap between children in a line.
 /// </remarks>
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 [UIComponentPropertyBlock(typeof(ISpacingComponent))]
+[UIComponentPropertyBlock(typeof(IEvenColumnsComponent))]
 [UIComponentPropertyDefault(nameof(ISpacingComponent.Spacing), nameof(DefaultSpacing))]
-public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent, ISpacingComponent, ICaptionRowComponent
+public abstract partial class WrapPanelComponent<T>(string? id = null) : ContainerComponentBase<T>(id), IOverflowComponent, ISpacingComponent, IEvenColumnsComponent, ICaptionRowComponent
     where T : WrapPanelComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<double> DefaultSpacing = 0d;
@@ -25,16 +26,8 @@ public abstract partial class WrapPanelComponent<T>(string? id = null) : Contain
     [UIComponentProperty(DefaultValue = null)]
     public UIResponsive<double>? LineSpacing { get; set; }
 
-    /// <summary>
-    /// Gets or sets the narrowest a child may be, in pixels: set, the children stand in even columns as many to a line as fit at that
-    /// width, each line's columns shared out equally; unset, each child takes its content's width or its span.
-    /// </summary>
-    /// <remarks>Authoring-only: how a set of controls is laid out is decided once by the view.</remarks>
-    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
-    public UIResponsive<double>? ItemMinWidth { get; set; }
-
     /// <summary>A caption row where any child draws one: the children run across.</summary>
-    public UIInputSize? CaptionRowBox(UIResponsiveTier tier) => UIFieldBoxes.FirstCaptionRowBox(Children, tier);
+    public UISize? CaptionRowBox(UIResponsiveTier tier) => UIFieldBoxes.FirstCaptionRowBox(Children, tier);
 }
 
 /// <summary>

@@ -1,23 +1,21 @@
 // Which rows of a host are chosen and how a gesture changes that, by the file manager's rules (Ctrl adds or takes one, Shift takes
-// the range to the anchor) — for the items view, the table and the tree, by click and key alike.
+// the range to the anchor) — for the items view, the table and the tree, by click and key alike; the key-value list's rows are walked
+// by the same keys and choose nothing.
 
-import {
-    BindSelectedKeyAttribute, ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, HiddenClass, ItemsHostAttribute, NoRowSelectAttribute, SelectedAttribute, SelectedKeyAttribute,
-    SelectedKeysAttribute, SelectionAttribute, TableRowClass, TreeRootClass, TreeRowClass, UnselectableAttribute
-} from "../addressing/dom-attributes.ts";
+import { BindSelectedKeyAttribute, BindSelectedKeysAttribute, ComponentIdAttribute, ComponentKeyAttribute, ComponentSelector, HiddenClass, ItemsHostAttribute, ItemsViewClass, ItemsViewItemClass, KeyValueActionClass, KeyValueActionRowClass, NoRowSelectAttribute, SelectedAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, TableClass, TableRowClass, TreeRootClass, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
 import { isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import { parseChosenKeys } from "./multi-select-keys.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { writeSelectedKey } from "./selected-key.ts";
+import { syncTableBoxes } from "./table-selection-boxes.ts";
 
-const SelectedKeysBindingAttribute = "data-ui-bind-selected-keys";
-
-// A root's rows are its own shape's, so a table in an items view's row chooses nothing outside itself.
-export const SelectionRootSelector = `.ui-items-view, .ui-table, .${TreeRootClass}`;
-export const SelectionRowSelector = `.ui-items-view__item, .${TableRowClass}, .${TreeRowClass}`;
+// A root's rows are its own shape's, so a table in an items view's row chooses nothing outside itself. A key-value list is a row host
+// that chooses nothing: walked, pressed, opened and removed as a table is.
+export const SelectionRootSelector = `.${ItemsViewClass}, .${TableClass}, .${TreeRootClass}, .${KeyValueActionClass}`;
+export const SelectionRowSelector = `.${ItemsViewItemClass}, .${TableRowClass}, .${TreeRowClass}, .${KeyValueActionRowClass}`;
 
 // The hosts whose rows' keyboard is items-selection-engine.ts's and whose rows items-reorder-engine.ts moves; the tree walks its own.
-export const KeyboardRowsRootSelector = ".ui-items-view, .ui-table";
+export const KeyboardRowsRootSelector = `.${ItemsViewClass}, .${TableClass}, .${KeyValueActionClass}`;
 
 /** The modifier keys a choosing gesture carried. */
 export type SelectionGesture = {
@@ -29,6 +27,36 @@ export const PlainGesture: SelectionGesture = { shift: false, ctrl: false };
 
 // The row a Shift range is measured from, per host: the last row chosen without Shift.
 const anchors = new WeakMap<HTMLElement, string>();
+
+type HeldChoosableKeys = (host: Element) => readonly string[] | null;
+
+const choosableKeyReaders = new WeakMap<ParentNode, HeldChoosableKeys>();
+
+/** Registers a virtualized host's choosable-keys reader for `scope` so `markSelectedRows` counts off-screen rows in a table's header box. */
+export function registerChoosableKeysReader(scope: ParentNode, reader: HeldChoosableKeys | undefined): void {
+    if (reader === undefined)
+        choosableKeyReaders.delete(scope);
+    else
+        choosableKeyReaders.set(scope, reader);
+}
+
+function readHeldChoosableKeys(root: HTMLElement): readonly string[] | null {
+    const host = hostOf(root);
+
+    if (host === null)
+        return null;
+
+    for (let current: Node | null | undefined = root; current !== null && current !== undefined; current = current.parentNode ?? (current as { parentElement?: Node | null }).parentElement) {
+        const reader = choosableKeyReaders.get(current as ParentNode);
+
+        if (reader !== undefined)
+            return reader(host);
+    }
+
+    const fallback = typeof document !== "undefined" ? choosableKeyReaders.get(document) : undefined;
+
+    return fallback?.(host) ?? null;
+}
 
 /** Names the Shift range's anchor when no gesture has named one yet. */
 export function ensureAnchor(root: HTMLElement, row: HTMLElement | null): void {
@@ -111,6 +139,8 @@ export function markSelectedRows(root: HTMLElement, rows: readonly HTMLElement[]
         else
             row.setAttribute("aria-selected", announced);
     }
+
+    syncTableBoxes(root, rows, readHeldChoosableKeys(root), keys);
 }
 
 /** The chosen rows among the given ones, in their order. */
@@ -124,6 +154,34 @@ export function selectedRows(rows: readonly HTMLElement[]): HTMLElement[] {
  * null where the host holds its rows whole, or does not show both.
  */
 export type HeldRange = (from: string, to: string) => readonly string[] | null;
+
+/** Ticks or clears the checkbox range from the last anchor to `row`, keeping choices outside the range intact. */
+export function chooseBoxRange(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, selected: boolean, heldRange?: HeldRange): void {
+    const key = rowKey(row);
+
+    if (!isChoosable(row) || root.getAttribute(SelectionAttribute) !== "many")
+        return;
+
+    const anchorKey = anchors.get(root);
+
+    if (anchorKey === undefined) {
+        anchors.set(root, key);
+        setKeysSelected(root, [key], selected);
+        return;
+    }
+
+    const held = heldRange?.(anchorKey, key) ?? null;
+    const anchor = rows.find(candidate => rowKey(candidate) === anchorKey);
+
+    if (held === null && anchor === undefined)
+        anchors.set(root, key);
+
+    const range = held !== null
+        ? choosableOf(held, rows)
+        : anchor !== undefined ? rangeBetween(rows, anchor, row).map(rowKey) : [key];
+
+    setKeysSelected(root, range, selected);
+}
 
 export function chooseRow(root: HTMLElement, rows: readonly HTMLElement[], row: HTMLElement, gesture: SelectionGesture, heldRange?: HeldRange): boolean {
     const key = rowKey(row);
@@ -186,7 +244,7 @@ function writeSelectedKeys(root: HTMLElement, rows: readonly HTMLElement[], keys
     host.setAttribute(SelectedKeysAttribute, text);
     markSelectedRows(root, rows);
 
-    if (host.hasAttribute(SelectedKeysBindingAttribute))
+    if (host.hasAttribute(BindSelectedKeysAttribute))
         host.dispatchEvent(new Event("change", { bubbles: true }));
 }
 

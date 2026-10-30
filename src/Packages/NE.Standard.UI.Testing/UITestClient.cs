@@ -59,7 +59,6 @@ internal sealed class UITestClient : IUIUpdateSink, IUIDownloadStager, IUIUpload
         return Task.CompletedTask;
     }
 
-
     // Delivered here, as an in-process platform delivers a file itself: the page holds the bytes, and no fetch is sent.
     public async Task<ClientEffect?> StageAsync(UIHandle handle, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default)
     {

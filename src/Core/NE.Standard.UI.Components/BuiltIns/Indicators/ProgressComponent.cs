@@ -10,9 +10,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Indicators;
 /// <summary>
 /// A linear or circular progress indicator showing a value within a min/max range.
 /// </summary>
-public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOrderedRangeComponent
+/// <remarks>Named by its <c>Title</c>, or by <c>AccessibleName</c> over it.</remarks>
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultVerticalAlignment))]
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class ProgressComponent<T>(string? id = null) : VisualComponentBase<T>(id), IOrderedRangeComponent, IAccessibleNameComponent, IConfigurationValidatedComponent
     where T : ProgressComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIAlignment> DefaultVerticalAlignment = UIAlignment.Center;
     private static readonly UIThemeColor DefaultColor = UIThemeColor.FromStyle(UIColorStyle.Default);
 
     /// <summary>
@@ -48,11 +52,11 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOr
     public UIThemeColor? Color { get; set; }
 
     /// <summary>
-    /// Gets or sets the label text shown alongside the indicator.
+    /// Gets or sets the words shown alongside the indicator.
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public UIPhrase? Label { get; set; }
+    public UIPhrase? Title { get; set; }
 
     /// <summary>
     /// Gets or sets whether the numeric value is displayed alongside the indicator.
@@ -66,14 +70,6 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOr
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
     public UIPhrase? ValueUnit { get; set; }
-
-    /// <summary>
-    /// Initializes the progress indicator with a centered vertical alignment.
-    /// </summary>
-    protected ProgressComponent(string? id = null) : base(id)
-    {
-        VerticalAlignment = UIAlignment.Center;
-    }
 
     /// <summary>
     /// Sets the current progress value, validating it falls within the current range.
@@ -103,6 +99,12 @@ public abstract partial class ProgressComponent<T> : VisualComponentBase<T>, IOr
     /// </summary>
     public T SetRange(decimal min, decimal max)
         => Self.SetOrderedRange(min, max, "progress value");
+
+    /// <summary>
+    /// Checks the bounds and the value as they stand, by the setters' own rule.
+    /// </summary>
+    public void ValidateConfiguration()
+        => OrderedRangeComponentExtensions.ValidateOrderedRange(Min, Max, Value, "progress value");
 }
 
 /// <summary>

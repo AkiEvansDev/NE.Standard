@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace NE.Standard.UI.Shell.Runtime;
 
@@ -50,8 +51,13 @@ public sealed class UIPersistenceOptions
     public TimeSpan UnclaimedRenderRetention { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Gets or sets how often pending runtime changes are flushed.
+    /// Gets or sets how often pending runtime changes are flushed; a route's or a controller's shorter <c>FlushInterval</c> ticks it
+    /// sooner.
     /// </summary>
+    /// <remarks>
+    /// <see cref="Timeout.InfiniteTimeSpan"/> flushes nothing on a schedule, a route's interval neither: the platform
+    /// flushes itself through <c>IUIClientEndpoint.FlushAsync</c>.
+    /// </remarks>
     public TimeSpan FlushSchedulerInterval { get; set; } = TimeSpan.FromMilliseconds(50);
 
     /// <summary>
@@ -77,6 +83,17 @@ public sealed class UIPersistenceOptions
     /// any size.
     /// </remarks>
     public long? MaxQueuedChangeBytes { get; set; } = 8L * 1024 * 1024;
+
+    /// <summary>
+    /// Gets or sets about how many bytes of change sets may wait across every runtime of the process; zero or <see langword="null"/> is
+    /// no such limit.
+    /// </summary>
+    /// <remarks>
+    /// Estimated as <see cref="MaxQueuedChangeBytes"/> is. Past it, the runtime whose set would cross it drops its queue and is asked for
+    /// a full resync, so a crowd of pages that read nothing cannot hold the process's memory between them. Files and values staged beside
+    /// the connection are not in it.
+    /// </remarks>
+    public long? MaxQueuedChangeBytesTotal { get; set; } = 256L * 1024 * 1024;
 
     /// <summary>
     /// Gets or sets how long one change set's send to one page may take before it is given up; <see langword="null"/> is no limit.
@@ -139,8 +156,8 @@ public sealed class UIPersistenceOptions
         if (UnclaimedRenderRetention < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(UnclaimedRenderRetention), UnclaimedRenderRetention, "Unclaimed render retention cannot be negative.");
 
-        if (FlushSchedulerInterval <= TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(nameof(FlushSchedulerInterval), FlushSchedulerInterval, "Flush scheduler interval must be greater than zero.");
+        if (FlushSchedulerInterval <= TimeSpan.Zero && FlushSchedulerInterval != Timeout.InfiniteTimeSpan)
+            throw new ArgumentOutOfRangeException(nameof(FlushSchedulerInterval), FlushSchedulerInterval, "Flush scheduler interval must be greater than zero, or infinite for no scheduled flush.");
 
         if (MaxParallelFlushes <= 0)
             throw new ArgumentOutOfRangeException(nameof(MaxParallelFlushes), MaxParallelFlushes, "Max parallel flushes must be greater than zero.");
@@ -150,6 +167,9 @@ public sealed class UIPersistenceOptions
 
         if (MaxQueuedChangeBytes < 0)
             throw new ArgumentOutOfRangeException(nameof(MaxQueuedChangeBytes), MaxQueuedChangeBytes, "Max queued change bytes must not be negative.");
+
+        if (MaxQueuedChangeBytesTotal < 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxQueuedChangeBytesTotal), MaxQueuedChangeBytesTotal, "Max total queued change bytes must not be negative.");
 
         if (SendTimeout is { } sendTimeout && sendTimeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(SendTimeout), sendTimeout, "Send timeout must be greater than zero.");

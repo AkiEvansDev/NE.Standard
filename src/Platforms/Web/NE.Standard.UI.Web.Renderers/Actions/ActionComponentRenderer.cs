@@ -1,5 +1,5 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -28,7 +28,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
 
     public override string ComponentTypeKey => ActionComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-action";
+    protected override string ClassName => WebClassNames.Action;
 
     /// <summary>The row's look on an anchor where it links to an address (<see cref="ILinkableComponent.Url"/>), as a button's is.</summary>
     protected override (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
@@ -85,7 +85,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
     private static void RenderTrailingIcon(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder icon)
     {
         _ = icon.Class("ui-action__icon");
-        _ = icon.Class("ui-icon");
+        _ = icon.Class(WebClassNames.Icon);
 
         _ = RenderProperty<string?>(context, icon, ActionComponent.TrailingIconProperty, (target, value) =>
         {

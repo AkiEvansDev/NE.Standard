@@ -65,11 +65,24 @@
             .ui-chevron-up();
         }
 
-    // Two presses, two washes: the hovered part reacts, not the root. Surface keeps its own: unlike the transparent variants, it has
-    // a fill. A menu button is one press and answers on its root as the button it looks like (ui-button.less), its wash the whole box
-    // and not the parts inside its border — so a field's ink-only take-back and a row's quiet one reach it too.
+    // Two presses, two washes: the hovered part reacts, not the root. A menu button is one press and answers on its root as the button
+    // it looks like (ui-button.less), its wash the whole box and not the parts inside its border — so a field's ink-only take-back and
+    // a row's quiet one reach it too.
     @{ui-split-parts}:is(.ui-button--ghost, .ui-button--link) {
         .ui-reveal-hover-off();
+    }
+
+    // Surface keeps its fill, unlike the transparent variants, but not the root's mixed hover and press under the part's wash.
+    @{ui-split-parts}.ui-button--surface@{ui-button-live} {
+        @media @{ui-can-hover} {
+            &:hover {
+                background-color: var(--ui-surface-color, @ui-popup-ground);
+            }
+        }
+
+        &:active {
+            background-color: var(--ui-surface-color, @ui-popup-ground);
+        }
     }
 
     @{ui-split-parts}.ui-button--outline {

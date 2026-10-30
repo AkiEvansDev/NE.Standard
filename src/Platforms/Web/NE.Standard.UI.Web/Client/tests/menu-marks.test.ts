@@ -8,7 +8,7 @@ import { FakeElement, installFakeDom, real } from "./fake-dom.ts";
 installFakeDom({});
 
 const { DomOperationRegistry } = await import("../src/updates/dom-operation-registry.ts");
-const { markMenuCurrent, MenuCurrentOperationKind } = await import("../src/updates/menu-current.ts");
+const { markMenuCurrent, MenuCurrentOperationKind } = await import("../src/rendering/menu-current.ts");
 const { MenuSurfaceOperationKind } = await import("../src/updates/menu-surface.ts");
 type DomOperationContext = import("../src/updates/dom-operation-registry.ts").DomOperationContext;
 
@@ -111,13 +111,13 @@ test("a row taken out of a nested menu takes the mark off the groups around it, 
 
 test("a menu filling a right-click menu's host or a split button's list marks it with its Surface, and only such a popup", () => {
     for (const popupClass of ["ui-context-menu", "ui-split-button__menu"]) {
-        const menu = FakeElement.of("ui-menu ui-surface--raised");
+        const menu = FakeElement.of("ui-menu ui-surface--surface");
         const popup = FakeElement.of(popupClass).append(menu);
 
         operate(MenuSurfaceOperationKind, menu);
-        assert.equal(popup.getAttribute("data-ui-menu-surface"), "raised");
+        assert.equal(popup.getAttribute("data-ui-menu-surface"), "surface");
 
-        menu.classList.remove("ui-surface--raised");
+        menu.classList.remove("ui-surface--surface");
         menu.classList.add("ui-surface--tinted");
         operate(MenuSurfaceOperationKind, menu);
         assert.equal(popup.getAttribute("data-ui-menu-surface"), "tinted");

@@ -1,0 +1,526 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
+using NE.Standard.UI.Abstractions.Data;
+using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Items;
+using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Indexes;
+using NE.Standard.UI.Compiled.Items;
+using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Recursive;
+using NE.Standard.UI.Shell.Updates.Server;
+
+namespace NE.Standard.UI.Runtime;
+
+internal sealed partial class UIRuntime
+{
+    /// <summary>Withdraws updates still queued for an item a <see cref="RecursiveChangeKind.Replace"/> is about to replace.</summary>
+    /// <remarks>
+    /// The replacement itself travels as the ordinary collection <c>Replace</c> update that follows; a crowded host goes whole instead
+    /// (<see cref="WithdrawRowsNoLock"/>), and the update that follows finds it sent whole.
+    /// </remarks>
+    private void RemoveReplacedItemPendingUpdatesNoLock(RecursiveChange change)
+    {
+        if (_pendingFullResync)
+            return;
+
+        if (change.Index < 0 || change.Count <= 0)
+            return;
+
+        IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(change.Path, out var materializedParameters);
+
+        for (var bindingIndex = 0; bindingIndex < collectionBindings.Count; bindingIndex++)
+        {
+            CompiledUIBinding binding = collectionBindings[bindingIndex];
+
+            if (!TryAddressPush(binding, materializedParameters, out var ownerDynamicParameters))
+                continue;
+
+            // The list went whole this round, its rows' own lists with it: what is queued under it is what the page should get.
+            if (IsSentWholeNoLock(binding, ownerDynamicParameters))
+                continue;
+
+            if (WithdrawRowsNoLock(binding.Address.Component.Id, ownerDynamicParameters, OldItemKeys(change), change.Path))
+                AppendWholeCollectionNoLock(binding, change.Path, ownerDynamicParameters);
+        }
+    }
+
+    /// <summary>Whether the host's list was sent whole earlier in this round, as the round left it (<c>_wholeLists</c>).</summary>
+    private bool IsSentWholeNoLock(CompiledUIBinding binding, object?[] dynamicParameters)
+        => _wholeLists.Count > 0 && _wholeLists.Contains(new UIComponentAddress(binding.Address.Component.Id, dynamicParameters));
+
+    /// <summary>The keys of the rows a change took out, one for each: a row with no key would be addressed by its place.</summary>
+    private static IReadOnlyList<string> OldItemKeys(RecursiveChange change)
+        => change.OldItemIds.Count >= change.Count ? change.OldItemIds : throw MissingItemKeyException();
+
+    /// <summary>
+    /// A bound item collection change carried no item id; throwing here names the fault instead of silently addressing by position.
+    /// </summary>
+    private static InvalidOperationException MissingItemKeyException()
+        => new($"A bound item collection change carried no item id. Every item must implement '{nameof(IBindableItem)}'.");
+
+    private static string? GetItemKey(RecursiveChange change, int offset, bool old)
+    {
+        IReadOnlyList<string> ids = old ? change.OldItemIds : change.ItemIds;
+
+        return (uint)offset < (uint)ids.Count
+            ? ids[offset]
+            : null;
+    }
+
+    /// <summary>
+    /// Re-sends an item whose changed property decides how the host draws it — its template key or group — or whether and where it
+    /// shows — a property its filters, sorts or query read, at any depth — or any item of a host that takes values whole (a
+    /// chart), whatever changed.
+    /// </summary>
+    /// <remarks>
+    /// None of these is bound on the item, so only a full <c>Replace</c> update reaches the client's redraw and its rules. The row is drawn
+    /// anew, so its nested collections follow as a new row's do — a variant's list would otherwise stay empty.
+    /// </remarks>
+    private void AppendItemReplaceUpdatesNoLock(RecursivePath path)
+    {
+        if (path.Count < 3 || path[^1].Kind != PathSegmentKind.Property)
+            return;
+
+        // The row the change stands on: the last key or index, a property path after it.
+        var row = path.Count - 2;
+
+        while (row > 0 && path[row].Kind == PathSegmentKind.Property)
+            row--;
+
+        if (row == 0 || path[row].Kind == PathSegmentKind.Property)
+            return;
+
+        // A property deeper than the row's own can only be a rule's: a view with none asks nothing more.
+        var own = row == path.Count - 2;
+
+        if (!own && !View.ItemProjections.HasRules)
+            return;
+
+        PathSegment itemSegment = path[row];
+        RecursivePath collectionPath = path.Take(row);
+        IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(collectionPath, out var materializedParameters);
+
+        if (collectionBindings.Count == 0)
+            return;
+
+        object? item = null;
+        string? replacedKey = null;
+
+        for (var i = 0; i < collectionBindings.Count; i++)
+        {
+            CompiledUIBinding binding = collectionBindings[i];
+            UIComponentId hostId = binding.Address.Component.Id;
+
+            var redraws = own && (IsTemplateKeyProperty(hostId, path[^1].Property) || IsGroupProperty(hostId, path[^1].Property) || TakesItemValues(hostId));
+
+            // One the host's rows bind reaches its rules as that value does, and a row the reader writes in is not redrawn under it.
+            if (!redraws && (!ReadsByRule(hostId, path, row + 1) || IsBoundInRows(hostId, path)))
+                continue;
+
+            if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
+                continue;
+
+            // Sent whole this round already, the row with it.
+            if (IsSentWholeNoLock(binding, dynamicParameters))
+                continue;
+
+            item ??= TryGetControllerValue(path.Take(row + 1));
+
+            if (item is null)
+                continue;
+
+            var itemKey = (itemSegment.Kind == PathSegmentKind.Key ? itemSegment.Key : TryGetItemKey(item))
+                ?? throw MissingItemKeyException();
+
+            if (WithdrawRowsNoLock(hostId, dynamicParameters, [itemKey], collectionPath))
+            {
+                AppendWholeCollectionNoLock(binding, collectionPath, dynamicParameters);
+                continue;
+            }
+
+            // Still needed: the item's position, since the addressing above is by key, not index.
+            var itemIndex = itemSegment.Kind == PathSegmentKind.Index
+                ? itemSegment.Index
+                : TryGetItemIndex(TryGetControllerValue(collectionPath), item);
+
+            AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
+            {
+                Action = CollectionUpdateAction.Replace,
+                Component = new(hostId, dynamicParameters),
+                Items =
+                [
+                    new ServerCollectionItemChange
+                    {
+                        Index = itemIndex,
+                        Key = itemKey,
+                        OldKey = itemKey,
+                        Item = item,
+                        Projection = View.ItemProjections.For(hostId)
+                    }
+                ],
+                Moves = []
+            });
+
+            replacedKey = itemKey;
+        }
+
+        if (replacedKey is not null)
+            AppendDescendantCollectionUpdatesNoLock(collectionPath.AppendKey(replacedKey));
+    }
+
+    private bool IsTemplateKeyProperty(UIComponentId componentId, string propertyName)
+    {
+        return View.State.TryGetValue(componentId, ITemplatedComponent.TemplateKeyPropertyProperty, out CompiledUIPropertyValue? value) &&
+               !value.IsBind &&
+               value.Value is string templateKeyProperty &&
+               string.Equals(templateKeyProperty, propertyName, StringComparison.Ordinal);
+    }
+
+    /// <summary>Whether the component takes its items as values rather than drawing them as rows — a chart, a canvas of nodes.</summary>
+    /// <remarks>
+    /// No components live inside its item template for a value update to reach, so any property change on an item must arrive
+    /// as a full replace, not a value alone.
+    /// </remarks>
+    private bool TakesItemValues(UIComponentId componentId)
+        => View.State.TryGetValue(componentId, IItemValuesComponent.TakesItemValuesProperty, out CompiledUIPropertyValue? value) &&
+           !value.IsBind &&
+           value.Value is true;
+
+    /// <summary>Whether the property is the item's group, on a host that actually draws groups.</summary>
+    /// <remarks>Gated on the group template; a host without one lays items out flat regardless.</remarks>
+    private bool IsGroupProperty(UIComponentId componentId, string propertyName)
+        => string.Equals(propertyName, nameof(IBindableGroup.Group), StringComparison.Ordinal) &&
+           View.Graph.TryGetSlot(componentId, UIComponentSlotKind.GroupTemplate, out _);
+
+    /// <summary>
+    /// Whether one of the host's rules reads the changed property (<see cref="UIItemProjectionIndex.TryGetRuleReads"/>): a static rule as
+    /// compiled, a bound items view or query as it stands now.
+    /// </summary>
+    private bool ReadsByRule(UIComponentId hostId, RecursivePath path, int start)
+    {
+        if (View.ItemProjections.TryGetRuleReads(hostId, out var rules))
+        {
+            for (var r = 0; r < rules.Length; r++)
+            {
+                if (RuleReadsPath(rules[r], path, start))
+                    return true;
+            }
+        }
+
+        return View.ItemProjections.HasBoundRules(hostId) && ReadsByBoundRule(hostId, path, start);
+    }
+
+    /// <summary>
+    /// Whether a rule's dotted path and the changed property's, from the row on, agree as far as the shorter goes — a rule reading
+    /// <c>Author.Name</c> takes <c>Author</c> set anew, and one reading <c>Author</c> its name. Names match ignoring case, as the item's
+    /// writer and the page's reader match them.
+    /// </summary>
+    private static bool RuleReadsPath(string rule, RecursivePath path, int start)
+    {
+        var at = 0;
+
+        for (var s = start; s < path.Count; s++)
+        {
+            var dot = rule.IndexOf('.', at);
+            var end = dot < 0 ? rule.Length : dot;
+
+            if (path[s].Kind != PathSegmentKind.Property || !rule.AsSpan(at, end - at).Equals(path[s].Property, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (dot < 0)
+                return true;
+
+            at = dot + 1;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Whether the host's bound items view or query, read as it stands, reads the changed property. A host inside rows binds them per
+    /// row, which a rule's source is never read by: its rows are not sent again for a rule.
+    /// </summary>
+    private bool ReadsByBoundRule(UIComponentId hostId, RecursivePath path, int start)
+    {
+        if (TryGetRuleSourceValueNoLock(new UIPropertyAddress(hostId, IItemsComponent.ItemsViewProperty)) is UIItemsView view)
+        {
+            for (var i = 0; i < view.Filters.Length; i++)
+            {
+                if (RuleReadsPath(view.Filters[i].ItemProperty, path, start))
+                    return true;
+            }
+
+            for (var i = 0; i < view.Sorts.Length; i++)
+            {
+                if (RuleReadsPath(view.Sorts[i].ItemProperty, path, start))
+                    return true;
+            }
+        }
+
+        if (TryGetRuleSourceValueNoLock(new UIPropertyAddress(hostId, IItemsComponent.QueryProperty)) is UIItemsQuery query)
+        {
+            if (query.Search is not null)
+                return true;
+
+            for (var i = 0; i < query.Filters.Length; i++)
+            {
+                if (RuleReadsPath(query.Filters[i].ItemProperty, path, start))
+                    return true;
+            }
+
+            for (var i = 0; i < query.Sorts.Length; i++)
+            {
+                if (RuleReadsPath(query.Sorts[i].ItemProperty, path, start))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether a component in the host's rows binds exactly the changed path, which then reaches the page as a value.</summary>
+    private bool IsBoundInRows(UIComponentId hostId, RecursivePath path)
+    {
+        IReadOnlyList<CompiledUIBinding> bindings = View.Bindings.GetControllerProperties(path, out _);
+
+        for (var i = 0; i < bindings.Count; i++)
+        {
+            if (bindings[i].Mode != UIBindingMode.OneWayToSource && IsComponentInside(bindings[i].Address.Component.Id, hostId))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static int? TryGetItemIndex(object? collection, object item)
+    {
+        // A RecursiveCollection answers from its own index of items, so a point every update of a chart moves costs no scan.
+        if (collection is IRecursiveCollection recursive)
+        {
+            var found = recursive.IndexOf(item);
+
+            return found < 0 ? null : found;
+        }
+
+        // Another list scans, as its own IndexOf does.
+        if (collection is System.Collections.IList list)
+        {
+            var found = list.IndexOf(item);
+
+            return found < 0 ? null : found;
+        }
+
+        if (collection is not System.Collections.IEnumerable enumerable)
+            return null;
+
+        var index = 0;
+
+        foreach (var candidate in enumerable)
+        {
+            if (ReferenceEquals(candidate, item))
+                return index;
+
+            index++;
+        }
+
+        return null;
+    }
+
+    private void AppendCollectionResetUpdateNoLock(RecursiveChange change)
+        => AppendCollectionUpdateNoLock(change, CollectionUpdateAction.Reset);
+
+    private void AppendCollectionUpdateNoLock(RecursiveChange change, CollectionUpdateAction action)
+    {
+        if (_pendingFullResync)
+            return;
+
+        RecursivePath collectionPath = change.Path;
+        IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(collectionPath, out var materializedParameters);
+
+        for (var i = 0; i < collectionBindings.Count; i++)
+        {
+            CompiledUIBinding binding = collectionBindings[i];
+
+            if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
+                continue;
+
+            ForgetLeavingRowsNoLock(binding.Address.Component.Id, dynamicParameters, change, action);
+
+            UIComponentAddress component = new(binding.Address.Component.Id, dynamicParameters);
+
+            // Already in the list this host was sent whole this round (a row inserted and then filled): sent again, it would draw twice.
+            if (_wholeLists.Count > 0 && _wholeLists.Contains(component))
+                continue;
+
+            // A crowded host goes whole instead (WithdrawRowsNoLock), and takes none of this round's later changes again.
+            if (action == CollectionUpdateAction.Remove && WithdrawRowsNoLock(binding.Address.Component.Id, dynamicParameters, OldItemKeys(change), collectionPath))
+            {
+                AppendWholeCollectionNoLock(binding, collectionPath, dynamicParameters);
+                continue;
+            }
+
+            AddPendingUpdateNoLock(new ServerCollectionChangeUIUpdate
+            {
+                Action = action,
+                Component = component,
+                Items = BuildCollectionItemChanges(collectionPath, change, action, View.ItemProjections.For(binding.Address.Component.Id)),
+                Moves = BuildCollectionMoveChanges(collectionPath, change, action),
+                Trimmed = action == CollectionUpdateAction.Remove && change.Trimmed
+            });
+        }
+    }
+
+    /// <summary>
+    /// Forgets the refusals the rows that leave the host showed (<see cref="ForgetRejectionsInRowsNoLock"/>): a removed or replaced one by
+    /// its old key, every one on a reset.
+    /// </summary>
+    private void ForgetLeavingRowsNoLock(UIComponentId hostId, object?[] hostKeys, RecursiveChange change, CollectionUpdateAction action)
+    {
+        if (action == CollectionUpdateAction.Reset)
+        {
+            ForgetRejectionsInRowsNoLock(hostId, hostKeys, rowKey: null);
+            return;
+        }
+
+        if (action is CollectionUpdateAction.Remove or CollectionUpdateAction.Replace)
+        {
+            foreach (var key in change.OldItemIds)
+                ForgetRejectionsInRowsNoLock(hostId, hostKeys, key);
+        }
+    }
+
+    /// <summary>
+    /// Forgets the refusals shown in the rows of <paramref name="hostId"/> at <paramref name="hostKeys"/> that left — the one keyed
+    /// <paramref name="rowKey"/>, or every one where null: kept, they would count toward the bound until the runtime goes.
+    /// </summary>
+    private void ForgetRejectionsInRowsNoLock(UIComponentId hostId, object?[] hostKeys, string? rowKey)
+    {
+        if (_rejectedValueAddresses.Count == 0)
+            return;
+
+        for (var i = _rejectedValueAddresses.Count - 1; i >= 0; i--)
+        {
+            UIComponentAddress component = _rejectedValueAddresses.GetAt(i).Key.Component;
+
+            if (StandsInRowsOf(View.Graph, component.Id, hostId, hostKeys.Length) && IsUnder(component.DynamicParameters, hostKeys, rowKey))
+                _rejectedValueAddresses.RemoveAt(i);
+        }
+    }
+
+    /// <summary>Whether the component stands in the rows of <paramref name="hostId"/>, whose key is the one at <paramref name="depth"/>.</summary>
+    private static bool StandsInRowsOf(UIComponentGraph graph, UIComponentId componentId, UIComponentId hostId, int depth)
+    {
+        IReadOnlyList<UIComponentId> scopes = graph.GetItemScopes(componentId);
+
+        return depth < scopes.Count && graph.TryGet(scopes[depth], out UIComponentNode? root) && root.ParentId is UIComponentId parent && parent.Equals(hostId);
+    }
+
+    /// <summary>Whether row keys name a row under <paramref name="hostKeys"/>: the one keyed <paramref name="rowKey"/>, or any where null.</summary>
+    private static bool IsUnder(object?[] keys, object?[] hostKeys, string? rowKey)
+        => keys.Length > hostKeys.Length
+        && keys.AsSpan(0, hostKeys.Length).SequenceEqual(hostKeys)
+        && (rowKey is null || Equals(keys[hostKeys.Length], rowKey));
+
+    private ServerCollectionItemChange[] BuildCollectionItemChanges(RecursivePath collectionPath, RecursiveChange change, CollectionUpdateAction action, UIItemProjection projection)
+    {
+        if (action is CollectionUpdateAction.Reset or CollectionUpdateAction.Move)
+            return [];
+
+        if (change.Count <= 0)
+            return [];
+
+        ServerCollectionItemChange[] result = new ServerCollectionItemChange[change.Count];
+
+        // Resolved once for the change: every row is then one segment below it, which costs no path per row.
+        RecursiveObservable? collection = action is CollectionUpdateAction.Insert or CollectionUpdateAction.Replace
+            ? TryGetControllerValue(collectionPath) as RecursiveObservable
+            : null;
+
+        for (var i = 0; i < result.Length; i++)
+        {
+            var index = change.Index + i;
+            var key = GetItemKey(change, i, old: false);
+
+            var item = action is CollectionUpdateAction.Insert or CollectionUpdateAction.Replace
+                ? ResolveChangedItem(collection, collectionPath, key, index)
+                : null;
+
+            result[i] = action switch
+            {
+                CollectionUpdateAction.Insert => new ServerCollectionItemChange
+                {
+                    Index = index,
+                    Key = key ?? TryGetItemKey(item),
+                    Item = item,
+                    Projection = projection
+                },
+
+                CollectionUpdateAction.Remove => new ServerCollectionItemChange
+                {
+                    Index = index,
+                    Key = GetItemKey(change, i, old: true)
+                },
+
+                CollectionUpdateAction.Replace => new ServerCollectionItemChange
+                {
+                    Index = index,
+                    Key = key ?? TryGetItemKey(item),
+                    OldKey = GetItemKey(change, i, old: true),
+                    Item = item,
+                    Projection = projection
+                },
+
+                _ => throw new UnreachableException()
+            };
+        }
+
+        return result;
+    }
+
+    /// <summary>The item a collection change carries, addressed by the key recorded when the change was raised.</summary>
+    /// <remarks>
+    /// Falls back to index only when the change carried no key; by flush time a later change in the same batch may have moved items.
+    /// </remarks>
+    private object? ResolveChangedItem(RecursiveObservable? collection, RecursivePath collectionPath, string? key, int index)
+    {
+        if (collection is null)
+            return TryGetControllerValue(key is null ? collectionPath.AppendIndex(index) : collectionPath.AppendKey(key));
+
+        return collection.TryGetRecursiveValue(key is null ? PathSegment.AtIndex(index) : PathSegment.WithKey(key), out var item) ? item : null;
+    }
+
+    private static string? TryGetItemKey(object? item)
+        => item is IBindableItem { Id: { Length: > 0 } id } ? id : null;
+
+    private ServerCollectionMoveChange[] BuildCollectionMoveChanges(RecursivePath collectionPath, RecursiveChange change, CollectionUpdateAction action)
+    {
+        if (action != CollectionUpdateAction.Move)
+            return [];
+
+        if (change.Count <= 0)
+            return [];
+
+        ServerCollectionMoveChange[] result = new ServerCollectionMoveChange[change.Count];
+
+        for (var i = 0; i < result.Length; i++)
+        {
+            var newIndex = change.Index + i;
+
+            result[i] = new ServerCollectionMoveChange
+            {
+                OldIndex = change.OldIndex + i,
+                NewIndex = newIndex,
+                // Read back by position only when the change recorded no key: by flush time a later change may have moved the row.
+                Key = GetItemKey(change, i, old: false) ?? TryGetItemKey(TryGetControllerValue(collectionPath.AppendIndex(newIndex)))
+            };
+        }
+
+        return result;
+    }
+}

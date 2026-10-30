@@ -17,13 +17,13 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// </summary>
 public sealed class ButtonGroupComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string ItemClassName = "ui-button-group__item";
+    private const string ItemClassName = WebClassNames.ButtonGroupItem;
 
-    private static readonly TierClassFamily<UIButtonSize> SizeFamily = new(WebAttributes.TierSize, WebDomConverters.ButtonGroupSizeClass, WebDomConverters.ButtonGroupSizeTierClasses, WebClassNames.ButtonGroupSize);
+    private static readonly TierClassFamily<UISize> SizeFamily = new(WebAttributes.TierSize, WebDomConverters.ButtonGroupSizeClass, WebDomConverters.ButtonGroupSizeTierClasses, WebClassNames.ButtonGroupSize);
 
     public override string ComponentTypeKey => ButtonGroupComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-button-group";
+    protected override string ClassName => WebClassNames.ButtonGroup;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {

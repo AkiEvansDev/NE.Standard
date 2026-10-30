@@ -44,7 +44,7 @@ internal sealed class DemoRowsSource : UIItemSourceBase<DemoRowItem>
     private MatchedRows? _matched;
 
     /// <summary>Told where each window read starts: the paged table writes its page into the address from it.</summary>
-    public Func<int, Task>? WindowRead { get; set; }
+    internal Func<int, Task>? WindowRead { get; set; }
 
     /// <summary>How late a read past the first window answers, as a database would: what the list's skeleton rows stand in for.</summary>
     public TimeSpan Latency { get; init; }

@@ -83,7 +83,7 @@ export class SwitcherList {
             ? { anchor: trigger, placement: { placement: "bottom-start", minAnchorWidth: true } as const }
             : { anchor: switcher, placement: { placement: "bottom-end" } as const };
 
-        openChoiceList(this.menus, { owner: switcher, popup: menu, ...opening, openers: [trigger] }, choices, chosen, fromEnd);
+        openChoiceList(this.menus, { owner: switcher, popup: menu, ...opening, openers: [trigger], namedBy: trigger }, choices, chosen, fromEnd);
     }
 
     /** The arrows open the list from its trigger, as a select's or a menu button's do, and move among the choices once it is open. */

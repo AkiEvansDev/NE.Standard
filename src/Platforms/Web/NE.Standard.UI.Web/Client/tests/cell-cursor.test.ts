@@ -32,9 +32,9 @@ installFakeDom({
     window: { innerHeight: 1000, addEventListener: () => undefined }
 });
 
-const { CellKeyEventName } = await import("../src/addressing/dom-attributes.ts");
+const { CellKeyEventName, RowPressEventName } = await import("../src/addressing/dom-attributes.ts");
 const { ItemsSelectionEngine } = await import("../src/interactions/items-selection-engine.ts");
-const { giveRowCursor, moveRowCursor, revealDelta, RowPressEventName, takeRowCursor } = await import("../src/interactions/row-cursor.ts");
+const { giveRowCursor, moveRowCursor, revealDelta, takeRowCursor } = await import("../src/interactions/row-cursor.ts");
 
 const RowHeight = 40;
 const Columns = 4;
@@ -295,7 +295,7 @@ test("a cell past a wide grid's edge scrolls in by what it lacks, its start firs
     assert.equal(revealDelta(400, 800, 220, 500), 180);
 });
 
-test("a table that is only read walks its rows: no cell is marked, and Home and End reach the first and last row", () => {
+test("a table that is only read walks its rows, each the table's Tab stop in turn: no cell is marked, and Home and End reach the first and last row", () => {
     const { root } = grid(3);
 
     root.setAttribute("role", "table");
@@ -304,5 +304,34 @@ test("a table that is only read walks its rows: no cell is marked, and Home and 
 
     assert.equal(root.querySelector("[data-ui-cell-focus]"), null);
     assert.equal(root.querySelector("[data-ui-row-focus]")?.getAttribute("data-ui-key"), "r2");
-    assert.equal(root.getAttribute("aria-activedescendant"), root.querySelector("[data-ui-row-focus]")?.id);
+    // A table's role names no active descendant: the cursor's row is the stop itself.
+    assert.equal(root.getAttribute("aria-activedescendant"), null);
+    assert.deepEqual(root.querySelectorAll(".ui-table__row").map(row => row.getAttribute("tabindex")), [null, "-1", "0"]);
+    assert.equal(fakeDocument.activeElement, root.querySelector("[data-ui-row-focus]"));
+    assert.equal(root.getAttribute("tabindex"), "-1");
+});
+
+test("Enter on a selection checkbox cell turns the box on and off without opening the row, and the box is named after its row header", () => {
+    const { root, rows, raised } = grid(2, "many");
+    const box = new FakeInput("checkbox");
+    const header = rows[0].children[0];
+
+    box.setAttribute("aria-label", "Select row");
+    header.setAttribute("role", "rowheader");
+    header.textContent = "SUB-001001";
+    root.setAttribute("data-ui-no-row-select", "");
+    rows[0].children[3].setAttribute("data-ui-table-select", "");
+    rows[0].children[3].setAttribute("data-ui-no-row-open", "");
+    rows[0].children[3].append(FakeElement.of("ui-checkbox").append(box));
+
+    assert.equal(press(root, "Enter").defaultPrevented, true);
+    assert.equal(rows[0].hasAttribute("data-ui-selected"), true);
+    assert.equal(box.checked, true);
+    assert.ok(box.id.length > 0 && header.id.length > 0);
+    assert.equal(box.getAttribute("aria-labelledby"), `${box.id} ${header.id}`);
+
+    assert.equal(press(root, "Enter").defaultPrevented, true);
+    assert.equal(rows[0].hasAttribute("data-ui-selected"), false);
+    assert.equal(box.checked, false);
+    assert.deepEqual(raised, []);
 });

@@ -27,25 +27,25 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TabsComponent()
             .BindStandard()
-            .BindSelectedKey($"{TabsGroup}.{nameof(TabsGroupContext.SelectedKey)}")
-            .BindSelectionStyle($"{TabsGroup}.{nameof(TabsGroupContext.SelectionStyle)}")
-            .BindShowOverflow($"{TabsGroup}.{nameof(TabsGroupContext.ShowOverflow)}")
+            .BindSelectedKey<TabsController>(static x => x.TabsGroup.SelectedKey)
+            .BindSelectionStyle<TabsController>(static x => x.TabsGroup.SelectionStyle)
+            .BindShowOverflow<TabsController>(static x => x.TabsGroup.ShowOverflow)
             .AddTab(TabsGroupContext.OverviewKey,
                 new TabCaptionComponent()
                     .SetTitle("Overview")
-                    .BindIcon($"{TabsGroup}.{nameof(TabsGroupContext.OverviewIcon)}"),
+                    .BindIcon<TabsController>(static x => x.TabsGroup.OverviewIcon),
                 CreateOverviewPage()
             )
             .AddTab(TabsGroupContext.ActivityKey,
                 new TabCaptionComponent()
                     .SetTitle("Activity")
-                    .BindBadgeText($"{TabsGroup}.{nameof(TabsGroupContext.ActivityBadge)}"),
+                    .BindBadgeTitle<TabsController>(static x => x.TabsGroup.ActivityBadge),
                 CreateActivityPage()
             )
             .AddTab(TabsGroupContext.SettingsKey,
                 new TabCaptionComponent()
                     .SetTitle("Settings")
-                    .BindVisibility($"{TabsGroup}.{nameof(TabsGroupContext.SettingsVisible)}"),
+                    .BindVisibility<TabsController>(static x => x.TabsGroup.SettingsVisible),
                 CreateSettingsPage()
             )
             .SetPlacement(1, 1, 24, 1)
@@ -138,7 +138,7 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateActionsGroup()
     {
-        return DemoUI.CreateExample("Actions at the strip's end",
+        return DemoUI.CreateExample("Trailing tab-strip actions",
             new SurfaceComponent()
                 .SetWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsComponent()
@@ -182,12 +182,12 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCountGroup()
     {
-        return DemoUI.CreateExample("A count on a caption",
+        return DemoUI.CreateExample("Badges & counters on tabs",
             new SurfaceComponent()
                 .SetWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsComponent()
                     .AddTab("inbox",
-                        new TabCaptionComponent().SetTitle("Inbox").SetBadgeText("3").SetBadgeStyle(UIBadgeType.Danger),
+                        new TabCaptionComponent().SetTitle("Inbox").SetBadgeTitle("3").SetBadgeVariant(UIBadgeVariant.Danger),
                         UILayout.Stack(10)
                             .AddChild(new TextComponent()
                                 .SetIcon(DemoIcons.Outline(DemoIcons.Mail))
@@ -245,7 +245,7 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
             new() { Id = "server", Title = "server.json", Order = 3, CanRemove = false, Body = "Add a document to the collection and a tab appears." }
         ];
 
-        return DemoUI.CreateExample("Against TabsView",
+        return DemoUI.CreateExample("Static TabsComponent vs bound TabsViewComponent",
             UILayout.Columns(32,
                 DemoUI.CreateLabelled("Tabs — pages are regions the view wrote", new TabsComponent()
                     .AddTab("incident", "incident-report.md", UILayout.Stack(10).AddChild(new ParagraphComponent().SetDescription("A paragraph, written for this page.")))
@@ -255,7 +255,7 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
                 DemoUI.CreateLabelled("TabsView — pages are one template over a collection", new TabsViewComponent()
                     .SetItems(documents)
                     .SetPageTemplate(new ParagraphComponent()
-                        .BindDescription(nameof(DemoDocumentItem.Body), UIBindingScope.Relative)
+                        .BindDescription<DemoDocumentItem>(static x => x.Body, UIBindingScope.Relative)
                         .SetMargin(UIThickness.All(0, 4, 0, 0))
                     )
                 )

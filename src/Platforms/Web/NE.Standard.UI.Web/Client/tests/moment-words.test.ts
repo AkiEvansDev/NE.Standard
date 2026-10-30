@@ -4,14 +4,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ClientWords, marksPageWritten } from "../src/runtime/client-strings.ts";
-import type { WordsTable } from "../src/runtime/client-strings.ts";
+import { ClientWords, marksPageWritten } from "../src/rendering/client-strings.ts";
+import type { WordsTable } from "../src/rendering/client-strings.ts";
 import { InvariantTemporalCulture } from "../src/rendering/temporal-format.ts";
 import type { TemporalLanguage } from "../src/rendering/temporal-format.ts";
 import { formatTimestamp } from "../src/rendering/timestamp-format.ts";
 import type { TimestampFormat } from "../src/rendering/timestamp-format.ts";
-import { formatWords, holdsMoment, isMoment, isPhrase, translateKey, writeCanonicalMoment } from "../src/runtime/words.ts";
-import type { WordLookup } from "../src/runtime/words.ts";
+import { formatWords, holdsMoment, isMoment, isPhrase, translateKey, writeCanonicalMoment } from "../src/rendering/words.ts";
+import type { WordLookup } from "../src/rendering/words.ts";
 
 const Instant = Date.UTC(2026, 8, 30, 14, 5, 0);
 const Written = "2026-09-30T14:05:00.000Z";

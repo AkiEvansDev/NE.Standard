@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
@@ -67,14 +66,14 @@ public static class UIText
     /// <paramref name="clickCommand"/> makes the whole quote pressable (a jump to what it quotes), <paramref name="closeCommand"/> ends it
     /// in an × (the reply dropped), its glyph on the quote's end, which hides the quote at once and runs the command beside the hide.
     /// </summary>
-    public static SurfaceComponent Quote(UIPhrase title, UIPhrase line, UIThemeColor? accent = null, string? clickCommand = null, string? closeCommand = null)
+    public static SurfaceComponent Quote(UIPhrase title, UIPhrase description, UIThemeColor? accent = null, string? clickCommand = null, string? closeCommand = null)
     {
         PresetWords.Require(title);
-        PresetWords.Require(line);
+        PresetWords.Require(description);
 
         UIThemeColor color = accent ?? UIThemeColor.Primary;
 
-        return Quote(QuoteWords(new TextComponent().SetTitle(title).SetDescription(line).SetTitleColor(color)), clickCommand, closeCommand).SetBorderColor(color);
+        return Quote(QuoteWords(new TextComponent().SetTitle(title).SetDescription(description).SetTitleColor(color)), clickCommand, closeCommand).SetBorderColor(color);
     }
 
     /// <summary>
@@ -114,7 +113,7 @@ public static class UIText
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(closeCommand);
 
-            close = UIIconButtons.Close().SetSize(UIButtonSize.Small).OnClick(closeCommand);
+            close = UIIconButtons.Close().SetSize(UISize.Small).OnClick(closeCommand);
 
             // A quote is a band: its × stands its glyph on the quote's end, as every end icon of a band does, its box hanging into the
             // end's padding.
@@ -163,19 +162,19 @@ public static class UIText
             .AsContent(TextComponent.TitleProperty, TextComponent.DescriptionProperty);
 
     /// <summary>
-    /// The words quote bound to what the controller holds at <paramref name="titlePath"/> and <paramref name="linePath"/> — a reply line
+    /// The words quote bound to what the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> — a reply line
     /// over a composer, a quote in a message's row — the colour at <paramref name="accentPath"/> where given, the brand while it is null.
     /// A jump that names what it quotes takes its argument on the result: <c>.OnClick(command, arguments)</c>. The words are drawn as
     /// written, data rather than markup.
     /// </summary>
-    public static SurfaceComponent BoundQuote(string titlePath, string linePath, UIBindingScope scope = UIBindingScope.Root, string? accentPath = null, string? clickCommand = null, string? closeCommand = null)
+    public static SurfaceComponent BoundQuote(string titlePath, string descriptionPath, UIBindingScope scope = UIBindingScope.Root, string? accentPath = null, string? clickCommand = null, string? closeCommand = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(linePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
 
         TextComponent words = QuoteWords(new TextComponent()
             .BindTitle(titlePath, scope)
-            .BindDescription(linePath, scope)
+            .BindDescription(descriptionPath, scope)
             .SetDescriptionPlain(true)
             .SetTitleColor(UIThemeColor.Primary)
         );
@@ -195,23 +194,24 @@ public static class UIText
     /// <summary>
     /// A person as a list's row or a byline shows one: the round picture at <paramref name="avatar"/> (the person glyph where there is
     /// none), and beside it on its middle the name in the body's role over a muted caption — a role, how long ago, the last words.
-    /// Both are content, a person's name and words as written; a <see cref="UIPhrase.Of"/> key still translates.
+    /// Both are content, a person's name and words as written; a <see cref="UIPhrase.Of"/> key still translates. The size is
+    /// <see cref="UISize.Medium"/> (a 40 px picture), <see cref="UISize.Small"/> (32 px) or <see cref="UISize.Large"/> (48 px).
     /// </summary>
-    public static ContainerComponent Person(string? avatar, UIPhrase name, UIPhrase? line = null, UIPersonSize size = UIPersonSize.Medium)
+    public static ContainerComponent Person(string? avatar, UIPhrase name, UIPhrase? description = null, UISize size = UISize.Medium)
     {
         PresetWords.Require(name);
-        PresetWords.RequireIfGiven(line);
+        PresetWords.RequireIfGiven(description);
 
         TextComponent words = new TextComponent().SetTitle(name);
 
-        return Person(Picture(avatar), PersonWords(line is null ? words : words.SetDescription(line)), size);
+        return Person(Picture(avatar), PersonWords(description is null ? words : words.SetDescription(description)), size);
     }
 
     /// <summary>
     /// The same beside words of the author's — a name with a badge, a line with a timestamp — standing where the name would, on the
     /// picture's middle.
     /// </summary>
-    public static ContainerComponent Person(string? avatar, IVisualComponent words, UIPersonSize size = UIPersonSize.Medium)
+    public static ContainerComponent Person(string? avatar, IVisualComponent words, UISize size = UISize.Medium)
     {
         ArgumentNullException.ThrowIfNull(words);
 
@@ -219,20 +219,22 @@ public static class UIText
     }
 
     /// <summary>The picture in its circle, the words 12 px after it on its middle.</summary>
-    private static ContainerComponent Person<T>(ImageComponent picture, T words, UIPersonSize size)
+    private static ContainerComponent Person<T>(ImageComponent picture, T words, UISize size)
         where T : VisualComponentBase<T>, IUIComponentDefinition
     {
-        // Two sizes, not one a page picks: a row's and a dense row's.
+        // Steps, not a length a page picks: a list's row or a byline (40 px), a dense row, a menu, a cell or a comment (32 px), a
+        // profile's head or a conversation's header (48 px).
         double side = size switch
         {
-            UIPersonSize.Medium => 40,
-            UIPersonSize.Small => 32,
-            _ => throw new ArgumentOutOfRangeException(nameof(size), size, "A person is Medium or Small.")
+            UISize.Medium => 40,
+            UISize.Small => 32,
+            UISize.Large => 48,
+            _ => throw new ArgumentOutOfRangeException(nameof(size), size, "A person is Small, Medium or Large.")
         };
 
         // No words of its own for a screen reader: the name stands beside it, and read twice it would be noise.
         _ = picture
-            .SetShape(UIImageShape.Circle)
+            .SetShape(UIShape.Circle)
             .SetWidth(UILayoutLength.Absolute(side))
             .SetHeight(UILayoutLength.Absolute(side))
             .SetVerticalAlignment(UIAlignment.Center)
@@ -269,20 +271,20 @@ public static class UIText
 
     /// <summary>
     /// The same bound to what the controller holds at <paramref name="avatarPath"/> (the person glyph where none is given or it holds
-    /// nothing), <paramref name="namePath"/> and <paramref name="linePath"/> — a chat's row, a conversation's person.
+    /// nothing), <paramref name="namePath"/> and <paramref name="descriptionPath"/> — a chat's row, a conversation's person.
     /// </summary>
-    public static ContainerComponent BoundPerson(string? avatarPath, string namePath, string? linePath = null, UIBindingScope scope = UIBindingScope.Root, UIPersonSize size = UIPersonSize.Medium)
+    public static ContainerComponent BoundPerson(string? avatarPath, string namePath, string? descriptionPath = null, UIBindingScope scope = UIBindingScope.Root, UISize size = UISize.Medium)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(namePath);
 
         TextComponent words = new TextComponent().BindTitle(namePath, scope);
 
-        if (linePath is not null)
+        if (descriptionPath is not null)
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(linePath);
+            ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);
 
             // The person's words as written: data, not markup.
-            _ = words.BindDescription(linePath, scope).SetDescriptionPlain(true);
+            _ = words.BindDescription(descriptionPath, scope).SetDescriptionPlain(true);
         }
 
         ImageComponent picture = new();
@@ -343,18 +345,18 @@ public static class UIText
     private static BadgeComponent Badge(BadgeItem badge)
     {
         BadgeComponent component = new BadgeComponent()
-            .SetType(badge.BadgeStyle)
+            .SetVariant(badge.BadgeVariant)
             .SetColor(badge.BadgeColor)
             .SetFill(badge.BadgeFill)
             .SetIcon(badge.BadgeIcon)
             .SetIconColor(badge.BadgeIconColor)
             .SetIconSize(badge.BadgeIconSize)
-            .SetText(badge.BadgeText)
-            .SetTextType(badge.BadgeTextType);
+            .SetTitle(badge.BadgeTitle)
+            .SetTitleType(badge.BadgeTitleType);
 
         // An item that says its words are content keeps them as written, as the bound row does.
         if (badge.IsContent)
-            _ = component.AsContent(BadgeComponent.TextProperty, ITooltipComponent.TooltipProperty);
+            _ = component.AsContent(BadgeComponent.TitleProperty, ITooltipComponent.TooltipProperty);
 
         return badge.BadgeTooltip is null ? component : component.SetTooltip(badge.BadgeTooltip).SetTooltipPlacement(badge.BadgeTooltipPlacement);
     }
@@ -385,14 +387,14 @@ public static class UIText
 
     private static BadgeComponent BoundBadge()
         => new BadgeComponent()
-            .BindType(nameof(BadgeItem.BadgeStyle), UIBindingScope.Relative)
+            .BindVariant(nameof(BadgeItem.BadgeVariant), UIBindingScope.Relative)
             .BindColor(nameof(BadgeItem.BadgeColor), UIBindingScope.Relative)
             .BindFill(nameof(BadgeItem.BadgeFill), UIBindingScope.Relative)
             .BindIcon(nameof(BadgeItem.BadgeIcon), UIBindingScope.Relative)
             .BindIconColor(nameof(BadgeItem.BadgeIconColor), UIBindingScope.Relative)
             .BindIconSize(nameof(BadgeItem.BadgeIconSize), UIBindingScope.Relative)
-            .BindText(nameof(BadgeItem.BadgeText), UIBindingScope.Relative)
-            .BindTextType(nameof(BadgeItem.BadgeTextType), UIBindingScope.Relative)
+            .BindTitle(nameof(BadgeItem.BadgeTitle), UIBindingScope.Relative)
+            .BindTitleType(nameof(BadgeItem.BadgeTitleType), UIBindingScope.Relative)
             .BindTooltip(nameof(BadgeItem.BadgeTooltip), UIBindingScope.Relative)
             .BindTooltipPlacement(nameof(BadgeItem.BadgeTooltipPlacement), UIBindingScope.Relative);
 

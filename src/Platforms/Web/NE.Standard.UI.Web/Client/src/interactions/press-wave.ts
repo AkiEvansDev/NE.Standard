@@ -2,11 +2,7 @@
 // so the browser's compositor grows and fades it whatever the page's script is doing. It is no one else's business: an observer that
 // re-reads a component on a change inside it passes it by, and a copy of a pressed thing leaves it out.
 
-/** The wave: the pressed thing's frame and corners, cutting the ink's circle to them. */
-export const PressWaveClass = "ui-press-wave";
-
-/** The circle that grows inside the wave. */
-export const PressInkClass = "ui-press-wave__ink";
+import { PressWaveClass } from "../addressing/dom-attributes.ts";
 
 /** Whether a record only puts a wave in or takes one out. */
 export function isPressWaveRecord(record: MutationRecord): boolean {

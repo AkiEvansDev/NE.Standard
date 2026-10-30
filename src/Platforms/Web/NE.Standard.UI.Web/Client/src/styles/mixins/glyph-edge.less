@@ -1,9 +1,9 @@
 @import "./responsive.less";
 @import "./side-drawers.less";
 
-// A quiet button: a ghost or a link shows at rest only its glyph or its words, which a glyph edge (StackPanel.GlyphEdge) stands on
-// the content's edge (ui-button.less) — an icon's glyph, a label's words, the theme switcher's glyph, the language switcher's press.
-@ui-glyph-hung: ~":is(.ui-button:is([data-ui-text-icon], [data-ui-text-title]), .ui-theme-switcher, .ui-language-switcher):is(.ui-button--ghost, .ui-button--link)";
+// A quiet icon button or switcher: a ghost or link icon button, the theme switcher or the language switcher shows at rest only its
+// glyph or its compact code, which a glyph edge (StackPanel.GlyphEdge) stands on the content's edge (ui-button.less).
+@ui-glyph-hung: ~":is(.ui-button[data-ui-text-icon]:not([data-ui-text-title]), .ui-theme-switcher, .ui-language-switcher):is(.ui-button--ghost, .ui-button--link)";
 
 // The edges a band names: a panel's own (GlyphEdge), which a preset sets on the panels it builds since only it knows the panel is a
 // band's end; and the core's own bands, which take it by default where they end in a quiet control: a card header's far end, whose
@@ -34,7 +34,7 @@
 // A quiet control's box hung past the end it stands at by what stands between its box and what it shows (--ui-glyph-inset, set by
 // ui-button.less on every quiet button, or by the control itself), so its glyph stands on the end; --ui-glyph-hang-end at 0 puts it off.
 .ui-glyph-hang-end() {
-    margin-inline-end: calc(-1 * var(--ui-glyph-inset-end, var(--ui-glyph-inset)) * var(--ui-glyph-hang-end, 1));
+    margin-inline-end: calc(-1 * var(--ui-glyph-inset) * var(--ui-glyph-hang-end, 1));
 }
 
 // What core/side-drawers.less hides of the drawers' own buttons in a band: a pin below the medium breakpoint and beside the bottom

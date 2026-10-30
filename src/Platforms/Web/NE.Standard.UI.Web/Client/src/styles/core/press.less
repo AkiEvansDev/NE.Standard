@@ -1,6 +1,5 @@
 @import "./tokens.less";
 @import "../mixins/ripple.less";
-@import (reference) "../components/ui-menu.less";
 
 // The wave press-ripple-engine.ts puts in the thing it presses, its last child while it plays (press-wave.ts). Imported after every
 // component, so the wave's own placement wins the ties with a component's rules for its children (a grid's `> *`).
@@ -26,23 +25,4 @@
 // A pinned cell's opaque ground (a layer at 1) would cover it: the wave lies over the row's cells instead.
 .ui-table__row > .ui-press-wave {
     z-index: 2;
-}
-
-// A tab's caption is square on the strip; its wave is rounded as a list's entry is, so a press never flashes a box.
-.ui-tab-caption > .ui-press-wave {
-    border-radius: @ui-list-entry-radius;
-}
-
-// An icon that is the whole face gives a little while held: an icon-only button's, a folded menu's or a rail's entry's, and a control
-// drawn as its own glyph (the "…" of a strip, a bar or an action bar; a key-value row's pencil and its save and cancel; a toast's ×).
-.ui-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-button__content > .ui-text__icon,
-@{ui-menu-icon-entry} > .ui-button__content > .ui-text__icon,
-:is(.ui-tab-overflow, .ui-command-bar__overflow, .ui-action-bar__more, .ui-key-value-action__action .ui-button, .ui-key-value-action__edit-action .ui-button, .ui-notification__close)::before {
-    .ui-press-icon();
-}
-
-.ui-button[data-ui-text-icon]:not([data-ui-text-title]).ui-press-held > .ui-button__content > .ui-text__icon,
-@{ui-menu-icon-entry}.ui-press-held > .ui-button__content > .ui-text__icon,
-:is(.ui-tab-overflow, .ui-command-bar__overflow, .ui-action-bar__more, .ui-key-value-action__action .ui-button, .ui-key-value-action__edit-action .ui-button, .ui-notification__close).ui-press-held::before {
-    .ui-press-icon-held();
 }

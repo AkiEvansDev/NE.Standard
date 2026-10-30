@@ -77,7 +77,7 @@ function scene(options: { readonly keys?: readonly string[]; readonly max?: numb
     const list = [["design", "Design"], ["backend", "Backend"], ["billing", "Billing"]].map(([key, title]) => {
         const option = FakeElement.of("ui-select__option", { "data-ui-key": key, role: "option", "aria-selected": "false" });
 
-        option.dataset.uiKey = key;
+        option.setAttribute("data-ui-key", key);
         option.append(Object.assign(FakeElement.of("ui-text__title", {}, "span"), { textContent: title }));
         return option;
     });
@@ -299,6 +299,22 @@ test("typed text opens the options it names with the keyboard left in the entry 
     key("Enter");
 
     assert.deepEqual(keys(at), ["bi"]);
+});
+
+test("the suggestions are called what the entry's caption says, not by the entry, whose typed text is its value", () => {
+    const at = scene();
+
+    // As RenderFieldLabel writes it: the caption as the entry's own words.
+    at.entry.setAttribute("aria-label", "Tags");
+    type(at, "bi");
+
+    const list = at.select.children[1];
+    const caption = at.select.querySelector("[data-ui-popup-caption]");
+
+    assert.equal(at.entry.id, "", "named by the entry itself");
+    assert.equal(list.getAttribute("aria-labelledby"), caption?.id);
+    assert.equal(caption?.textContent, "Tags");
+    key("Escape");
 });
 
 test("an arrow marks a suggestion, which Enter takes, the entry starting again", () => {

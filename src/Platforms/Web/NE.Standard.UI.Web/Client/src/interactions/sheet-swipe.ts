@@ -2,10 +2,8 @@
 // anywhere at the top of its scroll, the sheet follows the drag, closes past a third of its height or on a flick, and short of that
 // springs back. The stylesheet moves it by `--ui-sheet-drag` and drops its transition while `data-ui-sheet-dragging` is on.
 
+import { SheetDraggingAttribute } from "../addressing/dom-attributes.ts";
 import { FlickSpeed, followSwipe, SwipeSlop } from "./swipe-follow.ts";
-
-/** On a sheet while a finger or the pointer drags it: its transform follows at once, with no transition. */
-const SheetDraggingAttribute = "data-ui-sheet-dragging";
 
 const DragProperty = "--ui-sheet-drag";
 

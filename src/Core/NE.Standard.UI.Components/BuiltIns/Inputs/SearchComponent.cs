@@ -51,6 +51,12 @@ public abstract partial class SearchComponent<T, TItem>(string? id = null) : Sel
     public bool? AutoSearch { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the reader may commit text of their own, in addition to choosing from the options.
+    /// </summary>
+    [UIComponentProperty(IsBindable = false, DefaultValue = false, GenerateSetter = false)]
+    public bool? AllowFreeText { get; set; }
+
+    /// <summary>
     /// Sets the minimum number of characters required before a search is triggered.
     /// </summary>
     public T SetMinSearchLength(int minSearchLength)
@@ -66,6 +72,21 @@ public abstract partial class SearchComponent<T, TItem>(string? id = null) : Sel
     /// </summary>
     public T SetAutoSearch()
         => SetAutoSearch(true);
+
+    /// <summary>
+    /// Lets the reader commit text of their own, in addition to choosing from the options.
+    /// </summary>
+    public T SetAllowFreeText()
+        => SetAllowFreeText(true);
+
+    /// <summary>
+    /// Sets whether the reader may commit text of their own, in addition to choosing from the options.
+    /// </summary>
+    public T SetAllowFreeText(bool allowFreeText)
+    {
+        AllowFreeText = allowFreeText;
+        return Self;
+    }
 
     /// <summary>
     /// Registers a search event command.

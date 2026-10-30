@@ -34,7 +34,7 @@ test("each band hangs the edge's button once for every kind and size, by the ins
     assert.equal(endRules.length, 5, "one rule per width band, not one per band and size");
 
     for (const rule of endRules)
-        assert.match(rule.body, /margin-inline-end: calc\(-1 \* var\(--ui-glyph-inset-end, var\(--ui-glyph-inset\)\) \* var\(--ui-glyph-hang-end, 1\)\);/);
+        assert.match(rule.body, /margin-inline-end: calc\(-1 \* var\(--ui-glyph-inset\) \* var\(--ui-glyph-hang-end, 1\)\);/);
 
     assert.match(css, /--ui-glyph-box: 2\.5rem;\s*--ui-glyph-size: 1\.125rem;\s*--ui-glyph-inset: calc\(\(var\(--ui-glyph-box\) - var\(--ui-glyph-size\)\) \/ 2\);/, "a medium button's 40 px box round its 18 px glyph: 11 px");
     assert.match(css, /\.ui-button--small \{\s*--ui-glyph-box: 1\.75rem;\s*--ui-glyph-size: 1rem;/, "a small one's 28 px round 16 px: 6 px");
@@ -48,17 +48,14 @@ test("an icon-only button with an IconSize of its own hangs by that glyph, which
     assert.ok(css.indexOf("[data-ui-icon-size=\"small\"] {") > css.indexOf(".ui-button--link).ui-theme-switcher {"));
 });
 
-test("a quiet button with words hangs by its press's padding, a split button's end by its toggle's", () => {
-    assert.match(inset("[data-ui-text-title]"), /--ui-glyph-inset: 1rem;/);
-    assert.match(inset(".ui-button--small[data-ui-text-title]"), /--ui-glyph-inset: 0\.5rem;/);
-    assert.match(inset(".ui-button--large[data-ui-text-title]"), /--ui-glyph-inset: 1\.5rem;/);
-    assert.match(inset(".ui-split-button[data-ui-text-title]"), /--ui-glyph-inset-end: 0\.5rem;/);
-    assert.match(inset(".ui-split-button--no-chevron[data-ui-split-mode=\"menu\"][data-ui-text-title]"), /--ui-glyph-inset-end: var\(--ui-glyph-inset\);/);
+test("a button with words is not hung on a glyph edge", () => {
+    for (const rule of endRules)
+        assert.match(rule.selector, /\.ui-button\[data-ui-text-icon\]:not\(\[data-ui-text-title\]\)/);
 });
 
 test("the switchers hang too: the theme switcher by its glyph, the language switcher by its press's padding", () => {
     assert.match(css, /\(\.ui-button--ghost, \.ui-button--link\)/);
-    assert.match(css, /:is\(\.ui-button:is\(\[data-ui-text-icon\], \[data-ui-text-title\]\), \.ui-theme-switcher, \.ui-language-switcher\)/);
+    assert.match(css, /:is\(\.ui-button\[data-ui-text-icon\]:not\(\[data-ui-text-title\]\), \.ui-theme-switcher, \.ui-language-switcher\)/);
     assert.match(inset(".ui-theme-switcher"), /--ui-glyph-size: 1\.125rem;/);
     assert.match(inset(".ui-language-switcher"), /--ui-glyph-inset: 0\.75rem;/);
 });
@@ -69,24 +66,14 @@ test("the core's own bands are edges by default: a card header's far end, but no
 });
 
 test("a tab strip's action hangs by a field action's small box round its glyph, whatever the button's size", () => {
-    assert.match(css, /\.ui-tabs__actions > :is\(\.ui-button:is\(\[data-ui-text-icon\], \[data-ui-text-title\]\), \.ui-theme-switcher, \.ui-language-switcher\):is\(\.ui-button--ghost, \.ui-button--link\),\n\.ui-tabs__actions > \.ui-tabs__tab-actions > [^{]*\{\s*--ui-glyph-box: 1\.75rem;/);
-});
-
-test("a tab strip's action with words hangs by a field action's 8 px padding, not its size's own, a flyout's anchor too", () => {
-    const rule = /\n(\.ui-tabs__actions > [^{]*\[data-ui-text-title\]) \{([^}]*)\}/.exec(css);
-
-    assert.ok(rule, "no rule for a tab strip's action with words");
-    assert.match(rule[2], /--ui-glyph-inset: 0\.5rem;/);
-    assert.match(rule[1], /\.ui-tabs__actions > \.ui-tabs__tab-actions > \.ui-flyout > \.ui-flyout__anchor > :is\(/);
-    // After the button's own insets by size, which tie with it.
-    assert.ok(rule.index > css.indexOf(".ui-button--large[data-ui-text-title] {"));
+    assert.match(css, /\.ui-tabs__actions > :is\(\.ui-button\[data-ui-text-icon\]:not\(\[data-ui-text-title\]\), \.ui-theme-switcher, \.ui-language-switcher\):is\(\.ui-button--ghost, \.ui-button--link\),\n\.ui-tabs__actions > \.ui-tabs__tab-actions > [^{]*\{\s*--ui-glyph-box: 1\.75rem;/);
 });
 
 test("a toast's close hangs past the toast's end by its 6 px inset, its cross on the content's edge", () => {
     const close = /\n\.ui-notification__close \{([^}]*)\}/.exec(css)?.[1] ?? "";
 
     assert.match(close, /--ui-glyph-inset: calc\(\(1\.75rem - 1rem\) \/ 2\);/);
-    assert.match(close, /margin-inline-end: calc\(-1 \* var\(--ui-glyph-inset-end, var\(--ui-glyph-inset\)\) \* var\(--ui-glyph-hang-end, 1\)\);/);
+    assert.match(close, /margin-inline-end: calc\(-1 \* var\(--ui-glyph-inset\) \* var\(--ui-glyph-hang-end, 1\)\);/);
 });
 
 test("a hidden child, as a tab's actions behind another tab, is not the one shown", () => {
@@ -113,4 +100,8 @@ test("a language switcher with one language, which draws nothing, is not the one
 test("a row on the edge passes it on to its own last child, as the tab in front's actions do", () => {
     for (const rule of endRules)
         assert.match(rule.selector, /\)\):is\(\.ui-orientation--horizontal, \.ui-tabs__tab-actions\) > :nth-last-child\(1 of /);
+});
+
+test("a glyph-edge panel and any unframed clipping grid or stack around it leave a hung button's 24 px and the 8 px frame reach uncut", () => {
+    assert.match(css, /:is\(\.ui-container, \.ui-stack-panel\):not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\]\)\[data-ui-id\]\[style\*="overflow: clip"\],\s*\.ui-stack-panel:is\(\.ui-stack-panel--glyph-start, \.ui-stack-panel--glyph-end\)\[data-ui-id\] \{\s*overflow-clip-margin: 32px;/);
 });

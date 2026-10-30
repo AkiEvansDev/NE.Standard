@@ -1,6 +1,6 @@
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { webDomConverters } from "../rendering/web-dom-converters.ts";
-import { logError, logWarn } from "../runtime/logger.ts";
+import { logError, logWarn } from "../metadata/logger.ts";
 
 export type ValueConverterContext = {
     readonly name: string;

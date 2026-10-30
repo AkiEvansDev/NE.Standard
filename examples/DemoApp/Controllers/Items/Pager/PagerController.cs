@@ -48,12 +48,12 @@ internal sealed class DemoFleetSource(int total) : UIItemSourceBase<TextItem>
         var role = Roles[index % Roles.Length];
         (var region, var regionName) = Regions[index / Roles.Length % Regions.Length];
         var name = string.Create(CultureInfo.InvariantCulture, $"{role}-{region}-{(index / (Roles.Length * Regions.Length)) + 1}");
-        (var status, UIBadgeType style) = (index % 17, index % 23, index % 29) switch
+        (var status, UIBadgeVariant variant) = (index % 17, index % 23, index % 29) switch
         {
-            (3, _, _) => ("Degraded", UIBadgeType.Warning),
-            (_, 5, _) => ("Maintenance", UIBadgeType.Info),
-            (_, _, 7) => ("Stopped", UIBadgeType.Surface),
-            _ => ("Running", UIBadgeType.Success)
+            (3, _, _) => ("Degraded", UIBadgeVariant.Warning),
+            (_, 5, _) => ("Maintenance", UIBadgeVariant.Info),
+            (_, _, 7) => ("Stopped", UIBadgeVariant.Surface),
+            _ => ("Running", UIBadgeVariant.Success)
         };
 
         return new TextItem
@@ -62,8 +62,8 @@ internal sealed class DemoFleetSource(int total) : UIItemSourceBase<TextItem>
             Title = name,
             Description = string.Create(CultureInfo.InvariantCulture, $"{regionName} · {Plans[index * 7 / 3 % Plans.Length]} · CPU {(index * 37 % 91) + 4}%"),
             Icon = DemoIcons.Outline(DemoIcons.Server),
-            BadgeText = status,
-            BadgeStyle = style
+            BadgeTitle = status,
+            BadgeVariant = variant
         };
     }
 }

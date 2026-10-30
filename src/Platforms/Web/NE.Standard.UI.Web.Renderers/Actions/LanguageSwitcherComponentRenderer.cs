@@ -2,7 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -27,25 +27,25 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
 {
     /// <summary>The press the engine switches or opens the list from.</summary>
-    public const string TriggerClassName = "ui-language-switcher__trigger";
+    public const string TriggerClassName = WebClassNames.LanguageSwitcherTrigger;
 
     /// <summary>What the press shows for the page's language: every offered language's words stacked, the current one shown.</summary>
     public const string LabelClassName = "ui-language-switcher__label";
 
     /// <summary>One language's words inside the label; the page's own carries <see cref="CurrentLabelClassName"/>.</summary>
-    public const string LabelTextClassName = "ui-language-switcher__label-text";
+    public const string LabelTextClassName = WebClassNames.LanguageSwitcherLabelText;
 
     /// <summary>The label text of the language the page is in, the one shown.</summary>
-    public const string CurrentLabelClassName = "ui-language-switcher__label-text--current";
+    public const string CurrentLabelClassName = WebClassNames.LanguageSwitcherLabelTextCurrent;
 
     /// <summary>A language the page may be in but the switcher does not offer: a label shown only while it is the page's, never a choice.</summary>
-    public const string PageLabelClassName = "ui-language-switcher__label-text--page";
+    public const string PageLabelClassName = WebClassNames.LanguageSwitcherLabelTextPage;
 
     /// <summary>The list of the offered languages, opened where there are more than two.</summary>
-    public const string MenuClassName = "ui-language-switcher__menu";
+    public const string MenuClassName = WebClassNames.LanguageSwitcherMenu;
 
     /// <summary>One language in the list, named in itself.</summary>
-    public const string ChoiceClassName = "ui-language-switcher__choice";
+    public const string ChoiceClassName = WebClassNames.LanguageSwitcherChoice;
 
     /// <summary>A switcher with one language to offer, which has nothing to switch and is not shown.</summary>
     public const string SingleClassName = "ui-language-switcher--single";
@@ -125,7 +125,7 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
             _ = trigger.Element("span", icon =>
             {
                 _ = icon.Class("ui-language-switcher__icon");
-                _ = icon.Class("ui-icon");
+                _ = icon.Class(WebClassNames.Icon);
 
                 SwitcherChromeRenderer.RenderGlyph(context, root, icon, LanguageSwitcherComponent.IconProperty);
             });
@@ -188,7 +188,7 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
             _ = trigger.Element("span", icon =>
             {
                 _ = icon.Class("ui-language-switcher__icon");
-                _ = icon.Class("ui-icon");
+                _ = icon.Class(WebClassNames.Icon);
 
                 SwitcherChromeRenderer.RenderGlyph(context, root, icon, LanguageSwitcherComponent.IconProperty);
             });

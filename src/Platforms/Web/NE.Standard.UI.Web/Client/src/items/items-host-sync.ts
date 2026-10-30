@@ -1,20 +1,18 @@
 // `.ts` on the value imports, and the rest kept as `import type`: `node --test` runs this module directly.
-import { ComponentKeyAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass } from "../addressing/dom-attributes.ts";
+import { ComponentKeyAttribute, TreeRootClass, TreeRowClass, TreeRowFilteredClass, TreeRulesEventName } from "../addressing/dom-attributes.ts";
 import type { MetadataIndex } from "../metadata/metadata-index";
 import type { PropertyStateStore } from "../state/property-state-store";
 import { keepRowCursorShown, rowCursorRoot } from "../interactions/row-cursor.ts";
-import { logError } from "../runtime/logger.ts";
-import { ensureEmptyState, getRealItemElements } from "./items-empty-renderer.ts";
+import { logError } from "../metadata/logger.ts";
+import { ensureEmptyState, getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import { applyItemFilters } from "./items-filter-sort.ts";
 import { regroupHost } from "./items-group-renderer.ts";
 import { drawGroupHeader, regroupWindow } from "./items-group-runs.ts";
-import { resolveHostMode } from "./items-host-mode.ts";
+import { resolveHostMode } from "../addressing/items-host-mode.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 import type { ItemsVirtualizationEngine } from "./items-virtualization-engine";
 
-/** Raised on a tree's host when its rules or their sources changed; the tree engine answers with a walk. */
-export const TreeRulesEventName = "ui-tree-rules";
 // A tree's node rows its walk has not filtered out; a row of waiting stands only beside a node, so it is never counted.
 const ShownTreeRowSelector = `:scope > .${TreeRowClass}:not(.${TreeRowFilteredClass})`;
 

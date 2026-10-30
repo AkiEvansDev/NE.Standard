@@ -20,15 +20,14 @@
     --ui-row-wash: var(--ui-selected-background, @default);
 }
 
-// The ink and its weight together: a control that emphasises its chosen entry passes its own weight as the fallback. The text's ink,
-// never the brand's: over the chosen wash the brand's words fell under 4.5:1 (3.2:1 on dark) — the brand stays in the mark.
-.ui-selected-ink(@default: @ui-text-ink; @weight: inherit) {
+// The ink and its weight together: a control that emphasises its chosen entry passes its own weight as the fallback.
+.ui-selected-ink(@default: var(--ui-text-selected); @weight: inherit) {
     color: var(--ui-selected-foreground, @default);
     font-weight: var(--ui-selected-font-weight, @weight);
 }
 
 // The mark's colour alone, for a control that draws the mark its own way (a tab's line) rather than via box-shadow: the mode's
-// (WebThemeCssBuilder), the brand's ink on light and that ink lifted for a tint on dark, where the raw brand read 2.1:1 on the wash.
+// `--ui-mark-selected` (WebThemeCssBuilder), raw `--ui-color-primary` unless a custom primary needs shading or lifting to read.
 @ui-selected-mark-color: ~"var(--ui-selected-mark-color, var(--ui-mark-selected))";
 
 // The mark itself is a box-shadow so it takes no room and lies over the ground; these are the four edges WebCssValues.SelectionMark writes.
@@ -41,14 +40,13 @@
     box-shadow: var(--ui-selected-mark, @default);
 }
 
-// A chosen row: ground, inherited ink, the brand's line on its leading edge — a list on the page, which the reader goes by, says which
-// row it holds in the brand's colour while its ground stays neutral — and the cursor's layer, transparent until
-// `.ui-row-cursor-layer()`, so it fades both ways. A list in a popup marks no line: its chosen entry is its ground and its own check.
+// A chosen row: ground, 3rd-degree selected ink, an optional authored mark, and the cursor's layer, transparent until
+// `.ui-row-cursor-layer()`, so it fades both ways.
 .ui-selected-row() {
     .ui-selected-ground();
     background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent));
-    .ui-selected-ink(inherit);
-    .ui-selected-mark(@ui-selected-mark-left);
+    .ui-selected-ink();
+    .ui-selected-mark();
 }
 
 // A chosen tile: a chosen row over the tile's own picture and its dim, which the row's `background` shorthand would reset (`.ui-tile-wash()`
@@ -56,7 +54,7 @@
 .ui-selected-tile() {
     .ui-selected-ground(@property: background-color);
     background-image: linear-gradient(var(--ui-row-cursor-wash, transparent), var(--ui-row-cursor-wash, transparent)), var(--ui-surface-image-veil, none), var(--ui-surface-image, none);
-    .ui-selected-ink(inherit);
+    .ui-selected-ink();
     .ui-selected-mark();
 }
 
@@ -103,7 +101,7 @@
 
         // The parts, never a root (a two-part split button's hovered part alone): a filter makes the root the containing block of a popup
         // inside it, which would jump.
-        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-not-split-parts}@{ui-row-own}@{ui-button-live}:hover > :not([role="menu"], [role="listbox"]),
+        :is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-not-split-parts}@{ui-row-own}@{ui-button-live}:hover > :not([role="menu"], [role="listbox"], .ui-split-button__menu),
         @{ui-split-parts}:is(.ui-button--ghost, .ui-button--outline, .ui-button--link)@{ui-row-own}@{ui-button-live} > :is(.ui-split-button__main, .ui-split-button__toggle):hover {
             .ui-brighten-hover();
         }
@@ -123,16 +121,18 @@
 
 // The pointer's wash on a list's entry, but not on the `@current` one, which keeps its ground so two never look current.
 .ui-entry-hover(@current: ~"[aria-selected='true']") {
-    transition: background-color @ui-motion-fast @ui-motion-ease;
+    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 
     @media @{ui-can-hover} {
         &:not(@{current}):hover {
             background-color: var(--ui-wash-hover);
+            color: @ui-text-ink;
         }
     }
 
     &:not(@{current}):active {
         background-color: var(--ui-wash-active);
+        color: @ui-text-ink;
     }
 }
 
@@ -146,7 +146,7 @@
     border: 0;
     border-radius: @ui-list-entry-radius;
     background: none;
-    color: inherit;
+    color: @ui-text-muted;
     font: inherit;
     white-space: nowrap;
     cursor: pointer;
@@ -160,40 +160,53 @@
     }
 }
 
-// The keyboard's row washes like the pointer's; on a chosen row, as a layer, so it still reads as chosen. It also wears the keyboard's
-// frame (`.ui-keyboard-frame()`), which the pointer's row never has — under a single choice too, whose chosen row the arrows move: left
-// out there, a list holding the keyboard looked the same as one a pointer had chosen in.
+// The keyboard's row washes like the pointer's; on a chosen row, as a layer, so it still reads as chosen.
 // `@via` the path from host to items host when not direct (a table's scroll box), ending in " > ".
 .ui-row-cursor(@host; @row; @via: ~"") {
     @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]:not([data-ui-selected]) {
         .ui-row-hover();
-        .ui-keyboard-frame();
     }
 
-    // A chosen row's line stands on its leading edge: the frame stays straight there, standing on the line, as a tab's on its own.
     @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus][data-ui-selected] {
         .ui-row-cursor-layer();
-        .ui-keyboard-frame();
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
     }
 
-    // A key moves the cursor at once, frame and wash together: the washes' fade trailed the frame, which has none.
     @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row} {
         transition: @ui-root-transition;
     }
 }
 
+// The same where the row holds the focus itself — a list's, a table's and a key-value list's, whose roles take no active descendant, so
+// the cursor's row is the host's one Tab stop (row-cursor.ts): the wash on the focused row, and no ring of its own.
+// `:focus-within` moves every row at once while the focus is among them, as the host's own focus did.
+.ui-row-cursor-on-row(@host; @row; @via: ~"") {
+    @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]@{ui-row-cursor-focus}:not([data-ui-selected]) {
+        .ui-row-hover();
+    }
+
+    @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]@{ui-row-cursor-focus}[data-ui-selected] {
+        .ui-row-cursor-layer();
+    }
+
+    @{host}:focus-within > @{via}[data-ui-items-host] > @{row} {
+        transition: @ui-root-transition;
+    }
+
+    @{host} > @{via}[data-ui-items-host] > @{row}:focus {
+        outline: none;
+    }
+}
+
 // A list's rows (an items view's stack, a tree) round every wash they wear — the pointer's, the press's wave, the keyboard's, the
-// chosen ground — as a menu's entry does, and a chosen row is straight only on the edge its mark stands on: the leading one, or the
-// one SelectionStyle moved it to, read off the host's own inline mark (`.ui-selected-scope()` fences an ancestor's). A table's and a
-// key-value list's rows, edge to edge in a grid, stay square. The keyboard's frame, at a greater weight, takes its own corner.
+// chosen ground — as a menu's entry does, and a chosen row is straight only on the edge an authored SelectionStyle mark stands on.
+// A table's and a key-value list's rows, edge to edge in a grid, stay square.
 .ui-list-row-corners(@host; @row) {
     @{host} > [data-ui-items-host] > @{row} {
         border-radius: @ui-list-entry-radius;
     }
 
-    @{host} > [data-ui-items-host] > @{row}[data-ui-selected] {
+    @{host}[style*="--ui-selected-mark: inset 2px"] > [data-ui-items-host] > @{row}[data-ui-selected] {
+        border-radius: @ui-list-entry-radius;
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
     }

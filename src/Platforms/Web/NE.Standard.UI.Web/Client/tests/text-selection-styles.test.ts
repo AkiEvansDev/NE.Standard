@@ -98,7 +98,7 @@ function escape(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const ControlHosts = ":is(.ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-menu, .ui-context-menu, .ui-action-bar, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-expander__header, .ui-key-value-action__action)";
+const ControlHosts = ":is(.ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-steps, .ui-menu, .ui-context-menu, .ui-action-bar, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-expander__header, .ui-key-value-action__action)";
 const Editable = ':is(input, textarea, [contenteditable=""], [contenteditable="true"])';
 
 test("the page selects nothing by itself, the prefixed property too", () => {

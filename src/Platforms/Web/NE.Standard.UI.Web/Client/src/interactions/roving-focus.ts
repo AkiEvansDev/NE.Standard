@@ -57,8 +57,12 @@ export const rovingFocus = {
 
 /** Leaves exactly one item in the tab order. */
 export function applyRovingTabIndex(items: readonly HTMLElement[], active: HTMLElement | null): void {
-    for (const item of items)
-        item.tabIndex = item === active ? 0 : -1;
+    for (const item of items) {
+        const next = item === active ? 0 : -1;
+
+        if (item.getAttribute("tabindex") !== String(next))
+            item.tabIndex = next;
+    }
 }
 
 /** Moves the keyboard to an item, the walk's one Tab stop with it; nothing for none. */

@@ -122,10 +122,10 @@ test("a live change moves the numbers and puts on and takes off the attributes t
     assert.equal(surface.hasAttribute("data-ui-surface-image"), false);
 });
 
-test("the veil is the ground at the dim's share over the picture, evenly or on the edges alone", () => {
+test("the veil is black at the dim's share over the picture, evenly or on the edges alone", () => {
     const shown = declarations(".ui-container[data-ui-surface-image]") ?? "";
 
-    assert.match(shown, /--ui-surface-image-veil: linear-gradient\(color-mix\(in srgb, var\(--ui-ground, var\(--ui-color-surface\)\) calc\(var\(--ui-surface-image-dim\) \* 100%\), transparent\)/);
+    assert.match(shown, /--ui-surface-image-veil: linear-gradient\(color-mix\(in srgb, #000 calc\(var\(--ui-surface-image-dim\) \* 100%\), transparent\)/);
     assert.match(shown, /background-image: var\(--ui-surface-image-veil, none\), var\(--ui-surface-image\);/);
     assert.match(declarations(".ui-container[data-ui-surface-image][data-ui-surface-image-dim=\"vignette\"]") ?? "", /radial-gradient\(closest-side, transparent 45%, color-mix/);
     assert.match(declarations(".ui-container") ?? "", /--ui-surface-image-veil: initial;/, "a nested surface does not wear its host's veil");

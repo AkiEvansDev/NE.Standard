@@ -82,7 +82,7 @@ function report(record: FakeRecord): void {
 installFakeDom({ DragEvent: FakeDragEvent, PointerEvent: FakePointerEvent, CustomEvent: FakeCustomEvent, MutationObserver: FakeMutationObserver, getComputedStyle: () => ({ direction: "ltr" }) });
 
 const { ItemsReorderEngine, itemMoveEvent, movedIndex } = await import("../src/interactions/items-reorder-engine.ts");
-const { PendingMoves } = await import("../src/items/pending-moves.ts");
+const { PendingMoves } = await import("../src/state/pending-moves.ts");
 const { RowGripDecorator } = await import("../src/items/row-grip.ts");
 
 test("a row put beside another takes the index the collection's Move puts it at, and none where it would not move", () => {
@@ -551,13 +551,14 @@ function gripped(): List & { readonly grips: FakeElement[] } {
     return { ...view, grips };
 }
 
-test("a client-built row gets the grip the server writes: named, and focusable by nothing", () => {
+test("a client-built row gets the grip the server writes: hidden from a screen reader, and focusable by nothing", () => {
     const [grip] = gripped().grips;
 
     assert.equal(grip.className, "ui-row__grip");
-    assert.equal(grip.getAttribute("role"), "button");
+    assert.equal(grip.getAttribute("aria-hidden"), "true");
+    assert.equal(grip.hasAttribute("role"), false);
     assert.equal(grip.hasAttribute("tabindex"), false);
-    assert.ok((grip.getAttribute("aria-label") ?? "").length > 0);
+    assert.equal(grip.hasAttribute("aria-label"), false);
 });
 
 test("a row that shows a grip is lifted by it alone, and the rest of the row keeps its press", () => {

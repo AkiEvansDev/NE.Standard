@@ -109,7 +109,7 @@ public static class ResponsiveRenderer
     }
 
     /// <summary>The patch operations of one responsive value: a custom property per tier, each through its tier's converter.</summary>
-    internal static WebDomOperation[] TierOperations(string cssVariableName, WebResponsiveConverters converters)
+    public static WebDomOperation[] TierOperations(string cssVariableName, WebResponsiveConverters converters)
         => TierOperations(cssVariableName, converters, static (name, target, converter) => WebDomOperation.Style(name, target, converter));
 
     /// <summary>As <see cref="TierOperations(string, WebResponsiveConverters)"/>, but each tier through <paramref name="operation"/>: an attribute per tier.</summary>

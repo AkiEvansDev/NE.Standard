@@ -34,7 +34,6 @@
     <Project Path="src/Platforms/Web/NE.Standard.UI.Web.Renderers.Foundation/NE.Standard.UI.Web.Renderers.Foundation.csproj" />
     <Project Path="src/Platforms/Web/NE.Standard.UI.Web/NE.Standard.UI.Web.csproj" />
   </Folder>
-  <Folder Name="/src/Platforms/Wpf/" />
 
   <Folder Name="/examples/">
     <Project Path="examples/DemoApp.Web/DemoApp.Web.csproj" />
@@ -43,8 +42,11 @@
 
   <Folder Name="/solution/">
     <File Path=".editorconfig" />
+    <File Path=".oxlintrc.json" />
     <File Path="global.json" />
     <File Path="Directory.Build.props" />
+    <File Path="Directory.Build.targets" />
+    <File Path="WebClient.targets" />
     <File Path=".gitattributes" />
     <File Path=".gitignore" />
     <File Path="LICENSE.md" />

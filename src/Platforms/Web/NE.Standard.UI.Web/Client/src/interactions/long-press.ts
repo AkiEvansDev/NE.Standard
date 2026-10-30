@@ -8,7 +8,7 @@
 // press ripple engine answers.
 
 // `.ts` on the value import: `node --test` loads this module as it is.
-import { ContextMenuAttribute, SplittingAttribute } from "../addressing/dom-attributes.ts";
+import { ContextMenuAttribute, LongPressHoldEndEventName, LongPressHoldEventName, SplittingAttribute } from "../addressing/dom-attributes.ts";
 
 const LongPressDelay = 500;
 // A tap and a scroll's start are over before it: only a finger meaning to hold is shown its hold.
@@ -18,12 +18,6 @@ const LongPressSlop = 10;
 
 // The `contextmenu` events raised here, which the context menu engine reads as a finger's opening.
 const raised = new WeakSet<Event>();
-
-/** Raised on the part a finger is held on once the hold is shown, with the time left until it opens the menu. */
-export const LongPressHoldEventName = "ui-long-press-hold";
-
-/** Raised where a shown hold ended: the menu it asked for opened, or the finger let go, moved on or became a scroll. */
-export const LongPressHoldEndEventName = "ui-long-press-hold-end";
 
 export type LongPressHoldDetail = {
     readonly pointerId: number;

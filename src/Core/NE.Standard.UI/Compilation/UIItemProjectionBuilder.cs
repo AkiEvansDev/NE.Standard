@@ -272,6 +272,14 @@ internal static class UIItemProjectionBuilder
 
         AppendStaticRuleReads(state, host, paths);
 
+        if (state.TryGetValue(host, IItemsQueryTermsComponent.QueryTermsProperty, out CompiledUIPropertyValue? queryTerms)
+            && queryTerms.Value is UIItemsQueryTerms { AllowSearch: true }
+            && state.TryGetValue(host, IItemsComponent.ItemReadsProperty, out CompiledUIPropertyValue? declaredReads)
+            && declaredReads.Value is UIItemReads { IsWhole: false } reads)
+        {
+            paths.AddRange(reads.Paths);
+        }
+
         if (paths.Count > 0)
             ruleReads.Add(host, [.. paths]);
     }

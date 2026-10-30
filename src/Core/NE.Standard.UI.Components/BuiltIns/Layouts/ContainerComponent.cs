@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -30,9 +31,6 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     /// </summary>
     protected ContainerComponent(string? id = null) : base(id)
     {
-        HorizontalAlignment = UIAlignment.Stretch;
-        VerticalAlignment = UIAlignment.Stretch;
-
         for (var i = 0; i < UIGridPlacement.GridColumns; i++)
             _columns[i] = UIGridUnit.Star();
 
@@ -117,11 +115,11 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     }
 
     /// <summary>A caption row where a child on its first row draws one: a field and its Add, side by side.</summary>
-    public UIInputSize? CaptionRowBox(UIResponsiveTier tier)
+    public UISize? CaptionRowBox(UIResponsiveTier tier)
     {
         foreach (IVisualComponent child in Children)
         {
-            if ((child.Placement?.Resolve(tier).Row ?? 1) == 1 && UIFieldBoxes.CaptionRowBox(child, tier) is UIInputSize box)
+            if ((child.Placement?.Resolve(tier).Row ?? 1) == 1 && UIFieldBoxes.CaptionRowBox(child, tier) is UISize box)
                 return box;
         }
 

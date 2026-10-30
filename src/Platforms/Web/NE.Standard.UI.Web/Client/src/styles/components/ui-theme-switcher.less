@@ -22,6 +22,11 @@
         .ui-responsive-property(padding, --ui-padding, @ui-space-3);
     }
 
+    // Visually an icon-only button without data-ui-text-icon: non-filled variants rest in 1st-degree muted ink and step up on hover.
+    .ui-theme-switcher:is(.ui-button--ghost, .ui-button--outline, .ui-button--surface) {
+        color: @ui-text-muted;
+    }
+
     // An icon-only control's step of the icon scale, at every size as before (1.25em of the body stood at 17.5 px, its glyph high);
     // :where() keeps an authored IconSize winning.
     :where(.ui-theme-switcher .ui-theme-switcher__icon) {

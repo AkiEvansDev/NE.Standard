@@ -104,10 +104,12 @@
 }
 
 // A sheet against one edge, filling its length; defaults over the same tiers, so an authored size or alignment still wins.
+// Only the inner edge facing the page carries a border; the three edges against the screen's frame do not.
 .ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface {
     .ui-responsive-property(--ui-fill-margin-x, --ui-margin-x, 0px);
     .ui-responsive-property(--ui-fill-margin-y, --ui-margin-y, 0px);
     .ui-responsive-property(margin, --ui-margin, 0);
+    border: none;
     border-radius: 0;
     animation-name: ui-dialog-sheet-in;
 }
@@ -123,10 +125,12 @@
 
 .ui-dialog[data-ui-dialog-placement="left"] > .ui-dialog__surface {
     justify-self: var(--ui-align-h, start);
+    border-right: var(--ui-border-width, 1px) solid var(--ui-color-border);
 }
 
 .ui-dialog[data-ui-dialog-placement="right"] > .ui-dialog__surface {
     justify-self: var(--ui-align-h, end);
+    border-left: var(--ui-border-width, 1px) solid var(--ui-color-border);
 }
 
 .ui-dialog:is([data-ui-dialog-placement="top"], [data-ui-dialog-placement="bottom"]) > .ui-dialog__surface {
@@ -137,10 +141,12 @@
 
 .ui-dialog[data-ui-dialog-placement="top"] > .ui-dialog__surface {
     align-self: var(--ui-align-v, start);
+    border-bottom: var(--ui-border-width, 1px) solid var(--ui-color-border);
 }
 
 .ui-dialog[data-ui-dialog-placement="bottom"] > .ui-dialog__surface {
     align-self: var(--ui-align-v, end);
+    border-top: var(--ui-border-width, 1px) solid var(--ui-color-border);
     .ui-sheet-edge();
 }
 

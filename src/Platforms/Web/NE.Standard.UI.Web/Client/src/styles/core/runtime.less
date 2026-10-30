@@ -421,7 +421,7 @@ body {
 
 // A control's words are never selected, whatever a TextSelectable says around or inside it: a press is the control's, a drag its
 // drag (a caption's, a tab's), and a double press must not light a word of a label.
-@ui-control-hosts: ~".ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-menu, .ui-context-menu, .ui-action-bar, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-expander__header, .ui-key-value-action__action";
+@ui-control-hosts: ~".ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-steps, .ui-menu, .ui-context-menu, .ui-action-bar, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-expander__header, .ui-key-value-action__action";
 
 :is(@{ui-control-hosts}),
 :is(@{ui-control-hosts}) :is(.ui-content-text, [data-ui-text-select]) {

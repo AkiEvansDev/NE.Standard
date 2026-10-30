@@ -1,6 +1,6 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import type { MetadataIndex, WebRenderItemsTemplateMetadata } from "../metadata/metadata-index.ts";
-import { markRowIdle } from "../updates/row-idle.ts";
+import { markRowIdle } from "../rendering/row-idle.ts";
 import type { ItemStackEntry } from "./binding-template-evaluator.ts";
 import { renderCompositeItem } from "./items-composite-renderer.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";

@@ -4,7 +4,7 @@
 // arrows along it (round past its ends) and Home and End over its commands' controls and the "…", a field or a menu button in it
 // keeping the keys it takes itself.
 
-import { ComponentSelector, GroupHeaderAttribute, HiddenClass, TabOutAttribute } from "../addressing/dom-attributes.ts";
+import { CommandBarClass, CommandBarHostClass, CommandBarItemClass, CommandBarOverflowClass, CommandBarOverflowedClass, CommandBarOverflowingClass, ComponentSelector, GroupHeaderAttribute, HiddenClass, OrientationVerticalClass, TabOutAttribute, TextTitleClass } from "../addressing/dom-attributes.ts";
 import { setAnchorStandIn } from "./anchored-popup.ts";
 import { isFieldKey } from "./caret-fields.ts";
 import { observeComponents } from "./dom-mutations.ts";
@@ -18,14 +18,6 @@ import { bringBackToTabOrder, isOwnTabStop, takeOutOfTabOrder } from "./tab-out.
 import type { StripOverflowEntry } from "./strip-overflow.ts";
 import { StripFitter } from "./strip-overflow.ts";
 
-const RootClass = "ui-command-bar";
-const HostClass = "ui-command-bar__host";
-const ItemClass = "ui-command-bar__item";
-const OverflowButtonClass = "ui-command-bar__overflow";
-const OverflowingModifier = "ui-command-bar--overflowing";
-const OverflowedClass = "ui-command-bar__overflowed";
-const VerticalClass = "ui-orientation--vertical";
-const TitleClass = "ui-text__title";
 // What a toolbar's walk lands on inside a command: its controls, and the ones the walk took out of the Tab order for now.
 const StopSelector = `${FocusableSelector}, [${TabOutAttribute}]`;
 
@@ -43,16 +35,16 @@ export class CommandBarEngine {
     public constructor(options: CommandBarEngineOptions = {}) {
         this.root = options.root ?? document;
         this.fitter = new StripFitter({
-            rootClass: RootClass,
-            overflowingClass: OverflowingModifier,
+            rootClass: CommandBarClass,
+            overflowingClass: CommandBarOverflowingClass,
             wraps: root => !isSingleLine(root),
-            hiddenClass: OverflowedClass,
+            hiddenClass: CommandBarOverflowedClass,
             trailing: true,
             refit: root => this.apply(root),
             pick: (root, key) => this.pick(root, key)
         });
 
-        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${CommandBarClass}`));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         // Bubbling: a menu button's or a select's own Down, and a field's caret keys, are theirs first.
@@ -62,7 +54,7 @@ export class CommandBarEngine {
         // Commands arriving, leaving or regrouped. A label or a Visibility changing moves a command's own width, which the fitter
         // watches; the fit's own classes are not watched here, or every fit would ask for the next.
         // Not a change inside a command (a label's words, a badge's count): a fit reads the layout, and a streamed page changes often.
-        observeComponents(this.root, `.${RootClass}`, { childList: true, addedOnly: true, relevant: changesCommands }, roots => this.applyAll(roots));
+        observeComponents(this.root, `.${CommandBarClass}`, { childList: true, addedOnly: true, relevant: changesCommands }, roots => this.applyAll(roots));
     }
 
     private applyAll(roots: Iterable<HTMLElement>): void {
@@ -73,7 +65,7 @@ export class CommandBarEngine {
     /** Hides the commands past the bar's room behind the "…", and a group's separator left with no command after it. */
     private apply(root: HTMLElement): void {
         const host = hostOf(root);
-        const button = root.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`);
+        const button = root.querySelector<HTMLElement>(`:scope > .${CommandBarOverflowClass}`);
 
         if (host === null || button === null)
             return;
@@ -82,16 +74,16 @@ export class CommandBarEngine {
 
         this.fitter.fit(root, { room: root, button, captions: parts, selected: null });
 
-        if (root.classList.contains(OverflowingModifier))
+        if (root.classList.contains(CommandBarOverflowingClass))
             hideTrailingSeparators(parts);
 
         // A command in the list that opens a popup of its own (a flyout, a menu) opens it at the "…" it was picked from; one back on
         // the bar, at itself again.
         for (const part of parts)
-            setAnchorStandIn(part, part.classList.contains(OverflowedClass) ? button : null);
+            setAnchorStandIn(part, part.classList.contains(CommandBarOverflowedClass) ? button : null);
 
         // The arrows follow the bar's orientation, which a reader is told; a toolbar is horizontal unless it says otherwise.
-        if (root.classList.contains(VerticalClass))
+        if (root.classList.contains(OrientationVerticalClass))
             root.setAttribute("aria-orientation", "vertical");
         else
             root.removeAttribute("aria-orientation");
@@ -103,10 +95,10 @@ export class CommandBarEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const button = domEvent.target.closest<HTMLElement>(`.${OverflowButtonClass}`);
+        const button = domEvent.target.closest<HTMLElement>(`.${CommandBarOverflowClass}`);
         const root = button?.parentElement ?? null;
 
-        if (button === null || root === null || !root.classList.contains(RootClass))
+        if (button === null || root === null || !root.classList.contains(CommandBarClass))
             return;
 
         domEvent.preventDefault();
@@ -118,13 +110,13 @@ export class CommandBarEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof HTMLElement) || !isPlainKey(domEvent) || isFieldKey(domEvent))
             return;
 
-        const root = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const root = domEvent.target.closest<HTMLElement>(`.${CommandBarClass}`);
         const stops = root === null ? [] : stopsOf(root);
 
         if (root === null || !stops.includes(domEvent.target))
             return;
 
-        const next = resolveRovingTarget({ key: domEvent.key, items: stops, current: domEvent.target, axis: root.classList.contains(VerticalClass) ? "vertical" : "horizontal" });
+        const next = resolveRovingTarget({ key: domEvent.key, items: stops, current: domEvent.target, axis: root.classList.contains(OrientationVerticalClass) ? "vertical" : "horizontal" });
 
         if (next === null)
             return;
@@ -137,7 +129,7 @@ export class CommandBarEngine {
     /** A control of the bar the focus came to — pressed, or picked from the "…" — is where Tab comes back in. */
     private handleFocusIn(domEvent: Event): void {
         const target = domEvent.target instanceof HTMLElement ? domEvent.target : null;
-        const root = target?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const root = target?.closest<HTMLElement>(`.${CommandBarClass}`) ?? null;
 
         if (target !== null && root !== null && stopsOf(root).includes(target))
             applyStop(root, target);
@@ -149,7 +141,7 @@ export class CommandBarEngine {
         const commands = host === null
             ? []
             : partsOf(host)
-                .filter(part => part.classList.contains(ItemClass) && part.classList.contains(OverflowedClass))
+                .filter(part => part.classList.contains(CommandBarItemClass) && part.classList.contains(CommandBarOverflowedClass))
                 .map(item => item.querySelector<HTMLElement>(ComponentSelector) ?? item);
 
         this.listed.set(root, commands);
@@ -170,11 +162,11 @@ export class CommandBarEngine {
 function changesCommands(mutation: MutationRecord): boolean {
     const target = mutation.target;
 
-    if (target instanceof Element && (target.classList.contains(RootClass) || target.classList.contains(HostClass) || target.classList.contains(ItemClass)))
+    if (target instanceof Element && (target.classList.contains(CommandBarClass) || target.classList.contains(CommandBarHostClass) || target.classList.contains(CommandBarItemClass)))
         return true;
 
     for (const node of mutation.addedNodes) {
-        if (node instanceof Element && (node.classList.contains(RootClass) || node.querySelector(`.${RootClass}`) !== null))
+        if (node instanceof Element && (node.classList.contains(CommandBarClass) || node.querySelector(`.${CommandBarClass}`) !== null))
             return true;
     }
 
@@ -182,7 +174,7 @@ function changesCommands(mutation: MutationRecord): boolean {
 }
 
 function hostOf(root: HTMLElement): HTMLElement | null {
-    return root.querySelector<HTMLElement>(`:scope > .${HostClass}`);
+    return root.querySelector<HTMLElement>(`:scope > .${CommandBarHostClass}`);
 }
 
 /**
@@ -211,7 +203,7 @@ function stopsOf(root: HTMLElement): HTMLElement[] {
     const stops: HTMLElement[] = [];
 
     for (const part of host === null ? [] : partsOf(host)) {
-        if (!part.classList.contains(ItemClass) || part.classList.contains(OverflowedClass))
+        if (!part.classList.contains(CommandBarItemClass) || part.classList.contains(CommandBarOverflowedClass))
             continue;
 
         for (const control of part.querySelectorAll<HTMLElement>(StopSelector)) {
@@ -220,9 +212,9 @@ function stopsOf(root: HTMLElement): HTMLElement[] {
         }
     }
 
-    const button = root.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`);
+    const button = root.querySelector<HTMLElement>(`:scope > .${CommandBarOverflowClass}`);
 
-    if (button !== null && root.classList.contains(OverflowingModifier))
+    if (button !== null && root.classList.contains(CommandBarOverflowingClass))
         stops.push(button);
 
     return stops;
@@ -256,7 +248,7 @@ function partsOf(host: HTMLElement): HTMLElement[] {
             continue;
         }
 
-        const command = child.classList.contains(ItemClass) ? child.querySelector<HTMLElement>(ComponentSelector) : null;
+        const command = child.classList.contains(CommandBarItemClass) ? child.querySelector<HTMLElement>(ComponentSelector) : null;
 
         // The command's own display: its item may be the one the fit took out, which says nothing about the command.
         if (command !== null && isLaidOut(command))
@@ -273,10 +265,10 @@ function hideTrailingSeparators(parts: readonly HTMLElement[]): void {
     for (let i = parts.length - 1; i >= 0; i--) {
         const part = parts[i];
 
-        if (part.classList.contains(ItemClass))
-            shownAfter ||= !part.classList.contains(OverflowedClass);
+        if (part.classList.contains(CommandBarItemClass))
+            shownAfter ||= !part.classList.contains(CommandBarOverflowedClass);
         else if (!shownAfter)
-            part.classList.add(OverflowedClass);
+            part.classList.add(CommandBarOverflowedClass);
     }
 }
 
@@ -286,7 +278,7 @@ function hideTrailingSeparators(parts: readonly HTMLElement[]): void {
  */
 function titleOf(command: HTMLElement): string {
     const target = pressTargetOf(command);
-    const title = target.querySelector(`.${TitleClass}`)?.textContent?.trim() ?? "";
+    const title = target.querySelector(`.${TextTitleClass}`)?.textContent?.trim() ?? "";
 
     if (title.length > 0)
         return title;

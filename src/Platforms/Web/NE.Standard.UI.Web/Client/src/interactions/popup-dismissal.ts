@@ -2,9 +2,12 @@
 // Escape is one document listener over every dismissal, closing only one popup: the innermost, else the newest. A popup behind an
 // open modal dialog is left alone: a press in the dialog is not outside it, and Escape is the dialog's.
 
+import { addedAmong, observeLine, SightAttributes } from "./element-visibility.ts";
 import { escapeClaimant } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { isBehindModal } from "./open-dialogs.ts";
+import { onTierChange } from "../rendering/responsive-tier.ts";
+import { registerRuntimeCleanup, withoutRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 
 /**
  * Why a popup closed unasked: a press outside, Escape, the window's blur, the keyboard leaving it, or its owner unable to keep it —
@@ -34,8 +37,15 @@ const instances = new Set<PopupDismissal>();
 let pressStandIn: ((path: readonly EventTarget[]) => Element | null) | null = null;
 
 /** Names the element a press on a stand-in (the overlay scrollbar's layer) is a press on, for every dismissal. */
-export function setPressStandIn(standIn: (path: readonly EventTarget[]) => Element | null): void {
+export function setPressStandIn(standIn: ((path: readonly EventTarget[]) => Element | null) | null): void {
     pressStandIn = standIn;
+
+    if (standIn !== null) {
+        registerRuntimeCleanup(() => {
+            if (pressStandIn === standIn)
+                pressStandIn = null;
+        });
+    }
 }
 
 /** The press's path, carried on through the element a stand-in was pressed for: a drag of a list's thumb is a press inside its popup. */
@@ -59,20 +69,21 @@ const openOrder = new Map<HTMLElement, number>();
 let openSequence = 0;
 let escapeInstalled = false;
 
+const escapeListener = (domEvent: Event): void => {
+    // A key already taken — a drag cancelled by it — is not also a popup's, nor is a composition's.
+    if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || isComposing(domEvent))
+        return;
+
+    if (dismissNewest(escapeClaimant(domEvent.target)))
+        domEvent.preventDefault();
+};
+
 function installEscape(): void {
     if (escapeInstalled)
         return;
 
     escapeInstalled = true;
-
-    document.addEventListener("keydown", domEvent => {
-        // A key already taken — a drag cancelled by it — is not also a popup's, nor is a composition's.
-        if (!(domEvent instanceof KeyboardEvent) || domEvent.key !== "Escape" || domEvent.defaultPrevented || isComposing(domEvent))
-            return;
-
-        if (dismissNewest(escapeClaimant(domEvent.target)))
-            domEvent.preventDefault();
-    }, true);
+    withoutRuntimeCleanup(() => document.addEventListener("keydown", escapeListener, true));
 }
 
 // The floating layers no dismissal holds that answer Escape themselves — the action bar over a chosen row — each saying whether a key
@@ -80,8 +91,19 @@ function installEscape(): void {
 const escapeLayers: ((target: EventTarget | null) => boolean)[] = [];
 
 /** Counts a floating layer an engine keeps (the action bar) among what a dialog or a drawer leaves Escape to, while it says a key is its own. */
-export function registerEscapeLayer(takesEscape: (target: EventTarget | null) => boolean): void {
+export function registerEscapeLayer(takesEscape: (target: EventTarget | null) => boolean): () => void {
     escapeLayers.push(takesEscape);
+
+    const stop = (): void => {
+        const index = escapeLayers.indexOf(takesEscape);
+
+        if (index >= 0)
+            escapeLayers.splice(index, 1);
+    };
+
+    registerRuntimeCleanup(stop);
+
+    return stop;
 }
 
 /**
@@ -164,22 +186,55 @@ export class PopupDismissal {
 
     /** The popups the press now in progress began inside, so the click that ends it is not read as outside. */
     private readonly pressedInside = new Set<HTMLElement>();
+    private readonly onPointerDown = (domEvent: Event): void => this.handlePress(domEvent);
+    private readonly onContextMenu = (domEvent: Event): void => this.handleContextMenu(domEvent);
+    private readonly onClick: ((domEvent: Event) => void) | null;
+    private readonly onBlur: (() => void) | null;
+    private disposed = false;
 
     public constructor(options: PopupDismissalOptions) {
         this.options = options;
+        this.onClick = options.onPress === true ? null : (domEvent: Event): void => this.handleClick(domEvent);
+        this.onBlur = options.onWindowBlur === true ? (): void => { this.dismissAll("blur"); } : null;
 
-        document.addEventListener("pointerdown", domEvent => this.handlePress(domEvent), true);
-        // However a context menu is asked for, a list waiting for its click closes first; this listener is in before its engine's.
-        document.addEventListener("contextmenu", domEvent => this.handleContextMenu(domEvent), true);
+        withoutRuntimeCleanup(() => {
+            document.addEventListener("pointerdown", this.onPointerDown, true);
+            // However a context menu is asked for, a list waiting for its click closes first; this listener is in before its engine's.
+            document.addEventListener("contextmenu", this.onContextMenu, true);
 
-        if (options.onPress !== true)
-            document.addEventListener("click", domEvent => this.handleClick(domEvent), true);
+            if (this.onClick !== null)
+                document.addEventListener("click", this.onClick, true);
 
-        if (options.onWindowBlur === true)
-            window.addEventListener("blur", () => this.dismissAll("blur"));
+            if (this.onBlur !== null)
+                window.addEventListener("blur", this.onBlur);
+        });
 
         instances.add(this);
         installEscape();
+        registerRuntimeCleanup(() => this.dispose());
+    }
+
+    public dispose(): void {
+        if (this.disposed)
+            return;
+
+        this.disposed = true;
+        this.pressedInside.clear();
+        document.removeEventListener("pointerdown", this.onPointerDown, true);
+        document.removeEventListener("contextmenu", this.onContextMenu, true);
+
+        if (this.onClick !== null)
+            document.removeEventListener("click", this.onClick, true);
+
+        if (this.onBlur !== null)
+            window.removeEventListener("blur", this.onBlur);
+
+        instances.delete(this);
+
+        if (instances.size === 0 && escapeInstalled) {
+            document.removeEventListener("keydown", escapeListener, true);
+            escapeInstalled = false;
+        }
     }
 
     /** The popups this dismissal is watching, open right now. */
@@ -259,4 +314,132 @@ export class PopupDismissal {
     private isInside(popup: HTMLElement, path: readonly EventTarget[]): boolean {
         return this.options.isInside === undefined ? path.includes(popup) : this.options.isInside(popup, path);
     }
+}
+
+export type WatchedPopups = {
+    holding(element: Element): { readonly owner: HTMLElement; readonly popup: HTMLElement } | null;
+    owners(): IterableIterator<HTMLElement>;
+    closeStranded(moved?: ReadonlySet<HTMLElement>): void;
+    closeReformed(): void;
+    closeOutOfSight(scrolled: readonly (EventTarget | null)[]): void;
+};
+
+// The owners are watched only while a popup is open: `inert`, `disabled` or what puts an element out of sight (`SightAttributes`)
+// arriving on an open owner or anything above it, or the owner taken out of the page or moved, is re-checked once per batch against
+// the few popups that are open. Only the owners' lines are watched for attributes (`observeLine`), not the page's.
+const watching = new Set<WatchedPopups>();
+const OwnerStateFilter: string[] = ["inert", "disabled", "aria-disabled", ...SightAttributes];
+let observer: MutationObserver | null = null;
+let listening = false;
+// The scrolls of the frame now under way, judged together once: a scroll fires every frame, and each judgement walks the boxes up.
+let scrolledThisFrame: (EventTarget | null)[] | null = null;
+
+/** The open popup of any engine holding `element` — a list hung at the body's end from a strip in a dialog — with its owner, or null. */
+export function popupHolding(element: Element | null): { readonly owner: HTMLElement; readonly popup: HTMLElement } | null {
+    if (element === null)
+        return null;
+
+    for (const each of watching) {
+        const found = each.holding(element);
+
+        if (found !== null)
+            return found;
+    }
+
+    return null;
+}
+
+export function watchPopupOwner(popups: WatchedPopups, owner: HTMLElement): void {
+    watching.add(popups);
+    listenForSight();
+
+    if (typeof MutationObserver !== "function")
+        return;
+
+    if (observer === null) {
+        withoutRuntimeCleanup(() => {
+            observer = new MutationObserver(records => answerChanges(records));
+            observer.observe(document, { subtree: true, childList: true });
+        });
+    }
+
+    if (observer !== null)
+        withoutRuntimeCleanup(() => observeLine(observer!, owner, OwnerStateFilter));
+}
+
+/**
+ * Judges the open popups against a batch of changes: an attribute changed on an owner's line judges them all; a change of the tree
+ * alone, only the owners it moved, whose new line is watched as well — the old one stays watched until no popup is open — and the
+ * rest only whether they left the page. Never disconnected here: what closing writes is heard in the next batch, not dropped.
+ */
+function answerChanges(records: readonly MutationRecord[]): void {
+    const attributes = records.some(record => record.type === "attributes");
+    const moved = addedAmong(records, [...watching].flatMap(each => [...each.owners()]));
+
+    for (const each of [...watching])
+        each.closeStranded(attributes ? undefined : moved);
+
+    for (const owner of moved) {
+        if (observer !== null && owner.isConnected)
+            observeLine(observer, owner, OwnerStateFilter);
+    }
+}
+
+/**
+ * From the first opening on, for the page's life: a tier crossed re-checks the owners — a tier's Visibility hides one with no change in
+ * the tree — and closes what the small breakpoint re-forms; a scroll closes what it took out of sight. With none open, none is asked.
+ */
+function listenForSight(): void {
+    if (listening)
+        return;
+
+    listening = true;
+
+    withoutRuntimeCleanup(() => {
+        onTierChange(() => {
+            for (const each of [...watching]) {
+                each.closeReformed();
+                each.closeStranded();
+            }
+        });
+
+        // Capturing: an anchor can sit inside any scrolling box, and scroll does not bubble.
+        document.addEventListener("scroll", domEvent => {
+            if (watching.size === 0)
+                return;
+
+            if (scrolledThisFrame !== null) {
+                scrolledThisFrame.push(domEvent.target);
+                return;
+            }
+
+            scrolledThisFrame = [domEvent.target];
+            nextFrame(() => {
+                const scrolled = scrolledThisFrame ?? [];
+
+                scrolledThisFrame = null;
+
+                for (const each of [...watching])
+                    each.closeOutOfSight(scrolled);
+            });
+        }, { capture: true, passive: true });
+    });
+}
+
+/** Runs `then` before the next frame is drawn, or at the next task where nothing draws frames. */
+function nextFrame(then: () => void): void {
+    if (typeof requestAnimationFrame === "function")
+        requestAnimationFrame(then);
+    else
+        setTimeout(then, 0);
+}
+
+export function unwatchPopupOwners(popups: WatchedPopups): void {
+    watching.delete(popups);
+
+    if (watching.size > 0 || observer === null)
+        return;
+
+    observer.disconnect();
+    observer = null;
 }

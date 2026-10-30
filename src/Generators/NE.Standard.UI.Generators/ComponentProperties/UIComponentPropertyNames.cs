@@ -5,6 +5,7 @@ internal static class UIComponentPropertyNames
     public const string AttributeMetadataName = "NE.Standard.UI.Primitives.Annotations.UIComponentPropertyAttribute";
     public const string BlockAttributeMetadataName = "NE.Standard.UI.Primitives.Annotations.UIComponentPropertyBlockAttribute";
     public const string DefaultAttributeMetadataName = "NE.Standard.UI.Primitives.Annotations.UIComponentPropertyDefaultAttribute";
+    public const string BindableComponentMetadataName = "NE.Standard.UI.Abstractions.Binding.IBindableComponent";
     public const string UIPropertyMetadataName = "NE.Standard.UI.Abstractions.Binding.Properties.UIProperty";
     public const string RecursivePathMetadataName = "NE.Standard.UI.Abstractions.Recursive.RecursivePath";
 
@@ -21,6 +22,9 @@ internal static class UIComponentPropertyNames
 
     public static string GetPropertyDefinitionName(string propertyName)
         => propertyName + "PropertyDefinition";
+
+    public static string GetPropertyDefaultName(string propertyName)
+        => propertyName + "PropertyDefault";
 
     public static string GetUIPropertyName(string propertyName)
         => propertyName + "Property";

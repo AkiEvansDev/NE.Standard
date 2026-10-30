@@ -28,7 +28,7 @@ public partial class BadgeItem : RecursiveObservable, IBadgeModel, IContentItem
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIBadgeType? BadgeStyle { get; set; }
+    public partial UIBadgeVariant? BadgeVariant { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
@@ -48,17 +48,17 @@ public partial class BadgeItem : RecursiveObservable, IBadgeModel, IContentItem
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIIconSize? BadgeIconSize { get; set; }
+    public partial UISize? BadgeIconSize { get; set; }
 
     /// <inheritdoc />
     [Translatable]
     [RecursiveMember]
     [JsonConverter(typeof(UIPhraseValueJsonConverter))]
-    public partial UIPhrase? BadgeText { get; set; }
+    public partial UIPhrase? BadgeTitle { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UITextAppearance? BadgeTextType { get; set; }
+    public partial UITextAppearance? BadgeTitleType { get; set; }
 
     /// <inheritdoc />
     [Translatable]

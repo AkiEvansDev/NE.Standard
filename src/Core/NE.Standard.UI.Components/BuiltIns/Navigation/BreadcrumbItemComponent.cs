@@ -14,19 +14,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// A <see cref="ButtonComponent{T}"/> rendered as an anchor, so a step has a real URL to middle-click or copy; a step may carry an
 /// address and a command both (<see cref="IEntryLinkComponent"/>).
 /// </remarks>
+[UIComponentPropertyDefault(nameof(IButtonComponent.Variant), nameof(DefaultVariant))]
+[UIComponentPropertyDefault(nameof(ITextComponent.TextAlignment), nameof(DefaultTextAlignment))]
 [UIComponentPropertyBlock(typeof(ILinkableComponent))]
-public abstract partial class BreadcrumbItemComponent<T> : ButtonComponent<T>, IEntryLinkComponent
+public abstract partial class BreadcrumbItemComponent<T>(string? id = null) : ButtonComponent<T>(id), IEntryLinkComponent
     where T : BreadcrumbItemComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Initializes the step as untinted text that shrinks to its content.
-    /// </summary>
-    protected BreadcrumbItemComponent(string? id = null) : base(id)
-    {
-        Type = UIButtonType.Ghost;
-
-        TextAlignment = UITextAlignment.Start;
-    }
+    private const UIButtonVariant DefaultVariant = UIButtonVariant.Ghost;
+    private const UITextAlignment DefaultTextAlignment = UITextAlignment.Start;
 }
 
 /// <summary>

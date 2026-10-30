@@ -5,29 +5,22 @@ import { ComponentKeyAttribute, ComponentSelector, IntoAttributePrefix, ValueBin
 import { readComponentId } from "../addressing/dom-registry.ts";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
-import type { ExtensionRegistry } from "../extensions/extension-registry.ts";
+import type { ConverterRegistry } from "../extensions/converters.ts";
 import type { WebDomOperation, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
-import { shownValue } from "../runtime/client-strings.ts";
-import { isAuthorText, isPhrase } from "../runtime/words.ts";
-import { logDebug, logError, logWarn } from "../runtime/logger.ts";
-import type { PropertyStateRow, PropertyStateStore } from "../state/property-state-store.ts";
+import { shownValue } from "../rendering/client-strings.ts";
+import { isAuthorText, isPhrase } from "../rendering/words.ts";
+import { logDebug, logError, logWarn } from "../metadata/logger.ts";
+import type { PropertyStateRow, PropertyStateStore, PropertyValueChange, PropertyValueChangeHandler } from "../state/property-state-store.ts";
 import type { DomOperationRegistry } from "./dom-operation-registry.ts";
 import type { ValueBindingEngine } from "./value-binding-engine.ts";
-import { markupWords, readsMarkup } from "./shown-words.ts";
-import type { MarkupWords } from "./shown-words.ts";
+import { markupWords, readsMarkup } from "../rendering/shown-words.ts";
+import type { MarkupWords } from "../rendering/shown-words.ts";
 
-export type PropertyValueChange = {
-    readonly reference: WebRenderPropertyReferenceMetadata;
-    readonly propertyName: string;
-    readonly dynamicParameters: readonly unknown[];
-    /** The value as the page shows it: a key looked up, a phrase filled. */
-    readonly value: unknown;
-    readonly local: boolean;
-    /** The elements the patch landed on; empty when the component only exists inside an item template. */
-    readonly components: readonly Element[];
+export type { PropertyValueChange, PropertyValueChangeHandler } from "../state/property-state-store.ts";
+
+type PatchExtensions = {
+    readonly converters: Pick<ConverterRegistry, "convert">;
 };
-
-export type PropertyValueChangeHandler = (change: PropertyValueChange) => void;
 
 /** The value engine's word on a field a push lands on: whether it holds an edit, and whether it keeps this push out (docs/VALUES.md §3). */
 type HeldFields = Pick<ValueBindingEngine, "isHeld" | "holdsPush">;
@@ -37,7 +30,7 @@ const NoHeldFields: HeldFields = { isHeld: () => false, holdsPush: () => false }
 export class PropertyPatchEngine {
     private readonly addressResolver: AddressResolver;
     private readonly operations: DomOperationRegistry;
-    private readonly extensions: ExtensionRegistry;
+    private readonly extensions: PatchExtensions;
     private readonly state: PropertyStateStore;
     private readonly valueChangeHandlers = new Set<PropertyValueChangeHandler>();
 
@@ -46,7 +39,7 @@ export class PropertyPatchEngine {
     private restoring = false;
 
     // Fields rather than parameter properties, which a type-stripping loader cannot run.
-    public constructor(addressResolver: AddressResolver, operations: DomOperationRegistry, extensions: ExtensionRegistry, state: PropertyStateStore) {
+    public constructor(addressResolver: AddressResolver, operations: DomOperationRegistry, extensions: PatchExtensions, state: PropertyStateStore) {
         this.addressResolver = addressResolver;
         this.operations = operations;
         this.extensions = extensions;

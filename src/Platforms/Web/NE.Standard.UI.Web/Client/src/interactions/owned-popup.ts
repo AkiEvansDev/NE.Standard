@@ -11,15 +11,17 @@ import type { AnchoredPopupOptions } from "./anchored-popup.ts";
 import type { PopupDismissReason } from "./popup-dismissal.ts";
 import type { ComponentIndex } from "./popup-focus.ts";
 import { isSheet, placeAnchoredPopup, placesAsSheet, releaseAnchoredPopup, resolveStandIn } from "./anchored-popup.ts";
-import { addedAmong, isClippedOut, isInSight, observeLine, SightAttributes } from "./element-visibility.ts";
+import { isClippedOut, isInSight } from "./element-visibility.ts";
 import { isFocusable, isInert, isReadOnly } from "./interactive-state.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { isBehindModal } from "./open-dialogs.ts";
-import { orderForEscape, PopupDismissal } from "./popup-dismissal.ts";
-import { PointerFocusAttribute, PopupHoverAttribute } from "../addressing/dom-attributes.ts";
+import { orderForEscape, PopupDismissal, unwatchPopupOwners as unwatch, watchPopupOwner as watch } from "./popup-dismissal.ts";
+import { ensureElementId, NamedByOpenerAttribute, PointerFocusAttribute, PopupCaptionAttribute, PopupCaptionIdPrefix, PopupHoverAttribute, PopupOpenerIdPrefix } from "../addressing/dom-attributes.ts";
 import { focusableUntilLeft, focusAsLastInput, focusHolderAround, isPointerLast, liveFocusReturn, moveFocusInto, restoreFocusTo } from "./popup-focus.ts";
 import { presentSheet, releaseSheet, revealAround, unmarkSheet } from "./popup-sheet.ts";
-import { onTierChange } from "../rendering/responsive-tier.ts";
+import { registerRuntimeCleanup, withoutRuntimeCleanup } from "../runtime/cleanup-scope.ts";
+
+export { popupHolding } from "./popup-dismissal.ts";
 
 /** One popup being opened: whose it is, what it is, and how it stands. */
 export type OwnedPopupOpening = {
@@ -31,6 +33,10 @@ export type OwnedPopupOpening = {
     readonly placement?: AnchoredPopupOptions;
     /** The controls that say through `aria-expanded` whether it is open. */
     readonly openers?: readonly HTMLElement[];
+    /** What names a panel, list or menu with no name of its own (`nameByOpener`): the control that opens it, or the field it serves. */
+    readonly namedBy?: HTMLElement | null;
+    /** The part that takes that name where it is not the popup itself: the listbox or the menu a popup's wrapper holds. */
+    readonly namedPart?: HTMLElement | null;
     /** Where focus goes on opening: that element, the popup's first focusable (`true`), or nowhere (the default). */
     readonly focus?: HTMLElement | boolean;
     /** Where focus goes back on closing; by default whatever held it when the popup took it. */
@@ -95,8 +101,17 @@ export function setPopupComponents(components: ComponentIndex | null): void {
     popupComponents = components;
 }
 
+/** Clears the component index only if it is still `expected`. */
+export function clearPopupComponents(expected: ComponentIndex): void {
+    if (popupComponents === expected)
+        popupComponents = null;
+}
+
 export class OwnedPopups {
     private readonly options: OwnedPopupsOptions;
+    private readonly dismissal: PopupDismissal;
+    private readonly onFocusLeave: ((domEvent: Event) => void) | null;
+    private disposed = false;
 
     // By owner, in the order they opened.
     private readonly entries = new Map<HTMLElement, OpenPopup>();
@@ -104,7 +119,7 @@ export class OwnedPopups {
     public constructor(options: OwnedPopupsOptions) {
         this.options = options;
 
-        new PopupDismissal({
+        this.dismissal = new PopupDismissal({
             openPopups: () => [...this.entries.values()].map(entry => entry.opening.popup).filter(popup => popup.isConnected),
             close: (popup, reason) => this.closePopup(popup, reason),
             canDismiss: (popup, reason) => {
@@ -123,11 +138,36 @@ export class OwnedPopups {
             onWindowBlur: options.onWindowBlur
         });
 
-        if (options.closesOnFocusLeave ?? true)
-            document.addEventListener("focusout", domEvent => this.handleFocusLeave(domEvent), true);
+        this.onFocusLeave = (options.closesOnFocusLeave ?? true) ? (domEvent: Event): void => this.handleFocusLeave(domEvent) : null;
+
+        if (this.onFocusLeave !== null) {
+            const onFocusLeave = this.onFocusLeave;
+
+            withoutRuntimeCleanup(() => document.addEventListener("focusout", onFocusLeave, true));
+        }
 
         if (options.closesOnTab !== undefined && options.closesOnTab !== false)
             closeOnTab(this);
+
+        registerRuntimeCleanup(() => this.dispose());
+    }
+
+    public dispose(): void {
+        if (this.disposed)
+            return;
+
+        this.disposed = true;
+
+        for (const owner of [...this.entries.keys()])
+            this.close(owner);
+
+        unwatch(this);
+        stopCloseOnTab(this);
+
+        if (this.onFocusLeave !== null)
+            document.removeEventListener("focusout", this.onFocusLeave, true);
+
+        this.dismissal.dispose();
     }
 
     /** The open lists that hold `target` — the popups Tab closes — by owner. */
@@ -394,18 +434,31 @@ export class OwnedPopups {
 
 // The owners whose lists Tab closes, one document listener over them all.
 const tabClosing = new Set<OwnedPopups>();
+let tabInstalled = false;
+
+const tabListener = (domEvent: Event): void => {
+    if (domEvent instanceof KeyboardEvent && domEvent.key === "Tab" && !domEvent.defaultPrevented && !isComposing(domEvent) && domEvent.target instanceof Node)
+        closeListsAround(domEvent.target);
+};
 
 function closeOnTab(popups: OwnedPopups): void {
-    if (tabClosing.size === 0) {
+    if (!tabInstalled) {
+        tabInstalled = true;
         // On the window, before any engine's keydown: the list is shut and the focus back on its opener before a modal layer's Tab
         // trap reads where the focus stands.
-        window.addEventListener("keydown", domEvent => {
-            if (domEvent instanceof KeyboardEvent && domEvent.key === "Tab" && !domEvent.defaultPrevented && !isComposing(domEvent) && domEvent.target instanceof Node)
-                closeListsAround(domEvent.target);
-        }, true);
+        withoutRuntimeCleanup(() => window.addEventListener("keydown", tabListener, true));
     }
 
     tabClosing.add(popups);
+}
+
+function stopCloseOnTab(popups: OwnedPopups): void {
+    tabClosing.delete(popups);
+
+    if (tabClosing.size === 0 && tabInstalled) {
+        window.removeEventListener("keydown", tabListener, true);
+        tabInstalled = false;
+    }
 }
 
 /**
@@ -475,6 +528,156 @@ function named(option: boolean | ((opening: OwnedPopupOpening) => boolean) | und
 function describe(opening: OwnedPopupOpening, open: boolean): void {
     for (const opener of opening.openers ?? [])
         opener.setAttribute("aria-expanded", open ? "true" : "false");
+
+    if (!opening.namedBy)
+        return;
+
+    const part = opening.namedPart ?? opening.popup;
+
+    if (open) {
+        nameByOpener(part, opening.namedBy, opening.owner);
+        watchName(part, opening.namedBy, opening.owner);
+    }
+    else {
+        unwatchName(part);
+    }
+}
+
+/**
+ * Names a panel by what opened it where it has no name of its own: the opener's own labelling, or the opener, whose `aria-label` or
+ * words then name the panel as they change — or, opened from a field, the field's caption words, kept in a hidden caption in `home`.
+ * An author's name wins, and one written here goes once the author's arrives.
+ */
+export function nameByOpener(popup: HTMLElement, opener: HTMLElement, home: HTMLElement): void {
+    const ours = popup.hasAttribute(NamedByOpenerAttribute);
+
+    if (popup.hasAttribute("aria-label") || (!ours && popup.hasAttribute("aria-labelledby"))) {
+        if (ours)
+            unname(popup);
+
+        return;
+    }
+
+    const labelledBy = isFormControl(opener) ? captionIdsOf(opener, home) : opener.getAttribute("aria-labelledby") ?? ensureElementId(opener, PopupOpenerIdPrefix);
+
+    if (labelledBy === null) {
+        if (ours)
+            unname(popup);
+
+        return;
+    }
+
+    // A labelling is not followed through a second one: an opener labelled so lends its own ids, not itself.
+    popup.setAttribute("aria-labelledby", labelledBy);
+    popup.setAttribute(NamedByOpenerAttribute, "");
+}
+
+function unname(popup: HTMLElement): void {
+    popup.removeAttribute("aria-labelledby");
+    popup.removeAttribute(NamedByOpenerAttribute);
+}
+
+const FormControlRoles: ReadonlySet<string> = new Set(["combobox", "textbox", "searchbox", "spinbutton", "slider", "listbox"]);
+const NotFormControlInputTypes: ReadonlySet<string> = new Set(["button", "submit", "reset", "image", "checkbox", "radio"]);
+
+/**
+ * Whether the opener is a form control: one a name reaching it through `aria-labelledby` reads the value of — a select's chosen
+ * option, a search's term or placeholder — rather than its `aria-label`, as accessible-name computation reads an embedded control.
+ */
+function isFormControl(opener: HTMLElement): boolean {
+    const role = opener.getAttribute("role");
+
+    if (role !== null)
+        return FormControlRoles.has(role);
+
+    const tag = opener.localName;
+
+    return tag === "select" || tag === "textarea" || (tag === "input" && !NotFormControlInputTypes.has((opener.getAttribute("type") ?? "text").toLowerCase()));
+}
+
+/**
+ * The ids of the words a field's caption is: its `aria-labelledby` (but itself), its `<label>`s, else a hidden caption in `home`
+ * holding its `aria-label` or `title` as they stand at this opening; null where nothing names the field.
+ */
+function captionIdsOf(field: HTMLElement, home: HTMLElement): string | null {
+    const labelledBy = (field.getAttribute("aria-labelledby") ?? "").split(/\s+/).filter(id => id.length > 0 && id !== field.id);
+    const labels = "labels" in field ? (field as HTMLInputElement).labels : null;
+
+    if (labelledBy.length === 0 && labels !== null) {
+        for (const label of labels)
+            labelledBy.push(ensureElementId(label, PopupCaptionIdPrefix));
+    }
+
+    if (labelledBy.length > 0)
+        return labelledBy.join(" ");
+
+    const words = (field.getAttribute("aria-label") ?? field.getAttribute("title") ?? "").trim();
+    let caption: HTMLElement | null = null;
+
+    for (const child of home.children) {
+        if (child.hasAttribute(PopupCaptionAttribute))
+            caption = child as HTMLElement;
+    }
+
+    if (words.length === 0) {
+        caption?.remove();
+        return null;
+    }
+
+    if (caption === null) {
+        caption = document.createElement("span");
+        caption.setAttribute(PopupCaptionAttribute, "");
+        caption.hidden = true;
+        home.append(caption);
+    }
+
+    caption.textContent = words;
+
+    return ensureElementId(caption, PopupCaptionIdPrefix);
+}
+
+// The open popups named by their opener, each with it: an `aria-label` pushed on one while it is open (a flyout's `AccessibleName`)
+// names it at once, rather than standing under the opener's `aria-labelledby`, which outranks it, until the next opening.
+const namedOpen = new Map<HTMLElement, { readonly opener: HTMLElement; readonly home: HTMLElement }>();
+const NameFilter: MutationObserverInit = { attributes: true, attributeFilter: ["aria-label"] };
+let nameWatch: MutationObserver | null = null;
+
+function watchName(part: HTMLElement, opener: HTMLElement, home: HTMLElement): void {
+    namedOpen.set(part, { opener, home });
+
+    if (typeof MutationObserver !== "function")
+        return;
+
+    withoutRuntimeCleanup(() => {
+        nameWatch ??= new MutationObserver(records => renameChanged(records));
+        nameWatch.observe(part, NameFilter);
+    });
+}
+
+function renameChanged(records: readonly MutationRecord[]): void {
+    for (const record of records) {
+        const part = record.target as HTMLElement;
+        const naming = namedOpen.get(part);
+
+        if (naming !== undefined)
+            nameByOpener(part, naming.opener, naming.home);
+    }
+}
+
+/** Stops following a closed popup's name; an observer cannot drop one target, so the rest are observed again. */
+function unwatchName(part: HTMLElement): void {
+    if (!namedOpen.delete(part) || nameWatch === null)
+        return;
+
+    nameWatch.disconnect();
+
+    if (namedOpen.size === 0) {
+        nameWatch = null;
+        return;
+    }
+
+    for (const each of namedOpen.keys())
+        nameWatch.observe(each, NameFilter);
 }
 
 // The pointer in an open popup marks every element from it up to its owner, as `:hover` holds on each of them: `@ui-button-live` keeps
@@ -495,15 +698,17 @@ function trackPointerIn(opening: OwnedPopupOpening): void {
         return;
 
     tracked.add(popup);
-    popup.addEventListener("pointerenter", () => {
-        if (opened.has(popup)) {
-            pointerIn.add(popup);
-            markPointerIn();
-        }
-    });
-    popup.addEventListener("pointerleave", () => {
-        if (pointerIn.delete(popup))
-            markPointerIn();
+    withoutRuntimeCleanup(() => {
+        popup.addEventListener("pointerenter", () => {
+            if (opened.has(popup)) {
+                pointerIn.add(popup);
+                markPointerIn();
+            }
+        });
+        popup.addEventListener("pointerleave", () => {
+            if (pointerIn.delete(popup))
+                markPointerIn();
+        });
     });
 }
 
@@ -544,119 +749,4 @@ function markPointerIn(): void {
     }
 
     hoverMarked = [...marked];
-}
-
-// The owners are watched only while a popup is open: `inert`, `disabled` or what puts an element out of sight (`SightAttributes`)
-// arriving on an open owner or anything above it, or the owner taken out of the page or moved, is re-checked once per batch against
-// the few popups that are open. Only the owners' lines are watched for attributes (`observeLine`), not the page's.
-const watching = new Set<OwnedPopups>();
-const OwnerStateFilter: string[] = ["inert", "disabled", "aria-disabled", ...SightAttributes];
-let observer: MutationObserver | null = null;
-let listening = false;
-// The scrolls of the frame now under way, judged together once: a scroll fires every frame, and each judgement walks the boxes up.
-let scrolledThisFrame: (EventTarget | null)[] | null = null;
-
-/** The open popup of any engine holding `element` — a list hung at the body's end from a strip in a dialog — with its owner, or null. */
-export function popupHolding(element: Element | null): { readonly owner: HTMLElement; readonly popup: HTMLElement } | null {
-    if (element === null)
-        return null;
-
-    for (const each of watching) {
-        const found = each.holding(element);
-
-        if (found !== null)
-            return found;
-    }
-
-    return null;
-}
-
-function watch(popups: OwnedPopups, owner: HTMLElement): void {
-    watching.add(popups);
-    listenForSight();
-
-    if (typeof MutationObserver !== "function")
-        return;
-
-    if (observer === null) {
-        observer = new MutationObserver(records => answerChanges(records));
-        observer.observe(document, { subtree: true, childList: true });
-    }
-
-    observeLine(observer, owner, OwnerStateFilter);
-}
-
-/**
- * Judges the open popups against a batch of changes: an attribute changed on an owner's line judges them all; a change of the tree
- * alone, only the owners it moved, whose new line is watched as well — the old one stays watched until no popup is open — and the
- * rest only whether they left the page. Never disconnected here: what closing writes is heard in the next batch, not dropped.
- */
-function answerChanges(records: readonly MutationRecord[]): void {
-    const attributes = records.some(record => record.type === "attributes");
-    const moved = addedAmong(records, [...watching].flatMap(each => [...each.owners()]));
-
-    for (const each of [...watching])
-        each.closeStranded(attributes ? undefined : moved);
-
-    for (const owner of moved) {
-        if (observer !== null && owner.isConnected)
-            observeLine(observer, owner, OwnerStateFilter);
-    }
-}
-
-/**
- * From the first opening on, for the page's life: a tier crossed re-checks the owners — a tier's Visibility hides one with no change in
- * the tree — and closes what the small breakpoint re-forms; a scroll closes what it took out of sight. With none open, none is asked.
- */
-function listenForSight(): void {
-    if (listening)
-        return;
-
-    listening = true;
-
-    onTierChange(() => {
-        for (const each of [...watching]) {
-            each.closeReformed();
-            each.closeStranded();
-        }
-    });
-
-    // Capturing: an anchor can sit inside any scrolling box, and scroll does not bubble.
-    document.addEventListener("scroll", domEvent => {
-        if (watching.size === 0)
-            return;
-
-        if (scrolledThisFrame !== null) {
-            scrolledThisFrame.push(domEvent.target);
-            return;
-        }
-
-        scrolledThisFrame = [domEvent.target];
-        nextFrame(() => {
-            const scrolled = scrolledThisFrame ?? [];
-
-            scrolledThisFrame = null;
-
-            for (const each of [...watching])
-                each.closeOutOfSight(scrolled);
-        });
-    }, { capture: true, passive: true });
-}
-
-/** Runs `then` before the next frame is drawn, or at the next task where nothing draws frames. */
-function nextFrame(then: () => void): void {
-    if (typeof requestAnimationFrame === "function")
-        requestAnimationFrame(then);
-    else
-        setTimeout(then, 0);
-}
-
-function unwatch(popups: OwnedPopups): void {
-    watching.delete(popups);
-
-    if (watching.size > 0 || observer === null)
-        return;
-
-    observer.disconnect();
-    observer = null;
 }

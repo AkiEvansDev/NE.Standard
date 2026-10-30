@@ -9,7 +9,6 @@ using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -30,6 +29,9 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     /// <summary>The authored track list; a viewer's resized columns sit over it in the stylesheet's chain.</summary>
     public const string ColumnsVariable = "--ui-table-columns";
 
+    /// <summary>The track list in force when columns start hidden or are sized on the client, read ahead of <see cref="ColumnsVariable"/>.</summary>
+    public const string SizedColumnsVariable = "--ui-table-sized-columns";
+
     /// <summary>The prefix of the variables the columns engine writes on the root: where a pinned column after the first sticks, in pixels.</summary>
     public const string PinVariablePrefix = "--ui-table-pin-";
 
@@ -43,13 +45,14 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     protected const string ScrollClassName = WebClassNames.TableScroll;
 
     protected const string HeaderClassName = WebClassNames.TableHeader;
-    protected const string HeaderCellClassName = "ui-table__header-cell";
+    protected const string HeaderCellClassName = WebClassNames.TableHeaderCell;
     protected const string CaptionClassName = "ui-table__caption";
     protected const string CaptionIconClassName = "ui-table__caption-icon";
     protected const string ResizerClassName = WebClassNames.TableResizer;
-    protected const string HostClassName = "ui-table__host";
+    protected const string HostClassName = WebClassNames.TableHost;
     protected const string RowClassName = WebClassNames.TableRow;
     protected const string CellClassName = "ui-table__cell";
+    protected const string SelectCellClassName = "ui-table__cell--select";
     protected const string PinnedModifier = "--pinned";
     protected const string PinnedEdgeModifier = "--pinned-edge";
     private const string PinnedClassName = "ui-table--pinned";
@@ -64,7 +67,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
     public override string ComponentTypeKey => TableComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-table";
+    protected override string ClassName => WebClassNames.Table;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -75,11 +78,17 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         var selectable = RenderSelectableRole(context, root);
 
         _ = root.Attribute("role", ActsAsGrid(context) ? "grid" : "table");
+        RenderAccessibleName(context, root);
         var cellRole = CellRole(context);
 
         RenderFlags(context, root);
         RenderWideMode(context, root);
         RenderSelection(context, root);
+
+        // While the checkboxes are there they are the only way to choose: a click on a row is its open or its detail's.
+        if (HasSelectionColumn(context))
+            _ = root.Attribute(WebAttributes.NoRowSelect);
+
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
 
         IReadOnlyList<UITableColumn> columns = ResolveColumns(context);
@@ -131,7 +140,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
     /// <summary>Whether the table acts as a grid — its rows chosen, or raising a command on a press — rather than a table that is only read.</summary>
     protected virtual bool ActsAsGrid(WebRenderContext context)
-        => ResolveSelectionMode(context) is UISelectionMode.One or UISelectionMode.Many || RowsAct(context);
+        => DrawsSelectionColumn(context) || ResolveSelectionMode(context) is UISelectionMode.One || RowsAct(context);
 
     /// <summary>The seven switches, each a modifier the stylesheet reads, and the rows' drag and its grip the engine reads; a bound one flips live.</summary>
     protected virtual void RenderFlags(WebRenderContext context, IHtmlElementBuilder root)
@@ -139,14 +148,14 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        RenderFlagClass(context, root, TableComponent.ShowHeaderProperty, "ui-table--no-header", WebValueCondition.IsFalse);
+        RenderFlagClass(context, root, TableComponent.ShowHeaderProperty, WebClassNames.TableNoHeader, WebValueCondition.IsFalse);
         RenderFlagClass(context, root, TableComponent.StripedProperty, "ui-table--striped");
         RenderFlagClass(context, root, TableComponent.ShowColumnSeparatorsProperty, "ui-table--column-lines");
         RenderFlagClass(context, root, TableComponent.ShowRowSeparatorsProperty, "ui-table--no-separators", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-table--row-hover");
         RenderEmptyStateSwitch(context, root);
         RenderFlagClass(context, root, TableComponent.ResizableColumnsProperty, "ui-table--resizable");
-        RenderFlagClass(context, root, TableComponent.ReorderableColumnsProperty, "ui-table--reorderable");
+        RenderFlagClass(context, root, TableComponent.ReorderableColumnsProperty, WebClassNames.TableReorderable);
         RenderDraggableRows(context, root);
         RenderRowsRemove(context, root);
         RenderDragSource(context, root);
@@ -169,14 +178,29 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         return mode;
     }
 
-    /// <summary>The columns the table draws: the authored ones, and whatever a package puts among them — a grid's column of checkboxes.</summary>
+    /// <summary>Whether the table draws its column of checkboxes: only where the rows may be chosen, many at a time.</summary>
+    private static bool HasSelectionColumn(WebRenderContext context)
+        => ResolveSelectionMode(context) is UISelectionMode.Many;
+
+    /// <summary>Whether the table emits its checkbox column: where rows may be chosen many at a time now, or a bound mode may switch there live.</summary>
+    private static bool DrawsSelectionColumn(WebRenderContext context)
+        => ResolveRenderValue(context, ISelectableItemsComponent.SelectionModeProperty, out UISelectionMode? mode, out _) == WebRenderValueKind.Binding || mode == UISelectionMode.Many;
+
+    /// <summary>The columns the table draws: the authored ones, after the table's own checkbox column while many rows may be chosen.</summary>
     protected virtual IReadOnlyList<UITableColumn> ResolveColumns(WebRenderContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
         _ = ResolveRenderValue(context, TableComponent.ColumnsProperty, out IReadOnlyList<UITableColumn>? columns, out _);
 
-        return columns ?? [];
+        IReadOnlyList<UITableColumn> resolved = columns ?? [];
+
+        if (!DrawsSelectionColumn(context) || resolved.Count == 0)
+            return resolved;
+
+        UITableColumn selection = new(TableComponent.SelectionColumnKey, null, UIGridUnit.Absolute(34), UITextAlignment.Center) { Fixed = true, Pinned = resolved[0].Pinned, Hidden = !HasSelectionColumn(context) };
+
+        return [selection, .. resolved];
     }
 
     /// <summary>The client mirror of <see cref="RenderRow"/>: one slot per column, in the column's cell — a grid's cell where rows are chosen.</summary>
@@ -188,7 +212,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         WebRenderItemsCompositeSlotMetadata[] slots = new WebRenderItemsCompositeSlotMetadata[columns.Count];
 
         for (var i = 0; i < columns.Count; i++)
-            slots[i] = new WebRenderItemsCompositeSlotMetadata { VariantKey = columns[i].TemplateKey, WrapperClassName = CellClasses(columns, i), WrapperRole = cellRole, WrapperAttributes = CellAttributes(columns, i) };
+            slots[i] = new WebRenderItemsCompositeSlotMetadata { VariantKey = columns[i].TemplateKey, WrapperClassName = CellClasses(columns, i), WrapperRole = IsRowHeader(columns, i) ? "rowheader" : cellRole, WrapperAttributes = CellAttributes(columns, i) };
 
         return new WebRenderItemsCompositeMetadata { ItemClassName = RowClassName, ItemRole = "row", HostSlotVariantKey = TemplateNames.Row, Slots = slots };
     }
@@ -215,12 +239,49 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             _ => CellClassName
         };
 
-        return column.Pinned ? $"{classes} {CellClassName}{PinnedModifier}" : classes;
+        if (column.Pinned)
+            classes = $"{classes} {CellClassName}{PinnedModifier}";
+
+        return column.Key == TableComponent.SelectionColumnKey ? $"{classes} {SelectCellClassName}" : classes;
     }
 
     /// <summary>Whether the column is the last pinned one.</summary>
     private static bool IsPinnedEdge(IReadOnlyList<UITableColumn> columns, int index)
         => columns[index].Pinned && (index == columns.Count - 1 || !columns[index + 1].Pinned);
+
+    /// <summary>
+    /// Whether the column's cells head their rows: the columns marked <see cref="UITableColumn.IsRowHeader"/>, else the first that
+    /// <see cref="HeadsRows"/> where another column stands beside it — a header names its row for the row's other cells, so a table of
+    /// one column has none.
+    /// </summary>
+    protected bool IsRowHeader(IReadOnlyList<UITableColumn> columns, int index)
+    {
+        ArgumentNullException.ThrowIfNull(columns);
+
+        var first = -1;
+
+        for (var i = 0; i < columns.Count; i++)
+        {
+            if (columns[i].IsRowHeader)
+                return columns[index].IsRowHeader;
+
+            if (first < 0 && HeadsRows(columns[i]))
+                first = i;
+        }
+
+        return columns.Count > 1 && index == first;
+    }
+
+    /// <summary>
+    /// Whether a column can head the rows where none is marked to: the author's own (not <see cref="UITableColumn.Fixed"/>) and named
+    /// by a caption — a column with none is a glyph's or a control's, which says nothing of the row.
+    /// </summary>
+    protected virtual bool HeadsRows(UITableColumn column)
+    {
+        ArgumentNullException.ThrowIfNull(column);
+
+        return !column.Fixed && column.HasCaption;
+    }
 
     /// <summary>
     /// Per-cell attributes beside its classes: the column's index (for the stylesheet to hide it), and for a pinned column past the
@@ -234,6 +295,13 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
 
         if (columns[index].Pinned && index > 0)
             attributes["style"] = $"left:{PinOffset(index)}";
+
+        // The checkbox answers the click itself: neither the row's open nor anything else fires under it.
+        if (columns[index].Key == TableComponent.SelectionColumnKey)
+        {
+            attributes[WebAttributes.TableSelect] = string.Empty;
+            attributes[WebAttributes.NoRowOpen] = string.Empty;
+        }
 
         return attributes;
     }
@@ -257,10 +325,13 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         for (var i = 0; i < columns.Count; i++)
         {
             units.Add(columns[i].Width);
-            tracks.Add(ToColumnTrack(columns[i].Width));
+            tracks.Add(ToColumnTrack(columns[i]));
         }
 
         _ = root.Style(ColumnsVariable, ContainerComponentRenderer.ToCssGridTemplate(tracks));
+
+        if (ZeroHiddenTracks(columns, tracks) is List<UIGridUnit> sized)
+            _ = root.Style(SizedColumnsVariable, ContainerComponentRenderer.ToCssGridTemplate(sized));
 
         // The splitter's bounds are the author's own, not the floor the track carries: a column may be dragged below the width it was given.
         var limits = WebCssValues.GridTrackLimits(units);
@@ -270,13 +341,33 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
     }
 
     /// <summary>
-    /// A column's width is a floor and a share, not an exact size: an absolute width becomes a star with that width as its floor,
-    /// so a hidden column's width redistributes rather than vanishing. A narrower table still scrolls past the floors.
+    /// An authored column's width is a floor and a share, not an exact size: an absolute width becomes a star with that width as its floor,
+    /// so a hidden column's width redistributes rather than vanishing; a fixed column (checkbox, detail chevron) keeps its exact width.
     /// </summary>
-    private static UIGridUnit ToColumnTrack(UIGridUnit width)
-        => width is { Unit: UIGridUnitType.Absolute, Value: > 0 }
+    private static UIGridUnit ToColumnTrack(UITableColumn column)
+        => !column.Fixed && column.Width is { Unit: UIGridUnitType.Absolute, Value: > 0 } width
             ? UIGridUnit.Star(width.Value, min: width.Value)
-            : width;
+            : column.Width;
+
+    private static List<UIGridUnit>? ZeroHiddenTracks(IReadOnlyList<UITableColumn> columns, List<UIGridUnit> tracks)
+    {
+        List<UIGridUnit>? sized = null;
+
+        for (var i = 0; i < columns.Count; i++)
+        {
+            if (columns[i].Hidden && sized is null)
+            {
+                sized = new List<UIGridUnit>(columns.Count);
+
+                for (var copy = 0; copy < i; copy++)
+                    sized.Add(tracks[copy]);
+            }
+
+            sized?.Add(columns[i].Hidden ? UIGridUnit.Absolute(0) : tracks[i]);
+        }
+
+        return sized;
+    }
 
     /// <summary>The columns the author starts hidden, named on the root so the first paint leaves them out; the columns engine takes over from there.</summary>
     private static void RenderHiddenColumns(IHtmlElementBuilder root, IReadOnlyList<UITableColumn> columns)
@@ -344,7 +435,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             if (column.HideBelow is UIResponsiveTier tier)
                 _ = cell.Attribute(WebAttributes.TableHideBelow, WebResponsiveCss.TierWord(tier));
 
-            if (column.Hidden)
+            if (column.Hidden && column.Key != TableComponent.SelectionColumnKey)
                 _ = cell.Attribute(WebAttributes.TableStartsHidden);
 
             RenderPinned(cell, HeaderCellClassName, columns, index);
@@ -371,9 +462,21 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             _ = cell.Style("left", PinOffset(index));
     }
 
-    /// <summary>The caption and the resize handle; a grid puts its own marks and attributes between them.</summary>
+    /// <summary>The caption and the resize handle, or the select-all checkbox over the checkbox column; a grid puts its own marks and attributes between them.</summary>
     protected virtual void RenderHeaderCellContent(WebRenderContext context, IHtmlElementBuilder cell, UITableColumn column, int index)
     {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(cell);
+        ArgumentNullException.ThrowIfNull(column);
+
+        // The box over the checkboxes takes the rows the table has drawn: what the filters left, or the page of a windowed host.
+        if (column.Key == TableComponent.SelectionColumnKey)
+        {
+            _ = cell.Attribute(WebAttributes.TableSelectAll);
+            RenderRegion(context, cell, TableComponent.SelectAllRegionName);
+            return;
+        }
+
         RenderCaption(context, cell, column);
         RenderResizer(context, cell, column, index);
     }
@@ -416,7 +519,10 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             || (context.ViewResolution.View.State.TryGetValue(context.Node.ComponentId, TableComponent.ColumnsProperty, out CompiledUIPropertyValue? columns) && columns.IsContent);
     }
 
-    /// <summary>The handle that sizes the column, carrying the column's index for the client; a fixed column is the control's own and carries none.</summary>
+    /// <summary>
+    /// The handle that sizes the column, carrying the column's index for the client; the pointer's alone and hidden from a reader, whose
+    /// keyboard sizes the column on its caption. A fixed column is the control's own and carries none.
+    /// </summary>
     protected static void RenderResizer(WebRenderContext context, IHtmlElementBuilder cell, UITableColumn column, int index)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -429,11 +535,9 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         _ = cell.Element("div", resizer =>
         {
             _ = resizer.Class(ResizerClassName);
-            _ = resizer.Attribute("role", "separator");
             // No stop of the Tab order: the header's keyboard sizes a column by Shift with an arrow on its caption.
             _ = resizer.Attribute("tabindex", "-1");
-            _ = resizer.Attribute("aria-orientation", "vertical");
-            WebWords.Write(context, resizer, "aria-label", UIStrings.TableResizeColumn);
+            _ = resizer.Attribute("aria-hidden", "true");
             _ = resizer.Attribute(WebAttributes.TableColumn, index.ToString(CultureInfo.InvariantCulture));
         });
     }
@@ -520,7 +624,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
             }
 
             // Past the cells, in a track the stylesheet adds before or after the columns' while the grip shows: a cell would be a column
-            // the columns engine counts.
+            // the columns engine counts, and the grip, hidden from a reader, is no child of the row to it.
             if (grip)
                 RenderRowGrip(context, row);
         });

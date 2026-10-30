@@ -6,9 +6,9 @@
 // takes Escape as a cancel: it goes back to the value it last committed, sending nothing typed since, leaves as any field does, and
 // then raises `escape`.
 
-import { cssAttributeValue, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
+import { CommitInPlaceEventName, cssAttributeValue, FormIdAttribute, RunsOnEnterAttribute, SubmitFormIdAttribute, SubmitOnEnterAttribute } from "../addressing/dom-attributes.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { isCaretInput } from "./caret-fields.ts";
 import { dropWaiting } from "./debounced-commit-engine.ts";
 import { isCancellingField } from "./field-escape.ts";
@@ -16,10 +16,6 @@ import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { isInert } from "./interactive-state.ts";
 import { focusHolderAround, giveKeyboardBack } from "./popup-focus.ts";
 
-// On a text area whose Enter submits its form (`TextAreaComponent.SubmitOnEnter`); Shift+Enter still breaks the line.
-const SubmitOnEnterAttribute = "data-ui-submit-on-enter";
-// On a field with `OnEnter` (`TextInputComponent.OnEnter`, `TextAreaComponent.OnEnter`): Enter alone commits the value and raises `enter`.
-const RunsOnEnterAttribute = "data-ui-runs-on-enter";
 const EnterEventName = "enter";
 const EscapeEventName = "escape";
 
@@ -30,15 +26,9 @@ export const FieldEnterEvent: { readonly name: string; readonly registration: Om
     registration: { settlesValue: true }
 };
 
-/**
- * Raised on a field that keeps the focus while a chord presses something (`shortcut-engine.ts`): what was typed is committed where it
- * stands, as Enter commits it, so the command reads it.
- */
-export const CommitInPlaceEventName = "ui-commit-in-place";
-
 export type FieldKeysEngineOptions = {
     readonly root?: ParentNode;
-    readonly propertyPatchEngine?: Pick<PropertyPatchEngine, "addValueChangeHandler" | "writeBoundValue">;
+    readonly propertyPatchEngine?: Pick<PropertyPatchTarget, "addValueChangeHandler" | "writeBoundValue">;
 };
 
 export class FieldKeysEngine {
@@ -209,28 +199,22 @@ export class FieldKeysEngine {
 
     private leave(field: HTMLInputElement | HTMLTextAreaElement): void {
         const changesBefore = this.changes;
+        // Read before the blur, which formats a number field at rest and would make its text differ from the edit text it took on focus.
+        const dirty = this.edited.has(field) || field.value !== this.committedValue;
         const holder = focusHolderAround(field);
 
         field.blur();
 
-        if (this.changes === changesBefore)
-            this.commit(field);
+        if (this.changes === changesBefore && dirty)
+            field.dispatchEvent(new Event("change", { bubbles: true }));
 
         giveKeyboardBack(field, holder);
     }
 
-    /** Raises the change a leave would for a value not yet committed, so it is sent before the command a submit runs. */
-    private commit(field: HTMLInputElement | HTMLTextAreaElement): void {
-        if (field.value !== this.committedValue)
-            field.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-
     /** Commits a field that keeps the focus: what was typed since its last change goes, even the text it committed before a clear. */
     private commitInPlace(field: HTMLInputElement | HTMLTextAreaElement): void {
-        if (this.edited.has(field))
+        if (this.edited.has(field) || field.value !== this.committedValue)
             field.dispatchEvent(new Event("change", { bubbles: true }));
-        else
-            this.commit(field);
     }
 }
 

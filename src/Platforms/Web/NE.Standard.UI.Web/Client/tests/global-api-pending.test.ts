@@ -6,7 +6,7 @@ import test from "node:test";
 
 Object.assign(globalThis, { window: {} });
 
-const { setLogLevel } = await import("../src/runtime/logger.ts");
+const { setLogLevel } = await import("../src/metadata/logger.ts");
 const { exposeGlobalApi, installGlobalApi } = await import("../src/runtime/global-api.ts");
 type WebUIRuntime = import("../src/runtime/web-ui-runtime.ts").WebUIRuntime;
 

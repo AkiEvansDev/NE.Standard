@@ -2,12 +2,10 @@
 // is all that makes a rail — every rail rule of the stylesheet, its flyouts and its cut labels' tooltips read it — so a list is the
 // menu without it. The boot script fits a menu before its first paint, the group engine on every width it crosses.
 
-import { MenuRailClass, MenuRailTiersAttribute, RailDrawerAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { MenuRailClass, MenuRailListAttribute, MenuRailTiersAttribute, RailDrawerAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
 import { currentResponsiveTier } from "./responsive-tier.ts";
 import { sideIsDrawer } from "./side-drawer-width.ts";
 
-// On a rail kept a drawer while it is drawn as a list there, so the rail's class can be given back: its tiers, where it has them, say so.
-const RailAsListAttribute = "data-ui-menu-rail-list";
 // The sides that may be drawers.
 const Sides: readonly string[] = ["left-side", "right-side"];
 
@@ -16,13 +14,13 @@ export function fitMenuShape(menu: Element): boolean {
     const tiers = menu.getAttribute(MenuRailTiersAttribute);
     const wasRail = menu.classList.contains(MenuRailClass);
 
-    if (tiers === null && !wasRail && !menu.hasAttribute(RailAsListAttribute))
+    if (tiers === null && !wasRail && !menu.hasAttribute(MenuRailListAttribute))
         return false;
 
     const rail = isRailNow(menu, tiers);
 
     menu.classList.toggle(MenuRailClass, rail);
-    menu.toggleAttribute(RailAsListAttribute, tiers === null && !rail);
+    menu.toggleAttribute(MenuRailListAttribute, tiers === null && !rail);
 
     return rail !== wasRail;
 }

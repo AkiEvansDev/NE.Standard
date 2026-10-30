@@ -3,14 +3,12 @@
 // A surface's picture, mixed in after `background-color` (a `background` shorthand would reset it); reset first, since the
 // properties inherit and a nested surface would wear its host's picture.
 //
-// Its dim and blur are the browser's, so a bound value moves them with no new picture (SurfaceStyleRenderer). The dim is a veil of
-// the ground the content reads on (`@ui-ground`: the surface's own, else the one it stands on) laid over the picture as a
-// background layer — darker in a dark theme, lighter in a light one, so one number reads in both — evenly, or on the edges alone
-// (`data-ui-surface-image-dim="vignette"`). The blur is a layer under the content blurring what the root paints beneath it
-// (`backdrop-filter`, which mirrors at the layer's edge, so nothing outside the box bleeds in and its corners stay the root's);
-// the root isolates its stacking for the layer to sit between its ground and its content. `@layer` is the pseudo-element the
-// root leaves free; `@scroller` keeps the layer over the visible part of a root that scrolls, as its picture stays there — `true` for
-// a block, `row` for a flex row.
+// Its dim and blur are the browser's, so a bound value moves them with no new picture (SurfaceStyleRenderer). The dim is a black
+// veil laid over the picture as a background layer — evenly, or on the edges alone (`data-ui-surface-image-dim="vignette"`). The
+// blur is a layer under the content blurring what the root paints beneath it (`backdrop-filter`, which mirrors at the layer's edge,
+// so nothing outside the box bleeds in and its corners stay the root's); the root isolates its stacking for the layer to sit between
+// its ground and its content. `@layer` is the pseudo-element the root leaves free; `@scroller` keeps the layer over the visible part
+// of a root that scrolls, as its picture stays there — `true` for a block, `row` for a flex row.
 .ui-surface-image(@layer: after; @scroller: false) {
     --ui-surface-image: none;
     --ui-surface-image-size: cover;
@@ -100,5 +98,5 @@
     }
 }
 
-// The ground at the dim's share; a reference to a dim that is not set leaves the veil unset.
-@ui-surface-image-veil: color-mix(in srgb, @ui-ground calc(var(--ui-surface-image-dim) * 100%), transparent);
+// Black at the dim's share; a reference to a dim that is not set leaves the veil unset.
+@ui-surface-image-veil: color-mix(in srgb, #000 calc(var(--ui-surface-image-dim) * 100%), transparent);

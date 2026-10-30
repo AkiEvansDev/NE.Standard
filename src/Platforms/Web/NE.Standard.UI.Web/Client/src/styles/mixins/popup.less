@@ -123,16 +123,22 @@
     }
 }
 
-// The keyboard's entry in a list: the keyboard's frame, on the `@current` one too, and washed as the pointer's would be but for the
-// current one (already marked). The pointer's own wash stays off it, so two never stack to a press's strength and nothing changes as
-// the pointer crosses it; a press still shows. The frame stands in for the focus ring; `@host` and `@offset` as `.ui-keyboard-frame()`'s.
-.ui-entry-keyboard(@current: ~"[aria-selected='true']"; @takes: true; @host: @ui-keyboard-frame-radius; @offset: -2px) {
+// The keyboard's entry in a list: washed and lifted to 2nd-degree ink as the pointer's would be, and layered with the hover wash
+// when already `@current` so the keyboard cursor remains visible on a selected entry too.
+.ui-entry-keyboard(@current: ~"[aria-selected='true']") {
     &@{ui-keyboard-focus} {
-        .ui-keyboard-frame(@host: @host; @takes: @takes; @offset: @offset);
+        .ui-keyboard-frame();
+    }
+
+    & when not (@current = ~"") {
+        &@{ui-keyboard-focus}:is(@{current}) {
+            background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
+        }
     }
 
     &@{ui-keyboard-focus}:not(@{current}) {
         background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
+        color: @ui-text-ink;
     }
 
     @media @{ui-can-hover} {
@@ -194,7 +200,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 2px;
-    max-width: calc(100vw - 2 * @ui-space-1);
+    max-width: calc(100vw - 2 * @ui-popup-viewport-margin);
     padding: 2px;
     // Its buttons' corner widened by its own padding, as a popup's is by its list's.
     border-radius: calc(var(--ui-radius-button) + 2px);
@@ -206,7 +212,7 @@
 }
 
 // An icon of such a strip, a small ghost button: a square, as the framework's icon-only button is, named by its `aria-label` alone —
-// a tooltip would be a popup over a popup. The keyboard's place wears the keyboard's frame, since a theme's focus ring may be none.
+// a tooltip would be a popup over a popup.
 .ui-icon-bar-button() {
     aspect-ratio: 1;
     padding: @ui-space-1;
@@ -216,7 +222,9 @@
     }
 
     &@{ui-keyboard-focus} {
-        .ui-keyboard-frame(@takes: false);
+        background-color: var(--ui-wash-hover);
+        color: @ui-text-ink;
+        .ui-keyboard-frame();
     }
 }
 

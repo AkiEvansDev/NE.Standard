@@ -8,9 +8,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { formatFileSize, serverFileSizePaint } from "../src/rendering/file-size.ts";
-import { ClientWords } from "../src/runtime/client-strings.ts";
-import type { WordsTable } from "../src/runtime/client-strings.ts";
-import { formatWords, holdsMoment, holdsPageWritten, isFileSize, isPhrase } from "../src/runtime/words.ts";
+import { ClientWords } from "../src/rendering/client-strings.ts";
+import type { WordsTable } from "../src/rendering/client-strings.ts";
+import { formatWords, holdsMoment, holdsPageWritten, isFileSize, isPhrase } from "../src/rendering/words.ts";
 
 type CorpusCase = { readonly bytes: number; readonly expected: string };
 

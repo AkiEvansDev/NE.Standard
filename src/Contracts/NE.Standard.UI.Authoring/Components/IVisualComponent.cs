@@ -217,9 +217,19 @@ public interface IVisualComponent : IBindableComponent
     IReadOnlyList<UIEvent> Events { get; }
 
     /// <summary>
+    /// Gets the subtree default rules declared on the component, applied by the compiler to descendants matching each rule's target type.
+    /// </summary>
+    IReadOnlyList<UIDefaultsRule> Defaults { get; }
+
+    /// <summary>
     /// Registers a command for one of the component's events, with UI action arguments.
     /// </summary>
     IVisualComponent On(string eventName, string command, params KeyValuePair<string, UIActionArgument>[] arguments);
+
+    /// <summary>
+    /// Runs a client effect on one of the component's events, with no round trip.
+    /// </summary>
+    IVisualComponent InteractOn(string eventName, ClientEffect effect);
 
     /// <summary>
     /// Runs a client effect on one of the component's events raised in the row whose key is <paramref name="rowKey"/> — one menu entry's

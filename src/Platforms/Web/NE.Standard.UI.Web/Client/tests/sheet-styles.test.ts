@@ -50,10 +50,16 @@ test("a dialog's bottom sheet the viewer may dismiss wears the handle and follow
 
 test("a dialog's bottom sheet rounds its top corners as a list's sheet does; a sheet against another edge stays square", () => {
     const corners = /border-radius: var\(--ui-radius-card\) var\(--ui-radius-card\) 0 0;/;
+    const edgeBorder = (side: string): RegExp => new RegExp(`border-${side}: var\\(--ui-border-width, 1px\\) solid var\\(--ui-color-border\\);`);
 
     assert.match(rule("[data-ui-sheet][popover]"), corners);
     assert.match(rule(".ui-dialog[data-ui-dialog-placement=\"bottom\"] > .ui-dialog__surface"), corners);
+    assert.match(rule(".ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface"), /border: none;/);
     assert.match(rule(".ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface"), /border-radius: 0;/);
+    assert.match(rule(".ui-dialog[data-ui-dialog-placement=\"left\"] > .ui-dialog__surface"), edgeBorder("right"));
+    assert.match(rule(".ui-dialog[data-ui-dialog-placement=\"right\"] > .ui-dialog__surface"), edgeBorder("left"));
+    assert.match(rule(".ui-dialog[data-ui-dialog-placement=\"top\"] > .ui-dialog__surface"), edgeBorder("bottom"));
+    assert.match(rule(".ui-dialog[data-ui-dialog-placement=\"bottom\"] > .ui-dialog__surface"), edgeBorder("top"));
     assert.ok(css.indexOf("\n.ui-dialog[data-ui-dialog-placement] > .ui-dialog__surface {") < css.indexOf("\n.ui-dialog[data-ui-dialog-placement=\"bottom\"] > .ui-dialog__surface {"), "the bottom sheet's corners come after every edge's square ones");
 });
 

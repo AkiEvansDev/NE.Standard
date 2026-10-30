@@ -4,21 +4,17 @@
 // whatever came of it. Page Up and Page Down in a paged host turn its page too, the keyboard's row keeping its place on the page.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import {
-    ComponentSelector, HostModeAttribute, ItemsHostAttribute, PagerPageAttribute, PagerSizeAttribute, PagerTargetAttribute, WindowMoreAfterAttribute,
-    WindowOffsetAttribute, WindowPagedAttribute, WindowSizeAttribute, WindowTotalAttribute
-} from "../addressing/dom-attributes.ts";
+import { ButtonClass, ComponentSelector, GhostButtonClass, HostModeAttribute, ItemsHostAttribute, PagerButtonClass, PagerClass, PagerGapClass, PagerNumberClass, PagerPageAttribute, PagerPagesClass, PagerRangeClass, PagerSizeAttribute, PagerSizeChoiceClass, PagerSizeClass, PagerSizeLabelClass, PagerSizeOpenClass, PagerSizesClass, PagerSizeTriggerClass, PagerTargetAttribute, SmallButtonClass, WindowMoreAfterAttribute, WindowOffsetAttribute, WindowPagedAttribute, WindowSizeAttribute, WindowTotalAttribute } from "../addressing/dom-attributes.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
-import { readHostScroll, scrollHostTo } from "../items/items-viewport.ts";
-import type { PageMark, PageState } from "../items/item-pages.ts";
-import { currentPage, openPageNumbers, pageCount, pageNumbers, pageOffset, readPageState } from "../items/item-pages.ts";
-import type { ItemWindows } from "../items/items-window-engine.ts";
+import { readHostScroll, scrollHostTo } from "../addressing/items-viewport.ts";
+import type { ItemWindows, PageMark, PageState } from "../addressing/item-pages.ts";
+import { currentPage, openPageNumbers, pageCount, pageNumbers, pageOffset, readPageState } from "../addressing/item-pages.ts";
 import { formatNumber, readNumberCulture } from "../rendering/number-format.ts";
 import type { NumberCulturePack } from "../rendering/number-format.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
 import { ClientStore } from "../state/client-store.ts";
-import type { ClientStringKey } from "../runtime/client-strings.ts";
+import type { ClientStringKey } from "../rendering/client-strings.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { componentStates, isInert } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
@@ -36,21 +32,9 @@ export type PagerEngineOptions = {
     readonly pageKeys?: EventTarget;
 };
 
-const PagerClass = "ui-pager";
 const PagerSelector = `.${PagerClass}`;
-const ButtonClass = "ui-pager__button";
-const NumberClass = "ui-pager__number";
-const PagesClass = "ui-pager__pages";
-const GapClass = "ui-pager__gap";
-const RangeClass = "ui-pager__range";
-const SizeClass = "ui-pager__size";
-const SizeOpenClass = "ui-pager__size--open";
-const SizeTriggerClass = "ui-pager__size-trigger";
-const SizeLabelClass = "ui-pager__size-label";
-const SizeMenuClass = "ui-pager__sizes";
-const SizeChoiceClass = "ui-pager__size-choice";
 // The framework's small ghost button, the look the renderer gives the four ends.
-const NumberClasses = [ButtonClass, NumberClass, "ui-button", "ui-button--ghost", "ui-button--small"];
+const NumberClasses = [PagerButtonClass, PagerNumberClass, ButtonClass, GhostButtonClass, SmallButtonClass];
 
 const PageKey: ClientStringKey = "ui.pager.page";
 const RangeKey: ClientStringKey = "ui.pager.range";
@@ -76,8 +60,8 @@ export class PagerEngine {
 
     // The whole size choice counts as inside: a press on its button is this engine's to toggle, not the dismissal's to close.
     private readonly menus = new OwnedPopups({
-        show: ({ owner }) => owner.classList.add(SizeOpenClass),
-        hide: ({ owner }) => owner.classList.remove(SizeOpenClass),
+        show: ({ owner }) => owner.classList.add(PagerSizeOpenClass),
+        hide: ({ owner }) => owner.classList.remove(PagerSizeOpenClass),
         closesWhenReadOnly: false,
         closesOnTab: true,
         sheetOnPhone: true
@@ -201,7 +185,7 @@ export class PagerEngine {
         drawRange(pager, state, figure);
         drawSize(pager, state, figure);
 
-        for (const button of pager.querySelectorAll<HTMLElement>(`:scope > .${ButtonClass}[${PagerPageAttribute}]`))
+        for (const button of pager.querySelectorAll<HTMLElement>(`:scope > .${PagerButtonClass}[${PagerPageAttribute}]`))
             componentStates.setDisabled(button, pageOffset(shown, button.getAttribute(PagerPageAttribute) ?? "") === null);
 
         applyStop(pager);
@@ -222,7 +206,7 @@ export class PagerEngine {
 
     /** The numbered pages, the current one marked; the keyboard on a number the redraw took away goes to the current page. */
     private drawNumbers(pager: HTMLElement, state: PageState, culture: NumberCulturePack): void {
-        const pages = pager.querySelector<HTMLElement>(`:scope > .${PagesClass}`);
+        const pages = pager.querySelector<HTMLElement>(`:scope > .${PagerPagesClass}`);
 
         if (pages === null)
             return;
@@ -247,7 +231,7 @@ export class PagerEngine {
         if (pager === null || isInert(domEvent.target))
             return;
 
-        const choice = domEvent.target.closest<HTMLElement>(`.${SizeChoiceClass}`);
+        const choice = domEvent.target.closest<HTMLElement>(`.${PagerSizeChoiceClass}`);
 
         if (choice !== null) {
             domEvent.preventDefault();
@@ -255,7 +239,7 @@ export class PagerEngine {
             return;
         }
 
-        const trigger = domEvent.target.closest<HTMLElement>(`.${SizeTriggerClass}`);
+        const trigger = domEvent.target.closest<HTMLElement>(`.${PagerSizeTriggerClass}`);
 
         if (trigger !== null) {
             domEvent.preventDefault();
@@ -323,12 +307,12 @@ export class PagerEngine {
         if (pager === null)
             return;
 
-        const size = domEvent.target.closest<HTMLElement>(`.${SizeClass}`);
+        const size = domEvent.target.closest<HTMLElement>(`.${PagerSizeClass}`);
 
         if (size !== null && this.handleSizeKey(domEvent, size))
             return;
 
-        const current = domEvent.target.closest<HTMLElement>(`.${ButtonClass}, .${SizeTriggerClass}`);
+        const current = domEvent.target.closest<HTMLElement>(`.${PagerButtonClass}, .${PagerSizeTriggerClass}`);
         const stops = stopsOf(pager);
 
         if (current === null || !stops.includes(current) || !isPlainKey(domEvent))
@@ -346,7 +330,7 @@ export class PagerEngine {
 
     /** Down or Up opens the sizes from their button, as a menu button's do; once open, the arrows move among them. */
     private handleSizeKey(domEvent: KeyboardEvent, size: HTMLElement): boolean {
-        const trigger = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${SizeTriggerClass}`) : null;
+        const trigger = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${PagerSizeTriggerClass}`) : null;
 
         if (trigger !== null && !this.menus.isOpen(size) && (domEvent.key === "ArrowDown" || domEvent.key === "ArrowUp") && isPlainKey(domEvent)) {
             domEvent.preventDefault();
@@ -360,16 +344,16 @@ export class PagerEngine {
 
     /** The pointer moves the open list's current size, as in a native menu, so the arrows go on from it. */
     private handlePointerMove(domEvent: Event): void {
-        const choice = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${SizeChoiceClass}`) : null;
+        const choice = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${PagerSizeChoiceClass}`) : null;
 
-        const size = choice?.closest<HTMLElement>(`.${SizeClass}`) ?? null;
+        const size = choice?.closest<HTMLElement>(`.${PagerSizeClass}`) ?? null;
 
         if (choice !== null && size !== null && this.menus.isOpen(size))
             followPointer(choice, choicesOf(size));
     }
 
     private toggleSizes(trigger: HTMLElement): void {
-        const size = trigger.closest<HTMLElement>(`.${SizeClass}`);
+        const size = trigger.closest<HTMLElement>(`.${PagerSizeClass}`);
 
         if (size === null)
             return;
@@ -382,7 +366,7 @@ export class PagerEngine {
 
     /** Opens the sizes on the page's own, as a select's list opens on its value. */
     private openSizes(size: HTMLElement, trigger: HTMLElement, fromEnd: boolean): void {
-        const menu = size.querySelector<HTMLElement>(`:scope > .${SizeMenuClass}`);
+        const menu = size.querySelector<HTMLElement>(`:scope > .${PagerSizesClass}`);
 
         if (menu === null)
             return;
@@ -390,7 +374,8 @@ export class PagerEngine {
         const choices = choicesOf(size);
         const checked = choices.find(choice => choice.getAttribute("aria-checked") === "true") ?? null;
 
-        openChoiceList(this.menus, { owner: size, popup: menu, anchor: trigger, placement: { placement: "bottom-end" }, openers: [trigger] }, choices, checked, fromEnd);
+        // The sizes keep their own words ("Rows per page"), which outrank the trigger's figure.
+        openChoiceList(this.menus, { owner: size, popup: menu, anchor: trigger, placement: { placement: "bottom-end" }, openers: [trigger], namedBy: trigger }, choices, checked, fromEnd);
     }
 
     /**
@@ -426,7 +411,7 @@ export class PagerEngine {
      * host is asked by it from here on: a window request carries the host's size.
      */
     private chooseSize(pager: HTMLElement, rows: number): void {
-        const size = pager.querySelector<HTMLElement>(`.${SizeClass}`);
+        const size = pager.querySelector<HTMLElement>(`.${PagerSizeClass}`);
 
         if (size !== null)
             this.menus.close(size);
@@ -494,7 +479,7 @@ function drawMark(mark: PageMark, current: number, culture: NumberCulturePack): 
     if (mark === "gap") {
         const gap = document.createElement("span");
 
-        gap.className = GapClass;
+        gap.className = PagerGapClass;
         gap.setAttribute("aria-hidden", "true");
         gap.textContent = "…";
 
@@ -519,7 +504,7 @@ function drawMark(mark: PageMark, current: number, culture: NumberCulturePack): 
 
 /** The rows the page holds, out of the source's count where it keeps one; marked with its key, so a switch writes it again in place. */
 function drawRange(pager: HTMLElement, state: PageState, figure: (value: number) => string): void {
-    const range = pager.querySelector<HTMLElement>(`:scope > .${RangeClass}`);
+    const range = pager.querySelector<HTMLElement>(`:scope > .${PagerRangeClass}`);
 
     if (range === null)
         return;
@@ -535,8 +520,8 @@ function drawRange(pager: HTMLElement, state: PageState, figure: (value: number)
 
 /** The size's button says the page's size, and its list checks it. */
 function drawSize(pager: HTMLElement, state: PageState, figure: (value: number) => string): void {
-    const size = pager.querySelector<HTMLElement>(`:scope > .${SizeClass}`);
-    const label = size?.querySelector<HTMLElement>(`.${SizeLabelClass}`) ?? null;
+    const size = pager.querySelector<HTMLElement>(`:scope > .${PagerSizeClass}`);
+    const label = size?.querySelector<HTMLElement>(`.${PagerSizeLabelClass}`) ?? null;
 
     if (size === null || label === null)
         return;
@@ -549,7 +534,7 @@ function drawSize(pager: HTMLElement, state: PageState, figure: (value: number) 
 
 /** The pager's buttons in the order they stand: the ends, the numbers, the size's button. */
 function stopsOf(pager: HTMLElement): HTMLElement[] {
-    return [...pager.querySelectorAll<HTMLElement>(`.${ButtonClass}, .${SizeTriggerClass}`)];
+    return [...pager.querySelectorAll<HTMLElement>(`.${PagerButtonClass}, .${PagerSizeTriggerClass}`)];
 }
 
 /**
@@ -566,13 +551,13 @@ function applyStop(pager: HTMLElement): void {
 
 /** Whether the pager's size menu offers a size. */
 function offers(pager: HTMLElement, rows: number): boolean {
-    const size = pager.querySelector<HTMLElement>(`:scope > .${SizeClass}`);
+    const size = pager.querySelector<HTMLElement>(`:scope > .${PagerSizeClass}`);
 
     return size !== null && choicesOf(size).some(choice => Number(choice.getAttribute(PagerSizeAttribute)) === rows);
 }
 
 function choicesOf(size: HTMLElement): HTMLElement[] {
-    return [...size.querySelectorAll<HTMLElement>(`:scope > .${SizeMenuClass} > .${SizeChoiceClass}`)];
+    return [...size.querySelectorAll<HTMLElement>(`:scope > .${PagerSizesClass} > .${PagerSizeChoiceClass}`)];
 }
 
 /**
@@ -587,7 +572,6 @@ function windowedHostOf(component: Element): HTMLElement | null {
 
     return null;
 }
-
 
 function isItemsHost(node: Node): boolean {
     return node instanceof Element && node.hasAttribute(ItemsHostAttribute);

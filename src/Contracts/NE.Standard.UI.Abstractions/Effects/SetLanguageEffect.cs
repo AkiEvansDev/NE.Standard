@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 
 namespace NE.Standard.UI.Abstractions.Effects;
 
@@ -25,6 +26,7 @@ public sealed class SetLanguageEffect : ClientEffect
     public override string Kind => ClientEffectKinds.SetLanguage;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>

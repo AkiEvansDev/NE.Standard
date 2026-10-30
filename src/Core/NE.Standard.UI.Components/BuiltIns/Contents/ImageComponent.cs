@@ -1,5 +1,4 @@
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -11,10 +10,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// <summary>
 /// A visual component that renders a bitmap image from a source URL.
 /// </summary>
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultAlignment))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultAlignment))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
-public abstract partial class ImageComponent<T> : VisualComponentBase<T>, ITooltipComponent
+public abstract partial class ImageComponent<T>(string? id = null) : VisualComponentBase<T>(id), ITooltipComponent
     where T : ImageComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Center;
+
     /// <summary>
     /// Gets or sets the picture's source — a URL or a data URI.
     /// </summary>
@@ -34,7 +37,7 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
     /// <c>UIGlyphs.Image</c> on any other.
     /// </summary>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
-    public string? FallbackIcon { get; set; }
+    public string? IconFallback { get; set; }
 
     /// <summary>
     /// Gets or sets the alternate text describing the image.
@@ -58,20 +61,11 @@ public abstract partial class ImageComponent<T> : VisualComponentBase<T>, IToolt
     public UIResponsive<UICornerRadius>? BorderRadius { get; set; }
 
     /// <summary>
-    /// Gets or sets the image's shape — <see cref="UIImageShape.Circle"/> for a person's avatar: a square box, cropped to its middle
+    /// Gets or sets the image's shape — <see cref="UIShape.Circle"/> for a person's avatar: a square box, cropped to its middle
     /// unless <see cref="Fit"/> says otherwise; a circle outranks <see cref="BorderRadius"/>.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
-    public UIImageShape? Shape { get; set; }
-
-    /// <summary>
-    /// Initializes the image with a centered alignment.
-    /// </summary>
-    protected ImageComponent(string? id = null) : base(id)
-    {
-        HorizontalAlignment = UIAlignment.Center;
-        VerticalAlignment = UIAlignment.Center;
-    }
+    public UIShape? Shape { get; set; }
 }
 
 /// <summary>

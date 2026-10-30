@@ -18,19 +18,19 @@ public sealed class ShowNotificationEffect : ClientEffect
     private UINotificationAction? _action;
 
     /// <summary>
-    /// Creates an effect that shows a notification with the author's text or key and severity.
+    /// Creates an effect that shows a notification with the author's text or key, in a tone.
     /// </summary>
-    public ShowNotificationEffect(string message, UIColorStyle severity = UIColorStyle.Info)
-        : this(UIPhrase.Text(message), severity)
+    public ShowNotificationEffect(string message, UIColorStyle tone = UIColorStyle.Info)
+        : this(UIPhrase.Text(message), tone)
     {
     }
 
     /// <summary>
-    /// Creates an effect that shows a notification with a key and its arguments — or the author's text, which may not be empty — and
-    /// severity.
+    /// Creates an effect that shows a notification with a key and its arguments — or the author's text, which may not be empty — in a
+    /// tone.
     /// </summary>
     [JsonConstructor]
-    public ShowNotificationEffect(UIPhrase message, UIColorStyle severity = UIColorStyle.Info)
+    public ShowNotificationEffect(UIPhrase message, UIColorStyle tone = UIColorStyle.Info)
     {
         ArgumentNullException.ThrowIfNull(message);
 
@@ -39,7 +39,7 @@ public sealed class ShowNotificationEffect : ClientEffect
             throw new ArgumentException("A notification needs words.", nameof(message));
 
         Message = message;
-        Severity = severity;
+        Tone = tone;
     }
 
     /// <inheritdoc />
@@ -58,9 +58,11 @@ public sealed class ShowNotificationEffect : ClientEffect
     public UIPhrase Message { get; }
 
     /// <summary>
-    /// Gets the notification severity.
+    /// Gets the notification's tone, on the scale a badge's colour takes: Info, Success, Warning and Danger, the brand's and the
+    /// accent's draw their colour, the rest the plain toast; Warning and Danger interrupt a screen reader, as an alert
+    /// (<see cref="UIColorStyleExtensions.IsUrgent"/>).
     /// </summary>
-    public UIColorStyle Severity { get; }
+    public UIColorStyle Tone { get; }
 
     /// <summary>
     /// Gets the notification's one button and the command it runs (an Undo), or <see langword="null"/> for none.

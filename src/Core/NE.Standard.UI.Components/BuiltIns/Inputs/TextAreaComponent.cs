@@ -15,25 +15,21 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A multi-line text input for entering longer free-form text.
 /// </summary>
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultVerticalAlignment))]
+[UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyBlock(typeof(IFieldInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
 [UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextLengthComponent))]
-public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, string?>, IPlaceholderInputComponent, ITextEntryInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent
+public abstract partial class TextAreaComponent<T>(string? id = null) : InputComponentBase<T, string?>(id), IBorderedComponent, IFieldInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent
     where T : TextAreaComponent<T>, IUIComponentDefinition
 {
+    // Stretched, unlike the one-line fields it shares a base with: a box for longer text takes the height its track gives it.
+    private static readonly UIResponsive<UIAlignment> DefaultVerticalAlignment = UIAlignment.Stretch;
     private const int DefaultRows = 3;
 
     private readonly FieldActions _actions = new();
-
-    /// <summary>
-    /// Initializes the area stretched, unlike the one-line fields it shares a base with: a box for longer text takes the height its
-    /// track gives it.
-    /// </summary>
-    protected TextAreaComponent(string? id = null) : base(id)
-    {
-        VerticalAlignment = UIAlignment.Stretch;
-    }
 
     /// <summary>
     /// Gets the controls at the start of the field, beside its text at the bottom edge, in the order they stand; a flyout among them
@@ -235,12 +231,6 @@ public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, 
     }
 
     /// <summary>
-    /// Enables trimming leading and trailing whitespace from the input.
-    /// </summary>
-    public T SetTrimInput()
-        => SetTrimInput(true);
-
-    /// <summary>
     /// Runs <paramref name="command"/> on Enter, after the value has reached the server, and Shift+Enter breaks the line; the area
     /// keeps the focus for the next entry and needs no form.
     /// </summary>
@@ -273,6 +263,10 @@ public abstract partial class TextAreaComponent<T> : FieldInputComponentBase<T, 
     /// </summary>
     public T OnEscapeLiteral(string command, params KeyValuePair<string, object?>[] arguments)
         => OnLiteral(EventNames.Escape, command, arguments);
+
+    /// <summary>A multi-line field keeps its caption on top whatever <c>TitlePlacement</c> asks, as its renderer draws it.</summary>
+    public override UISize? CaptionRowBox(UIResponsiveTier tier)
+        => InputCaptionRow.Box(this, tier, honoursInside: false);
 }
 
 /// <summary>

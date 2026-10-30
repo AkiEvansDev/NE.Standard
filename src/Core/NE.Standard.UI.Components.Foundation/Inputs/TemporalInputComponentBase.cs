@@ -1,18 +1,19 @@
-using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
-using NE.Standard.UI.Primitives.Binding;
 
 namespace NE.Standard.UI.Components.Foundation.Inputs;
 
 /// <summary>
-/// Base class for temporal input components with step metadata, and the period mode every one can take via <see cref="IsRange"/>
-/// and <see cref="EndValue"/>.
+/// Base class for temporal fields: a period input's bounds and ends, a field's blocks, the formats it shows and reads, and the step
+/// its picker moves by.
 /// </summary>
 /// <remarks>A calendar's own properties — the week's first day, marked days — are <c>ICalendarComponent</c>'s, on the inputs that draw one.</remarks>
-public abstract partial class TemporalInputComponentBase<TComponent, TValue>(string? id = null) : MinMaxInputComponentBase<TComponent, TValue>(id), IPeriodInputComponent
+[UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyBlock(typeof(IFieldInputComponent))]
+[UIComponentPropertyBlock(typeof(IAffixedInputComponent))]
+[UIComponentPropertyBlock(typeof(IFormattedInputComponent))]
+public abstract partial class TemporalInputComponentBase<TComponent, TValue>(string? id = null) : PeriodInputComponentBase<TComponent, TValue>(id), IBorderedComponent, IFieldInputComponent, IAffixedInputComponent, IFormattedInputComponent
     where TComponent : TemporalInputComponentBase<TComponent, TValue>, IUIComponentDefinition
 {
     /// <summary>
@@ -21,67 +22,6 @@ public abstract partial class TemporalInputComponentBase<TComponent, TValue>(str
     /// <remarks>Render-time only: the picker builds its time columns from this once.</remarks>
     [UIComponentProperty(DefaultValue = null, IsBindable = false, GenerateSetter = false)]
     public UITemporalStep? Step { get; set; }
-
-    /// <summary>
-    /// Gets or sets whether the control edits a period, with <c>Value</c> as the start and <see cref="EndValue"/> as the end.
-    /// </summary>
-    /// <remarks>Render-time only: how many fields the row holds is how the control is built.</remarks>
-    [UIComponentProperty(Contract = typeof(IPeriodInputComponent), DefaultValue = false, IsBindable = false)]
-    public bool? IsRange { get; set; }
-
-    /// <summary>
-    /// Gets or sets the end of the period; read only in range mode, two-way like <c>Value</c>.
-    /// </summary>
-    [UIComponentProperty(Contract = typeof(IPeriodInputComponent), BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource | UIBindingCapabilities.SubmitBufferedTargetToSource, DefaultBindingMode = UIBindingMode.TwoWay, DefaultValue = null, GenerateSetter = false)]
-    public TValue? EndValue { get; set; }
-
-    /// <summary>
-    /// Makes the control edit a period.
-    /// </summary>
-    public TComponent SetIsRange()
-        => SetIsRange(true);
-
-    /// <summary>
-    /// Sets the value, the start of a period, which may not fall after <see cref="EndValue"/> or outside <c>Min</c>/<c>Max</c>;
-    /// whichever is set last is checked against the others.
-    /// </summary>
-    public new TComponent SetValue(TValue? value)
-    {
-        ValidatePeriod(value, EndValue);
-
-        return base.SetValue(value);
-    }
-
-    /// <summary>
-    /// Sets the end of the period, which may not fall before <c>Value</c> or outside <c>Min</c>/<c>Max</c>.
-    /// </summary>
-    public TComponent SetEndValue(TValue? endValue)
-    {
-        ValidateRange(Min, Max, endValue);
-        ValidatePeriod(Value, endValue);
-
-        EndValue = endValue;
-        return Self;
-    }
-
-    /// <summary>The range check over both ends of the period, so a bound moved after the end was set still holds it.</summary>
-    protected override void ValidateRange(TValue? min, TValue? max, TValue? value)
-    {
-        ValidateEnd(min, max, value);
-
-        if (EndValue is not null && !EqualityComparer<TValue?>.Default.Equals(value, EndValue))
-            ValidateEnd(min, max, EndValue);
-    }
-
-    /// <summary>
-    /// Validates one end of the period against the range.
-    /// </summary>
-    protected abstract void ValidateEnd(TValue? min, TValue? max, TValue? value);
-
-    /// <summary>
-    /// Validates that a period's end does not fall before its start.
-    /// </summary>
-    protected abstract void ValidatePeriod(TValue? start, TValue? end);
 
     /// <summary>
     /// Sets the step increment to a whole number of days.

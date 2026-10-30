@@ -1,6 +1,6 @@
 // `.ts` on the value imports: `node --test` loads this module as it is (the lightbox's test).
-import { ComponentSelector, cssAttributeValue, DialogSurfaceClass, FormIdAttribute } from "../addressing/dom-attributes.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { ComponentSelector, cssAttributeValue, DialogAttribute, DialogBackdropAttribute, DialogCloseBackdropAttribute, DialogCloseEscapeAttribute, DialogModalAttribute, DialogPlacementAttribute, DialogSurfaceClass, FormIdAttribute } from "../addressing/dom-attributes.ts";
+import { logWarn } from "../metadata/logger.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
@@ -9,7 +9,7 @@ import { hasOpenPopups } from "./popup-dismissal.ts";
 import { firstFocusable, isTouchLast, liveFocusReturn, moveFocusIntoFromStart, restoreFocusTo, trapTab } from "./popup-focus.ts";
 import { followSwipeDown } from "./sheet-swipe.ts";
 import type { ComponentIndex } from "./popup-focus.ts";
-import { BackdropAttribute, CloseOnBackdropAttribute, CloseOnEscapeAttribute, DialogAttribute, findTopmostOpenDialog, isBehindModal, ModalAttribute, PlacementAttribute } from "./open-dialogs.ts";
+import { findTopmostOpenDialog, isBehindModal } from "./open-dialogs.ts";
 
 export type DialogEngineOptions = {
     readonly root?: ParentNode;
@@ -125,14 +125,14 @@ export class DialogEngine {
         if (!(target instanceof Element))
             return;
 
-        const backdrop = target.closest(`[${BackdropAttribute}]`);
+        const backdrop = target.closest(`[${DialogBackdropAttribute}]`);
 
         if (backdrop === null)
             return;
 
         const dialog = backdrop.closest(`[${DialogAttribute}]`);
 
-        if (!(dialog instanceof HTMLElement) || dialog.hasAttribute("hidden") || !dialog.hasAttribute(CloseOnBackdropAttribute))
+        if (!(dialog instanceof HTMLElement) || dialog.hasAttribute("hidden") || !dialog.hasAttribute(DialogCloseBackdropAttribute))
             return;
 
         const key = dialog.getAttribute(DialogAttribute);
@@ -155,9 +155,9 @@ export class DialogEngine {
         // the first one. A non-modal dialog leaves the page beside it its keys, as a modeless side does: only an Escape from inside is its,
         // and one landing in a dialog under it (the modal it was opened from) is that dialog's.
         const holder = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`[${DialogAttribute}]:not([hidden])`) : null;
-        const escaped = topmost.hasAttribute(ModalAttribute) || holder === topmost ? topmost : holder;
+        const escaped = topmost.hasAttribute(DialogModalAttribute) || holder === topmost ? topmost : holder;
 
-        if (domEvent.key === "Escape" && escaped !== null && escaped.hasAttribute(CloseOnEscapeAttribute) && !hasOpenPopups(domEvent.target) && !escapeIsClaimed(domEvent)) {
+        if (domEvent.key === "Escape" && escaped !== null && escaped.hasAttribute(DialogCloseEscapeAttribute) && !hasOpenPopups(domEvent.target) && !escapeIsClaimed(domEvent)) {
             const key = escaped.getAttribute(DialogAttribute);
 
             if (key !== null) {
@@ -168,7 +168,7 @@ export class DialogEngine {
             return;
         }
 
-        if (domEvent.key === "Tab" && topmost.hasAttribute(ModalAttribute))
+        if (domEvent.key === "Tab" && topmost.hasAttribute(DialogModalAttribute))
             trapTab(topmost, domEvent);
     }
 
@@ -204,7 +204,7 @@ export class DialogEngine {
  * press asks for could then give it back nowhere.
  */
 function keepFocusOffBackdrop(domEvent: Event): void {
-    const backdrop = domEvent.target instanceof Element ? domEvent.target.closest(`[${BackdropAttribute}]`) : null;
+    const backdrop = domEvent.target instanceof Element ? domEvent.target.closest(`[${DialogBackdropAttribute}]`) : null;
 
     if (backdrop !== null && backdrop.closest(`[${DialogAttribute}]:not([hidden])`) !== null)
         domEvent.preventDefault();
@@ -229,5 +229,5 @@ function standOnTop(dialog: HTMLElement): void {
 
 /** A bottom sheet the viewer may put away — by its backdrop or Escape — which its handle and a swipe down put away too. */
 function isSwipedSheet(dialog: HTMLElement): boolean {
-    return dialog.getAttribute(PlacementAttribute) === "bottom" && (dialog.hasAttribute(CloseOnBackdropAttribute) || dialog.hasAttribute(CloseOnEscapeAttribute));
+    return dialog.getAttribute(DialogPlacementAttribute) === "bottom" && (dialog.hasAttribute(DialogCloseBackdropAttribute) || dialog.hasAttribute(DialogCloseEscapeAttribute));
 }

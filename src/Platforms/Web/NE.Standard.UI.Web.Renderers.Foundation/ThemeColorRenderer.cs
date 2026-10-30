@@ -52,7 +52,7 @@ public static class ThemeColorRenderer
         ArgumentNullException.ThrowIfNull(context);
         ArgumentOutOfRangeException.ThrowIfNegative(index);
 
-        if (own is UIThemeColor color && WebCssValues.ThemeColor(color) is { Length: > 0 } css)
+        if (own is UIThemeColor color && WebCssValues.ThemeInk(color) is { Length: > 0 } css)
             return css;
 
         var count = WebThemeCssBuilder.SeriesCount(context.Theme);

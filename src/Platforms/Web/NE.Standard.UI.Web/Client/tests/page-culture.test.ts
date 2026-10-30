@@ -9,7 +9,7 @@ installFakeDom({ window: { addEventListener: () => { } } });
 
 const { applyPageCultures } = await import("../src/rendering/page-culture.ts");
 const { NumberInputEngine } = await import("../src/interactions/number-input-engine.ts");
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 const { InvariantTemporalCulture } = await import("../src/rendering/temporal-format.ts");
 
 const German = { decimalSeparator: ",", groupSeparator: "." };

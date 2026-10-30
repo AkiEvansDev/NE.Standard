@@ -12,7 +12,7 @@ internal sealed class SwitchView : ToggleView, IUIViewDefinition
     protected override string ComponentRoute => "/choices/switch";
     protected override string Header => "demo.choices.switch.header";
     protected override string HeaderDescription => "demo.choices.switch.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(Bind(new SwitchComponent())));
@@ -26,7 +26,7 @@ internal sealed class SwitchView : ToggleView, IUIViewDefinition
     /// <remarks>Not a property: the row is <c>UILayout.Ends</c>, the control at its far end as wide as itself.</remarks>
     private static ContainerComponent CreateRowEndGroup()
     {
-        return DemoUI.CreateExample("Settings, at the end of each row",
+        return DemoUI.CreateExample("Trailing switch rows",
             new SurfaceComponent()
                 .SetContent(UILayout.Stack(4)
                     .AddChild(UILayout.Ends(
@@ -39,6 +39,7 @@ internal sealed class SwitchView : ToggleView, IUIViewDefinition
                             .SetDescriptionColor(UIThemeColor.Muted),
                         new SwitchComponent()
                             .SetValue(true)
+                            .SetAccessibleName("Deploy notifications")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -52,6 +53,7 @@ internal sealed class SwitchView : ToggleView, IUIViewDefinition
                             .SetDescriptionColor(UIThemeColor.Muted),
                         new SwitchComponent()
                             .SetValue(false)
+                            .SetAccessibleName("Keep snapshots")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )
@@ -65,6 +67,7 @@ internal sealed class SwitchView : ToggleView, IUIViewDefinition
                             .SetDescriptionColor(UIThemeColor.Muted),
                         new SwitchComponent()
                             .SetValue(true)
+                            .SetAccessibleName("Restart on a failed health check")
                         )
                         .SetPadding(UIThickness.All(0, 6, 0, 6))
                     )

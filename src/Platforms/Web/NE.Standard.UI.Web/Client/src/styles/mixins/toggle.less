@@ -4,11 +4,35 @@
 @import "./responsive.less";
 @import "../core/typography.less";
 
+// Whether a checkbox or switch carries words, a glyph or a badge of its own; bare boxes (a table's select column, a trailing row toggle) do not.
+@ui-toggle-labelled: ~":is([data-ui-text-title], [data-ui-text-description], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-title])";
+
+// A toggle answers pointer hover and keyboard focus with an outer wash round its box and label, a stepped box fill and ring, and a stronger lean on press (`:active`).
+@ui-toggle-live: ~":not(.ui-disabled, .ui-readonly, .ui-loading)";
+@ui-toggle-item-live: ~":not([data-ui-row-idle], [aria-disabled='true'], [data-ui-pending])";
+@ui-toggle-row-hover: var(--ui-wash-hover);
+@ui-toggle-box-hover: ~"color-mix(in srgb, var(--ui-color-on-surface) calc(var(--ui-wash-hover-share) + 4%), var(--ui-color-surface))";
+@ui-toggle-ring-hover: ~"color-mix(in srgb, var(--ui-color-on-surface) 40%, var(--ui-color-mark))";
+@ui-toggle-ring-press: ~"color-mix(in srgb, var(--ui-color-on-surface) 60%, var(--ui-color-mark))";
+
+// The soft contour behind a labelled toggle's row: protrudes outward without shifting the box's left edge, and sits under the opaque box and text ink.
+.ui-toggle-contour() {
+    content: "";
+    position: absolute;
+    inset: -0.125rem -0.375rem;
+    border-radius: @ui-list-entry-radius;
+    background-color: transparent;
+    pointer-events: none;
+    z-index: -1;
+    transition: background-color @ui-motion-fast @ui-motion-ease;
+}
+
 // The row shape shared by checkbox, switch and radio: centred on the whole label, not its first line, so it does not hang off the top.
 // Positioned, as the box its hidden input stands in: placed by a far ancestor, the input sits off the page, and the focus a press
-// gives it scrolls even the shell's unscrolled root to bring it into view.
+// gives it scrolls even the shell's unscrolled root to bring it into view. Isolated, so the contour at `z-index: -1` stays over a card's ground.
 .ui-toggle-row() {
     position: relative;
+    isolation: isolate;
     align-items: center;
     gap: @ui-space-1 @ui-space-2;
     min-width: 0;
@@ -17,23 +41,47 @@
 // A checkbox's or a switch's root, which is the row; shared, since a hook renamed in one stylesheet would fail silently in the other.
 .ui-toggle-root() {
     display: inline-grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    // Three columns (`[box] [label] [spill]`): a wider validation line on row 2 (`grid-column: 2 / -1`) or an authored width grows track 3
+    // instead of track 2, so the row-1 `::before` contour (`grid-column: 1 / 3`) hugs `[box + label]` alone.
+    grid-template-columns: auto minmax(0, auto) minmax(0, 1fr);
     align-self: var(--ui-align-v, var(--ui-center, center));
+    .ui-responsive-property(width, --ui-width, fit-content);
+    .ui-responsive-property(max-width, --ui-max-width, ~"var(--ui-fill-width, 100%)");
     .ui-responsive-property(height, --ui-height, fit-content);
     .ui-toggle-row();
+    column-gap: 0;
     font: inherit;
     cursor: pointer;
 
     // No words, no gap: a box alone (a grid's select column) stands centred in its room, not ahead of an empty text's gap. A badge
     // shown alone keeps the gap, as a word would.
-    &:not([data-ui-text-title], [data-ui-text-description], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-text]) {
-        column-gap: 0;
+    &@{ui-toggle-labelled} > :is(.ui-text, .ui-validation-message) {
+        margin-inline-start: @ui-space-2;
+    }
+
+    // Anchored strictly to `[box + label]` (`row 1`, `columns 1..2`) so a validation message on row 2 stands outside the hover pill.
+    &@{ui-toggle-labelled}@{ui-toggle-live}:not([data-ui-pending])::before {
+        .ui-toggle-contour();
+        grid-row: 1 / 2;
+        grid-column: 1 / 3;
+    }
+
+    @media (forced-colors: none) {
+        @media @{ui-can-hover} {
+            &@{ui-toggle-labelled}@{ui-toggle-live}:not([data-ui-pending]):hover::before {
+                background-color: @ui-toggle-row-hover;
+            }
+        }
+
+        &@{ui-toggle-labelled}@{ui-toggle-live}:not([data-ui-pending])@{ui-keyboard-within}::before {
+            background-color: @ui-toggle-row-hover;
+        }
     }
 
     // Under the label rather than under the box, which is the column the text is in, and starting where its words do: a toggle has
     // no field whose inset the message would keep.
     > .ui-validation-message {
-        grid-column: 2;
+        grid-column: 2 / -1;
         padding-inline: 0;
     }
 
@@ -49,38 +97,50 @@
     }
 }
 
-// A toggle answers a pointer on its box alone, nothing drawn past the box's edge, which a container at the toggle's side would cut:
-// off, the ring goes a quarter of the way to the ink and the box takes a shade of it; on, the fill leans toward the ink; a press goes
-// twice as far as a hover. Quietly, since the box is small and dense: halfway read as too bright for a hover on a dark theme.
-// Not in forced colours, where the box keeps the system's. @root is what the pointer is over, carrying the guard; @on draws the on box.
-// A box whose message colours its edge keeps that edge: @unmarked is @root where no message stands (the radio group carries its own).
-@ui-toggle-live: ~":not(.ui-disabled, .ui-readonly, .ui-loading)";
-@ui-toggle-can-hover: ~"@{ui-can-hover} and (forced-colors: none)";
-@ui-toggle-ring-hover: ~"color-mix(in srgb, var(--ui-color-on-surface) 25%, var(--ui-color-mark))";
-@ui-toggle-ring-press: ~"color-mix(in srgb, var(--ui-color-on-surface) 50%, var(--ui-color-mark))";
-
 .ui-toggle-answers(@root, @input, @box, @on) {
-    .ui-toggle-answers(@root, @input, @box, @on, ~"@{root}:not(@{ui-validation-marked})");
+    .ui-toggle-answers(@root, @input, @box, @on, ~"@{root}:not(@{ui-validation-marked})", {}, {});
 }
 
 .ui-toggle-answers(@root, @input, @box, @on, @unmarked) {
-    @media @{ui-toggle-can-hover} {
-        @{root}@{ui-toggle-live}:hover > @{input}:not(:checked) ~ @{box} {
-            background: color-mix(in srgb, var(--ui-color-on-surface) 6%, var(--ui-surface-raised));
+    .ui-toggle-answers(@root, @input, @box, @on, @unmarked, {}, {});
+}
+
+.ui-toggle-answers(@root, @input, @box, @on, @off-hover, @off-press) {
+    .ui-toggle-answers(@root, @input, @box, @on, ~"@{root}:not(@{ui-validation-marked})", @off-hover, @off-press);
+}
+
+.ui-toggle-answers(@root, @input, @box, @on, @unmarked, @off-hover, @off-press) {
+    @media (forced-colors: none) {
+        @media @{ui-can-hover} {
+            @{root}@{ui-toggle-live}:hover > @{input}:not(:checked) ~ @{box} {
+                background: @ui-toggle-box-hover;
+                @off-hover();
+            }
+
+            @{unmarked}@{ui-toggle-live}:hover > @{input}:not(:checked) ~ @{box} {
+                border-color: @ui-toggle-ring-hover;
+            }
+
+            @{root}@{ui-toggle-live}:hover > @{input}:checked ~ @{box} {
+                @on();
+            }
         }
 
-        @{unmarked}@{ui-toggle-live}:hover > @{input}:not(:checked) ~ @{box} {
+        @{root}@{ui-toggle-live}@{ui-keyboard-within} > @{input}:not(:checked) ~ @{box} {
+            background: @ui-toggle-box-hover;
+            @off-hover();
+        }
+
+        @{unmarked}@{ui-toggle-live}@{ui-keyboard-within} > @{input}:not(:checked) ~ @{box} {
             border-color: @ui-toggle-ring-hover;
         }
 
-        @{root}@{ui-toggle-live}:hover > @{input}:checked ~ @{box} {
+        @{root}@{ui-toggle-live}@{ui-keyboard-within} > @{input}:checked ~ @{box} {
             @on();
         }
-    }
 
-    @media (forced-colors: none) {
         @{root}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
-            background: color-mix(in srgb, var(--ui-color-on-surface) 12%, var(--ui-surface-raised));
+            @off-press();
         }
 
         @{unmarked}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
@@ -89,13 +149,13 @@
 
         @{root}@{ui-toggle-live}:active > @{input}:checked ~ @{box} {
             @on();
-            --ui-toggle-lean: 90%;
+            --ui-toggle-lean: 80%;
         }
     }
 }
 
-// The primary leaning toward the ink by the answer's share: 95% under a hover, 90% under a press.
-@ui-toggle-leaned: ~"color-mix(in srgb, var(--ui-color-primary) var(--ui-toggle-lean, 95%), var(--ui-color-on-surface))";
+// The primary leaning toward its contrasting on-colour under hover, keyboard focus (`88%` primary / `12%` on-primary) or press (`80%` / `20%`).
+@ui-toggle-leaned: ~"color-mix(in srgb, var(--ui-color-primary) var(--ui-toggle-lean, 88%), var(--ui-color-on-primary))";
 
 // The ring is the mark: unchecked, it is all that says a box is there.
 .ui-toggle-box(@height) {
@@ -105,16 +165,14 @@
     border-style: solid;
     border-color: var(--ui-color-mark);
     .ui-responsive-property(border-width, --ui-border-thickness, ~"var(--ui-border-width, 1px)");
-    background: var(--ui-surface-raised);
+    background: var(--ui-color-surface);
     transition: background-color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
 }
 
-// Where the keyboard stands on a toggle: one frame round its whole row — box, words, badge — 2 px off it, in the frame's one shape.
-// Round the box alone it crowded the box's own edge. The row holds the hidden input, so `data-ui-focus-within` (popup-focus.ts) marks
-// it for a key's focus; a clipping panel leaves the frame its reach (runtime.less).
+// Suppresses the browser outline on the toggle row when focused via keyboard; forced-colors outlines live in core/preferences.less.
 .ui-toggle-keyboard-frame() {
     &@{ui-keyboard-within} {
-        .ui-keyboard-frame-outside();
+        .ui-keyboard-frame();
     }
 }
 
@@ -125,5 +183,71 @@
         --ui-field-inset: calc(@box + @ui-space-2);
         // The inset is the box and its gap, at the start only: the label runs on to the end, so the note does too.
         --ui-field-note-end: 0px;
+    }
+}
+
+// A toggle group (`ui-radio-group`, `ui-multi-select--checkboxes`): a column or wrapping row of `.ui-toggle-row()` items with optional
+// group headers, even-columns grid, and small-size caption step-down.
+.ui-toggle-group(@host; @item; @spacing) {
+    .ui-input-root();
+    .ui-responsive-reset(--ui-item-min-width);
+
+    > .ui-validation-message {
+        padding-inline: 0;
+    }
+
+    > @{host} {
+        display: flex;
+        flex-direction: column;
+        .ui-responsive-property(gap, @spacing, @ui-space-2);
+    }
+
+    &.ui-orientation--horizontal > @{host} {
+        flex-direction: row;
+        flex-wrap: wrap;
+        .ui-responsive-property(gap, @spacing, @ui-space-4);
+        .ui-responsive-property(row-gap, @spacing, @ui-space-2);
+
+        > [data-ui-group-header] {
+            flex-basis: 100%;
+        }
+    }
+
+    &.ui-even-columns > @{host} {
+        .ui-even-columns();
+    }
+
+    @{item} {
+        display: inline-flex;
+        width: fit-content;
+        max-width: 100%;
+        .ui-toggle-row();
+        cursor: pointer;
+        .ui-toggle-keyboard-frame();
+    }
+
+    &@{ui-toggle-live}:not([data-ui-pending]) @{item}@{ui-toggle-item-live}::before {
+        .ui-toggle-contour();
+    }
+
+    @media (forced-colors: none) {
+        @media @{ui-can-hover} {
+            &@{ui-toggle-live}:not([data-ui-pending]) @{item}@{ui-toggle-item-live}:hover::before {
+                background-color: @ui-toggle-row-hover;
+            }
+        }
+
+        &@{ui-toggle-live}:not([data-ui-pending]) @{item}@{ui-toggle-item-live}@{ui-keyboard-within}::before {
+            background-color: @ui-toggle-row-hover;
+        }
+    }
+
+    @{item}[data-ui-row-idle],
+    &.ui-readonly @{item} {
+        cursor: default;
+    }
+
+    &.ui-input--small @{item} > .ui-text.ui-text-type--body {
+        .ui-text-type--caption();
     }
 }

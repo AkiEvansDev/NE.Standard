@@ -4,9 +4,8 @@
 // the shell is cached outside the theme.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ListTriggerClass, SwitcherFieldValue, ThemeAttribute, ThemeChoiceAttribute, ThemeSwitcherAttribute } from "../addressing/dom-attributes.ts";
-import type { DomRegistry } from "../addressing/dom-registry.ts";
-import type { EffectRegistry } from "../effects/effect-registry.ts";
+import { ListTriggerClass, SwitcherFieldValue, ThemeAttribute, ThemeChoiceAttribute, ThemeSwitcherAttribute, ThemeSwitcherChoiceClass, ThemeSwitcherMenuClass, ThemeSwitcherOpenClass } from "../addressing/dom-attributes.ts";
+import type { DomRegistry, EffectRunner } from "../addressing/dom-registry.ts";
 import type { ThemeModeName } from "../metadata/metadata-index.ts";
 import { ClientEffectKinds } from "../metadata/metadata-index.ts";
 import { declaredTheme, markThemeChoice, ThemeFieldPartSelector } from "../rendering/theme-choice.ts";
@@ -16,12 +15,11 @@ import { SwitcherList } from "./switcher-list.ts";
 
 export type ThemeSwitcherEngineOptions = {
     readonly root?: ParentNode;
-    readonly effects: EffectRegistry;
+    readonly effects: EffectRunner;
     readonly dom: DomRegistry;
 };
 
 const FieldSelector = `[${ThemeSwitcherAttribute}="${SwitcherFieldValue}"]`;
-const ChoiceClass = "ui-theme-switcher__choice";
 
 /** Raises the effect that puts the page in the theme a switcher asks for, and shows the field the theme the page is set to. */
 export class ThemeSwitcherEngine {
@@ -30,9 +28,9 @@ export class ThemeSwitcherEngine {
 
     private readonly list = new SwitcherList({
         attribute: ThemeSwitcherAttribute,
-        menuClass: "ui-theme-switcher__menu",
-        choiceClass: ChoiceClass,
-        openClass: "ui-theme-switcher--open",
+        menuClass: ThemeSwitcherMenuClass,
+        choiceClass: ThemeSwitcherChoiceClass,
+        openClass: ThemeSwitcherOpenClass,
         triggerSelector: `.${ListTriggerClass}`
     });
 
@@ -71,7 +69,7 @@ export class ThemeSwitcherEngine {
             return;
         }
 
-        const choice = event.target.closest<HTMLElement>(`.${ChoiceClass}`);
+        const choice = event.target.closest<HTMLElement>(`.${ThemeSwitcherChoiceClass}`);
 
         if (choice !== null) {
             event.preventDefault();

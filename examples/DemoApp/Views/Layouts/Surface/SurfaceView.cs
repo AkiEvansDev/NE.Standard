@@ -1,5 +1,4 @@
 using DemoApp.Controllers.Base;
-using DemoApp.Controllers.Layouts.Card;
 using DemoApp.Controllers.Layouts.Surface;
 using DemoApp.Views.Base;
 
@@ -22,18 +21,18 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/layouts/surface";
     protected override string Header => "demo.layouts.surface.header";
     protected override string HeaderDescription => "demo.layouts.surface.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/catalogue", "demo.nav.screens.catalogue");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/catalogue", "demo.nav.screens.catalogue");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new SurfaceComponent()
             .BindStandard()
-            .BindSurface($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Surface)}")
-            .BindClickable($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Clickable)}")
-            .BindPadding($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Padding)}")
-            .BindBackground($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Background)}")
-            .BindBackgroundImage($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.BackgroundImage)}")
-            .BindBackgroundImageFit($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageFit)}")
-            .BindOverflow($"{SurfaceGroup}.{nameof(CardSurfaceGroupContext.Overflow)}")
+            .BindSurface<SurfaceController>(static x => x.SurfaceGroup.Surface)
+            .BindClickable<SurfaceController>(static x => x.SurfaceGroup.Clickable)
+            .BindPadding<SurfaceController>(static x => x.SurfaceGroup.Padding)
+            .BindBackground<SurfaceController>(static x => x.SurfaceGroup.Background)
+            .BindBackgroundImage<SurfaceController>(static x => x.SurfaceGroup.BackgroundImage)
+            .BindBackgroundImageFit<SurfaceController>(static x => x.SurfaceGroup.BackgroundImageFit)
+            .BindOverflow<SurfaceController>(static x => x.SurfaceGroup.Overflow)
             .BindBorder(BorderGroup)
             // Set rather than bound: it is what the surface holds rather than something about the surface.
             .SetContent(new ParagraphComponent()
@@ -52,140 +51,39 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
-    // Paired by height: the band beside the empty state, the strip of readings beside the tiles.
+    // Paired by height: three examples per column.
     protected override IVisualComponent[] CreateExamples()
-        => DemoUI.CreateColumns([CreateBarGroup(), CreateStatsGroup(), CreatePinnedGroup(), CreateLinkGroup()], [CreateEmptyStateGroup(), CreateChoiceGroup(), CreateRowsGroup()]);
+        => DemoUI.CreateColumns([CreateBarGroup(), CreateStatsGroup(), CreateLinkGroup()], [CreateChoiceGroup(), CreateRowsGroup(), CreateEmptyStateGroup()]);
 
     /// <summary>
-    /// A band that holds controls and belongs to the page (a card would promise bands it cannot fill), inside a panel of its own.
+    /// A single-level toolbar band holding a title and compact filter controls on one surface row.
     /// </summary>
     private static ContainerComponent CreateBarGroup()
     {
-        return DemoUI.CreateExample("A band that holds controls",
-            // Two levels: a raised panel over the page, and inside it a flat band that reads as a well.
+        return DemoUI.CreateExample("Control toolbar",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
-                .SetContent(UILayout.Stack(10)
-                    .AddChild(new TextComponent()
-                        .SetTitle("Releases")
-                        .SetTitleType(UITextAppearance.Subtitle)
-                        .SetDescription("47 this week, filtered below")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
+                .SetSurface(UISurfaceStyle.Surface)
+                .SetPadding(UIThickness.All(14, 10, 14, 10))
+                .SetContent(UILayout.Ends(
+                        new TextComponent()
+                            .SetTitle("Releases")
+                            .SetTitleType(UITextAppearance.Subtitle)
+                            .SetBadgeTitle("48")
+                            .SetBadgeVariant(UIBadgeVariant.Surface)
+                            .SetBadgePlacement(UITextBadgePlacement.Inline)
+                            .SetVerticalAlignment(UIAlignment.Center),
+                        new StackPanelComponent()
+                            .SetOrientation(UIOrientation.Horizontal)
+                            .SetWrap(true)
+                            .SetSpacing(6)
+                            .SetVerticalAlignment(UIAlignment.Center)
+                            .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Outline).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Filter)).SetTitle("Production"))
+                            .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Outline).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Clock)).SetTitle("7 days"))
+                            .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Ghost).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Undo)).SetTooltip("Reset filters"))
                     )
-                    .AddChild(new SurfaceComponent()
-                        .SetSurface(UISurfaceStyle.Background)
-                        .SetPadding(UIThickness.All(12, 8, 12, 8))
-                        .SetContent(new ContainerComponent()
-                            .SetColumn(24, UIGridUnit.Auto())
-                            .AddChild(new StackPanelComponent()
-                                .SetOrientation(UIOrientation.Horizontal)
-                                .SetWrap(true)
-                                .SetSpacing(8)
-                                .SetVerticalAlignment(UIAlignment.Center)
-                                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Filter)).SetTitle("All environments"))
-                                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Clock)).SetTitle("Last 7 days"))
-                                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Check)).SetTitle("Successful only"))
-                                .SetPlacement(1, 1, 20, 1)
-                            )
-                            .AddChild(new ButtonComponent()
-                                .SetType(UIButtonType.Ghost)
-                                .SetSize(UIButtonSize.Small)
-                                .SetVerticalAlignment(UIAlignment.Center)
-                                .SetIcon(DemoIcons.Outline(DemoIcons.Undo))
-                                .SetTooltip("Clear the filters")
-                                .SetPlacement(24, 1, 1, 1)
-                            )
-                        )
-                    )
-                )
+                ),
+            note: "A single `UISurfaceStyle.Surface` strip frames inline toolbar controls without Card header/footer chrome."
         );
-    }
-
-    /// <summary>
-    /// <c>Clickable</c> on a tile whose whole area is the target, with a pair of styles marking the chosen one.
-    /// </summary>
-    /// <remarks>Equal thirds of the group rather than a width each: three fixed tiles wrapped onto a second line at half the page.</remarks>
-    private static ContainerComponent CreateChoiceGroup()
-    {
-        return DemoUI.CreateExample("A tile you pick",
-            UILayout.Columns(12,
-                new SurfaceComponent()
-                    .SetClickable(true)
-                    .SetSurface(UISurfaceStyle.Background)
-                    .SetVerticalAlignment(UIAlignment.Stretch)
-                    .SetContent(new ParagraphComponent()
-                        .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
-                        .SetTitle("Deploy now")
-                        .SetTitleType(UITextAppearance.Subtitle)
-                        .SetDescription("Straight to production, no gate.")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    ),
-                // Tinted on the brand colour rather than merely raised: the whole ground says "picked", not "nearer".
-                new SurfaceComponent()
-                    .SetClickable(true)
-                    .SetSurface(UISurfaceStyle.Tinted)
-                    .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Primary))
-                    .SetBorderColor(UIThemeColor.FromStyle(UIColorStyle.Primary))
-                    .SetVerticalAlignment(UIAlignment.Stretch)
-                    .SetContent(new ParagraphComponent()
-                        .SetIcon(DemoIcons.Outline(DemoIcons.Clock))
-                        .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Primary))
-                        .SetTitle("Schedule it")
-                        .SetTitleType(UITextAppearance.Subtitle)
-                        .SetDescription("Runs at the next release window.")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    ),
-                new SurfaceComponent()
-                    .SetClickable(true)
-                    .SetSurface(UISurfaceStyle.Background)
-                    .SetVerticalAlignment(UIAlignment.Stretch)
-                    .SetContent(new ParagraphComponent()
-                        .SetIcon(DemoIcons.Outline(DemoIcons.Shield))
-                        .SetTitle("Stage only")
-                        .SetTitleType(UITextAppearance.Subtitle)
-                        .SetDescription("Stops after staging, waits for approval.")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
-                    )
-            )
-        );
-    }
-
-    /// <summary>
-    /// <c>Flat</c>: an action row's ground and no shadow, for a clickable row holding content of its own (a glyph before a time).
-    /// </summary>
-    private static ContainerComponent CreateRowsGroup()
-    {
-        return DemoUI.CreateExample("Rows of their own content",
-            UILayout.Stack(4)
-                .AddChild(CreateMessageRow("The release window moves to Thursday", "Mon 09:12", pinned: true))
-                .AddChild(CreateMessageRow("Staging is green again after the cache fix", "Sun 18:40", pinned: false))
-                .AddChild(new ActionComponent().SetAction("All pinned messages", icon: DemoIcons.Outline(DemoIcons.Star)))
-        );
-    }
-
-    private static SurfaceComponent CreateMessageRow(string words, string time, bool pinned)
-    {
-        StackPanelComponent sent = new StackPanelComponent()
-            .SetOrientation(UIOrientation.Horizontal)
-            .SetSpacing(4)
-            .SetVerticalAlignment(UIAlignment.Center);
-
-        if (pinned)
-            _ = sent.AddChild(new IconComponent().SetIcon(DemoIcons.Star).SetSize(UIIconSize.Small).SetColor(UIThemeColor.Muted));
-
-        return new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Flat)
-            .SetClickable(true)
-            .SetBorderThickness(UIThickness.Uniform(0))
-            .SetPadding(UIThickness.All(12, 8, 12, 8))
-            .SetContent(UILayout.Stack(2)
-                .AddChild(new TextComponent().SetTitle(words).SetTitleType(UITextAppearance.Body))
-                .AddChild(sent.AddChild(new TextComponent().SetTitle(time).SetTitleType(UITextAppearance.Caption).SetTitleColor(UIThemeColor.Muted)))
-            );
     }
 
     /// <summary>
@@ -193,13 +91,13 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateStatsGroup()
     {
-        return DemoUI.CreateExample("A strip of readings",
+        return DemoUI.CreateExample("Tinted metric tiles",
             UILayout.Columns(12,
                 new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Tinted)
                     .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Info))
                     .SetContent(new TextComponent()
-                        .SetTitle("47")
+                        .SetTitle("48")
                         .SetTitleType(UITextAppearance.Display)
                         .SetDescription("Deploys this week")
                         .SetDescriptionType(UITextAppearance.Caption)
@@ -227,29 +125,12 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// <c>QuietHover</c> on a strip the pointer crosses on its way elsewhere — a conversation's pinned message over its rows: half the
-    /// wash and no lift, so it does not flash; the quote in it stands its stroke straight along its edge and rounds the far corners.
-    /// </summary>
-    private static ContainerComponent CreatePinnedGroup()
-    {
-        return DemoUI.CreateExample("A strip the pointer crosses",
-            new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Flat)
-                .SetClickable(true)
-                .SetQuietHover(true)
-                .SetBorderThickness(UIThickness.Uniform(0))
-                .SetPadding(UIThickness.All(12, 8, 12, 8))
-                .SetContent(UIText.Quote("Pinned message", "The release window moves to Thursday; staging freezes on Wednesday at noon."))
-        );
-    }
-
-    /// <summary>
     /// <c>Url</c>: a card that is a link — its root an anchor, so it opens in a new tab, copies as an address and is followed in place with
     /// no round trip; it holds words only, and its button beside it is a link too.
     /// </summary>
     private static ContainerComponent CreateLinkGroup()
     {
-        return DemoUI.CreateExample("A card that opens a page",
+        return DemoUI.CreateExample("Link surface (SetUrl)",
             UILayout.Stack(8)
                 .AddChild(new CardComponent()
                     .SetUrl("/layouts/card")
@@ -262,9 +143,103 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                 )
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetTitle("Expander").SetUrl("/layouts/expander")),
-            note: "SetUrl draws the root as an anchor; a command on its click or a control inside it is refused when the view compiles."
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Outline).SetTitle("Expander").SetUrl("/layouts/expander")),
+            note: "`SetUrl` renders the root as an anchor (`<a>`); binding an `OnClick` command or nesting interactive controls inside it fails view compilation."
         );
+    }
+
+    /// <summary>
+    /// <c>Clickable</c> on a tile whose whole area is the target, with a pair of styles marking the chosen one.
+    /// </summary>
+    /// <remarks>Equal thirds of the group rather than a width each: three fixed tiles wrapped onto a second line at half the page.</remarks>
+    private static ContainerComponent CreateChoiceGroup()
+    {
+        return DemoUI.CreateExample("Selectable tiles",
+            UILayout.Columns(12,
+                new SurfaceComponent()
+                    .SetClickable(true)
+                    .SetSurface(UISurfaceStyle.Background)
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetContent(new ParagraphComponent()
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
+                        .SetTitle("Deploy now")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Straight to production, no gate.")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    ),
+                // Tinted on the brand colour rather than merely raised: the whole ground says "picked", not "nearer".
+                new SurfaceComponent()
+                    .SetClickable(true)
+                    .SetSurface(UISurfaceStyle.Tinted)
+                    .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Primary))
+                    .SetBorderColor(UIThemeColor.FromStyle(UIColorStyle.Primary))
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetContent(new ParagraphComponent()
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Clock))
+                        .SetIconColor(UIThemeColor.Default)
+                        .SetTitle("Schedule it")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Runs at the next release window.")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    ),
+                new SurfaceComponent()
+                    .SetClickable(true)
+                    .SetSurface(UISurfaceStyle.Background)
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetContent(new ParagraphComponent()
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Shield))
+                        .SetTitle("Stage only")
+                        .SetTitleType(UITextAppearance.Subtitle)
+                        .SetDescription("Stops after staging, waits for approval.")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+            )
+        );
+    }
+
+    /// <summary>
+    /// <c>Surface</c> rows and <c>QuietHover</c>: a pinned strip with softened hover over clickable content rows.
+    /// </summary>
+    private static ContainerComponent CreateRowsGroup()
+    {
+        return DemoUI.CreateExample("Interactive rows & QuietHover",
+            UILayout.Stack(4)
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Surface)
+                    .SetClickable(true)
+                    .SetQuietHover(true)
+                    .SetBorderThickness(UIThickness.Uniform(0))
+                    .SetPadding(UIThickness.All(12, 8, 12, 8))
+                    .SetContent(UIText.Quote("Pinned message", "The release window moves to Thursday; staging freezes on Wednesday at noon."))
+                )
+                .AddChild(CreateMessageRow("Staging is green again after the cache fix", "Sun 18:40", pinned: false))
+                .AddChild(new ActionComponent().SetAction("All pinned messages", icon: DemoIcons.Outline(DemoIcons.Star))),
+            note: "`SetQuietHover(true)` halves the hover wash and suppresses lift on wide strips the pointer crosses often."
+        );
+    }
+
+    private static SurfaceComponent CreateMessageRow(string words, string time, bool pinned)
+    {
+        StackPanelComponent sent = new StackPanelComponent()
+            .SetOrientation(UIOrientation.Horizontal)
+            .SetSpacing(4)
+            .SetVerticalAlignment(UIAlignment.Center);
+
+        if (pinned)
+            _ = sent.AddChild(new IconComponent().SetIcon(DemoIcons.Star).SetSize(UISize.Small).SetColor(UIThemeColor.Muted));
+
+        return new SurfaceComponent()
+            .SetSurface(UISurfaceStyle.Surface)
+            .SetClickable(true)
+            .SetBorderThickness(UIThickness.Uniform(0))
+            .SetPadding(UIThickness.All(12, 8, 12, 8))
+            .SetContent(UILayout.Stack(2)
+                .AddChild(new TextComponent().SetTitle(words).SetTitleType(UITextAppearance.Body))
+                .AddChild(sent.AddChild(new TextComponent().SetTitle(time).SetTitleType(UITextAppearance.Caption).SetTitleColor(UIThemeColor.Muted)))
+            );
     }
 
     /// <summary>
@@ -273,7 +248,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
     /// <remarks>The mark is its own component, not the text body's leading <c>Icon</c>, so all three pieces share one centre.</remarks>
     private static ContainerComponent CreateEmptyStateGroup()
     {
-        return DemoUI.CreateExample("Nothing here yet",
+        return DemoUI.CreateExample("Empty state",
             new SurfaceComponent()
                 .SetPadding(UIThickness.Uniform(28))
                 .SetContent(UILayout.Stack(12)
@@ -294,7 +269,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
                         .SetWidth(UILayoutLength.Absolute(320))
                     )
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetHorizontalAlignment(UIAlignment.Center)
                         .SetTitle("Show archived releases")
                     )

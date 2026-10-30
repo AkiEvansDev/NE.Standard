@@ -26,12 +26,12 @@ internal sealed partial class DemoDeploymentRow : RecursiveObservable, IBindable
     public partial string Status { get; set; } = string.Empty;
 
     [RecursiveMember]
-    public partial UIBadgeType? StatusStyle { get; set; }
+    public partial UIBadgeVariant? StatusVariant { get; set; }
 
     [RecursiveMember]
     public partial string? Icon { get; set; }
 
-    public static DemoDeploymentRow Create(string id, string service, string region, int replicas, string status, UIBadgeType statusStyle, string icon)
+    public static DemoDeploymentRow Create(string id, string service, string region, int replicas, string status, UIBadgeVariant statusVariant, string icon)
         => new()
         {
             Id = id,
@@ -39,7 +39,7 @@ internal sealed partial class DemoDeploymentRow : RecursiveObservable, IBindable
             Region = region,
             Replicas = replicas.ToString(CultureInfo.InvariantCulture),
             Status = status,
-            StatusStyle = statusStyle,
+            StatusVariant = statusVariant,
             Icon = icon
         };
 
@@ -47,14 +47,14 @@ internal sealed partial class DemoDeploymentRow : RecursiveObservable, IBindable
     public static List<DemoDeploymentRow> CreateDeployments()
         =>
         [
-            Create("billing", "Billing", "eu-west", 12, "Healthy", UIBadgeType.Success, DemoIcons.Shield),
-            Create("panel", "Panel", "eu-west", 4, "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
-            Create("dns", "DNS", "eu-west", 2, "Degraded", UIBadgeType.Warning, DemoIcons.Link),
-            Create("mail-relay", "Mail Relay", "us-east", 1, "Paused", UIBadgeType.Surface, DemoIcons.Mail),
-            Create("metrics", "Metrics", "us-east", 3, "Healthy", UIBadgeType.Success, DemoIcons.FileText),
-            Create("status-page", "Status Page", "us-east", 2, "Healthy", UIBadgeType.Success, DemoIcons.Bell),
-            Create("scheduler", "Scheduler", "ap-south", 1, "Healthy", UIBadgeType.Success, DemoIcons.Clock),
-            Create("audit-log", "Audit Log", "ap-south", 2, "Failing", UIBadgeType.Danger, DemoIcons.History),
+            Create("billing", "Billing", "eu-west", 12, "Healthy", UIBadgeVariant.Success, DemoIcons.Shield),
+            Create("panel", "Panel", "eu-west", 4, "Healthy", UIBadgeVariant.Success, DemoIcons.LayoutDashboard),
+            Create("dns", "DNS", "eu-west", 2, "Degraded", UIBadgeVariant.Warning, DemoIcons.Link),
+            Create("mail-relay", "Mail Relay", "us-east", 1, "Paused", UIBadgeVariant.Surface, DemoIcons.Mail),
+            Create("metrics", "Metrics", "us-east", 3, "Healthy", UIBadgeVariant.Success, DemoIcons.FileText),
+            Create("status-page", "Status Page", "us-east", 2, "Healthy", UIBadgeVariant.Success, DemoIcons.Bell),
+            Create("scheduler", "Scheduler", "ap-south", 1, "Healthy", UIBadgeVariant.Success, DemoIcons.Clock),
+            Create("audit-log", "Audit Log", "ap-south", 2, "Failing", UIBadgeVariant.Danger, DemoIcons.History),
         ];
 }
 
@@ -150,7 +150,7 @@ internal sealed partial class TableRowsGroupContext : DemoGroupContext
     {
         var id = string.Create(CultureInfo.InvariantCulture, $"service-{++_added}");
 
-        Items.Add(DemoDeploymentRow.Create(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added", 1, "New", UIBadgeType.Info, DemoIcons.Star));
+        Items.Add(DemoDeploymentRow.Create(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added", 1, "New", UIBadgeVariant.Info, DemoIcons.Star));
     }
 
     public void MoveRow(string id, int index)

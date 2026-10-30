@@ -4,7 +4,6 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
@@ -37,6 +36,16 @@ public sealed partial class UITestPage
 
         if (_values.TryGetValue(new UIPropertyAddress(new UIComponentAddress(componentId, rowKeys), property), out var held))
             return held ?? binding?.TargetFallbackValue;
+
+
+        if (rowKeys.Length > 0 && binding is not null)
+        {
+            var boundDepth = CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters);
+
+            if (boundDepth < rowKeys.Length && _values.TryGetValue(new UIPropertyAddress(new UIComponentAddress(componentId, rowKeys[..boundDepth]), property), out held))
+                return held ?? binding.TargetFallbackValue;
+        }
+
 
         if (binding is null)
             return compiled?.Value;
@@ -311,7 +320,7 @@ public sealed partial class UITestPage
 
                 if (value is not null && (string.Equals(value.ToString(), name, StringComparison.Ordinal) || string.Equals(Words(value), name, StringComparison.Ordinal)))
                 {
-                    found.Add((node.ComponentId, false));
+                    found.Add((node.ComponentId, node.TypeKey is not "standard.text" and not "standard.paragraph"));
                     break;
                 }
             }

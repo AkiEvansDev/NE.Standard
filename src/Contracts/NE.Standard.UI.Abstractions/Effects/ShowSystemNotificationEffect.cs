@@ -87,7 +87,7 @@ public sealed class ShowSystemNotificationEffect : ClientEffect
     /// "Open"; the toast of a page already there shows <see cref="Action"/>'s button instead.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public UIPhrase? AddressLabel { get; init; }
+    public UIPhrase? AddressTitle { get; init; }
 
     /// <summary>Gets whether it shows without a sound or a vibration.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

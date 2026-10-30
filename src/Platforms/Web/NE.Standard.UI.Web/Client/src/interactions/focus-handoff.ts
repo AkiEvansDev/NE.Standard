@@ -3,8 +3,8 @@
 // that opened an editor put away, else to the next stop after what was hidden, else the one before it, else the content region;
 // inside an open dialog, flyout, side drawer or other focus holder, within it.
 
-import { RegionAttribute } from "../addressing/dom-attributes.ts";
-import { KeyValueActionClass, KeyValueEditActionClass, KeyValueRowClass, KeyValueValueInputClass } from "./field-escape.ts";
+import { KeyValueActionActionClass, KeyValueActionEditActionClass, KeyValueActionRowClass, KeyValueActionValueInputClass, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { isInSight } from "./element-visibility.ts";
 import { FocusableSelector, FocusHolderSelector, focusAsLastInput, focusableUntilLeft, tabStops } from "./popup-focus.ts";
 
 /** What holds the focus, the page's body aside: what a write about to run may hide. */
@@ -25,7 +25,7 @@ export function handFocusOnIfHidden(focused: Element): HTMLElement | null {
     if (!focused.isConnected || (active !== focused && active !== document.body))
         return null;
 
-    if (isShown(focused)) {
+    if (isInSight(focused)) {
         afterFades(focused, () => handFocusOnIfHidden(focused));
         return null;
     }
@@ -33,7 +33,7 @@ export function handFocusOnIfHidden(focused: Element): HTMLElement | null {
     // The outermost of what is no longer shown: the component the write hid, not the button inside it that held the focus.
     let hidden = focused;
 
-    while (hidden.parentElement !== null && !isShown(hidden.parentElement))
+    while (hidden.parentElement !== null && !isInSight(hidden.parentElement))
         hidden = hidden.parentElement;
 
     const target = editorOpenerOf(hidden) ?? nextStopAround(hidden) ?? contentRegion();
@@ -42,10 +42,6 @@ export function handFocusOnIfHidden(focused: Element): HTMLElement | null {
         focusAsLastInput(target);
 
     return target;
-}
-
-function isShown(element: Element): boolean {
-    return element.checkVisibility({ visibilityProperty: true });
 }
 
 /** Runs `then` once every visibility fade running on the element or around it has ended; nothing where none runs. */
@@ -75,10 +71,10 @@ function fadeTarget(animation: Animation): Element | null {
  * as `giveKeyboardBack` gives a field's to its holder; null for any other part.
  */
 function editorOpenerOf(hidden: Element): HTMLElement | null {
-    const row = hidden.closest(`.${KeyValueValueInputClass}, .${KeyValueEditActionClass}`)?.closest(`.${KeyValueRowClass}`) ?? null;
-    const opener = row?.querySelector(`.${KeyValueActionClass}`)?.querySelector<HTMLElement>(FocusableSelector) ?? null;
+    const row = hidden.closest(`.${KeyValueActionValueInputClass}, .${KeyValueActionEditActionClass}`)?.closest(`.${KeyValueActionRowClass}`) ?? null;
+    const opener = row?.querySelector(`.${KeyValueActionActionClass}`)?.querySelector<HTMLElement>(FocusableSelector) ?? null;
 
-    return opener !== null && isShown(opener) ? opener : null;
+    return opener !== null && isInSight(opener) ? opener : null;
 }
 
 /** The first stop after the hidden element, else the last one before it, within the layer it stands in. */

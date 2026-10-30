@@ -1,10 +1,7 @@
 using System;
-using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Interaction;
 
 namespace NE.Standard.UI.Components.Foundation;
 
@@ -12,7 +9,7 @@ namespace NE.Standard.UI.Components.Foundation;
 /// An items component whose item is a row of named slots laid out by the renderer, rendered as a <typeparamref name="TRow"/>
 /// the derived component installs.
 /// </summary>
-public abstract class RowItemsComponentBase<TComponent, TItem, TRow>(string? id = null) : ItemsComponentBase<TComponent, TItem>(id)
+public abstract class RowItemsComponentBase<TComponent, TItem, TRow>(string? id = null) : ItemsComponentBase<TComponent, TItem>(id), IItemClickComponent, IItemOpenComponent, IItemRemoveComponent
     where TComponent : RowItemsComponentBase<TComponent, TItem, TRow>, IUIComponentDefinition
     where TItem : class
     where TRow : VisualComponentBase<TRow>, IUIComponentDefinition
@@ -29,89 +26,29 @@ public abstract class RowItemsComponentBase<TComponent, TItem, TRow>(string? id 
         => SetTemplateVariantCore(TemplateNames.Row, template);
 
     /// <summary>
-    /// Registers a row click command that passes the current item as an argument.
-    /// </summary>
-    public TComponent OnRowClickWithItem(string command, string argumentName = "item")
-        => OnRowClick(command, UIAction.ArgCurrentItem(argumentName));
-    /// <summary>
-    /// Registers a row click command that passes the current item's key as an argument.
-    /// </summary>
-    public TComponent OnRowClickWithItemKey(string command, string argumentName = "id")
-        => OnRowClick(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers a click command invoked when a row is clicked.
-    /// </summary>
-    public TComponent OnRowClick(string command)
-        => OnRowTemplate(row => _ = row.On(EventNames.Click, command));
-
-    /// <summary>
     /// Writes a row event on the row template and on every one <see cref="SetRowTemplate"/> sets later.
     /// </summary>
     protected TComponent OnRowTemplate(Action<TRow> register)
         => OnTemplate(TemplateNames.Row, register);
 
     /// <summary>
-    /// Registers a click command invoked when a row is clicked, with UI action arguments.
+    /// Writes a click registration on the row template, now and on every one <see cref="SetRowTemplate"/> sets later.
     /// </summary>
-    public TComponent OnRowClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowTemplate(row => _ = row.On(EventNames.Click, command, arguments));
+    public void OnClickableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnRowTemplate(row => register(row));
 
     /// <summary>
-    /// Runs a client effect when the row whose key is <paramref name="key"/> is clicked, with no round trip; the other rows keep the
-    /// command <c>OnRowClick</c> gave them.
+    /// Writes an open registration on the row template, now and on every one <see cref="SetRowTemplate"/> sets later.
     /// </summary>
-    public TComponent OnRowClick(string key, ClientEffect effect)
-        => OnRowTemplate(row => _ = row.InteractOnRow(EventNames.Click, key, effect));
+    public void OnOpenableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnRowTemplate(row => register(row));
 
     /// <summary>
-    /// Registers a click command invoked when a row is clicked, with literal argument values.
+    /// Writes a remove registration on the row template, now and on every one <see cref="SetRowTemplate"/> sets later.
     /// </summary>
-    public TComponent OnRowClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Click, command, arguments));
-
-    /// <summary>
-    /// Registers a row click command with an argument derived from the specified <paramref name="argumentKind"/>.
-    /// </summary>
-    public TComponent OnRowClickWith(string command, string argumentName, UIActionArgumentKind argumentKind)
-        => OnRowClick(command, UIAction.ArgCurrent(argumentKind, argumentName));
-
-    /// <summary>
-    /// Registers a command invoked when a row is opened — Enter on the keyboard's row, or a double click — with the row's key.
-    /// </summary>
-    public TComponent OnRowOpenWithItemKey(string command, string argumentName = "id")
-        => OnRowOpen(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers a command invoked when a row is opened — Enter on the keyboard's row, or a double click.
-    /// </summary>
-    public TComponent OnRowOpen(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowTemplate(row => _ = row.On(EventNames.Open, command, arguments));
-
-    /// <summary>
-    /// Registers a command invoked when a row is opened, with literal argument values.
-    /// </summary>
-    public TComponent OnRowOpenLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Open, command, arguments));
-
-    /// <summary>
-    /// Registers a command invoked when the Delete key is pressed on a row that may be removed, with the row's key; the
-    /// controller removes the row or leaves it.
-    /// </summary>
-    public TComponent OnRowRemoveWithItemKey(string command, string argumentName = "id")
-        => OnRowRemove(command, UIAction.ArgCurrentItemKey(argumentName));
-
-    /// <summary>
-    /// Registers a command invoked when the Delete key is pressed on a row that may be removed.
-    /// </summary>
-    public TComponent OnRowRemove(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => OnRowTemplate(row => _ = row.On(EventNames.Remove, command, arguments));
-
-    /// <summary>
-    /// Registers a command invoked when the Delete key is pressed on a row that may be removed, with literal argument values.
-    /// </summary>
-    public TComponent OnRowRemoveLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnRowTemplate(row => _ = row.OnLiteral(EventNames.Remove, command, arguments));
+    /// <remarks>The Delete key raises it only on a row that may be removed; the controller removes the row or leaves it.</remarks>
+    public void OnRemovableItemTemplates(Action<IVisualComponent> register)
+        => _ = OnRowTemplate(row => register(row));
 
     /// <summary>
     /// The row template, which a registration that configures the row in hand needs.

@@ -2,8 +2,7 @@
 // stylesheet a declared one wears, so the dialog engine opens it, traps the focus in it and gives the focus back.
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
-import { DialogSurfaceClass } from "../addressing/dom-attributes.ts";
-import { BackdropAttribute, CloseOnBackdropAttribute, CloseOnEscapeAttribute, DialogAttribute, ModalAttribute } from "./open-dialogs.ts";
+import { ButtonClass, DialogActionsClass, DialogAttribute, DialogBackdropAttribute, DialogBackdropClass, DialogClass, DialogCloseBackdropAttribute, DialogCloseEscapeAttribute, DialogModalAttribute, DialogSurfaceClass } from "../addressing/dom-attributes.ts";
 
 export type PageDialogOptions = {
     readonly key: string;
@@ -27,21 +26,21 @@ export type PageDialog = {
 export function buildPageDialog(options: PageDialogOptions): PageDialog {
     const dialog = document.createElement("div");
 
-    dialog.className = `ui-dialog ${options.className}`;
+    dialog.className = `${DialogClass} ${options.className}`;
     dialog.setAttribute(DialogAttribute, options.key);
-    dialog.setAttribute(ModalAttribute, "");
+    dialog.setAttribute(DialogModalAttribute, "");
 
     if (options.closesOnEscapeAndBackdrop) {
-        dialog.setAttribute(CloseOnEscapeAttribute, "");
-        dialog.setAttribute(CloseOnBackdropAttribute, "");
+        dialog.setAttribute(DialogCloseEscapeAttribute, "");
+        dialog.setAttribute(DialogCloseBackdropAttribute, "");
     }
 
     dialog.setAttribute("hidden", "");
 
     const backdrop = document.createElement("div");
 
-    backdrop.className = "ui-dialog__backdrop";
-    backdrop.setAttribute(BackdropAttribute, "");
+    backdrop.className = DialogBackdropClass;
+    backdrop.setAttribute(DialogBackdropAttribute, "");
 
     const surface = document.createElement("div");
 
@@ -80,7 +79,7 @@ export class PageDialogParts {
 
     /** One of the dialog's answers, a framework button in the look given. */
     public button(look: string, part: string): HTMLButtonElement {
-        const pressable = this.element("button", `ui-button ${look}`, part) as HTMLButtonElement;
+        const pressable = this.element("button", `${ButtonClass} ${look}`, part) as HTMLButtonElement;
 
         pressable.type = "button";
 
@@ -89,7 +88,7 @@ export class PageDialogParts {
 
     /** The answers' row, at the dialog's end. */
     public actions(...buttons: HTMLButtonElement[]): HTMLElement {
-        const actions = this.element("div", "ui-dialog__actions");
+        const actions = this.element("div", DialogActionsClass);
 
         actions.append(...buttons);
 

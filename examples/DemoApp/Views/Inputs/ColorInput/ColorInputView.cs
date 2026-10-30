@@ -30,20 +30,18 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
     private static ColorInputComponent Bind(ColorInputComponent input)
         => input
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(ColorValueGroupContext.Value)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(ColorValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(ColorValueGroupContext.Size)}")
-            .BindTextFormat($"{ValueGroup}.{nameof(ColorValueGroupContext.TextFormat)}")
-            .BindAppearance($"{FieldGroup}.{nameof(ColorFieldGroupContext.Appearance)}")
-            .BindVariant($"{FieldGroup}.{nameof(ColorFieldGroupContext.Variant)}")
-            .BindShowPicker($"{FieldGroup}.{nameof(ColorFieldGroupContext.ShowPicker)}")
-            .BindShowPalette($"{FieldGroup}.{nameof(ColorFieldGroupContext.ShowPalette)}")
-            .BindShowOpacity($"{FieldGroup}.{nameof(ColorFieldGroupContext.ShowOpacity)}")
+            .BindValue<ColorInputController>(static x => x.ValueGroup.Value)
+            .BindIsReadOnly<ColorInputController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<ColorInputController>(static x => x.ValueGroup.Size)
+            .BindTextFormat<ColorInputController>(static x => x.ValueGroup.TextFormat)
+            .BindAppearance<ColorInputController>(static x => x.FieldGroup.Appearance)
+            .BindShowPalette<ColorInputController>(static x => x.FieldGroup.ShowPalette)
+            .BindShowOpacity<ColorInputController>(static x => x.FieldGroup.ShowOpacity)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
-            .BindBorderColor($"{BorderGroup}.{nameof(BorderGroupContext.BorderColor)}")
-            .BindBorderThickness($"{BorderGroup}.{nameof(BorderGroupContext.BorderThickness)}")
-            .BindBorderRadius($"{BorderGroup}.{nameof(BorderGroupContext.BorderRadius)}");
+            .BindBorderColor<ColorInputController>(static x => x.BorderGroup.BorderColor)
+            .BindBorderThickness<ColorInputController>(static x => x.BorderGroup.BorderThickness)
+            .BindBorderRadius<ColorInputController>(static x => x.BorderGroup.BorderRadius);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
@@ -62,10 +60,9 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
     /// A handful of colours making up a theme, each labelled with what it paints rather than with what it is — a branding form, its
     /// fields outlined.
     /// </summary>
-    /// <remarks>Both variants, because they are the two halves of one job: a field where the value is edited, swatches where it is chosen.</remarks>
     private static ContainerComponent CreateBrandingGroup()
     {
-        return DemoUI.CreateExample("Where it is used",
+        return DemoUI.CreateExample("Theme & series color fields",
             UILayout.Stack(16)
                 .AddChild(new ColorInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
@@ -82,82 +79,57 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
                     .SetAppearance(UIInputAppearance.Outline)
                     .SetTitle("Chart series 1")
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.QuantumBlue))
-                    .SetBadgeText("also used by the legend")
-                    .SetBadgeStyle(UIBadgeType.Info)
+                    .SetBadgeTitle("also used by the legend")
+                    .SetBadgeVariant(UIBadgeVariant.Info)
                 )
-                .AddChild(UIText.Label("The chart's other series, as swatches")
+                .AddChild(UIText.Label("The chart's other series")
                     .SetMargin(UIThickness.All(0, 8, 0, 0))
                 )
                 .AddChild(UILayout.Row(8)
                     .AddChild(new ColorInputComponent()
-                        .SetVariant(UIColorInputVariant.Swatch)
-                        .SetWidth(UILayoutLength.Absolute(110))
+                        .SetWidth(UILayoutLength.Absolute(120))
                         .SetValue(UIThemeColor.FromColorVariant(ColorName.StellarRed))
                     )
                     .AddChild(new ColorInputComponent()
-                        .SetVariant(UIColorInputVariant.Swatch)
-                        .SetWidth(UILayoutLength.Absolute(110))
+                        .SetWidth(UILayoutLength.Absolute(120))
                         .SetValue(UIThemeColor.FromColorVariant(ColorName.AuroraGreen))
                     )
                     .AddChild(new ColorInputComponent()
-                        .SetVariant(UIColorInputVariant.Swatch)
-                        .SetWidth(UILayoutLength.Absolute(110))
+                        .SetWidth(UILayoutLength.Absolute(120))
                         .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold))
                     )
                     .AddChild(new ColorInputComponent()
-                        .SetVariant(UIColorInputVariant.Swatch)
-                        .SetWidth(UILayoutLength.Absolute(110))
+                        .SetWidth(UILayoutLength.Absolute(120))
                         .SetValue(UIThemeColor.FromColorVariant(ColorName.NovaPurple))
                     )
                 )
-                .AddChild(UIText.Label("A tag's colour: a swatch narrower than its value")
-                    .SetMargin(UIThickness.All(0, 8, 0, 0))
-                )
-                .AddChild(UILayout.Row(6)
-                    .AddChild(new ColorInputComponent()
-                        .SetVariant(UIColorInputVariant.Swatch)
-                        .SetShowOpacity(false)
-                        .SetWidth(UILayoutLength.Absolute(24))
-                        .SetHeight(UILayoutLength.Absolute(24))
-                        .SetValue(UIThemeColor.FromColorVariant(ColorName.AuroraGreen))
-                    )
-                    .AddChild(new BadgeComponent().SetText("release"))
-                )
-                .AddChild(UIText.Note("The colour a person picks has nothing to do with **which theme is live**, so the text written across a swatch is judged against *the swatch itself* — see `UIColorContrast`."))
         );
     }
 
     /// <summary>
-    /// The three ways of choosing, switched on one at a time; all off leaves the text box.
+    /// The free picker is always present; <c>ShowPalette</c> adds the palette tab and segmented switcher, and <c>ShowOpacity</c> adds the alpha slider.
     /// </summary>
     private static ContainerComponent CreateSurfacesGroup()
     {
-        return DemoUI.CreateExample("What it offers",
+        return DemoUI.CreateExample("Palette tab & opacity slider",
             UILayout.Stack(16)
                 .AddChild(new ColorInputComponent()
-                    .SetTitle("Palette only — a fixed set to choose from")
+                    .SetTitle("Picker and palette — free colour or a named step")
                     .SetShowPalette(true)
-                    .SetShowPicker(false)
+                    .SetShowOpacity(false)
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.AuroraGreen))
                 )
                 .AddChild(new ColorInputComponent()
-                    .SetTitle("Picker only — anywhere in the wheel")
+                    .SetTitle("Picker only — opens directly without tabs")
                     .SetShowPalette(false)
-                    .SetShowPicker(true)
+                    .SetShowOpacity(false)
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.AuroraGreen))
                 )
                 .AddChild(new ColorInputComponent()
-                    .SetTitle("Picker, with opacity")
+                    .SetTitle("Picker only, with opacity")
                     .SetShowPalette(false)
-                    .SetShowPicker(true)
                     .SetShowOpacity(true)
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.AuroraGreen, opacity: 128))
-                )
-                .AddChild(new ColorInputComponent()
-                    .SetTitle("Neither — typed, and nothing else")
-                    .SetShowPalette(false)
-                    .SetShowPicker(false)
-                    .SetValue(UIThemeColor.FromColorVariant(ColorName.AuroraGreen))
                 )
         );
     }
@@ -168,34 +140,34 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
     /// <remarks>Written out rather than walked over the enum: the point is which reader wants which, not that there are two.</remarks>
     private static ContainerComponent CreateFormatGroup()
     {
-        return DemoUI.CreateExample("How it is written down",
+        return DemoUI.CreateExample("Color string formats",
             // Two to a row, each format beside its own translucent form: four at 260 left the fourth alone on a row.
             UILayout.Row(24)
                 .AddChild(DemoUI.CreateLabelled("Hex — a stylesheet, a token file", new ColorInputComponent()
                     .SetTextFormat(UIColorTextFormat.Hex)
                     .SetWidth(UILayoutLength.Absolute(460))
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold))
-                    )
+                )
                 )
                 .AddChild(DemoUI.CreateLabelled("Hex, once it is not opaque", new ColorInputComponent()
                     .SetTextFormat(UIColorTextFormat.Hex)
                     .SetWidth(UILayoutLength.Absolute(460))
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold, opacity: 153))
                     .SetShowOpacity(true)
-                    )
+                )
                 )
                 .AddChild(DemoUI.CreateLabelled("Rgb — anything that parses channels", new ColorInputComponent()
                     .SetTextFormat(UIColorTextFormat.Rgb)
                     .SetWidth(UILayoutLength.Absolute(460))
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold))
-                    )
+                )
                 )
                 .AddChild(DemoUI.CreateLabelled("Rgb, once it is not opaque", new ColorInputComponent()
                     .SetTextFormat(UIColorTextFormat.Rgb)
                     .SetWidth(UILayoutLength.Absolute(460))
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold, opacity: 153))
                     .SetShowOpacity(true)
-                    )
+                )
                 ),
             columns: 24,
             note: "Opacity is not a format of its own: each of the two grows a fourth channel as soon as the colour stops being opaque."

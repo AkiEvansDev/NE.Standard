@@ -71,6 +71,22 @@
         height: 100%;
     }
 
+    .ui-image-input__picture.ui-image-fit--fill {
+        object-fit: fill;
+    }
+
+    .ui-image-input__picture.ui-image-fit--contain {
+        object-fit: contain;
+    }
+
+    .ui-image-input__picture.ui-image-fit--cover {
+        object-fit: cover;
+    }
+
+    .ui-image-input__picture.ui-image-fit--none {
+        object-fit: none;
+    }
+
     .ui-image-input__picture:not([src]),
     .ui-image-input[data-ui-image-failed] .ui-image-input__picture {
         display: none;
@@ -80,9 +96,9 @@
 // and over one the browser could not draw (image-input-engine.ts), as a failed picture anywhere shows its fallback glyph.
 .ui-image-input__placeholder {
     display: none;
-    width: 2rem;
-    height: 2rem;
-    font-size: 2rem;
+    width: @ui-glyph-xxxl;
+    height: @ui-glyph-xxxl;
+    font-size: @ui-glyph-xxxl;
 }
 
     .ui-image-input:not(@{ui-image-shown}) > .ui-image-input__surface > .ui-image-input__placeholder,
@@ -96,11 +112,15 @@
     }
 
     .ui-image-input:not([data-ui-icon]) .ui-image-input__placeholder::before {
-        .ui-picture-glyph(1em);
+        .ui-image-glyph(1em);
     }
 
     .ui-image-input--avatar:not([data-ui-icon]) .ui-image-input__placeholder::before {
         .ui-person-glyph(1em);
+    }
+
+    .ui-image-input--files:not([data-ui-icon]) .ui-image-input__placeholder::before {
+        .ui-glyph(@ui-glyph-draft; 1em; 0);
     }
 
 // A surface that answers the pointer: not while its picture is on its way, which refuses a press and a drop as loading does.
@@ -108,7 +128,7 @@
 
 // The pencil: a veil over the picture, shown under the pointer and to the keyboard, never over an empty surface.
 .ui-image-input__edit {
-    .ui-picture-veil(1.5rem);
+    .ui-image-veil(1.5rem);
 }
 
     @media @{ui-can-hover} {
@@ -124,7 +144,7 @@
     // No hover to bring the veil up: the pencil stands in the corner over any picture, saying a press changes it.
     @media @{ui-cannot-hover} {
         .ui-image-input:not(.ui-image-input--avatar)@{ui-field-live}@{ui-image-shown} > .ui-image-input__surface@{ui-image-surface-live} > .ui-image-input__edit {
-            .ui-picture-corner-mark();
+            .ui-image-corner-mark();
 
             &::before {
                 .ui-pencil-glyph(@ui-glyph-sm; 0);
@@ -163,9 +183,9 @@
 }
 
     .ui-image-input--avatar .ui-image-input__placeholder {
-        width: 1.75rem;
-        height: 1.75rem;
-        font-size: 1.75rem;
+        width: @ui-glyph-xxl;
+        height: @ui-glyph-xxl;
+        font-size: @ui-glyph-xxl;
     }
 
     .ui-image-input--avatar .ui-image-input__edit::before {
@@ -177,7 +197,6 @@
 .ui-image-input--inline > .ui-image-input__surface {
     .ui-input-field();
     justify-content: flex-start;
-    padding: 0 0 0 @ui-space-3;
     gap: @ui-space-2;
     overflow: hidden;
     text-align: start;
@@ -222,11 +241,6 @@
 
 // Not through `@ui-input-field`, whose sizing would distort the picture and avatar; the sizes' weight, so a size overrides Ghost's height.
 // The edges in the mark, as a text field's (ui-input.less).
-.ui-input--filled.ui-image-input--inline > .ui-image-input__surface {
-    border-bottom-color: var(--ui-color-mark);
-    .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-input) var(--ui-radius-input) 0 0");
-}
-
 .ui-input--outline.ui-image-input--inline > .ui-image-input__surface {
     --ui-field-fill: var(--ui-field-ground);
     border-color: var(--ui-color-mark);
@@ -239,7 +253,12 @@
     background: none;
     min-height: 1.75rem;
     padding-left: 0;
+    padding-right: 0;
 }
+
+    .ui-input--underline.ui-image-input--inline .ui-image-input__pick {
+        margin-right: 0;
+    }
 
 .ui-input--ghost.ui-image-input--inline > .ui-image-input__surface {
     border-color: transparent;
@@ -288,25 +307,13 @@
 @ui-image-edge-hover: ~":not(@{ui-validation-marked}) > .ui-image-input__surface@{ui-image-surface-live}:not(@{ui-field-focus}):hover";
 
 @media @{ui-can-hover} {
-    .ui-image-input@{ui-field-live}:not(.ui-image-input--inline, [data-ui-image-dragging])@{ui-image-edge-hover},
-    .ui-image-input--inline:is(.ui-input--filled, .ui-input--tonal)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
-        border-color: var(--ui-field-hover);
-    }
-
-    // Ghost's row: the paler wash of the field it is, as a text field's ghost row shows (ui-input.less).
+    // Ghost's row: the hover wash of the field it is, as a text field's ghost row shows (ui-input.less).
     .ui-image-input--inline.ui-input--ghost@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
-        background: @ui-ghost-hover-wash;
+        background: var(--ui-wash-hover);
     }
 
-    // Filled keeps its line under the pointer.
-    .ui-image-input--inline.ui-input--filled@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
-        border-bottom-color: var(--ui-color-mark);
-    }
-}
-
-@media @{ui-can-hover} {
-    .ui-image-input--inline:is(.ui-input--outline, .ui-input--underline)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
-        border-color: var(--ui-field-hover-accent);
+    .ui-image-input--inline.ui-input--ghost@{ui-field-live}:not([data-ui-image-dragging]) > .ui-image-input__surface@{ui-image-surface-live}:is(@{ui-field-focus}):hover .ui-image-input__text {
+        color: var(--ui-text-selected);
     }
 }
 
@@ -330,6 +337,7 @@
         // Not under Underline, whose text starts at the rule's start at every size, as its neighbours' does.
         .ui-image-input--inline.ui-input--small:not(.ui-input--underline) > .ui-image-input__surface {
             padding-left: @ui-field-padding-sm;
+            padding-right: @ui-field-padding-sm;
         }
 
         .ui-image-input--inline.ui-input--small .ui-image-input__picture {
@@ -374,6 +382,10 @@
         }
     }
 
+    .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}@{ui-keyboard-focus} > .ui-image-input__pick {
+        color: var(--ui-color-on-surface);
+    }
+
 // Multiple: the surface is a shelf of squares, one per picture plus a dashed one that picks more, rather than one button.
 .ui-image-input--multiple > .ui-image-input__surface {
     flex: 0 0 auto;
@@ -386,13 +398,6 @@
     overflow: visible;
     cursor: default;
 }
-
-    // The shelf itself does not answer the pointer: its squares do. Spelled as the hover it takes back, so it steps aside for the same edges.
-    @media @{ui-can-hover} {
-        .ui-image-input--multiple@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
-            border-color: @ui-image-input-drop-edge;
-        }
-    }
 
     .ui-image-input--multiple[data-ui-image-dragging] > .ui-image-input__surface {
         .ui-drop-edge();
@@ -424,7 +429,17 @@
     }
 
 // A file that is no picture, where a picture's thumbnail would be, is a file tile (ui-file-tile.less); a 5rem square holds one line of
-// its name.
+// its name, and reacts with a soft surface wash and a small corner × rather than a dark picture plate.
+.ui-image-input__tile.ui-file-tile {
+    transition: background-color @ui-motion-fast @ui-motion-ease;
+}
+
+    @media @{ui-can-hover} {
+        .ui-image-input@{ui-field-live} .ui-image-input__tile.ui-file-tile:not(.ui-loading):hover {
+            background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), var(--ui-surface-fill));
+        }
+    }
+
 .ui-image-input__tile > .ui-file-tile__name {
     display: block;
     .ui-text-nowrap();
@@ -432,7 +447,7 @@
 
 // The cross over a square: a veil the pointer or the keyboard brings up, the same weight as every other clear control.
 .ui-image-input__remove {
-    .ui-picture-glass();
+    .ui-image-glass();
     padding: 0;
     border: 0;
     cursor: pointer;
@@ -454,9 +469,35 @@
     // No hover to bring the veil up: the cross stands in the corner at all times, a small target that leaves the picture visible.
     @media @{ui-cannot-hover} {
         .ui-image-input__remove {
-            .ui-picture-corner-mark();
+            .ui-image-corner-mark();
             pointer-events: auto;
             .ui-cross-glyph(@ui-glyph-sm);
+        }
+    }
+
+    // Over a file tile, a small corner × in the tile's muted ink rather than a dark veil over the whole square.
+    .ui-image-input__tile.ui-file-tile > .ui-image-input__remove {
+        inset: 0.25rem 0.25rem auto auto;
+        width: 1.375rem;
+        height: 1.375rem;
+        border-radius: @ui-part-radius;
+        background: transparent;
+        color: var(--ui-text-muted);
+        transition: opacity @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+        .ui-cross-glyph(@ui-glyph-sm);
+        .ui-hit-area(after);
+
+        @media @{ui-can-hover} {
+            &:hover {
+                background: var(--ui-wash-hover);
+                color: var(--ui-color-on-surface);
+            }
+        }
+
+        &@{ui-keyboard-focus} {
+            background: var(--ui-wash-hover);
+            color: var(--ui-color-on-surface);
+            .ui-keyboard-frame();
         }
     }
 
@@ -505,9 +546,15 @@
 
     @media @{ui-can-hover} {
         .ui-image-input@{ui-field-live} .ui-image-input__add:hover {
-            background: var(--ui-field-hover);
+            background: var(--ui-wash-hover);
             color: var(--ui-color-on-surface);
         }
+    }
+
+    .ui-image-input@{ui-field-live} .ui-image-input__add@{ui-keyboard-focus} {
+        background: var(--ui-wash-hover);
+        color: var(--ui-color-on-surface);
+        .ui-keyboard-frame();
     }
 
     .ui-image-input.ui-readonly .ui-image-input__add {
@@ -516,9 +563,9 @@
 
     .ui-image-input__add > .ui-image-input__placeholder {
         display: block;
-        width: 1.75rem;
-        height: 1.75rem;
-        font-size: 1.75rem;
+        width: @ui-glyph-xxl;
+        height: @ui-glyph-xxl;
+        font-size: @ui-glyph-xxl;
     }
 
 // The shelf's words, beside the picking square while there is nothing on the shelf.

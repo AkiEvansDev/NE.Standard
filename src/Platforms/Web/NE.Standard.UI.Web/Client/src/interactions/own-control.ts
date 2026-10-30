@@ -2,10 +2,10 @@
 // One list for both, naming the framework's popups, field boxes and a row's grip beside native tags, since a select's option is a div,
 // not a <select>; a clickable surface's wash and press stay off such a control by it (surface-press-engine.ts).
 
-import { ActionBarClass, ListTriggerClass, NoRowOpenAttribute, PopupRoleSelector, RowGripClass } from "../addressing/dom-attributes.ts";
+import { ActionBarClass, ColorInputRowClass, FieldBoxClass, FileInputRowClass, ListTriggerClass, NoRowOpenAttribute, NumberInputRowClass, PopupRoleSelector, RowGripClass, TemporalInputRowClass, TextInputRowClass } from "../addressing/dom-attributes.ts";
 
 // The box a field draws around its input and its marks: `@ui-input-field-state` in styles/mixins/field.less, which a new field shape joins too.
-export const FieldBoxSelector = `.ui-text-input__row, .ui-number-input__row, .ui-temporal-input__row, .ui-file-input__row, .ui-color-input__row, .${ListTriggerClass}, .ui-field-box`;
+export const FieldBoxSelector = `.${TextInputRowClass}, .${NumberInputRowClass}, .${TemporalInputRowClass}, .${FileInputRowClass}, .${ColorInputRowClass}, .${ListTriggerClass}, .${FieldBoxClass}`;
 
 /** The native controls, a button-like element and an editable region: what every list of a part's own controls starts from. */
 export const NativeControlSelector = "button, a, input, select, textarea, label, summary, [role='button'], [contenteditable=''], [contenteditable='true']";
@@ -17,14 +17,20 @@ const PressableSelector = "button, a, summary, [role='button']";
 
 /**
  * The one control a row is — a tile that is a button — or null for a row with none, with several, or with one that is not pressed (a
- * field). Its grip, a popup it holds (its right-click menu), that menu's action bar and a part that answers a press itself (a grid's
- * chevron or checkbox, `data-ui-no-row-open`) are not what the row is, nor is anything inside the control itself.
+ * field). Its grip, a popup it holds (its right-click menu), that menu's action bar, a part that answers a press itself (a grid's
+ * chevron or checkbox, `data-ui-no-row-open`) and a control it hides are not what the row is, nor is anything inside the control itself.
  */
 export function soleControlOf(row: Element): HTMLElement | null {
     const controls: Element[] = [];
+    // A control the row hides (an action with ShowActions off, a closed row's editor) is not what it is; a row not laid out at all (a
+    // list in a closed tab) counts every control, so its one control still leaves the Tab order.
+    const drawn = row.getClientRects().length > 0;
 
     for (const control of row.querySelectorAll(ControlSelector)) {
         if (control.classList.contains(RowGripClass) || !isOwnControlOf(row, control) || isOwnPress(row, control) || controls.some(outer => outer.contains(control)))
+            continue;
+
+        if (drawn && control.getClientRects().length === 0)
             continue;
 
         controls.push(control);

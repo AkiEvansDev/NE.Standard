@@ -8,9 +8,9 @@ import { installFakeDom } from "./fake-dom.ts";
 
 installFakeDom({ window: { addEventListener: () => undefined, setTimeout, clearTimeout } });
 
-const { clientStrings, shownValue } = await import("../src/runtime/client-strings.ts");
+const { clientStrings, shownValue } = await import("../src/rendering/client-strings.ts");
 const { isContentItem } = await import("../src/items/binding-template-evaluator.ts");
-const { holdsMoment } = await import("../src/runtime/words.ts");
+const { holdsMoment } = await import("../src/rendering/words.ts");
 
 const sent = { key: "chat.sent", args: { at: { moment: "2026-09-30T14:05:00.000Z", format: "date" } } };
 const contact = { Id: "anna", Title: "chat.anna", Description: sent, IsContent: true };

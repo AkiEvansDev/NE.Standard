@@ -42,7 +42,7 @@ installFakeDom({
 });
 
 const { TreeEngine, TreeUnfoldEvent } = await import("../src/interactions/tree-engine.ts");
-const { getRealItemElements } = await import("../src/items/items-empty-renderer.ts");
+const { getRealItemElements } = await import("../src/addressing/items-empty-renderer.ts");
 
 /** A tree of one open folder holding one node, the keyboard on the folder, under a fresh engine. */
 function tree(): { root: FakeElement; folder: FakeElement } {

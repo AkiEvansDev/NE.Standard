@@ -1,6 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Binding.Properties;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -20,10 +20,10 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 public sealed class ThemeSwitcherComponentRenderer : ButtonRendererBase
 {
     /// <summary>The field's list of the three themes, a listbox.</summary>
-    public const string MenuClassName = "ui-theme-switcher__menu";
+    public const string MenuClassName = WebClassNames.ThemeSwitcherMenu;
 
     /// <summary>One theme in the field's list.</summary>
-    public const string ChoiceClassName = "ui-theme-switcher__choice";
+    public const string ChoiceClassName = WebClassNames.ThemeSwitcherChoice;
 
     /// <summary>What the field's box shows: every theme's words stacked, the current one shown.</summary>
     public const string LabelClassName = "ui-theme-switcher__label";
@@ -120,7 +120,7 @@ public sealed class ThemeSwitcherComponentRenderer : ButtonRendererBase
         {
             _ = icon.Class("ui-theme-switcher__icon");
             _ = icon.Class($"ui-theme-switcher__icon--{modifier}");
-            _ = icon.Class("ui-icon");
+            _ = icon.Class(WebClassNames.Icon);
 
             SwitcherChromeRenderer.RenderGlyph(context, root, icon, property, marksRoot);
         });

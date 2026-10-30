@@ -57,18 +57,17 @@ test("the counter holds the width of its widest words in one cell with the shown
     assert.ok(rules(".ui-lightbox__count-room").some(rule => /visibility:\s*hidden/.test(rule.body)));
 });
 
-test("the strip's figures stand a pitch apart, the next one the way the page reads, and move at once while it is held still", () => {
+test("the strip's figures stand a pitch apart, the next one to the right, and move at once while it is held still", () => {
     const figure = rules(".ui-lightbox__figure")[0];
     const gap = /\(100cqw \+ (\d+)px\)/.exec(figure.body)?.[1];
     const script = readFileSync(resolve(here, "../src/interactions/lightbox.ts"), "utf8");
 
-    assert.match(figure.body, /var\(--ui-lightbox-slot\) \* var\(--ui-lightbox-way\)/);
+    assert.match(figure.body, /var\(--ui-lightbox-slot\) \* \(100cqw/);
     assert.match(figure.body, /var\(--ui-lightbox-shift, 0px\)/);
     assert.match(figure.body, /transition:\s*transform/);
     assert.ok(gap !== undefined);
     assert.match(script, new RegExp(`const SlideGap = ${gap};`), "the script slides by the stylesheet's gap");
     assert.match(rules('.ui-lightbox__figure[data-ui-lightbox-slot="previous"]')[0].body, /--ui-lightbox-slot:\s*-1/);
     assert.match(rules('.ui-lightbox__figure[data-ui-lightbox-slot="next"]')[0].body, /--ui-lightbox-slot:\s*1/);
-    assert.match(rules(".ui-lightbox:dir(rtl) .ui-lightbox__stage")[0].body, /--ui-lightbox-way:\s*-1/);
     assert.match(rules(".ui-lightbox__stage[data-ui-lightbox-still] > .ui-lightbox__figure")[0].body, /transition:\s*none/);
 });

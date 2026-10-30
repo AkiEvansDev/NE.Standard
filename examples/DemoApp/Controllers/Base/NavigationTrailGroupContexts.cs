@@ -19,7 +19,7 @@ internal sealed partial class BreadcrumbsGroupContext : DemoGroupContext
         AddOption("Hide a step", ToggleHiddenStep, () => Steps.Count > 2 && Steps[2].Visibility?.Base == UIVisibility.Collapsed);
         AddOption("Disable a step", ToggleDisabledStep, () => Steps.Count > 1 && Steps[1].Enabled == false);
         AddOption("Icon on the last", CycleLastIcon, () => Steps[^1].Icon);
-        AddOption("Badge on the last", ToggleLastBadge, () => Steps[^1].BadgeText);
+        AddOption("Badge on the last", ToggleLastBadge, () => Steps[^1].BadgeTitle);
     }
 
     public void CycleSpacing()
@@ -80,15 +80,81 @@ internal sealed partial class BreadcrumbsGroupContext : DemoGroupContext
     {
         BreadcrumbItem step = Steps[^1];
 
-        if (step.BadgeText is null)
+        if (step.BadgeTitle is null)
         {
-            step.BadgeText = "3";
-            step.BadgeStyle = UIBadgeType.Warning;
+            step.BadgeTitle = "3";
+            step.BadgeVariant = UIBadgeVariant.Warning;
         }
         else
         {
-            step.BadgeText = null;
-            step.BadgeStyle = null;
+            step.BadgeTitle = null;
+            step.BadgeVariant = null;
         }
+    }
+}
+
+/// <summary>
+/// A sequence of wizard steps, its current step chosen by <c>SelectedKey</c> and the ones before it completed.
+/// </summary>
+internal sealed partial class StepsGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial UIOrientation? Orientation { get; set; }
+
+    [RecursiveMember]
+    public partial UIResponsive<double>? Spacing { get; set; }
+
+    [RecursiveMember]
+    public partial string? SelectedKey { get; set; } = "address";
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> Steps { get; } = [.. CreateSteps()];
+
+    public StepsGroupContext()
+    {
+        AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
+        AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
+        AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
+        AddOption("Hide a step", ToggleHiddenStep, () => Steps[1].Visibility?.Base == UIVisibility.Collapsed);
+        AddOption("Disable a step", ToggleDisabledStep, () => Steps[2].Enabled == false);
+        AddOption("Lock a step", ToggleLockedStep, () => Steps[2].CanSelect == false);
+    }
+
+    public void CycleOrientation()
+        => SetLastChange(nameof(Orientation), Orientation = CycleEnum(Orientation));
+
+    public void CycleSpacing()
+        => SetLastChange(nameof(Spacing), Spacing = CycleValue(Spacing, null, 8d, 20d));
+
+    public void CycleSelectedKey()
+        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, "plan", "address", "confirm", null));
+
+    private static TextItem[] CreateSteps()
+        =>
+        [
+            new() { Id = "plan", Title = "Plan", Description = "Servers and region" },
+            new() { Id = "address", Title = "Address", Description = "Who pays and where" },
+            new() { Id = "confirm", Title = "Confirm", Description = "Contact and invoice note" }
+        ];
+
+    public void ToggleHiddenStep()
+    {
+        TextItem step = Steps[1];
+
+        step.Visibility = step.Visibility?.Base == UIVisibility.Collapsed ? UIVisibility.Visible : UIVisibility.Collapsed;
+    }
+
+    public void ToggleDisabledStep()
+    {
+        TextItem step = Steps[2];
+
+        step.Enabled = step.Enabled == false;
+    }
+
+    public void ToggleLockedStep()
+    {
+        TextItem step = Steps[2];
+
+        step.CanSelect = step.CanSelect == false;
     }
 }

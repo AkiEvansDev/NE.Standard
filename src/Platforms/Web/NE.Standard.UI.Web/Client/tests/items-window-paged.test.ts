@@ -158,3 +158,29 @@ test("a page asked for marks its view's root a page turn and its host by the edg
     assert.equal(table.hasAttribute("data-ui-window-pending"), false);
     assert.equal(host.hasAttribute("data-ui-window-pending"), false);
 });
+
+test("an items view's window says where each row stands among them all, as the server writes its first rows, and -1 with no total", () => {
+    const host = FakeElement.of("ui-items-view__host", {
+        "data-ui-items-host": "",
+        "data-ui-host-mode": "windowed",
+        "data-ui-window-paged": "",
+        "data-ui-window-size": "2",
+        "data-ui-window-offset": "40",
+        "data-ui-window-total": "100"
+    });
+    const rows = [40, 41].map(index => FakeElement.of("ui-items-view__item", { "data-ui-key": `row-${index}`, role: "listitem" }));
+
+    host.append(...rows);
+    host.rect = { left: 0, top: 0, width: 400, height: 200 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(FakeElement.of("ui-items-view", { "data-ui-id": "5" }).append(host));
+
+    new ItemsWindowEngine({ root: real<ParentNode>(fakeDocument.body), requestWindow: async () => undefined }).start();
+
+    assert.deepEqual(rows.map(row => [row.getAttribute("aria-posinset"), row.getAttribute("aria-setsize")]), [["41", "100"], ["42", "100"]]);
+
+    host.removeAttribute("data-ui-window-total");
+    new ItemsWindowEngine({ root: real<ParentNode>(fakeDocument.body), requestWindow: async () => undefined }).start();
+
+    assert.deepEqual(rows.map(row => row.getAttribute("aria-setsize")), ["-1", "-1"]);
+});

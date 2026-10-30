@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Layouts.CollapsiblePanel;
 using DemoApp.Views.Base;
@@ -18,6 +19,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
     private const string PanelGroup = nameof(CollapsiblePanelController.PanelGroup);
     private const string BorderGroup = nameof(CollapsiblePanelController.BorderGroup);
     private const string DetailsGroup = nameof(CollapsiblePanelController.DetailsGroup);
+    private const string WorkspaceGroup = nameof(CollapsiblePanelController.WorkspaceGroup);
 
     public static string ViewKey => "demo.layouts.collapsible-panel";
 
@@ -37,9 +39,9 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
         => panel
             .SetSide(side)
             .BindStandard()
-            .BindExpanded($"{PanelGroup}.{nameof(CollapsiblePanelGroupContext.Expanded)}")
-            .BindPadding($"{PanelGroup}.{nameof(CollapsiblePanelGroupContext.Padding)}")
-            .BindBackground($"{PanelGroup}.{nameof(CollapsiblePanelGroupContext.Background)}")
+            .BindExpanded<CollapsiblePanelController>(static x => x.PanelGroup.Expanded)
+            .BindPadding<CollapsiblePanelController>(static x => x.PanelGroup.Padding)
+            .BindBackground<CollapsiblePanelController>(static x => x.PanelGroup.Background)
             .BindBorder(BorderGroup)
             // Set rather than bound: it is what the panel holds rather than something about the panel.
             .SetContent(new ParagraphComponent()
@@ -61,7 +63,8 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
         => [CreateWorkspaceGroup(), CreateBandGroup(), CreateDetailsGroup()];
 
     /// <summary>
-    /// A workspace with three panes, each folding toward the edge it sits on; the side panes wear their titles beside their switches.
+    /// A workspace with three panes, each folding toward the edge it sits on; the side panes wear their titles beside their switches,
+    /// and each pane's switch tells the controller which way it went.
     /// </summary>
     private static ContainerComponent CreateWorkspaceGroup()
     {
@@ -71,7 +74,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                 .SetColumn(24, UIGridUnit.Auto())
                 .AddRow(UIGridUnit.Auto())
                 .SetOverflow(UIOverflow.Hidden)
-                .AddChild(new CollapsiblePanelComponent("demo-workspace-filters")
+                .AddChild(LogFolds(new CollapsiblePanelComponent("demo-workspace-filters"), "Filters")
                     .SetSide(UISide.Left)
                     .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
                     .SetPadding(UIThickness.Uniform(12))
@@ -87,7 +90,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                     .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 1, 1))
                 )
                 .AddChild(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetContent(new ParagraphComponent()
                         .SetTitle("Deploy #4821")
                         .SetDescription("The work sits between the panes and takes whatever room they give back. Fold the filters and it grows to the left; fold the detail and it grows to the right; fold the log and it grows down.")
@@ -96,7 +99,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                     )
                     .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(2, 1, 22, 1))
                 )
-                .AddChild(new CollapsiblePanelComponent("demo-workspace-detail")
+                .AddChild(LogFolds(new CollapsiblePanelComponent("demo-workspace-detail"), "Detail")
                     .SetSide(UISide.Right)
                     .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
                     .SetPadding(UIThickness.Uniform(12))
@@ -107,7 +110,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                     .SetContent(UIDetails.List(("Started by", "Release bot"), ("Region", "eu-west"), ("Duration", "4 min 12 s")))
                     .SetPlacement(1, 3, 24, 1, md: UIGridPlacement.At(24, 1, 1, 1))
                 )
-                .AddChild(new CollapsiblePanelComponent("demo-workspace-log")
+                .AddChild(LogFolds(new CollapsiblePanelComponent("demo-workspace-log"), "Log")
                     .SetSide(UISide.Bottom)
                     .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
                     .SetPadding(UIThickness.Uniform(12))
@@ -119,9 +122,16 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                     )
                     .SetPlacement(1, 4, 24, 1, md: UIGridPlacement.At(1, 2, 24, 1))
                 ),
-            columns: 24
+            columns: 24,
+            note: "Each pane's switch raises Expand or Collapse, one command per press, the pane named by a literal argument; the line below is the last one. Only a press raises them: a bound Expanded the controller pushes raises neither.",
+            context: WorkspaceGroup
         );
     }
+
+    private static CollapsiblePanelComponent LogFolds(CollapsiblePanelComponent panel, string pane)
+        => panel
+            .OnExpandLiteral(nameof(CollapsiblePanelController.PaneExpanded), new KeyValuePair<string, object?>("pane", pane))
+            .OnCollapseLiteral(nameof(CollapsiblePanelController.PaneCollapsed), new KeyValuePair<string, object?>("pane", pane));
 
     /// <summary>
     /// A band across the top that folds upward, with its switch under the band at its start.
@@ -168,15 +178,15 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                 .SetColumn(24, UIGridUnit.Auto())
                 .SetOverflow(UIOverflow.Hidden)
                 .AddChild(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetVerticalAlignment(UIAlignment.Stretch)
                     .SetContent(UILayout.Stack(12)
                         .AddChild(UILayout.Ends(
                                 UIText.Subtitle("db-us-east-2", "Dedicated · us-east · Maintenance"),
                                 new ButtonComponent()
                                     .OnClick(nameof(CollapsiblePanelController.ToggleDetails))
-                                    .SetType(UIButtonType.Ghost)
-                                    .SetSize(UIButtonSize.Small)
+                                    .SetVariant(UIButtonVariant.Ghost)
+                                    .SetSize(UISize.Small)
                                     .SetIcon(DemoIcons.Outline(DemoIcons.FileText))
                                     .SetTitle("Details")
                             )
@@ -192,7 +202,7 @@ internal sealed class CollapsiblePanelView : DemoComponentView, IUIViewDefinitio
                 .AddChild(new CollapsiblePanelComponent()
                     .SetSide(UISide.Right)
                     .SetShowCollapseToggle(false)
-                    .BindExpanded(nameof(PanelDetailsGroupContext.Expanded), UIBindingScope.Relative)
+                    .BindExpanded<PanelDetailsGroupContext>(static x => x.Expanded, UIBindingScope.Relative)
                     .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
                     .SetPadding(UIThickness.Uniform(12))
                     // Under the work on a phone, a side's width beside it from the medium width up.

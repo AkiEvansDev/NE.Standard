@@ -145,21 +145,21 @@ internal static class UIComponentPropertyModelFactory
         ValidateDefaultValueConfiguration(compilation, model, diagnostics);
 
         if (model.Property.DeclaredAccessibility != Accessibility.Public)
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.PropertyMustBePublic, model.Property, model.Property.Name));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.PropertyMustBePublic, GetDiagnosticLocation(model), model.Property.Name));
 
         if (model.Property.IsStatic)
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.PropertyCannotBeStatic, model.Property, model.Property.Name));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.PropertyCannotBeStatic, GetDiagnosticLocation(model), model.Property.Name));
 
         if (model.Property.Parameters.Length != 0)
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.PropertyCannotBeIndexer, model.Property, model.Property.Name));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.PropertyCannotBeIndexer, GetDiagnosticLocation(model), model.Property.Name));
 
         if (!values.IsBindable && values.GenerateBinder)
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.InvalidBindableConfiguration, model.Property, model.Property.Name));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.InvalidBindableConfiguration, GetDiagnosticLocation(model), model.Property.Name));
 
         // A block property is declared by the generator, so it always gets a setter even though the contract member is get-only;
         // an init accessor cannot be assigned from the generated setter.
         if (!model.DeclareProperty && values.GenerateSetter && model.Property.SetMethod is null or { IsInitOnly: true })
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.PropertyMustBeSettable, model.Property, model.Property.Name));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.PropertyMustBeSettable, GetDiagnosticLocation(model), model.Property.Name));
 
         ValidateGeneratedPropertyMember(model, UIComponentPropertyNames.GetPropertyDefinitionName(model.Property.Name), diagnostics);
         ValidateGeneratedPropertyMember(model, UIComponentPropertyNames.GetUIPropertyName(model.Property.Name), diagnostics);
@@ -171,11 +171,14 @@ internal static class UIComponentPropertyModelFactory
             ValidateGeneratedBinderMembers(compilation, model, diagnostics);
 
         if (values.Contract is not null && contractOwner is null)
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.ContractPropertyNotFound, model.Property, values.Contract.ToDisplayString(), GetContractPropertyName(model)));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.ContractPropertyNotFound, GetDiagnosticLocation(model), values.Contract.ToDisplayString(), GetContractPropertyName(model)));
 
-        if (!string.IsNullOrWhiteSpace(values.DefaultValueMember))
+        if (values.DefaultValueMember is { } defaultMember && !string.IsNullOrWhiteSpace(defaultMember) && IdentifierValidator.IsSimpleIdentifier(defaultMember))
             ValidateDefaultValueMember(compilation, model, diagnostics);
     }
+
+    private static LocationInfo? GetDiagnosticLocation(PropertySymbols model)
+        => model.DiagnosticLocation ?? LocationInfo.From(model.Property) ?? LocationInfo.From(model.ContainingType);
 
     private static void ValidateDefaultValueConfiguration(Compilation compilation, PropertySymbols model, List<DiagnosticInfo> diagnostics)
     {
@@ -209,7 +212,7 @@ internal static class UIComponentPropertyModelFactory
     }
 
     private static void ReportInvalidDefaultValueConfiguration(PropertySymbols model, string message, List<DiagnosticInfo> diagnostics)
-        => diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.InvalidDefaultValueConfiguration, model.Property, message));
+        => diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.InvalidDefaultValueConfiguration, GetDiagnosticLocation(model), message));
 
     /// <summary>
     /// What the registration accepts at run time, checked here so a mismatch fails the build rather than the component type's
@@ -239,7 +242,7 @@ internal static class UIComponentPropertyModelFactory
     private static void ValidateGeneratedPropertyMember(PropertySymbols model, string memberName, List<DiagnosticInfo> diagnostics)
     {
         if (model.ContainingType.DeclaresOtherMember(memberName, model.Property))
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, model.Property, memberName, model.ContainingType.ToDisplayString()));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, GetDiagnosticLocation(model), memberName, model.ContainingType.ToDisplayString()));
     }
 
     private static void ValidateGeneratedSetterMember(PropertySymbols model, List<DiagnosticInfo> diagnostics)
@@ -257,7 +260,7 @@ internal static class UIComponentPropertyModelFactory
             if (!SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated), model.Property.Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated)))
                 continue;
 
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, model.Property, memberName, model.ContainingType.ToDisplayString()));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, GetDiagnosticLocation(model), memberName, model.ContainingType.ToDisplayString()));
             return;
         }
     }
@@ -267,13 +270,14 @@ internal static class UIComponentPropertyModelFactory
         var memberName = UIComponentPropertyNames.GetBinderName(model.Property.Name);
 
         INamedTypeSymbol? recursivePathType = compilation.GetTypeByMetadataName(UIComponentPropertyNames.RecursivePathMetadataName);
+        INamedTypeSymbol? expressionType = compilation.GetTypeByMetadataName("System.Linq.Expressions.Expression`1");
 
         foreach (ISymbol member in model.ContainingType.GetMembers(memberName))
         {
             if (member is not IMethodSymbol method)
                 continue;
 
-            if (method.Parameters.Length != 3)
+            if (method.Parameters.Length is not (3 or 4))
                 continue;
 
             ITypeSymbol firstParameterType = method.Parameters[0].Type;
@@ -284,10 +288,16 @@ internal static class UIComponentPropertyModelFactory
                 recursivePathType is not null &&
                 SymbolEqualityComparer.Default.Equals(firstParameterType, recursivePathType);
 
-            if (!conflictsWithStringOverload && !conflictsWithRecursivePathOverload)
+            var conflictsWithExpressionOverload =
+                method.TypeParameters.Length == 1 &&
+                expressionType is not null &&
+                firstParameterType is INamedTypeSymbol named &&
+                SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, expressionType);
+
+            if (!conflictsWithStringOverload && !conflictsWithRecursivePathOverload && !conflictsWithExpressionOverload)
                 continue;
 
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, model.Property, memberName, model.ContainingType.ToDisplayString()));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, GetDiagnosticLocation(model), memberName, model.ContainingType.ToDisplayString()));
             return;
         }
     }
@@ -316,7 +326,7 @@ internal static class UIComponentPropertyModelFactory
                 memberType = method.ReturnType;
                 break;
             case null:
-                diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.DefaultValueMemberNotFound, model.Property, memberName, owner.ToDisplayString()));
+                diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.DefaultValueMemberNotFound, GetDiagnosticLocation(model), memberName, owner.ToDisplayString()));
                 return;
             default:
                 ReportInvalidDefaultValueMemberKind(model, owner, memberName, diagnostics);
@@ -344,7 +354,7 @@ internal static class UIComponentPropertyModelFactory
     }
 
     private static void ReportInvalidDefaultValueMemberKind(PropertySymbols model, INamedTypeSymbol owner, string memberName, List<DiagnosticInfo> diagnostics)
-        => diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.InvalidDefaultValueMemberKind, model.Property, memberName, owner.ToDisplayString()));
+        => diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.InvalidDefaultValueMemberKind, GetDiagnosticLocation(model), memberName, owner.ToDisplayString()));
 
     /// <summary>
     /// Every attribute the contract member carries except <c>[UIComponentProperty]</c>, spelled as the generated property re-declares it.
@@ -446,7 +456,7 @@ internal static class UIComponentPropertyModelFactory
         UIComponentTypeModel owner = CreateTypeModel(type);
         List<UIComponentPropertyModel> properties = [];
         List<DiagnosticInfo> diagnostics = [];
-        Dictionary<string, string> defaults = ReadOwnDefaults(type);
+        Dictionary<string, DefaultEntry> defaults = ReadOwnDefaults(type, out _);
 
         // Shared by every block: two contracts over one base interface bring its properties once.
         HashSet<string> seen = [];
@@ -454,11 +464,170 @@ internal static class UIComponentPropertyModelFactory
         foreach (INamedTypeSymbol contract in contracts)
             AppendBlockProperties(compilation, owner, type, contract, properties, diagnostics, defaults, seen);
 
-        // What is left named a property no block generated here: a typo, or one declared by hand or by a base.
-        foreach (var propertyName in defaults.Keys)
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.BlockDefaultNotFound, type, propertyName, type.ToDisplayString()));
-
         return new UIComponentPropertyBlockModel(owner, properties.ToEquatableArray(), diagnostics.ToEquatableArray());
+    }
+
+    public static UIComponentPropertyDefaultModel? CreateDefaultModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (context.TargetSymbol is not INamedTypeSymbol type)
+            return null;
+
+        Dictionary<string, DefaultEntry> defaults = ReadOwnDefaults(type, out SyntaxReference? firstDefault);
+
+        if (defaults.Count == 0 || firstDefault is null || firstDefault.SyntaxTree != context.TargetNode.SyntaxTree || !context.TargetNode.Span.Contains(firstDefault.Span))
+            return null;
+
+        HashSet<string> ownBlockGenerated = CollectOwnBlockGeneratedNames(type);
+
+        foreach (var ownProperty in ownBlockGenerated)
+            _ = defaults.Remove(ownProperty);
+
+        if (defaults.Count == 0)
+            return null;
+
+        Compilation compilation = context.SemanticModel.Compilation;
+        UIComponentTypeModel owner = CreateTypeModel(type);
+        var declaringType = type.ToDisplayString(SymbolDisplayFormats.GlobalNonNullableType);
+        List<UIComponentPropertyDefaultOverrideModel> overrides = [];
+        List<DiagnosticInfo> diagnostics = [];
+
+        foreach (KeyValuePair<string, DefaultEntry> pair in defaults)
+        {
+            var propertyName = pair.Key;
+            DefaultEntry entry = pair.Value;
+
+            if (!TryFindInheritedComponentProperty(type, propertyName, out IPropertySymbol? baseProperty, out UIComponentPropertyAttributeValues? baseValues))
+            {
+                diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.BlockDefaultNotFound, entry.Location ?? LocationInfo.From(type), propertyName, type.ToDisplayString()));
+                continue;
+            }
+
+            UIComponentPropertyAttributeValues values = baseValues! with
+            {
+                HasDefaultValue = false,
+                DefaultValueSource = null,
+                DefaultValueType = null,
+                DefaultValueMember = entry.ValueMember
+            };
+
+            PropertySymbols symbols = new(baseProperty!, type, values, DeclareProperty: false, DefaultValueOwner: type, DiagnosticLocation: entry.Location);
+            List<DiagnosticInfo> overrideDiagnostics = [];
+            INamedTypeSymbol? contractOwner = values.Contract is null ? null : FindContractPropertyOwner(compilation, symbols);
+
+            ValidateDefaultOverride(compilation, symbols, contractOwner, overrideDiagnostics);
+
+            UIComponentPropertyDefaultOverrideModel overrideModel = new(
+                Name: baseProperty!.Name,
+                Type: baseProperty.Type.ToGlobalTypeDisplayString(),
+                DeclaringType: declaringType,
+                PropertyArgument: BuildPropertyArgument(symbols, contractOwner),
+                DefaultValue: GetDefaultValue(symbols) ?? "null",
+                Diagnostics: overrideDiagnostics.ToEquatableArray()
+            );
+
+            overrides.Add(overrideModel);
+        }
+
+        return new UIComponentPropertyDefaultModel(owner, overrides.ToEquatableArray(), diagnostics.ToEquatableArray());
+    }
+
+    private static HashSet<string> CollectOwnBlockGeneratedNames(INamedTypeSymbol type)
+    {
+        HashSet<string> generated = [];
+        HashSet<string> seen = [];
+
+        foreach (INamedTypeSymbol contract in ReadBlockContracts(type, out _))
+        {
+            if (contract.TypeKind != TypeKind.Interface)
+                continue;
+
+            foreach (ISymbol member in EnumerateContractMembers(contract))
+            {
+                if (member is not IPropertySymbol property || property.IsStatic || property.FindAttribute(UIComponentPropertyNames.AttributeMetadataName) is null)
+                    continue;
+
+                if (!seen.Add(property.Name) || HasOwnDeclaredProperty(type, property.Name) || IsDeclaredByBase(type, property))
+                    continue;
+
+                _ = generated.Add(property.Name);
+            }
+        }
+
+        return generated;
+    }
+
+    private static bool HasOwnDeclaredProperty(INamedTypeSymbol type, string propertyName)
+    {
+        foreach (ISymbol member in type.GetMembers(propertyName))
+        {
+            if (member is IPropertySymbol)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryFindInheritedComponentProperty(INamedTypeSymbol type, string propertyName, out IPropertySymbol? property, out UIComponentPropertyAttributeValues? values)
+    {
+        for (INamedTypeSymbol? current = type.BaseType; current is not null && current.SpecialType != SpecialType.System_Object; current = current.BaseType)
+        {
+            foreach (ISymbol member in current.GetMembers(propertyName))
+            {
+                if (member is IPropertySymbol { IsStatic: false } declared && declared.FindAttribute(UIComponentPropertyNames.AttributeMetadataName) is { } declaredAttribute)
+                {
+                    property = declared;
+                    values = UIComponentPropertyAttributeValues.From(declaredAttribute);
+                    return true;
+                }
+            }
+
+            foreach (AttributeData attribute in current.GetAttributes())
+            {
+                if (attribute.AttributeClass?.ToDisplayString() != UIComponentPropertyNames.BlockAttributeMetadataName)
+                    continue;
+
+                if (attribute.ConstructorArguments.Length != 1 || attribute.ConstructorArguments[0].Value is not INamedTypeSymbol { TypeKind: TypeKind.Interface } contract)
+                    continue;
+
+                foreach (ISymbol member in EnumerateContractMembers(contract))
+                {
+                    if (member is not IPropertySymbol { IsStatic: false } contractProperty || contractProperty.Name != propertyName)
+                        continue;
+
+                    if (contractProperty.FindAttribute(UIComponentPropertyNames.AttributeMetadataName) is not { } contractAttribute)
+                        continue;
+
+                    UIComponentPropertyAttributeValues parsed = UIComponentPropertyAttributeValues.From(contractAttribute);
+
+                    if (parsed.Contract is null)
+                        parsed = parsed with { Contract = contract };
+
+                    property = contractProperty;
+                    values = parsed;
+                    return true;
+                }
+            }
+        }
+
+        property = null;
+        values = null;
+        return false;
+    }
+
+    private static void ValidateDefaultOverride(Compilation compilation, PropertySymbols model, INamedTypeSymbol? contractOwner, List<DiagnosticInfo> diagnostics)
+    {
+        UIComponentPropertyAttributeValues values = model.Values;
+
+        ValidateDefaultValueConfiguration(compilation, model, diagnostics);
+        ValidateGeneratedPropertyMember(model, UIComponentPropertyNames.GetPropertyDefaultName(model.Property.Name), diagnostics);
+
+        if (values.Contract is not null && contractOwner is null)
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.ContractPropertyNotFound, GetDiagnosticLocation(model), values.Contract.ToDisplayString(), GetContractPropertyName(model)));
+
+        if (values.DefaultValueMember is { } defaultMember && !string.IsNullOrWhiteSpace(defaultMember) && IdentifierValidator.IsSimpleIdentifier(defaultMember))
+            ValidateDefaultValueMember(compilation, model, diagnostics);
     }
 
     private static List<INamedTypeSymbol> ReadBlockContracts(INamedTypeSymbol type, out SyntaxReference? firstBlock)
@@ -480,19 +649,25 @@ internal static class UIComponentPropertyModelFactory
         return contracts;
     }
 
-    /// <summary>The type's own defaults for its block properties, by property name, from its <c>[UIComponentPropertyDefault]</c>s.</summary>
-    private static Dictionary<string, string> ReadOwnDefaults(INamedTypeSymbol type)
+    /// <summary>The type's own defaults by property name, from its <c>[UIComponentPropertyDefault]</c> attributes across partial declarations.</summary>
+    private static Dictionary<string, DefaultEntry> ReadOwnDefaults(INamedTypeSymbol type, out SyntaxReference? firstDefault)
     {
-        Dictionary<string, string> defaults = [];
+        Dictionary<string, DefaultEntry> defaults = [];
+        firstDefault = null;
 
         foreach (AttributeData attribute in type.GetAttributes())
         {
-            if (attribute.AttributeClass?.ToDisplayString() == UIComponentPropertyNames.DefaultAttributeMetadataName
-                && attribute.ConstructorArguments.Length == 2
+            if (attribute.AttributeClass?.ToDisplayString() != UIComponentPropertyNames.DefaultAttributeMetadataName)
+                continue;
+
+            firstDefault ??= attribute.ApplicationSyntaxReference;
+
+            if (attribute.ConstructorArguments.Length == 2
                 && attribute.ConstructorArguments[0].Value is string propertyName
                 && attribute.ConstructorArguments[1].Value is string valueMember)
             {
-                defaults[propertyName] = valueMember;
+                LocationInfo? location = LocationInfo.From(attribute.ApplicationSyntaxReference?.GetSyntax().GetLocation());
+                defaults[propertyName] = new DefaultEntry(valueMember, location);
             }
         }
 
@@ -500,7 +675,7 @@ internal static class UIComponentPropertyModelFactory
     }
 
     /// <summary>Adds the contract's properties the type does not declare itself; a default the type gives one is taken out of <paramref name="defaults"/>.</summary>
-    private static void AppendBlockProperties(Compilation compilation, UIComponentTypeModel owner, INamedTypeSymbol type, INamedTypeSymbol contract, List<UIComponentPropertyModel> target, List<DiagnosticInfo> diagnostics, Dictionary<string, string> defaults, HashSet<string> seen)
+    private static void AppendBlockProperties(Compilation compilation, UIComponentTypeModel owner, INamedTypeSymbol type, INamedTypeSymbol contract, List<UIComponentPropertyModel> target, List<DiagnosticInfo> diagnostics, Dictionary<string, DefaultEntry> defaults, HashSet<string> seen)
     {
         if (contract.TypeKind != TypeKind.Interface)
         {
@@ -508,6 +683,10 @@ internal static class UIComponentPropertyModelFactory
 
             return;
         }
+
+        // The properties are still generated, so the one error stands alone instead of every caller of a missing member.
+        if (!Implements(type, contract))
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.BlockContractNotImplemented, type, contract.ToDisplayString(), type.ToDisplayString()));
 
         var found = false;
 
@@ -535,21 +714,35 @@ internal static class UIComponentPropertyModelFactory
             // The type's own default is read off the type; the contract's off the declaring interface, not the one the block names,
             // since interface statics are not inherited.
             INamedTypeSymbol defaultValueOwner = property.ContainingType;
+            LocationInfo? diagnosticLocation = null;
 
-            if (defaults.TryGetValue(property.Name, out var valueMember))
+            if (defaults.TryGetValue(property.Name, out DefaultEntry entry))
             {
                 _ = defaults.Remove(property.Name);
-                values = values with { HasDefaultValue = false, DefaultValueSource = null, DefaultValueType = null, DefaultValueMember = valueMember };
+                values = values with { HasDefaultValue = false, DefaultValueSource = null, DefaultValueType = null, DefaultValueMember = entry.ValueMember };
                 defaultValueOwner = type;
+                diagnosticLocation = entry.Location;
             }
 
-            PropertySymbols symbols = new(property, type, values, DeclareProperty: true, DefaultValueOwner: defaultValueOwner);
+            PropertySymbols symbols = new(property, type, values, DeclareProperty: true, DefaultValueOwner: defaultValueOwner, DiagnosticLocation: diagnosticLocation);
 
             target.Add(CreateModel(compilation, owner, symbols));
         }
 
         if (!found)
             diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.BlockContractHasNoProperties, type, contract.ToDisplayString(), type.ToDisplayString()));
+    }
+
+    /// <summary>Whether the type, itself or through a base, implements the block's contract.</summary>
+    private static bool Implements(INamedTypeSymbol type, INamedTypeSymbol contract)
+    {
+        foreach (INamedTypeSymbol implemented in type.AllInterfaces)
+        {
+            if (SymbolEqualityComparer.Default.Equals(implemented, contract))
+                return true;
+        }
+
+        return false;
     }
 
     private static IEnumerable<ISymbol> EnumerateContractMembers(INamedTypeSymbol contract)
@@ -624,6 +817,8 @@ internal static class UIComponentPropertyModelFactory
         return false;
     }
 
+    private readonly record struct DefaultEntry(string ValueMember, LocationInfo? Location);
+
     /// <summary>One property as its symbols give it; it never leaves the transform.</summary>
-    private sealed record PropertySymbols(IPropertySymbol Property, INamedTypeSymbol ContainingType, UIComponentPropertyAttributeValues Values, bool DeclareProperty = false, INamedTypeSymbol? DefaultValueOwner = null);
+    private sealed record PropertySymbols(IPropertySymbol Property, INamedTypeSymbol ContainingType, UIComponentPropertyAttributeValues Values, bool DeclareProperty = false, INamedTypeSymbol? DefaultValueOwner = null, LocationInfo? DiagnosticLocation = null);
 }

@@ -1,4 +1,6 @@
 using System;
+using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -32,10 +34,18 @@ public sealed class ScrollToItemEffect : TargetedClientEffect
         : this(new UIComponentReference(targetComponentId, dynamicParameters), key)
     { }
 
+    /// <summary>
+    /// Creates an effect that brings the row with <paramref name="key"/> of <paramref name="targetComponent"/> into view.
+    /// </summary>
+    public ScrollToItemEffect(IBindableComponent targetComponent, string key, params object?[]? dynamicParameters)
+        : this(new UIComponentReference(targetComponent, dynamicParameters), key)
+    { }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.ScrollToItem;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     /// <summary>
@@ -67,6 +77,7 @@ internal sealed class CompiledScrollToItemEffect(UIComponentAddress target, stri
     public override string Kind => ClientEffectKinds.ScrollToItem;
 
     /// <inheritdoc />
+    [JsonIgnore]
     public override bool CanRunInInteraction => true;
 
     public string Key { get; } = key;

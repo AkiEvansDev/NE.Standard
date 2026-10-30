@@ -1,6 +1,6 @@
 // `import type` only beside the logger: `node --test` loads this module as it is.
 import type { DevelopmentReportClientEffect } from "../metadata/metadata-index.ts";
-import { logError } from "../runtime/logger.ts";
+import { logError } from "../metadata/logger.ts";
 
 /**
  * Writes what the server dropped or refused for the author's mistake to the console, in Development: the error its log has, said where

@@ -25,8 +25,8 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// </summary>
 public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string ItemClassName = "ui-menu__item";
-    private const string SubmenuClassName = "ui-menu__submenu";
+    private const string ItemClassName = WebClassNames.MenuItemWrapper;
+    private const string SubmenuClassName = WebClassNames.MenuSubmenu;
     // The client's own half of RenderSubmenu, for a row it builds (`menu-row-decorator.ts`).
     private const string RowDecoratorKind = "menu";
 
@@ -37,9 +37,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
     public const string MenuSurfaceOperationKind = "menu-surface";
 
     // Read only while it is a rail, render-time only: its tiers fitted on the client as an orientation's are.
-    private static readonly TierClassFamily<UIButtonSize> RailSizeFamily = new(WebAttributes.TierSize, WebClassNames.MenuRailSize);
+    private static readonly TierClassFamily<UISize> RailSizeFamily = new(WebAttributes.TierSize, WebClassNames.MenuRailSize);
     private static readonly WebDomOperation[] SurfaceOperations = [SurfaceStyleRenderer.SurfaceClassOperation, WebDomOperation.Custom(MenuSurfaceOperationKind)];
-
 
     public override string ComponentTypeKey => MenuComponent.ComponentTypeKey;
 
@@ -77,8 +76,8 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (everRail)
         {
             // Render-time only, as the rail is: its measures are the stylesheet's, picked by the class, read only while it is a rail.
-            _ = ResolveRenderValue(context, MenuComponent.SizeProperty, out UIResponsive<UIButtonSize>? size, out _);
-            TierClassRenderer.Write(root, size ?? UIButtonSize.Medium, RailSizeFamily);
+            _ = ResolveRenderValue(context, MenuComponent.SizeProperty, out UIResponsive<UISize>? size, out _);
+            TierClassRenderer.Write(root, size ?? UISize.Medium, RailSizeFamily);
         }
 
         _ = ResolveRenderValue(context, MenuComponent.ShowSearchProperty, out bool? search, out _);
@@ -88,9 +87,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-menu-spacing");
 
-        // A right-click menu's host already is the menu; a split button's list and a popup's submenu are one of their own.
-        if (IsPopupMenu(context, context.Node) && !IsContextMenuRoot(context))
-            _ = root.Attribute("role", "menu");
+        RenderMenuRole(context, root);
 
         // A rail at every width has nothing left to fold: no fold, and no head to carry a drawer's pin. A menu that is a list at some
         // width keeps both for it; the rail's styles leave them unread (ui-menu.less, ui-collapsible.less).
@@ -100,11 +97,24 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty, SurfaceOperations);
         RenderPopupSurface(context);
 
-        RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, rowDecorator: RowDecoratorKind);
+        if (nested != true || HasClientItems(context))
+        {
+            RenderTemplates(context, root);
+            RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName, rowDecorator: RowDecoratorKind);
+        }
+
         RegisterItemsFilterSortMetadata(context);
 
         RenderItems(context, root);
+    }
+
+    private static bool HasClientItems(WebRenderContext context)
+    {
+        CompiledView view = context.ViewResolution.View;
+
+        return view.State.TryGetValue(context.Node.ComponentId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? propertyValue)
+            && propertyValue is { IsBind: true, BindingId: UIBindingId bindingId }
+            && NeedsClientItemBinding(context, view.Bindings.GetRequired(bindingId));
     }
 
     /// <summary>The tiers the menu is a rail in, as <see cref="WebAttributes.MenuRailTiers"/> lists them; null where it is one shape at every width.</summary>
@@ -122,6 +132,36 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         }
 
         return count is 0 or (int)UIResponsiveTier.Xxl + 1 ? null : tiers.ToString();
+    }
+
+    /// <summary>
+    /// A split button's list and a popup's submenu are a menu of their own, named by <c>AccessibleName</c>; a right-click menu's host
+    /// already is the menu and names itself. A menu standing in the page (a sidebar's) is a group where it is named, so the name has
+    /// a role to stand on, and an id the shell's side landmark names itself by, so a pushed name renames the side with the menu.
+    /// </summary>
+    private static void RenderMenuRole(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        if (IsContextMenuRoot(context))
+            return;
+
+        if (IsPopupMenu(context, context.Node))
+        {
+            _ = root.Attribute("role", "menu");
+        }
+        else if (HasWords(context, IAccessibleNameComponent.AccessibleNameProperty))
+        {
+            _ = root.Attribute("role", "group");
+
+            // One element per component outside a template: a row's menu drawn again and again would repeat the id.
+            if (!context.IsTemplate && !context.IsPresentationCopy)
+                _ = root.Attribute("id", WebAttributes.MenuNameId(context.Node.ComponentId));
+        }
+        else
+        {
+            return;
+        }
+
+        RenderAccessibleName(context, root);
     }
 
     /// <summary>
@@ -210,7 +250,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
         var icons = CarriesIcon(items);
 
-        RenderItemsHost(context, root, "ui-menu__host", items, isBound, ItemClassName,
+        RenderItemsHost(context, root, WebClassNames.MenuHost, items, isBound, ItemClassName,
             configureHost: host =>
             {
                 _ = host.Class(CollapsibleChromeRenderer.ContentClassName);
@@ -247,7 +287,7 @@ public sealed class MenuComponentRenderer : ItemsCollectionRendererBase
         if (model.Kind is UIMenuItemKind.Header or UIMenuItemKind.Separator)
             _ = itemRoot.Attribute(WebAttributes.MenuPassiveRow);
 
-        if (!HasChildren(model))
+        if (!HasChildren(model) || !context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.TemplateVariant, out _, MenuComponent.SubmenuTemplateKey))
             return;
 
         // On the wrapper, not the entry: what opens and closes is the wrapper's whole block.

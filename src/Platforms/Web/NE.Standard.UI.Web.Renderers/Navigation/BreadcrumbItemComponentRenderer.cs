@@ -14,7 +14,7 @@ public sealed class BreadcrumbItemComponentRenderer : ButtonRendererBase
 
     protected override string ElementName => "a";
 
-    protected override string ClassName => "ui-breadcrumb";
+    protected override string ClassName => WebClassNames.Breadcrumb;
 
     protected override bool IsButtonElement => false;
 

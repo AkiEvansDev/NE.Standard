@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Indicators;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -18,7 +19,8 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
     private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Class(converter: WebDomConverters.ProgressVariantClass)];
     private static readonly WebDomOperation[] MinOperations = [WebDomOperation.Style("--ui-progress-min"), WebDomOperation.Attribute("aria-valuemin", target: "root")];
     private static readonly WebDomOperation[] MaxOperations = [WebDomOperation.Style("--ui-progress-max"), WebDomOperation.Attribute("aria-valuemax", target: "root")];
-    private static readonly WebDomOperation[] LabelOperations = [WebDomOperation.Text(), WebDomOperation.Attribute("aria-label", target: "root")];
+    // Optional: a bar its AccessibleName names carries no mark, and a pushed title leaves that name alone.
+    private static readonly WebDomOperation[] TitleOperations = [WebDomOperation.Text(), WebDomOperation.Attribute("aria-label", $"[{TextContentRendererBase.LabelledAttribute}]", converter: WebDomConverters.NonBlankText, optional: true)];
     private static readonly WebDomOperation[] UnitOperations = [WebDomOperation.Text()];
 
     private static readonly WebDomOperation[] ValueOperations =
@@ -30,7 +32,7 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
 
     public override string ComponentTypeKey => ProgressComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-progress";
+    protected override string ClassName => WebClassNames.Progress;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -64,25 +66,34 @@ public sealed class ProgressComponentRenderer : WebComponentRendererBase
 
         RenderFlagAttribute(context, root, ProgressComponent.ShowValueProperty, ValueShownAttribute);
 
-        _ = root.Element("span", label =>
-        {
-            _ = label.Class("ui-progress__label");
+        // The words name the bar as well as standing beside it, unless its AccessibleName does, now or once its binding delivers.
+        var named = HasWords(context, IAccessibleNameComponent.AccessibleNameProperty);
 
-            // The words name the bar as well as standing beside it.
-            _ = RenderProperty<string?>(context, label, ProgressComponent.LabelProperty, (target, value) =>
+        if (!named)
+            _ = root.Attribute(TextContentRendererBase.LabelledAttribute);
+
+        _ = root.Element("span", title =>
+        {
+            _ = title.Class("ui-progress__title");
+
+            _ = RenderProperty<string?>(context, title, ProgressComponent.TitleProperty, (target, value) =>
             {
                 if (string.IsNullOrWhiteSpace(value))
                     return;
 
                 _ = target.Text(value);
-                _ = root.Attribute("aria-label", value);
-            }, LabelOperations);
+
+                if (!named)
+                    _ = root.Attribute("aria-label", value);
+            }, TitleOperations);
         });
+
+        RenderAccessibleName(context, root);
 
         _ = root.Element("span", track =>
         {
-            _ = track.Class("ui-progress__track");
-            _ = track.Element("span", fill => fill.Class("ui-progress__fill"));
+            _ = track.Class(WebClassNames.ProgressTrack);
+            _ = track.Element("span", fill => fill.Class(WebClassNames.ProgressFill));
         });
 
         _ = ResolveRenderValue(context, ProgressComponent.ValueProperty, out decimal? initialValue, out _);

@@ -11,12 +11,13 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Items;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
@@ -89,7 +90,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     ];
 
     private static readonly WebDomOperation[] ShowContextMenuOperations = [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)];
-    private static readonly WebDomOperation[] ScrollGroupOperations = [WebDomOperation.Attribute(WebAttributes.ScrollGroup)];
+    private static readonly WebDomOperation[] ScrollGroupOperations = [WebDomOperation.Attribute(WebAttributes.ScrollGroup, converter: WebDomConverters.TrimmedText)];
     private static readonly WebDomOperation[] TextSelectOperations = [WebDomOperation.Attribute(TextSelectAttribute)];
     private const string HorizontalAlignmentVariable = "--ui-align-h";
     private const string VerticalAlignmentVariable = "--ui-align-v";
@@ -107,14 +108,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     ];
 
     /// <summary>What a tooltip's words do to the element they are the tooltip of; first in a list of operations the words drive.</summary>
-    public static WebDomOperation TooltipOperation { get; } = WebDomOperation.Attribute(WebAttributes.Tooltip);
+    public static WebDomOperation TooltipOperation { get; } = WebDomOperation.Attribute(WebAttributes.Tooltip, converter: WebDomConverters.NonBlankText);
 
     private static readonly WebDomOperation[] TooltipOperations = [TooltipOperation];
     private static readonly WebDomOperation[] TooltipPlacementOperations = [WebDomOperation.Attribute(WebAttributes.TooltipPlacement, converter: WebDomConverters.PopupPlacementAttribute)];
     private static readonly WebDomOperation[] DataOperations = [WebDomOperation.Data()];
     private static readonly WebDomOperation[] LinkAddressOperations = [WebDomOperation.Attribute(WebAttributes.Href, converter: WebDomConverters.SafeUrl)];
-    private static readonly WebDomOperation[] AccessibleNameOperations = [WebDomOperation.Attribute("aria-label")];
-    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKey)];
+    private static readonly WebDomOperation[] AccessibleNameOperations = [WebDomOperation.Attribute("aria-label", converter: WebDomConverters.NonBlankText)];
+    private static readonly WebDomOperation[] SelectedKeyOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKey, converter: WebDomConverters.NonEmptyText)];
 
     // A chosen key's writer per attribute it is written under, built once: every row host, strip and tab bar draws one.
     private static readonly ConcurrentDictionary<string, Action<IHtmlElementBuilder, string?>> SelectedKeyWriters = new(StringComparer.Ordinal);
@@ -545,7 +546,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     /// <summary>The "…" control at the end of a tab strip, shown by the client once captions are hidden for want of room; it lists every tab.</summary>
     protected static void RenderTabOverflowButton(WebRenderContext context, IHtmlElementBuilder parent)
-        => RenderOverflowButton(context, parent, "ui-tab-overflow ui-button ui-button--ghost ui-button--small", UIStrings.TabsMore, tabStop: false);
+        => RenderOverflowButton(context, parent, $"{WebClassNames.TabOverflow} {WebClassNames.Button} {WebClassNames.ButtonVariant(UIButtonVariant.Ghost)} {WebClassNames.ButtonSize(UISize.Small)}", UIStrings.TabsMore, tabStop: false);
 
     /// <summary>
     /// The "…" control a strip shows once what it holds no longer fits, opening a menu of what was put away; the stylesheet hides
@@ -573,6 +574,13 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     /// named it before; nothing where the component sets none.
     /// </summary>
     public static void RenderAccessibleName(WebRenderContext context, IHtmlElementBuilder target)
+        => RenderAccessibleName(context, target, AccessibleNameOperations);
+
+    /// <summary>
+    /// Writes the authored name on a part of the component (<paramref name="operations"/> naming that part for a push), as a flyout
+    /// names its panel rather than its root.
+    /// </summary>
+    public static void RenderAccessibleName(WebRenderContext context, IHtmlElementBuilder target, WebDomOperation[] operations)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
@@ -585,7 +593,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (!string.IsNullOrWhiteSpace(value))
                 _ = element.Attribute("aria-label", value);
-        }, AccessibleNameOperations);
+        }, operations);
     }
 
     /// <summary>
@@ -641,7 +649,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         // A component's own tooltip may be words a person typed, shown as written: marked on the element, which the page reads at every
         // show and push, and its phrase's arguments left unescaped.
         var plain = property.Equals(ITooltipComponent.TooltipProperty)
-            && ResolveRenderValue(context, ITextBaseComponent.TooltipPlainProperty, out bool? tooltipPlain, out _) == WebRenderValueKind.Static
+            && ResolveRenderValue(context, ITooltipComponent.TooltipPlainProperty, out bool? tooltipPlain, out _) == WebRenderValueKind.Static
             && tooltipPlain == true;
 
         if (plain)
@@ -740,8 +748,8 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     private static string ValidationClass(UIValidationSeverity severity)
         => severity switch
         {
-            UIValidationSeverity.Warning => "ui-validation--warning",
-            UIValidationSeverity.Info => "ui-validation--info",
+            UIValidationSeverity.Warning => WebClassNames.ValidationWarning,
+            UIValidationSeverity.Info => WebClassNames.ValidationInfo,
             _ => WebClassNames.Invalid
         };
 
@@ -927,6 +935,22 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                     break;
                 }
 
+                // A static items host that never publishes item values on the client never evaluates its item bindings there either:
+                // leave them out of the page's metadata and off the painted rows.
+                if (!NeedsClientItemBinding(context, binding!))
+                {
+                    if (context.IsTemplate)
+                        _ = target.Attribute(CreateBindingAttributeName(property), binding!.Id.Value.ToString(CultureInfo.InvariantCulture));
+
+                    if (context.Values is not null)
+                    {
+                        renderStatic(target, value);
+                        RenderPaintedValues(target, word);
+                    }
+
+                    break;
+                }
+
                 _ = target.Attribute(CreateBindingAttributeName(property), binding!.Id.Value.ToString(CultureInfo.InvariantCulture));
                 context.Metadata.Bind(context, binding, propertyId, word.Content);
 
@@ -946,6 +970,57 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         }
 
         return kind;
+    }
+
+    protected static bool NeedsClientItemBinding(WebRenderContext context, CompiledUIBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(binding);
+
+        CompiledView view = context.ViewResolution.View;
+        CompiledUIBindingSource source = view.Sources.GetRequired(binding.SourceId);
+
+        return source.Kind != CompiledUIBindingSourceKind.ComponentItems
+            || source.ComponentId is not UIComponentId hostId
+            || NeedsClientItemValues(view, hostId);
+    }
+
+    private static bool NeedsClientItemValues(CompiledView view, UIComponentId hostId)
+    {
+        UIComponentNode node = view.Graph.GetRequired(hostId);
+
+        if (node.TypeKey == "standard.data-grid")
+            return true;
+
+        if (view.State.TryGetValue(hostId, IItemsHostComponent.HostModeProperty, out CompiledUIPropertyValue? hostMode)
+            && hostMode is not null
+            && (hostMode.IsBind || hostMode.Value is UIItemsHostMode.Virtualized))
+        {
+            return true;
+        }
+
+        if (view.State.TryGetValue(hostId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? itemsView)
+            && itemsView is not null
+            && (itemsView.IsBind || itemsView.Value is CompiledUIItemsView { Filters.Length: > 0 } or CompiledUIItemsView { Sorts.Length: > 0 }))
+        {
+            return true;
+        }
+
+        return view.Graph.TryGetSlot(hostId, UIComponentSlotKind.GroupTemplate, out _)
+            && view.State.TryGetValue(hostId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? itemsProperty)
+            && itemsProperty?.Value is IEnumerable items and not string
+            && HasGroupedItem(items);
+    }
+
+    private static bool HasGroupedItem(IEnumerable items)
+    {
+        foreach (var item in items)
+        {
+            if (item is IBindableGroup { Group.Length: > 0 })
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1078,6 +1153,14 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         _ = ResolveRenderValue(context, property, out T? value, out _);
 
         return value ?? fallback;
+    }
+
+    /// <summary>Whether <paramref name="property"/> gives words, now or once its binding delivers them.</summary>
+    protected static bool HasWords(WebRenderContext context, UIProperty property)
+    {
+        WebRenderValueKind kind = ResolveRenderValue(context, property, out string? words, out _);
+
+        return kind == WebRenderValueKind.Binding || (kind == WebRenderValueKind.Static && !string.IsNullOrWhiteSpace(words));
     }
 
     /// <summary>

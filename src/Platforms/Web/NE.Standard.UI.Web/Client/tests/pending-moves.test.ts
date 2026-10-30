@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PendingMoves } from "../src/items/pending-moves.ts";
+import { PendingMoves } from "../src/state/pending-moves.ts";
 
 type Host = { readonly order: string[]; isConnected: boolean };
 

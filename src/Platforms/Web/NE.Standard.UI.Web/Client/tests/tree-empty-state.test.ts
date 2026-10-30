@@ -8,7 +8,8 @@ import { FakeElement, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom();
 
-const { syncItemsHost, TreeRulesEventName } = await import("../src/items/items-host-sync.ts");
+const { TreeRulesEventName } = await import("../src/addressing/dom-attributes.ts");
+const { syncItemsHost } = await import("../src/items/items-host-sync.ts");
 
 type Context = Parameters<typeof syncItemsHost>[2];
 

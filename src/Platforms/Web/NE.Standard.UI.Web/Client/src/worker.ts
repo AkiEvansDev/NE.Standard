@@ -4,8 +4,8 @@
 // worker of its own imports this one into it instead. Types declared here: the worker's own library cannot share the page's.
 
 import { isLocalRoute } from "./rendering/url-safety.ts";
-import { NotificationClickMessage, WindowQueryMessage } from "./runtime/worker-messages.ts";
-import type { NotificationClickData } from "./runtime/worker-messages.ts";
+import { NotificationClickMessage, WindowQueryMessage } from "./state/worker-messages.ts";
+import type { NotificationClickData } from "./state/worker-messages.ts";
 
 type WindowClientLike = {
     readonly url: string;

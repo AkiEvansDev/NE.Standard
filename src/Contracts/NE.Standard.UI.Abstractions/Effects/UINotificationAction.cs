@@ -2,6 +2,7 @@ using System;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Abstractions.Effects;
 
@@ -19,35 +20,42 @@ public sealed class UINotificationAction
     /// Creates an action running <paramref name="command"/>, handing <paramref name="argument"/> (the key the command acts on, such
     /// as the deleted item's id) to its one parameter.
     /// </summary>
-    /// <exception cref="ArgumentException">The label is blank: a button naming nothing.</exception>
-    public UINotificationAction(UIPhrase label, string command, object? argument = null)
+    /// <exception cref="ArgumentException">The title is blank: a button naming nothing.</exception>
+    public UINotificationAction(UIPhrase title, string command, object? argument = null, UIButtonVariant variant = UIButtonVariant.Surface)
     {
-        ArgumentNullException.ThrowIfNull(label);
+        ArgumentNullException.ThrowIfNull(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
 
-        if (!UIPhrase.HasWords(label))
-            throw new ArgumentException("A notification's action needs words.", nameof(label));
+        if (!UIPhrase.HasWords(title))
+            throw new ArgumentException("A notification's action needs words.", nameof(title));
 
-        Label = label;
+        Title = title;
         Command = command;
         Argument = argument;
+        Variant = variant;
     }
 
     [JsonConstructor]
-    private UINotificationAction(UIPhrase label, string id)
+    private UINotificationAction(UIPhrase title, string id, UIButtonVariant variant = UIButtonVariant.Surface)
     {
-        ArgumentNullException.ThrowIfNull(label);
+        ArgumentNullException.ThrowIfNull(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
-        Label = label;
+        Title = title;
         Command = string.Empty;
         Id = id;
+        Variant = variant;
     }
 
     /// <summary>
     /// Gets the button's words: the author's text (<see cref="UIPhrase.IsText"/>) or a phrase, translated as the message is.
     /// </summary>
-    public UIPhrase Label { get; }
+    public UIPhrase Title { get; }
+
+    /// <summary>
+    /// Gets the button's visual variant; <see cref="UIButtonVariant.Surface"/> by default.
+    /// </summary>
+    public UIButtonVariant Variant { get; init; } = UIButtonVariant.Surface;
 
     /// <summary>
     /// Gets the name of the controller's command a press runs; empty on an action read back from the wire.
@@ -71,5 +79,5 @@ public sealed class UINotificationAction
     /// Offers the command to the page through <paramref name="resolver"/>, which checks it and answers the id it is run by.
     /// </summary>
     internal UINotificationAction Offer(IUIReferenceResolver resolver)
-        => new(Label, resolver.OfferCommand(Command, Argument));
+        => new(Title, resolver.OfferCommand(Command, Argument), Variant);
 }

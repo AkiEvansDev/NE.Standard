@@ -13,7 +13,7 @@ const tierListeners: (() => void)[] = [];
 
 installFakeDom({
     window: { addEventListener: () => undefined, removeEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900 },
-    matchMedia: (query: string) => ({ matches: width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0), addEventListener: (_: string, listener: () => void) => tierListeners.push(listener) }),
+    matchMedia: (query: string) => ({ get matches() { return width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0); }, addEventListener: (_: string, listener: () => void) => tierListeners.push(listener) }),
     // An inline overflow clips, as the stylesheet's would; nothing is transformed or moving.
     getComputedStyle: (element: FakeElement) => ({
         transform: "none",

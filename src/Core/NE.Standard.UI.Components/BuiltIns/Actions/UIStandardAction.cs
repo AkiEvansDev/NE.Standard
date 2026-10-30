@@ -9,7 +9,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// One standard action — its name in the framework's words, its glyph, and whether it is drawn in the danger colour — the one
 /// source a built-in menu's entry, a row's button and the Extensions presets name and mark it from.
 /// </summary>
-public readonly record struct UIStandardAction(string Word, string Glyph, bool IsDanger = false)
+public readonly record struct UIStandardAction(string Title, string Icon, bool IsDanger = false)
 {
     // The shell's UIStrings.Action* keys, spelt here because the components cannot reach the shell; UIStringsSyncTests holds the
     // two together. The pin's offer is the outlined pin, the unpin's the struck one; Cancel wears the ×; Done ends an edit made in
@@ -51,39 +51,39 @@ public readonly record struct UIStandardAction(string Word, string Glyph, bool I
     {
         UIThemeColor? color = IsDanger ? UIThemeColor.Danger : null;
 
-        return new MenuItem { Id = id, Title = Word, Icon = Glyph, TitleColor = color, IconColor = color };
+        return new MenuItem { Id = id, Title = Title, Icon = Icon, TitleColor = color, IconColor = color };
     }
 
     /// <summary>
     /// The action as a command bar's or a button group's item under <paramref name="id"/>: its glyph and its words — the button's, or
-    /// its tooltip where <paramref name="iconOnly"/> — in <paramref name="type"/>, its danger drawn as <see cref="ButtonType"/> and
+    /// its tooltip where <paramref name="iconOnly"/> — in <paramref name="variant"/>, its danger drawn as <see cref="ButtonVariant"/> and
     /// <see cref="ButtonInk"/> say.
     /// </summary>
-    public ButtonItem ToButtonItem(string id, UIButtonType type, bool iconOnly = false)
+    public ButtonItem ToButtonItem(string id, UIButtonVariant variant, bool iconOnly = false)
     {
-        UIThemeColor? ink = ButtonInk(type);
+        UIThemeColor? ink = ButtonInk(variant);
 
         return new ButtonItem
         {
             Id = id,
-            Type = ButtonType(type),
-            Title = iconOnly ? null : Word,
-            Tooltip = iconOnly ? Word : null,
-            Icon = Glyph,
+            Variant = ButtonVariant(variant),
+            Title = iconOnly ? null : Title,
+            Tooltip = iconOnly ? Title : null,
+            Icon = Icon,
             TitleColor = ink,
             IconColor = ink
         };
     }
 
-    /// <summary>The type a button of <paramref name="type"/> takes for the action: a danger turns a filled one's fill; any other stays.</summary>
-    public UIButtonType ButtonType(UIButtonType type)
-        => IsDanger && IsFilled(type) ? UIButtonType.Danger : type;
+    /// <summary>The variant a button of <paramref name="variant"/> takes for the action: a danger turns a filled one's fill; any other stays.</summary>
+    public UIButtonVariant ButtonVariant(UIButtonVariant variant)
+        => IsDanger && IsFilled(variant) ? UIButtonVariant.Danger : variant;
 
-    /// <summary>The ink the action's words and glyph take on a button of <paramref name="type"/>: a danger's on a bare one, else none.</summary>
-    public UIThemeColor? ButtonInk(UIButtonType type)
-        => IsDanger && !IsFilled(type) ? UIThemeColor.Danger : null;
+    /// <summary>The ink the action's words and glyph take on a button of <paramref name="variant"/>: a danger's on a bare one, else none.</summary>
+    public UIThemeColor? ButtonInk(UIButtonVariant variant)
+        => IsDanger && !IsFilled(variant) ? UIThemeColor.Danger : null;
 
     // A filled button carries its meaning in its fill, a bare one in its ink: the one danger rule every button of an action follows.
-    private static bool IsFilled(UIButtonType type)
-        => type is UIButtonType.Primary or UIButtonType.Accent or UIButtonType.Danger;
+    private static bool IsFilled(UIButtonVariant variant)
+        => variant is UIButtonVariant.Primary or UIButtonVariant.Accent or UIButtonVariant.Danger;
 }

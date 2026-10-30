@@ -1,8 +1,9 @@
 // Placement for every popup engine: a popup is `position: fixed`, stays in the DOM, and needs no ancestor with a fixed containing block.
 
-import { BottomBarAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, PopupCappedAttribute, PopupLiftedAttribute, PopupPlacementAttribute, PopupStoodInAttribute, SheetAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
 import { afterTransitions, motion } from "../rendering/motion.ts";
-import { SheetBreakpointQuery } from "../rendering/responsive-tier.ts";
+import { reachesTier } from "../rendering/responsive-tier.ts";
+import { isInNativeModal } from "./open-dialogs.ts";
 
 export type AnchoredPopupPlacement =
     | "top-start" | "top" | "top-end"
@@ -49,6 +50,8 @@ export type AnchoredPopupOptions = {
      * kept from its edge rather than the anchor's, so a popup opened from a popup stands as far off as one opened from a control.
      */
     readonly surface?: Element;
+    /** Shares `surface`'s border on the side the popup docks to, so a submenu and its parent popup draw one 1 px seam between them. */
+    readonly docked?: boolean;
     /** Moves the popup along the cross axis by its own padding and border, so its first entry (its last, run the other way) stands level with the anchor, as a submenu beside its entry. */
     readonly alignEntries?: boolean;
 };
@@ -72,9 +75,6 @@ let resizeObserver: ResizeObserver | null = null;
 
 // The elements that stand for a part put out of sight: a popup anchored inside it is placed against the stand-in meanwhile.
 const standIns = new WeakMap<Element, Element>();
-
-// On a popup placed against a stand-in: its part is `visibility: hidden`, and the popup shows itself over that.
-const StoodInAttribute = "data-ui-popup-stood-in";
 
 /**
  * Names what a popup anchored inside `part` is placed against while `part` is out of sight — a command in a bar's "…" list, the
@@ -113,15 +113,9 @@ export function placeAnchoredPopup(anchor: Element, popup: HTMLElement, options:
     position(anchor, popup, options);
 }
 
-// On a popup lifted into the top layer, for the stylesheet to take the popover's own box back off it.
-const LiftedAttribute = "data-ui-popup-lifted";
-
-/** On a list popup shown as a phone's sheet (popup-sheet.ts) rather than beside its anchor: "root", or "nested" over another sheet. */
-export const SheetAttribute = "data-ui-sheet";
-
 /** Below the small breakpoint a list popup is a sheet from the bottom: beside its anchor it would be a strip under a finger. */
 export function placesAsSheet(): boolean {
-    return typeof matchMedia === "function" && !matchMedia(SheetBreakpointQuery).matches;
+    return typeof matchMedia === "function" && !reachesTier("sm");
 }
 
 /** Whether a popup stands as a sheet now, which no anchored placement moves. */
@@ -131,7 +125,7 @@ export function isSheet(popup: Element): boolean {
 
 /** Lifts a sheet into the top layer whatever stands around it: over the bottom bar, a dialog and the veil shown just before it. */
 export function liftIntoTopLayer(popup: HTMLElement): void {
-    if (popup.hasAttribute(LiftedAttribute)) {
+    if (popup.hasAttribute(PopupLiftedAttribute)) {
         if (!popup.matches(":popover-open"))
             popup.showPopover();
 
@@ -139,20 +133,26 @@ export function liftIntoTopLayer(popup: HTMLElement): void {
     }
 
     popup.setAttribute("popover", "manual");
-    popup.setAttribute(LiftedAttribute, "");
+    popup.setAttribute(PopupLiftedAttribute, "");
     showInTopLayerAtOnce(popup);
 }
 
 /**
  * Lifts a popup out from under a transformed ancestor, which fixes and scales it to itself, into the top layer — and one under a
  * surface blurring its picture, whose isolated stacking would paint it under a later sibling, and one opened from inside a popup
- * lifted there, which would otherwise be painted under it whatever its stacking.
+ * lifted there, or from inside a native modal `<dialog>` it stands outside of (the tooltip, under the body), which would otherwise be
+ * painted under it whatever its stacking.
  */
 function liftOutOfTransform(anchor: Element, popup: HTMLElement): void {
     // Still lifted from the last opening, its fade out not over yet, it is shown again where it stands (`liftIntoTopLayer`). A manual
     // popover rather than a move in the document: its engine still finds its options under it.
-    if (popup.hasAttribute(LiftedAttribute) || hasConfiningAncestor(popup) || anchor.closest(`[${LiftedAttribute}]`) !== null)
+    if (popup.hasAttribute(PopupLiftedAttribute) || hasConfiningAncestor(popup) || anchor.closest(`[${PopupLiftedAttribute}]`) !== null || isOutsideAnchorsModal(anchor, popup))
         liftIntoTopLayer(popup);
+}
+
+/** Whether the anchor stands in a native modal `<dialog>` the popup is not inside, which the dialog's top layer would paint over. */
+function isOutsideAnchorsModal(anchor: Element, popup: HTMLElement): boolean {
+    return isInNativeModal(anchor) && !isInNativeModal(popup);
 }
 
 /**
@@ -213,7 +213,7 @@ const LowerLimit = motion.normal * 5;
  * lifted.
  */
 export function lowerIntoPlace(popup: HTMLElement, lowered?: () => void): void {
-    if (!popup.hasAttribute(LiftedAttribute))
+    if (!popup.hasAttribute(PopupLiftedAttribute))
         return;
 
     if (popup.matches(":popover-open"))
@@ -226,7 +226,7 @@ export function lowerIntoPlace(popup: HTMLElement, lowered?: () => void): void {
             return;
 
         popup.removeAttribute("popover");
-        popup.removeAttribute(LiftedAttribute);
+        popup.removeAttribute(PopupLiftedAttribute);
         lowered?.();
     });
 }
@@ -302,29 +302,43 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
     const stoodIn = anchor !== placed;
 
     // Written only on change, as the placement is. Left on at a close: the closed popup is not displayed, and the next opening rewrites it.
-    if (popup.hasAttribute(StoodInAttribute) !== stoodIn)
-        popup.toggleAttribute(StoodInAttribute, stoodIn);
+    if (popup.hasAttribute(PopupStoodInAttribute) !== stoodIn)
+        popup.toggleAttribute(PopupStoodInAttribute, stoodIn);
 
     if (options.minAnchorWidth === true)
         popup.style.minWidth = `${anchor.getBoundingClientRect().width}px`;
 
     // Its own size, not the one a cap gave it the last time round: room that came back lets it stand whole again. Read first: the
     // uncapped list scrolls no more, and capped again it would stand at its top.
-    const scrolled = popup.hasAttribute(CappedAttribute) ? { top: popup.scrollTop, left: popup.scrollLeft } : null;
+    const scrolled = popup.hasAttribute(PopupCappedAttribute) ? { top: popup.scrollTop, left: popup.scrollLeft } : null;
 
     uncap(popup);
 
     // Measured after the width is applied, or an anchor-wide popup is placed against its old size.
     const anchorRect = anchor.getBoundingClientRect();
     const crossRect = (anchor === placed ? options.crossAnchor ?? anchor : anchor).getBoundingClientRect();
-    // The edge the gap is kept from: the surface the anchor stands in, unless a stand-in has taken the anchor's place.
-    const edgeRect = anchor === placed && options.surface !== undefined ? options.surface.getBoundingClientRect() : anchorRect;
-    const gap = options.gap ?? PopupGap;
+    // The edge the gap is kept from: the surface the anchor stands in, unless a stand-in has taken the anchor's place. A submenu
+    // docked to a popup menu shares that menu's border along the seam between them.
+    const surface = anchor === placed ? options.surface : undefined;
+    const edgeRect = surface !== undefined ? surface.getBoundingClientRect() : anchorRect;
+    const docked = surface !== undefined && (options.docked ?? options.alignEntries === true);
+    const gapFor = (placement: AnchoredPopupPlacement): number => {
+        if (options.gap !== undefined)
+            return options.gap;
+
+        if (!docked || surface === undefined)
+            return PopupGap;
+
+        const border = surfaceBorder(surface, placement);
+
+        return border > 0 ? -border : 0;
+    };
     let popupRect = popup.getBoundingClientRect();
     const room = roomOf(options.boundary);
     const tracking = tracked.get(popup);
     const kept = keepSide ? tracking?.side : undefined;
-    const side = kept !== undefined && fits(edgeRect, popupRect, kept, gap, room) ? kept : resolveSide(edgeRect, popupRect, options.placement, gap, room);
+    const side = kept !== undefined && fits(edgeRect, popupRect, kept, gapFor(kept), room) ? kept : resolveSide(edgeRect, popupRect, options.placement, gapFor, room);
+    const gap = gapFor(side);
 
     if (tracking !== undefined)
         tracking.side = side;
@@ -362,29 +376,26 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
     popup.style.left = `${left}px`;
 
     // The side used after a flip, for the arrow; written only on change, or an engine observing its popup answers every scroll frame.
-    if (popup.dataset.uiPlacement !== side)
-        popup.dataset.uiPlacement = side;
+    if (popup.getAttribute(PopupPlacementAttribute) !== side)
+        popup.setAttribute(PopupPlacementAttribute, side);
 
     setArrowOffset(popup, crossRect, popupRect, side, top, left);
 }
-
-// On a popup capped to its side's room, which `uncap` takes back off before it is measured again.
-const CappedAttribute = "data-ui-popup-capped";
 
 /** Caps a popup's span along a placement's axis to `span` pixels, scrolling inside on that axis. */
 function capTo(popup: HTMLElement, placement: AnchoredPopupPlacement, span: number): void {
     const vertical = isVertical(placement);
 
-    popup.setAttribute(CappedAttribute, "");
+    popup.setAttribute(PopupCappedAttribute, "");
     popup.style.setProperty(vertical ? "max-height" : "max-width", `${Math.max(0, span)}px`);
     popup.style.setProperty(vertical ? "overflow-y" : "overflow-x", "auto");
 }
 
 function uncap(popup: HTMLElement): void {
-    if (!popup.hasAttribute(CappedAttribute))
+    if (!popup.hasAttribute(PopupCappedAttribute))
         return;
 
-    popup.removeAttribute(CappedAttribute);
+    popup.removeAttribute(PopupCappedAttribute);
 
     for (const property of ["max-height", "max-width", "overflow-y", "overflow-x"])
         popup.style.removeProperty(property);
@@ -396,7 +407,7 @@ function uncap(popup: HTMLElement): void {
  */
 export function resolveStandIn(anchor: Element): Element {
     for (let current: Element | null = anchor; current !== null; current = current.parentElement) {
-        if (current.hasAttribute(StoodInAttribute))
+        if (current.hasAttribute(PopupStoodInAttribute))
             return anchor;
 
         const standIn = standIns.get(current);
@@ -455,19 +466,34 @@ function roomOf(boundary: Element | undefined): Room {
     };
 }
 
-function resolveSide(anchorRect: DOMRect, popupRect: DOMRect, side: AnchoredPopupPlacement, gap: number, room: Room): AnchoredPopupPlacement {
+function surfaceBorder(surface: Element, placement: AnchoredPopupPlacement): number {
+    const style = getComputedStyle(surface);
+
+    if (placement.startsWith("top"))
+        return pixels(style.borderTopWidth);
+
+    if (placement.startsWith("bottom"))
+        return pixels(style.borderBottomWidth);
+
+    if (placement.startsWith("left"))
+        return pixels(style.borderLeftWidth);
+
+    return pixels(style.borderRightWidth);
+}
+
+function resolveSide(anchorRect: DOMRect, popupRect: DOMRect, side: AnchoredPopupPlacement, gapFor: (placement: AnchoredPopupPlacement) => number, room: Room): AnchoredPopupPlacement {
     const opposite = flip(side);
 
-    if (fits(anchorRect, popupRect, side, gap, room))
+    if (fits(anchorRect, popupRect, side, gapFor(side), room))
         return side;
 
-    if (fits(anchorRect, popupRect, opposite, gap, room))
+    if (fits(anchorRect, popupRect, opposite, gapFor(opposite), room))
         return opposite;
 
     // Clamped into a window too short (or too narrow) for either side of its axis, the popup would cover its own anchor: beside it
     // across the axis, it leaves the anchor in sight.
     for (const across of acrossSides(side)) {
-        if (fits(anchorRect, popupRect, across, gap, room))
+        if (fits(anchorRect, popupRect, across, gapFor(across), room))
             return across;
     }
 

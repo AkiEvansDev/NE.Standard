@@ -2,20 +2,21 @@ using System;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Contents;
 
 public sealed class IconComponentRenderer : WebComponentRendererBase
 {
-    private static readonly WebIconShapeSite IconShapeSite = new(IconComponent.IconProperty, IconComponent.ShapeProperty, IconComponent.FallbackIconProperty, WebAttributes.Icon);
+    private static readonly WebIconShapeSite IconShapeSite = new(IconComponent.IconProperty, IconComponent.ShapeProperty, IconComponent.IconFallbackProperty, WebAttributes.Icon);
     private static readonly WebDomOperation[] IconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(WebAttributes.Icon, condition: WebValueCondition.DrawsIcon), IconShapeSite.StandInOperation];
 
     public override string ComponentTypeKey => IconComponent.ComponentTypeKey;
 
     protected override string ElementName => "span";
 
-    protected override string ClassName => "ui-icon";
+    protected override string ClassName => WebClassNames.Icon;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {

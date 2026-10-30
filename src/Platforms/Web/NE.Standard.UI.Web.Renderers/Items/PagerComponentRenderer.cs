@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -21,25 +22,25 @@ namespace NE.Standard.UI.Web.Renderers.Items;
 public sealed class PagerComponentRenderer : WebComponentRendererBase
 {
     /// <summary>A button that turns a page: the four at the ends and every numbered page.</summary>
-    public const string ButtonClassName = "ui-pager__button";
+    public const string ButtonClassName = WebClassNames.PagerButton;
 
     /// <summary>The place the engine draws the numbered pages in, with an ellipsis for the pages it leaves out.</summary>
-    public const string PagesClassName = "ui-pager__pages";
+    public const string PagesClassName = WebClassNames.PagerPages;
 
     /// <summary>The line saying which rows the page holds, the compact look's.</summary>
-    public const string RangeClassName = "ui-pager__range";
+    public const string RangeClassName = WebClassNames.PagerRange;
 
     /// <summary>The page-size choice: its button and the list it opens.</summary>
-    public const string SizeClassName = "ui-pager__size";
-    public const string SizeTriggerClassName = "ui-pager__size-trigger";
-    public const string SizeLabelClassName = "ui-pager__size-label";
-    public const string SizeMenuClassName = "ui-pager__sizes";
-    public const string SizeChoiceClassName = "ui-pager__size-choice";
+    public const string SizeClassName = WebClassNames.PagerSize;
+    public const string SizeTriggerClassName = WebClassNames.PagerSizeTrigger;
+    public const string SizeLabelClassName = WebClassNames.PagerSizeLabel;
+    public const string SizeMenuClassName = WebClassNames.PagerSizes;
+    public const string SizeChoiceClassName = WebClassNames.PagerSizeChoice;
 
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string ModeAttribute = "data-ui-pager-mode";
 
-    private const string ButtonLookClassNames = $"{ButtonClassName} {WebClassNames.Button} ui-button--ghost ui-button--small";
+    private static readonly string ButtonLookClassNames = $"{ButtonClassName} {WebClassNames.Button} {WebClassNames.ButtonVariant(UIButtonVariant.Ghost)} {WebClassNames.ButtonSize(UISize.Small)}";
 
     private static readonly WebDomOperation[] ModeOperations = [WebDomOperation.Attribute(ModeAttribute)];
 
@@ -47,14 +48,14 @@ public sealed class PagerComponentRenderer : WebComponentRendererBase
 
     protected override string ElementName => "nav";
 
-    protected override string ClassName => "ui-pager";
+    protected override string ClassName => WebClassNames.Pager;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        WebWords.Write(context, root, "aria-label", UIStrings.PagerLabel);
+        WebWords.Write(context, root, "aria-label", UIStrings.PagerName);
 
         // The host as the id the compiler gave it, which the page finds it by; the view refused one it lacks when it compiled.
         _ = ResolveRenderValue(context, PagerComponent.TargetProperty, out string? target, out _);
@@ -117,7 +118,7 @@ public sealed class PagerComponentRenderer : WebComponentRendererBase
 
             _ = size.Element("button", trigger =>
             {
-                _ = trigger.Class($"{SizeTriggerClassName} {WebClassNames.Button} ui-button--ghost ui-button--small");
+                _ = trigger.Class($"{SizeTriggerClassName} {WebClassNames.Button} {WebClassNames.ButtonVariant(UIButtonVariant.Ghost)} {WebClassNames.ButtonSize(UISize.Small)}");
                 _ = trigger.Attribute("type", "button");
                 RenderPopupTrigger(trigger, "menu");
                 _ = trigger.Element("span", label => label.Class(SizeLabelClassName));

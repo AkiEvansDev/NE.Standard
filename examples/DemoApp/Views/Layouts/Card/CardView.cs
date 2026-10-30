@@ -7,13 +7,9 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Layouts.Card;
 
 /// <summary>
-/// One card and every property that can be bound to it; then the shapes a card is written in, what it does that a property row
-/// cannot say — where a press lands, what the pointer reveals, what covering the whole panel looks like — and what it holds.
+/// Card preview with bound surface, background image and header properties, followed by header/body/footer slot combinations,
+/// background dim and blur modes, clickable cards with nested controls, hover-revealed actions, card-level loading, and frameless inner views.
 /// </summary>
-/// <remarks>
-/// The content and footer regions are set rather than bound: they are what the card holds, not something about it. What a card
-/// adds to a surface is shown here, once, for both pages.
-/// </remarks>
 internal sealed class CardView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
@@ -28,8 +24,6 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
     private const string PictureGroup = nameof(CardController.PictureGroup);
 
     private const string HoverCardId = "card-hover-host";
-
-    // The sliders the third picture card copies while they are dragged.
     private const string PictureDimId = "card-picture-dim";
     private const string PictureBlurId = "card-picture-blur";
 
@@ -38,21 +32,21 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/layouts/card";
     protected override string Header => "demo.layouts.card.header";
     protected override string HeaderDescription => "demo.layouts.card.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/settings", "demo.nav.screens.settings");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new CardComponent()
             .BindStandard()
-            .BindSurface($"{CardGroup}.{nameof(CardSurfaceGroupContext.Surface)}")
-            .BindClickable($"{CardGroup}.{nameof(CardSurfaceGroupContext.Clickable)}")
-            .BindPadding($"{CardGroup}.{nameof(CardSurfaceGroupContext.Padding)}")
-            .BindBackground($"{CardGroup}.{nameof(CardSurfaceGroupContext.Background)}")
-            .BindBackgroundImage($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImage)}")
-            .BindBackgroundImageFit($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageFit)}")
-            .BindBackgroundImageDim($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageDim)}")
-            .BindBackgroundImageDimMode($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageDimMode)}")
-            .BindBackgroundImageBlur($"{CardGroup}.{nameof(CardSurfaceGroupContext.BackgroundImageBlur)}")
-            .BindOverflow($"{CardGroup}.{nameof(CardSurfaceGroupContext.Overflow)}")
+            .BindSurface<CardController>(static x => x.CardGroup.Surface)
+            .BindClickable<CardController>(static x => x.CardGroup.Clickable)
+            .BindPadding<CardController>(static x => x.CardGroup.Padding)
+            .BindBackground<CardController>(static x => x.CardGroup.Background)
+            .BindBackgroundImage<CardController>(static x => x.CardGroup.BackgroundImage)
+            .BindBackgroundImageFit<CardController>(static x => x.CardGroup.BackgroundImageFit)
+            .BindBackgroundImageDim<CardController>(static x => x.CardGroup.BackgroundImageDim)
+            .BindBackgroundImageDimMode<CardController>(static x => x.CardGroup.BackgroundImageDimMode)
+            .BindBackgroundImageBlur<CardController>(static x => x.CardGroup.BackgroundImageBlur)
+            .BindOverflow<CardController>(static x => x.CardGroup.Overflow)
             .BindBorder(BorderGroup)
             .ConfigureDefaultHeader(BindHeader)
             .SetContent(new ParagraphComponent()
@@ -64,41 +58,38 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetSpacing(8)
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
-                    .SetSize(UIButtonSize.Small)
+                    .SetVariant(UIButtonVariant.Primary)
+                    .SetSize(UISize.Small)
                     .SetTitle("Approve")
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
-                    .SetSize(UIButtonSize.Small)
+                    .SetVariant(UIButtonVariant.Ghost)
+                    .SetSize(UISize.Small)
                     .SetTitle("View plan")
                 )
             )
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 300);
 
-    /// <summary>
-    /// The header's own bindings; a region is bound by its full path like anything else.
-    /// </summary>
     private static void BindHeader(CardHeaderRegion header)
         => _ = header
             .BindTextContent(HeaderTextGroup)
-            .BindDescription($"{HeaderTextGroup}.{nameof(TextContentGroupContext.Description)}")
-            .BindDescriptionType($"{HeaderTextGroup}.{nameof(TextContentGroupContext.DescriptionType)}")
-            .BindDescriptionColor($"{HeaderTextGroup}.{nameof(TextContentGroupContext.DescriptionColor)}")
-            .BindTextAlignment($"{HeaderGroup}.{nameof(TextLayoutGroupContext.TextAlignment)}")
-            .BindTextSelectable($"{HeaderGroup}.{nameof(SelectableTextLayoutGroupContext.TextSelectable)}")
-            .BindBadgePlacement($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{HeaderBadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}");
+            .BindDescription<CardController>(static x => x.HeaderTextGroup.Description)
+            .BindDescriptionType<CardController>(static x => x.HeaderTextGroup.DescriptionType)
+            .BindDescriptionColor<CardController>(static x => x.HeaderTextGroup.DescriptionColor)
+            .BindTextAlignment<CardController>(static x => x.HeaderGroup.TextAlignment)
+            .BindTextSelectable<CardController>(static x => x.HeaderGroup.TextSelectable)
+            .BindBadgePlacement<CardController>(static x => x.HeaderBadgeGroup.BadgePlacement)
+            .BindBadgeVariant<CardController>(static x => x.HeaderBadgeGroup.BadgeVariant)
+            .BindBadgeColor<CardController>(static x => x.HeaderBadgeGroup.BadgeColor)
+            .BindBadgeFill<CardController>(static x => x.HeaderBadgeGroup.BadgeFill)
+            .BindBadgeIcon<CardController>(static x => x.HeaderBadgeGroup.BadgeIcon)
+            .BindBadgeIconColor<CardController>(static x => x.HeaderBadgeGroup.BadgeIconColor)
+            .BindBadgeIconSize<CardController>(static x => x.HeaderBadgeGroup.BadgeIconSize)
+            .BindBadgeTitle<CardController>(static x => x.HeaderBadgeGroup.BadgeTitle)
+            .BindBadgeTitleType<CardController>(static x => x.HeaderBadgeGroup.BadgeTitleType)
+            .BindBadgeTooltip<CardController>(static x => x.HeaderBadgeGroup.BadgeTooltip)
+            .BindBadgeTooltipPlacement<CardController>(static x => x.HeaderBadgeGroup.BadgeTooltipPlacement);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
@@ -110,17 +101,15 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
-    // The press beside the two short behaviours stacked, as tall together; the three-way comparison and the held content across the page.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateShapesGroup(), CreatePicturesGroup(), CreatePressGroup(), DemoUI.CreateHalf(CreateHoverGroup(), CreateRefreshGroup()), CreateBandsGroup(), CreateHeldGroup()];
+        => [CreateShapesGroup(), CreatePicturesGroup(), CreatePressGroup(), DemoUI.CreateHalf(CreateHoverGroup(), CreateRefreshGroup()), CreateHeldGroup()];
 
     /// <summary>
-    /// The shapes a card is actually written in — an article, a person, a reading, a request waiting on someone, and one a control
-    /// in its header acts on: which of the three regions a kind of content belongs in.
+    /// Common header, content, header-action and footer slot combinations.
     /// </summary>
     private static ContainerComponent CreateShapesGroup()
     {
-        return DemoUI.CreateExample("What a card holds",
+        return DemoUI.CreateExample("Header, body & footer slots",
             UILayout.Row(16)
                 .AddChild(new CardComponent()
                     .SetWidth(UILayoutLength.Absolute(300))
@@ -128,9 +117,8 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         .SetTitle("Why Europe North runs on new disks")
                         .SetDescription("6 min read · Infrastructure")
                     )
-                    // A paragraph rather than a text component: a card's body is prose, and text content keeps one line.
                     .SetContent(new ParagraphComponent()
-                        .SetDescription("Stockholm opened in 2023 on new disks from the first day, so its databases read faster than any other region's, and the older regions now move over one server at a time.")
+                        .SetDescription("Stockholm opened in 2023 on new disks from the first day, so its databases read faster than any other region's.")
                         .SetDescriptionType(UITextAppearance.Body)
                     )
                 )
@@ -139,10 +127,9 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     .ConfigureDefaultHeader(header => header
                         .SetTitle("Robin Hale")
                         .SetDescription("Orvane Cloud staff")
-                        // The same Icon property carrying a picture, which with no size given fills the header's height; round, a person.
                         .SetIcon(DemoImages.Avatar)
-                        .SetIconShape(UIIconShape.Circle)
-                        .SetBadgeText("Admin")
+                        .SetIconShape(UIShape.Circle)
+                        .SetBadgeTitle("Admin")
                     )
                     .SetContent(UILayout.Stack(8)
                         .AddChild(new TextComponent().SetIcon(DemoIcons.Mail).SetTitle("robin@orvane.example").SetTitleType(UITextAppearance.Caption))
@@ -153,8 +140,8 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     .SetWidth(UILayoutLength.Absolute(300))
                     .ConfigureDefaultHeader(header => header
                         .SetTitle("Deploys this week")
-                        .SetBadgeText("+18%")
-                        .SetBadgeStyle(UIBadgeType.Success)
+                        .SetBadgeTitle("+18%")
+                        .SetBadgeVariant(UIBadgeVariant.Success)
                     )
                     .SetContent(new TextComponent()
                         .SetTitle("47")
@@ -173,21 +160,20 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Success))
                     )
                     .SetContent(new ParagraphComponent()
-                        .SetDescription("Plan checked and the maintenance window booked — one approval left, and it is yours.")
+                        .SetDescription("Plan checked and the maintenance window booked — one approval left.")
                         .SetDescriptionType(UITextAppearance.Body)
                     )
-                    // The footer is where what you can do about the card goes, as one row of answers.
                     .SetFooter(new StackPanelComponent()
                         .SetOrientation(UIOrientation.Horizontal)
                         .SetSpacing(8)
                         .AddChild(new ButtonComponent()
-                            .SetType(UIButtonType.Primary)
-                            .SetSize(UIButtonSize.Small)
+                            .SetVariant(UIButtonVariant.Primary)
+                            .SetSize(UISize.Small)
                             .SetTitle("Approve")
                         )
                         .AddChild(new ButtonComponent()
-                            .SetType(UIButtonType.Ghost)
-                            .SetSize(UIButtonSize.Small)
+                            .SetVariant(UIButtonVariant.Ghost)
+                            .SetSize(UISize.Small)
                             .SetTitle("View plan")
                         )
                     )
@@ -198,42 +184,39 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         .SetTitle("Release 483")
                         .SetDescription("Scheduled for Friday")
                     )
-                    // The header's own slot: what it does is close this card, not act on its content.
                     .SetHeaderAction(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Close))
                         .SetTooltip("Dismiss")
                     )
                     .SetContent(new ParagraphComponent()
-                        .SetDescription("The header keeps its own text on one line and the control takes only what it needs.")
+                        .SetDescription("`SetHeaderAction` pins a trailing control in the header without wrapping the title.")
                         .SetDescriptionType(UITextAppearance.Body)
                     )
                 ),
-            columns: 24
+            columns: 24,
+            note: "Header and footer bands render only when populated; empty slots add neither divider lines nor padding."
         );
     }
 
     /// <summary>
-    /// One picture behind three cards, dimmed by the browser toward the card's ground: on the edges alone to frame it, evenly for words
-    /// to read on, and blurred as well; the numbers hold in either theme, since the veil is the ground and not black. The third follows
-    /// its two sliders while they are dragged, and the controller stores what they are let go on.
+    /// <c>BackgroundImage</c> with <c>Vignette</c> dim, even dim, and live client-mirrored dim + blur sliders (<c>InteractCopyValue</c>).
     /// </summary>
     private static ContainerComponent CreatePicturesGroup()
     {
-        return DemoUI.CreateExample("A picture behind the words",
+        return DemoUI.CreateExample("Background image, dim & blur",
             UILayout.Stack(16)
                 .AddChild(UILayout.Row(16)
-                    // Words where the vignette dims, the top corner: its clear middle reaches the header's second half.
-                    .AddChild(CreatePictureCard("Northern harbour", "A vignette")
+                    .AddChild(CreatePictureCard("Northern harbour", "Vignette dim (0.9)")
                         .SetBackgroundImageDim(0.9)
                         .SetBackgroundImageDimMode(UIBackgroundDimMode.Vignette)
                     )
-                    .AddChild(CreatePictureCard("Release notes", "An even dim: the words read anywhere on it.")
+                    .AddChild(CreatePictureCard("Release notes", "Even dim (0.7) for full-card legibility.")
                         .SetBackgroundImageDim(0.7)
                     )
-                    .AddChild(CreatePictureCard("Quiet hours", "Dimmed and blurred: the picture a colour, the words sharp.")
-                        .BindBackgroundImageDim(nameof(CardPictureGroupContext.Dim), UIBindingScope.Relative)
-                        .BindBackgroundImageBlur(nameof(CardPictureGroupContext.Blur), UIBindingScope.Relative)
+                    .AddChild(CreatePictureCard("Quiet hours", "Live dim & blur bound to the sliders below.")
+                        .BindBackgroundImageDim<CardPictureGroupContext>(static x => x.Dim, UIBindingScope.Relative)
+                        .BindBackgroundImageBlur<CardPictureGroupContext>(static x => x.Blur, UIBindingScope.Relative)
                         .InteractCopyValue(PictureDimId, ISurfaceComponent.BackgroundImageDimProperty)
                         .InteractCopyValue(PictureBlurId, ISurfaceComponent.BackgroundImageBlurProperty)
                     )
@@ -244,19 +227,18 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                             .SetRange(0, 0.9m)
                             .SetStep(0.05m)
                             .SetShowValue()
-                            .BindValue(nameof(CardPictureGroupContext.Dim), UIBindingScope.Relative)
+                            .BindValue<CardPictureGroupContext>(static x => x.Dim, UIBindingScope.Relative)
                             .OnChange(nameof(CardController.StorePicture)),
                         new SliderComponent(PictureBlurId)
-                            .SetTitle("Quiet hours: blur, pixels")
+                            .SetTitle("Quiet hours: blur (px)")
                             .SetRange(0, 32)
                             .SetStep(1)
                             .SetShowValue()
-                            .BindValue(nameof(CardPictureGroupContext.Blur), UIBindingScope.Relative)
+                            .BindValue<CardPictureGroupContext>(static x => x.Blur, UIBindingScope.Relative)
                             .OnChange(nameof(CardController.StorePicture))
                     )
                 ),
-            note: "BackgroundImageDim, BackgroundImageDimMode and BackgroundImageBlur on any surface with a BackgroundImage. The browser draws them over the picture it already has, so a bound value moves them with no new picture; the vignette frames a card, the even dim is the one for reading. "
-                + "Drag a slider and the third card follows it before you let go: InteractCopyValue copies the slider's value into the card on the page, and the controller stores the value it is let go on.",
+            note: "`InteractCopyValue` mirrors slider drag updates onto the third card on the client immediately; releasing the thumb persists the value to the controller.",
             columns: 24,
             context: PictureGroup
         );
@@ -264,6 +246,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
 
     private static CardComponent CreatePictureCard(string title, string description)
         => new CardComponent()
+            .SetTheme(UIThemeMode.Dark)
             .SetBackgroundImage(DemoImages.HarbourSky)
             .SetWidth(UILayoutLength.Absolute(300))
             .SetHeight(UILayoutLength.Absolute(200))
@@ -273,15 +256,14 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
             );
 
     /// <summary>
-    /// Three targets in one card, where the pipeline stops at the innermost component that handles the event; and a clickable card
-    /// switched off: no pointer press, no Tab stop, and read as unavailable.
+    /// Clickable card with nested button, text selection, context menu, and disabled state.
     /// </summary>
     private static ContainerComponent CreatePressGroup()
     {
-        return DemoUI.CreateExample("Where the press lands",
+        return DemoUI.CreateExample("Clickable card & nested controls",
             UILayout.Stack(16)
                 .AddChild(new CardComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .OnClick(nameof(CardController.RecordCardClick))
                     .SetContextMenu(new MenuComponent()
                         .SetItems([new MenuItem { Id = "open", Title = "Open in a new tab", Icon = DemoIcons.Outline(DemoIcons.ExternalLink) }])
@@ -289,26 +271,26 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     )
                     .ConfigureDefaultHeader(header => header
                         .SetTitle("Change request · CHG-482")
-                        .SetDescription("Click the card, the button, or right-click either")
+                        .SetDescription("Click the card, the inner button, or right-click either")
                     )
                     .SetContent(UILayout.Stack(10)
                         .AddChild(new ParagraphComponent()
-                            .SetDescription("Selecting this sentence works too, which it did not while a card that was not clickable was made inert to keep its own click clean.")
+                            .SetDescription("Text inside a clickable card remains selectable, and inner controls intercept their own clicks and Tab stops.")
                             .SetDescriptionType(UITextAppearance.Body)
                         )
                         .AddChild(new ButtonComponent()
                             .OnClick(nameof(CardController.RecordButtonClick))
-                            .SetType(UIButtonType.Ghost)
-                            .SetSize(UIButtonSize.Small)
+                            .SetVariant(UIButtonVariant.Ghost)
+                            .SetSize(UISize.Small)
                             .SetHorizontalAlignment(UIAlignment.Start)
-                            .SetTitle("A button inside it")
+                            .SetTitle("Inner action")
                         )
                     )
                     .SetWidth(UILayoutLength.Absolute(380))
                 )
                 .AddChild(new CardComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
-                    .BindEnabled(nameof(CardPressGroupContext.Open), UIBindingScope.Relative)
+                    .SetSurface(UISurfaceStyle.Surface)
+                    .BindEnabled<CardPressGroupContext>(static x => x.Open, UIBindingScope.Relative)
                     .OnClick(nameof(CardController.PressLocked))
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.Outline(DemoIcons.Lock))
@@ -317,9 +299,8 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     )
                     .SetWidth(UILayoutLength.Absolute(300))
                 ),
-            note: "Press the card, then the button inside it, then right-click it: a card that guards its own press must not leave its whole subtree deaf. From the keyboard, Tab stops on the card and then on the button; Enter or Space presses whichever holds the focus. The locked card is dimmed, a press does nothing and Tab passes it by; unlock it and it takes the focus and Enter or Space like any other clickable card. A clickable card the pointer only crosses on its way elsewhere — a banner over a list — takes SetQuietHover(true), as the surface page's pinned strip does: half the wash and no lift, the same press.",
+            note: "Clicks stop at the innermost interactive target (`ButtonComponent` before `CardComponent`), while `Enabled = false` dims the card and removes its Tab stop.",
             context: PressGroup,
-            // Below rather than beside: at half the page a column of 220 left the card too narrow for its title.
             controlsBelow: true,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
@@ -329,50 +310,13 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// <c>Loading</c> on a panel rather than a control: it covers header, content and footer together.
+    /// Client-side hover reveal using <c>UIVisibility.Hidden</c> + <c>InteractOnHoverStart</c> / <c>InteractOnHoverEnd</c>.
     /// </summary>
-    private static ContainerComponent CreateRefreshGroup()
-    {
-        return DemoUI.CreateExample("A panel that re-reads itself",
-            new CardComponent()
-                .SetSurface(UISurfaceStyle.Raised)
-                .BindLoading(nameof(CardRefreshGroupContext.Busy), UIBindingScope.Relative)
-                .ConfigureDefaultHeader(header => header
-                    .SetTitle("Deploys this week")
-                    .BindDescription(nameof(CardRefreshGroupContext.ReadAt), UIBindingScope.Relative)
-                    .SetDescriptionType(UITextAppearance.Caption)
-                )
-                .SetContent(new TextComponent()
-                    .BindTitle(nameof(CardRefreshGroupContext.Deploys), UIBindingScope.Relative)
-                    .SetTitleType(UITextAppearance.Display)
-                    .BindDescription(nameof(CardRefreshGroupContext.Split), UIBindingScope.Relative)
-                    .SetDescriptionType(UITextAppearance.Caption)
-                    .SetDescriptionColor(UIThemeColor.Muted)
-                )
-                .SetFooter(new ButtonComponent()
-                    .OnClick(nameof(CardController.RefreshAsync))
-                    // No InteractBeforeClick: the card's own Loading already covers this button.
-                    .SetType(UIButtonType.Ghost)
-                    .SetSize(UIButtonSize.Small)
-                    .SetHorizontalAlignment(UIAlignment.Start)
-                    .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
-                    .SetTitle("Read again")
-                )
-                .SetWidth(UILayoutLength.Absolute(300)),
-            note: "Loading sits on the panel rather than on the button: while the reading is stale there is nothing on the card worth pressing.",
-            context: RefreshGroup
-        );
-    }
-
-    /// <summary>
-    /// Hover interactions write <c>Visible</c> on a panel the pointer is not over, entirely on the client.
-    /// </summary>
-    /// <remarks>The row must keep its height with the panel hidden, or the card resizes and moves the pointer off itself.</remarks>
     private static ContainerComponent CreateHoverGroup()
     {
-        return DemoUI.CreateExample("What can be done to it, while the pointer is on it",
+        return DemoUI.CreateExample("Hover-revealed footer actions",
             new CardComponent(HoverCardId)
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.Outline(DemoIcons.Check))
                     .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Success))
@@ -384,7 +328,6 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     .SetDescriptionType(UITextAppearance.Body)
                     .SetDescriptionColor(UIThemeColor.Muted)
                 )
-                // Nothing wraps these two: a footer is a container, so they are placed in its own columns.
                 .SetFooter(new ContainerComponent()
                     .AddChild(new TextComponent()
                         .SetTitle("Opened 6 days ago")
@@ -393,9 +336,8 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                         .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
                     )
-                    // Written on the panel: the id names the watched component, the property lands on this one.
                     .AddChild(new StackPanelComponent()
-                        // Hidden, not Collapsed: the footer keeps the buttons' room, so the card's height never changes.
+                        // Hidden preserves footer height so hovering never shifts layout under the pointer.
                         .SetVisibility(UIVisibility.Hidden)
                         .InteractOnHoverStart(HoverCardId, IVisualComponent.VisibilityProperty, UIVisibility.Visible)
                         .InteractOnHoverEnd(HoverCardId, IVisualComponent.VisibilityProperty, UIVisibility.Hidden)
@@ -406,129 +348,78 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(13, 1, 12, 1))
                         .AddChild(new ButtonComponent()
                             .OnClick(nameof(CardController.ViewPlan))
-                            .SetType(UIButtonType.Ghost)
-                            .SetSize(UIButtonSize.Small)
+                            .SetVariant(UIButtonVariant.Ghost)
+                            .SetSize(UISize.Small)
                             .SetTitle("View plan")
                         )
                         .AddChild(new ButtonComponent()
                             .OnClick(nameof(CardController.ApproveChange))
-                            .SetType(UIButtonType.Primary)
-                            .SetSize(UIButtonSize.Small)
+                            .SetVariant(UIButtonVariant.Primary)
+                            .SetSize(UISize.Small)
                             .SetTitle("Approve")
                         )
                     )
                 )
                 .SetWidth(UILayoutLength.Absolute(380)),
-            note: "Move the pointer onto the card. The reveal happens on the client alone, and the card keeps its height because the buttons are Hidden rather than Collapsed — a card that resized would move the pointer off itself.",
+            note: "`UIVisibility.Hidden` reserves layout height while invisible so revealing the buttons on hover never resizes the card.",
             context: HoverGroup
         );
     }
 
     /// <summary>
-    /// The same content as a surface and as a card, so what a card adds is exactly what differs: two bands, drawn only where filled.
+    /// <c>BindLoading</c> on the card itself, covering header, content and footer together during async refresh.
     /// </summary>
-    private static ContainerComponent CreateBandsGroup()
+    private static ContainerComponent CreateRefreshGroup()
     {
-        // Across the page: the comparison reads side by side, where at half the page the three stood one under another.
-        return DemoUI.CreateExample("What a card adds to a surface",
-            UILayout.Row(16)
-                .AddChild(DemoUI.CreateLabelled("SurfaceComponent", new SurfaceComponent()
-                        .SetSurface(UISurfaceStyle.Raised)
-                        .SetWidth(UILayoutLength.Absolute(260))
-                        .SetContent(UILayout.Stack(8)
-                            .AddChild(new TextComponent()
-                                .SetTitle("Request CHG-482")
-                                .SetDescription("Resize db-us-east-2 to Dedicated")
-                                .SetDescriptionType(UITextAppearance.Caption)
-                                .SetDescriptionColor(UIThemeColor.Muted)
-                            )
-                            .AddChild(new ParagraphComponent()
-                                .SetDescription("Plan checked and the maintenance window booked — one approval left, and it is yours.")
-                                .SetDescriptionType(UITextAppearance.Body)
-                            )
-                            .AddChild(new StackPanelComponent()
-                                .SetOrientation(UIOrientation.Horizontal)
-                                .SetSpacing(8)
-                                .AddChild(new ButtonComponent()
-                                    .SetType(UIButtonType.Primary)
-                                    .SetSize(UIButtonSize.Small)
-                                    .SetTitle("Approve")
-                                )
-                                .AddChild(new ButtonComponent()
-                                    .SetType(UIButtonType.Ghost)
-                                    .SetSize(UIButtonSize.Small)
-                                    .SetTitle("View plan")
-                                )
-                            )
-                        )
-                    )
+        return DemoUI.CreateExample("Card-level loading state",
+            new CardComponent()
+                .SetSurface(UISurfaceStyle.Surface)
+                .BindLoading<CardRefreshGroupContext>(static x => x.Busy, UIBindingScope.Relative)
+                .ConfigureDefaultHeader(header => header
+                    .SetTitle("Deploys this week")
+                    .BindDescription<CardRefreshGroupContext>(static x => x.ReadAt, UIBindingScope.Relative)
+                    .SetDescriptionType(UITextAppearance.Caption)
                 )
-                .AddChild(DemoUI.CreateLabelled("CardComponent", new CardComponent()
-                        .SetSurface(UISurfaceStyle.Raised)
-                        .SetWidth(UILayoutLength.Absolute(260))
-                        .ConfigureDefaultHeader(header => header
-                            .SetTitle("Request CHG-482")
-                            .SetDescription("Resize db-us-east-2 to Dedicated")
-                        )
-                        .SetContent(new ParagraphComponent()
-                            .SetDescription("Plan checked and the maintenance window booked — one approval left, and it is yours.")
-                            .SetDescriptionType(UITextAppearance.Body)
-                        )
-                        .SetFooter(new StackPanelComponent()
-                            .SetOrientation(UIOrientation.Horizontal)
-                            .SetSpacing(8)
-                            .AddChild(new ButtonComponent()
-                                .SetType(UIButtonType.Primary)
-                                .SetSize(UIButtonSize.Small)
-                                .SetTitle("Approve")
-                            )
-                            .AddChild(new ButtonComponent()
-                                .SetType(UIButtonType.Ghost)
-                                .SetSize(UIButtonSize.Small)
-                                .SetTitle("View plan")
-                            )
-                        )
-                    )
+                .SetContent(new TextComponent()
+                    .BindTitle<CardRefreshGroupContext>(static x => x.Deploys, UIBindingScope.Relative)
+                    .SetTitleType(UITextAppearance.Display)
+                    .BindDescription<CardRefreshGroupContext>(static x => x.Split, UIBindingScope.Relative)
+                    .SetDescriptionType(UITextAppearance.Caption)
+                    .SetDescriptionColor(UIThemeColor.Muted)
                 )
-                .AddChild(DemoUI.CreateLabelled("A card with no header text and no footer", new CardComponent()
-                        .SetWidth(UILayoutLength.Absolute(260))
-                        .SetHeaderAction(new ButtonComponent()
-                            .SetType(UIButtonType.Ghost)
-                            .SetIcon(DemoIcons.Outline(DemoIcons.Close))
-                            .SetTooltip("Dismiss")
-                        )
-                        .SetContent(new ParagraphComponent()
-                            .SetDescription("A region is drawn only where there is something to draw, and a band that is nothing but a control keeps neither the rule nor the room a header would take.")
-                            .SetDescriptionType(UITextAppearance.Body)
-                        )
-                    )
-                ),
-            columns: 24
+                .SetFooter(new ButtonComponent()
+                    .OnClick(nameof(CardController.RefreshAsync))
+                    .SetVariant(UIButtonVariant.Ghost)
+                    .SetSize(UISize.Small)
+                    .SetHorizontalAlignment(UIAlignment.Start)
+                    .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
+                    .SetTitle("Refresh")
+                )
+                .SetWidth(UILayoutLength.Absolute(300)),
+            note: "Binding `Loading` on `CardComponent` masks the entire panel while stale metrics are reloaded.",
+            context: RefreshGroup
         );
     }
 
     /// <summary>
-    /// A card as the frame of something with an edge of its own: the card draws the edge, so what it holds draws none and runs to
-    /// its sides.
+    /// Frameless <c>UIDetails.List</c>, <c>TableComponent</c> and <c>TabsComponent</c> hosted directly inside a card's content slot.
     /// </summary>
     private static ContainerComponent CreateHeldGroup()
     {
-        // Equal thirds with the preset's air between them: placed by hand, the three cards stood edge to edge.
-        return DemoUI.CreateExample("In a card",
+        return DemoUI.CreateExample("Frameless lists, tables & tabs inside a card",
             UILayout.Columns(16,
                 new CardComponent()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.Cloud)
                         .SetTitle("billing")
-                        .SetDescription("What the panel reads off the service")
+                        .SetDescription("Service summary")
                     )
-                    // UIDetails.List: no action column and no edge of its own, since a summary is read, not operated.
                     .SetContent(UIDetails.List(("Region", "eu-west"), ("Replicas", "12"), ("Image", "billing:2.4.1"))),
                 new CardComponent()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.Cloud)
                         .SetTitle("Deployments")
-                        .SetDescription("The four the card has room to summarise.")
+                        .SetDescription("Latest four runs")
                     )
                     .SetContent(new TableComponent()
                         .SetHorizontalScroll(UIScrollMode.Auto)
@@ -538,14 +429,13 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(110))
                         .SetBorderThickness(UIThickness.Uniform(0))
                     ),
-                // A card with more than one face: the strip sits in the content band, under the header that names the whole.
                 new CardComponent()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.Upload)
                         .SetTitle("billing · #481")
                         .SetDescription("production · eu-west")
-                        .SetBadgeText("Healthy")
-                        .SetBadgeStyle(UIBadgeType.Success)
+                        .SetBadgeTitle("Healthy")
+                        .SetBadgeVariant(UIBadgeVariant.Success)
                     )
                     .SetContent(new TabsComponent()
                         .AddTab("log", "Log", new ParagraphComponent()
@@ -577,7 +467,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         )
                     )
             ),
-            note: "A key-value list, a table and a tab strip, each a card's content: the card draws the edge, so none of them draws its own, and their rows stand in the card's inset, lined up with its header.",
+            note: "Because `CardComponent` provides the outer border, hosted `KeyValueAction`, `Table` and `Tabs` views omit their own border (`SetBorderThickness(0)`).",
             columns: 24
         );
     }

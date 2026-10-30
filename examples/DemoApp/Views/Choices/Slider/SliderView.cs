@@ -23,7 +23,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/choices/slider";
     protected override string Header => "demo.choices.slider.header";
     protected override string HeaderDescription => "demo.choices.slider.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/catalogue", "demo.nav.screens.catalogue");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/catalogue", "demo.nav.screens.catalogue");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(220,
@@ -35,17 +35,17 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     private static SliderComponent Bind(SliderComponent slider)
         => slider
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(SliderValueGroupContext.Value)}")
-            .BindEndValue($"{ValueGroup}.{nameof(SliderValueGroupContext.EndValue)}")
-            .BindMinDistance($"{ValueGroup}.{nameof(SliderValueGroupContext.MinDistance)}")
-            .BindMin($"{ValueGroup}.{nameof(SliderValueGroupContext.Min)}")
-            .BindMax($"{ValueGroup}.{nameof(SliderValueGroupContext.Max)}")
-            .BindStep($"{ValueGroup}.{nameof(SliderValueGroupContext.Step)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(SliderValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(SliderValueGroupContext.Size)}")
-            .BindOrientation($"{TrackGroup}.{nameof(SliderTrackGroupContext.Orientation)}")
-            .BindShowValue($"{TrackGroup}.{nameof(SliderTrackGroupContext.ShowValue)}")
-            .BindShowRange($"{TrackGroup}.{nameof(SliderTrackGroupContext.ShowRange)}")
+            .BindValue<SliderController>(static x => x.ValueGroup.Value)
+            .BindEndValue<SliderController>(static x => x.ValueGroup.EndValue)
+            .BindMinDistance<SliderController>(static x => x.ValueGroup.MinDistance)
+            .BindMin<SliderController>(static x => x.ValueGroup.Min)
+            .BindMax<SliderController>(static x => x.ValueGroup.Max)
+            .BindStep<SliderController>(static x => x.ValueGroup.Step)
+            .BindIsReadOnly<SliderController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<SliderController>(static x => x.ValueGroup.Size)
+            .BindOrientation<SliderController>(static x => x.TrackGroup.Orientation)
+            .BindShowValue<SliderController>(static x => x.TrackGroup.ShowValue)
+            .BindShowRange<SliderController>(static x => x.TrackGroup.ShowRange)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .SetPlacement(1, 1, 24, 1);
@@ -66,7 +66,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     /// <summary>The jobs it is given: a share, a threshold, a limit with a unit at the end of its label, and a pair of levels upright.</summary>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateExample("Where it is used",
+        return DemoUI.CreateExample("Horizontal & vertical sliders",
             UILayout.Stack(16)
                 .AddChild(new SliderComponent()
                     .SetTitle("Traffic to the new release")
@@ -85,8 +85,8 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
                     .SetStep(0.1m)
                     .SetValue(2.5m)
                     .SetShowValue()
-                    .SetBadgeText("per cent")
-                    .SetBadgeStyle(UIBadgeType.Info)
+                    .SetBadgeTitle("per cent")
+                    .SetBadgeVariant(UIBadgeVariant.Info)
                 )
                 .AddChild(new SliderComponent()
                     .SetTitle("Concurrent jobs")
@@ -124,7 +124,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBandGroup()
     {
-        return DemoUI.CreateExample("A band",
+        return DemoUI.CreateExample("Dual-thumb range slider",
             UILayout.Stack(16)
                 .AddChild(new SliderComponent()
                     .SetTitle("Price, € a month")
@@ -164,7 +164,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateReadoutGroup()
     {
-        return DemoUI.CreateExample("What it writes down",
+        return DemoUI.CreateExample("Value & range readouts",
             UILayout.Stack(16)
                 .AddChild(new SliderComponent()
                     .SetTitle("Neither — a bare track")
@@ -198,7 +198,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateStepGroup()
     {
-        return DemoUI.CreateExample("Step",
+        return DemoUI.CreateExample("Step increments",
             UILayout.Stack(16)
                 .AddChild(new SliderComponent()
                     .SetTitle("Step = 1")
@@ -230,7 +230,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
     /// <remarks>Full width, because the point is only made when the two are read side by side rather than stacked.</remarks>
     private static ContainerComponent CreateAgainstNumberGroup()
     {
-        return DemoUI.CreateExample("Against a number input",
+        return DemoUI.CreateExample("Slider vs NumberInput",
             UILayout.Row(32)
                 .AddChild(DemoUI.CreateLabelled("Slider — the share of traffic", new SliderComponent()
                     .SetTitle("Traffic to the new release")

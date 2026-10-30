@@ -5,19 +5,10 @@
 // from the engines, so the closers need nothing of their imports.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { OwnsKeysAttribute, RowEditingAttribute } from "../addressing/dom-attributes.ts";
+import { KeyValueActionEditActionClass, KeyValueActionRowClass, KeyValueActionValueInputClass, OwnsKeysAttribute, RowEditingAttribute, RunsOnEscapeAttribute } from "../addressing/dom-attributes.ts";
 import { isInRenameField } from "./inline-rename.ts";
 import { isInert } from "./interactive-state.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
-
-const RunsOnEscapeAttribute = "data-ui-runs-on-escape";
-
-// A key-value row and the parts of its open editor, which key-value-action-engine.ts reads by the same names.
-export const KeyValueRowClass = "ui-key-value-action__row";
-export const KeyValueValueInputClass = "ui-key-value-action__value-input";
-export const KeyValueEditActionClass = "ui-key-value-action__edit-action";
-// A row's own action: its Edit, where the list edits in place (`EnableEditing`).
-export const KeyValueActionClass = "ui-key-value-action__action";
 
 /** Whether something nearer the focus than a closer takes this Escape: a closer leaves the key alone, closing nothing. */
 export function escapeIsClaimed(domEvent: KeyboardEvent): boolean {
@@ -50,8 +41,8 @@ export function editingCellOf(target: EventTarget | null): { readonly cell: HTML
     if (!(target instanceof Element))
         return null;
 
-    const cell = target.closest<HTMLElement>(`.${KeyValueValueInputClass}, .${KeyValueEditActionClass}`);
-    const row = cell?.closest<HTMLElement>(`.${KeyValueRowClass}`) ?? null;
+    const cell = target.closest<HTMLElement>(`.${KeyValueActionValueInputClass}, .${KeyValueActionEditActionClass}`);
+    const row = cell?.closest<HTMLElement>(`.${KeyValueActionRowClass}`) ?? null;
 
     return cell === null || row === null || !row.hasAttribute(RowEditingAttribute) ? null : { cell, row };
 }

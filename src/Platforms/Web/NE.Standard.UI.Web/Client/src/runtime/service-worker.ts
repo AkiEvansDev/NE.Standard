@@ -2,9 +2,9 @@
 // notifications on (`AddSystemNotifications`), or imported into the application's own worker, which the page then waits for.
 
 import { ServiceWorkerAttribute, ServiceWorkerImportedAttribute } from "../addressing/dom-attributes.ts";
-import { logWarn } from "./logger.ts";
-import { answerWorker } from "./worker-messages.ts";
-import type { NotificationClick } from "./worker-messages.ts";
+import { logWarn } from "../metadata/logger.ts";
+import { answerWorker } from "../state/worker-messages.ts";
+import type { NotificationClick } from "../state/worker-messages.ts";
 
 /** The scope the framework's own worker takes: the framework's addresses, so it controls no page of the application. */
 const FrameworkScope = "/_ne/";

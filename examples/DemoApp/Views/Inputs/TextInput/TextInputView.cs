@@ -1,18 +1,13 @@
 using DemoApp.Controllers.Base;
-using DemoApp.Controllers.Inputs;
 using DemoApp.Controllers.Inputs.TextInput;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views.Inputs.TextInput;
 
 /// <summary>
-/// One field and every property that can be bound to it; then a form, the three sizes, the field's own buttons, a name edited where
-/// it is read, and Enter running a command.
+/// One single-line text field and every property that can be bound to it; then input types and affixes, leading/trailing actions,
+/// sizes and inline caption, Enter/Escape commands, numeric input mode, inline @mentions, and Ghost inline editing.
 /// </summary>
-/// <remarks>
-/// The preview binds by full path while each section binds its own context relatively; <c>FormId</c> is shown on the Values page
-/// (<c>/mechanisms/values</c>). The help badge on a caption is every input's, and shown here once.
-/// </remarks>
 internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
@@ -22,6 +17,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
     private const string BadgeGroup = nameof(TextInputController.BadgeGroup);
     private const string BorderGroup = nameof(TextInputController.BorderGroup);
     private const string LabelsGroup = nameof(TextInputController.LabelsGroup);
+    private const string TriggersGroup = nameof(TextInputController.TriggersGroup);
     private const string EndpointId = "demo-text-input-endpoint";
     private const string SubjectId = "demo-text-input-subject";
     private const string ReleaseFormId = "demo-text-input-release";
@@ -33,25 +29,25 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/inputs/text-input";
     protected override string Header => "demo.inputs.text-input.header";
     protected override string HeaderDescription => "demo.inputs.text-input.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/values", "demo.nav.mechanisms.values");
+    protected override (string Route, string Title)? ComposedIn => ("/inputs", "demo.nav.inputs.overview");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TextInputComponent()
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(TextValueGroupContext.Value)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(TextValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(TextValueGroupContext.Size)}")
-            .BindMaxLength($"{ValueGroup}.{nameof(TextValueGroupContext.MaxLength)}")
-            .BindTrimInput($"{ValueGroup}.{nameof(TextValueGroupContext.TrimInput)}")
-            .BindShowClearButton($"{ValueGroup}.{nameof(TextInputValueGroupContext.ShowClearButton)}")
-            .BindAppearance($"{FieldGroup}.{nameof(TextInputFieldGroupContext.Appearance)}")
-            .BindPlaceholder($"{FieldGroup}.{nameof(TextInputFieldGroupContext.Placeholder)}")
-            .BindType($"{FieldGroup}.{nameof(TextInputFieldGroupContext.Type)}")
-            .BindInputMode($"{FieldGroup}.{nameof(TextInputFieldGroupContext.InputMode)}")
-            .BindPrefixIcon($"{FieldGroup}.{nameof(TextInputFieldGroupContext.PrefixIcon)}")
-            .BindSuffixIcon($"{FieldGroup}.{nameof(TextInputFieldGroupContext.SuffixIcon)}")
-            .BindPrefixText($"{FieldGroup}.{nameof(TextInputFieldGroupContext.PrefixText)}")
-            .BindSuffixText($"{FieldGroup}.{nameof(TextInputFieldGroupContext.SuffixText)}")
+            .BindValue<TextInputController>(static x => x.ValueGroup.Value)
+            .BindIsReadOnly<TextInputController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<TextInputController>(static x => x.ValueGroup.Size)
+            .BindMaxLength<TextInputController>(static x => x.ValueGroup.MaxLength)
+            .BindTrimInput<TextInputController>(static x => x.ValueGroup.TrimInput)
+            .BindShowClearButton<TextInputController>(static x => x.ValueGroup.ShowClearButton)
+            .BindAppearance<TextInputController>(static x => x.FieldGroup.Appearance)
+            .BindPlaceholder<TextInputController>(static x => x.FieldGroup.Placeholder)
+            .BindType<TextInputController>(static x => x.FieldGroup.Type)
+            .BindInputMode<TextInputController>(static x => x.FieldGroup.InputMode)
+            .BindPrefixIcon<TextInputController>(static x => x.FieldGroup.PrefixIcon)
+            .BindSuffixIcon<TextInputController>(static x => x.FieldGroup.SuffixIcon)
+            .BindPrefixText<TextInputController>(static x => x.FieldGroup.PrefixText)
+            .BindSuffixText<TextInputController>(static x => x.FieldGroup.SuffixText)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
@@ -68,18 +64,15 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
-    // Each field wears the look its place would: a settings form outlined, a field with its own buttons and an entry form filled, a dense
-    // panel underlined, a name edited where it is read ghosted. The read-in-place group goes across the page, its two lines side by side.
     protected override IVisualComponent[] CreateExamples()
-        => [.. DemoUI.CreateColumns([CreateFormGroup(), CreateActionsGroup()], [CreateSizesGroup(), CreateEnterGroup(), CreateCodeGroup()]), CreateGhostGroup()];
+        => [.. DemoUI.CreateColumns([CreateFormGroup(), CreateActionsGroup(), CreateCodeGroup()], [CreateSizesGroup(), CreateEnterGroup(), CreateTriggersGroup()]), CreateGhostGroup()];
 
     /// <summary>
-    /// The ordinary case: a label per field, a scheme or a unit beside the value, the native type a field asks the browser for, and a
-    /// help badge where the caption cannot say what the field is for — a server's settings, outlined throughout.
+    /// Native input types, prefix/suffix text, label icon/badge, and help tooltips in an outlined form.
     /// </summary>
     private static ContainerComponent CreateFormGroup()
     {
-        return DemoUI.CreateExample("A form",
+        return DemoUI.CreateExample("Types, affixes & help",
             UILayout.Stack(12)
                 .AddChild(new TextInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
@@ -117,8 +110,8 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetValue("orv_live_4c9e2a71")
                     .SetAutocomplete(UIAutocomplete.Off)
                     .SetFormId(TokenFormId)
-                    .SetBadgeText("rotated 2 d ago")
-                    .SetBadgeStyle(UIBadgeType.Success)
+                    .SetBadgeTitle("rotated 2 d ago")
+                    .SetBadgeVariant(UIBadgeVariant.Success)
                 )
                 .AddChild(new TextInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
@@ -127,34 +120,33 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetIcon(DemoIcons.ExternalLink)
                     .SetValue("https://docs.orvane.example")
                 ),
-            note: "`Type` changes only the native input's behaviour — masking, keyboard, browser validation. The icon before a caption is the label's; the affixes are the field's. A help badge (`SetHelp`) is no stop of its own: its words describe the field, read with it when Tab reaches the box, and show on a hover or a press."
+            note: "`SetType` configures browser masking and mobile keyboards; `SetPrefixText`/`SetSuffixText` attach inline affixes; `SetHelp` adds an accessible description tooltip."
         );
     }
 
     /// <summary>
-    /// A field's own buttons, dressed as the field's and not as a form's: at both ends, a copy that reads the field as it is when pressed,
-    /// a panel in the action's slot whose entries put a placeholder where the caret is, and a comment's tools under it on a phone.
+    /// Leading and trailing field buttons, token-insertion menu button, and responsive <c>SetActionsBelow</c>.
     /// </summary>
     private static ContainerComponent CreateActionsGroup()
     {
-        return DemoUI.CreateExample("Its own buttons",
+        return DemoUI.CreateExample("Leading & trailing actions",
             UILayout.Stack(12)
                 .AddChild(new TextInputComponent(EndpointId)
                     .SetTitle("Health endpoint")
                     .SetValue("https://api-eu-west-1.orvane.example/healthz")
                     .AddLeadingAction(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
                         .SetTooltip("Run the health check")
                     )
                     .AddTrailingAction(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
                         .SetTooltip("Copy")
                         .InteractOn(EventNames.Click, CopyToClipboardEffect.ValueOf(EndpointId))
                     )
                     .AddTrailingAction(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.ExternalLink))
                         .SetTooltip("Open")
                     )
@@ -162,28 +154,19 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                 .AddChild(new TextInputComponent(SubjectId)
                     .SetTitle("Renewal reminder subject")
                     .SetValue("Your plan renews on ")
-                    .SetTrailingAction(new FlyoutComponent()
+                    .SetTrailingAction(new SplitButtonComponent()
+                        .SetMode(UISplitButtonMode.Menu)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetShowChevron(false)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Add))
+                        .SetTooltip("Insert a field")
                         .SetPopupPlacement(UIPopupPlacement.BottomEnd)
-                        .SetAnchor(new ButtonComponent()
-                            .SetType(UIButtonType.Ghost)
-                            .SetIcon(DemoIcons.Outline(DemoIcons.Add))
-                            .SetTooltip("Insert a field")
-                        )
-                        .SetContent(new ItemsViewComponent()
-                            .SetItems(
-                            [
-                                new TextItem { Id = "{customer}", Title = "Customer name", IsContent = true },
-                                new TextItem { Id = "{plan}", Title = "Plan", IsContent = true },
-                                new TextItem { Id = "{renewal}", Title = "Renewal date", IsContent = true }
-                            ])
-                            .SetSpacing(2)
-                            .SetTemplate(new ButtonComponent()
-                                .SetType(UIButtonType.Ghost)
-                                .SetHorizontalAlignment(UIAlignment.Stretch)
-                                .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
-                                .InteractOn(EventNames.Click, InsertTextEffect.CurrentItemKey(SubjectId))
-                            )
-                        )
+                        .SetItems([
+                            new MenuItem { Id = "{customer}", Title = "Customer name", IsContent = true },
+                            new MenuItem { Id = "{plan}", Title = "Plan", IsContent = true },
+                            new MenuItem { Id = "{renewal}", Title = "Renewal date", IsContent = true }
+                        ])
+                        .OnItemClick(InsertTextEffect.CurrentItemKey(SubjectId))
                     )
                 )
                 // On a phone the words take the row: the clip and the emoji in a row under it, Post kept at its end.
@@ -191,61 +174,107 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetPlaceholder("Comment on the release")
                     .AddLeadingAction(UIIconButtons.Attach())
                     .AddTrailingAction(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Emoji))
                         .SetTooltip("Emoji")
                     )
-                    .AddTrailingAction(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("Post"), inField: true)
+                    .AddTrailingAction(new ButtonComponent().SetVariant(UIButtonVariant.Ghost).SetTitle("Post"), inField: true)
                     .SetActionsBelow(UIResponsiveTier.Md)
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
                     .SetTitle("Copy the install command")
                     .InteractOn(EventNames.Click, CopyToClipboardEffect.Literal("curl -fsSL https://docs.orvane.example/install.sh | sh"))
                 ),
-            note: "`AddLeadingAction` and `AddTrailingAction` stand the buttons in the order they were added; the keyboard meets them as they are drawn, the leading ones before the text and the trailing after it. "
-                + "The copy takes what the field holds when pressed, the button under the fields a fixed line; neither makes a round trip. "
-                + "The + is a flyout in the action's slot (`SetTrailingAction(FlyoutComponent)`): an entry inserts its key (`{plan}`) at the caret, or over the selection, on the page alone, and the field keeps its caret while the panel has the focus. "
-                + "The comment's Post, a button with words, is flagged `AddTrailingAction(post, inField: true)` and the field `SetActionsBelow(UIResponsiveTier.Md)`: below the medium width the clip and the emoji stand in a row of the field's own under the text, at its two ends, while Post stays at the text's end."
+            note: "`AddLeadingAction` and `AddTrailingAction` embed buttons inside the field chrome; `CopyToClipboardEffect` and `InsertTextEffect` run purely on the client. `SetActionsBelow(UIResponsiveTier.Md)` moves non-`inField` actions to a secondary bar on phones."
         );
     }
 
     /// <summary>
-    /// An entry field in a form: Enter adds what was typed as a label, and the caret stays for the next one; Enter in the name leaves
-    /// it and presses the form's button, as any field's Enter does. A label pressed is put in the field to be renamed, and only while
-    /// it is does Escape cancel (<c>CancelOnEscape</c> bound): a new label half typed survives an Escape.
+    /// A one-time code: text, not a number, so its leading zeros stay; the phone raises its digit keyboard and may offer the code from a
+    /// message, and a rule takes six digits.
     /// </summary>
-    /// <remarks>The + at the field's end runs the same command for a pointer.</remarks>
+    private static ContainerComponent CreateCodeGroup()
+    {
+        return DemoUI.CreateExample("Numeric input mode & validation",
+            new TextInputComponent()
+                .SetAppearance(UIInputAppearance.Filled)
+                .SetTitle("Code from the email")
+                .SetPlaceholder("6 digits")
+                .SetAutocomplete(UIAutocomplete.OneTimeCode)
+                .SetInputMode(UIInputMode.Numeric)
+                .SetMaxLength(6)
+                .SetWidth(UILayoutLength.Absolute(220))
+                .Regex(@"^\d{6}$", "The code is six digits.", UIValidationTrigger.Blur),
+            note: "`SetInputMode(UIInputMode.Numeric)` opens a numeric keypad on touch devices while preserving leading zeros as text."
+        );
+    }
+
+    /// <summary>
+    /// The three sizes on <see cref="TextInputComponent"/> plus <see cref="UIInputTitlePlacement.Inside"/>; cross-component comparisons live on <c>/inputs</c>.
+    /// </summary>
+    private static ContainerComponent CreateSizesGroup()
+    {
+        return DemoUI.CreateExample("Sizes & inline caption",
+            UILayout.Stack(12)
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Small")
+                    .SetSize(UISize.Small)
+                    .SetValue("billing")
+                )
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Medium (default)")
+                    .SetValue("billing")
+                )
+                .AddChild(new TextInputComponent()
+                    .SetTitle("Large")
+                    .SetSize(UISize.Large)
+                    .SetValue("billing")
+                )
+                .AddChild(new TextInputComponent()
+                    .SetSize(UISize.Small)
+                    .SetTitlePlacement(UIInputTitlePlacement.Inside)
+                    .SetAppearance(UIInputAppearance.Underline)
+                    .SetTitle("Inline caption")
+                    .SetValue("db-us-east-2")
+                ),
+            note: "Height, horizontal padding and font size scale together across `Small`, `Medium` and `Large`. See Inputs -> Overview (`/inputs`) for the cross-component compact matrix."
+        );
+    }
+
+    /// <summary>
+    /// <c>OnEnter</c> commits the draft and runs a command without submitting the surrounding form; <c>OnEscape</c> cancels an active rename.
+    /// </summary>
     private static ContainerComponent CreateEnterGroup()
     {
-        return DemoUI.CreateExample("Enter runs a command",
+        return DemoUI.CreateExample("Enter & Escape commands",
             UILayout.Stack(12)
                 .AddChild(new TextInputComponent()
                     .SetTitle("Release")
                     .SetFormId(ReleaseFormId)
-                    .BindValue(nameof(TextInputLabelsGroupContext.Name), UIBindingScope.Relative)
+                    .BindValue<TextInputLabelsGroupContext>(static x => x.Name, UIBindingScope.Relative)
                 )
                 .AddChild(new ItemsViewComponent()
-                    .BindItems(nameof(TextInputLabelsGroupContext.Labels), UIBindingScope.Relative)
+                    .BindItems<TextInputLabelsGroupContext>(static x => x.Labels, UIBindingScope.Relative)
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetLayoutType(UIItemsLayoutType.Wrap)
                     .SetSpacing(4)
                     .SetRowHoverable(true)
                     .OnItemClickWithItemKey(nameof(TextInputController.RenameLabel))
-                    .SetTemplate(new TextComponent().BindBadgeText(nameof(TextItem.Title), UIBindingScope.Relative))
+                    .SetTemplate(new TextComponent().BindBadgeTitle<TextItem>(static x => x.Title, UIBindingScope.Relative))
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("Labels")
                     .SetPlaceholder("Type a label and press Enter")
                     .SetFormId(ReleaseFormId)
-                    .BindValue(nameof(TextInputLabelsGroupContext.Draft), UIBindingScope.Relative)
+                    .BindValue<TextInputLabelsGroupContext>(static x => x.Draft, UIBindingScope.Relative)
                     .OnEnter(nameof(TextInputController.AddLabel))
                     .OnEscape(nameof(TextInputController.DropRename))
-                    .BindCancelOnEscape(nameof(TextInputLabelsGroupContext.Renaming), UIBindingScope.Relative)
+                    .BindCancelOnEscape<TextInputLabelsGroupContext>(static x => x.Renaming, UIBindingScope.Relative)
                     .SetTrailingAction(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Add))
                         .SetTooltip("Add the label")
                         .OnClick(nameof(TextInputController.AddLabel))
@@ -256,124 +285,48 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     .SetTitle("Save the release")
                     .OnSubmit(ReleaseFormId, nameof(TextInputController.SaveRelease))
                 ),
-            note: "`OnEnter`: Enter commits what was typed, then runs the command; the controller adds the label and empties the field, and the caret stays for the next one. It presses no form's button: Enter in Release does, Shift+Enter in Labels too. An empty field adds nothing. Press a label to rename it: the field takes its name, Enter renames it, and Escape (`OnEscape`) puts the name back, sends nothing, runs its command and gives the field back what it held. Escape is that cancel only while a rename is under way (`BindCancelOnEscape`); otherwise it leaves the field and keeps a new label half typed.",
+            note: "`OnEnter` adds a label and keeps focus in the field without submitting the form. Click an existing badge to rename it; `BindCancelOnEscape` enables `Escape` to abort the rename without clearing new drafts.",
             context: LabelsGroup
         );
     }
 
     /// <summary>
-    /// The three sizes a field says outright — the height, the side padding and the text step together — and the small one with its
-    /// caption inside the box and the value at the far edge, one line each, as a dense panel or a node on a canvas draws its values.
+    /// Inline trigger suggestions (<c>@</c>) in a single-line field: completed tokens wear a pill, step up on hover, delete whole on
+    /// <c>Backspace</c>, and fire <c>OnTriggerClick</c> when clicked.
     /// </summary>
-    private static ContainerComponent CreateSizesGroup()
+    private static ContainerComponent CreateTriggersGroup()
     {
-        return DemoUI.CreateExample("Sizes",
-            UILayout.Stack(12)
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Small — a node, a status bar, a cell")
-                    .SetSize(UIInputSize.Small)
-                    .SetValue("billing")
-                )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Medium — a form")
-                    .SetValue("billing")
-                )
-                .AddChild(new TextInputComponent()
-                    .SetTitle("Large — the field the page is about")
-                    .SetSize(UIInputSize.Large)
-                    .SetValue("billing")
-                )
-                .AddChild(DemoUI.CreateLabelled("Small, the caption inside, underlined — a dense panel", UILayout.Stack(4)
-                    .AddChild(new TextInputComponent()
-                        .SetSize(UIInputSize.Small)
-                        .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                        .SetAppearance(UIInputAppearance.Underline)
-                        .SetTitle("Server")
-                        .SetValue("db-us-east-2")
-                    )
-                    .AddChild(new NumberInputComponent()
-                        .SetSize(UIInputSize.Small)
-                        .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                        .SetAppearance(UIInputAppearance.Underline)
-                        .SetTitle("Disk")
-                        .SetSuffixText("GB")
-                        .SetValue(240)
-                    )
-                    .AddChild(new SelectComponent()
-                        .SetSize(UIInputSize.Small)
-                        .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                        .SetAppearance(UIInputAppearance.Underline)
-                        .SetTitle("Role")
-                        .SetOptions([new OptionItem { Id = "api", Title = "api" }, new OptionItem { Id = "db", Title = "db" }])
-                        .SetValue("db")
-                    )
-                    .AddChild(new DateInputComponent()
-                        .SetSize(UIInputSize.Small)
-                        .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                        .SetAppearance(UIInputAppearance.Underline)
-                        .SetTitle("Due")
-                    )
-                    .AddChild(new TimeInputComponent()
-                        .SetSize(UIInputSize.Small)
-                        .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                        .SetAppearance(UIInputAppearance.Underline)
-                        .SetTitle("At")
-                    )
-                    .AddChild(new SearchComponent()
-                        .SetSize(UIInputSize.Small)
-                        .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                        .SetAppearance(UIInputAppearance.Underline)
-                        .SetTitle("Region")
-                        .SetPlaceholder("Search regions")
-                    )
-                    .AddChild(new ImageInputComponent()
-                        .SetVariant(UIImageInputVariant.Inline)
-                        .SetSize(UIInputSize.Small)
-                        .SetTitlePlacement(UIInputTitlePlacement.Inside)
-                        .SetAppearance(UIInputAppearance.Underline)
-                        .SetTitle("Icon")
-                        .SetPlaceholder("None chosen")
-                    )
-                    )
-                ),
-            note: "Every input that takes a `Size` takes `TitlePlacement` too. With the caption inside, a help badge is no stop of its own: the box is one control."
-        );
-    }
-
-    /// <summary>
-    /// A one-time code: text, not a number, so its leading zeros stay; the phone raises its digit keyboard and may offer the code from a
-    /// message, and a rule takes six digits.
-    /// </summary>
-    private static ContainerComponent CreateCodeGroup()
-    {
-        return DemoUI.CreateExample("A one-time code",
+        return DemoUI.CreateExample("Inline mentions (@)",
             new TextInputComponent()
-                .SetAppearance(UIInputAppearance.Tonal)
-                .SetTitle("Code from the email")
-                .SetPlaceholder("6 digits")
-                .SetAutocomplete(UIAutocomplete.OneTimeCode)
-                .SetInputMode(UIInputMode.Numeric)
-                .SetMaxLength(6)
-                .SetWidth(UILayoutLength.Absolute(220))
-                .Regex(@"^\d{6}$", "The code is six digits.", UIValidationTrigger.Blur),
-            note: "`SetInputMode(UIInputMode.Numeric)` asks a phone for its digit keyboard while the value stays text, its leading zeros kept; `SetAutocomplete(UIAutocomplete.OneTimeCode)` lets it offer the code from a message."
+                .SetAppearance(UIInputAppearance.Outline)
+                .SetTitle("Assignee note")
+                .SetPlaceholder("Type @ to mention an owner or service")
+                .SetValue("Route alerts for @db-eu-west-2 to @Sam Ortega")
+                .AddTrigger("@")
+                .SetTriggerItems(
+                    new UITextTriggerItem("grace", "Grace Kim", "Databases", DemoIcons.Outline(DemoIcons.User), insertText: "@Grace Kim ") { Trigger = "@" },
+                    new UITextTriggerItem("sam", "Sam Ortega", "On call", DemoIcons.Outline(DemoIcons.User), insertText: "@Sam Ortega ") { Trigger = "@" },
+                    new UITextTriggerItem("db-eu-west-2", "db-eu-west-2", "Primary · Amsterdam", DemoIcons.Outline(DemoIcons.Server), insertText: "@db-eu-west-2 ") { Trigger = "@" }
+                )
+                .OnTriggerClick(nameof(TextInputController.ClickTriggerToken)),
+            note: "`AddTrigger(\"@\")`, `SetTriggerItems(...)` and `OnTriggerClick(...)`: completed `@` tokens wear an inline pill, delete as a single unit on `Backspace`/`Delete`, and fire `OnTriggerClick` when clicked.",
+            context: TriggersGroup
         );
     }
 
     /// <summary>
-    /// The one place a field is asked to stop looking like one: a name edited where it is read.
+    /// <c>UIInputAppearance.Ghost</c>: borderless inline text that reveals field chrome only on hover and focus.
     /// </summary>
-    /// <remarks>Ghost, not a label with a pencil beside it — the box appears under the pointer, so nothing has to be found first.</remarks>
     private static ContainerComponent CreateGhostGroup()
     {
-        return DemoUI.CreateExample("Edited where it is read",
+        return DemoUI.CreateExample("Ghost inline editing",
             new SurfaceComponent()
                 .SetContent(UILayout.Columns(24,
-                        DemoUI.CreateLabelled("The release's name", new TextInputComponent()
+                        DemoUI.CreateLabelled("Release title", new TextInputComponent()
                             .SetAppearance(UIInputAppearance.Ghost)
                             .SetValue("Release 2.4")
                         ),
-                        DemoUI.CreateLabelled("A line the reviewer reads", UILayout.Stack(8,
+                        DemoUI.CreateLabelled("Reviewer notes", UILayout.Stack(8,
                                 new TextInputComponent()
                                     .SetAppearance(UIInputAppearance.Ghost)
                                     .SetValue("Rolling, five per cent a minute")
@@ -386,7 +339,7 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
                     )
                 ),
             columns: 24,
-            note: "The box appears under the pointer and on focus; empty, the placeholder is the only thing that says the line can be typed into."
+            note: "`Ghost` hides border and fill at rest, revealing field chrome on hover and focus for edit-in-place titles."
         );
     }
 }

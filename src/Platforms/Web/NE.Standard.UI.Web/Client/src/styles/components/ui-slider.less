@@ -15,6 +15,7 @@
 .ui-slider__row {
     display: flex;
     align-items: center;
+    min-height: @ui-control-height;
     gap: @ui-space-2;
 }
 
@@ -276,6 +277,10 @@
     --ui-slider-thumb: 0.875rem;
 }
 
+    .ui-slider.ui-input--small:not(.ui-orientation--vertical) > .ui-slider__row {
+        min-height: @ui-control-height-sm;
+    }
+
     .ui-slider.ui-input--small .ui-slider__input {
         height: 1rem;
     }
@@ -302,6 +307,10 @@
 .ui-slider.ui-input--large {
     --ui-slider-thumb: 1.375rem;
 }
+
+    .ui-slider.ui-input--large:not(.ui-orientation--vertical) > .ui-slider__row {
+        min-height: @ui-control-height-lg;
+    }
 
     .ui-slider.ui-input--large .ui-slider__input {
         height: 1.5rem;

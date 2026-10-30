@@ -5,24 +5,18 @@
 // their owned popup's (`OwnedPopupsOptions.sheetOnPhone`); the look is ui-sheet.less's.
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
-import { isSheet, liftIntoTopLayer, lowerIntoPlace, SheetAttribute } from "./anchored-popup.ts";
+import { SheetAttribute, SheetBackClass, SheetBackMarkClass, SheetCoveredAttribute, SheetScrimClass, SheetScrimLeavingAttribute } from "../addressing/dom-attributes.ts";
+import { isSheet, liftIntoTopLayer, lowerIntoPlace } from "./anchored-popup.ts";
 import { focusAsLastInput, trapTab } from "./popup-focus.ts";
 import { entryWords } from "./search-terms.ts";
 import { followSwipeDown } from "./sheet-swipe.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import type { ClientStringKey } from "../runtime/client-strings.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import type { ClientStringKey } from "../rendering/client-strings.ts";
 import { applyIconValue } from "../rendering/icon-value.ts";
 import { finishTransitions } from "../rendering/motion.ts";
 
-/** On a sheet a nested list stands over, which steps aside as the nested one slides in. */
-const SheetCoveredAttribute = "data-ui-sheet-covered";
-
-const ScrimClass = "ui-sheet-scrim";
-// On the veil once its sheets have gone under a press still going on: unseen, it takes the rest of that press.
-const ScrimLeavingAttribute = "data-ui-sheet-scrim-leaving";
 // How long a press's click may trail its release before the veil stops waiting for it.
 const ClickWait = 400;
-const BackClass = "ui-sheet__back";
 const BackKey: ClientStringKey = "ui.sheet.back";
 /** `UIGlyphs.ArrowBack`, the standard Back's glyph. */
 const BackGlyph = "ne-arrow-back";
@@ -77,7 +71,7 @@ export function presentSheet(popup: HTMLElement, opening: SheetOpening): void {
     }
 
     // The last opening's row, still sliding out as this one came.
-    popup.querySelector(`:scope > .${BackClass}`)?.remove();
+    popup.querySelector(`:scope > .${SheetBackClass}`)?.remove();
 
     if (parent !== null) {
         // As tall as the sheet it covers, taller only where its own entries need it.
@@ -114,7 +108,7 @@ function createBackRow(opening: SheetOpening): HTMLElement {
     const words = opening.anchor === undefined ? "" : entryWords(opening.anchor).trim();
 
     row.type = "button";
-    row.className = BackClass;
+    row.className = SheetBackClass;
     row.tabIndex = -1;
     row.textContent = words;
     row.prepend(backMark());
@@ -132,7 +126,7 @@ function createBackRow(opening: SheetOpening): HTMLElement {
 function backMark(): HTMLElement {
     const mark = document.createElement("span");
 
-    mark.className = "ui-sheet__back-mark";
+    mark.className = SheetBackMarkClass;
     mark.setAttribute("aria-hidden", "true");
     applyIconValue(mark, BackGlyph);
 
@@ -143,7 +137,7 @@ function backMark(): HTMLElement {
 function showScrim(): void {
     if (scrim === null) {
         scrim = document.createElement("div");
-        scrim.className = ScrimClass;
+        scrim.className = SheetScrimClass;
         scrim.setAttribute("aria-hidden", "true");
         // A press on the veil moves no focus: the sheet keeps it, or gives it back to its opener as the press closes it.
         scrim.addEventListener("mousedown", domEvent => domEvent.preventDefault());
@@ -152,7 +146,7 @@ function showScrim(): void {
     if (scrim.parentElement === null)
         document.body.appendChild(scrim);
 
-    scrim.removeAttribute(ScrimLeavingAttribute);
+    scrim.removeAttribute(SheetScrimLeavingAttribute);
     // Lifted as a popup is, so the popover's own box comes off it the same way; shown again, it stands under the sheet that follows.
     liftIntoTopLayer(scrim);
 }
@@ -189,12 +183,12 @@ function listen(): void {
 function endPress(): void {
     pressing = false;
 
-    if (scrim?.hasAttribute(ScrimLeavingAttribute) !== true)
+    if (scrim?.hasAttribute(SheetScrimLeavingAttribute) !== true)
         return;
 
     const leave = (): void => {
-        if (scrim?.hasAttribute(ScrimLeavingAttribute) === true && sheets.length === 0) {
-            scrim.removeAttribute(ScrimLeavingAttribute);
+        if (scrim?.hasAttribute(SheetScrimLeavingAttribute) === true && sheets.length === 0) {
+            scrim.removeAttribute(SheetScrimLeavingAttribute);
             scrim.hidePopover();
         }
     };
@@ -305,7 +299,7 @@ export function unmarkSheet(popup: HTMLElement): void {
     popup.removeAttribute(SheetCoveredAttribute);
     popup.style.removeProperty("min-height");
     popup.style.removeProperty("--ui-sheet-drag");
-    popup.querySelector(`:scope > .${BackClass}`)?.remove();
+    popup.querySelector(`:scope > .${SheetBackClass}`)?.remove();
 }
 
 /**
@@ -317,7 +311,7 @@ function hideScrim(): void {
         return;
 
     if (pressing)
-        scrim.setAttribute(ScrimLeavingAttribute, "");
+        scrim.setAttribute(SheetScrimLeavingAttribute, "");
     else
         scrim.hidePopover();
 }

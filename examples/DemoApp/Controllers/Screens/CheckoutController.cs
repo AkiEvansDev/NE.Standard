@@ -25,6 +25,10 @@ internal sealed partial class CheckoutController : UIControllerBase
     public const string BilledDirectly = "direct";
     public const string BilledThroughReseller = "reseller";
 
+    public const string PlanStep = "plan";
+    public const string AddressStep = "address";
+    public const string ConfirmStep = "confirm";
+
     private const decimal VatRate = 0.21m;
     private const string PromoCode = "ORVANE10";
 
@@ -34,6 +38,17 @@ internal sealed partial class CheckoutController : UIControllerBase
     {
         Recalculate();
     }
+
+    [RecursiveMember]
+    public partial string? Step { get; set; } = PlanStep;
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<TextItem> Steps { get; } =
+    [
+        new() { Id = PlanStep, Title = "Plan", Description = "Servers and region" },
+        new() { Id = AddressStep, Title = "Address", Description = "Who pays and where" },
+        new() { Id = ConfirmStep, Title = "Confirm", Description = "Contact and invoice note" }
+    ];
 
     [RecursiveMember]
     public partial string? Plan { get; set; } = ProPlan;
@@ -91,7 +106,7 @@ internal sealed partial class CheckoutController : UIControllerBase
     [RecursiveMember]
     public partial UIValidationMessage? PromoNotice { get; set; }
 
-    /// <summary>What the server made of the code: one line, shown in the message of the verdict's severity.</summary>
+    /// <summary>What the server made of the code: one line, shown in the message of the verdict's tone.</summary>
     [RecursiveMember]
     public partial string PromoVerdict { get; set; } = string.Empty;
 
@@ -141,6 +156,28 @@ internal sealed partial class CheckoutController : UIControllerBase
     [UICommand]
     public void UpdateSummary()
         => Recalculate();
+
+    [UICommand]
+    public void NextStep()
+    {
+        Step = Step switch
+        {
+            PlanStep => AddressStep,
+            AddressStep => ConfirmStep,
+            _ => ConfirmStep
+        };
+    }
+
+    [UICommand]
+    public void PreviousStep()
+    {
+        Step = Step switch
+        {
+            ConfirmStep => AddressStep,
+            AddressStep => PlanStep,
+            _ => PlanStep
+        };
+    }
 
     /// <summary>
     /// The one code the panel knows takes a tenth off, said in a success message; any other is refused in a danger one. An empty

@@ -276,3 +276,14 @@ test("a command back on the bar opens its popup at itself, with no mark, as does
     releaseAnchoredPopup(real(submenu));
     releaseAnchoredPopup(real(flyout.content));
 });
+
+test("the \"…\" list is called what the \"…\" says", () => {
+    const scene = bar();
+
+    scene.more.setAttribute("aria-label", "More commands");
+
+    const { menu } = openList(scene, "press");
+
+    assert.notEqual(scene.more.id, "");
+    assert.equal(menu.getAttribute("aria-labelledby"), scene.more.id);
+});

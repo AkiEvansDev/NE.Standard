@@ -1,19 +1,19 @@
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
-/// The button a switcher is drawn as, the theme's or the language's: its glyph's size, its type, size and padding, its tooltip and
+/// The button a switcher is drawn as, the theme's or the language's: its glyph's size, its look, size and padding, its tooltip and
 /// its ground. The switcher's own glyphs come first, then <see cref="AddButtonOptions"/>.
 /// </summary>
 internal abstract partial class SwitcherButtonGroupContext : TooltipGroupContext
 {
     [RecursiveMember]
-    public partial UIIconSize? IconSize { get; set; }
+    public partial UISize? IconSize { get; set; }
 
     [RecursiveMember]
-    public partial UIButtonType? Type { get; set; }
+    public partial UIButtonVariant? ButtonVariant { get; set; }
 
     [RecursiveMember]
-    public partial UIButtonSize? Size { get; set; }
+    public partial UISize? Size { get; set; }
 
     [RecursiveMember]
     public partial UIResponsive<UIThickness>? Padding { get; set; }
@@ -25,7 +25,7 @@ internal abstract partial class SwitcherButtonGroupContext : TooltipGroupContext
     protected void AddButtonOptions(string sampleTooltip)
     {
         AddOption(nameof(IconSize), CycleIconSize, () => IconSize);
-        AddOption(nameof(Type), CycleType, () => Type);
+        AddOption(nameof(ButtonVariant), CycleButtonVariant, () => ButtonVariant);
         AddOption(nameof(Size), CycleSize, () => Size);
         AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddTooltipOptions(sampleTooltip);
@@ -35,8 +35,8 @@ internal abstract partial class SwitcherButtonGroupContext : TooltipGroupContext
     public void CycleIconSize()
         => SetLastChange(nameof(IconSize), IconSize = CycleEnum(IconSize));
 
-    public void CycleType()
-        => SetLastChange(nameof(Type), Type = CycleEnum(Type));
+    public void CycleButtonVariant()
+        => SetLastChange(nameof(ButtonVariant), ButtonVariant = CycleEnum(ButtonVariant));
 
     // The box, where IconSize is the glyph inside it — the two rows read together.
     public void CycleSize()
@@ -89,13 +89,13 @@ internal sealed partial class ThemeSwitcherGroupContext : SwitcherButtonGroupCon
 internal sealed partial class SwitcherFieldGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial UIInputAppearance? Appearance { get; set; }
+    public partial UIInputAppearance? FieldVariant { get; set; }
 
     public SwitcherFieldGroupContext()
     {
-        AddOption(nameof(Appearance), CycleAppearance, () => Appearance);
+        AddOption(nameof(FieldVariant), CycleFieldVariant, () => FieldVariant);
     }
 
-    public void CycleAppearance()
-        => SetLastChange(nameof(Appearance), Appearance = CycleEnum(Appearance));
+    public void CycleFieldVariant()
+        => SetLastChange(nameof(FieldVariant), FieldVariant = CycleEnum(FieldVariant));
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -134,7 +135,7 @@ internal static partial class WebFileEndpoints
                 if (files.Count == limits.MaxFilesPerSelection)
                     return Results.BadRequest($"A selection carries at most {limits.MaxFilesPerSelection} files.");
 
-                var fileName = HeaderUtilities.RemoveQuotes(disposition.FileName).Value;
+                var fileName = ReduceFileName(HeaderUtilities.RemoveQuotes(disposition.FileName).Value);
 
                 if (string.IsNullOrWhiteSpace(fileName))
                     continue;
@@ -219,6 +220,30 @@ internal static partial class WebFileEndpoints
     // Saturated rather than multiplied blind: a limit set as high as it goes must not wrap to a negative body size.
     private static long SelectionBytes(UIFileOptions limits)
         => limits.MaxFileSize > long.MaxValue / limits.MaxFilesPerSelection ? long.MaxValue - MultipartOverheadBytes : limits.MaxFileSize * limits.MaxFilesPerSelection;
+
+    /// <summary>The longest file name kept, in characters: what common file systems take for one name.</summary>
+    private const int MaxFileNameLength = 255;
+
+    /// <summary>
+    /// The name a client gave a file, cut to a name alone: its last segment after a <c>/</c> or a <c>\</c>, no control characters, at
+    /// most <see cref="MaxFileNameLength"/> characters; null where nothing is left.
+    /// </summary>
+    /// <remarks>Still the client's text: an application shows it, and never builds a path from it.</remarks>
+    internal static string? ReduceFileName(string? fileName)
+    {
+        if (string.IsNullOrEmpty(fileName))
+            return null;
+
+        var name = fileName[(fileName.AsSpan().LastIndexOfAny('/', '\\') + 1)..];
+
+        if (name.AsSpan().ContainsAnyInRange('\0', '\u001f') || name.AsSpan().ContainsAnyInRange('\u007f', '\u009f'))
+            name = string.Concat(name.Where(static character => !char.IsControl(character)));
+
+        if (name.Length > MaxFileNameLength)
+            name = name[..(char.IsHighSurrogate(name[MaxFileNameLength - 1]) ? MaxFileNameLength - 1 : MaxFileNameLength)];
+
+        return string.IsNullOrWhiteSpace(name) || name is "." or ".." ? null : name;
+    }
 
     /// <summary>A selection as the upload answers it and the read-back repeats it: its id and each file's id, name, type and size.</summary>
     private static object DescribeSelection(string selectionId, IReadOnlyList<UIUploadFile> files)

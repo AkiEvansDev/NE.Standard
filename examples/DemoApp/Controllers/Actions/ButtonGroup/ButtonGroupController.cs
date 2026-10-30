@@ -17,7 +17,7 @@ internal sealed partial class SegmentGroupContext : DemoGroupContext
     public partial string? SelectedKey { get; set; } = ListKey;
 
     [RecursiveMember]
-    public partial UIButtonSize? Size { get; set; }
+    public partial UISize? Size { get; set; }
 
     [RecursiveMember]
     public partial UISelectionStyle? SelectionStyle { get; set; }

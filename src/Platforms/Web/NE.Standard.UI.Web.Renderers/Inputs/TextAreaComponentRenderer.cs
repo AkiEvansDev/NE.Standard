@@ -5,6 +5,7 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -19,7 +20,7 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
     // Through converters, so a pushed count of zero or less writes nothing, as the first paint does.
     private static readonly WebDomOperation[] RowsOperations = [WebDomOperation.Attribute("rows", converter: WebDomConverters.PositiveCount), WebDomOperation.Style(RowsVariable, converter: WebDomConverters.PositiveCount)];
     // A growing area's root is marked too: its text sizes its height alone, so the root fills its room rather than shrinking to it.
-    private const string GrowClassName = "ui-text-area--grow";
+    private const string GrowClassName = WebClassNames.TextAreaGrow;
 
     private static readonly WebDomOperation[] MaxRowsOperations =
     [
@@ -44,6 +45,7 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
         RenderInputAppearance(context, root);
         RenderInputHeader(context, root);
+        NativeInputRendererBase.RenderTriggers(context, root);
 
         // The author's buttons stand beside the text in one box, outside the text's own scroll; a bare area stays the box itself.
         if (FieldActionsRenderer.HasAny(context))
@@ -80,7 +82,7 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
             if (boxed)
             {
-                _ = textarea.Class("ui-field");
+                _ = textarea.Class(WebClassNames.Field);
             }
             else
             {

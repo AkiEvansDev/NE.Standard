@@ -136,7 +136,7 @@ internal sealed partial class InboxController : UIControllerBase
             _open = message;
             SelectedKey = id;
             message.Unread = false;
-            message.BadgeStyle = UIBadgeType.Surface;
+            message.BadgeVariant = UIBadgeVariant.Surface;
             Subject = message.Description?.ToString() ?? string.Empty;
             FromLine = $"{message.Title} · {message.Group?.ToLowerInvariant()}, {message.Time}";
             Body = message.Body;
@@ -195,7 +195,7 @@ internal sealed partial class InboxController : UIControllerBase
             return UICommandResult.Ok();
 
         _open.Unread = true;
-        _open.BadgeStyle = UIBadgeType.Primary;
+        _open.BadgeVariant = UIBadgeVariant.Primary;
         Close();
 
         return UICommandResult.Ok([new ReplaceAddressEffect(null)]);
@@ -220,8 +220,8 @@ internal sealed partial class InboxController : UIControllerBase
         Panes.ShowNothing();
     }
 
-    private static UICommandResult Notify(string message, UIColorStyle severity)
-        => UICommandResult.Ok([new ShowNotificationEffect(message, severity)]);
+    private static UICommandResult Notify(string message, UIColorStyle tone)
+        => UICommandResult.Ok([new ShowNotificationEffect(message, tone)]);
 
     private static DemoMessageItem Message(string id, string day, string time, string sender, string subject, string label, bool unread, string body, string? quote, string[] attachments)
         => new()
@@ -235,8 +235,8 @@ internal sealed partial class InboxController : UIControllerBase
             Unread = unread,
             SearchText = $"{sender} {subject}",
             Icon = DemoIcons.Outline(LabelIcon(label)),
-            BadgeText = time,
-            BadgeStyle = unread ? UIBadgeType.Primary : UIBadgeType.Surface,
+            BadgeTitle = time,
+            BadgeVariant = unread ? UIBadgeVariant.Primary : UIBadgeVariant.Surface,
             Body = body,
             Quote = quote,
             Attachments = attachments

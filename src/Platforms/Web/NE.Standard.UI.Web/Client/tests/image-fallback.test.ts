@@ -109,7 +109,7 @@ test("a failed picture with no stand-in shows the framework's: a picture's glyph
 
 test("a picture of any shape shows its author's fallback glyph", () => {
     for (const circle of [true, false]) {
-        const { box, image } = picture({ src: "/missing.jpg" }, circle, { "data-ui-fallback-icon": "ms-face" });
+        const { box, image } = picture({ src: "/missing.jpg" }, circle, { "data-ui-icon-fallback": "ms-face" });
 
         fail(image);
 

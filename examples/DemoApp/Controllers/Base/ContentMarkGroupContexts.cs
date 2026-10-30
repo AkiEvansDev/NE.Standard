@@ -15,7 +15,7 @@ internal sealed partial class IconGroupContext : TooltipGroupContext
     public partial UIThemeColor? Color { get; set; }
 
     [RecursiveMember]
-    public partial UIIconSize? Size { get; set; }
+    public partial UISize? Size { get; set; }
 
     public IconGroupContext()
     {
@@ -57,7 +57,7 @@ internal sealed partial class ImageGroupContext : TooltipGroupContext
     public partial UICornerRadius? BorderRadius { get; set; }
 
     [RecursiveMember]
-    public partial UIImageShape? Shape { get; set; }
+    public partial UIShape? Shape { get; set; }
 
     [RecursiveMember]
     public partial string? AltText { get; set; } = SampleAltText;

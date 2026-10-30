@@ -5,11 +5,15 @@ export default defineConfig({
     build: {
         emptyOutDir: true,
         outDir: "dist",
-        lib: {
-            entry: resolve(__dirname, "src/ui.ts"),
-            formats: ["es"],
-            fileName: () => "ui.js",
-            cssFileName: "ui"
+        modulePreload: false,
+        cssCodeSplit: false,
+        chunkSizeWarningLimit: 1024,
+        rolldownOptions: {
+            input: resolve(import.meta.dirname, "src/ui.ts"),
+            output: {
+                entryFileNames: "ui.js",
+                assetFileNames: "ui[extname]"
+            }
         }
     }
 });

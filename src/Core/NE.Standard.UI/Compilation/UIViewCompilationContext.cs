@@ -58,6 +58,8 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
     private readonly Dictionary<string, IVisualComponent> _components = new(StringComparer.Ordinal);
     private readonly List<IVisualComponent> _componentOrder = [];
     private readonly Dictionary<string, string?> _parentByComponentId = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _defaultsParentByComponentId = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _dialogOwnerByContentId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<UIComponentSlot>> _slotsByOwnerComponentId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UIComponentSlot> _slotByRootComponentId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, UIComponentTypeState> _typeStates = new(StringComparer.Ordinal);
@@ -113,7 +115,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         ArgumentException.ThrowIfNullOrWhiteSpace(dialog.Key);
         ArgumentNullException.ThrowIfNull(dialog.Content);
 
-        AddComponent(dialog.Content, null);
+        AddComponent(dialog.Content, null, _dialogOwnerByContentId.GetValueOrDefault(dialog.Content.Id));
 
         _dialogs.Add(new CompiledDialog
         {
@@ -133,7 +135,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
             Modal = dialog.Modal,
             CloseOnBackdrop = dialog.CloseOnBackdrop,
             CloseOnEscape = dialog.CloseOnEscape,
-            Label = dialog.Label,
+            AccessibleName = dialog.AccessibleName,
             TitleComponentId = dialog.TitleId is null ? null : ResolveDialogTitle(dialog, dialog.TitleId)
         });
     }

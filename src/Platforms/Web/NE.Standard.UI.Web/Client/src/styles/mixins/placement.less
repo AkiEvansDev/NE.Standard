@@ -24,3 +24,17 @@
 .ui-placement-span-basis(@span, @gap) {
     flex-basis: calc((100% - 23 * var(@gap, 0px)) / 24 * var(@span) + (var(@span) - 1) * var(@gap, 0px));
 }
+
+// ItemMinWidth (EvenColumnsRenderer): even columns, as many to a line as fit at the narrowest width, each line's room shared out
+// equally, a wrapped one under the one above. A grid, since a flex line sizes each child to its own content and the next line
+// staggers under it; a column never wider than the flow. A group's caption takes a line of its own. On the element that lays the
+// children out; the root that wears `ui-even-columns` resets the width so a nested flow does not inherit it.
+.ui-even-columns() {
+    display: grid;
+    .ui-responsive-property(--ui-item-min, --ui-item-min-width, 0px);
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--ui-item-min), 100%), 1fr));
+
+    > [data-ui-group-header] {
+        grid-column: 1 / -1;
+    }
+}

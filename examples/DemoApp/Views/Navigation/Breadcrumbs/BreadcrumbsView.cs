@@ -31,8 +31,8 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
     private static BreadcrumbsComponent Bind(BreadcrumbsComponent trail)
         => trail
             .BindStandard()
-            .BindSpacing($"{TrailGroup}.{nameof(BreadcrumbsGroupContext.Spacing)}")
-            .BindItems($"{TrailGroup}.{nameof(BreadcrumbsGroupContext.Steps)}")
+            .BindSpacing<BreadcrumbsController>(static x => x.TrailGroup.Spacing)
+            .BindItems<BreadcrumbsController>(static x => x.TrailGroup.Steps)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
@@ -51,23 +51,23 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A folder browser",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .SetContent(UILayout.Stack(8)
                     .AddChild(new BreadcrumbsComponent()
-                        .BindItems(nameof(FolderBrowserContext.Path), UIBindingScope.Relative)
+                        .BindItems<FolderBrowserContext>(static x => x.Path, UIBindingScope.Relative)
                         .OnItemClickWithItemKey(nameof(BreadcrumbsController.Open))
                     )
                     .AddChild(new SeparatorComponent())
                     // Wrapped, one full-width row per entry, not stacked: a stack's rows carry an inset for a wash the action wears itself.
                     .AddChild(new ItemsViewComponent()
-                        .BindItems(nameof(FolderBrowserContext.Entries), UIBindingScope.Relative)
+                        .BindItems<FolderBrowserContext>(static x => x.Entries, UIBindingScope.Relative)
                         .SetLayoutType(UIItemsLayoutType.Wrap)
                         .SetSpacing(0)
                         .SetTemplate(new ActionComponent()
-                            .SetSize(UIButtonSize.Small)
-                            .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
-                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .SetSize(UISize.Small)
+                            .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
+                            .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                             .OnClick(nameof(BreadcrumbsController.Open), UIAction.ArgCurrentItemKey("id"))
                             .SetPlacement(1, 1, 24, 1)
                         )
@@ -84,7 +84,7 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A page header",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetWidth(UILayoutLength.Absolute(300))
                 .SetContent(UILayout.Stack(12)
                     .AddChild(new BreadcrumbsComponent().SetItems(
@@ -111,9 +111,9 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstLinksGroup()
     {
-        return DemoUI.CreateExample("Against a row of links",
+        return DemoUI.CreateExample("Breadcrumbs vs standalone links",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetWidth(UILayoutLength.Absolute(340))
                 .SetContent(UILayout.Stack(12)
                     .AddChild(UIText.Label("Three links — three places"))
@@ -157,16 +157,16 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRecordGroup()
     {
-        return DemoUI.CreateExample("A record and what owns it",
+        return DemoUI.CreateExample("Entity hierarchy trail",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .SetContent(UILayout.Stack(12)
                     .AddChild(new BreadcrumbsComponent().SetItems(
                     [
                         new BreadcrumbItem { Id = "customers", Title = "Customers", Icon = DemoIcons.Outline(DemoIcons.Groups), Url = "https://orvane.example/customers" },
                         new BreadcrumbItem { Id = "copperline", Title = "Copperline Retail", Url = "https://orvane.example/customers/copperline" },
-                        new BreadcrumbItem { Id = "invoice", Title = "Invoice #4812", BadgeText = "Overdue", BadgeStyle = UIBadgeType.Danger }
+                        new BreadcrumbItem { Id = "invoice", Title = "Invoice #4812", BadgeTitle = "Overdue", BadgeVariant = UIBadgeVariant.Danger }
                         ])
                     )
                     .AddChild(new TextComponent()

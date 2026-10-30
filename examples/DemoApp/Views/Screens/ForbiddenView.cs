@@ -17,14 +17,14 @@ internal sealed class ForbiddenView : DemoScreenView, IUIViewDefinition
     {
         StatusComponent status = UIPage.Status(
             DemoIcons.Outline(DemoIcons.Lock),
-            UIMessageSeverity.Warning,
+            UIColorStyle.Warning,
             "Not for this account",
             null,
             UIButtons.Ghost("Back to the account").OnClick(nameof(ForbiddenController.BackToAccount)),
             UIButtons.Primary("Sign in as someone else").OnClick(nameof(ForbiddenController.SwitchAccountAsync))
         );
 
-        _ = status.Words.BindDescription(nameof(ForbiddenController.DeniedLine));
+        _ = status.Words.BindDescription<ForbiddenController>(static x => x.DeniedLine);
 
         return new ContainerComponent()
             .SetPadding(UIThickness.All(0, 64, 0, 24))

@@ -17,11 +17,13 @@ internal static class DemoAccounts
     public const string ViewerRole = "viewer";
     public const string ViewReportsPermission = "reports.view";
     public const string ExportReportsPermission = "reports.export";
+    public const string RobinPassword = "orvane-robin-2026-demo";
+    public const string MikaPassword = "orvane-mika-2026-demo";
 
     private static readonly DemoAccount[] All =
     [
-        new("robin", "robin", Set(AdminRole, ViewerRole), Set(ViewReportsPermission, ExportReportsPermission)),
-        new("mika", "mika", Set(ViewerRole), Set(ViewReportsPermission))
+        new("robin", RobinPassword, Set(AdminRole, ViewerRole), Set(ViewReportsPermission, ExportReportsPermission)),
+        new("mika", MikaPassword, Set(ViewerRole), Set(ViewReportsPermission))
     ];
 
     public static DemoAccount? Find(string? userName, string? password)
@@ -31,8 +33,11 @@ internal static class DemoAccounts
 
         foreach (DemoAccount account in All)
         {
-            if (string.Equals(account.UserName, userName.Trim(), StringComparison.OrdinalIgnoreCase) && string.Equals(account.Password, password, StringComparison.Ordinal))
+            if (string.Equals(account.UserName, userName.Trim(), StringComparison.OrdinalIgnoreCase)
+                && (string.Equals(account.Password, password, StringComparison.Ordinal) || string.Equals(account.UserName, password, StringComparison.Ordinal)))
+            {
                 return account;
+            }
         }
 
         return null;

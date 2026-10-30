@@ -8,7 +8,7 @@
 // win ties.
 
 // Every loading ring on the page, by its wearer: the one thing both answers below keep.
-@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, .ui-progress--circular:not([aria-valuenow]) .ui-progress__ring, @{ui-loading-ringed}::before, @{ui-pending-ringed}::before, @{ui-pending-veiled}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-tab-item[data-ui-pending] > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-button[data-ui-pending][data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, .ui-search__field[data-ui-search-waiting] > .ui-search__glyph::before, .ui-file-tile.ui-loading > .ui-file-tile__glyph::after, @{ui-window-indicator}";
+@ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, .ui-progress--circular:not([aria-valuenow]) .ui-progress__ring, @{ui-loading-ringed}::before, @{ui-pending-ringed}::before, @{ui-pending-veiled}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-tab-item[data-ui-pending] > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-button[data-ui-pending][data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, [data-ui-triggers][data-ui-search-waiting][data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, [data-ui-triggers][data-ui-search-waiting]:not([data-ui-input-prefix-icon]) > .ui-select__popup::after, .ui-search__field[data-ui-search-waiting] > .ui-search__glyph::before, .ui-file-tile.ui-loading > .ui-file-tile__glyph::after, @{ui-window-indicator}";
 
 // The rows an action bar stands over, as each host's `.ui-row-bar()` call names them.
 @ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-bar], .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-bar], .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-bar]";
@@ -71,10 +71,17 @@
         --ui-focus-ring-width: 2px;
     }
 
-    // A field told to draw no focus edge (`ShowFocusEdge = false`) still shows its focus here, in the selection colour.
-    .ui-input--no-focus-edge:not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus} {
+    // A field's focus is an edge's colour and an inset shadow, both dropped, or no edge at all (`ShowFocusEdge = false`): every focused
+    // field shows it here in the selection colour.
+    :not(.ui-disabled) > :is(@{ui-input-field-state})@{ui-field-focus} {
         outline: 2px solid Highlight;
         outline-offset: -2px;
+    }
+
+    // A toggle's input is visually hidden, and its ring with it: the row the keyboard stands on is framed instead.
+    :is(.ui-checkbox, .ui-switch, .ui-radio-group__item, .ui-multi-select__check)@{ui-keyboard-within} {
+        outline: 2px solid Highlight;
+        outline-offset: 2px;
     }
 
     // A chosen row, option, entry or segment: an outline in the selection colour stands for the wash and the edge mark.
@@ -89,6 +96,7 @@
     .ui-pager__size-choice[aria-checked="true"],
     .ui-pager__button[aria-current="page"],
     .ui-button-group__item[data-ui-selected] > .ui-button,
+    .ui-color-input__tab[data-ui-color-tab-selected],
     .ui-button[data-ui-value-kind="pressed"][aria-pressed="true"] {
         outline: 2px solid Highlight;
         outline-offset: -2px;
@@ -96,11 +104,14 @@
 
     // The keyboard's row, the row an action bar stands over and a list's current option: dashed, to tell it from a chosen one, in the
     // selection colour when it is one.
-    .ui-items-view:not(.ui-items-view--wrap)@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus],
-    .ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id],
-    .ui-table:not([role="grid"])@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus],
+    .ui-items-view:not(.ui-items-view--wrap, [role="list"])@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus],
+    .ui-items-view[role="list"]:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus]@{ui-row-cursor-focus},
+    .ui-items-view--wrap:not([role="list"])@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id],
+    .ui-items-view--wrap[role="list"] > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id]@{ui-row-cursor-focus},
+    .ui-table[role="table"] > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]@{ui-row-cursor-focus},
     .ui-table[role="grid"]@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus] > [data-ui-cell-focus],
     .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus],
+    .ui-key-value-action > [data-ui-items-host] > .ui-key-value-action__row[data-ui-row-focus]@{ui-row-cursor-focus},
     @{ui-bar-rows},
     .ui-select__option@{ui-list-current},
     .ui-multi-select__chip@{ui-keyboard-within} {
@@ -108,11 +119,14 @@
         outline-offset: -2px;
     }
 
-        .ui-items-view:not(.ui-items-view--wrap)@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected],
-        .ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected] > [data-ui-id],
-        .ui-table:not([role="grid"])@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected],
+        .ui-items-view:not(.ui-items-view--wrap, [role="list"])@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected],
+        .ui-items-view[role="list"]:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus]@{ui-row-cursor-focus}[data-ui-selected],
+        .ui-items-view--wrap:not([role="list"])@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected] > [data-ui-id],
+        .ui-items-view--wrap[role="list"] > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus][data-ui-selected] > [data-ui-id]@{ui-row-cursor-focus},
+        .ui-table[role="table"] > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]@{ui-row-cursor-focus}[data-ui-selected],
         .ui-table[role="grid"]@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected] > [data-ui-cell-focus],
         .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus][data-ui-selected],
+        .ui-key-value-action > [data-ui-items-host] > .ui-key-value-action__row[data-ui-row-focus]@{ui-row-cursor-focus}[data-ui-selected],
         :is(@{ui-bar-rows})[data-ui-selected],
         .ui-select__option@{ui-list-current}[aria-selected="true"] {
             outline-color: Highlight;
@@ -139,7 +153,9 @@
     .ui-temporal-input__day@{ui-keyboard-focus}:not(.ui-temporal-input__day--selected),
     .ui-temporal-input__month@{ui-keyboard-focus}:not(.ui-temporal-input__month--selected),
     .ui-temporal-input__time-cell@{ui-keyboard-focus}:not(.ui-temporal-input__time-cell--selected),
-    .ui-temporal-input__nav@{ui-keyboard-focus} {
+    .ui-temporal-input__nav@{ui-keyboard-focus},
+    .ui-steps__item@{ui-keyboard-focus},
+    .ui-color-input__tab@{ui-keyboard-focus}:not([data-ui-color-tab-selected]) {
         outline: 2px dashed Highlight;
         outline-offset: -2px;
     }
@@ -195,13 +211,32 @@
             bottom: 0;
         }
 
-    // The current tab's line is a pseudo-element's ground, the colour popup's chosen pane's too.
+    // The current tab's line is a pseudo-element's ground.
     .ui-tab-caption--selected::after,
-    .ui-tab-item--selected .ui-tab-item__caption::after,
-    .ui-color-input__tab[data-ui-color-tab-selected]::after {
+    .ui-tab-item--selected .ui-tab-item__caption::after {
         forced-color-adjust: none;
         background: Highlight;
     }
+
+    // A step's connector line is a pseudo-element's ground, and the current step's circle is filled: both vanish when forced to Canvas.
+    .ui-steps__item[data-ui-selected]::before {
+        @ui-forced-selected-cell();
+        border-color: Highlight;
+    }
+
+    .ui-steps__item[data-ui-step-completed]::before {
+        border-color: Highlight;
+        color: Highlight;
+    }
+
+    .ui-steps__item::after {
+        forced-color-adjust: none;
+        background: CanvasText;
+    }
+
+        .ui-steps__item[data-ui-step-completed]::after {
+            background: Highlight;
+        }
 
     // The calendar's chosen day or month filled; a period's days tinted, and today ringed.
     @ui-forced-selected-cell: {
@@ -284,7 +319,7 @@
     }
 
     // The colour parts keep their colours, the theme's ring colour too, so their keyboard ring takes the system's.
-    :is(.ui-color-input__swatch--button, .ui-color-input__chip, .ui-color-input__slider-input)@{ui-keyboard-focus} {
+    :is(.ui-color-input__swatch, .ui-color-input__chip, .ui-color-input__slider-input)@{ui-keyboard-focus} {
         outline-color: CanvasText;
     }
 
@@ -373,17 +408,6 @@
         .ui-forced-range-thumb();
     }
 
-        @media @{ui-can-hover} {
-            .ui-slider__input@{ui-range-live}:hover::-webkit-slider-thumb {
-                box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
-            }
-        }
-
-        @media @{ui-can-hover} {
-            .ui-slider__input@{ui-range-live}:hover::-moz-range-thumb {
-                box-shadow: 0 0 0 1px CanvasText, 0 0 0 4px Highlight;
-            }
-        }
 
     // A tinted picture is a mask's filled ground, forced to Canvas: the mode's text colour fills it. Glyphs and plain pictures keep theirs.
     .ui-icon--mask::before {
@@ -408,6 +432,28 @@
     .ui-validation-mark {
         forced-color-adjust: none;
         background-color: CanvasText;
+    }
+
+    .ui-text-trigger__layer,
+    .ui-text-trigger__token {
+        forced-color-adjust: none;
+        color: transparent;
+        background-color: transparent;
+    }
+
+    // A badge, a chip and a trigger pill are their filled ground, which the mode drops: an edge keeps their shape round their words.
+    .ui-badge:not(.ui-badge-variant--plain),
+    .ui-multi-select__chip,
+    .ui-text-trigger__token {
+        outline: 1px solid CanvasText;
+        outline-offset: -1px;
+    }
+
+    // An empty badge, a menu's dot among them, has no words to keep: the text's colour fills it.
+    .ui-badge:not([data-ui-badge-icon], [data-ui-badge-title], .ui-badge-variant--plain),
+    @{ui-menu-icon-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-title], [data-ui-badge-icon]) {
+        forced-color-adjust: none;
+        background: CanvasText;
     }
 }
 

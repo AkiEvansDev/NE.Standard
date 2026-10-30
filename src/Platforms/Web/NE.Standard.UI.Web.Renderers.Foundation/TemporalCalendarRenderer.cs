@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Properties;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -18,7 +17,7 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 public static class TemporalCalendarRenderer
 {
     /// <summary>The class every part of a temporal control is named after, a calendar's value inputs and grid included.</summary>
-    public const string TemporalClassName = "ui-temporal-input";
+    public const string TemporalClassName = WebClassNames.TemporalInput;
 
     private const char CulturePackSeparator = '|';
 
@@ -27,6 +26,7 @@ public static class TemporalCalendarRenderer
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
     private static readonly WebDomOperation[] MarkedDaysOperations = [WebDomOperation.Attribute(WebAttributes.TemporalMarkedDays, target: "root", converter: WebDomConverters.MarkedDaysAttribute)];
     private static readonly WebDomOperation[] MarkedOnlyOperations = [WebDomOperation.ToggleAttribute(WebAttributes.TemporalMarkedOnly, target: "root", condition: WebValueCondition.IsTrue)];
+    private static readonly WebDomOperation[] MinDistanceOperations = [WebDomOperation.Attribute(WebAttributes.TemporalMinDistance, target: "root")];
 
     /// <summary>A day in the one form the page reads a day in, the canonical date pattern.</summary>
     public static string CanonicalDay(DateOnly day)
@@ -127,5 +127,21 @@ public static class TemporalCalendarRenderer
             if (value == true)
                 _ = target.Attribute(WebAttributes.TemporalMarkedOnly);
         }, MarkedOnlyOperations);
+    }
+
+    /// <summary>
+    /// A period's least distance, which the page holds its ends apart by; written as the wire writes a pushed <see cref="TimeSpan"/>, so
+    /// a bound one is patched as it was painted.
+    /// </summary>
+    public static void RenderMinDistance(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        _ = WebComponentRendererBase.RenderProperty<TimeSpan?>(context, root, IPeriodInputComponent.MinDistanceProperty, static (target, value) =>
+        {
+            if (value is TimeSpan distance)
+                _ = target.Attribute(WebAttributes.TemporalMinDistance, distance.ToString("c", CultureInfo.InvariantCulture));
+        }, MinDistanceOperations);
     }
 }

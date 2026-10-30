@@ -12,7 +12,7 @@ mock.timers.enable({ apis: ["setTimeout"] });
 installFakeDom({ window: { addEventListener: () => undefined } });
 
 const { NotificationEngine } = await import("../src/interactions/notification-engine.ts");
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 
 function engine(): InstanceType<typeof NotificationEngine> {
     fakeDocument.body.children.length = 0;

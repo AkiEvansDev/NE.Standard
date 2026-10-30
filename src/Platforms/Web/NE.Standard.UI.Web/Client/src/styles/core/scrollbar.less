@@ -84,9 +84,8 @@ html {
     --ui-scrollbar-room: 12px;
 }
 
-// What a scroller keeps along each axis — the room, or nothing where it does not scroll that way — and the physical sides a
-// padding's shorthand takes it on (the bar's side flips with the direction). Not inherited: a list in a row of a scrolling list is no
-// scroller of its own.
+// What a scroller keeps along each axis — the room, or nothing where it does not scroll that way — and the right side a padding's
+// shorthand takes the upright bar's room on. Not inherited: a list in a row of a scrolling list is no scroller of its own.
 @property --ui-scroll-room-y {
     syntax: "<length>";
     inherits: false;
@@ -100,12 +99,6 @@ html {
 }
 
 @property --ui-scroll-room-right {
-    syntax: "<length>";
-    inherits: false;
-    initial-value: 0px;
-}
-
-@property --ui-scroll-room-left {
     syntax: "<length>";
     inherits: false;
     initial-value: 0px;
@@ -135,7 +128,7 @@ html {
 }
 
 // What draws a box's edge, which the hung room stops at: an authored border, or a fill of its own.
-@ui-scroll-hang-frame: ~'[style*="--ui-border-thickness"], [style*="--ui-surface-color"], .ui-surface--raised, .ui-surface--flat, .ui-surface--tinted';
+@ui-scroll-hang-frame: ~'[style*="--ui-border-thickness"], [style*="--ui-surface-color"], .ui-surface--surface, .ui-surface--tinted';
 
 // The inset that centres a capped column in its scroller (an items view's ContentMaxWidth), which the room stands inside.
 @property --ui-scroll-cap {
@@ -351,75 +344,6 @@ html {
         // Under the pointer, or held, it darkens and keeps its width; the engine runs only where a pointer hovers.
         @media @{ui-can-hover} {
             :is(.ui-overlay-scrollbar__thumb:hover, .ui-overlay-scrollbar__thumb--held)::before {
-                background: @ui-scroll-ink-hover;
-            }
-        }
-
-    // The arrows at the track's ends, a step a press and repeating while held, shown as the pointer nears the bar, as a platform's
-    // overlay bar shows them; a scroll alone shows the thumb. Their room is kept either way, so the thumb at an end stands clear of a
-    // rounded corner. A blunt triangle as wide as the thumb, on its line and in its colour, its flat side to the thumb, in the middle of its
-    // square, as a platform's overlay bar draws it. Rejected: 6 by 4 px against the thumb (specks lost in the strip); 8 by 6 at the
-    // scroller's edge (wider than the thumb, it read as a part apart from the bar).
-    .ui-overlay-scrollbar__arrow {
-        position: absolute;
-        opacity: 0;
-        transition: opacity @ui-motion-fast @ui-motion-ease;
-        touch-action: none;
-    }
-
-        .ui-overlay-scrollbar--near > .ui-overlay-scrollbar__arrow {
-            opacity: 1;
-        }
-
-        .ui-overlay-scrollbar--shown.ui-overlay-scrollbar--near > .ui-overlay-scrollbar__arrow {
-            pointer-events: auto;
-        }
-
-        .ui-overlay-scrollbar__arrow::before {
-            content: "";
-            position: absolute;
-            background: @ui-scroll-ink;
-            transition: background-color @ui-motion-fast @ui-motion-ease;
-        }
-
-        // The thumb's 6 px across, 2 px in from the edge as it is; 5 px along, centred in its square, a few pixels short of the thumb's end.
-        .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow::before {
-            top: 0;
-            right: 2px;
-            bottom: 0;
-            width: 6px;
-            height: 5px;
-            margin-block: auto;
-        }
-
-        .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow::before {
-            right: 0;
-            bottom: 2px;
-            left: 0;
-            width: 5px;
-            height: 6px;
-            margin-inline: auto;
-        }
-
-        .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow--back::before {
-            clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%);
-        }
-
-        .ui-overlay-scrollbar__box--y > .ui-overlay-scrollbar__arrow--forward::before {
-            clip-path: polygon(0 0, 100% 0, 60% 100%, 40% 100%);
-        }
-
-        .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow--back::before {
-            clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 60%);
-        }
-
-        .ui-overlay-scrollbar__box--x > .ui-overlay-scrollbar__arrow--forward::before {
-            clip-path: polygon(0 0, 100% 40%, 100% 60%, 0 100%);
-        }
-
-        // Darker under the pointer, as the thumb is.
-        @media @{ui-can-hover} {
-            .ui-overlay-scrollbar__arrow:hover::before {
                 background: @ui-scroll-ink-hover;
             }
         }

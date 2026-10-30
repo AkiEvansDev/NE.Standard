@@ -88,7 +88,7 @@ internal sealed partial class ExpanderLoadGroupContext : DemoGroupContext
     public partial string State { get; set; } = "Not read";
 
     [RecursiveMember]
-    public partial UIBadgeType StateStyle { get; set; } = UIBadgeType.Surface;
+    public partial UIBadgeVariant StateVariant { get; set; } = UIBadgeVariant.Surface;
 
     [RecursiveMember]
     public partial string Trace { get; set; } = "Nothing yet";
@@ -98,7 +98,7 @@ internal sealed partial class ExpanderLoadGroupContext : DemoGroupContext
         Loaded = false;
         Log = "Nothing has been read yet.";
         State = "Not read";
-        StateStyle = UIBadgeType.Surface;
+        StateVariant = UIBadgeVariant.Surface;
         LogEvent("forgotten — the next open reads it again");
     }
 
@@ -161,7 +161,7 @@ internal sealed partial class ExpanderController() : DemoStandardController
 
         LoadGroup.Busy = true;
         LoadGroup.State = "Reading";
-        LoadGroup.StateStyle = UIBadgeType.Info;
+        LoadGroup.StateVariant = UIBadgeVariant.Info;
         LoadGroup.LogEvent("first open — going to the server for it");
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
@@ -169,7 +169,7 @@ internal sealed partial class ExpanderController() : DemoStandardController
         LoadGroup.Log = LogText;
         LoadGroup.Loaded = true;
         LoadGroup.State = "Read";
-        LoadGroup.StateStyle = UIBadgeType.Success;
+        LoadGroup.StateVariant = UIBadgeVariant.Success;
         LoadGroup.Busy = false;
     }
 

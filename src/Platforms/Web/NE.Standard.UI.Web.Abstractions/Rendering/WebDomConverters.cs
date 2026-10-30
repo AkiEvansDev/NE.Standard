@@ -26,7 +26,7 @@ public static class WebDomConverters
 
     /// <summary>A description's role as its text body's modifier (<c>ui-text--description-body</c>); nothing for a sized description.</summary>
     public const string TextDescriptionTypeClass = "textDescriptionTypeClass";
-    public const string BadgeStyleClass = "badgeStyleClass";
+    public const string BadgeVariantClass = "badgeVariantClass";
     public const string BadgeFillClass = "badgeFillClass";
 
     /// <summary>A badge's <c>ui-badge--colored</c> while its colour draws one (<c>WebCssValues.ThemeColor</c> is not empty); otherwise none.</summary>
@@ -35,8 +35,8 @@ public static class WebDomConverters
     /// <summary>
     /// How much room a badge's text needs: <c>compact</c> for a count, nothing for a word.
     /// </summary>
-    public const string BadgeTextFit = "badgeTextFit";
-    public const string ButtonClass = "buttonClass";
+    public const string BadgeTitleFit = "badgeTitleFit";
+    public const string ButtonVariantClass = "buttonVariantClass";
     public const string SurfaceStyleClass = "surfaceStyleClass";
     public const string OrientationClass = "orientationClass";
     public const string GroupSeparatorClass = "groupSeparatorClass";
@@ -63,12 +63,12 @@ public static class WebDomConverters
     public const string ButtonSizeTierClasses = "buttonSizeTierClasses";
     public const string ButtonGroupSizeTierClasses = "buttonGroupSizeTierClasses";
     public const string InputSizeTierClasses = "inputSizeTierClasses";
+    public const string IconSizeTierClasses = "iconSizeTierClasses";
     public const string TextInputTypeAttribute = "textInputTypeAttribute";
 
     /// <summary>A field's on-screen keyboard as its <c>inputmode</c> token; nothing takes the attribute off.</summary>
     public const string InputModeAttribute = "inputModeAttribute";
     public const string ColorTextFormatAttribute = "colorTextFormatAttribute";
-    public const string ColorInputVariantAttribute = "colorInputVariantAttribute";
 
     public const string ThemeNameCss = "themeNameCss";
     public const string AlignmentCss = "alignmentCss";
@@ -188,16 +188,58 @@ public static class WebDomConverters
 
     /// <summary>A field's placeholder, or one blank for none so <c>:placeholder-shown</c> still says the field is empty; converts null.</summary>
     public const string PlaceholderText = "placeholderText";
+
+    /// <summary>An attribute's text, or empty when the value is null; for an operation that converts null.</summary>
+    public const string EmptyText = "emptyText";
+
+    /// <summary>A string while it is not empty (<c>!string.IsNullOrEmpty</c>); otherwise nothing.</summary>
+    public const string NonEmptyText = "nonEmptyText";
+
+    /// <summary>A string while it holds non-whitespace characters (<c>!string.IsNullOrWhiteSpace</c>); otherwise nothing.</summary>
+    public const string NonBlankText = "nonBlankText";
+
+    /// <summary>A string trimmed while it holds non-whitespace characters; otherwise nothing.</summary>
+    public const string TrimmedText = "trimmedText";
+
+    /// <summary>An icon name or picture URL while <c>IconValueRenderer.Draws</c> accepts it; otherwise nothing.</summary>
+    public const string DrawnIcon = "drawnIcon";
+
+    /// <summary>A number as its text while it is finite (<c>double.IsFinite</c>); otherwise nothing.</summary>
+    public const string FiniteNumber = "finiteNumber";
     public const string TextAreaResizeCss = "textAreaResizeCss";
     public const string FlyoutPlacementClass = "flyoutPlacementClass";
 
     public const string PopupPlacementAttribute = "popupPlacementAttribute";
+
+    /// <summary>A select's popup placement as its attribute, or nothing for <c>BottomStart</c> (the default).</summary>
+    public const string SelectPlacementAttribute = "selectPlacementAttribute";
+
+    /// <summary>A split button's popup placement as its attribute, or nothing for <c>BottomEnd</c> (the default).</summary>
+    public const string SplitPlacementAttribute = "splitPlacementAttribute";
+
+    /// <summary>A list of chosen keys as JSON while it is not empty; otherwise nothing.</summary>
+    public const string SelectedKeysAttribute = "selectedKeysAttribute";
+
+    /// <summary>A list of unique non-empty chosen keys as JSON while it is not empty; otherwise nothing.</summary>
+    public const string UniqueSelectedKeysAttribute = "uniqueSelectedKeysAttribute";
+
+    /// <summary>An items query as JSON while it has filters or sorts (<c>!IsEmpty</c>); otherwise nothing.</summary>
+    public const string ItemsQueryAttribute = "itemsQueryAttribute";
+
+    /// <summary>A window's aggregates dictionary as JSON while it is not empty; otherwise nothing.</summary>
+    public const string WindowAggregatesAttribute = "windowAggregatesAttribute";
+
+    /// <summary>A track list's bounds for a splitter's clamp (<c>WebCssValues.GridTrackLimits</c>); none removes the attribute.</summary>
+    public const string GridTrackLimitsAttribute = "gridTrackLimitsAttribute";
 
     /// <summary>A tab menu's chosen entries as the tokens <c>WebClassNames.TabMenuEntries</c> writes; none removes the attribute.</summary>
     public const string TabMenuEntriesAttribute = "tabMenuEntriesAttribute";
 
     /// <summary>A set of days as the space-separated <c>yyyy-MM-dd</c> tokens <c>WebTemporalFormat.Days</c> writes; none removes the attribute.</summary>
     public const string MarkedDaysAttribute = "markedDaysAttribute";
+
+    /// <summary>A container's track list per tier (<c>ContainerComponentRenderer.TrackCss</c>): each wider tier only where it differs from the one below.</summary>
+    public static readonly WebResponsiveConverters ResponsiveGridTemplateCss = new("responsiveGridTemplate", "Css");
 
     /// <summary>A length tier (<c>WebCssValues.ResponsiveLayoutLength</c>): nothing for <c>Auto</c>, so the stylesheet's default applies.</summary>
     public static readonly WebResponsiveConverters ResponsiveLayoutLengthCss = new("responsiveLayoutLength", "Css");

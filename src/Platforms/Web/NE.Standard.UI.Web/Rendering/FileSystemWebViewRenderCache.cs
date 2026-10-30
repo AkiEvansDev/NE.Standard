@@ -44,8 +44,6 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
 
     private const string TemporaryFileExtension = ".tmp";
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     private static readonly byte[] Utf8ByteOrderMark = [0xEF, 0xBB, 0xBF];
 
     // Far past any write: a temporary file this old was left by a process that stopped mid-write.
@@ -291,7 +289,7 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
 
         using FileStream stream = OpenShared(path);
 
-        WebInitBindingCacheEntry? entry = await JsonSerializer.DeserializeAsync<WebInitBindingCacheEntry>(stream, JsonOptions, cancellationToken).ConfigureAwait(false);
+        WebInitBindingCacheEntry? entry = await JsonSerializer.DeserializeAsync<WebInitBindingCacheEntry>(stream, WebWireJson.Options, cancellationToken).ConfigureAwait(false);
 
         return entry?.BindingIds ?? [];
     }
@@ -428,7 +426,7 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
             BindingIds = [.. bindingIds]
         };
 
-        var json = JsonSerializer.SerializeToUtf8Bytes(entry, JsonOptions);
+        var json = JsonSerializer.SerializeToUtf8Bytes(entry, WebWireJson.Options);
 
         return await WriteAllBytesAtomicAsync(Path.Combine(directory, InitBindingsFileName), json, cancellationToken).ConfigureAwait(false);
     }

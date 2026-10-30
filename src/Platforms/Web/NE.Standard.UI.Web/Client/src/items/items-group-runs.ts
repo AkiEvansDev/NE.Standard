@@ -4,7 +4,7 @@
 
 // `.ts` on the value imports: `node --test` runs this module directly.
 import { ComponentKeyAttribute, GroupAnchorAttribute, GroupAttribute, GroupHeaderAttribute, HiddenClass, WindowGroupBeforeAttribute } from "../addressing/dom-attributes.ts";
-import { getRealItemElements } from "./items-empty-renderer.ts";
+import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import type { ItemStackEntry } from "./binding-template-evaluator";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 

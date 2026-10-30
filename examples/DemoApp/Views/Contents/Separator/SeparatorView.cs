@@ -18,12 +18,12 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/contents/separator";
     protected override string Header => "demo.contents.separator.header";
     protected override string HeaderDescription => "demo.contents.separator.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/checkout", "demo.nav.screens.checkout");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/checkout", "demo.nav.screens.checkout");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new StackPanelComponent()
             // A stack, not the frame's grid rows: a taller container hands its slack to its tracks.
-            .BindOrientation($"{SeparatorGroup}.{nameof(SeparatorGroupContext.PreviewOrientation)}")
+            .BindOrientation<SeparatorController>(static x => x.SeparatorGroup.PreviewOrientation)
             .SetSpacing(4)
             .AddChild(new TextComponent()
                 .SetTitle("Everything before the rule")
@@ -31,9 +31,9 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
             )
             .AddChild(new SeparatorComponent()
                 .BindStandard()
-                .BindOrientation($"{SeparatorGroup}.{nameof(SeparatorGroupContext.Orientation)}")
-                .BindLabel($"{SeparatorGroup}.{nameof(SeparatorGroupContext.Label)}")
-                .BindColor($"{SeparatorGroup}.{nameof(SeparatorGroupContext.Color)}")
+                .BindOrientation<SeparatorController>(static x => x.SeparatorGroup.Orientation)
+                .BindTitle<SeparatorController>(static x => x.SeparatorGroup.Title)
+                .BindColor<SeparatorController>(static x => x.SeparatorGroup.Color)
             )
             .AddChild(new TextComponent()
                 .SetTitle("Everything after it")
@@ -57,38 +57,38 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateSectionsGroup()
     {
-        return DemoUI.CreateExample("Between two parts of a column",
+        return DemoUI.CreateExample("Horizontal section divider",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetWidth(UILayoutLength.Absolute(260))
                 .SetPadding(UIThickness.Uniform(6))
                 .SetContent(UILayout.Stack(2)
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Edit))
                         .SetTitle("Rename")
                     )
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
                         .SetTitle("Duplicate")
                     )
                     .AddChild(new SeparatorComponent())
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Download))
                         .SetTitle("Export")
                     )
                     .AddChild(new SeparatorComponent())
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Alert))
                         .SetTitle("Delete")
@@ -104,7 +104,7 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRowGroup()
     {
-        return DemoUI.CreateExample("Between two things on a row",
+        return DemoUI.CreateExample("Vertical toolbar divider",
             new SurfaceComponent()
                 .SetContent(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
@@ -149,7 +149,7 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLabelledGroup()
     {
-        return DemoUI.CreateExample("A rule with a word in it",
+        return DemoUI.CreateExample("Labeled divider",
             new SurfaceComponent()
                 .SetMaxWidth(UILayoutLength.Absolute(352))
                 .SetContent(UILayout.Stack(12)
@@ -161,11 +161,11 @@ internal sealed class SeparatorView : DemoComponentView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                     .AddChild(new SeparatorComponent()
-                        .SetLabel("Danger zone")
+                        .SetTitle("Danger zone")
                         .SetColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
                     )
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Danger)
+                        .SetVariant(UIButtonVariant.Danger)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Alert))
                         .SetTitle("Delete this service")
                         .SetHorizontalAlignment(UIAlignment.Start)

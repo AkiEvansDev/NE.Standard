@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using NE.Colors;
@@ -12,16 +13,13 @@ namespace NE.Standard.UI.Web.Abstractions.Theming;
 public static class WebThemeCssBuilder
 {
     // How much of its own ink a tinted badge's words keep, the rest the text colour: the least that reads 4.5:1 on every default
-    // palette's tint over the page, a card and a raised card (WebThemeInkContrastTests).
+    // palette's tint over the page and a card (WebThemeInkContrastTests).
     private const string BrandInkOnTintShare = "56%";
     private const string StatusInkOnTintShare = "80%";
 
-    // A colour's own tint (tokens.less's @ui-own-tint-share, a tinted badge's ground), a raised card's share of the text
-    // (surface-raised, below; mixins/lift.less steps a popup by it too) and the ratio words read at: what a raw colour's ink is
-    // bounded against. The stylesheet writes both shares again, held equal by ThemeShareSyncTests.
+    // A colour's own tint (tokens.less's @ui-own-tint-share, a tinted badge's ground) and the ratio words read at: what a raw
+    // colour's ink is bounded against. The stylesheet writes the tint share again, held equal by ThemeShareSyncTests.
     private const double BadgeTintShare = 0.16;
-    private const double RaisedShare = 0.08;
-    private static readonly string RaisedCss = string.Create(CultureInfo.InvariantCulture, $"color-mix(in srgb, var(--ui-color-surface) {(1 - RaisedShare) * 100:0.##}%, var(--ui-color-on-surface) {RaisedShare * 100:0.##}%)");
     private const double ReadableRatio = 4.5;
 
     // What UIColorPalette.WithPrimary and WithAccent move: in the application's stylesheet with the rest, and alone in a reader's.
@@ -32,6 +30,7 @@ public static class WebThemeCssBuilder
         ("color-on-primary", static palette => palette.OnPrimary),
         ("color-on-accent", static palette => palette.OnAccent),
         ("color-primary-ink", static palette => palette.PrimaryInk),
+        ("color-primary-mark", static palette => palette.ResolvePrimaryMark()),
         ("color-accent-ink", static palette => palette.AccentInk),
         ("color-selected", static palette => palette.Selected),
         ("color-focus-ring", static palette => palette.FocusRing)
@@ -87,7 +86,7 @@ public static class WebThemeCssBuilder
     private static void AppendDarkTheme(StringBuilder builder, string selector, UIColorPalette palette)
         => AppendTheme(builder, selector, palette, typography: null, shape: null, semantic: null, dark: true);
 
-    private static void AppendTheme(StringBuilder builder, string selector, UIColorPalette? palette, UITypography? typography, UIShape? shape, UITheme? semantic, bool dark)
+    private static void AppendTheme(StringBuilder builder, string selector, UIColorPalette? palette, UITypography? typography, UIThemeShape? shape, UITheme? semantic, bool dark)
     {
         _ = builder.Append(selector).AppendLine(" {");
 
@@ -151,14 +150,16 @@ public static class WebThemeCssBuilder
         Append(builder, "color-danger-ink", palette.DangerInk);
 
         Append(builder, "color-border", palette.Border);
-        // A control's own edge, a graphic at 3:1 on its ground; `prefers-contrast: more` lifts the border to it (core/preferences.less).
+        // A control's own edge (Border2); `prefers-contrast: more` lifts the border to it (core/preferences.less).
         Append(builder, "color-mark", palette.Mark);
         Append(builder, "color-shadow", palette.Shadow);
         Append(builder, "color-overlay", palette.Overlay);
 
         // The series run, one variable per position; the count a package cycles by is the theme's, on :root.
-        for (var i = 0; i < palette.Series.Count; i++)
-            Append(builder, $"color-series-{i + 1}", palette.Series[i]);
+        IReadOnlyList<ColorVariant> series = palette.Series;
+
+        for (var i = 0; i < series.Count; i++)
+            Append(builder, $"color-series-{i + 1}", series[i]);
 
         Append(builder, "disabled-opacity", WebCssValues.Opacity(palette.DisabledOpacity));
 
@@ -169,38 +170,38 @@ public static class WebThemeCssBuilder
 
     /// <summary>
     /// What differs by mode beyond the palette. On a dark page the washes are neutral — a deep brand colour at a low share over a
-    /// near-black ground read dimmer than the pointer's wash — and a chosen entry of a list on the page says "brand" by its mark;
-    /// a popup and a tint stand off the near-black page a step further, a tint over the raised ground at a larger share.
+    /// dark ground read dimmer than the pointer's wash — and a chosen entry steps its ink up to <c>--ui-text-selected</c>.
     /// </summary>
     private static void AppendModeVariables(StringBuilder builder, bool dark)
     {
         // The pointer's share by mode; a control with an opaque fill of its own (a surface button, a clickable surface) or its own hue
         // (a Link button) mixes the share where the wash itself would lay a second colour over it.
-        Append(builder, "wash-hover-share", dark ? "9%" : "10%");
+        Append(builder, "wash-hover-share", dark ? "4%" : "10%");
         Append(builder, "wash-hover", "color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), transparent)");
-        Append(builder, "wash-selected", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 14%, transparent)" : "color-mix(in srgb, var(--ui-mark-selected-fill) 16%, transparent)");
+        Append(builder, "wash-selected", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 12%, transparent)" : "color-mix(in srgb, var(--ui-mark-selected) 16%, transparent)");
         // Fainter than a selection: the entry a chosen descendant is folded under, which points at the selection rather than being it.
-        // None on a dark page, where a neutral one would read as the pointer's: there the group's short mark says it alone (ui-menu.less).
-        Append(builder, "wash-descendant", dark ? "transparent" : "color-mix(in srgb, var(--ui-mark-selected-fill) 8%, transparent)");
-        Append(builder, "popup-base", dark ? "color-mix(in srgb, var(--ui-color-surface) 96%, var(--ui-color-on-surface) 4%)" : "var(--ui-color-surface)");
-        Append(builder, "tint-ground", dark ? "var(--ui-surface-raised)" : "var(--ui-color-background)");
+        Append(builder, "wash-descendant", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 12%, transparent)" : "color-mix(in srgb, var(--ui-mark-selected) 8%, transparent)");
+        Append(builder, "text-selected", dark ? "#F0F0F0" : "var(--ui-color-on-surface)");
+        Append(builder, "text-muted-share", dark ? "64%" : "70%");
+        Append(builder, "text-placeholder-share", dark ? "48%" : "54%");
+        Append(builder, "popup-base", "var(--ui-color-surface)");
+        Append(builder, "tint-ground", dark ? "var(--ui-color-surface)" : "var(--ui-color-background)");
         Append(builder, "tint-share", dark ? "28%" : "20%");
     }
 
     /// <summary>
     /// How light or dark a raw colour's words may be (<c>.ui-raw-ink()</c>, a badge's): the luminance that reads 4.5:1 over the
-    /// deepest tint any colour lays on the page, a card or a raised card of this palette — black's under dark words, white's under
+    /// deepest tint any colour lays on the page or a card of this palette — black's under dark words, white's under
     /// light ones — so it holds for every colour and every palette, an application's own included.
     /// </summary>
     private static void AppendRawInkBounds(StringBuilder builder, UIColorPalette palette)
     {
-        ColorVariant raised = UIColorContrast.Composite(palette.OnSurface.ToColor(), RaisedShare, palette.Surface);
         var darkWords = UIColorContrast.Luminance(palette.OnSurface) < UIColorContrast.Luminance(palette.Surface);
         System.Drawing.Color end = darkWords ? System.Drawing.Color.Black : System.Drawing.Color.White;
         var max = 1d;
         var min = 0d;
 
-        foreach (ColorVariant ground in (ReadOnlySpan<ColorVariant>)[palette.Background, palette.Surface, raised])
+        foreach (ColorVariant ground in (ReadOnlySpan<ColorVariant>)[palette.Background, palette.Surface])
         {
             var tint = UIColorContrast.Luminance(UIColorContrast.Composite(end, BadgeTintShare, ground));
 
@@ -257,7 +258,7 @@ public static class WebThemeCssBuilder
         return Math.Round(capitals / capHeight, 3, MidpointRounding.AwayFromZero);
     }
 
-    private static void AppendShapeVariables(StringBuilder builder, UIShape shape)
+    private static void AppendShapeVariables(StringBuilder builder, UIThemeShape shape)
     {
         Append(builder, "radius-card", shape.CardRadius);
         Append(builder, "radius-button", shape.ButtonRadius);
@@ -269,20 +270,17 @@ public static class WebThemeCssBuilder
     private static void AppendSemanticVariables(StringBuilder builder, UITheme theme)
     {
         AppendMarkVariables(builder, theme);
-        // The one absolute level: what a panel lifted off the page is made of; UIColorPalette's mark reads 3:1 on it by the same share. The same step lifts a popup off a raised panel or a
-        // dialog (`.ui-popup-ground-lifted` in mixins/lift.less); the two keep one number.
-        Append(builder, "surface-raised", RaisedCss);
         // The wash a control with no fill shows when pressed; translucent since it may sit on the page or a surface. The pointer's
         // and the chosen one's differ by mode (AppendModeVariables).
         Append(builder, "wash-active-share", "16%");
         Append(builder, "wash-active", "color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-active-share), transparent)");
         // The other half of a selectable strip: the mark under a tab; stronger than a wash since a thin line needs more than 10% to read.
         Append(builder, "mark-hover", "color-mix(in srgb, var(--ui-color-on-surface) 24%, transparent)");
-        Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) 75%, transparent)");
+        Append(builder, "text-muted", "color-mix(in srgb, var(--ui-color-on-surface) var(--ui-text-muted-share, 64%), transparent)");
         // An empty field's placeholder, a step under the muted ink so it is not read as a value: 5.6:1 on the dark theme's field.
-        Append(builder, "text-placeholder", "color-mix(in srgb, var(--ui-color-on-surface) 60%, transparent)");
+        Append(builder, "text-placeholder", "color-mix(in srgb, var(--ui-color-on-surface) var(--ui-text-placeholder-share, 48%), transparent)");
         // An ink on a ground tinted with its own colour (a tinted badge), pulled toward the text colour until it reads 4.5:1 there
-        // over the page, a card and a raised card; the page's inks themselves are left as they are. Resolved here, so a badge may
+        // over the page and a card; the page's inks themselves are left as they are. Resolved here, so a badge may
         // put it in the ink's place. A brand ink is its raw fill, lighter in the dark theme, so it moves further than a status ink,
         // which the palette already shades for its tint.
         AppendInkOnTint(builder, "primary", BrandInkOnTintShare);
@@ -297,21 +295,19 @@ public static class WebThemeCssBuilder
     }
 
     /// <summary>
-    /// The colours of the three marks a theme sets the tone of (<see cref="UITheme.KeyboardMark"/>, <see cref="UITheme.FieldFocus"/>,
-    /// <see cref="UITheme.SelectionMark"/>): the brand's, or the mode's muted text colour. A line read as words are takes the brand's ink,
-    /// which reads on the page whatever the primary — not lifted on a dark page, where the ink lifted for a tint read as a white line
-    /// the brand did not mean; a fill-like one (a field's edge, a glow, a drop line) the primary itself.
+    /// The colours of the two marks a theme sets the tone of (<see cref="UITheme.FieldFocus"/>,
+    /// <see cref="UITheme.SelectionMark"/>): the brand's primary colour, or a quiet neutral step off the resting control border.
     /// </summary>
     private static void AppendMarkVariables(StringBuilder builder, UITheme theme)
     {
-        Append(builder, "mark-keyboard", MarkTone(theme.KeyboardMark, "var(--ui-color-primary-ink)"));
-        Append(builder, "mark-field", MarkTone(theme.FieldFocus, "var(--ui-color-primary)"));
-        Append(builder, "mark-selected", MarkTone(theme.SelectionMark, "var(--ui-color-primary-ink)"));
-        Append(builder, "mark-selected-fill", MarkTone(theme.SelectionMark, "var(--ui-color-primary)"));
+        Append(builder, "mark-field", MarkTone(theme.FieldFocus, "var(--ui-color-primary-mark)"));
+        Append(builder, "mark-selected", MarkTone(theme.SelectionMark, "var(--ui-color-primary-mark)"));
     }
 
-    // Neutral is the muted ink, not the text's own: a full-white line read as louder than the brand's it stood in for.
-    private static string MarkTone(UIMarkTone tone, string brand) => tone == UIMarkTone.Neutral ? "var(--ui-text-muted)" : brand;
+    // Neutral steps the control border (`--ui-color-mark`) toward the surface ink by 28% (~#6C6C6C on dark): a full-white line read as
+    // louder than the brand's it stood in for.
+    private static string MarkTone(UIMarkTone tone, string brand)
+        => tone == UIMarkTone.Neutral ? "color-mix(in srgb, var(--ui-color-on-surface) 28%, var(--ui-color-mark))" : brand;
 
     private static void AppendInkOnTint(StringBuilder builder, string role, string share)
         => Append(builder, $"color-{role}-ink-on-tint", $"color-mix(in srgb, var(--ui-color-{role}-ink) {share}, var(--ui-color-on-surface))");

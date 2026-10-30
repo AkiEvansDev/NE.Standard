@@ -52,11 +52,6 @@ public sealed class UIRouteDefinition
     public UIViewCompilationMode ViewCompilationMode { get; init; } = UIViewCompilationMode.Startup;
 
     /// <summary>
-    /// Gets how controller updates are flushed to the client.
-    /// </summary>
-    public UIControllerUpdateMode ControllerUpdateMode { get; init; } = UIControllerUpdateMode.Batch;
-
-    /// <summary>
     /// Gets the controller flush interval in milliseconds, or -1 to use the runtime default.
     /// </summary>
     public int FlushIntervalMilliseconds { get; init; } = -1;

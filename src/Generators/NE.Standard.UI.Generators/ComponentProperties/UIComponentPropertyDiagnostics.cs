@@ -133,7 +133,25 @@ internal static class UIComponentPropertyDiagnostics
     public static readonly DiagnosticDescriptor BlockDefaultNotFound = new(
         id: "NEUI016",
         title: "A property default names no block property",
-        messageFormat: "[UIComponentPropertyDefault] names '{0}', which no property block generates onto '{1}'",
+        messageFormat: "[UIComponentPropertyDefault] names '{0}', which no property block or base component declares on '{1}'",
+        category: "NE.Standard.UI",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    public static readonly DiagnosticDescriptor BlockContractNotImplemented = new(
+        id: "NEUI017",
+        title: "A property block on a type that does not implement its contract",
+        messageFormat: "'{1}' carries the property block of '{0}' but does not implement it: add '{0}' to its base list",
+        category: "NE.Standard.UI",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    public static readonly DiagnosticDescriptor ConstructorAssignsComponentProperty = new(
+        id: "NEUI018",
+        title: "Component constructor assigns a UI component property",
+        messageFormat: "Constructor of '{0}' assigns component property '{1}'; declare the default with [UIComponentProperty] or [UIComponentPropertyDefault] so SetDefaults can override it",
         category: "NE.Standard.UI",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true

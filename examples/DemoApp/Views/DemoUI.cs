@@ -114,6 +114,9 @@ internal static class DemoUI
             ),
             new("demo.nav.section.inputs", DemoIcons.Outline(DemoIcons.Sliders),
             [
+                ("/inputs", "demo.nav.inputs.overview"),
+            ],
+            [
                 ("/inputs/text-input", "demo.nav.inputs.text-input"),
                 ("/inputs/text-area", "demo.nav.inputs.text-area"),
                 ("/inputs/number-input", "demo.nav.inputs.number-input"),
@@ -140,7 +143,6 @@ internal static class DemoUI
             [
                 ("/choices/select", "demo.nav.choices.select"),
                 ("/choices/multi-select", "demo.nav.choices.multi-select"),
-                ("/choices/badge-select", "demo.nav.choices.badge-select"),
             ],
             [
                 ("/choices/slider", "demo.nav.choices.slider"),
@@ -159,6 +161,7 @@ internal static class DemoUI
             [
                 ("/navigation/menu", "demo.nav.navigation.menu"),
                 ("/navigation/breadcrumbs", "demo.nav.navigation.breadcrumbs"),
+                ("/navigation/steps", "demo.nav.navigation.steps"),
                 ("/navigation/tabs", "demo.nav.navigation.tabs"),
                 ("/navigation/tabs-view", "demo.nav.navigation.tabs-view"),
             ]
@@ -403,11 +406,11 @@ internal static class DemoUI
             .SetPlacement(1, 1, 24, 1);
 
     /// <summary>The line closing a component page: the screen or mechanism page that composes the component for real.</summary>
-    public static StackPanelComponent CreateComposedIn(string route, string label)
+    public static StackPanelComponent CreateComposedIn(string route, string title)
         => UILayout.Row(6,
                 UIText.Note("demo.page.composed-in"),
                 new LinkComponent()
-                    .SetTitle(label)
+                    .SetTitle(title)
                     .SetUrl(route)
                     .SetTitleType(UITextAppearance.Caption)
             )
@@ -565,7 +568,7 @@ internal static class DemoUI
                 .SetDescriptionType(UITextAppearance.Caption)
                 .SetDescriptionColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                 .SetMargin(UIThickness.All(0, 8, 0, 0))
-                .BindDescription(nameof(DemoGroupContext.Message), UIBindingScope.Relative)
+                .BindDescription<DemoGroupContext>(static x => x.Message, UIBindingScope.Relative)
                 .SetPlacement(1, row, 24, 1, md: UIGridPlacement.At(1, row, span, 1))
             );
 
@@ -591,8 +594,8 @@ internal static class DemoUI
             .SetVerticalAlignment(UIAlignment.Center)
             // Smaller than a small button's 28px, to fit the title row a group without the button has.
             .SetAnchor(new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
-                .SetSize(UIButtonSize.Small)
+                .SetVariant(UIButtonVariant.Ghost)
+                .SetSize(UISize.Small)
                 .SetMinHeight(UILayoutLength.Absolute(24))
                 .SetPadding(UIThickness.Uniform(2))
                 .SetIcon(DemoIcons.Outline(DemoIcons.Code))
@@ -702,14 +705,15 @@ internal static class DemoUI
                 .SetStatusBar(false)
                 .SetSearch(false)
                 .SetCompletions(false)
+                .SetAccessibleName("demo.code")
                 // One row over the text's own: a long line brings a horizontal scrollbar, which would cover the last one.
                 .SetRows(rows)
                 .SetPlacement(1, 1, 24, 1)
             )
             // A literal rather than the field's value: the text is fixed, and a literal needs no id unique across the page.
             .AddChild(new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
-                .SetSize(UIButtonSize.Small)
+                .SetVariant(UIButtonVariant.Ghost)
+                .SetSize(UISize.Small)
                 .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
                 .SetTooltip("demo.copy")
                 .SetHorizontalAlignment(UIAlignment.End)
@@ -811,8 +815,8 @@ internal static class DemoUI
             .SetBorderThickness(UIThickness.Uniform(0))
             .SetShowActions(false)
             .SetRowHoverable(true)
-            .BindItems(nameof(DemoGroupContext.OptionRows), UIBindingScope.Relative)
-            .OnRowClick(nameof(DemoController.CycleOption), UIAction.Arg("group", context), UIAction.ArgCurrentItemKey("id"))
+            .BindItems<DemoGroupContext>(static x => x.OptionRows, UIBindingScope.Relative)
+            .OnItemClick(nameof(DemoController.CycleOption), UIAction.Arg("group", context), UIAction.ArgCurrentItemKey("id"))
             .SetPlacement(1, 1, 24, 1);
 
         // Closed to start with: the list reads as a table of contents until a section is asked for.

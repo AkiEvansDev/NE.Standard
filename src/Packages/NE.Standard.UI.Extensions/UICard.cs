@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Regions;
@@ -89,7 +88,7 @@ public static class UICard
     }
 
     /// <summary>
-    /// One card alone on an otherwise empty page — a sign-in, what a submit came to (<see cref="UIPage.Outcome(string?, UIMessageSeverity, UIPhrase, UIPhrase, IVisualComponent[])"/>),
+    /// One card alone on an otherwise empty page — a sign-in, what a submit came to (<see cref="UIPage.Outcome(string?, UIColorStyle, UIPhrase, UIPhrase, IVisualComponent[])"/>),
     /// or a stack of a form and what replaces it: a form's column (<see cref="UIColumnWidth.Form"/>, the whole width on a phone) in the
     /// middle, 24 px under the top on a phone and 96 px from the medium breakpoint, where a card at a wide screen's top edge reads as
     /// pushed up.

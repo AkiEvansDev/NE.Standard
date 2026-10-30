@@ -39,12 +39,11 @@
     height: 0;
     overflow: hidden;
     visibility: hidden;
-    font-weight: var(--ui-selected-font-weight, 600);
+    font-weight: var(--ui-selected-font-weight, @ui-chosen-weight);
     pointer-events: none;
 }
 
-// A caption's states, one look on every strip (Tabs, TabsView, the colour panes). A TabsView caption also fills under the pointer:
-// it holds a close control, and the fill shows the whole caption as one target.
+// A caption's states, one look on every strip (Tabs, TabsView): ink and underline mark alone, never a background fill.
 .ui-tab-caption-rest-ink() {
     color: @ui-text-muted;
 }
@@ -58,7 +57,7 @@
 }
 
 .ui-tab-caption-selected-ink() {
-    .ui-selected-ink(@ui-text-ink; 600);
+    .ui-selected-ink(var(--ui-text-selected); @ui-chosen-weight);
 }
 
 .ui-tab-caption-selected-mark() {

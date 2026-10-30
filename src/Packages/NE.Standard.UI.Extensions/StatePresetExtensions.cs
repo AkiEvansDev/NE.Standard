@@ -1,3 +1,4 @@
+using System;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
@@ -18,12 +19,34 @@ namespace NE.Standard.UI.Extensions;
 public static class StatePresetExtensions
 {
     /// <summary>Shown while the source has a value — a switch on, a box ticked, a select with a choice — and collapsed otherwise.</summary>
+    public static T ShownWhen<T>(this T component, IVisualComponent sourceComponent) where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.ShownWhen(sourceComponent.Id);
+    }
+
+    /// <summary>Shown while the source has a value — a switch on, a box ticked, a select with a choice — and collapsed otherwise.</summary>
     public static T ShownWhen<T>(this T component, string sourceComponentId) where T : VisualComponentBase<T>, IUIComponentDefinition
         => component.ShownWhen(sourceComponentId, IInputComponent.ValueProperty, UIComparisonOperator.Required, null);
 
     /// <summary>Shown while the source's value equals <paramref name="value"/>, and collapsed otherwise.</summary>
+    public static T ShownWhen<T>(this T component, IVisualComponent sourceComponent, object? value) where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.ShownWhen(sourceComponent.Id, value);
+    }
+
+    /// <summary>Shown while the source's value equals <paramref name="value"/>, and collapsed otherwise.</summary>
     public static T ShownWhen<T>(this T component, string sourceComponentId, object? value) where T : VisualComponentBase<T>, IUIComponentDefinition
         => component.ShownWhen(sourceComponentId, IInputComponent.ValueProperty, UIComparisonOperator.Equal, value);
+
+    /// <summary>Shown while the source's property satisfies the comparison, and collapsed otherwise.</summary>
+    public static T ShownWhen<T>(this T component, IVisualComponent sourceComponent, UIProperty source, UIComparisonOperator @operator, object? value)
+        where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.ShownWhen(sourceComponent.Id, source, @operator, value);
+    }
 
     /// <summary>Shown while the source's property satisfies the comparison, and collapsed otherwise.</summary>
     public static T ShownWhen<T>(this T component, string sourceComponentId, UIProperty source, UIComparisonOperator @operator, object? value)
@@ -31,12 +54,34 @@ public static class StatePresetExtensions
         => component.Interact(sourceComponentId, source, IVisualComponent.VisibilityProperty, @operator, value, UIVisibility.Visible, UIVisibility.Collapsed);
 
     /// <summary>Collapsed while the source has a value, and shown otherwise.</summary>
+    public static T HiddenWhen<T>(this T component, IVisualComponent sourceComponent) where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.HiddenWhen(sourceComponent.Id);
+    }
+
+    /// <summary>Collapsed while the source has a value, and shown otherwise.</summary>
     public static T HiddenWhen<T>(this T component, string sourceComponentId) where T : VisualComponentBase<T>, IUIComponentDefinition
         => component.HiddenWhen(sourceComponentId, IInputComponent.ValueProperty, UIComparisonOperator.Required, null);
 
     /// <summary>Collapsed while the source's value equals <paramref name="value"/>, and shown otherwise.</summary>
+    public static T HiddenWhen<T>(this T component, IVisualComponent sourceComponent, object? value) where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.HiddenWhen(sourceComponent.Id, value);
+    }
+
+    /// <summary>Collapsed while the source's value equals <paramref name="value"/>, and shown otherwise.</summary>
     public static T HiddenWhen<T>(this T component, string sourceComponentId, object? value) where T : VisualComponentBase<T>, IUIComponentDefinition
         => component.HiddenWhen(sourceComponentId, IInputComponent.ValueProperty, UIComparisonOperator.Equal, value);
+
+    /// <summary>Collapsed while the source's property satisfies the comparison, and shown otherwise.</summary>
+    public static T HiddenWhen<T>(this T component, IVisualComponent sourceComponent, UIProperty source, UIComparisonOperator @operator, object? value)
+        where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.HiddenWhen(sourceComponent.Id, source, @operator, value);
+    }
 
     /// <summary>Collapsed while the source's property satisfies the comparison, and shown otherwise.</summary>
     public static T HiddenWhen<T>(this T component, string sourceComponentId, UIProperty source, UIComparisonOperator @operator, object? value)
@@ -44,12 +89,34 @@ public static class StatePresetExtensions
         => component.Interact(sourceComponentId, source, IVisualComponent.VisibilityProperty, @operator, value, UIVisibility.Collapsed, UIVisibility.Visible);
 
     /// <summary>Enabled while the source has a value, and disabled otherwise.</summary>
+    public static T EnabledWhen<T>(this T component, IVisualComponent sourceComponent) where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.EnabledWhen(sourceComponent.Id);
+    }
+
+    /// <summary>Enabled while the source has a value, and disabled otherwise.</summary>
     public static T EnabledWhen<T>(this T component, string sourceComponentId) where T : VisualComponentBase<T>, IUIComponentDefinition
         => component.EnabledWhen(sourceComponentId, IInputComponent.ValueProperty, UIComparisonOperator.Required, null);
 
     /// <summary>Enabled while the source's value equals <paramref name="value"/>, and disabled otherwise.</summary>
+    public static T EnabledWhen<T>(this T component, IVisualComponent sourceComponent, object? value) where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.EnabledWhen(sourceComponent.Id, value);
+    }
+
+    /// <summary>Enabled while the source's value equals <paramref name="value"/>, and disabled otherwise.</summary>
     public static T EnabledWhen<T>(this T component, string sourceComponentId, object? value) where T : VisualComponentBase<T>, IUIComponentDefinition
         => component.EnabledWhen(sourceComponentId, IInputComponent.ValueProperty, UIComparisonOperator.Equal, value);
+
+    /// <summary>Enabled while the source's property satisfies the comparison, and disabled otherwise.</summary>
+    public static T EnabledWhen<T>(this T component, IVisualComponent sourceComponent, UIProperty source, UIComparisonOperator @operator, object? value)
+        where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.EnabledWhen(sourceComponent.Id, source, @operator, value);
+    }
 
     /// <summary>Enabled while the source's property satisfies the comparison, and disabled otherwise.</summary>
     public static T EnabledWhen<T>(this T component, string sourceComponentId, UIProperty source, UIComparisonOperator @operator, object? value)

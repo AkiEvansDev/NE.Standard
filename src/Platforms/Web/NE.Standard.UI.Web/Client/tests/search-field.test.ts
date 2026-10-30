@@ -79,8 +79,8 @@ type Scene = {
 };
 
 /** As SearchComponentRenderer draws it: the trigger a select's button, the field over the listbox in the popup. */
-function scene(options: { readonly value?: string; readonly term?: string } = {}): Scene {
-    const trigger = FakeElement.of("ui-select__trigger", { "aria-haspopup": "listbox", "aria-expanded": "false" }, "button");
+function scene(options: { readonly value?: string; readonly term?: string; readonly freeText?: boolean } = {}): Scene {
+    const trigger = FakeElement.of("ui-select__trigger", { type: "button", role: "combobox", "aria-haspopup": "listbox", "aria-expanded": "false" }, "button");
 
     Object.assign(trigger, { prepend: (content: FakeElement) => trigger.insertBefore(content, trigger.firstElementChild) });
     const field = new SearchField();
@@ -88,7 +88,7 @@ function scene(options: { readonly value?: string; readonly term?: string } = {}
         const key = city.toLowerCase();
         const option = FakeElement.of("ui-select__option", { "data-ui-key": key, role: "option", tabindex: "0", "aria-selected": key === options.value ? "true" : "false" });
 
-        option.dataset.uiKey = key;
+        option.setAttribute("data-ui-key", key);
         // What the trigger draws a chosen option from; the fake tree clones nothing, so the copy is an empty one.
         Object.assign(option, { cloneNode: () => ({ childNodes: [], querySelectorAll: () => [], getAttributeNames: () => [], removeAttribute: () => undefined }) });
         option.append(Object.assign(FakeElement.of("ui-text__title", {}, "span"), { textContent: city }));
@@ -101,6 +101,9 @@ function scene(options: { readonly value?: string; readonly term?: string } = {}
 
     if (options.value !== undefined)
         select.setAttribute("data-ui-select-value", options.value);
+
+    if (options.freeText === true)
+        select.setAttribute("data-ui-select-free-text", "");
 
     field.value = options.term ?? "";
 
@@ -393,7 +396,7 @@ test("a list standing above its field keeps the height it opened at, so narrowin
     popup.rect = { left: 0, top: 0, width: 300, height: 260 };
     press(at);
 
-    assert.equal(popup.dataset.uiPlacement?.startsWith("top"), true);
+    assert.equal(popup.getAttribute("data-ui-placement")?.startsWith("top"), true);
     assert.equal(popup.style.minHeight, "260px");
 
     close(at);
@@ -402,7 +405,141 @@ test("a list standing above its field keeps the height it opened at, so narrowin
     at.trigger.rect = { left: 100, top: 40, width: 300, height: 40 };
     press(at);
 
-    assert.equal(popup.dataset.uiPlacement?.startsWith("bottom"), true);
+    assert.equal(popup.getAttribute("data-ui-placement")?.startsWith("bottom"), true);
     assert.equal(popup.style.minHeight ?? "", "");
     close(at);
+});
+
+test("a search's listbox under its field is called what its trigger's caption says, not the popup around it nor the trigger's placeholder", () => {
+    const at = scene();
+
+    // As RenderFieldLabel writes it: the caption as the trigger's own words.
+    at.trigger.setAttribute("aria-label", "City");
+    press(at);
+
+    const caption = at.select.querySelector("[data-ui-popup-caption]");
+
+    assert.equal(at.list.getAttribute("aria-labelledby"), caption?.id);
+    assert.equal(caption?.textContent, "City");
+    assert.equal(at.select.children[2].hasAttribute("aria-labelledby"), false, "the popup's wrapper has no role to be named");
+});
+
+test("a free-text search takes typed text on Enter when no suggestion is marked, or the option's key when the text names one", () => {
+    const at = scene({ freeText: true });
+    const changes: string[] = [];
+
+    at.valueInput.addEventListener("change", () => changes.push(at.valueInput.value));
+    press(at);
+    at.field.value = "Reykjavik";
+    at.field.dispatchEvent(new FakeEvent("input"));
+    key("Enter");
+
+    assert.equal(isOpen(at), false);
+    assert.equal(at.select.getAttribute("data-ui-select-value"), "Reykjavik");
+    assert.deepEqual(changes, ["Reykjavik"]);
+    assert.equal(at.trigger.querySelector(".ui-select__trigger-content")?.textContent, "Reykjavik");
+
+    press(at);
+    assert.equal(at.field.value, "Reykjavik");
+    assert.equal(active(at), null);
+
+    at.field.value = "BERLIN";
+    at.field.dispatchEvent(new FakeEvent("input"));
+    key("Enter");
+
+    assert.equal(at.select.getAttribute("data-ui-select-value"), "berlin");
+    assert.deepEqual(changes, ["Reykjavik", "berlin"]);
+});
+
+test("in a free-text search, an arrow marks a suggestion, and typing or Escape clears the mark so Enter takes the typed text", () => {
+    const at = scene({ freeText: true });
+
+    press(at);
+    at.field.value = "Am";
+    at.field.dispatchEvent(new FakeEvent("input"));
+    layOut(at);
+    key("ArrowDown");
+
+    assert.equal(active(at), "amsterdam");
+
+    const escape = key("Escape");
+
+    assert.equal(escape.defaultPrevented, true);
+    assert.equal(isOpen(at), true);
+    assert.equal(active(at), null);
+
+    key("ArrowDown");
+    assert.equal(active(at), "amsterdam");
+
+    at.field.value = "Amst";
+    at.field.dispatchEvent(new FakeEvent("input"));
+    assert.equal(active(at), null);
+
+    key("Enter");
+    assert.equal(at.select.getAttribute("data-ui-select-value"), "Amst");
+});
+
+test("a free-text search refuses text that names a disabled option's key", () => {
+    const at = scene({ freeText: true });
+    const changes: string[] = [];
+
+    at.options[2].classes.add("ui-disabled");
+    at.valueInput.addEventListener("change", () => changes.push(at.valueInput.value));
+
+    press(at);
+    at.field.value = "berlin";
+    at.field.dispatchEvent(new FakeEvent("input"));
+    key("Enter");
+
+    assert.equal(isOpen(at), true);
+    assert.equal(at.select.getAttribute("data-ui-select-value"), null);
+    assert.deepEqual(changes, []);
+    close(at);
+});
+
+test("a manual free-text search asks on the first Enter and commits on the second Enter once asked", () => {
+    const at = scene({ freeText: true });
+    const asked: string[] = [];
+    const changes: string[] = [];
+
+    at.field.setAttribute("data-ui-search-manual", "");
+    at.select.addEventListener("search", () => asked.push(at.field.value));
+    at.valueInput.addEventListener("change", () => changes.push(at.valueInput.value));
+
+    press(at);
+    at.field.value = "Zurich";
+    at.field.dispatchEvent(new FakeEvent("input"));
+
+    key("Enter");
+    assert.deepEqual(asked, ["Zurich"]);
+    assert.deepEqual(changes, []);
+    assert.equal(isOpen(at), true);
+
+    key("Enter");
+    assert.deepEqual(asked, ["Zurich"]);
+    assert.deepEqual(changes, ["Zurich"]);
+    assert.equal(isOpen(at), false);
+});
+
+test("a closed search clears its unbound query field when cleared or when the server resets its value to empty", async () => {
+    const { syncSingleSelect } = await import("../src/interactions/select-dom.ts");
+    const drawnKeys = new WeakMap<HTMLElement, string>();
+    const at = scene({ value: "berlin", term: "Berlin", freeText: true });
+
+    syncSingleSelect(real<HTMLElement>(at.select), drawnKeys);
+    assert.equal(at.field.value, "Berlin");
+
+    at.select.removeAttribute("data-ui-select-value");
+    syncSingleSelect(real<HTMLElement>(at.select), drawnKeys);
+    assert.equal(at.field.value, "");
+
+    const clearButton = FakeElement.of("ui-field__clear", { type: "button", "data-ui-select-clear": "" }, "button");
+    at.select.setAttribute("data-ui-clearable", "");
+    at.select.setAttribute("data-ui-select-value", "berlin");
+    at.select.append(clearButton);
+    at.field.value = "Ber";
+
+    clearButton.dispatchEvent(new FakeEvent("click"));
+    assert.equal(at.select.getAttribute("data-ui-select-value"), null);
+    assert.equal(at.field.value, "");
 });

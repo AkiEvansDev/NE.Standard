@@ -60,12 +60,6 @@
     min-width: 0;
     min-height: 0;
     container-type: size;
-    --ui-lightbox-way: 1;
-}
-
-// The next picture comes in from the end the page reads toward.
-.ui-lightbox:dir(rtl) .ui-lightbox__stage {
-    --ui-lightbox-way: -1;
 }
 
 // Hugs the picture, so the arrows stand on its lower edge; the strip moves by `--ui-lightbox-shift` (lightbox.ts, which holds the gap
@@ -76,7 +70,7 @@
     display: flex;
     pointer-events: auto;
     --ui-lightbox-slot: 0;
-    transform: translateX(calc(var(--ui-lightbox-slot) * var(--ui-lightbox-way) * (100cqw + @ui-lightbox-slide-gap) + var(--ui-lightbox-shift, 0px)));
+    transform: translateX(calc(var(--ui-lightbox-slot) * (100cqw + @ui-lightbox-slide-gap) + var(--ui-lightbox-shift, 0px)));
     transition: transform @ui-motion-normal @ui-motion-ease;
 }
 
@@ -142,7 +136,7 @@
     justify-items: center;
     padding: @ui-space-1 @ui-space-3;
     border-radius: 999px;
-    background: @ui-picture-plate;
+    background: @ui-image-plate;
     color: @ui-lightbox-ink;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
@@ -165,15 +159,16 @@
     padding: 0;
     border: none;
     border-radius: 999px;
-    background: @ui-picture-plate;
+    background: @ui-image-plate;
     color: @ui-lightbox-ink;
     cursor: pointer;
     pointer-events: auto;
     transition: background-color @ui-motion-fast @ui-motion-ease;
 
-    // The light ink of the plate, outside it: the brand's would vanish on a dark photograph.
+    // Darkens the plate as pointer hover does, with no browser outline.
     &@{ui-keyboard-focus} {
-        .ui-keyboard-frame(@ui-lightbox-ink; 999px; false; 2px);
+        background: @ui-lightbox-plate-hover;
+        .ui-keyboard-frame();
     }
 }
 
@@ -201,15 +196,6 @@
 
 .ui-lightbox__step--next::before {
     transform: rotate(-90deg);
-}
-
-// Which way is back turns with the page's direction.
-.ui-lightbox:dir(rtl) .ui-lightbox__step--previous::before {
-    transform: rotate(-90deg);
-}
-
-.ui-lightbox:dir(rtl) .ui-lightbox__step--next::before {
-    transform: rotate(90deg);
 }
 
 .ui-lightbox__caption {

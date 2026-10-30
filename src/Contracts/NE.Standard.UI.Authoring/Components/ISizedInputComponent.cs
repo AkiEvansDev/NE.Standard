@@ -1,0 +1,27 @@
+using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Styling;
+
+namespace NE.Standard.UI.Authoring.Components;
+
+/// <summary>
+/// Represents an input that says how much room it takes — every built-in input, a field and a toggle alike.
+/// </summary>
+public interface ISizedInputComponent : IInputComponent
+{
+    /// <summary>
+    /// Gets the registered property key for <see cref="Size"/>.
+    /// </summary>
+    static UIProperty SizeProperty { get; } = new(nameof(Size));
+
+    /// <summary>The size an input takes when unset: medium.</summary>
+    static UIResponsive<UISize> DefaultSize { get; } = UISize.Medium;
+
+    /// <summary>
+    /// Gets how much room the input takes, optionally per breakpoint: a field's height, side padding and text; a toggle's box and text;
+    /// a slider's track and handle.
+    /// </summary>
+    [UIComponentProperty(DefaultValueMember = nameof(DefaultSize))]
+    UIResponsive<UISize>? Size { get; }
+}

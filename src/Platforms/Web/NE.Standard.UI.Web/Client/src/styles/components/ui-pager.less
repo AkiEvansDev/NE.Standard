@@ -27,6 +27,7 @@
         flex: 0 0 auto;
         justify-content: center;
         min-width: @ui-button-height-sm;
+        color: @ui-text-muted;
     }
 
         .ui-pager__button > .ui-icon {
@@ -43,7 +44,7 @@
         // chosen entry wears the brand's tint.
         .ui-pager__button[aria-current="page"] {
             .ui-selected-ground(@default: var(--ui-wash-hover));
-            .ui-selected-ink(@weight: 600);
+            .ui-selected-ink(@weight: @ui-chosen-weight);
         }
 
         .ui-pager__gap {

@@ -1,5 +1,4 @@
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -11,34 +10,37 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// <summary>
 /// A small status/tag indicator combining an optional icon and short text.
 /// </summary>
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultAlignment))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultAlignment))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
-public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, ITooltipComponent
+public abstract partial class BadgeComponent<T>(string? id = null) : VisualComponentBase<T>(id), ITooltipComponent
     where T : BadgeComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Center;
     private static readonly UIThemeColor DefaultIconColor = UIThemeColor.FromStyle(UIColorStyle.Default);
-    private static readonly UITextAppearance DefaultTextType = UITextAppearance.Overline;
+    private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Overline;
 
     /// <summary>
     /// Gets or sets the badge's visual kind — Primary, Accent, Info, Warning, Success, Danger, or Surface; default Primary.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIBadgeType.Primary)]
-    public UIBadgeType? Type { get; set; }
+    [UIComponentProperty(DefaultValue = UIBadgeVariant.Primary)]
+    public UIBadgeVariant? Variant { get; set; }
 
     /// <summary>
-    /// Overrides <see cref="Type"/> with an explicit color when set, e.g. a tag/category swatch.
+    /// Overrides <see cref="Variant"/> with an explicit color when set, e.g. a tag/category swatch.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIThemeColor? Color { get; set; }
 
     /// <summary>
-    /// Gets or sets how the badge spends its colour; unset, a <see cref="Type"/> fills and a <see cref="Color"/> tints. A plain badge
+    /// Gets or sets how the badge spends its colour; unset, a <see cref="Variant"/> fills and a <see cref="Color"/> tints. A plain badge
     /// ignores it.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIBadgeFill? Fill { get; set; }
 
     /// <summary>
-    /// Gets or sets the icon shown beside the badge text, by name from the registered icon font/set.
+    /// Gets or sets the icon shown beside the badge's title, by name from the registered icon font/set.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public string? Icon { get; set; }
@@ -50,17 +52,17 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
     public UIThemeColor? IconColor { get; set; }
 
     /// <summary>
-    /// Gets or sets the icon's size; unset the glyph is as tall as the badge's own text.
+    /// Gets or sets the icon's size; unset the glyph is as tall as the badge's title.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
-    public UIIconSize? IconSize { get; set; }
+    public UISize? IconSize { get; set; }
 
     /// <summary>
-    /// Gets or sets the shape an icon that is a picture is drawn in — <see cref="UIIconShape.Circle"/> for a person's avatar on a
+    /// Gets or sets the shape an icon that is a picture is drawn in — <see cref="UIShape.Circle"/> for a person's avatar on a
     /// chip; a glyph keeps its own.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
-    public UIIconShape? IconShape { get; set; }
+    public UIShape? IconShape { get; set; }
 
     /// <summary>
     /// Gets or sets the glyph a picture icon shows while it has no picture — a round one (<see cref="IconShape"/> Circle) none given
@@ -74,22 +76,13 @@ public abstract partial class BadgeComponent<T> : VisualComponentBase<T>, IToolt
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public UIPhrase? Text { get; set; }
+    public UIPhrase? Title { get; set; }
 
     /// <summary>
-    /// Gets or sets the text style used to render <see cref="Text"/>.
+    /// Gets or sets the text style used to render <see cref="Title"/>.
     /// </summary>
-    [UIComponentProperty(DefaultValueMember = nameof(DefaultTextType))]
-    public UITextAppearance? TextType { get; set; }
-
-    /// <summary>
-    /// Initializes the badge with a centered alignment.
-    /// </summary>
-    protected BadgeComponent(string? id = null) : base(id)
-    {
-        HorizontalAlignment = UIAlignment.Center;
-        VerticalAlignment = UIAlignment.Center;
-    }
+    [UIComponentProperty(DefaultValueMember = nameof(DefaultTitleType))]
+    public UITextAppearance? TitleType { get; set; }
 }
 
 /// <summary>

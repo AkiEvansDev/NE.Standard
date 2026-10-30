@@ -1,6 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Localization;
@@ -16,60 +16,60 @@ public static class UIButtons
 {
     /// <summary>The one filled button of a group: what pressing means "go".</summary>
     public static ButtonComponent Primary(UIPhrase title, string? icon = null)
-        => Create(UIButtonType.Primary, title, icon);
+        => Create(UIButtonVariant.Primary, title, icon);
 
     /// <summary>
     /// The filled button naming a standard action in the framework's words — Save, Done — its glyph before them where
     /// <paramref name="glyph"/>; a destructive one (Delete) fills in the danger colour.
     /// </summary>
     public static ButtonComponent Primary(UIStandardAction action, bool glyph = false)
-        => Create(UIButtonType.Primary, action, glyph);
+        => Create(UIButtonVariant.Primary, action, glyph);
 
     /// <summary>The filled button in the accent colour, for the one action a page is about.</summary>
     public static ButtonComponent Accent(UIPhrase title, string? icon = null)
-        => Create(UIButtonType.Accent, title, icon);
+        => Create(UIButtonVariant.Accent, title, icon);
 
     /// <summary>The accent button naming a standard action; a destructive one fills in the danger colour.</summary>
     public static ButtonComponent Accent(UIStandardAction action, bool glyph = false)
-        => Create(UIButtonType.Accent, action, glyph);
+        => Create(UIButtonVariant.Accent, action, glyph);
 
     /// <summary>
     /// An outlined button, where a bare one would not read as a button: an action on a message's colour, an alternative stretched under
     /// a stretched primary, a choice drawn as a card. Beside a filled button the other way is a <see cref="Ghost(UIPhrase, string?)"/>.
     /// </summary>
     public static ButtonComponent Outline(UIPhrase title, string? icon = null)
-        => Create(UIButtonType.Outline, title, icon);
+        => Create(UIButtonVariant.Outline, title, icon);
 
     /// <summary>The outlined button naming a standard action — Copy, Download; a destructive one's words and glyph in the danger colour.</summary>
     public static ButtonComponent Outline(UIStandardAction action, bool glyph = false)
-        => Create(UIButtonType.Outline, action, glyph);
+        => Create(UIButtonVariant.Outline, action, glyph);
 
     /// <summary>A bare button: the safe answer, the cancel, the thing that costs nothing.</summary>
     public static ButtonComponent Ghost(UIPhrase title, string? icon = null)
-        => Create(UIButtonType.Ghost, title, icon);
+        => Create(UIButtonVariant.Ghost, title, icon);
 
     /// <summary>
     /// The bare button naming a standard action; a destructive one's words and glyph in the danger colour. A dialog's own Cancel, Close or
     /// Done, which closes it as the viewer does, is <see cref="UIDialogs.CloseButton"/>.
     /// </summary>
     public static ButtonComponent Ghost(UIStandardAction action, bool glyph = false)
-        => Create(UIButtonType.Ghost, action, glyph);
+        => Create(UIButtonVariant.Ghost, action, glyph);
 
     /// <summary>The filled button in the danger colour, for the thing that cannot be undone.</summary>
     public static ButtonComponent Danger(UIPhrase title, string? icon = null)
-        => Create(UIButtonType.Danger, title, icon);
+        => Create(UIButtonVariant.Danger, title, icon);
 
     /// <summary>The danger button naming a standard action: Delete.</summary>
     public static ButtonComponent Danger(UIStandardAction action, bool glyph = false)
-        => Create(UIButtonType.Danger, action, glyph);
+        => Create(UIButtonVariant.Danger, action, glyph);
 
     /// <summary>A button that reads as a link, for a way out that sits in prose or beside a pair.</summary>
     public static ButtonComponent Link(UIPhrase title, string? icon = null)
-        => Create(UIButtonType.Link, title, icon);
+        => Create(UIButtonVariant.Link, title, icon);
 
     /// <summary>The link button naming a standard action; a destructive one's words in the danger colour.</summary>
     public static ButtonComponent Link(UIStandardAction action, bool glyph = false)
-        => Create(UIButtonType.Link, action, glyph);
+        => Create(UIButtonVariant.Link, action, glyph);
 
     /// <summary>An icon-only bare button; the tooltip is the only name it has, so it is required.</summary>
     /// <remarks>
@@ -81,7 +81,7 @@ public static class UIButtons
         ArgumentException.ThrowIfNullOrWhiteSpace(icon);
         PresetWords.Require(tooltip);
 
-        return new ButtonComponent().SetType(UIButtonType.Ghost).SetIcon(icon).SetTooltip(tooltip);
+        return new ButtonComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(icon).SetTooltip(tooltip);
     }
 
     /// <summary>
@@ -120,23 +120,23 @@ public static class UIButtons
             .AddChildren([.. buttons]);
     }
 
-    private static ButtonComponent Create(UIButtonType type, UIPhrase title, string? icon)
+    private static ButtonComponent Create(UIButtonVariant variant, UIPhrase title, string? icon)
     {
         PresetWords.Require(title);
 
-        ButtonComponent button = new ButtonComponent().SetType(type).SetTitle(title);
+        ButtonComponent button = new ButtonComponent().SetVariant(variant).SetTitle(title);
 
         return icon is null ? button : button.SetIcon(icon);
     }
 
     /// <summary>
-    /// A standard action's words, its glyph where asked, and its danger as the action draws it on a button of <paramref name="type"/>
-    /// (<see cref="UIStandardAction.ButtonType"/>, <see cref="UIStandardAction.ButtonInk"/>).
+    /// A standard action's words, its glyph where asked, and its danger as the action draws it on a button of <paramref name="variant"/>
+    /// (<see cref="UIStandardAction.ButtonVariant"/>, <see cref="UIStandardAction.ButtonInk"/>).
     /// </summary>
-    internal static ButtonComponent Create(UIButtonType type, UIStandardAction action, bool glyph)
+    internal static ButtonComponent Create(UIButtonVariant variant, UIStandardAction action, bool glyph)
     {
-        ButtonComponent button = Create(action.ButtonType(type), new UIPhrase(action.Word), glyph ? action.Glyph : null);
+        ButtonComponent button = Create(action.ButtonVariant(variant), new UIPhrase(action.Title), glyph ? action.Icon : null);
 
-        return action.ButtonInk(type) is UIThemeColor ink ? button.SetTitleColor(ink).SetIconColor(ink) : button;
+        return action.ButtonInk(variant) is UIThemeColor ink ? button.SetTitleColor(ink).SetIconColor(ink) : button;
     }
 }

@@ -25,13 +25,13 @@ internal sealed partial class LinkGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class SeparatorGroupContext : DemoGroupContext
 {
-    private const string SampleLabel = "Danger zone";
+    private const string SampleTitle = "Danger zone";
 
     [RecursiveMember]
     public partial UIOrientation? Orientation { get; set; }
 
     [RecursiveMember]
-    public partial string? Label { get; set; }
+    public partial string? Title { get; set; }
 
     [RecursiveMember]
     public partial UIThemeColor? Color { get; set; }
@@ -45,7 +45,7 @@ internal sealed partial class SeparatorGroupContext : DemoGroupContext
     public SeparatorGroupContext()
     {
         AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
-        AddOption(nameof(Label), ToggleLabel, () => Label);
+        AddOption(nameof(Title), ToggleTitle, () => Title);
         AddOption(nameof(Color), CycleColor, () => Color);
     }
 
@@ -56,8 +56,8 @@ internal sealed partial class SeparatorGroupContext : DemoGroupContext
         PreviewOrientation = Orientation == UIOrientation.Vertical ? UIOrientation.Horizontal : UIOrientation.Vertical;
     }
 
-    public void ToggleLabel()
-        => SetLastChange(nameof(Label), Label = CycleValue(Label, null, SampleLabel));
+    public void ToggleTitle()
+        => SetLastChange(nameof(Title), Title = CycleValue(Title, null, SampleTitle));
 
     public void CycleColor()
         => SetLastChange(nameof(Color), Color = CycleValue(Color, UIThemeColor.Muted, UIThemeColor.FromStyle(UIColorStyle.Danger), null));

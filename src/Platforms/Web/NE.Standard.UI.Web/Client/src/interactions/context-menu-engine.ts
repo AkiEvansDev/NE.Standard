@@ -5,8 +5,8 @@
 // waits to be drawn until it is wanted (`row-menus.ts`): asked for here, it is drawn, and opens once the page's engines took it in.
 
 import type { AnchoredPopupOptions } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarRestAttribute, ComponentSelector, ContextMenuAttribute, ContextMenuLaterAttribute, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
-import { ActionBarMoreClass, drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarMoreClass, ActionBarRestAttribute, ActionBarStripClass, ComponentSelector, ContextMenuAttribute, ContextMenuLaterAttribute, ContextMenuOpenClass, ContextMenuOpeningEventName, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAtPoint } from "./anchored-popup.ts";
 import { takesTyping } from "./caret-fields.ts";
 import { isInert, isItemRefused } from "./interactive-state.ts";
@@ -17,28 +17,22 @@ import { OwnedPopups } from "./owned-popup.ts";
 import { shownRules } from "./tab-menu.ts";
 import type { MenuRow } from "./tab-menu.ts";
 import { FocusableSelector, focusBeforePress, focusOpenedList, isPointerLast, isTouchLast, liveFocusReturn } from "./popup-focus.ts";
-import { cursorRowOf, rowKeyTarget } from "./row-cursor.ts";
+import { cursorRowOf, rowFocusElement, rowKeyTarget } from "./row-cursor.ts";
 import { rowBox, SelectionRowSelector } from "./row-selection.ts";
 import type { ComponentIndex } from "./popup-focus.ts";
 import { finishTransitions } from "../rendering/motion.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
 
 const MenuAttribute = ContextMenuAttribute;
 
-// On a menu while it is open; the action bar reads it to keep "more" standing under the menu it opened.
-export const OpenClass = "ui-context-menu--open";
-const StripClass = `${ActionBarClass}--strip`;
 // "More" on a bar standing over its host, not in the row atop a menu.
-const MoreSelector = `.${ActionBarClass}:not(.${StripClass}) > .${ActionBarMoreClass}`;
-
-/** Raised on a menu just before it opens, with the pressed element: an engine sets its entries here, or cancels to keep it shut. */
-export const ContextMenuOpeningEventName = "ui-context-menu-opening";
+const MoreSelector = `.${ActionBarClass}:not(.${ActionBarStripClass}) > .${ActionBarMoreClass}`;
 
 export type ContextMenuOpeningDetail = {
     readonly target: Element;
     /** Asked for an action bar about to show the menu's entries, not for an opening: set their state, but choose nothing. */
     readonly actionBar?: boolean;
 };
-
 
 // What draws a row's menu waiting to be wanted into its owner (`RowMenus.draw`); none where the page has no such menu.
 let drawLater: ((owner: HTMLElement) => HTMLElement | null) | null = null;
@@ -48,6 +42,12 @@ const justDrawn = new WeakSet<HTMLElement>();
 /** Names what draws a row's menu that waits to be wanted (`RowMenus.draw`). */
 export function setLaterMenus(draw: ((owner: HTMLElement) => HTMLElement | null) | null): void {
     drawLater = draw;
+}
+
+/** Clears the deferred row-menu drawer only when it is still `expected`. */
+export function clearLaterMenus(expected: (owner: HTMLElement) => HTMLElement | null): void {
+    if (drawLater === expected)
+        drawLater = null;
 }
 
 export type ContextMenuEngineOptions = {
@@ -65,9 +65,9 @@ export class ContextMenuEngine {
 
     // Placed at the pointer, or under a bar's "more"; inside is the menu alone, since a press elsewhere on its owner is outside it.
     private readonly menus = new OwnedPopups({
-        show: ({ popup }) => popup.classList.add(OpenClass),
+        show: ({ popup }) => popup.classList.add(ContextMenuOpenClass),
         hide: ({ popup }, reason) => {
-            popup.classList.remove(OpenClass);
+            popup.classList.remove(ContextMenuOpenClass);
             this.closed = popup;
 
             if (reason === "outside")
@@ -151,7 +151,7 @@ export class ContextMenuEngine {
 
         // The row of a bar's icons a long press put atop it last time, and what a bar's "more" left out; this opening draws its own,
         // before the menu is measured.
-        menu.querySelector(`:scope > .${StripClass}`)?.remove();
+        menu.querySelector(`:scope > .${ActionBarStripClass}`)?.remove();
         bringBackLeftOut(menu);
 
         if (touched !== null)
@@ -176,8 +176,9 @@ export class ContextMenuEngine {
         const placement: AnchoredPopupOptions = { placement: "bottom-start", surface: more?.closest(`.${ActionBarClass}`) ?? undefined };
         const placed = anchor === null ? {} : { anchor, placement };
 
-        // What held the focus, else the owner, else the component around it made focusable for the return: never the body.
-        if (!this.menus.open({ owner, popup: menu, ...placed, returnFocus: () => (held === null ? null : liveFocusReturn(held, this.components)) ?? liveFocusReturn(owner, this.components) }))
+        // What held the focus, else the owner, else the component around it made focusable for the return: never the body. Opened
+        // from a bar's "more", the menu is called what it says; one at the pointer has no control that opened it.
+        if (!this.menus.open({ owner, popup: menu, ...placed, namedBy: more, returnFocus: () => (held === null ? null : liveFocusReturn(held, this.components)) ?? liveFocusReturn(owner, this.components) }))
             return;
 
         if (anchor === null)
@@ -253,8 +254,8 @@ const ContextMenuOwnerSelector = `[${ContextMenuOwnerAttribute}]`;
 
 /**
  * Where the keyboard is, for a context menu's entry chord and a menu asked for from the keyboard: the focused element, or — where a
- * host of rows holds the focus itself — the row its cursor is on, else its chosen row, else the host (whose rows' menus are then out
- * of reach).
+ * host of rows holds the focus itself — the row its cursor is on (holding the focus itself, or by its tile in a wrap list), else its
+ * chosen row, else the host (whose rows' menus are then out of reach).
  */
 export function keyboardPlace(): Element | null {
     const active = document.activeElement;
@@ -264,7 +265,7 @@ export function keyboardPlace(): Element | null {
 
     const found = rowKeyTarget(active);
 
-    if (found === null || (found.row !== null && found.row !== active))
+    if (found === null || (found.row !== null && found.row !== active && rowFocusElement(found.root, found.row) !== active))
         return active;
 
     const row = found.row ?? cursorRowOf(found.root);
@@ -368,8 +369,10 @@ function addActionBarStrip(owner: HTMLElement, menu: HTMLElement, target: Elemen
 
     const strip = document.createElement("div");
 
-    strip.className = `${ActionBarClass} ${StripClass}`;
+    strip.className = `${ActionBarClass} ${ActionBarStripClass}`;
     strip.setAttribute("role", "group");
+    // Called what the bar it stands for is.
+    clientStrings.write(strip, "aria-label", "ui.actionbar.name");
     drawActionBar(strip, { entries, more: false, role: "menuitem", press: pressFromStrip });
     menu.insertBefore(strip, menu.firstElementChild);
 }

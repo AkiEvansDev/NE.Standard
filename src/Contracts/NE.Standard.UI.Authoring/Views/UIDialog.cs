@@ -4,6 +4,7 @@ using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Authoring.Views;
@@ -28,7 +29,7 @@ public sealed record UIDialog
     /// <summary>
     /// Gets what the dialog's panel is made of.
     /// </summary>
-    public UISurfaceStyle Surface { get; init; } = UISurfaceStyle.Raised;
+    public UISurfaceStyle Surface { get; init; } = UISurfaceStyle.Surface;
 
     /// <summary>
     /// Gets where the panel stands: centred, or a sheet against one viewport edge; a shortcut over the size/alignment members
@@ -97,10 +98,10 @@ public sealed record UIDialog
     public bool CloseOnEscape { get; init; } = true;
 
     /// <summary>
-    /// Gets the name a screen reader announces for a dialog that shows no title of its own, translated for the page's language;
-    /// <see cref="TitleId"/> wins over it.
+    /// Gets the name a screen reader announces for a dialog that shows no title of its own, translated for the page's language as a
+    /// component's <c>AccessibleName</c> is; <see cref="TitleId"/> wins over it.
     /// </summary>
-    public string? Label { get; init; }
+    public UIPhrase? AccessibleName { get; init; }
 
     /// <summary>
     /// Gets the id of the component in <see cref="Content"/> whose words name the dialog (<c>aria-labelledby</c>), so a bound title

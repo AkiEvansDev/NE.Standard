@@ -3,6 +3,7 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
@@ -15,7 +16,7 @@ public sealed class CheckboxComponentRenderer : TextContentRendererBase
 
     protected override string ElementName => "label";
 
-    protected override string ClassName => "ui-checkbox";
+    protected override string ClassName => WebClassNames.Checkbox;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
         => RenderCheckable(context, root, ClassName);

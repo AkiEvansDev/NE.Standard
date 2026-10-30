@@ -26,7 +26,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/actions/button";
     protected override string Header => "demo.actions.button.header";
     protected override string HeaderDescription => "demo.actions.button.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/commands", "demo.nav.mechanisms.commands");
+    protected override (string Route, string Title)? ComposedIn => ("/mechanisms/commands", "demo.nav.mechanisms.commands");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(
@@ -53,7 +53,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreatePairsGroup()
     {
-        return DemoUI.CreateExample("A pair, and which one is filled",
+        return DemoUI.CreateExample("Primary & secondary button pairs",
             // On a panel at one width: the rule only reads when the three pairs share a right edge.
             new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
@@ -83,42 +83,42 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateChoiceGroup()
     {
-        return DemoUI.CreateExample("A label with something to say",
+        return DemoUI.CreateExample("Icons, descriptions & badges on buttons",
             UILayout.Stack(8)
                 .SetWidth(UILayoutLength.Absolute(380))
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Outline)
+                    .SetVariant(UIButtonVariant.Outline)
                     .SetHorizontalAlignment(UIAlignment.Stretch)
                     .SetTextAlignment(UITextAlignment.Start)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Check))
                     .SetTitle("Standard")
                     .SetDescription("2 vCPU, 4 GB memory, 80 GB disk, €18 a seat.")
                     .SetDescriptionType(UITextAppearance.Caption)
-                    .SetBadgeText("Current")
-                    .SetBadgeStyle(UIBadgeType.Surface)
+                    .SetBadgeTitle("Current")
+                    .SetBadgeVariant(UIBadgeVariant.Surface)
                 )
                 // Surface, not a status colour: a badge sits on the control's fill and has to read on any ground.
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetHorizontalAlignment(UIAlignment.Stretch)
                     .SetTextAlignment(UITextAlignment.Start)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Star))
                     .SetTitle("Pro")
                     .SetDescription("4 vCPU, 16 GB memory, 240 GB disk, €64 a seat.")
                     .SetDescriptionType(UITextAppearance.Caption)
-                    .SetBadgeText("Recommended")
-                    .SetBadgeStyle(UIBadgeType.Surface)
+                    .SetBadgeTitle("Recommended")
+                    .SetBadgeVariant(UIBadgeVariant.Surface)
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Outline)
+                    .SetVariant(UIButtonVariant.Outline)
                     .SetHorizontalAlignment(UIAlignment.Stretch)
                     .SetTextAlignment(UITextAlignment.Start)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Shield))
                     .SetTitle("Dedicated")
                     .SetDescription("16 vCPU, 64 GB memory, 960 GB disk, €290 a seat.")
                     .SetDescriptionType(UITextAppearance.Caption)
-                    .SetBadgeText("Talk to us")
-                    .SetBadgeStyle(UIBadgeType.Info)
+                    .SetBadgeTitle("Talk to us")
+                    .SetBadgeVariant(UIBadgeVariant.Info)
                 )
         );
     }
@@ -129,7 +129,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateHostsGroup()
     {
-        return DemoUI.CreateExample("Where a button is put",
+        return DemoUI.CreateExample("Alignment & toolbar placement",
             // The three hosts run across rather than down, each at the width it would have in a column of a real page.
             UILayout.Row(32)
                 .AddChild(UILayout.Stack(12)
@@ -144,7 +144,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
                         )
                         // The header's own slot, so the control acts on the card rather than on its content.
                         .SetHeaderAction(new ButtonComponent()
-                            .SetType(UIButtonType.Ghost)
+                            .SetVariant(UIButtonVariant.Ghost)
                             .SetIcon(DemoIcons.Outline(DemoIcons.Close))
                             .SetTooltip("Dismiss")
                         )
@@ -175,8 +175,8 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
                                 .SetDescriptionColor(UIThemeColor.Muted),
                             // Small, so the button keeps the row's height instead of setting it.
                             new ButtonComponent()
-                                .SetType(UIButtonType.Ghost)
-                                .SetSize(UIButtonSize.Small)
+                                .SetVariant(UIButtonVariant.Ghost)
+                                .SetSize(UISize.Small)
                                 .SetTitle("Change")
                             )
                         )
@@ -193,20 +193,20 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
                         )
                         .SetContent(UILayout.Stack(8)
                             .AddChild(new ButtonComponent()
-                                .SetType(UIButtonType.Primary)
+                                .SetVariant(UIButtonVariant.Primary)
                                 .SetHorizontalAlignment(UIAlignment.Stretch)
                                 .SetIcon(DemoIcons.Outline(DemoIcons.Lock))
                                 .SetTitle("Continue with SSO")
                             )
                             .AddChild(new ButtonComponent()
-                                .SetType(UIButtonType.Outline)
+                                .SetVariant(UIButtonVariant.Outline)
                                 .SetHorizontalAlignment(UIAlignment.Stretch)
                                 .SetTitle("Use a password")
                             )
                             // Link is the type for a button that has to read as prose rather than as a box.
                             .AddChild(new ButtonComponent()
-                                .SetType(UIButtonType.Link)
-                                .SetSize(UIButtonSize.Small)
+                                .SetVariant(UIButtonVariant.Link)
+                                .SetSize(UISize.Small)
                                 .SetTitle("I cannot sign in")
                             )
                         )
@@ -221,7 +221,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateTogglesGroup()
     {
-        return DemoUI.CreateExample("Toggles that stay down",
+        return DemoUI.CreateExample("Pressed toggle state",
             UILayout.Row(4,
                 UIButtons.Ghost("Unread", DemoIcons.Outline(DemoIcons.Mail)).SetPressed(true),
                 UIButtons.Ghost("Starred", DemoIcons.Outline(DemoIcons.Star)).SetPressed(false),
@@ -238,12 +238,12 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateShortcutsGroup()
     {
-        return DemoUI.CreateExample("A key that presses it",
+        return DemoUI.CreateExample("Keyboard shortcuts",
             UILayout.Row(4,
                 UIButtons.Ghost("Bold").SetPressed(false).SetShortcut("Ctrl+B"),
                 UIButtons.Ghost("Italic").SetPressed(false).SetShortcut("Ctrl+I"),
                 new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Star))
                     .SetTooltip("Star the draft")
                     .SetPressed(false)

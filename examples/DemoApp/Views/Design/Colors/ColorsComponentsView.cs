@@ -61,7 +61,7 @@ internal sealed class ColorsComponentsView : ColorsViewBase, IUIViewDefinition
             .ConfigureDefaultHeader(h => h
                 .SetTitle("Nightly backups")
                 .SetIcon(DemoIcons.Refresh)
-                .SetBadgeText("Running")
+                .SetBadgeTitle("Running")
             )
             .SetContent(UILayout.Stack(12)
                 .AddChild(new TextComponent()

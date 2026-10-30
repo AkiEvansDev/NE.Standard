@@ -1,69 +1,20 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { BindingAttributePrefix, ComponentSelector, cssAttributeValue, FormIdAttribute, SecretFieldAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
-import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
+import { ClearAttribute, ClearTargetAttribute, ComponentSelector, cssAttributeValue, DraftDroppedEventName, FormIdAttribute, SecretFieldAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
+import { isBufferedMode, isWritableMode, resolveWritableBinding, ValueSyncEventNames } from "../addressing/dom-registry.ts";
+import type { ComponentResolveResult, DomRegistry, FormValues, PressedForm } from "../addressing/dom-registry.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { isCaretField } from "../interactions/caret-fields.ts";
-import { DraftDroppedEventName } from "../interactions/draft-events.ts";
 import { isInert, isReadOnly } from "../interactions/interactive-state.ts";
 import { focusAsLastInput } from "../interactions/popup-focus.ts";
-import { getBindingMode } from "../metadata/metadata-index.ts";
-import type { MetadataIndex, WebBindingMode, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
-import { logError, logWarn } from "../runtime/logger.ts";
+import type { MetadataIndex, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
+import { logError, logWarn } from "../metadata/logger.ts";
 import { areValuesEqual } from "../state/value-equality.ts";
 import { ValueConflict } from "../transport/value-change-dispatcher.ts";
 import type { UnchangedSince, ValueChangeDispatcher } from "../transport/value-change-dispatcher.ts";
 
-const ClearAttribute = "data-ui-clear";
-// The field a clear empties where the bound value is not what the reader edits: a date's text, which its engine reads into the value.
-const ClearTargetAttribute = "data-ui-clear-target";
-
-export const ValueSyncEventNames: readonly string[] = ["change", "toggle"];
-
-// The pipeline's longer list: each of these is a `toggle` read again, so a command on one waits for that sync.
-export const ValueSettleEventNames: readonly string[] = [...ValueSyncEventNames, "expand", "collapse", "open", "close"];
-
-/** Every mode the runtime accepts a client value for. */
-function isWritableMode(mode: WebBindingMode | undefined): boolean {
-    const name = getBindingMode(mode);
-
-    return name === "TwoWay" || name === "OneWayToSource" || name === "OnSubmit";
-}
-
-function isBufferedMode(mode: WebBindingMode | undefined): boolean {
-    return getBindingMode(mode) === "OnSubmit";
-}
-
-/** The binding an element's own value goes through; `binding` is undefined where its id names none the metadata knows. */
-export type WritableBinding = {
-    readonly bindingId: string;
-    readonly binding: WebRenderBindingMetadata | undefined;
-    readonly buffered: boolean;
-};
-
-/** The binding an element writes back through, read off the element: one element carries one writable value; null when it has none. */
-export function resolveWritableBinding(element: Element, metadata: Pick<MetadataIndex, "getBindingById">): WritableBinding | null {
-    const value = element.getAttribute(ValueBindingAttribute);
-
-    if (value !== null) {
-        const bound = metadata.getBindingById(Number(value));
-
-        return { bindingId: value, binding: bound, buffered: bound !== undefined && isBufferedMode(bound.mode) };
-    }
-
-    for (const name of element.getAttributeNames()) {
-        if (!name.startsWith(BindingAttributePrefix))
-            continue;
-
-        const bindingId = element.getAttribute(name) ?? "";
-        const binding = metadata.getBindingById(Number(bindingId));
-
-        if (binding !== undefined && isWritableMode(binding.mode))
-            return { bindingId, binding, buffered: isBufferedMode(binding.mode) };
-    }
-
-    return null;
-}
+export { ValueSyncEventNames } from "../addressing/dom-registry.ts";
+export type { FormValues, PressedForm } from "../addressing/dom-registry.ts";
 
 export type ValueBindingEngineOptions = {
     readonly root?: ParentNode;
@@ -80,6 +31,8 @@ export type ValueBindingEngineOptions = {
     readonly readRecorded?: (reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[]) => unknown;
     /** Marks a field whose value was not sent because another writer changed it during a drop (`ValueConflict`), or takes the mark off. */
     readonly markConflict?: (component: Element, conflicting: boolean) => void;
+    /** Says to the person a value that failed to go, which the field still holds and the server lacks (`FailureNotice`). */
+    readonly failed?: (error: unknown) => void;
 };
 
 /** A field's value the server has not taken, by its binding and row, as a reload carries it over (`unsaved-stash.ts`). */
@@ -91,16 +44,6 @@ export type UnsavedValue = {
     readonly start?: unknown;
     // Held over another writer's value already (`ValueConflict`): put back held and marked, never sent unasked.
     readonly conflicted?: boolean;
-};
-
-/** A form's buffered fields and the values they held when read. */
-export type FormValues = ReadonlyMap<Element, unknown>;
-
-/** A form as a submit read it at its press: the buffered values it sends, and its text fields' words, kept until `close`. */
-export type PressedForm = {
-    readonly values: FormValues;
-    /** Ends the press's hold on its text fields' words: the submit's answer has been applied, or it sends nothing. */
-    close(): void;
 };
 
 export class ValueBindingEngine {
@@ -135,9 +78,7 @@ export class ValueBindingEngine {
 
         for (const eventName of ValueSyncEventNames) {
             this.root.addEventListener(eventName, domEvent => {
-                void this.handleValueEventAsync(domEvent).catch(error => {
-                    logError("value binding engine failed.", error);
-                });
+                void this.handleValueEventAsync(domEvent).catch(error => this.fail(error));
             }, true);
         }
 
@@ -151,6 +92,12 @@ export class ValueBindingEngine {
             if (domEvent.target instanceof Element && domEvent.target.closest(`[${ClearAttribute}]`) !== null)
                 domEvent.preventDefault();
         }, true);
+    }
+
+    /** A value that failed to go: logged, and said to the person, whose field holds a value the server lacks. */
+    private fail(error: unknown): void {
+        logError("value binding engine failed.", error);
+        this.options.failed?.(error);
     }
 
     private holdEdited(domEvent: Event): void {
@@ -295,7 +242,7 @@ export class ValueBindingEngine {
             return;
         }
 
-        void this.syncValueAsync(element, writable.bindingId).catch(error => logError("value binding engine failed.", error));
+        void this.syncValueAsync(element, writable.bindingId).catch(error => this.fail(error));
     }
 
     // A clear affordance is a click on a separate element, not a "change" on the field.

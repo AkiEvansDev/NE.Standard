@@ -23,6 +23,20 @@ public readonly record struct UIPropertyReference
     { }
 
     /// <summary>
+    /// Creates a reference from a component, a property name, and optional dynamic parameters.
+    /// </summary>
+    public UIPropertyReference(IBindableComponent component, string property, object?[]? dynamicParameters = null)
+        : this(new UIComponentReference(component, dynamicParameters), new UIProperty(property))
+    { }
+
+    /// <summary>
+    /// Creates a reference from a component, a property key, and optional dynamic parameters.
+    /// </summary>
+    public UIPropertyReference(IBindableComponent component, UIProperty property, object?[]? dynamicParameters = null)
+        : this(new UIComponentReference(component, dynamicParameters), property)
+    { }
+
+    /// <summary>
     /// Creates a reference from an already-resolved component reference and property key.
     /// </summary>
     public UIPropertyReference(UIComponentReference component, UIProperty property)

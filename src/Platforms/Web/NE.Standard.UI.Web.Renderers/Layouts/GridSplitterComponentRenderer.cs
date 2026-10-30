@@ -20,7 +20,7 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
 
     public override string ComponentTypeKey => GridSplitterComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-grid-splitter";
+    protected override string ClassName => WebClassNames.GridSplitter;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -35,7 +35,7 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         _ = root.Attribute("role", "separator");
         _ = root.Attribute("tabindex", "0");
         _ = root.Attribute("aria-orientation", resolved == UIOrientation.Vertical ? "vertical" : "horizontal");
-        WebWords.Write(context, root, "aria-label", UIStrings.SplitterLabel);
+        WebWords.Write(context, root, "aria-label", UIStrings.SplitterName);
 
         _ = RenderProperty<double?>(context, root, GridSplitterComponent.StepProperty, static (target, value) =>
         {

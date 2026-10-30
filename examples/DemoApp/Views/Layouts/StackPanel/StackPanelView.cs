@@ -22,14 +22,14 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/layouts/stack-panel";
     protected override string Header => "demo.layouts.stack-panel.header";
     protected override string HeaderDescription => "demo.layouts.stack-panel.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/article", "demo.nav.screens.article");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/article", "demo.nav.screens.article");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new StackPanelComponent()
             .BindStandard()
-            .BindOrientation($"{StackGroup}.{nameof(StackPanelGroupContext.Orientation)}")
-            .BindSpacing($"{StackGroup}.{nameof(StackPanelGroupContext.Spacing)}")
-            .BindWrap($"{StackGroup}.{nameof(StackPanelGroupContext.Wrap)}")
+            .BindOrientation<StackPanelController>(static x => x.StackGroup.Orientation)
+            .BindSpacing<StackPanelController>(static x => x.StackGroup.Spacing)
+            .BindWrap<StackPanelController>(static x => x.StackGroup.Wrap)
             .AddChildren(DemoUI.CreateTiles(5))
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 300);
@@ -50,9 +50,9 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateGlyphEdgeGroup()
     {
-        return DemoUI.CreateExample("Icons on the words' edge",
+        return DemoUI.CreateExample("Cross-axis alignment",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetPadding(UIThickness.Uniform(16))
                 .SetWidth(UILayoutLength.Absolute(360))
                 .SetContent(UILayout.Stack(12)
@@ -70,7 +70,7 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
                             .SetOrientation(UIOrientation.Horizontal)
                             .SetGlyphEdge(UIAlignment.End)
                             .SetVerticalAlignment(UIAlignment.Start)
-                            .AddChild(UIIconButtons.Close().SetSize(UIButtonSize.Small))
+                            .AddChild(UIIconButtons.Close().SetSize(UISize.Small))
                             .SetPlacement(24, 1, 1, 1)
                         )
                     )
@@ -110,17 +110,17 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateToolbarGroup()
     {
-        return DemoUI.CreateExample("A toolbar that wraps in reading order",
+        return DemoUI.CreateExample("Wrapping horizontal toolbar",
             new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetWrap(true)
                 .SetSpacing(8)
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Primary).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Add)).SetTitle("New server"))
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Refresh)).SetTitle("Restart"))
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Sliders)).SetTitle("Resize"))
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Download)).SetTitle("Take a snapshot"))
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Outline).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Region)).SetTitle("Move to another region"))
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Danger).SetSize(UIButtonSize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Remove)).SetTitle("Delete")),
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Primary).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Add)).SetTitle("New server"))
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Outline).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Refresh)).SetTitle("Restart"))
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Outline).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Sliders)).SetTitle("Resize"))
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Outline).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Download)).SetTitle("Take a snapshot"))
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Outline).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Region)).SetTitle("Move to another region"))
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Danger).SetSize(UISize.Small).SetIcon(DemoIcons.Outline(DemoIcons.Remove)).SetTitle("Delete")),
             note: "A row told to wrap: a command that does not fit starts the next line, and every command keeps its own width, so the toolbar still reads left to right. A set of like controls wants even columns instead — the wrap panel's ItemMinWidth."
         );
     }
@@ -130,7 +130,7 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateChecksGroup()
     {
-        return DemoUI.CreateExample("Rows that are stacks the other way",
+        return DemoUI.CreateExample("Nested vertical & horizontal stacks",
             UILayout.Stack(16)
                 .AddChild(new TextComponent()
                     .SetTitle("Health checks")
@@ -146,7 +146,7 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                         .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Check)).SetColor(UIThemeColor.FromStyle(UIColorStyle.Success)))
                         .AddChild(new TextComponent().SetTitle("billing").SetTitleType(UITextAppearance.Body))
-                        .AddChild(new BadgeComponent().SetType(UIBadgeType.Surface).SetText("eu-west"))
+                        .AddChild(new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle("eu-west"))
                         .AddChild(new TextComponent().SetTitle("12 of 12 replicas passed · 2 minutes ago").SetTitleType(UITextAppearance.Caption).SetTitleColor(UIThemeColor.Muted))
                     )
                     .AddChild(new StackPanelComponent()
@@ -155,7 +155,7 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                         .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetColor(UIThemeColor.FromStyle(UIColorStyle.Warning)))
                         .AddChild(new TextComponent().SetTitle("metrics").SetTitleType(UITextAppearance.Body))
-                        .AddChild(new BadgeComponent().SetType(UIBadgeType.Surface).SetText("us-east"))
+                        .AddChild(new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle("us-east"))
                         .AddChild(new TextComponent().SetTitle("2 of 3 replicas passed · 4 minutes ago").SetTitleType(UITextAppearance.Caption).SetTitleColor(UIThemeColor.Muted))
                     )
                     .AddChild(new StackPanelComponent()
@@ -164,7 +164,7 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                         .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Check)).SetColor(UIThemeColor.FromStyle(UIColorStyle.Success)))
                         .AddChild(new TextComponent().SetTitle("dns").SetTitleType(UITextAppearance.Body))
-                        .AddChild(new BadgeComponent().SetType(UIBadgeType.Surface).SetText("eu-west"))
+                        .AddChild(new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle("eu-west"))
                         .AddChild(new TextComponent().SetTitle("2 of 2 replicas passed · 5 minutes ago").SetTitleType(UITextAppearance.Caption).SetTitleColor(UIThemeColor.Muted))
                     )
                     .AddChild(new StackPanelComponent()
@@ -173,7 +173,7 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
                         .SetVerticalAlignment(UIAlignment.Center)
                         .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Check)).SetColor(UIThemeColor.FromStyle(UIColorStyle.Success)))
                         .AddChild(new TextComponent().SetTitle("scheduler").SetTitleType(UITextAppearance.Body))
-                        .AddChild(new BadgeComponent().SetType(UIBadgeType.Surface).SetText("ap-south"))
+                        .AddChild(new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle("ap-south"))
                         .AddChild(new TextComponent().SetTitle("1 of 1 replica passed · 9 minutes ago").SetTitleType(UITextAppearance.Caption).SetTitleColor(UIThemeColor.Muted))
                     )
                 ),

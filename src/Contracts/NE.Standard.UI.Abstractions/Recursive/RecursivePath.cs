@@ -1,7 +1,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 using NE.Standard.UI.Primitives.Recursive;
 
@@ -165,10 +168,16 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
 
             if (span[i] == '[')
             {
+                if (expectSegment && i > 0)
+                    throw new FormatException($"Invalid path '{path}'.");
+
                 i = ParseBracketSegment(path, span, i, segments);
                 expectSegment = false;
                 continue;
             }
+
+            if (!expectSegment)
+                throw new FormatException($"Invalid path '{path}'.");
 
             var start = i;
 
@@ -261,6 +270,168 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
     {
         ArgumentNullException.ThrowIfNull(template);
         return template.Materialize(parameters);
+    }
+
+    /// <summary>
+    /// Creates a path from a lambda expression naming a property or indexer chain on <typeparamref name="TSource"/>.
+    /// </summary>
+    public static RecursivePath FromExpression<TSource, TValue>(Expression<Func<TSource, TValue>> expression)
+    {
+        ArgumentNullException.ThrowIfNull(expression);
+        return FromLambda(expression);
+    }
+
+    /// <summary>
+    /// Creates a path from a lambda expression naming a property or indexer chain on <typeparamref name="TSource"/>.
+    /// </summary>
+    public static RecursivePath FromExpression<TSource>(Expression<Func<TSource, object?>> expression)
+    {
+        ArgumentNullException.ThrowIfNull(expression);
+        return FromLambda(expression);
+    }
+
+    /// <summary>
+    /// Creates a path from a lambda expression naming a property or indexer chain on its single parameter.
+    /// </summary>
+    public static RecursivePath FromLambda(LambdaExpression expression)
+    {
+        ArgumentNullException.ThrowIfNull(expression);
+
+        if (expression.Parameters.Count != 1)
+            throw new ArgumentException("A binding path expression takes one parameter.", nameof(expression));
+
+        ParameterExpression parameter = expression.Parameters[0];
+        List<PathSegment> segments = [];
+        Expression current = UnwrapConversions(expression.Body);
+
+        while (!ReferenceEquals(current, parameter))
+        {
+            switch (current)
+            {
+                case MemberExpression { Member: PropertyInfo property, Expression: { } parent }:
+                    segments.Add(PathSegment.ForProperty(property.Name));
+                    current = UnwrapConversions(parent);
+                    break;
+
+                case BinaryExpression { NodeType: ExpressionType.ArrayIndex, Left: { } array, Right: { } indexExpression }:
+                    segments.Add(EvaluateParameterSegment(indexExpression, parameter, expression));
+                    current = UnwrapConversions(array);
+                    break;
+
+                case IndexExpression { Object: { } indexedObject, Arguments: [Expression indexArgument] }:
+                    segments.Add(EvaluateParameterSegment(indexArgument, parameter, expression));
+                    current = UnwrapConversions(indexedObject);
+                    break;
+
+                case MethodCallExpression { Object: { } targetObject, Arguments: [Expression argument], Method: { IsSpecialName: true } method } when IsIndexerGetter(method):
+                    segments.Add(EvaluateParameterSegment(argument, parameter, expression));
+                    current = UnwrapConversions(targetObject);
+                    break;
+
+                default:
+                    throw new ArgumentException($"Binding path expression '{expression}' must be a chain of properties and single-argument indexers rooted in parameter '{parameter.Name}'.", nameof(expression));
+            }
+        }
+
+        if (segments.Count == 0)
+            return Empty;
+
+        segments.Reverse();
+        return new RecursivePath([.. segments], ownsArray: true);
+    }
+
+    private static Expression UnwrapConversions(Expression expression)
+    {
+        while (expression is UnaryExpression { NodeType: ExpressionType.Convert or ExpressionType.ConvertChecked or ExpressionType.TypeAs } unary)
+            expression = unary.Operand;
+
+        return expression;
+    }
+
+    private static PathSegment EvaluateParameterSegment(Expression argument, ParameterExpression parameter, LambdaExpression fullExpression)
+    {
+        if (ReferencesParameter(argument, parameter))
+            throw new ArgumentException($"Indexer argument '{argument}' in binding path expression '{fullExpression}' cannot depend on lambda parameter '{parameter.Name}'.", nameof(fullExpression));
+
+        var value = EvaluateExpression(argument);
+        return PathSegment.ForParameter(value);
+    }
+
+    private static bool ReferencesParameter(Expression? expression, ParameterExpression parameter)
+    {
+        if (expression is null)
+            return false;
+
+        if (ReferenceEquals(expression, parameter))
+            return true;
+
+        return expression switch
+        {
+            MemberExpression member => ReferencesParameter(member.Expression, parameter),
+            UnaryExpression unary => ReferencesParameter(unary.Operand, parameter),
+            BinaryExpression binary => ReferencesParameter(binary.Left, parameter) || ReferencesParameter(binary.Right, parameter),
+            MethodCallExpression call => ReferencesParameter(call.Object, parameter) || AnyReferencesParameter(call.Arguments, parameter),
+            IndexExpression index => ReferencesParameter(index.Object, parameter) || AnyReferencesParameter(index.Arguments, parameter),
+            ConditionalExpression conditional => ReferencesParameter(conditional.Test, parameter) || ReferencesParameter(conditional.IfTrue, parameter) || ReferencesParameter(conditional.IfFalse, parameter),
+            NewExpression newExpr => AnyReferencesParameter(newExpr.Arguments, parameter),
+            InvocationExpression invoke => ReferencesParameter(invoke.Expression, parameter) || AnyReferencesParameter(invoke.Arguments, parameter),
+            _ => false
+        };
+    }
+
+    private static bool AnyReferencesParameter(ReadOnlyCollection<Expression> arguments, ParameterExpression parameter)
+    {
+        for (var i = 0; i < arguments.Count; i++)
+        {
+            if (ReferencesParameter(arguments[i], parameter))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static object? EvaluateExpression(Expression expression)
+    {
+        expression = UnwrapConversions(expression);
+
+        switch (expression)
+        {
+            case ConstantExpression constant:
+                return constant.Value;
+
+            case MemberExpression member:
+                var target = member.Expression is null ? null : EvaluateExpression(member.Expression);
+
+                if (member.Member is FieldInfo field)
+                    return field.GetValue(target);
+
+                if (member.Member is PropertyInfo property)
+                    return property.GetValue(target);
+
+                break;
+
+            default:
+                break;
+        }
+
+        return Expression.Lambda(expression).Compile().DynamicInvoke();
+    }
+
+    private static bool IsIndexerGetter(MethodInfo method)
+    {
+        if (string.Equals(method.Name, "get_Item", StringComparison.Ordinal))
+            return true;
+
+        if (method.DeclaringType is not { } declaringType)
+            return false;
+
+        foreach (PropertyInfo property in declaringType.GetProperties(BindingFlags.Instance | BindingFlags.Public))
+        {
+            if (property.GetMethod == method && property.GetIndexParameters().Length == 1)
+                return true;
+        }
+
+        return false;
     }
 
     public override bool Equals(object? obj)

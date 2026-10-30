@@ -1,11 +1,10 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -37,8 +36,6 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
     protected BreadcrumbsComponent(string? id = null) : base(id)
     {
         _ = SetTemplate(new DefaultBreadcrumbItemTemplate(binds: true));
-
-        TemplateKeyProperty = null;
     }
 
     /// <summary>

@@ -498,3 +498,22 @@ test("a window the server sent whole unasked, read again from its start after a 
 
     assert.equal(bottomSpacer(host)?.style.height, `${9994 * 60}px`);
 });
+
+test("rows appended after the bottom spacer are seated back before the spacer is measured, so the spacer's height never counts as a row's", () => {
+    const { host, engine, rows } = countedScene([30, 30, 30, 30, 30, 30]);
+
+    assert.equal(bottomSpacer(host)?.style.height, `${(10000 - 3006) * 30}px`);
+
+    // A refill or append that lands after the bottom spacer would span the spacer between the first and last row if not seated first.
+    changeSet(engine, host, () => {
+        for (const row of rows)
+            row.remove();
+
+        for (const index of [0, 1, 2, 3, 4, 5])
+            host.append(flowRow(`after-spacer-${index}`, 30));
+    });
+
+    assert.equal(host.children.at(0), topSpacer(host));
+    assert.equal(host.children.at(-1), bottomSpacer(host));
+    assert.equal(bottomSpacer(host)?.style.height, `${(10000 - 3006) * 30}px`);
+});

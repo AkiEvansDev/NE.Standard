@@ -11,7 +11,7 @@ internal static class DemoButtonBindings
         where T : ButtonComponent<T>, IUIComponentDefinition
         => button
             .BindStandard()
-            .BindType($"{buttonGroup}.{nameof(ButtonGroupContext.Type)}")
+            .BindVariant($"{buttonGroup}.{nameof(ButtonGroupContext.Variant)}")
             .BindSize($"{buttonGroup}.{nameof(ButtonGroupContext.Size)}")
             .BindPadding($"{buttonGroup}.{nameof(ButtonGroupContext.Padding)}")
             .BindBackground($"{buttonGroup}.{nameof(ButtonGroupContext.Background)}")

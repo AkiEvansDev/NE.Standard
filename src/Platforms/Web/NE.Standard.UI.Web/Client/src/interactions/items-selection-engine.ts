@@ -2,13 +2,9 @@
 // table acting as a grid walks its cells as well (row-cursor.ts). How a gesture changes the chosen set is `row-selection.ts`'s.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import {
-    ItemsHostAttribute, NoRowOpenAttribute, NoRowSelectAttribute, RowFocusAttribute, RowsRemoveAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute,
-    TableScrollClass, TabOutAttribute, UnremovableAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowPagedAttribute, WindowPendingAttribute,
-    WindowTotalAttribute
-} from "../addressing/dom-attributes.ts";
-import { readWindowFlag, readWindowNumber, resolveHostMode, windowOffset } from "../items/items-host-mode.ts";
-import { readHostScroll, scrollHostTo } from "../items/items-viewport.ts";
+import { ItemsHostAttribute, ItemsViewWrapClass, NoRowOpenAttribute, NoRowSelectAttribute, OrientationHorizontalClass, RowFocusAttribute, RowPressEventName, RowsRemoveAttribute, SelectedKeyAttribute, SelectedKeysAttribute, SelectionAttribute, TableClass, TableScrollClass, TabOutAttribute, UnremovableAttribute, UnselectableAttribute, WindowMoreAfterAttribute, WindowMoreBeforeAttribute, WindowPagedAttribute, WindowPendingAttribute, WindowTotalAttribute } from "../addressing/dom-attributes.ts";
+import { readWindowFlag, readWindowNumber, resolveHostMode, windowOffset } from "../addressing/items-host-mode.ts";
+import { readHostScroll, scrollHostTo } from "../addressing/items-viewport.ts";
 import { isFieldKey } from "./caret-fields.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isOwnControlOf, ownControlOf, ownPressControlsOf, soleControlOf } from "./own-control.ts";
@@ -17,22 +13,20 @@ import { FocusableSelector, firstFocusable, focusAsLastInput, isPointerLast, mar
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import type { RowAxis } from "./row-cursor.ts";
+import { cellAcrossLines, cellAlongRow, cellOf, claimCellKey, columnCellOf, cursorCellOf, cursorColumnOf, cursorFocusTarget, dispatchRowEvent, enterRowCursor, focusedRow, hostKeyTarget, isRowKey, isSpanningCell, keepRovingStop, lastSpanningCell, litRow, resolveRowTarget, rovesFocus, rowFocusElement, setRowFocus, waitingCursorKey, walksCells } from "./row-cursor.ts";
 import {
-    cellAcrossLines, cellAlongRow, cellOf, claimCellKey, columnCellOf, cursorCellOf, cursorColumnOf, dispatchRowEvent, enterRowCursor, focusedRow, hostKeyTarget, isRowKey,
-    isSpanningCell, lastSpanningCell, litRow, resolveRowTarget, RowPressEventName, setRowFocus, waitingCursorKey, walksCells
-} from "./row-cursor.ts";
-import {
-    chooseRow, choosesOnEnter, ensureAnchor, gestureOf, hostOf, KeyboardRowsRootSelector as KeyboardRootSelector, keyGestureOf, markSelectedRows, PlainGesture,
-    ownRows, rowBox, rowKey, selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector, setAnchor
+    chooseBoxRange, chooseRow, choosesOnEnter, ensureAnchor, gestureOf, hostOf, itemSelection, KeyboardRowsRootSelector as KeyboardRootSelector, keyGestureOf, markSelectedRows, PlainGesture,
+    ownRows, registerChoosableKeysReader, rowBox, rowKey, selectedRows, SelectionRootSelector as RootSelector, SelectionRowSelector as ItemSelector, setAnchor
 } from "./row-selection.ts";
 import type { HeldRange, SelectionGesture } from "./row-selection.ts";
 import { applyHeaderStops, enterHeader, handleHeaderKey, headerTableOf } from "./table-header-group.ts";
+import { canChooseTableRow, ownTableSelectAll, tableBoxTarget, tableSelectCellRow } from "./table-selection-boxes.ts";
 import { typeAheadCharacter } from "./type-ahead.ts";
 
 // The keys besides the arrows this engine answers; any other passes without the rows being read.
 const ActionKeys = new Set([" ", "Enter", "Delete"]);
 
-const TableRootSelector = ".ui-table";
+const TableRootSelector = `.${TableClass}`;
 
 // The keys a grid's cursor cell answers before its rows do, a typed character besides.
 const CellKeys = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "Enter", "F2", " "]);
@@ -43,6 +37,7 @@ const HostBoxSelector = `:scope > [${ItemsHostAttribute}], :scope > .${TableScro
 /** A virtualized host's rows past the drawn ones: the keys its rules show, in order, a Shift range over them, and one drawn on demand. */
 export type HeldRows = {
     shownKeysOf(host: Element): readonly string[] | null;
+    choosableKeysOf?(host: Element): readonly string[] | null;
     rangeKeysOf(host: Element, from: string, to: string): readonly string[] | null;
     reveal(host: Element, key: string, edge: "start" | "end" | "nearest"): Element | null;
 };
@@ -66,13 +61,19 @@ export class ItemsSelectionEngine {
     // The roots whose Home or End waits for a window holding that end (reachWindowEnd), until it is drawn or another key comes.
     private readonly windowEnds = new WeakMap<HTMLElement, WindowEnd>();
 
+    // The row whose selection checkbox was just Shift-clicked, consumed on the checkbox's immediate `change` event.
+    private lastBoxShift: HTMLElement | null = null;
+
     public constructor(options: ItemsSelectionEngineOptions = {}) {
         this.root = options.root ?? document;
         this.rows = options.rows;
 
+        registerChoosableKeysReader(this.root, this.rows === undefined ? undefined : host => this.heldChoosableKeysOf(host));
+
         this.applyAll(this.root.querySelectorAll<HTMLElement>(RootSelector));
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
+        this.root.addEventListener("change", domEvent => this.handleTableBoxChange(domEvent), true);
         this.root.addEventListener("dblclick", domEvent => this.handleDoubleClick(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent));
@@ -98,6 +99,18 @@ export class ItemsSelectionEngine {
             }
         );
 
+        // A class is how a filter hides a row, which changes what the header box over a table's checkboxes counts; a row's refusal flips
+        // as its item's `CanSelect` does.
+        observeComponents(
+            this.root,
+            TableRootSelector,
+            { attributeFilter: [UnselectableAttribute, "class"] },
+            tables => {
+                for (const table of tables)
+                    markSelectedRows(table, ownRows(table));
+            }
+        );
+
         // The cursor moved by any engine, a removal or a redraw: the controls of the row it left leave the Tab order, the new row's join it.
         if (this.root instanceof Node) {
             new MutationObserver(records => this.followCursor(records)).observe(this.root, { subtree: true, attributes: true, attributeFilter: [RowFocusAttribute] });
@@ -112,10 +125,12 @@ export class ItemsSelectionEngine {
     /**
      * Marks the chosen rows from whichever keys the mode reads; the root is a tab stop from the renderer, whatever the mode, and the
      * host's one. A row that is one control (a tile that is a button) is pressed through the cursor, and a part of a row that answers a
-     * press itself (a grid's chevron or checkbox) is reached by the row's keys, so neither is a stop of its own; a table's header is
-     * reached from its rows.
+     * press itself (a grid's chevron or checkbox) is reached by the row's keys, so neither is a stop of its own — but for a wrap list's
+     * tile that is the host's stop, its cursor row's focus; a table's header is reached from its rows.
      */
     private apply(root: HTMLElement): void {
+        syncSelectionModeMarks(root);
+
         const rows = ownRows(root);
 
         markSelectedRows(root, rows);
@@ -127,13 +142,20 @@ export class ItemsSelectionEngine {
         if (!root.matches(KeyboardRootSelector))
             return;
 
+        keepRovingStop(root, rows);
+
+        const stop = cursorFocusTarget(root);
+        // Every row's one control read before any row is written: whether a control is drawn reads the layout, which a tabindex
+        // written in between would have the browser work out again once a row.
+        const soleControls = rows.map(row => soleControlOf(row));
+
         if (root.matches(TableRootSelector))
             applyHeaderStops(root);
 
-        for (const row of rows) {
-            const control = soleControlOf(row);
+        for (const [index, row] of rows.entries()) {
+            const control = soleControls[index];
 
-            if (control !== null)
+            if (control !== null && control !== stop)
                 leaveTabOrder(control);
 
             for (const own of ownPressControlsOf(row))
@@ -179,6 +201,8 @@ export class ItemsSelectionEngine {
 
     /** Marks the chosen rows again and lands an end the keyboard waits for: `apply` less the Tab order, which no key or mode moves. */
     private remark(root: HTMLElement): void {
+        syncSelectionModeMarks(root);
+
         const rows = ownRows(root);
 
         markSelectedRows(root, rows);
@@ -186,9 +210,14 @@ export class ItemsSelectionEngine {
     }
 
     private handleClick(domEvent: Event): void {
+        const box = tableBoxTarget(domEvent);
+
+        if (box !== null)
+            this.lastBoxShift = box.row !== null && (domEvent as MouseEvent).shiftKey === true ? box.row : null;
+
         const resolved = this.resolveRow(domEvent, RootSelector);
 
-        if (resolved === null || !(domEvent instanceof MouseEvent))
+        if (resolved === null)
             return;
 
         const { root, item } = resolved;
@@ -198,7 +227,7 @@ export class ItemsSelectionEngine {
         // a file manager's list does — marked first: a press that began on a row's control and was let go beside it took the focus off
         // the host, and focused back unmarked the row flashed the keyboard's wash.
         setRowFocus(root, rows, item, domEvent.target instanceof Element ? cellOf(item, domEvent.target) : null);
-        focusAsLastInput(root);
+        focusAsLastInput(cursorFocusTarget(root));
 
         // A host choosing by a control of its own (a grid's checkboxes) leaves the click; its keyboard's Shift ranges from the clicked row.
         if (root.hasAttribute(NoRowSelectAttribute)) {
@@ -207,7 +236,7 @@ export class ItemsSelectionEngine {
         }
 
         // A row that refuses to be chosen leaves the click to whatever else the row does.
-        if (chooseRow(root, rows, item, gestureOf(domEvent), this.heldRange(root)))
+        if (chooseRow(root, rows, item, gestureOf(domEvent as MouseEvent), this.heldRange(root)))
             domEvent.preventDefault();
     }
 
@@ -231,6 +260,43 @@ export class ItemsSelectionEngine {
         const host = hostOf(root);
 
         return rows === undefined || host === null ? undefined : (from, to) => rows.rangeKeysOf(host, from, to);
+    }
+
+    private heldChoosableKeysOf(host: Element): readonly string[] | null {
+        if (this.rows === undefined)
+            return null;
+
+        return this.rows.choosableKeysOf !== undefined ? this.rows.choosableKeysOf(host) : this.rows.shownKeysOf(host);
+    }
+
+    /** Answers a click on a row's or the header's checkbox in a table's selection column. */
+    private handleTableBoxChange(domEvent: Event): void {
+        const target = tableBoxTarget(domEvent);
+
+        if (target === null)
+            return;
+
+        const shift = target.row !== null && this.lastBoxShift === target.row;
+
+        this.lastBoxShift = null;
+
+        const rows = ownRows(target.table);
+
+        if (target.row === null) {
+            const host = hostOf(target.table);
+            const held = host === null ? null : this.heldChoosableKeysOf(host);
+
+            if (held !== null)
+                itemSelection.setSelectedKeys(target.table, held, target.checked);
+            else
+                itemSelection.setSelected(target.table, rows.filter(canChooseTableRow), target.checked);
+        } else if (shift) {
+            chooseBoxRange(target.table, rows, target.row, target.checked, this.heldRange(target.table));
+        } else {
+            itemSelection.toggle(target.row);
+        }
+
+        markSelectedRows(target.table, rows);
     }
 
     /** Opens a row double-clicked anywhere but on its own controls, as Enter does, unless the cell edits on a double click. */
@@ -489,16 +555,27 @@ export class ItemsSelectionEngine {
             return;
         }
 
-        // A press places the cursor on the row it lands on, or leaves none on the host's plain parts.
-        if (domEvent.target instanceof HTMLElement && domEvent.target.matches(RootSelector) && domEvent.target.matches(KeyboardRootSelector) && !isInert(domEvent.target) && !isPointerLast()) {
-            enterRowCursor(domEvent.target, ownRows(domEvent.target));
+        if (domEvent.target instanceof HTMLElement && domEvent.target.matches(RootSelector) && domEvent.target.matches(KeyboardRootSelector) && !isInert(domEvent.target)) {
+            // A roving host's root holds the focus only on its way to the cursor's row, the host's Tab stop.
+            const stop = cursorFocusTarget(domEvent.target);
+
+            if (stop !== domEvent.target)
+                focusAsLastInput(stop);
+            // A press places the cursor on the row it lands on, or leaves none on the host's plain parts.
+            else if (!isPointerLast())
+                enterRowCursor(domEvent.target, ownRows(domEvent.target));
+
             return;
         }
 
         const row = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(ItemSelector) : null;
         const owner = row?.closest<HTMLElement>(RootSelector) ?? null;
 
-        if (row === null || owner === null || row.hasAttribute(RowFocusAttribute) || !owner.matches(KeyboardRootSelector) || ownControlOf(domEvent.target, row) === null)
+        if (row === null || owner === null || row.hasAttribute(RowFocusAttribute) || !owner.matches(KeyboardRootSelector))
+            return;
+
+        // A roving host's row taking the focus itself (a press on it, a wrap's on its tile) brings the cursor, as a control of the row does.
+        if (!(rovesFocus(owner) && domEvent.target === rowFocusElement(owner, row)) && ownControlOf(domEvent.target, row) === null)
             return;
 
         // The browser brings a focused control into view itself.
@@ -525,6 +602,13 @@ export class ItemsSelectionEngine {
         // is marked by the press itself (`notePress`), ahead of the click that moves its cursor.
         if (document.activeElement !== root)
             markPointerFocus(root, true);
+
+        // A roving host's press focuses the row it lands on, a wrap's tile, which wears the mark as the root does.
+        const row = rovesFocus(root) ? target.closest<HTMLElement>(ItemSelector) : null;
+        const stop = row !== null && row.closest(RootSelector) === root ? rowFocusElement(root, row) : null;
+
+        if (stop !== null && document.activeElement !== stop)
+            markPointerFocus(stop, true);
 
         for (const box of root.querySelectorAll<HTMLElement>(HostBoxSelector)) {
             if (box.contains(target) && box.getAttribute("tabindex") === "-1") {
@@ -556,7 +640,6 @@ export class ItemsSelectionEngine {
                 stepRowControls(root, row, row.hasAttribute(RowFocusAttribute));
         }
     }
-
 }
 
 /**
@@ -606,6 +689,15 @@ function actOnCell(cell: HTMLElement, domEvent: KeyboardEvent): boolean {
 
     if (key !== " " && claimCellKey(cell, domEvent))
         return true;
+
+    // Enter on the cursor's box cell turns its box, as Space does, rather than raising the row's open: the cell is the box's.
+    const boxRow = key === "Enter" ? tableSelectCellRow(cell) : null;
+
+    if (boxRow !== null) {
+        domEvent.preventDefault();
+        itemSelection.toggle(boxRow);
+        return true;
+    }
 
     const control = soleControlOf(cell);
 
@@ -693,10 +785,10 @@ export function pressRow(row: HTMLElement, control: HTMLElement | null): void {
 
 /** How the host's rows lie for the arrows: a wrap in lines whatever its orientation, a horizontal list both ways, the rest up and down. */
 function axisOf(root: HTMLElement): RowAxis {
-    if (root.matches(".ui-items-view--wrap"))
+    if (root.matches(`.${ItemsViewWrapClass}`))
         return "grid";
 
-    return root.matches(".ui-orientation--horizontal") ? "both" : "vertical";
+    return root.matches(`.${OrientationHorizontalClass}`) ? "both" : "vertical";
 }
 
 /**
@@ -709,4 +801,18 @@ export function removableRows(rows: readonly HTMLElement[], current: HTMLElement
 
     // A row chosen before it was disabled stays chosen, but a disabled row is never acted on.
     return group.filter(row => !isItemRefused(row, UnremovableAttribute) && !isItemDisabled(row));
+}
+
+function syncSelectionModeMarks(root: HTMLElement): void {
+    const many = root.getAttribute(SelectionAttribute) === "many";
+
+    if (many) {
+        if (root.getAttribute("aria-multiselectable") !== "true")
+            root.setAttribute("aria-multiselectable", "true");
+    } else if (root.hasAttribute("aria-multiselectable")) {
+        root.removeAttribute("aria-multiselectable");
+    }
+
+    if (root.classList.contains(TableClass) && ownTableSelectAll(root) !== null && root.hasAttribute(NoRowSelectAttribute) !== many)
+        root.toggleAttribute(NoRowSelectAttribute, many);
 }

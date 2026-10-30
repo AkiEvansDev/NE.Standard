@@ -6,7 +6,7 @@
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { FallbackSrcAttribute, ImageCircleClass, ImageClass, ImageFailedAttribute, ImagePictureClass } from "../addressing/dom-attributes.ts";
-import { StandInIconSelector, writeIconStandIn, writeStandInGlyph } from "../updates/icon-stand-in.ts";
+import { StandInIconSelector, writeIconStandIn, writeStandInGlyph } from "../rendering/icon-stand-in.ts";
 import { observeComponents } from "./dom-mutations.ts";
 
 const BoxSelector = `.${ImageClass}`;

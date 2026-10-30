@@ -22,6 +22,6 @@ internal static class DefaultStatusPage
     public static ButtonComponent HomeButton(string command)
         => new ButtonComponent()
             .SetTitle(UIStrings.StatusHome)
-            .SetType(UIButtonType.Primary)
+            .SetVariant(UIButtonVariant.Primary)
             .OnClick(command);
 }

@@ -27,7 +27,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/contents/text";
     protected override string Header => "demo.contents.text.header";
     protected override string HeaderDescription => "demo.contents.text.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/inbox", "demo.nav.screens.inbox");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/inbox", "demo.nav.screens.inbox");
 
     // Neither alignment is bindable, so both are drawn; the pair is set together rather than crossed.
     protected override ContainerComponent CreatePreview()
@@ -50,22 +50,22 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
         => text
             .BindStandard()
             .BindTextContent(ContentGroup)
-            .BindDescription($"{ContentGroup}.{nameof(TextContentGroupContext.Description)}")
-            .BindDescriptionType($"{ContentGroup}.{nameof(TextContentGroupContext.DescriptionType)}")
-            .BindDescriptionColor($"{ContentGroup}.{nameof(TextContentGroupContext.DescriptionColor)}")
-            .BindTextAlignment($"{LayoutGroup}.{nameof(TextLayoutGroupContext.TextAlignment)}")
-            .BindTextSelectable($"{LayoutGroup}.{nameof(SelectableTextLayoutGroupContext.TextSelectable)}")
-            .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}");
+            .BindDescription<TextController>(static x => x.ContentGroup.Description)
+            .BindDescriptionType<TextController>(static x => x.ContentGroup.DescriptionType)
+            .BindDescriptionColor<TextController>(static x => x.ContentGroup.DescriptionColor)
+            .BindTextAlignment<TextController>(static x => x.LayoutGroup.TextAlignment)
+            .BindTextSelectable<TextController>(static x => x.LayoutGroup.TextSelectable)
+            .BindBadgePlacement<TextController>(static x => x.BadgeGroup.BadgePlacement)
+            .BindBadgeVariant<TextController>(static x => x.BadgeGroup.BadgeVariant)
+            .BindBadgeColor<TextController>(static x => x.BadgeGroup.BadgeColor)
+            .BindBadgeFill<TextController>(static x => x.BadgeGroup.BadgeFill)
+            .BindBadgeIcon<TextController>(static x => x.BadgeGroup.BadgeIcon)
+            .BindBadgeIconColor<TextController>(static x => x.BadgeGroup.BadgeIconColor)
+            .BindBadgeIconSize<TextController>(static x => x.BadgeGroup.BadgeIconSize)
+            .BindBadgeTitle<TextController>(static x => x.BadgeGroup.BadgeTitle)
+            .BindBadgeTitleType<TextController>(static x => x.BadgeGroup.BadgeTitleType)
+            .BindBadgeTooltip<TextController>(static x => x.BadgeGroup.BadgeTooltip)
+            .BindBadgeTooltipPlacement<TextController>(static x => x.BadgeGroup.BadgeTooltipPlacement);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
@@ -90,23 +90,23 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     /// </remarks>
     private static ContainerComponent CreateHostsGroup()
     {
-        return DemoUI.CreateExample("The same body, worn by five controls",
+        return DemoUI.CreateExample("Shared text body across six host components",
             UILayout.Split(
                 UILayout.Stack(24,
                     DemoUI.CreateLabelled("On its own", new TextComponent()
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
                         .SetDescription(Description)
-                        .SetBadgeText("Recommended")
-                        .SetBadgeStyle(UIBadgeType.Info)
+                        .SetBadgeTitle("Recommended")
+                        .SetBadgeVariant(UIBadgeVariant.Info)
                     ),
                     DemoUI.CreateLabelled("As a card's header", new CardComponent()
                         .ConfigureDefaultHeader(header => header
                             .SetIcon(DemoIcons.Shield)
                             .SetTitle("Two-factor authentication")
                             .SetDescription(Description)
-                            .SetBadgeText("Recommended")
-                            .SetBadgeStyle(UIBadgeType.Info)
+                            .SetBadgeTitle("Recommended")
+                            .SetBadgeVariant(UIBadgeVariant.Info)
                         )
                         .SetContent(UIText.Note("The card gives it a band and a rule; the body inside is unchanged."))
                     ),
@@ -116,38 +116,38 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                             .SetIcon(DemoIcons.Shield)
                             .SetTitle("Two-factor authentication")
                             .SetDescription(Description)
-                            .SetBadgeText("Recommended")
-                            .SetBadgeStyle(UIBadgeType.Info)
+                            .SetBadgeTitle("Recommended")
+                            .SetBadgeVariant(UIBadgeVariant.Info)
                         )
                         .SetContent(UIText.Note("And the expander adds a chevron, which is its own and not the text's."))
                     )
                 ),
                 UILayout.Stack(24,
                     DemoUI.CreateLabelled("As a button's label", new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetHorizontalAlignment(UIAlignment.Stretch)
                         .SetTextAlignment(UITextAlignment.Start)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Shield))
                         .SetTitle("Two-factor authentication")
                         .SetDescription(Description)
                         .SetDescriptionType(UITextAppearance.Caption)
-                        .SetBadgeText("Recommended")
-                        .SetBadgeStyle(UIBadgeType.Info)
+                        .SetBadgeTitle("Recommended")
+                        .SetBadgeVariant(UIBadgeVariant.Info)
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
                     ),
                     DemoUI.CreateLabelled("As a row that points somewhere", new ActionComponent()
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
                         .SetDescription(Description)
-                        .SetBadgeText("Recommended")
-                        .SetBadgeStyle(UIBadgeType.Info)
+                        .SetBadgeTitle("Recommended")
+                        .SetBadgeVariant(UIBadgeVariant.Info)
                     ),
                     // The one host that does not carry the whole body: a field's caption has no description.
                     DemoUI.CreateLabelled("As an input's caption — no description", new TextInputComponent()
                         .SetIcon(DemoIcons.Shield)
                         .SetTitle("Two-factor authentication")
-                        .SetBadgeText("Recommended")
-                        .SetBadgeStyle(UIBadgeType.Info)
+                        .SetBadgeTitle("Recommended")
+                        .SetBadgeVariant(UIBadgeVariant.Info)
                         .SetValue("robin@orvane.example")
                     )
                 ),
@@ -168,7 +168,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     /// </remarks>
     private static ContainerComponent CreatePartsGroup()
     {
-        return DemoUI.CreateExample("Where the parts go",
+        return DemoUI.CreateExample("Overline/Subtitle hierarchy & icon/badge alignment",
             UILayout.Columns(24,
                 DemoUI.CreateLabelled("The small line first — an Overline title over a Subtitle description", UILayout.Row(16,
                         new CardComponent()
@@ -219,14 +219,14 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
                         new TextComponent()
                             .SetBadgeAlignment(UITextBadgeAlignment.Title)
                             .SetBadgePlacement(UITextBadgePlacement.Trailing)
-                            .SetBadgeText("Review")
-                            .SetBadgeStyle(UIBadgeType.Warning)
+                            .SetBadgeTitle("Review")
+                            .SetBadgeVariant(UIBadgeVariant.Warning)
                             .SetTitle("Badge Title, one line"),
                         new TextComponent()
                             .SetBadgeAlignment(UITextBadgeAlignment.Content)
                             .SetBadgePlacement(UITextBadgePlacement.Trailing)
-                            .SetBadgeText("Review")
-                            .SetBadgeStyle(UIBadgeType.Warning)
+                            .SetBadgeTitle("Review")
+                            .SetBadgeVariant(UIBadgeVariant.Warning)
                             .SetTitle("Badge Content, one line")
                     )
                 )
@@ -242,7 +242,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     /// <remarks>Three narrow columns across the group rather than one down half of it: each is the narrow column the group is about.</remarks>
     private static ContainerComponent CreateLongTextGroup()
     {
-        return DemoUI.CreateExample("Long text in a narrow column",
+        return DemoUI.CreateExample("Truncation vs WrapMode & TitleWrap",
             UILayout.Columns(24,
                 UILayout.Stack(16,
                     DemoUI.CreateLabelled("A text, as it comes", new TextComponent()
@@ -289,7 +289,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFoldGroup()
     {
-        return DemoUI.CreateExample("A line with more behind it",
+        return DemoUI.CreateExample("Inline expandable fold ([caption]{body})",
             new TextComponent()
                 .SetMaxWidth(UILayoutLength.Absolute(470))
                 .SetIcon(DemoIcons.Shield)

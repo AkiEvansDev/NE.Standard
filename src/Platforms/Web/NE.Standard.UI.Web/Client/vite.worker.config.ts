@@ -8,7 +8,7 @@ export default defineConfig({
         emptyOutDir: false,
         outDir: "dist",
         lib: {
-            entry: resolve(__dirname, "src/worker.ts"),
+            entry: resolve(import.meta.dirname, "src/worker.ts"),
             formats: ["iife"],
             name: "NEStandardUIWorker",
             fileName: () => "ui-worker.js"

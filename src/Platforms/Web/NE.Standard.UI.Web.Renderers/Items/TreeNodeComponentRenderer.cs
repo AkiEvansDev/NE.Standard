@@ -1,7 +1,6 @@
 using System;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Primitives.Styling;
-using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -14,13 +13,13 @@ namespace NE.Standard.UI.Web.Renderers.Items;
 /// </summary>
 public sealed class TreeNodeComponentRenderer : TextContentRendererBase
 {
-    private const string ToggleClassName = "ui-tree-node__toggle";
-    private const string TextClassName = "ui-tree-node__text";
+    private const string ToggleClassName = WebClassNames.TreeNodeToggle;
+    private const string TextClassName = WebClassNames.TreeNodeText;
 
-    private static readonly WebDomOperation[] ParentIdOperations = [WebDomOperation.Attribute(WebAttributes.TreeParent)];
+    private static readonly WebDomOperation[] ParentIdOperations = [WebDomOperation.Attribute(WebAttributes.TreeParent, converter: WebDomConverters.NonEmptyText)];
     private static readonly WebDomOperation[] FolderOperations = [WebDomOperation.Attribute(WebAttributes.TreeFolder)];
-    private static readonly WebDomOperation[] RenamedTitleOperations = [WebDomOperation.Attribute(WebAttributes.TreeTitle)];
-    private static readonly WebDomOperation[] DropTargetOperations = [WebDomOperation.Attribute(WebAttributes.TreeDropTarget, target: "." + TextClassName)];
+    private static readonly WebDomOperation[] RenamedTitleOperations = [WebDomOperation.Attribute(WebAttributes.TreeTitle, converter: WebDomConverters.NonBlankText)];
+    private static readonly WebDomOperation[] DropTargetOperations = [WebDomOperation.Attribute(WebAttributes.TreeDropTarget, target: "." + TextClassName, converter: WebDomConverters.NonEmptyText)];
 
     public override string ComponentTypeKey => TreeNodeComponent.ComponentTypeKey;
 
@@ -61,9 +60,9 @@ public sealed class TreeNodeComponentRenderer : TextContentRendererBase
         {
             _ = toggle.Class(ToggleClassName);
             _ = toggle.Attribute("type", "button");
-            // The row is what the keyboard walks; the chevron is reached through it.
+            // The row is what the keyboard walks and what a reader hears, its expanded state its own: the chevron is the pointer's alone.
             _ = toggle.Attribute("tabindex", "-1");
-            WebWords.Write(context, toggle, "aria-label", UIStrings.TreeToggle);
+            _ = toggle.Attribute("aria-hidden", "true");
             // A press folds the node and nothing else — never the click of the row it sits in.
             _ = toggle.Attribute(WebAttributes.EventBoundary);
         });

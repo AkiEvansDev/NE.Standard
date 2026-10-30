@@ -23,9 +23,9 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 /// </summary>
 public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
 {
-    public const string PlaceClassName = "ui-pane-container__place";
-    public const string PaneClassName = "ui-pane-container__pane";
-    public const string GripClassName = "ui-pane-container__grip";
+    public const string PlaceClassName = WebClassNames.PaneContainerPlace;
+    public const string PaneClassName = WebClassNames.PaneContainerPane;
+    public const string GripClassName = WebClassNames.PaneContainerGrip;
 
     /// <summary>The tracks in the order panes that keep their sizes lay them in, per tier, under a splitter's own in the stylesheet's chain.</summary>
     public const string PaneColumnsVariable = "--ui-pane-columns";
@@ -35,14 +35,14 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
 
     public override string ComponentTypeKey => PaneContainerComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-container";
+    protected override string ClassName => WebClassNames.Container;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class("ui-pane-container");
+        _ = root.Class(WebClassNames.PaneContainer);
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
         ContainerComponentRenderer.RenderTracks(context, root, ContainerComponent.ColumnsProperty, ContainerComponentRenderer.ColumnsVariable, WebAttributes.ColumnLimits);

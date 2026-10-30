@@ -7,16 +7,14 @@ export type SelectedKeyOptions = {
     readonly apply: (root: HTMLElement) => void;
 };
 
-/** Moves a strip's selected key: writes it, applies it, and raises "change" where the property is bound. */
+/** Moves a strip's selected key: writes it, applies it, and raises "change" for bindings and rules reading it. */
 export function writeSelectedKey(root: HTMLElement, key: string, options: SelectedKeyOptions): void {
     if (key.length === 0 || root.getAttribute(options.attribute) === key)
         return;
 
     root.setAttribute(options.attribute, key);
     options.apply(root);
-
-    if (root.hasAttribute(options.bindingAttribute))
-        root.dispatchEvent(new Event("change", { bubbles: true }));
+    root.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 /**

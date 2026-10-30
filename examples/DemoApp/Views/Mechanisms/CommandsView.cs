@@ -42,7 +42,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateWaitGroup()
         => DemoUI.CreateExample(Words + "wait.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Primary)
+                .SetVariant(UIButtonVariant.Primary)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
                 .SetTitle("demo.mechanisms.commands.deploy")
@@ -56,11 +56,11 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateBusyGroup()
         => DemoUI.CreateExample(Words + "busy.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Primary)
+                .SetVariant(UIButtonVariant.Primary)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
                 .SetTitle("demo.mechanisms.commands.deploy")
-                .BindLoading(nameof(BusyGroupContext.Busy), UIBindingScope.Relative)
+                .BindLoading<BusyGroupContext>(static x => x.Busy, UIBindingScope.Relative)
                 .OnClick(nameof(CommandsController.DeployBoundAsync)),
             note: Words + "busy.note",
             context: nameof(CommandsController.BusyGroup),
@@ -71,11 +71,11 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateRepeatGroup()
         => DemoUI.CreateExample(Words + "repeat.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
+                .SetVariant(UIButtonVariant.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.mechanisms.commands.charge")
-                .BindBadgeText(nameof(CountGroupContext.Count), UIBindingScope.Relative)
-                .SetBadgeStyle(UIBadgeType.Surface)
+                .BindBadgeTitle<CountGroupContext>(static x => x.Count, UIBindingScope.Relative)
+                .SetBadgeVariant(UIBadgeVariant.Surface)
                 .OnClick(nameof(CommandsController.ChargeAsync)),
             note: Words + "repeat.note",
             context: nameof(CommandsController.RepeatGroup),
@@ -86,12 +86,12 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateSelfOffGroup()
         => DemoUI.CreateExample(Words + "self-off.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Primary)
+                .SetVariant(UIButtonVariant.Primary)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.mechanisms.commands.charge")
-                .BindBadgeText(nameof(CountGroupContext.Count), UIBindingScope.Relative)
-                .SetBadgeStyle(UIBadgeType.Surface)
-                .BindEnabled(nameof(CountGroupContext.Enabled), UIBindingScope.Relative)
+                .BindBadgeTitle<CountGroupContext>(static x => x.Count, UIBindingScope.Relative)
+                .SetBadgeVariant(UIBadgeVariant.Surface)
+                .BindEnabled<CountGroupContext>(static x => x.Enabled, UIBindingScope.Relative)
                 .InteractBeforeClick(IVisualComponent.EnabledProperty, false)
                 .OnClick(nameof(CommandsController.ChargeGuardedAsync)),
             note: Words + "self-off.note",
@@ -104,30 +104,30 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "decision.title",
             UILayout.Row(12)
                 .AddChild(new ButtonComponent(ApproveId)
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Check))
                     .SetTitle("demo.mechanisms.commands.decision.approve")
-                    .BindEnabled(nameof(DecisionGroupContext.Open), UIBindingScope.Relative)
+                    .BindEnabled<DecisionGroupContext>(static x => x.Open, UIBindingScope.Relative)
                     .InteractBeforeClick(IVisualComponent.EnabledProperty, false)
                     .InteractBeforeClick(RejectId, IVisualComponent.EnabledProperty, false)
                     .OnClick(nameof(CommandsController.ApproveAsync))
                 )
                 .AddChild(new ButtonComponent(RejectId)
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Close))
                     .SetTitle("demo.mechanisms.commands.decision.reject")
-                    .BindEnabled(nameof(DecisionGroupContext.Open), UIBindingScope.Relative)
+                    .BindEnabled<DecisionGroupContext>(static x => x.Open, UIBindingScope.Relative)
                     .InteractBeforeClick(IVisualComponent.EnabledProperty, false)
                     .InteractBeforeClick(ApproveId, IVisualComponent.EnabledProperty, false)
                     .OnClick(nameof(CommandsController.RejectAsync))
                 )
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
-                    .BindText(nameof(DecisionGroupContext.Outcome), UIBindingScope.Relative)
-                    .BindType(nameof(DecisionGroupContext.OutcomeStyle), UIBindingScope.Relative)
+                    .BindTitle<DecisionGroupContext>(static x => x.Outcome, UIBindingScope.Relative)
+                    .BindVariant<DecisionGroupContext>(static x => x.OutcomeVariant, UIBindingScope.Relative)
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Undo))
                     .SetTooltip("demo.mechanisms.commands.decision.reopen")
                     .OnClick(nameof(CommandsController.ReopenRequest))
@@ -142,17 +142,17 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "progress.title",
             UILayout.Row(12)
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
                     .SetTitle("demo.mechanisms.commands.progress.provision")
                     // Bound only: the spinner reports the server's progress, not the round trip.
-                    .BindLoading(nameof(ProgressGroupContext.Busy), UIBindingScope.Relative)
+                    .BindLoading<ProgressGroupContext>(static x => x.Busy, UIBindingScope.Relative)
                     .OnClick(nameof(CommandsController.ProvisionAsync))
                 )
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
-                    .BindText(nameof(ProgressGroupContext.Stage), UIBindingScope.Relative)
-                    .BindType(nameof(ProgressGroupContext.StageStyle), UIBindingScope.Relative)
+                    .BindTitle<ProgressGroupContext>(static x => x.Stage, UIBindingScope.Relative)
+                    .BindVariant<ProgressGroupContext>(static x => x.StageVariant, UIBindingScope.Relative)
                 ),
             note: Words + "progress.note",
             context: nameof(CommandsController.ProgressGroup),
@@ -165,25 +165,25 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
             UILayout.Stack(12)
                 .AddChild(UILayout.Row(12)
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Primary)
+                        .SetVariant(UIButtonVariant.Primary)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Download))
                         .SetTitle("demo.mechanisms.commands.background.back-up")
                         .OnClickShowingLoading(nameof(CommandsController.BackUpAsync))
                     )
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetTitle("demo.mechanisms.commands.background.cancel")
                         .OnClick(nameof(CommandsController.CancelBackup))
                     )
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("demo.mechanisms.commands.background.note-field")
-                    .BindValue(nameof(BackgroundGroupContext.Note), UIBindingScope.Relative)
+                    .BindValue<BackgroundGroupContext>(static x => x.Note, UIBindingScope.Relative)
                 )
                 .AddChild(new TextComponent()
                     .SetTitle("demo.mechanisms.commands.background.server-holds")
                     .AsBody()
-                    .BindDescription(nameof(BackgroundGroupContext.Note), UIBindingScope.Relative)
+                    .BindDescription<BackgroundGroupContext>(static x => x.Note, UIBindingScope.Relative)
                 ),
             note: Words + "background.note",
             context: nameof(CommandsController.BackgroundGroup),
@@ -195,7 +195,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "address.title",
             UILayout.Row(12)
                 .AddChild(new SelectComponent()
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetWidth(UILayoutLength.Absolute(160))
                     .SetOptions(
                     [
@@ -203,18 +203,18 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
                         new OptionItem { Id = AddressGroupContext.Standard, Title = "demo.mechanisms.commands.address.standard" },
                         new OptionItem { Id = AddressGroupContext.Pro, Title = "demo.mechanisms.commands.address.pro" }
                     ])
-                    .BindValue(nameof(AddressGroupContext.Plan), UIBindingScope.Relative)
+                    .BindValue<AddressGroupContext>(static x => x.Plan, UIBindingScope.Relative)
                     .OnChange(nameof(CommandsController.ChoosePlan))
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight))
                     .SetTitle("demo.mechanisms.commands.address.next")
                     .OnClick(nameof(CommandsController.NextStep))
                 )
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
-                    .BindText(nameof(AddressGroupContext.StepLine), UIBindingScope.Relative)
+                    .BindTitle<AddressGroupContext>(static x => x.StepLine, UIBindingScope.Relative)
                 ),
             note: Words + "address.note",
             columns: 24,
@@ -226,7 +226,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateThrowGroup()
         => DemoUI.CreateExample(Words + "throw.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
+                .SetVariant(UIButtonVariant.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.mechanisms.commands.throw.release")
                 .OnClick(nameof(CommandsController.FailUnhandled)),
@@ -239,7 +239,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateRefuseGroup()
         => DemoUI.CreateExample(Words + "refuse.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
+                .SetVariant(UIButtonVariant.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.mechanisms.commands.throw.release")
                 .OnClick(nameof(CommandsController.FailReported)),
@@ -252,7 +252,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateNavigateGroup()
         => DemoUI.CreateExample(Words + "navigate.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
+                .SetVariant(UIButtonVariant.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetIcon(DemoIcons.Outline(DemoIcons.ArrowRight))
                 .SetTitle("demo.mechanisms.commands.navigate.go")
@@ -266,7 +266,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateDownloadGroup()
         => DemoUI.CreateExample(Words + "download.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
+                .SetVariant(UIButtonVariant.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetIcon(DemoIcons.Outline(DemoIcons.Download))
                 .SetTitle("demo.mechanisms.commands.download.report")
@@ -280,7 +280,7 @@ internal sealed class CommandsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateAnnounceGroup()
         => DemoUI.CreateExample(Words + "announce.title",
             new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
+                .SetVariant(UIButtonVariant.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetIcon(DemoIcons.Outline(DemoIcons.MessageSquare))
                 .SetTitle("demo.mechanisms.commands.announce.save")

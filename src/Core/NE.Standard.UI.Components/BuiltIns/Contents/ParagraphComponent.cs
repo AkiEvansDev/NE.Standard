@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
@@ -11,17 +12,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// Text meant to be read: a title and a description that may run to several lines.
 /// </summary>
 /// <remarks>No <c>IconAlignment</c>: a paragraph's glyph always sits beside the title.</remarks>
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultVerticalAlignment))]
 [UIComponentPropertyBlock(typeof(IParagraphComponent))]
-public abstract partial class ParagraphComponent<T> : TextComponentBase<T>, IParagraphComponent
+public abstract partial class ParagraphComponent<T>(string? id = null) : TextComponentBase<T>(id), IParagraphComponent
     where T : ParagraphComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Initializes the paragraph aligned to the top of whatever it is placed in.
-    /// </summary>
-    protected ParagraphComponent(string? id = null) : base(id)
-    {
-        VerticalAlignment = UIAlignment.Start;
-    }
+    private static readonly UIResponsive<UIAlignment> DefaultVerticalAlignment = UIAlignment.Start;
 
     /// <summary>
     /// Gets or sets whether the paragraph is the note under the field before it — what may be typed, what it is for — set back to

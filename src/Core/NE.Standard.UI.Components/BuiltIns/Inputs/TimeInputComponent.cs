@@ -16,9 +16,17 @@ public abstract class TimeInputComponent<T>(string? id = null) : TemporalInputCo
     protected override void ValidateEnd(TimeOnly? min, TimeOnly? max, TimeOnly? value)
         => OrderedRange.Validate(min, max, value, "time");
 
-    /// <inheritdoc/>
-    protected override void ValidatePeriod(TimeOnly? start, TimeOnly? end)
-        => OrderedRange.ValidatePeriod(start, end, "time");
+    /// <summary>
+    /// Validates that the period's end does not fall before its start or nearer it than the least distance, a distance under a day:
+    /// both ends lie in one day.
+    /// </summary>
+    protected override void ValidatePeriod(TimeOnly? start, TimeOnly? end, TimeSpan? minDistance)
+    {
+        if (minDistance >= TimeSpan.FromDays(1))
+            throw new ArgumentOutOfRangeException(nameof(minDistance), minDistance, "A period of times of day keeps less than a day apart.");
+
+        OrderedRange.ValidatePeriod(start, end, minDistance, static (from, to) => to.ToTimeSpan() - from.ToTimeSpan(), "time");
+    }
 }
 
 /// <summary>

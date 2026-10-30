@@ -20,12 +20,14 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 public sealed class TabsViewComponentRenderer : ItemsCollectionRendererBase
 {
     private const string ItemClassName = "ui-tabs-view__item";
+    private const string TablistClassName = WebClassNames.TabsViewTablist;
 
+    private static readonly WebDomOperation[] TablistNameOperations = [WebDomOperation.Attribute("aria-label", target: "." + TablistClassName, converter: WebDomConverters.NonBlankText)];
     private static readonly WebDomOperation[] TabMenuEntriesOperations = [WebDomOperation.Attribute(WebAttributes.TabsMenu, converter: WebDomConverters.TabMenuEntriesAttribute)];
 
     public override string ComponentTypeKey => TabsViewComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-tabs-view";
+    protected override string ClassName => WebClassNames.TabsView;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -41,13 +43,14 @@ public sealed class TabsViewComponentRenderer : ItemsCollectionRendererBase
         RenderFlagAttribute(context, root, TabsViewComponent.RenamableProperty, WebAttributes.TabsRenamable);
         RenderFlagAttribute(context, root, TabsViewComponent.DraggableProperty, WebAttributes.TabsDraggable);
         RenderFlagAttribute(context, root, TabsViewComponent.RemovableProperty, WebAttributes.TabsUnremovable, WebValueCondition.IsFalse);
-        RenderFlagClass(context, root, TabsViewComponent.ShowOverflowProperty, "ui-tabs-view--no-overflow", WebValueCondition.IsFalse);
+        RenderFlagClass(context, root, TabsViewComponent.ShowOverflowProperty, WebClassNames.TabsViewNoOverflow, WebValueCondition.IsFalse);
         RenderEmptyStateSwitch(context, root);
 
         RenderTemplates(context, root);
         RegisterItemsTemplateMetadata(context, itemWrapperElementName: "div", itemWrapperClassName: ItemClassName);
         RegisterItemsFilterSortMetadata(context);
 
+        RenderTablist(context, root);
         RenderItems(context, root);
 
         // Outside the items host, whose children are the items alone; the stylesheet stands it at the strip's end.
@@ -85,6 +88,18 @@ public sealed class TabsViewComponentRenderer : ItemsCollectionRendererBase
     }
 
     /// <summary>
+    /// The strip's tablist: a tab's caption and its page are one template's, side by side in the items host, so the tablist cannot
+    /// wrap the captions alone; it owns their tabs instead (<c>aria-owns</c>, tabs-view-engine.ts), and no page or close is in it.
+    /// </summary>
+    private static void RenderTablist(WebRenderContext context, IHtmlElementBuilder root)
+        => _ = root.Element("div", tablist =>
+        {
+            _ = tablist.Class(TablistClassName).Attribute("role", "tablist");
+
+            RenderAccessibleName(context, tablist, TablistNameOperations);
+        });
+
+    /// <summary>
     /// Tabs live in an inner host: the client resolves one with a <c>querySelector</c> over descendants only. A strip none of whose tabs
     /// can be closed is marked, so it keeps no room for a close; tabs-view-engine.ts keeps the mark.
     /// </summary>
@@ -93,7 +108,7 @@ public sealed class TabsViewComponentRenderer : ItemsCollectionRendererBase
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
         var removable = false;
 
-        RenderItemsHost(context, root, "ui-tabs-view__host", items, isBound, ItemClassName, configureHost: host => host.Attribute("role", "tablist"), appendItem: (row, item, _) => removable |= !RefusesRemoval(context, row, item));
+        RenderItemsHost(context, root, "ui-tabs-view__host", items, isBound, ItemClassName, appendItem: (row, item, _) => removable |= !RefusesRemoval(context, row, item));
 
         if (!removable)
             _ = root.Attribute(WebAttributes.TabsNoneRemovable);

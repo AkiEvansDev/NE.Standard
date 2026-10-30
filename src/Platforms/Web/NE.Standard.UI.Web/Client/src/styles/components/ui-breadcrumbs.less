@@ -22,7 +22,7 @@
     // Each line's first step stands its words, not its box, on the trail's edge: hung out by the padding a step keeps by default,
     // into the holder's room, the keyboard's frame inside the step with it. By the default alone: a step's authored padding is its
     // own, which the host cannot read without a :has() (STYLING), so such a trail stands in by what it adds.
-    margin-inline-start: -@ui-space-1;
+    margin-inline-start: -@ui-space-2;
 }
 
 .ui-breadcrumbs__item {
@@ -77,35 +77,22 @@
 .ui-breadcrumb {
     // Through the mixin, never flat — see the note on .ui-button.
     .ui-responsive-property(min-width, --ui-min-width, 0);
-    .ui-responsive-property(min-height, --ui-min-height, @ui-list-row-height);
+    .ui-responsive-property(min-height, --ui-min-height, @ui-control-height-sm);
     // Tight padding: the step's own padding is most of the rhythm between steps, so a roomy value reads as a wider trail.
-    .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    .ui-responsive-property(padding, --ui-padding, 0.125rem @ui-space-2);
+    .ui-responsive-property(border-radius, --ui-border-radius, @ui-list-entry-radius);
     color: @ui-text-muted;
     text-decoration: none;
 }
 
-    // A step is a link, not a button: no wash under the pointer or the press, only the word's colour and its underline.
-    .ui-breadcrumb:not(.ui-breadcrumb--current) {
-        .ui-reveal-hover-off({ color: @ui-text-ink; });
-    }
-
-    // Under the word only, as on .ui-link: a glyph is not text to underline.
-    @media @{ui-can-hover} {
-        .ui-breadcrumb:not(.ui-disabled):not(.ui-breadcrumb--current):hover .ui-text__title {
-            text-decoration: underline;
-            text-decoration-thickness: 1px;
-            text-underline-offset: 0.15em;
-        }
-    }
-
 // The page you are on: plain text that keeps the trail's rhythm, no longer a link.
 .ui-breadcrumb--current {
     color: @ui-text-ink;
-    font-weight: 600;
+    font-weight: @ui-chosen-weight;
     pointer-events: none;
 }
 
     // The step's text body wears TitleType and would re-declare the weight over the line above.
     .ui-breadcrumb--current .ui-text {
-        font-weight: 600;
+        font-weight: @ui-chosen-weight;
     }

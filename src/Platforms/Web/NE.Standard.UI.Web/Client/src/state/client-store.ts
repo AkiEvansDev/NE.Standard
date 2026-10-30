@@ -1,6 +1,6 @@
 import { ComponentNameAttribute } from "../addressing/dom-attributes.ts";
 import type { TreeBootFold } from "../rendering/tree-boot-fold.ts";
-import { logDebug, logWarn } from "../runtime/logger.ts";
+import { logDebug, logWarn } from "../metadata/logger.ts";
 
 const KeyPrefix = "ne.ui";
 const BootSlot = "boot";

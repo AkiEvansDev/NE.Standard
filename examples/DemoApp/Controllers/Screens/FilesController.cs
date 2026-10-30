@@ -137,6 +137,10 @@ internal sealed partial class FilesController : UIControllerBase
             Documents.Add(CreateDocument(id, NextOrder()));
             Status = $"Opened {file.Title}.";
         }
+        else if (!Panes.DetailInFront || !string.Equals(SelectedKey, id, StringComparison.Ordinal))
+        {
+            Status = $"Opened {file.Title}.";
+        }
         else
         {
             Status = $"{file.Title} is already open.";

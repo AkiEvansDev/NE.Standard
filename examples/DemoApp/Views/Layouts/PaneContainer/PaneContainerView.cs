@@ -43,34 +43,33 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
             .AddRow(UIGridUnit.Auto())
             .AddRow(UIGridUnit.Star())
             .SetOverflow(UIOverflow.Hidden)
-            .AddPane("chat", UIGridPlacement.At(1, 1, 15, 3), Pane("Chat", "The main pane. Drag the bar at the top of any pane onto another pane: the two trade places.", toned: false))
-            .AddPane("tasks", UIGridPlacement.At(17, 1, 8, 1), Pane("Background tasks", "Or press Tab to a grip, then Space, an arrow to choose the place, and Space again.", toned: true))
-            .AddPane("tree", UIGridPlacement.At(17, 3, 8, 1), Pane("Working tree", "The bars size the places, not the panes: a pane takes the size of the place it lands in.", toned: true))
+            .AddPane("chat", UIGridPlacement.At(1, 1, 15, 3), Pane("Chat", "The main pane. Drag the bar at the top of any pane onto another pane: the two trade places."))
+            .AddPane("tasks", UIGridPlacement.At(17, 1, 8, 1), Pane("Background tasks", "Or press Tab to a grip, then Space, an arrow to choose the place, and Space again."))
+            .AddPane("tree", UIGridPlacement.At(17, 3, 8, 1), Pane("Working tree", "The bars size the places, not the panes: a pane takes the size of the place it lands in."))
             .AddChild(new GridSplitterComponent()
-                .BindPosition($"{PaneGroup}.{nameof(PaneContainerGroupContext.SidePosition)}")
+                .BindPosition<PaneContainerController>(static x => x.PaneGroup.SidePosition)
                 .SetPlacement(16, 1, 1, 3)
             )
             .AddChild(new GridSplitterComponent()
                 .SetOrientation(UIOrientation.Horizontal)
-                .BindPosition($"{PaneGroup}.{nameof(PaneContainerGroupContext.ToolsPosition)}")
+                .BindPosition<PaneContainerController>(static x => x.PaneGroup.ToolsPosition)
                 .SetPlacement(17, 2, 8, 1)
             )
-            .BindLayout($"{PaneGroup}.{nameof(PaneContainerGroupContext.Layout)}")
-            .BindVisibility($"{MainGroup}.{nameof(StandardGroupContext.Visibility)}")
-            .BindEnabled($"{MainGroup}.{nameof(StandardGroupContext.Enabled)}")
-            .BindMargin($"{MainGroup}.{nameof(StandardGroupContext.Margin)}")
-            .BindTheme($"{MainGroup}.{nameof(StandardGroupContext.Theme)}")
-            .BindLoading($"{MainGroup}.{nameof(StandardGroupContext.Loading)}")
+            .BindLayout<PaneContainerController>(static x => x.PaneGroup.Layout)
+            .BindVisibility<DemoStandardController>(static x => x.MainGroup.Visibility)
+            .BindEnabled<DemoStandardController>(static x => x.MainGroup.Enabled)
+            .BindMargin<DemoStandardController>(static x => x.MainGroup.Margin)
+            .BindTheme<DemoStandardController>(static x => x.MainGroup.Theme)
+            .BindLoading<DemoStandardController>(static x => x.MainGroup.Loading)
             .SetPlacement(1, 1, 24, 1);
 
     /// <summary>
-    /// A pane's content: a title and what it is for, the tool panes a tone off the page as an editor's tool windows are, so a moved
-    /// pane is seen to move. Every pane paints its ground: a pane sliding over another must hide it.
+    /// A pane's content on one shared workspace background; every pane paints an opaque ground so a pane sliding over another hides it.
     /// </summary>
-    private static SurfaceComponent Pane(string title, string description, bool toned)
+    private static SurfaceComponent Pane(string title, string description)
         => new SurfaceComponent()
             .SetSurface(UISurfaceStyle.Background)
-            .SetBackground(UIThemeColor.FromStyle(toned ? UIColorStyle.Surface : UIColorStyle.Background))
+            .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Background))
             .SetVerticalAlignment(UIAlignment.Stretch)
             .SetBorderThickness(UIThickness.Uniform(0))
             .SetBorderRadius(UICornerRadius.Uniform(0))
@@ -97,7 +96,7 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBoardGroup()
     {
-        return DemoUI.CreateExample("A board the browser keeps",
+        return DemoUI.CreateExample("Browser-persisted grid",
             new PaneContainerComponent("demo-panes-board")
                 .SetRow(1, UIGridUnit.Star())
                 .AddRow(UIGridUnit.Star())
@@ -114,7 +113,7 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
 
     private static SurfaceComponent BoardPane(string title, string status)
         => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Raised)
+            .SetSurface(UISurfaceStyle.Surface)
             .SetVerticalAlignment(UIAlignment.Stretch)
             .SetPadding(UIThickness.All(12, 16, 12, 12))
             .SetContent(new ParagraphComponent()
@@ -130,7 +129,7 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateKeptGroup()
     {
-        return DemoUI.CreateExample("A column that keeps its width",
+        return DemoUI.CreateExample("Fixed-width pane (keepsSize)",
             new PaneContainerComponent("demo-panes-kept")
                 .SetColumn(UIGridPlacement.GridColumns, UIGridUnit.Absolute(240))
                 .AddRow(UIGridUnit.Auto())
@@ -139,7 +138,7 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
                 .AddPane("document", UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), md: UIGridPlacement.At(1, 1, 23, 2)), BoardPane("Release notes", "The page you write"))
                 .AddPane("outline", UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 2, 24, 1), md: UIGridPlacement.At(24, 1, 1, 2)), BoardPane("Outline", "240 px on either side"), keepsSize: true),
             columns: 24,
-            note: "The outline is added to keep its size: drag it by its grip onto the document and it stays 240 px on the other side, the document as wide as before. It keeps it beside its own place, with no splitter between."
+            note: "The outline is added with `keepsSize: true`: drag it by its grip onto the document and it stays 240 px on the other side, the document as wide as before."
         );
     }
 
@@ -148,14 +147,14 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateWallGroup()
     {
-        return DemoUI.CreateExample("The reading you watch, the large one",
+        return DemoUI.CreateExample("Swapping across slot sizes",
             new PaneContainerComponent("demo-panes-wall")
                 .SetRow(1, UIGridUnit.Star())
                 .AddRow(UIGridUnit.Star())
                 .SetSpacing(8)
                 .SetHeight(UILayoutLength.Absolute(260))
                 .AddPane("cpu", UIGridPlacement.At(1, 1, 16, 2), new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetVerticalAlignment(UIAlignment.Stretch)
                     .SetPadding(UIThickness.All(12, 16, 12, 12))
                     .SetContent(new TextComponent()
@@ -167,7 +166,7 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
                     )
                 )
                 .AddPane("memory", UIGridPlacement.At(17, 1, 8, 1), new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetVerticalAlignment(UIAlignment.Stretch)
                     .SetPadding(UIThickness.All(12, 16, 12, 12))
                     .SetContent(new TextComponent()
@@ -179,7 +178,7 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
                     )
                 )
                 .AddPane("requests", UIGridPlacement.At(17, 2, 8, 1), new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetVerticalAlignment(UIAlignment.Stretch)
                     .SetPadding(UIThickness.All(12, 16, 12, 12))
                     .SetContent(new TextComponent()
@@ -190,7 +189,7 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                 ),
-            note: "Drag a small pane by its grip onto the large one: it takes the large place's size, and the reading that stood there goes to the small place. The places keep their cells; only the panes move between them."
+            note: "Drag a small pane onto the large slot: it adopts the large slot's size while the previous occupant moves to the small slot."
         );
     }
 
@@ -199,12 +198,12 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateOverviewGroup()
     {
-        return DemoUI.CreateExample("An order kept for the viewer",
+        return DemoUI.CreateExample("Two-way bound layout",
             UILayout.Stack(12)
                 .AddChild(UIPage.Heading("Overview", "Drag a pane by its grip to put it where you look first.", new ButtonComponent()
                         .OnClick(nameof(PaneContainerController.RestoreOverview))
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Undo))
                         .SetTitle("Restore")
                     )
@@ -213,33 +212,33 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
                     .SetSpacing(8)
                     .SetHeight(UILayoutLength.Absolute(120))
                     .AddPane("alerts", UIGridPlacement.At(1, 1, 8, 1), new SurfaceComponent()
-                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetSurface(UISurfaceStyle.Surface)
                         .SetVerticalAlignment(UIAlignment.Stretch)
                         .SetPadding(UIThickness.All(12, 16, 12, 12))
                         .SetContent(new ParagraphComponent().SetTitle("Alerts").SetDescription("5 open").SetDescriptionType(UITextAppearance.Body))
                     )
                     .AddPane("deploys", UIGridPlacement.At(9, 1, 8, 1), new SurfaceComponent()
-                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetSurface(UISurfaceStyle.Surface)
                         .SetVerticalAlignment(UIAlignment.Stretch)
                         .SetPadding(UIThickness.All(12, 16, 12, 12))
                         .SetContent(new ParagraphComponent().SetTitle("Deploys").SetDescription("3 running").SetDescriptionType(UITextAppearance.Body))
                     )
                     .AddPane("on-call", UIGridPlacement.At(17, 1, 8, 1), new SurfaceComponent()
-                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetSurface(UISurfaceStyle.Surface)
                         .SetVerticalAlignment(UIAlignment.Stretch)
                         .SetPadding(UIThickness.All(12, 16, 12, 12))
                         .SetContent(new ParagraphComponent().SetTitle("On call").SetDescription("Grace Kim").SetDescriptionType(UITextAppearance.Body))
                     )
-                    .BindLayout(nameof(PaneOverviewGroupContext.Layout), UIBindingScope.Relative)
+                    .BindLayout<PaneOverviewGroupContext>(static x => x.Layout, UIBindingScope.Relative)
                 )
                 .AddChild(new TextComponent()
                     .SetTitle("Kept for you")
                     .SetTitleType(UITextAppearance.Caption)
                     .SetTitleColor(UIThemeColor.Muted)
-                    .BindDescription(nameof(PaneOverviewGroupContext.Layout), UIBindingScope.Relative)
+                    .BindDescription<PaneOverviewGroupContext>(static x => x.Layout, UIBindingScope.Relative)
                     .SetDescriptionType(UITextAppearance.Caption)
                 ),
-            note: "Layout bound two ways: each drag comes back to the controller, which would keep it with the viewer's settings, and the line under the panes reads it. Restore writes the default, and the panes move to it.",
+            note: "`BindLayout` synchronizes every swap back to the controller; pressing Restore resets the bound layout string to its default.",
             context: OverviewGroup
         );
     }

@@ -1,15 +1,10 @@
 // The client half of `WebIconValue`: a glyph name, or a picture URL filling `--ui-icon-url`; the refusals below gate an inline style.
 
+import { IconAttribute, IconClass, IconImageClass, IconMaskClass } from "../addressing/dom-attributes.ts";
 import { readImageSource } from "./url-safety.ts";
 
 /** Asks for the tinted form of a picture: masked with currentColor, like a glyph. */
 const maskPrefix = "mask:";
-
-/** The class an untinted picture wears: painted as it is. */
-const iconImageClassName = "ui-icon--image";
-
-/** The class a tinted picture wears: the one form `.ui-icon::before` paints, a mask filled with the text colour. */
-const iconMaskClassName = "ui-icon--mask";
 
 type IconSource = { readonly source: string; readonly tinted: boolean };
 
@@ -67,14 +62,11 @@ function toCssUrl(source: string): string {
     return `url("${escaped}")`;
 }
 
-/** The box an icon value is drawn in, the mark that says a glyph is there — `.ui-icon::before` stays hidden without it — and the picture's. */
-const iconClassName = "ui-icon";
-export const IconMarkAttribute = "data-ui-icon";
 export const IconUrlProperty = "--ui-icon-url";
 
 /** Writes an icon value on a browser-built element as the server's `IconValueRenderer` does: the box, the glyph or picture, the mark. */
 export function applyIconValue(element: Element, value: unknown): void {
-    element.classList.add(iconClassName);
+    element.classList.add(IconClass);
 
     // The previous value goes first: an element redrawn with a new icon would otherwise wear both glyphs, or a picture and a glyph.
     for (const className of Array.from(element.classList)) {
@@ -89,11 +81,11 @@ export function applyIconValue(element: Element, value: unknown): void {
 
     // Nothing rather than a refusal, as the server answers: a value from data may name nothing (an emoji, a stray symbol).
     if (className.length === 0) {
-        element.removeAttribute(IconMarkAttribute);
+        element.removeAttribute(IconAttribute);
         return;
     }
 
-    element.setAttribute(IconMarkAttribute, "");
+    element.setAttribute(IconAttribute, "");
     element.classList.add(className);
 
     const image = readIconSource(value);
@@ -107,7 +99,7 @@ const glyphClassPrefix = "ui-icon-glyph--";
 
 /** Whether a class is one an icon value writes — a glyph's, or a picture's — so a new value can clear the old. */
 export function isIconClassName(className: string): boolean {
-    return className === iconImageClassName || className === iconMaskClassName || className.startsWith(glyphClassPrefix);
+    return className === IconImageClass || className === IconMaskClass || className.startsWith(glyphClassPrefix);
 }
 
 /** The class an icon value wears — a glyph's, or a picture's form — or empty for a value that draws nothing. */
@@ -115,7 +107,7 @@ export function toIconClassName(value: unknown): string {
     const image = readIconSource(value);
 
     if (image !== null)
-        return image.tinted ? iconMaskClassName : iconImageClassName;
+        return image.tinted ? IconMaskClass : IconImageClass;
 
     return toIconGlyphClassName(value);
 }

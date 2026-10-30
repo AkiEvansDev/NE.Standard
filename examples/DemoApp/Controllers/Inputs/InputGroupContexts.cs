@@ -16,7 +16,7 @@ internal abstract partial class InputValueGroupContext : DemoGroupContext
     public partial bool IsReadOnly { get; set; }
 
     [RecursiveMember]
-    public partial UIInputSize? Size { get; set; } = UIInputSize.Medium;
+    public partial UISize? Size { get; set; } = UISize.Medium;
 
     protected void AddReadOnlyOption()
         => AddOption(nameof(IsReadOnly), ToggleIsReadOnly, () => IsReadOnly);
@@ -41,7 +41,7 @@ internal abstract partial class FieldChromeGroupContext(string? placeholder) : D
     private readonly string? _placeholder = placeholder;
 
     [RecursiveMember]
-    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Tonal;
+    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Filled;
 
     [RecursiveMember]
     public partial string? Placeholder { get; set; } = placeholder;
@@ -223,7 +223,7 @@ internal sealed partial class OptionValueGroupContext : InputValueGroupContext
 /// <summary>
 /// The value a list of options holds when several can be chosen — their keys in the order chosen — and how many it takes at most.
 /// </summary>
-internal partial class OptionKeysValueGroupContext : InputValueGroupContext
+internal sealed partial class OptionKeysValueGroupContext : InputValueGroupContext
 {
     private static readonly string[][] RegionSteps = [["eu-west", "ap-south"], ["us-east"], []];
 
@@ -241,7 +241,7 @@ internal partial class OptionKeysValueGroupContext : InputValueGroupContext
     }
 
     /// <summary>A value stepping through <paramref name="valueSteps"/>, the first chosen at the start, then none.</summary>
-    protected OptionKeysValueGroupContext(string[][] valueSteps)
+    private OptionKeysValueGroupContext(string[][] valueSteps)
     {
         _valueSteps = valueSteps;
         Value = valueSteps[0];

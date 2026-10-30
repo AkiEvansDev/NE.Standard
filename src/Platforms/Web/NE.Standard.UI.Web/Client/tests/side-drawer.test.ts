@@ -245,8 +245,8 @@ test("open over its backdrop the drawer is a modal dialog, Tab kept inside it ro
 
     assert.equal(drawer.getAttribute("role"), "dialog");
     assert.equal(drawer.getAttribute("aria-modal"), "true");
-    // Named, as a dialog is: the side's own name where its page gives one, else the word for what it is.
-    assert.equal(drawer.hasAttribute("aria-label"), true);
+    // Named, as a dialog is: the side's own name where its page gives one, else the word for which side it is (its key, with no words).
+    assert.equal(drawer.getAttribute("aria-label"), "ui.side.left");
 
     last.focus();
 
@@ -271,6 +271,20 @@ test("open over its backdrop the drawer is a modal dialog, Tab kept inside it ro
     openByKey(toggle);
 
     assert.equal(drawer.getAttribute("aria-label"), "Folders");
+});
+
+test("an open right side with no name of its own is called the right panel, so the two drawers differ", () => {
+    const toggle = FakeElement.of("", { "data-ui-drawer-toggle": "right-side" }, "button");
+    const drawer = FakeElement.of("", { "data-ui-region": "right-side" }).append(new FakeElement().append(new FakeInput("search")));
+    const root = FakeElement.of("", { "data-ui-root": "", "data-ui-side-drawers": "md" }).append(FakeElement.of("", { "data-ui-region": "header" }).append(toggle), drawer);
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(root);
+    toggle.focus();
+    openByKey(toggle);
+
+    assert.equal(root.getAttribute("data-ui-drawer-open"), "right-side");
+    assert.equal(drawer.getAttribute("aria-label"), "ui.side.right");
 });
 
 test("the drawer leaves Escape to a popup open in it, and takes the next once the popup is gone", async () => {

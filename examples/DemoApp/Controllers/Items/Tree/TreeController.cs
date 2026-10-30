@@ -173,7 +173,7 @@ internal sealed partial class TreeGroupContext : SelectionGroupContext
     public partial bool Removable { get; set; } = true;
 
     [RecursiveMember]
-    public partial bool ShowFoldChevron { get; set; } = true;
+    public partial bool ShowChevron { get; set; } = true;
 
     [RecursiveMember]
     public partial bool RowHoverable { get; set; } = true;
@@ -192,7 +192,7 @@ internal sealed partial class TreeGroupContext : SelectionGroupContext
         AddOption(nameof(Renamable), ToggleRenamable, () => Renamable);
         AddOption(nameof(RenameOnDoubleClick), ToggleRenameOnDoubleClick, () => RenameOnDoubleClick);
         AddOption(nameof(Removable), ToggleRemovable, () => Removable);
-        AddOption(nameof(ShowFoldChevron), ToggleShowFoldChevron, () => ShowFoldChevron);
+        AddOption(nameof(ShowChevron), ToggleShowChevron, () => ShowChevron);
         AddOption(nameof(RowHoverable), ToggleRowHoverable, () => RowHoverable);
         AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
         AddSelectionOptions();
@@ -204,7 +204,7 @@ internal sealed partial class TreeGroupContext : SelectionGroupContext
     public void CycleIndent()
         => SetLastChange(nameof(Indent), Indent = CycleValue(Indent, 16d, 24d, 8d));
 
-    // F2 on the row the keyboard is on, or a menu entry that returns a RenameNodeEffect.
+    // F2 on the row the keyboard is on, or a menu entry that returns a RenameItemEffect.
     public void ToggleRenamable()
         => SetLastChange(nameof(Renamable), Renamable = !Renamable);
 
@@ -217,8 +217,8 @@ internal sealed partial class TreeGroupContext : SelectionGroupContext
         => SetLastChange(nameof(Removable), Removable = !Removable);
 
     // Off, no chevron and no square for one: a folder folds from the keyboard, a click chooses it.
-    public void ToggleShowFoldChevron()
-        => SetLastChange(nameof(ShowFoldChevron), ShowFoldChevron = !ShowFoldChevron);
+    public void ToggleShowChevron()
+        => SetLastChange(nameof(ShowChevron), ShowChevron = !ShowChevron);
 
     public void ToggleRowHoverable()
         => SetLastChange(nameof(RowHoverable), RowHoverable = !RowHoverable);
@@ -848,13 +848,13 @@ internal sealed partial class TreeController() : DemoStandardController
     public UICommandResult NodeAction(string action, string id)
     {
         if (action == TreeFilesGroupContext.RenameAction)
-            return UICommandResult.Ok([new RenameNodeEffect(FilesTreeId, id)]);
+            return UICommandResult.Ok([new RenameItemEffect(FilesTreeId, id)]);
 
         if (action == TreeFilesGroupContext.NewFileAction)
         {
             var fileId = FilesGroup.AddFile(id);
 
-            return fileId is null ? UICommandResult.Ok() : UICommandResult.Ok([new RenameNodeEffect(FilesTreeId, fileId)]);
+            return fileId is null ? UICommandResult.Ok() : UICommandResult.Ok([new RenameItemEffect(FilesTreeId, fileId)]);
         }
 
         FilesGroup.Delete(id);

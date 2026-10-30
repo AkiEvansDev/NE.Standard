@@ -3,29 +3,27 @@
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import { isAtEnd, isEndAnchored } from "../interactions/scroll-anchor-engine.ts";
-import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, setRowFocus, takeRowCursor, waitingCursorKey } from "../interactions/row-cursor.ts";
-import { ComponentKeyAttribute, GroupHeaderAttribute, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass } from "../addressing/dom-attributes.ts";
+import { giveRowCursor, planRowRemoval, restoreWaitingCursor, rowCursorRoot, takeRowCursor } from "../interactions/row-cursor.ts";
+import { ComponentKeyAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentAddress } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
 import { areValuesEqual } from "../state/value-equality.ts";
-import { tryReadItemProperty } from "./binding-template-evaluator.ts";
 import type { ItemStackEntry, ItemValueStep } from "./binding-template-evaluator.ts";
 import { placeInOrder } from "./items-dom-order.ts";
-import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer.ts";
-import { compareItems, getActiveSorts, itemMatchesFilters, readItemsQuery } from "./items-filter-sort.ts";
-import { bucketByGroup, drawGroupHeader, markGroupHeader } from "./items-group-runs.ts";
-import { DefaultItemSize, resolveHostMode } from "./items-host-mode.ts";
+import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } from "../addressing/items-empty-renderer.ts";
+import { drawGroupHeader, markGroupHeader } from "./items-group-runs.ts";
+import { DefaultItemSize, resolveHostMode } from "../addressing/items-host-mode.ts";
 import { renderItemRow } from "./items-row-renderer.ts";
-import { BottomSpacer, TopSpacer, addMeasured, ensureSpacer, focusSpacer } from "./items-spacers.ts";
-import type { RunningMean } from "./items-spacers.ts";
+import { BottomSpacer, TopSpacer, ensureSpacer, focusSpacer, groupOf, holdsFocus, holdTopLine, isColumn, isWrap, keepVirtualCursorShown, lineIndexOf, measureVirtualRows, pitchOfVirtualRow, projectVirtualHost, readGap, readPixels, refusesChoice, setElement, sum, tilesAcross, wrapLines } from "./items-spacers.ts";
+import type { VirtualEntry, VirtualHostState } from "./items-spacers.ts";
 import { stampRowIndices } from "./table-row-indices.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 import { writeItemValuePath } from "./items-template-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer.ts";
-import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo } from "./items-viewport.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "../addressing/items-viewport.ts";
+import { logWarn } from "../metadata/logger.ts";
 
 // How many rows beyond the visible ones are kept drawn on each side, so a short scroll has nothing to do.
 const Overscan = 6;
@@ -43,59 +41,6 @@ export type ItemsVirtualizationEngineOptions = {
     readonly renderer: ItemsTemplateRenderer;
     readonly state: PropertyStateStore;
     readonly dom: DomRegistry;
-};
-
-/** One item the host holds: its value, and its row while it is drawn. */
-type VirtualEntry = {
-    readonly key: string;
-    item: unknown;
-    element: Element | null;
-    height: number | null;
-};
-
-/** What the host would show top to bottom once the rules have run: rows, and a header over each group. */
-type ProjectedRow = {
-    readonly entry: VirtualEntry;
-    readonly header: boolean;
-};
-
-type VirtualHostState = {
-    readonly componentId: number;
-    entries: VirtualEntry[];
-    // The entries by key, kept with them: a patch to one item of thousands finds it without a walk.
-    byKey: Map<string, VirtualEntry>;
-    projected: ProjectedRow[];
-    // Moved by every change to the items or to what the rules leave of them (`itemsVersion`): a package totalling them reads them again.
-    version: number;
-    headers: Map<string, { element: Element | null; height: number | null }>;
-    itemEstimate: number;
-    headerEstimate: number;
-    // Every height measured so far: an estimate from the rows in view alone swings, and every unmeasured row above with it.
-    itemHeights: RunningMean;
-    headerHeights: RunningMean;
-    // The last pass's rows and the pitches of its lines — a row each down a column, several tiles each in a wrapping host — and how
-    // many tiles a line held, so a scroll pass can hold the line at the viewport's top where it was.
-    laidOut: readonly ProjectedRow[] | null;
-    pitches: readonly number[];
-    laidAcross: number;
-    firstLine: number;
-    lastLine: number;
-    // How many tiles a wrapping host's line holds, and the widest tile the last pass drew, which says it: a tile sized as a share of
-    // the host narrows with it, so an older, wider one would count too few.
-    across: number;
-    tileWidth: number | null;
-    scheduled: number;
-    // The first laid-out row, so a pass that changed nothing about the range can leave the document alone.
-    first: number;
-    last: number;
-    // The row the last pass kept drawn out of the range for the focus it holds.
-    keptOutOfRange: Element | null;
-};
-
-/** A wrapping host's rows by the lines they stand on: the row each line starts at, and the line's pitch. */
-type WrapLines = {
-    readonly starts: readonly number[];
-    readonly pitches: readonly number[];
 };
 
 export class ItemsVirtualizationEngine {
@@ -201,6 +146,23 @@ export class ItemsVirtualizationEngine {
         return keys;
     }
 
+    /** The keys of the projected rows that accept selection (`CanSelect` is not false), drawn or not; null when this engine does not hold `host`. */
+    public choosableKeysOf(host: Element): readonly string[] | null {
+        const state = this.states.get(host);
+
+        if (state === undefined)
+            return null;
+
+        const keys: string[] = [];
+
+        for (const row of state.projected) {
+            if (!row.header && !refusesChoice(row.entry))
+                keys.push(row.entry.key);
+        }
+
+        return keys;
+    }
+
     /**
      * Scrolls the host so the row of `key` stands at `edge` of the viewport and draws it there and then: what the keyboard's Home, End
      * and page keys reach past the rows drawn. Null where the host shows no row of that key.
@@ -220,7 +182,7 @@ export class ItemsVirtualizationEngine {
 
         const style = getComputedStyle(host);
         const gap = readGap(style);
-        const pitches = state.projected.map(row => this.pitchOf(state, row) + gap);
+        const pitches = state.projected.map(row => pitchOfVirtualRow(state, row) + gap);
         const lines = isWrap(host) ? wrapLines(state.projected, pitches, state.across) : null;
         const line = lines === null ? index : lineIndexOf(lines.starts, index);
         const linePitches = lines?.pitches ?? pitches;
@@ -250,8 +212,8 @@ export class ItemsVirtualizationEngine {
         const atEnd = isEndAnchored(host) && isAtEnd(host);
         const shown = state.projected;
 
-        this.project(host, state);
-        this.keepCursorShown(host, state, shown);
+        projectVirtualHost(host, state, this.options);
+        keepVirtualCursorShown(host, state, shown);
         this.layout(host, state);
 
         // Growth that stays outside the drawn range touches no child, so the anchor engine never hears of it.
@@ -337,50 +299,6 @@ export class ItemsVirtualizationEngine {
 
         element.remove();
         giveRowCursor(host, null, held);
-    }
-
-    /**
-     * A rule that left out the cursor's row — drawn, or waiting to be — moves the cursor to the nearest row it still shows, in the
-     * order the reader last saw (`before`): the next below, else the last above.
-     */
-    private keepCursorShown(host: Element, state: VirtualHostState, before: readonly ProjectedRow[]): void {
-        const root = rowCursorRoot(host);
-        const marked = state.entries.find(entry => entry.element?.hasAttribute(RowFocusAttribute) === true) ?? null;
-        const key = marked?.key ?? (root === null ? null : waitingCursorKey(root));
-
-        if (root === null || key === null)
-            return;
-
-        const shown = new Set<string>();
-
-        for (const row of state.projected) {
-            if (!row.header)
-                shown.add(row.entry.key);
-        }
-
-        if (shown.has(key))
-            return;
-
-        const order = before.filter(row => !row.header).map(row => row.entry);
-        const at = order.findIndex(entry => entry.key === key);
-        const target = at < 0 ? undefined : order.slice(at + 1).find(entry => shown.has(entry.key)) ?? order.slice(0, at).reverse().find(entry => shown.has(entry.key));
-
-        marked?.element?.removeAttribute(RowFocusAttribute);
-
-        if (target === undefined) {
-            root.removeAttribute(RowCursorWaitsAttribute);
-            root.removeAttribute("aria-activedescendant");
-            return;
-        }
-
-        if (target.element instanceof HTMLElement) {
-            setRowFocus(root, getRealItemElements(host).filter((row): row is HTMLElement => row instanceof HTMLElement), target.element, null, false);
-            return;
-        }
-
-        // Waiting for a row not drawn, the cursor names none: the one named before is left out.
-        root.setAttribute(RowCursorWaitsAttribute, target.key);
-        root.removeAttribute("aria-activedescendant");
     }
 
     public insert(host: Element, key: string, item: unknown, index: number | null): void {
@@ -504,59 +422,6 @@ export class ItemsVirtualizationEngine {
         return true;
     }
 
-    // ---- the rules, over the values
-
-    private project(host: Element, state: VirtualHostState): void {
-        const config = this.options.metadata.getItemsFilterSortMetadata(state.componentId);
-        const query = readItemsQuery(host);
-        const groupTemplate = this.options.templates.getGroupTemplate(state.componentId);
-        const sorts = getActiveSorts(config, this.options.state, query);
-
-        let entries = state.entries;
-
-        state.version++;
-
-        if ((config !== undefined && config.filters.length > 0) || (query?.filters ?? []).length > 0)
-            entries = entries.filter(entry => itemMatchesFilters(config, entry.item, this.options.state, query));
-
-        const grouped = groupTemplate !== undefined && entries.some(entry => groupOf(entry) !== "");
-
-        if (!grouped) {
-            if (sorts.length > 0)
-                entries = [...entries].sort((left, right) => compareItems(left.item, right.item, sorts));
-
-            state.projected = entries.map(entry => ({ entry, header: false }));
-            return;
-        }
-
-        const { buckets, order } = bucketByGroup(entries, groupOf);
-
-        const projected: ProjectedRow[] = [];
-
-        for (const group of order) {
-            let bucket = buckets.get(group)!;
-
-            if (sorts.length > 0)
-                bucket = [...bucket].sort((left, right) => compareItems(left.item, right.item, sorts));
-
-            // The items without a group are a bucket with no header, as everywhere else.
-            if (group !== "")
-                projected.push({ entry: bucket[0], header: true });
-
-            for (const entry of bucket)
-                projected.push({ entry, header: false });
-        }
-
-        state.projected = projected;
-
-        for (const group of [...state.headers.keys()]) {
-            if (!buckets.has(group)) {
-                state.headers.get(group)?.element?.remove();
-                state.headers.delete(group);
-            }
-        }
-    }
-
     // ---- the document
 
     private handleScroll(domEvent: Event): void {
@@ -616,7 +481,7 @@ export class ItemsVirtualizationEngine {
         const rows = state.projected;
         const style = getComputedStyle(host);
         const gap = readGap(style);
-        const pitches = rows.map(row => this.pitchOf(state, row) + gap);
+        const pitches = rows.map(row => pitchOfVirtualRow(state, row) + gap);
         const total = rows.length;
         const across = state.across;
         const lines = isWrap(host) ? wrapLines(rows, pitches, across) : null;
@@ -805,7 +670,7 @@ export class ItemsVirtualizationEngine {
         state.lastLine = lastLine;
 
         // Measured after every write of the pass, so the pass forces one layout, not one per row.
-        this.measure(state, rows, first, last);
+        measureVirtualRows(state, rows, first, last);
 
         // A line holds as many tiles as fit it, known once one is drawn: a pass that learned another count lays the lines out again.
         if (lines !== null) {
@@ -824,46 +689,6 @@ export class ItemsVirtualizationEngine {
         const template = this.options.templates.getGroupTemplate(state.componentId);
 
         return template === undefined ? null : drawGroupHeader(template, this.options.renderer, anchor.item, anchor.key, ancestors);
-    }
-
-    private measure(state: VirtualHostState, rows: readonly ProjectedRow[], first: number, last: number): void {
-        let widest = 0;
-
-        for (let i = first; i < last && i < rows.length; i++) {
-            const row = rows[i];
-            const slot = row.header ? state.headers.get(groupOf(row.entry)) : row.entry;
-            const element = slot?.element;
-
-            if (slot === undefined || slot === null || element === null || element === undefined)
-                continue;
-
-            const box = itemBox(element);
-
-            if (box.height <= 0)
-                continue;
-
-            addMeasured(row.header ? state.headerHeights : state.itemHeights, slot.height, box.height);
-            slot.height = box.height;
-
-            if (!row.header)
-                widest = Math.max(widest, box.width);
-        }
-
-        if (widest > 0)
-            state.tileWidth = widest;
-
-        if (state.itemHeights.count > 0)
-            state.itemEstimate = state.itemHeights.sum / state.itemHeights.count;
-
-        if (state.headerHeights.count > 0)
-            state.headerEstimate = state.headerHeights.sum / state.headerHeights.count;
-    }
-
-    private pitchOf(state: VirtualHostState, row: ProjectedRow): number {
-        if (row.header)
-            return state.headers.get(groupOf(row.entry))?.height ?? state.headerEstimate;
-
-        return row.entry.height ?? state.itemEstimate;
     }
 
     /** The host's state, built on first sight from the rows the server drew and the values it published. */
@@ -939,152 +764,4 @@ export class ItemsVirtualizationEngine {
 
         return state;
     }
-}
-
-/** Whether the focus is in the row: on one of its controls, an editor open over it, or the row itself. */
-function holdsFocus(row: Element): boolean {
-    const focused = document.activeElement;
-
-    return focused !== null && row.contains(focused);
-}
-
-/**
- * Where the viewport's top goes, in the rows' coordinates, for the line the reader saw there to stay put after a scroll pass re-measured
- * the lines above; `inset` is the padding above the first row, which a scroll adds back.
- */
-function holdTopLine(host: Element, state: VirtualHostState, rows: readonly ProjectedRow[], pitches: readonly number[], across: number, top: number, inset: number): number {
-    // A pass after the rules ran has other rows, and one with another count of tiles a line other lines: left where the reader is.
-    if (state.laidOut !== rows || state.laidAcross !== across || state.pitches.length !== pitches.length || top <= 0)
-        return top;
-
-    let shown = 0;
-    let moved = 0;
-
-    for (let i = 0; i < pitches.length; i++) {
-        // On the page now: the drawn lines at their own height, every other line as the spacer the last pass sized.
-        const pitch = i >= state.firstLine && i < state.lastLine ? pitches[i] : state.pitches[i];
-
-        if (shown + pitch > top)
-            break;
-
-        shown += pitch;
-        moved += pitches[i];
-    }
-
-    // The spacers still stand for the last pass's pitches: the row moved by the sum of the differences.
-    const shift = moved - shown;
-
-    if (Math.abs(shift) < 0.5)
-        return top;
-
-    scrollHostTo(host, top + shift + inset);
-
-    return top + shift;
-}
-
-function setElement(state: VirtualHostState, row: ProjectedRow, element: Element | null): void {
-    if (!row.header) {
-        row.entry.element = element;
-        return;
-    }
-
-    const group = groupOf(row.entry);
-    const slot = state.headers.get(group);
-
-    if (slot === undefined)
-        state.headers.set(group, { element, height: null });
-    else
-        slot.element = element;
-}
-
-/** Whether the item says it may not be chosen (`IItemAbilitiesModel.CanSelect`), as its drawn row would be marked. */
-function refusesChoice(entry: VirtualEntry): boolean {
-    const ability = tryReadItemProperty(entry.item, "CanSelect");
-
-    return ability.ok && ability.value === false;
-}
-
-function groupOf(entry: VirtualEntry): string {
-    const group = tryReadItemProperty(entry.item, "Group");
-
-    return group.ok && typeof group.value === "string" ? group.value : "";
-}
-
-/** Whether the host's rows stand one under another down the page: a vertical stack's, or a table's. */
-function isColumn(host: Element): boolean {
-    const view = host.parentElement;
-
-    return view !== null && (view.classList.contains(TableScrollClass) || (view.classList.contains("ui-items-view--stack") && view.classList.contains("ui-orientation--vertical")));
-}
-
-/** The line a wrapping host's row stands on, by the row each line starts at. */
-function lineIndexOf(starts: readonly number[], index: number): number {
-    let line = 0;
-
-    while (line + 1 < starts.length && starts[line + 1] <= index)
-        line++;
-
-    return line;
-}
-
-function isWrap(host: Element): boolean {
-    return host.parentElement?.classList.contains("ui-items-view--wrap") === true;
-}
-
-/** Packs a wrapping host's rows into lines of `across` tiles: a group's header is a line of its own, and a group's last line may be short. */
-function wrapLines(rows: readonly ProjectedRow[], pitches: readonly number[], across: number): WrapLines {
-    const starts: number[] = [];
-    const linePitches: number[] = [];
-    let i = 0;
-
-    while (i < rows.length) {
-        starts.push(i);
-
-        if (rows[i].header) {
-            linePitches.push(pitches[i]);
-            i++;
-            continue;
-        }
-
-        let pitch = 0;
-
-        for (let n = 0; n < across && i < rows.length && !rows[i].header; n++, i++)
-            pitch = Math.max(pitch, pitches[i]);
-
-        linePitches.push(pitch);
-    }
-
-    return { starts, pitches: linePitches };
-}
-
-/** How many tiles of the measured width a wrapping host's line fits, gaps between; null before a tile was measured or while unlaid out. */
-function tilesAcross(host: Element, style: CSSStyleDeclaration, tileWidth: number | null): number | null {
-    const room = host.clientWidth - readPixels(style.paddingLeft) - readPixels(style.paddingRight);
-
-    if (tileWidth === null || tileWidth <= 0 || room <= 0)
-        return null;
-
-    const gap = readPixels(style.columnGap);
-
-    // Half a pixel of slack: a line the tiles fill exactly measures a fraction short of it.
-    return Math.max(1, Math.floor((room + gap + 0.5) / (tileWidth + gap)));
-}
-
-function readGap(style: CSSStyleDeclaration): number {
-    return readPixels(style.rowGap);
-}
-
-function readPixels(value: string): number {
-    const pixels = Number.parseFloat(value);
-
-    return Number.isFinite(pixels) ? pixels : 0;
-}
-
-function sum(values: readonly number[], from: number, to: number): number {
-    let total = 0;
-
-    for (let i = from; i < to; i++)
-        total += values[i];
-
-    return total;
 }

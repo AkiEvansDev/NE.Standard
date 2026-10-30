@@ -14,8 +14,8 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// <summary>Renders a menu entry as button chrome on an anchor, so an entry that navigates has a real URL.</summary>
 public sealed class MenuItemComponentRenderer : ButtonRendererBase
 {
-    private const string ShortcutClass = "ui-menu-item__shortcut";
-    private const string ValueClass = "ui-menu-item__value";
+    private const string ShortcutClass = WebClassNames.MenuItemShortcut;
+    private const string ValueClass = WebClassNames.MenuItemValue;
 
     // On the entry while a select's value shows at its end: read by the stylesheet alone, which keeps a check or a chevron beside it.
     private const string ValueShownAttribute = "data-ui-menu-item-value";
@@ -63,31 +63,48 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
 
         // Render-time only, and an attribute rather than a class because it also gates the content a separator still renders.
         _ = ResolveRenderValue(context, MenuItemComponent.KindProperty, out UIMenuItemKind? kind, out _);
-        _ = root.Attribute(WebAttributes.MenuItemKind, (kind ?? UIMenuItemKind.Item).ToString().ToLowerInvariant());
+        UIMenuItemKind resolvedKind = kind ?? UIMenuItemKind.Item;
+        _ = root.Attribute(WebAttributes.MenuItemKind, resolvedKind.ToString().ToLowerInvariant());
 
         var popup = InPopupMenu(context);
 
         if (popup)
             RenderPopupRole(root, kind);
+        else
+            RenderPageRole(context, root, kind);
 
-        RenderLinkAddress(context, root, MenuItemComponent.UrlProperty);
+        if (resolvedKind == UIMenuItemKind.Separator)
+            return;
 
-        // aria-current is the accessible half of the same state the modifier class paints.
-        _ = RenderProperty<bool?>(context, root, MenuItemComponent.SelectedProperty, static (target, value) =>
+        if (resolvedKind == UIMenuItemKind.Item)
         {
-            if (value == true)
-            {
-                _ = target.Class(WebClassNames.MenuItemSelected);
-                _ = target.Attribute("aria-current", "page");
-            }
-        }, SelectedOperations);
+            RenderLinkAddress(context, root, MenuItemComponent.UrlProperty);
 
-        // Read by the action bar, which shows the marked entries of its owner's menu as icons.
-        RenderFlagAttribute(context, root, MenuItemComponent.InActionBarProperty, WebAttributes.InActionBar);
+            // aria-current is the accessible half of the same state the modifier class paints.
+            _ = RenderProperty<bool?>(context, root, MenuItemComponent.SelectedProperty, static (target, value) =>
+            {
+                if (value == true)
+                {
+                    _ = target.Class(WebClassNames.MenuItemSelected);
+                    _ = target.Attribute("aria-current", "page");
+                }
+            }, SelectedOperations);
+        }
+
+        if (resolvedKind is UIMenuItemKind.Item or UIMenuItemKind.Check)
+        {
+            // Read by the action bar, which shows the marked entries of its owner's menu as icons.
+            RenderFlagAttribute(context, root, MenuItemComponent.InActionBarProperty, WebAttributes.InActionBar);
+        }
 
         RenderButtonLabel(context, root, root, MenuIconsOperation);
-        RenderShortcut(context, root);
-        RenderValue(context, root);
+
+        if (resolvedKind is UIMenuItemKind.Item or UIMenuItemKind.Check)
+            RenderShortcut(context, root);
+
+        if (resolvedKind == UIMenuItemKind.Select)
+            RenderValue(context, root);
+
         RenderChecked(context, root, kind, popup);
     }
 
@@ -111,6 +128,24 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
             _ = root.Attribute("role", "menuitem");
     }
 
+    /// <summary>
+    /// An entry on the page that acts and goes nowhere is a button, since an anchor without an address has no role of its own; one
+    /// with an address is the anchor's link. A template's bound address is each row's own: the template marks the entry as acting, and
+    /// the client gives and takes the button's role as the row's address comes and goes.
+    /// </summary>
+    private static void RenderPageRole(WebRenderContext context, IHtmlElementBuilder root, UIMenuItemKind? kind)
+    {
+        if (kind is not (null or UIMenuItemKind.Item or UIMenuItemKind.Select))
+            return;
+
+        _ = root.Attribute(WebAttributes.MenuEntryActing, "");
+
+        _ = ResolveRenderValue(context, MenuItemComponent.UrlProperty, out string? url, out CompiledUIBinding? binding);
+
+        if (!WebUrlSafety.IsSafeLink(url) && (binding is null || !context.IsTemplate))
+            _ = root.Attribute("role", "button");
+    }
+
     /// <summary>A select's current value at the row's end; the span is always there, a DOM operation only patches text.</summary>
     private static void RenderValue(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -125,7 +160,7 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         // The mark keeps a check or a chevron beside the words rather than splitting the row's free space with them.
         _ = RenderProperty<string?>(context, root, MenuItemComponent.ValueProperty, (target, text) =>
         {
-            _ = value!.Text(text ?? string.Empty);
+            _ = value!.Text(string.IsNullOrWhiteSpace(text) ? string.Empty : text);
 
             if (!string.IsNullOrWhiteSpace(text))
                 _ = target.Attribute(ValueShownAttribute);

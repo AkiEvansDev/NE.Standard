@@ -1,10 +1,11 @@
 // Whether an element answers the reader at all: the one predicate every refusal reads, for a disabled, loading or read-only component.
 
-import { ComponentIdAttribute, DisabledClass, LoadingClass, ReadOnlyClass } from "../addressing/dom-attributes.ts";
-import { writeRowIdle } from "../updates/row-idle.ts";
+import { ComponentIdAttribute, DisabledClass } from "../addressing/dom-attributes.ts";
+import { BlockedSelector, isInert, isReadOnly } from "../addressing/dom-registry.ts";
+import { writeRowIdle } from "../rendering/row-idle.ts";
+import { isInSight } from "./element-visibility.ts";
 
-/** What takes the reader's press away from everything inside it: a disabled or loading component, or anything inert. */
-const BlockedSelector = `.${DisabledClass}, .${LoadingClass}, [inert]`;
+export { isInert, isReadOnly } from "../addressing/dom-registry.ts";
 
 /** A row's component matching the selector, where the row is not one itself: the template's root one or two levels down. */
 function itemComponentSelector(matching: string): string {
@@ -15,11 +16,6 @@ const ItemComponentSelector = itemComponentSelector(BlockedSelector);
 
 // Built once per mark: a gesture reads the refusal of every row it walks.
 const RefusalSelectors = new Map<string, string>();
-
-/** Whether an element takes no press, key or caret: itself disabled, or inside a component that is disabled, loading or inert. */
-export function isInert(element: Element): boolean {
-    return element.closest(BlockedSelector) !== null || element.matches(":disabled, [aria-disabled='true']");
-}
 
 /** Whether an item's row is disabled: the wrapper itself, or the component it wraps. */
 export function isItemDisabled(wrapper: Element): boolean {
@@ -50,17 +46,8 @@ export function isFocusable(element: Element): boolean {
     return element.getClientRects().length > 0 && !element.matches(":disabled") && element.closest("[inert]") === null;
 }
 
-/** The nearer of an element's own component root and a read-only mark: an outer component's mark stops at the inner root. */
-const ReadOnlyScopeSelector = `[${ComponentIdAttribute}], .${ReadOnlyClass}`;
-
-/** Whether an element belongs to an input the reader may look at but not change, by its own component's mark. */
-export function isReadOnly(element: Element): boolean {
-    // Not an outer one's: a select in a read-only code field's status bar answers for itself.
-    return element.closest(ReadOnlyScopeSelector)?.matches(`.${ReadOnlyClass}`) === true;
-}
-
 /** Turns a control off the framework's way: the disabled mark and `aria-disabled`, which the refusals read, and its row's mark. */
-function setDisabled(element: Element, disabled: boolean): void {
+export function setDisabled(element: Element, disabled: boolean): void {
     // Never the native `disabled`: it drops the focus, where this keeps the control's place for the keyboard and a screen reader.
     if (element.classList.contains(DisabledClass) !== disabled) {
         element.classList.toggle(DisabledClass, disabled);
@@ -76,6 +63,7 @@ function setDisabled(element: Element, disabled: boolean): void {
 /** The predicates, and the one mark, as a package reaches them on the plugin surface as `states`. */
 export const componentStates = {
     isInert,
+    isInSight,
     isReadOnly,
     setDisabled
 } as const;

@@ -56,8 +56,8 @@ internal sealed partial class PresetsController() : DemoController
     [RecursiveMember(false)]
     public RecursiveCollection<BadgeItem> ReleaseBadges { get; } =
     [
-        new BadgeItem { Id = "environment", BadgeText = "production", BadgeStyle = UIBadgeType.Success, IsContent = true },
-        new BadgeItem { Id = "replicas", BadgeText = "4 replicas", BadgeStyle = UIBadgeType.Surface, IsContent = true }
+        new BadgeItem { Id = "environment", BadgeTitle = "production", BadgeVariant = UIBadgeVariant.Success, IsContent = true },
+        new BadgeItem { Id = "replicas", BadgeTitle = "4 replicas", BadgeVariant = UIBadgeVariant.Surface, IsContent = true }
     ];
 
     [RecursiveMember]
@@ -146,10 +146,10 @@ internal sealed partial class PresetsController() : DemoController
 
     /// <summary>The bound icon button's glyph and name, Send or Stop.</summary>
     [RecursiveMember]
-    public partial string SendIcon { get; set; } = UIStandardAction.Send.Glyph;
+    public partial string SendIcon { get; set; } = UIStandardAction.Send.Icon;
 
     [RecursiveMember]
-    public partial UIPhrase SendTooltip { get; set; } = new(UIStandardAction.Send.Word);
+    public partial UIPhrase SendTooltip { get; set; } = new(UIStandardAction.Send.Title);
 
     /// <summary>The news message, gone for good once dismissed.</summary>
     [RecursiveMember]
@@ -310,7 +310,7 @@ internal sealed partial class PresetsController() : DemoController
     {
         var replicas = 4 + (++_scales % 4 * 2);
 
-        ReleaseBadges[1].BadgeText = $"{replicas.ToString(CultureInfo.InvariantCulture)} replicas";
+        ReleaseBadges[1].BadgeTitle = $"{replicas.ToString(CultureInfo.InvariantCulture)} replicas";
         ReleaseTitle = $"panel · #{(212 + _scales).ToString(CultureInfo.InvariantCulture)}";
         ReleaseLine = $"Rolled out to eu-west, {replicas.ToString(CultureInfo.InvariantCulture)} replicas healthy.";
     }
@@ -319,10 +319,10 @@ internal sealed partial class PresetsController() : DemoController
     [UICommand]
     public void ToggleSend()
     {
-        UIStandardAction next = SendIcon == UIStandardAction.Send.Glyph ? UIStandardAction.Stop : UIStandardAction.Send;
+        UIStandardAction next = SendIcon == UIStandardAction.Send.Icon ? UIStandardAction.Stop : UIStandardAction.Send;
 
-        SendIcon = next.Glyph;
-        SendTooltip = new UIPhrase(next.Word);
+        SendIcon = next.Icon;
+        SendTooltip = new UIPhrase(next.Title);
     }
 
     /// <summary>The news message's ×: the page hid it already, and the controller keeps it hidden.</summary>

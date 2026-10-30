@@ -1,17 +1,17 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Choices.MultiSelect;
-using DemoApp.Controllers.Inputs;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views.Choices.MultiSelect;
 
 /// <summary>
-/// One multi-select and every property that can be bound to it; then a set of weekdays, regions up to a limit, the people a page reaches drawn with their role, labels the reader types, and the field as a viewer sees it, read-only.
+/// Multi-select preview across <c>Chips</c>, <c>Badges</c> and <c>Checkboxes</c> variants, followed by grouped examples for each variant,
+/// free-text tag entry, per-tag regex validation, and read-only states.
 /// </summary>
-/// <remarks>The value is bound both ways, so the Value row follows every chip the preview takes or lets go. The list stays open while options are toggled; a chip's cross, the clear button and Backspace in the field take chips out, and the arrows walk the chips.</remarks>
 internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
+    private const string VariantGroup = nameof(MultiSelectController.VariantGroup);
     private const string ValueGroup = nameof(MultiSelectController.ValueGroup);
     private const string FieldGroup = nameof(MultiSelectController.FieldGroup);
     private const string OptionsGroup = nameof(MultiSelectController.OptionsGroup);
@@ -26,135 +26,255 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
     protected override string HeaderDescription => "demo.choices.multi-select.description";
 
     protected override ContainerComponent CreatePreview()
-        => DemoUI.CreatePreview(frame => frame.AddChild(new MultiSelectComponent()
-            .BindStandard()
-            .BindItems($"{OptionsGroup}.{nameof(OptionListGroupContext.Options)}")
-            .BindValue($"{ValueGroup}.{nameof(OptionKeysValueGroupContext.Value)}")
-            .BindMaxSelected($"{ValueGroup}.{nameof(OptionKeysValueGroupContext.MaxSelected)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(OptionKeysValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(OptionKeysValueGroupContext.Size)}")
-            .BindAppearance($"{FieldGroup}.{nameof(MultiSelectFieldGroupContext.Appearance)}")
-            .BindPlaceholder($"{FieldGroup}.{nameof(MultiSelectFieldGroupContext.Placeholder)}")
-            .BindPrefixIcon($"{FieldGroup}.{nameof(MultiSelectFieldGroupContext.PrefixIcon)}")
-            .BindSuffixIcon($"{FieldGroup}.{nameof(MultiSelectFieldGroupContext.SuffixIcon)}")
-            .BindShowClearButton($"{FieldGroup}.{nameof(MultiSelectFieldGroupContext.ShowClearButton)}")
-            .BindShowChevron($"{FieldGroup}.{nameof(MultiSelectFieldGroupContext.ShowChevron)}")
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
-            .BindBorder(BorderGroup)
+        => DemoUI.CreatePreview(frame => frame
+            .AddChild(CreateVariantPane(UIMultiSelectVariant.Chips, nameof(MultiSelectVariantGroupContext.ChipsVisibility)))
+            .AddChild(CreateVariantPane(UIMultiSelectVariant.Badges, nameof(MultiSelectVariantGroupContext.BadgesVisibility)))
+            .AddChild(CreateVariantPane(UIMultiSelectVariant.Checkboxes, nameof(MultiSelectVariantGroupContext.CheckboxesVisibility)))
+        );
+
+    /// <summary>One variant, shown while the Variant row names it: <c>Variant</c> is decided at render, so each is its own instance on the same rows.</summary>
+    private static ContainerComponent CreateVariantPane(UIMultiSelectVariant variant, string visibility)
+        => new ContainerComponent()
+            .BindVisibility($"{VariantGroup}.{visibility}")
             .SetPlacement(1, 1, 24, 1)
-        ));
+            .AddChild(new MultiSelectComponent()
+                .SetVariant(variant)
+                .BindStandard()
+                .BindItems<MultiSelectController>(static x => x.OptionsGroup.Options)
+                .BindValue<MultiSelectController>(static x => x.ValueGroup.Value)
+                .BindMaxSelected<MultiSelectController>(static x => x.ValueGroup.MaxSelected)
+                .BindIsReadOnly<MultiSelectController>(static x => x.ValueGroup.IsReadOnly)
+                .BindSize<MultiSelectController>(static x => x.ValueGroup.Size)
+                .BindOrientation<MultiSelectController>(static x => x.VariantGroup.Orientation)
+                .BindSpacing<MultiSelectController>(static x => x.VariantGroup.Spacing)
+                .BindAppearance<MultiSelectController>(static x => x.FieldGroup.Appearance)
+                .BindPlaceholder<MultiSelectController>(static x => x.FieldGroup.Placeholder)
+                .BindPrefixIcon<MultiSelectController>(static x => x.FieldGroup.PrefixIcon)
+                .BindSuffixIcon<MultiSelectController>(static x => x.FieldGroup.SuffixIcon)
+                .BindShowClearButton<MultiSelectController>(static x => x.FieldGroup.ShowClearButton)
+                .BindShowChevron<MultiSelectController>(static x => x.FieldGroup.ShowChevron)
+                .BindTextContent(ContentGroup)
+                .BindBadge(BadgeGroup)
+                .BindBorder(BorderGroup)
+                .SetPlacement(1, 1, 24, 1)
+            );
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(VariantGroup, "Variant", "Variant is decided at render: the row shows the preview drawn as chips, as badges or as checkboxes. Orientation and Spacing lay out the checkboxes alone."),
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
-            DemoUI.CreateOptionSection(FieldGroup, "Field"),
-            DemoUI.CreateOptionSection(OptionsGroup, "Options"),
+            DemoUI.CreateOptionSection(FieldGroup, "Field", "The field's own rows; the checkboxes have no field and read none of them."),
+            DemoUI.CreateOptionSection(OptionsGroup, "Options", "Each region carries its code as a badge: the badges variant chooses the badge, the others show it beside the name."),
             DemoUI.CreateOptionSection(ContentGroup, "Content"),
             DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     protected override IVisualComponent[] CreateExamples()
-        // The staff and the read-only field stacked beside the labels, about as tall together; a field's sizes are the Text Input
-        // page's, and options as badges the Badge Select page's.
-        => [.. DemoUI.CreateColumns([CreateWeekdaysGroup()], [CreateRegionsGroup()]), DemoUI.CreateHalf(CreateStaffGroup(), CreateReadOnlyGroup()), CreateLabelsGroup()];
+        => DemoUI.CreateColumns(
+            [CreateChipsGroup(), CreateBadgesGroup(), CreateCheckboxesGroup()],
+            [CreateFreeTextChipsGroup(), CreateBadgeTagsAndFilterGroup(), CreateReadOnlyGroup()]
+        );
 
-    /// <summary>The ordinary case: a set out of a short list, kept in the order it was chosen.</summary>
-    private static ContainerComponent CreateWeekdaysGroup()
+    /// <summary>
+    /// Standard <c>Chips</c> variant: selection order preservation, grouped options with <c>SetMaxSelected</c>, and multi-line chip wrapping.
+    /// </summary>
+    private static ContainerComponent CreateChipsGroup()
     {
-        return DemoUI.CreateExample("Maintenance days",
-            UILayout.Stack(12)
+        return DemoUI.CreateExample("Chips, grouped options & max selection",
+            UILayout.Stack(14)
                 .AddChild(new MultiSelectComponent()
-                    .SetTitle("Maintenance window runs on")
-                    .SetPlaceholder("Pick the days")
+                    .SetTitle("Maintenance window days")
+                    .SetPlaceholder("Pick weekdays")
                     .SetOptions(Weekdays())
                     .SetValue(["sat", "sun"])
                     .SetShowClearButton()
                 )
-                .AddChild(UIText.Note("The value is the chosen days' keys, each once, in the order they were picked — not the list's order."))
-        );
-    }
-
-    /// <summary>A limit: past it the list refuses the options not chosen, and letting one go frees a place.</summary>
-    private static ContainerComponent CreateRegionsGroup()
-    {
-        return DemoUI.CreateExample("Regions, at most three",
-            UILayout.Stack(12)
                 .AddChild(new MultiSelectComponent()
-                    .SetTitle("Replicate the database to")
+                    .SetTitle("Database replication regions (max 3)")
                     .SetPlaceholder("Pick up to three regions")
                     .SetOptions(CloudRegions())
                     .SetValue(["eu-west", "eu-central"])
                     .SetMaxSelected(3)
                     .SetShowClearButton()
                 )
-                .AddChild(UIText.Note("Options are grouped by their own Group, as a select's are; a full field dims the rest until a chip goes."))
-        );
-    }
-
-    /// <summary>Options carrying a glyph and a second line: the list draws them whole, a chip keeps only the name.</summary>
-    private static ContainerComponent CreateStaffGroup()
-    {
-        return DemoUI.CreateExample("Who is paged",
-            UILayout.Stack(12)
                 .AddChild(new MultiSelectComponent()
-                    .SetTitle("Page on an incident")
-                    .SetPlaceholder("Pick the on-call staff")
+                    .SetTitle("On-call rotation (rich options, wrapping chips)")
+                    .SetPlaceholder("Pick on-call staff")
                     .SetPrefixIcon(DemoIcons.Bell)
                     .SetOptions(Staff())
                     .SetValue(["robin", "grace", "alex", "ada"])
-                    .SetWidth(UILayoutLength.Absolute(360))
-                )
-                .AddChild(UIText.Note("Chips wrap onto another line inside the field rather than run past its edge."))
-        );
-    }
-
-    /// <summary>A field that shows its chips but takes nothing: the same form as a viewer sees it.</summary>
-    private static ContainerComponent CreateReadOnlyGroup()
-    {
-        return DemoUI.CreateExample("As a viewer sees it",
-            UILayout.Stack(12)
-                .AddChild(new MultiSelectComponent()
-                    .SetTitle("Replicated to")
-                    .SetIsReadOnly(true)
-                    .SetOptions(CloudRegions())
-                    .SetValue(["us-east", "ap-south"])
-                )
-                .AddChild(UIText.Note("SetIsReadOnly(true): the chips stand without their remove and nothing can be added — the form a Viewer opens, the value still there to read."))
+                ),
+            note: "Values preserve selection order; `OptionItem.Group` groups the dropdown, and `SetMaxSelected(3)` disables remaining items until a chip is removed."
         );
     }
 
     /// <summary>
-    /// Free text: the reader's own labels as chips — Enter or a comma adds one, a pasted list adds each — the options standing as
-    /// suggestions, a rule every label must match and a limit, both refusing a label on the field's line; then a field whose Enter
-    /// takes the first suggestion rather than the text.
+    /// <c>UIMultiSelectVariant.Badges</c>: badge-only options (<c>BadgeTitle</c> without <c>Title</c>) and options where <c>Title</c> precedes the badge in the list.
     /// </summary>
-    private static ContainerComponent CreateLabelsGroup()
+    private static ContainerComponent CreateBadgesGroup()
     {
-        return DemoUI.CreateExample("Labels, typed",
-            UILayout.Stack(12)
+        return DemoUI.CreateExample("Badge variant",
+            UILayout.Stack(14)
                 .AddChild(new MultiSelectComponent()
-                    .SetTitle("Labels on the ticket")
-                    .SetPlaceholder("Type a label")
+                    .SetVariant(UIMultiSelectVariant.Badges)
+                    .SetTitle("Ticket labels (badge-only options)")
+                    .SetPlaceholder("Pick labels")
+                    .SetOptions(BadgeTicketLabels())
+                    .SetValue(["outage", "needs-details"])
+                    .SetShowClearButton()
+                )
+                .AddChild(new MultiSelectComponent()
+                    .SetVariant(UIMultiSelectVariant.Badges)
+                    .SetTitle("Alert severities (Title + BadgeTitle)")
+                    .SetPlaceholder("Pick severities")
+                    .SetPrefixIcon(DemoIcons.Bell)
+                    .SetOptions(
+                    [
+                        new OptionItem { Id = "p1", Title = "Critical", BadgeTitle = "P1", BadgeVariant = UIBadgeVariant.Danger, Description = "A region or service is down" },
+                        new OptionItem { Id = "p2", Title = "High", BadgeTitle = "P2", BadgeVariant = UIBadgeVariant.Warning, Description = "Degraded service, no data loss" },
+                        new OptionItem { Id = "p3", Title = "Medium", BadgeTitle = "P3", BadgeVariant = UIBadgeVariant.Info, Description = "Single tenant, workaround available" },
+                        new OptionItem { Id = "p4", Title = "Low", BadgeTitle = "P4", BadgeVariant = UIBadgeVariant.Surface, Description = "Handled during working hours" }
+                    ])
+                    .SetValue(["p1", "p2"])
+                ),
+            note: "When `Title` is omitted, `BadgeTitle` serves as the option name; when `Title` is set, the dropdown shows `Critical P1` and the field renders `P1`."
+        );
+    }
+
+    /// <summary>
+    /// <c>UIMultiSelectVariant.Checkboxes</c> in vertical checklist and horizontal column grid (<c>SetItemMinWidth</c> + <c>SetMaxSelected</c>) layouts.
+    /// </summary>
+    private static ContainerComponent CreateCheckboxesGroup()
+    {
+        return DemoUI.CreateExample("Checkbox variant",
+            UILayout.Stack(16)
+                .AddChild(new MultiSelectComponent()
+                    .SetVariant(UIMultiSelectVariant.Checkboxes)
+                    .SetTitle("Email notifications")
+                    .SetOptions(
+                    [
+                        new OptionItem { Id = "deploys", Title = "Finished deploys", Description = "One summary per environment" },
+                        new OptionItem { Id = "incidents", Title = "Incidents", Description = "Opened, escalated and resolved" },
+                        new OptionItem { Id = "usage", Title = "Weekly usage", Description = "Mondays, previous week metrics" },
+                        new OptionItem { Id = "invoices", Title = "Invoices", Description = "Sent as each invoice is issued", BadgeTitle = "Billing", BadgeVariant = UIBadgeVariant.Accent }
+                    ])
+                    .SetValue(["incidents", "invoices"])
+                )
+                .AddChild(new SeparatorComponent())
+                .AddChild(new MultiSelectComponent()
+                    .SetVariant(UIMultiSelectVariant.Checkboxes)
+                    .SetTitle("Full backup days (horizontal, max 3)")
+                    .SetOrientation(UIOrientation.Horizontal)
+                    .SetItemMinWidth(120)
+                    .SetOptions(Weekdays())
+                    .SetMaxSelected(3)
+                    .SetValue(["mon", "wed", "fri"])
+                ),
+            note: "`SetOrientation(Horizontal)` with `SetItemMinWidth(120)` aligns checkboxes into even wrapping columns; `Tab` enters the group once and arrow keys move focus."
+        );
+    }
+
+    /// <summary>
+    /// Free-text tag creation (<c>SetAllowFreeText</c>), per-item regex validation (<c>RegexEach</c>), and <c>UITagEntry.FirstSuggestion</c>.
+    /// </summary>
+    private static ContainerComponent CreateFreeTextChipsGroup()
+    {
+        return DemoUI.CreateExample("Free-text tags & validation",
+            UILayout.Stack(14)
+                .AddChild(new MultiSelectComponent()
+                    .SetTitle("Custom labels (RegexEach, max 5)")
+                    .SetPlaceholder("Type or paste comma-separated labels")
                     .SetAllowFreeText()
                     .SetOptions(Labels())
                     .SetValue(["billing", "needs-repro"])
                     .SetMaxSelected(5)
-                    .RegexEach(@"^[^\s,]{2,24}$", "A label is 2 to 24 characters, with no spaces.")
+                    .RegexEach(@"^[^\s,]{2,24}$", "Each label must be 2-24 characters with no spaces.")
                     .SetShowClearButton()
                 )
-                .AddChild(UIText.Note("SetAllowFreeText: Enter or a comma makes a chip of the text, and a pasted \"a, b, c\" three; the options are suggestions as you type, an arrow picks one. RegexEach refuses \"q 4\", and a sixth label is refused too — each stays in the entry, said on the field's line."))
                 .AddChild(new MultiSelectComponent()
-                    .SetTitle("Watchers, the first suggestion taken")
+                    .SetTitle("Watchers (FirstSuggestion on Enter)")
                     .SetPlaceholder("Type a name")
                     .SetAllowFreeText()
                     .SetTagEntry(UITagEntry.FirstSuggestion)
                     .SetOptions(Staff())
                     .SetValue(["grace"])
+                ),
+            note: "`Enter`, comma or pasting `a, b, c` commits tags; `RegexEach` validates every entry inline, and `UITagEntry.FirstSuggestion` pre-highlights the top match."
+        );
+    }
+
+    /// <summary>
+    /// Free-text badge tags alongside a compact list filter bar using <c>UIMultiSelectVariant.Badges</c>.
+    /// </summary>
+    private static ContainerComponent CreateBadgeTagsAndFilterGroup()
+    {
+        return DemoUI.CreateExample("Badge free-text tags & list filter",
+            UILayout.Stack(14)
+                .AddChild(new MultiSelectComponent()
+                    .SetVariant(UIMultiSelectVariant.Badges)
+                    .SetTitle("Account tags (free text + preset badges)")
+                    .SetPlaceholder("Type a tag")
+                    .SetAllowFreeText()
+                    .SetOptions(
+                    [
+                        new OptionItem { Id = "enterprise", BadgeTitle = "enterprise", BadgeVariant = UIBadgeVariant.Primary, Description = "Dedicated contract" },
+                        new OptionItem { Id = "reseller", BadgeTitle = "reseller", BadgeVariant = UIBadgeVariant.Accent, Description = "Bills downstream tenants" },
+                        new OptionItem { Id = "at-risk", BadgeTitle = "at risk", BadgeVariant = UIBadgeVariant.Danger, BadgeFill = UIBadgeFill.Outline, Description = "Declining two-month usage" },
+                        new OptionItem { Id = "eu-only", BadgeTitle = "EU only", BadgeVariant = UIBadgeVariant.Surface, Description = "Data pinned to EU regions" }
+                    ])
+                    .SetValue(["enterprise", "eu-only", "design agency"])
+                    .SetShowClearButton()
                 )
-                .AddChild(UIText.Note("SetTagEntry(UITagEntry.FirstSuggestion): the first person the text names is marked as you type, and Enter takes them; a name nobody has is taken as typed, and Escape takes the mark off first."))
+                .AddChild(DemoUI.CreateLabelled("Compact ticket filter bar", UIPage.Band(UILayout.Stack(10,
+                            new TextInputComponent()
+                                .SetPlaceholder("Search tickets")
+                                .SetPrefixIcon(DemoIcons.Search),
+                            new MultiSelectComponent()
+                                .SetVariant(UIMultiSelectVariant.Badges)
+                                .SetPlaceholder("Filter by label")
+                                .SetPrefixIcon(DemoIcons.Filter)
+                                .SetOptions(BadgeTicketLabels())
+                                .SetValue(["outage"])
+                                .SetShowClearButton()
+                        )
+                    )
+                )),
+            note: "Unmatched free-text tags (such as `design agency`) render as neutral surface badges alongside styled preset badges."
+        );
+    }
+
+    /// <summary>
+    /// <c>SetIsReadOnly(true)</c> compared across <c>Chips</c>, <c>Badges</c> and <c>Checkboxes</c> in one place.
+    /// </summary>
+    private static ContainerComponent CreateReadOnlyGroup()
+    {
+        return DemoUI.CreateExample("Read-only states",
+            UILayout.Stack(14)
+                .AddChild(new MultiSelectComponent()
+                    .SetTitle("Replicated regions (read-only chips)")
+                    .SetIsReadOnly(true)
+                    .SetOptions(CloudRegions())
+                    .SetValue(["us-east", "ap-south"])
+                )
+                .AddChild(new MultiSelectComponent()
+                    .SetVariant(UIMultiSelectVariant.Badges)
+                    .SetTitle("Assigned labels (read-only badges)")
+                    .SetIsReadOnly(true)
+                    .SetOptions(BadgeTicketLabels())
+                    .SetValue(["billing", "resolved"])
+                )
+                .AddChild(new MultiSelectComponent()
+                    .SetVariant(UIMultiSelectVariant.Checkboxes)
+                    .SetTitle("Enabled regions (read-only checkboxes)")
+                    .SetOrientation(UIOrientation.Horizontal)
+                    .SetItemMinWidth(140)
+                    .SetIsReadOnly(true)
+                    .SetOptions(CloudRegions())
+                    .SetValue(["eu-west", "us-east"])
+                ),
+            note: "`SetIsReadOnly(true)` hides chip/badge remove buttons and prevents toggling while keeping values focusable and legible."
         );
     }
 
@@ -178,6 +298,24 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
             new() { Id = "ap-south", Title = "Asia South", Description = "Singapore", Group = "Asia Pacific" }
         ];
 
+    private static OptionItem[] Staff()
+        => [
+            new() { Id = "sam", Icon = DemoIcons.UserRound, Title = "Sam Ortega", Description = "Owner" },
+            new() { Id = "robin", Icon = DemoIcons.UserRound, Title = "Robin Hale", Description = "Admin" },
+            new() { Id = "alex", Icon = DemoIcons.UserRound, Title = "Alex Warren", Description = "Admin" },
+            new() { Id = "grace", Icon = DemoIcons.UserRound, Title = "Grace Kim", Description = "Admin" },
+            new() { Id = "ada", Icon = DemoIcons.UserRound, Title = "Ada Lin", Description = "Admin" }
+        ];
+
+    private static OptionItem[] BadgeTicketLabels()
+        => [
+            new() { Id = "outage", BadgeTitle = "outage", BadgeVariant = UIBadgeVariant.Danger, BadgeFill = UIBadgeFill.Tinted, Description = "Service outage affecting customers" },
+            new() { Id = "billing", BadgeTitle = "billing", BadgeVariant = UIBadgeVariant.Accent, BadgeFill = UIBadgeFill.Tinted, Description = "Invoice or charge inquiry" },
+            new() { Id = "needs-details", BadgeTitle = "needs details", BadgeVariant = UIBadgeVariant.Warning, BadgeFill = UIBadgeFill.Tinted, Description = "Awaiting logs or reproduction steps" },
+            new() { Id = "docs", BadgeTitle = "docs", BadgeVariant = UIBadgeVariant.Info, BadgeFill = UIBadgeFill.Tinted, BadgeIcon = DemoIcons.Outline(DemoIcons.File), Description = "Covered by documentation" },
+            new() { Id = "resolved", BadgeTitle = "resolved", BadgeVariant = UIBadgeVariant.Success, BadgeFill = UIBadgeFill.Tinted, Description = "Confirmed fixed" }
+        ];
+
     private static OptionItem[] Labels()
         => [
             new() { Id = "billing", Title = "billing" },
@@ -186,14 +324,5 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
             new() { Id = "needs-repro", Title = "needs-repro" },
             new() { Id = "security", Title = "security" },
             new() { Id = "docs", Title = "docs" }
-        ];
-
-    private static OptionItem[] Staff()
-        => [
-            new() { Id = "sam", Icon = DemoIcons.UserRound, Title = "Sam Ortega", Description = "Owner" },
-            new() { Id = "robin", Icon = DemoIcons.UserRound, Title = "Robin Hale", Description = "Admin" },
-            new() { Id = "alex", Icon = DemoIcons.UserRound, Title = "Alex Warren", Description = "Admin" },
-            new() { Id = "grace", Icon = DemoIcons.UserRound, Title = "Grace Kim", Description = "Admin" },
-            new() { Id = "ada", Icon = DemoIcons.UserRound, Title = "Ada Lin", Description = "Admin" }
         ];
 }

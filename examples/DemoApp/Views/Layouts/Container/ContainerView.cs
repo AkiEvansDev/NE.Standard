@@ -21,7 +21,7 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/layouts/container";
     protected override string Header => "demo.layouts.container.header";
     protected override string HeaderDescription => "demo.layouts.container.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/inbox", "demo.nav.screens.inbox");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/inbox", "demo.nav.screens.inbox");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(560,
@@ -90,12 +90,12 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
     private static ContainerComponent Bind(ContainerComponent container)
         => container
             .BindStandard()
-            .BindSpacing($"{ContainerGroup}.{nameof(ContainerGroupContext.Spacing)}")
-            .BindPadding($"{ContainerGroup}.{nameof(ContainerGroupContext.Padding)}")
-            .BindBackground($"{ContainerGroup}.{nameof(ContainerGroupContext.Background)}")
-            .BindBackgroundImage($"{ContainerGroup}.{nameof(ContainerGroupContext.BackgroundImage)}")
-            .BindBackgroundImageFit($"{ContainerGroup}.{nameof(ContainerGroupContext.BackgroundImageFit)}")
-            .BindOverflow($"{ContainerGroup}.{nameof(ContainerGroupContext.Overflow)}")
+            .BindSpacing<ContainerController>(static x => x.ContainerGroup.Spacing)
+            .BindPadding<ContainerController>(static x => x.ContainerGroup.Padding)
+            .BindBackground<ContainerController>(static x => x.ContainerGroup.Background)
+            .BindBackgroundImage<ContainerController>(static x => x.ContainerGroup.BackgroundImage)
+            .BindBackgroundImageFit<ContainerController>(static x => x.ContainerGroup.BackgroundImageFit)
+            .BindOverflow<ContainerController>(static x => x.ContainerGroup.Overflow)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);
 
@@ -138,7 +138,7 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateListPaneGroup()
     {
-        return DemoUI.CreateExample("A list beside what it opens",
+        return DemoUI.CreateExample("Master-detail grid columns",
             new ContainerComponent()
                 .SetColumn(1, UIGridUnit.Absolute(280))
                 .SetRow(1, UIGridUnit.Auto())
@@ -156,14 +156,14 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
                         .VerticalScrollOnly()
                         .SetHeight(UILayoutLength.Absolute(260))
                         .AddChild(UILayout.Stack(2)
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("api-eu-west-1").SetDescription("Pro · Running").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("api-eu-west-2").SetDescription("Pro · Running").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("web-eu-west-1").SetDescription("Standard · Degraded").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("db-eu-central-1").SetDescription("Dedicated · Running").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("cache-eu-north-1").SetDescription("Pro · Provisioning").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("db-us-east-2").SetDescription("Dedicated · Maintenance").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("queue-us-east-1").SetDescription("Standard · Running").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("storage-ap-south-1").SetDescription("Dedicated · Stopped").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("api-eu-west-1").SetDescription("Pro · Running").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("api-eu-west-2").SetDescription("Pro · Running").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("web-eu-west-1").SetDescription("Standard · Degraded").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("db-eu-central-1").SetDescription("Dedicated · Running").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("cache-eu-north-1").SetDescription("Pro · Provisioning").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("db-us-east-2").SetDescription("Dedicated · Maintenance").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("queue-us-east-1").SetDescription("Standard · Running").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Server)).SetTitle("storage-ap-south-1").SetDescription("Dedicated · Stopped").SetShowChevron(false))
                         )
                         .SetPlacement(1, 2, 24, 1)
                     )
@@ -194,7 +194,7 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateOverviewGroup()
     {
-        return DemoUI.CreateExample("A server at a glance",
+        return DemoUI.CreateExample("Multi-row dashboard grid",
             new ContainerComponent()
                 .SetSpacing(16)
                 .SetRow(1, UIGridUnit.Auto())
@@ -287,7 +287,7 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCornerGroup()
     {
-        return DemoUI.CreateExample("A badge over a picture's corner",
+        return DemoUI.CreateExample("Overlapping cells (badge overlay)",
             UILayout.Columns(16,
                 new ContainerComponent()
                     .SetRow(1, UIGridUnit.Auto())
@@ -303,8 +303,8 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
                     )
                     // The same cell as the picture, laid after it, so it stands over it.
                     .AddChild(new BadgeComponent()
-                        .SetType(UIBadgeType.Success)
-                        .SetText("Healthy")
+                        .SetVariant(UIBadgeVariant.Success)
+                        .SetTitle("Healthy")
                         .SetHorizontalAlignment(UIAlignment.End)
                         .SetVerticalAlignment(UIAlignment.Start)
                         .SetMargin(UIThickness.Uniform(8))
@@ -324,8 +324,8 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
                         .SetPlacement(1, 1, 24, 1)
                     )
                     .AddChild(new BadgeComponent()
-                        .SetType(UIBadgeType.Info)
-                        .SetText("New disks")
+                        .SetVariant(UIBadgeVariant.Info)
+                        .SetTitle("New disks")
                         .SetHorizontalAlignment(UIAlignment.End)
                         .SetVerticalAlignment(UIAlignment.Start)
                         .SetMargin(UIThickness.Uniform(8))
@@ -345,8 +345,8 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
                         .SetPlacement(1, 1, 24, 1)
                     )
                     .AddChild(new BadgeComponent()
-                        .SetType(UIBadgeType.Warning)
-                        .SetText("Degraded")
+                        .SetVariant(UIBadgeVariant.Warning)
+                        .SetTitle("Degraded")
                         .SetHorizontalAlignment(UIAlignment.End)
                         .SetVerticalAlignment(UIAlignment.Start)
                         .SetMargin(UIThickness.Uniform(8))
@@ -363,7 +363,7 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateHeadAndFootGroup()
     {
-        return DemoUI.CreateExample("A head and a foot that stay",
+        return DemoUI.CreateExample("Pinned header, scrollable body & footer",
             new SurfaceComponent()
                 .SetPadding(UIThickness.Uniform(0))
                 .SetHeight(UILayoutLength.Absolute(300))
@@ -385,16 +385,16 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
                         .VerticalScrollOnly()
                         .SetPadding(UIThickness.All(8, 0, 8, 0))
                         .AddChild(UILayout.Stack(2)
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Disk at 78% on api-eu-west-1").SetDescription("eu-west · 12 minutes ago").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger)).SetTitle("web-eu-west-1 failing health checks").SetDescription("eu-west · 20 minutes ago").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Slow replication to db-us-east-2").SetDescription("us-east · an hour ago").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Certificate for bramble.example expires in 9 days").SetDescription("edge-router · today").SetShowChevron(false))
-                            .AddChild(new ActionComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Queue depth above 10 000 on queue-us-east-1").SetDescription("us-east · yesterday").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Disk at 78% on api-eu-west-1").SetDescription("eu-west · 12 minutes ago").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Danger)).SetTitle("web-eu-west-1 failing health checks").SetDescription("eu-west · 20 minutes ago").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Slow replication to db-us-east-2").SetDescription("us-east · an hour ago").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Certificate for bramble.example expires in 9 days").SetDescription("edge-router · today").SetShowChevron(false))
+                            .AddChild(new ActionComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Outline(DemoIcons.Alert)).SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Warning)).SetTitle("Queue depth above 10 000 on queue-us-east-1").SetDescription("us-east · yesterday").SetShowChevron(false))
                         )
                         .SetPlacement(1, 2, 24, 1)
                     )
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Link)
+                        .SetVariant(UIButtonVariant.Link)
                         .SetTitle("All alerts")
                         .SetHorizontalAlignment(UIAlignment.Start)
                         .SetMargin(UIThickness.All(16, 10, 16, 12))

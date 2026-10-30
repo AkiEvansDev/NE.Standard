@@ -3,12 +3,12 @@
 // the reader's typing, a pushed or restored value, a field that arrives or is shown.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { TextAreaFieldClass, TextAreaGrowAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
 
-const FieldSelector = "textarea.ui-text-area__field";
-const GrowAttribute = "data-ui-text-area-grow";
+const FieldSelector = `textarea.${TextAreaFieldClass}`;
 
 /** Whether the stylesheet sizes a growing area on its own, so the engine need not start. */
 export function sizesFieldsToContent(): boolean {
@@ -18,7 +18,7 @@ export function sizesFieldsToContent(): boolean {
 export type TextAreaGrowEngineOptions = {
     readonly root?: ParentNode;
 
-    readonly propertyPatchEngine?: PropertyPatchEngine;
+    readonly propertyPatchEngine?: PropertyPatchTarget;
 };
 
 export class TextAreaGrowEngine {
@@ -45,7 +45,7 @@ export class TextAreaGrowEngine {
         });
 
         // An area drawn later (a row, a template's clone), or one the grow was switched on for.
-        observeComponents(this.root, FieldSelector, { childList: true, addedOnly: true, attributeFilter: [GrowAttribute] }, areas => {
+        observeComponents(this.root, FieldSelector, { childList: true, addedOnly: true, attributeFilter: [TextAreaGrowAttribute] }, areas => {
             this.fitAll(componentParts(areas, FieldSelector) as HTMLTextAreaElement[]);
         });
     }
@@ -57,7 +57,7 @@ export class TextAreaGrowEngine {
 
     /** Sizes a growing area to its text, the stylesheet's rows and most rows bounding it; an area that stopped growing is let go. */
     private fit(area: HTMLTextAreaElement): void {
-        if (!area.hasAttribute(GrowAttribute)) {
+        if (!area.hasAttribute(TextAreaGrowAttribute)) {
             area.style.removeProperty("height");
             this.widths.delete(area);
             this.observer?.unobserve(area);

@@ -1,11 +1,11 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Layouts;
@@ -16,7 +16,7 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 /// </summary>
 public abstract class SurfaceRendererBase : WebComponentRendererBase
 {
-    private const string ClickableClassName = "ui-surface--clickable";
+    private const string ClickableClassName = WebClassNames.SurfaceClickable;
 
     private static readonly WebDomOperation[] ClickableOperations =
     [

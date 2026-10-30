@@ -9,8 +9,8 @@ using NE.Standard.UI.Generators.Infrastructure;
 namespace NE.Standard.UI.Generators.ComponentProperties;
 
 /// <summary>
-/// Generates the fluent <c>Set*</c> methods, backing-field storage, and property registration for
-/// members annotated with <c>[UIComponentProperty]</c>.
+/// Generates the fluent <c>Set*</c> methods, backing-field storage, property registration, and inherited default overrides for
+/// members annotated with <c>[UIComponentProperty]</c>, <c>[UIComponentPropertyBlock]</c>, and <c>[UIComponentPropertyDefault]</c>.
 /// </summary>
 /// <remarks>
 /// Symbols are read and validated in the transforms (<see cref="UIComponentPropertyModelFactory"/>); what reaches the output is
@@ -22,6 +22,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
     // Tracking names the incrementality tests read the steps' run reasons by.
     internal const string PropertyModelsStep = "UIComponentPropertyModels";
     internal const string BlockModelsStep = "UIComponentPropertyBlockModels";
+    internal const string DefaultModelsStep = "UIComponentPropertyDefaultModels";
     internal const string CollectedModelsStep = "UIComponentPropertyCollectedModels";
 
     /// <inheritdoc/>
@@ -45,20 +46,30 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             .Select(static (model, _) => model!)
             .WithTrackingName(BlockModelsStep);
 
-        IncrementalValueProvider<(ImmutableArray<UIComponentPropertyModel> Properties, ImmutableArray<UIComponentPropertyBlockModel> Blocks)> source = properties
+        IncrementalValuesProvider<UIComponentPropertyDefaultModel> defaults = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                UIComponentPropertyNames.DefaultAttributeMetadataName,
+                predicate: static (node, _) => node is ClassDeclarationSyntax,
+                transform: static (ctx, ct) => UIComponentPropertyModelFactory.CreateDefaultModel(ctx, ct))
+            .Where(static model => model is not null)
+            .Select(static (model, _) => model!)
+            .WithTrackingName(DefaultModelsStep);
+
+        IncrementalValueProvider<((ImmutableArray<UIComponentPropertyModel> Properties, ImmutableArray<UIComponentPropertyBlockModel> Blocks) Left, ImmutableArray<UIComponentPropertyDefaultModel> Defaults)> source = properties
             .Collect()
             .Combine(blocks.Collect())
+            .Combine(defaults.Collect())
             .WithTrackingName(CollectedModelsStep);
 
-        context.RegisterSourceOutput(source, static (ctx, source) => Execute(ctx, source.Properties, source.Blocks));
+        context.RegisterSourceOutput(source, static (ctx, source) => Execute(ctx, source.Left.Properties, source.Left.Blocks, source.Defaults));
     }
 
-    private static void Execute(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks)
+    private static void Execute(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks, ImmutableArray<UIComponentPropertyDefaultModel> defaults)
     {
-        if (properties.IsDefaultOrEmpty && blocks.IsDefaultOrEmpty)
+        if (properties.IsDefaultOrEmpty && blocks.IsDefaultOrEmpty && defaults.IsDefaultOrEmpty)
             return;
 
-        foreach ((UIComponentTypeModel type, List<UIComponentPropertyModel> groupProperties) in GroupByType(context, properties, blocks))
+        foreach ((UIComponentTypeModel type, List<TypeWorkItem> items) in GroupByType(context, properties, blocks, defaults))
         {
             var hasErrors = false;
 
@@ -76,54 +87,79 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
                 hasErrors = true;
             }
 
-            foreach (UIComponentPropertyModel property in groupProperties)
+            foreach (TypeWorkItem item in items)
             {
-                foreach (DiagnosticInfo diagnostic in property.Diagnostics)
-                    context.ReportDiagnostic(diagnostic.ToDiagnostic());
+                if (item.Property is { } property)
+                {
+                    foreach (DiagnosticInfo diagnostic in property.Diagnostics)
+                        context.ReportDiagnostic(diagnostic.ToDiagnostic());
 
-                hasErrors |= property.HasErrors;
+                    hasErrors |= property.HasErrors;
+                }
+                else if (item.DefaultOverride is { } defaultOverride)
+                {
+                    foreach (DiagnosticInfo diagnostic in defaultOverride.Diagnostics)
+                        context.ReportDiagnostic(diagnostic.ToDiagnostic());
+
+                    hasErrors |= defaultOverride.HasErrors;
+                }
             }
 
-            if (hasErrors)
+            if (hasErrors || items.Count == 0)
                 continue;
 
-            var source = GenerateType(type, groupProperties);
+            var source = GenerateType(type, items);
 
             context.AddSource(type.Declaration.HintName, SourceText.From(source, Encoding.UTF8));
         }
     }
 
     /// <summary>
-    /// Pairs every component type with its own annotated properties plus what its <c>[UIComponentPropertyBlock]</c> contracts contribute,
-    /// reporting what reading the blocks found on the way.
+    /// Pairs every component type with its own annotated properties, what its <c>[UIComponentPropertyBlock]</c> contracts contribute,
+    /// and its inherited <c>[UIComponentPropertyDefault]</c> overrides.
     /// </summary>
-    private static List<(UIComponentTypeModel Owner, List<UIComponentPropertyModel> Items)> GroupByType(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks)
+    private static List<(UIComponentTypeModel Owner, List<TypeWorkItem> Items)> GroupByType(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks, ImmutableArray<UIComponentPropertyDefaultModel> defaults)
     {
-        HintNameGroups<UIComponentTypeModel, UIComponentPropertyModel> groups = new();
+        HintNameGroups<UIComponentTypeModel, TypeWorkItem> groups = new();
 
         if (!properties.IsDefaultOrEmpty)
         {
             foreach (UIComponentPropertyModel property in properties)
-                groups.GetOrAdd(property.Owner, property.Owner.Declaration).Add(property);
+                groups.GetOrAdd(property.Owner, property.Owner.Declaration).Add(new TypeWorkItem(property, null));
         }
 
         if (!blocks.IsDefaultOrEmpty)
         {
             foreach (UIComponentPropertyBlockModel block in blocks)
             {
-                List<UIComponentPropertyModel> target = groups.GetOrAdd(block.Owner, block.Owner.Declaration);
+                List<TypeWorkItem> target = groups.GetOrAdd(block.Owner, block.Owner.Declaration);
 
                 foreach (DiagnosticInfo diagnostic in block.Diagnostics)
                     context.ReportDiagnostic(diagnostic.ToDiagnostic());
 
-                target.AddRange(block.Properties);
+                foreach (UIComponentPropertyModel property in block.Properties)
+                    target.Add(new TypeWorkItem(property, null));
+            }
+        }
+
+        if (!defaults.IsDefaultOrEmpty)
+        {
+            foreach (UIComponentPropertyDefaultModel defaultModel in defaults)
+            {
+                List<TypeWorkItem> target = groups.GetOrAdd(defaultModel.Owner, defaultModel.Owner.Declaration);
+
+                foreach (DiagnosticInfo diagnostic in defaultModel.Diagnostics)
+                    context.ReportDiagnostic(diagnostic.ToDiagnostic());
+
+                foreach (UIComponentPropertyDefaultOverrideModel defaultOverride in defaultModel.Overrides)
+                    target.Add(new TypeWorkItem(null, defaultOverride));
             }
         }
 
         return groups.Groups;
     }
 
-    private static string GenerateType(UIComponentTypeModel type, List<UIComponentPropertyModel> properties)
+    private static string GenerateType(UIComponentTypeModel type, List<TypeWorkItem> items)
     {
         StringBuilder builder = new();
 
@@ -146,8 +182,13 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
 
         var hasContent = false;
 
-        foreach (UIComponentPropertyModel property in properties)
-            GeneratePropertyMembers(builder, property, type.SelfType!, ref hasContent);
+        foreach (TypeWorkItem item in items)
+        {
+            if (item.Property is { } property)
+                GeneratePropertyMembers(builder, property, type.SelfType!, ref hasContent);
+            else if (item.DefaultOverride is { } defaultOverride)
+                GenerateDefaultOverrideMember(builder, defaultOverride, type.SelfType!, ref hasContent);
+        }
 
         TypeDeclarationWriter.WriteTypeEnd(builder, type.Declaration.Declarations);
 
@@ -337,13 +378,13 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             .Append(scope)
             .Append(", global::NE.Standard.UI.Primitives.Binding.UIBindingMode mode = ")
             .Append(mode)
-            .Append(')')
+            .Append(", bool optional = false)")
             .AppendLine();
 
         _ = builder
             .Append("        => Bind(")
             .Append(uiPropertyName)
-            .AppendLine(", path, scope, mode);");
+            .AppendLine(", path, scope, mode, optional);");
 
         _ = builder
             .Append("    /// <summary>Binds <see cref=\"")
@@ -357,12 +398,55 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             .Append(scope)
             .Append(", global::NE.Standard.UI.Primitives.Binding.UIBindingMode mode = ")
             .Append(mode)
-            .Append(')')
+            .Append(", bool optional = false)")
             .AppendLine();
 
         _ = builder
             .Append("        => Bind(")
             .Append(uiPropertyName)
-            .AppendLine(", path, scope, mode);");
+            .AppendLine(", path, scope, mode, optional);");
+
+        _ = builder
+            .Append("    /// <summary>Binds <see cref=\"")
+            .Append(propertyName)
+            .AppendLine("\"/> to a path.</summary>")
+            .Append("    public ")
+            .Append(selfType)
+            .Append(' ')
+            .Append(binderName)
+            .Append("<TSource>(global::System.Linq.Expressions.Expression<global::System.Func<TSource, object?>> path, global::NE.Standard.UI.Primitives.Binding.UIBindingScope scope = ")
+            .Append(scope)
+            .Append(", global::NE.Standard.UI.Primitives.Binding.UIBindingMode mode = ")
+            .Append(mode)
+            .Append(", bool optional = false)")
+            .AppendLine();
+
+        _ = builder
+            .Append("        => Bind(")
+            .Append(uiPropertyName)
+            .AppendLine(", global::NE.Standard.UI.Abstractions.Recursive.RecursivePath.FromExpression(path), scope, mode, optional);");
     }
+
+    private static void GenerateDefaultOverrideMember(StringBuilder builder, UIComponentPropertyDefaultOverrideModel model, string selfType, ref bool hasContent)
+    {
+        TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
+
+        _ = builder
+            .Append("    private static global::NE.Standard.UI.Abstractions.Binding.Properties.UIPropertyDefinition ")
+            .Append(UIComponentPropertyNames.GetPropertyDefaultName(model.Name))
+            .AppendLine(" { get; }")
+            .Append("        = global::NE.Standard.UI.Authoring.Infrastructure.UIPropertyRegister.OverrideDefault<")
+            .Append(selfType)
+            .Append(", ")
+            .Append(model.Type)
+            .Append(">(typeof(")
+            .Append(model.DeclaringType)
+            .Append("), ")
+            .Append(model.PropertyArgument)
+            .Append(", ")
+            .Append(model.DefaultValue)
+            .AppendLine(");");
+    }
+
+    private readonly record struct TypeWorkItem(UIComponentPropertyModel? Property, UIComponentPropertyDefaultOverrideModel? DefaultOverride);
 }

@@ -7,7 +7,8 @@
 //   one holds its id — on its load, and again back from the cache — and one that hears a live page answer goes on under an id of its own.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { logWarn } from "./logger.ts";
+import { logWarn } from "../metadata/logger.ts";
+import { registerRuntimeCleanup } from "./cleanup-scope.ts";
 
 /** Where the id and its claim are kept: the tab's session storage, or none where the browser refuses it. */
 export type WindowIdMemory = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -102,13 +103,15 @@ export function claimWindowId(storageKey: string, host: WindowIdHost): string {
     claim();
     ask();
 
-    // A reload or a navigation hides the page before the next one reads the claim, and it answers no more; a page kept in the
-    // back/forward cache claims again and asks again, since a copy may have been made of its tab while it was hidden.
-    host.lifecycle.addEventListener("pagehide", () => {
+    const releaseClaim = (): void => {
         remove(memory, claimKey);
         channel?.close();
         channel = null;
-    });
+    };
+
+    // A reload or a navigation hides the page before the next one reads the claim, and it answers no more; a page kept in the
+    // back/forward cache claims again and asks again, since a copy may have been made of its tab while it was hidden.
+    host.lifecycle.addEventListener("pagehide", releaseClaim);
     host.lifecycle.addEventListener("pageshow", domEvent => {
         if (!domEvent.persisted)
             return;
@@ -116,6 +119,7 @@ export function claimWindowId(storageKey: string, host: WindowIdHost): string {
         claim();
         ask();
     });
+    registerRuntimeCleanup(releaseClaim);
 
     return id;
 }

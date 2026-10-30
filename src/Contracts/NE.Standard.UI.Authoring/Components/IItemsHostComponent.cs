@@ -24,13 +24,13 @@ public interface IItemsHostComponent : IItemsComponent
     /// Gets how the host holds its rows. Set by <c>Virtualized()</c> or by binding a source, never directly.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIItemsHostMode.Plain, GenerateSetter = false, IsBindable = false)]
-    UIItemsHostMode HostMode { get; }
+    UIItemsHostMode? HostMode { get; }
 
     /// <summary>
     /// Gets how many items one window holds.
     /// </summary>
     [UIComponentProperty(DefaultValue = 50, IsBindable = false)]
-    int WindowSize { get; }
+    int? WindowSize { get; }
 
     /// <summary>
     /// Gets the registered property key for <see cref="Paging"/>.
@@ -82,13 +82,13 @@ public interface IItemsHostComponent : IItemsComponent
     /// Gets whether the source has items before the realized window.
     /// </summary>
     [UIComponentProperty(DefaultValue = false, GenerateSetter = false, IsBindable = false)]
-    bool WindowHasMoreBefore { get; }
+    bool? WindowHasMoreBefore { get; }
 
     /// <summary>
     /// Gets whether the source has items after the realized window.
     /// </summary>
     [UIComponentProperty(DefaultValue = false, GenerateSetter = false, IsBindable = false)]
-    bool WindowHasMoreAfter { get; }
+    bool? WindowHasMoreAfter { get; }
 
     /// <summary>
     /// Gets the registered property key for <see cref="WindowGroupBefore"/>.

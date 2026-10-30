@@ -1,7 +1,7 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { SliderMinDistanceAttribute } from "../addressing/dom-attributes.ts";
+import { OrientationVerticalClass, SliderBubbleClass, SliderClass, SliderInputClass, SliderInputEndClass, SliderInputHeldClass, SliderMinDistanceAttribute, SliderRangeClass, SliderThumbAnchorClass, SliderTrackClass, SliderValueClass } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { PointerDrag } from "./pointer-drag.ts";
@@ -9,16 +9,6 @@ import { focusAsLastInput } from "./popup-focus.ts";
 import { chooseHandle, holdApart, readRangeBounds, trackFraction, valueAtFraction } from "./range-handles.ts";
 import type { RangeHandle } from "./range-handles.ts";
 
-const RangeInputClass = "ui-slider__input";
-const EndInputClass = "ui-slider__input--end";
-const HeldInputClass = "ui-slider__input--held";
-const RangeValueClass = "ui-slider__value";
-const RangeBubbleClass = "ui-slider__bubble";
-const RangeTrackClass = "ui-slider__track";
-const RangeAnchorClass = "ui-slider__thumb-anchor";
-const SliderClass = "ui-slider";
-const RangeSliderClass = "ui-slider--range";
-const VerticalClass = "ui-orientation--vertical";
 const FractionProperty = "--ui-slider-fraction";
 const EndFractionProperty = "--ui-slider-end-fraction";
 const BubbleGap = 6;
@@ -26,10 +16,12 @@ const ValuePropertyName = "Value";
 const EndValuePropertyName = "EndValue";
 // The four the fills are computed from: a push to any of them redraws them.
 const ReadingPropertyNames = new Set(["Value", "EndValue", "Min", "Max"]);
+// The bounds a push may clamp a value by, which the browser does silently.
+const BoundPropertyNames = new Set(["Min", "Max", "Step"]);
 
 export type RangeValueEngineOptions = {
     readonly root?: ParentNode;
-    readonly propertyPatchEngine?: PropertyPatchEngine;
+    readonly propertyPatchEngine?: PropertyPatchTarget;
 };
 
 /** A press on a range slider's track: the two handles, where they stood, and the one it moves — none until a press on both moves. */
@@ -52,6 +44,10 @@ export class RangeValueEngine {
     private readonly pressedFrom = new WeakMap<HTMLInputElement, string>();
     private readonly cancelled = new WeakSet<HTMLInputElement>();
 
+    // The ranges a pushed bound may have clamped, with the value the server holds: reported once the change set is applied, since a
+    // report raised inside it would hold the set's own Value push out of the field.
+    private readonly owedReports = new Map<HTMLInputElement, unknown>();
+
     public constructor(options: RangeValueEngineOptions = {}) {
         this.options = options;
         this.root = options.root ?? document;
@@ -73,7 +69,7 @@ export class RangeValueEngine {
         // native ranges stacked could not tell apart where they meet.
         new PointerDrag<BandDrag>({
             root: this.root,
-            resolveHandle: target => target.closest<HTMLElement>(`.${RangeSliderClass} .${RangeTrackClass}`),
+            resolveHandle: target => target.closest<HTMLElement>(`.${SliderRangeClass} .${SliderTrackClass}`),
             begin: (track, point) => this.beginBandDrag(track, point),
             move: (drag, _delta, point) => this.moveBandDrag(drag, point),
             end: (_track, drag) => this.endBandDrag(drag),
@@ -81,21 +77,56 @@ export class RangeValueEngine {
             takenBack: (_track, drag) => this.putBandBack(drag)
         });
 
-        // A push moves the fill and readings as a drag does; the browser's silent clamp is reported back through the two-way channel.
+        // The page as drawn: a value off the step or past the bounds the browser has already moved, which the server does not know.
+        for (const input of this.root.querySelectorAll<HTMLInputElement>(`.${SliderInputClass}`)) {
+            this.settled.set(input, input.value);
+            this.reportClamped(input, input.defaultValue);
+        }
+
+        // A push moves the fill and readings as a drag does; the browser's silent clamp — of a pushed value, or of the value a pushed
+        // Min, Max or Step moved — is reported back through the two-way channel.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
             // The handler is told about every property a slider has.
-            if (!ReadingPropertyNames.has(change.propertyName))
+            if (!ReadingPropertyNames.has(change.propertyName) && !BoundPropertyNames.has(change.propertyName))
                 return;
 
             // The elements the patch landed on, not every one the id names: a package's clone of a template is patched alone.
-            for (const input of componentParts(change.components, `.${RangeInputClass}`) as HTMLInputElement[]) {
+            for (const input of componentParts(change.components, `.${SliderInputClass}`) as HTMLInputElement[]) {
+                const before = this.settled.get(input) ?? input.defaultValue;
+
                 this.settled.set(input, input.value);
                 this.writeReadings(input);
 
-                if (change.propertyName === (isEndInput(input) ? EndValuePropertyName : ValuePropertyName))
+                if (change.propertyName === (isEndInput(input) ? EndValuePropertyName : ValuePropertyName)) {
+                    // The value pushed after a bound in the same set is the server's: its own report covers that bound's clamp.
+                    this.owedReports.delete(input);
                     this.reportClamped(input, change.value);
+                }
+                else if (BoundPropertyNames.has(change.propertyName)) {
+                    this.oweReport(input, before);
+                }
             }
         });
+    }
+
+    /** Owes a range the report of a pushed bound's clamp, judged against the value it stood at before the set's first bound. */
+    private oweReport(input: HTMLInputElement, before: string): void {
+        if (this.owedReports.has(input))
+            return;
+
+        if (this.owedReports.size === 0)
+            queueMicrotask(() => this.payOwedReports());
+
+        this.owedReports.set(input, before);
+    }
+
+    private payOwedReports(): void {
+        const owed = [...this.owedReports];
+
+        this.owedReports.clear();
+
+        for (const [input, server] of owed)
+            this.reportClamped(input, server);
     }
 
     private notePress(target: EventTarget | null): void {
@@ -140,16 +171,17 @@ export class RangeValueEngine {
         domEvent.stopImmediatePropagation();
     }
 
+    /** Reports a value the browser clamped away from the server's, as a move of the reader's is reported. */
     private reportClamped(input: HTMLInputElement, pushed: unknown): void {
-        // A range the reader cannot move only shows the clamp: the value stays the server's.
-        if (pushed === null || pushed === undefined || input.value === String(pushed) || isFixed(input))
+        // A range the reader cannot move only shows the clamp: the value stays the server's. By number: "7.50" written is "7.5" read.
+        if (pushed === null || pushed === undefined || String(pushed).trim().length === 0 || Number(input.value) === Number(pushed) || isFixed(input))
             return;
 
         input.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     private handleInput(domEvent: Event): void {
-        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(RangeInputClass))
+        if (!(domEvent.target instanceof HTMLInputElement) || !domEvent.target.classList.contains(SliderInputClass))
             return;
 
         const input = domEvent.target;
@@ -184,8 +216,8 @@ export class RangeValueEngine {
 
     /** A press on a band's track: the nearer handle takes it, at once, and the keyboard with it; a read-only band only takes the focus. */
     private beginBandDrag(track: HTMLElement, point: { readonly x: number; readonly y: number }): BandDrag | null {
-        const start = track.querySelector<HTMLInputElement>(`.${RangeInputClass}:not(.${EndInputClass})`);
-        const end = track.querySelector<HTMLInputElement>(`.${EndInputClass}`);
+        const start = track.querySelector<HTMLInputElement>(`.${SliderInputClass}:not(.${SliderInputEndClass})`);
+        const end = track.querySelector<HTMLInputElement>(`.${SliderInputEndClass}`);
 
         if (start === null || end === null)
             return null;
@@ -209,7 +241,7 @@ export class RangeValueEngine {
     }
 
     private moveBandDrag(drag: BandDrag, point: { readonly x: number; readonly y: number }): void {
-        const track = drag.start.closest<HTMLElement>(`.${RangeTrackClass}`);
+        const track = drag.start.closest<HTMLElement>(`.${SliderTrackClass}`);
 
         if (track === null)
             return;
@@ -232,7 +264,7 @@ export class RangeValueEngine {
         const input = handle === "start" ? drag.start : drag.end;
 
         drag.held = input;
-        input.classList.add(HeldInputClass);
+        input.classList.add(SliderInputHeldClass);
         focusAsLastInput(input);
         this.moveHandle(input, value);
         this.placeBubble(input);
@@ -274,7 +306,7 @@ export class RangeValueEngine {
     }
 
     private letGo(drag: BandDrag): void {
-        drag.held?.classList.remove(HeldInputClass);
+        drag.held?.classList.remove(SliderInputHeldClass);
 
         if (drag.held !== null)
             this.writeReadings(drag.held);
@@ -302,18 +334,18 @@ export class RangeValueEngine {
      */
     private writeReadings(input: HTMLInputElement): void {
         const end = isEndInput(input);
-        const slider = input.closest<HTMLElement>(`.${RangeTrackClass}`)?.parentElement ?? input.parentElement;
+        const slider = input.closest<HTMLElement>(`.${SliderTrackClass}`)?.parentElement ?? input.parentElement;
         const readings = end
-            ? `.${RangeValueClass}--end, .${RangeBubbleClass}--end`
-            : `.${RangeValueClass}:not(.${RangeValueClass}--end), .${RangeBubbleClass}:not(.${RangeBubbleClass}--end)`;
+            ? `.${SliderValueClass}--end, .${SliderBubbleClass}--end`
+            : `.${SliderValueClass}:not(.${SliderValueClass}--end), .${SliderBubbleClass}:not(.${SliderBubbleClass}--end)`;
 
         for (const readout of slider?.querySelectorAll<HTMLElement>(readings) ?? [])
             readout.textContent = input.value;
 
-        input.closest<HTMLElement>(`.${RangeTrackClass}`)?.style.setProperty(end ? EndFractionProperty : FractionProperty, String(fractionOf(input)));
+        input.closest<HTMLElement>(`.${SliderTrackClass}`)?.style.setProperty(end ? EndFractionProperty : FractionProperty, String(fractionOf(input)));
 
         // After the fraction, which moved the bubble's anchor; only a shown bubble is placed, so none is tracked unseen.
-        if (input.matches(`:active, :focus-visible, .${HeldInputClass}`))
+        if (input.matches(`:active, :focus-visible, .${SliderInputHeldClass}`))
             this.placeBubble(input);
         else
             this.releaseBubble(input);
@@ -321,18 +353,18 @@ export class RangeValueEngine {
 }
 
 function rangeInput(target: EventTarget | null): HTMLInputElement | null {
-    return target instanceof HTMLInputElement && target.classList.contains(RangeInputClass) ? target : null;
+    return target instanceof HTMLInputElement && target.classList.contains(SliderInputClass) ? target : null;
 }
 
 function isEndInput(input: Element): boolean {
-    return input.classList.contains(EndInputClass);
+    return input.classList.contains(SliderInputEndClass);
 }
 
 /** A band's other handle, or none for a single slider's. */
 function otherHandle(input: HTMLInputElement): HTMLInputElement | null {
-    const track = input.closest(`.${RangeSliderClass} .${RangeTrackClass}`);
+    const track = input.closest(`.${SliderRangeClass} .${SliderTrackClass}`);
 
-    return track?.querySelector<HTMLInputElement>(isEndInput(input) ? `.${RangeInputClass}:not(.${EndInputClass})` : `.${EndInputClass}`) ?? null;
+    return track?.querySelector<HTMLInputElement>(isEndInput(input) ? `.${SliderInputClass}:not(.${SliderInputEndClass})` : `.${SliderInputEndClass}`) ?? null;
 }
 
 /** A handle's value held to its side of the other, at the least distance the slider names, as the input's value is written. */
@@ -349,25 +381,25 @@ function isFixed(input: HTMLInputElement): boolean {
 
 function isVertical(track: Element): boolean {
     // The slider's own class, not the nearest ancestor carrying it: `ui-orientation--vertical` is shared with the layout panels.
-    return track.closest(`.${SliderClass}`)?.classList.contains(VerticalClass) === true;
+    return track.closest(`.${SliderClass}`)?.classList.contains(OrientationVerticalClass) === true;
 }
 
 /** The handle's size along the track, which its anchor is drawn at. */
 function handleSize(track: Element): number {
-    const rect = track.querySelector(`.${RangeAnchorClass}`)?.getBoundingClientRect();
+    const rect = track.querySelector(`.${SliderThumbAnchorClass}`)?.getBoundingClientRect();
 
     return rect === undefined ? 0 : isVertical(track) ? rect.height : rect.width;
 }
 
 /** The three elements a bubble needs to be placed: itself, the handle it stands over, and which way that is. */
 function resolveBubbleParts(target: EventTarget | null): { readonly bubble: HTMLElement; readonly anchor: HTMLElement; readonly vertical: boolean } | null {
-    if (!(target instanceof Element) || !target.classList.contains(RangeInputClass))
+    if (!(target instanceof Element) || !target.classList.contains(SliderInputClass))
         return null;
 
-    const track = target.closest<HTMLElement>(`.${RangeTrackClass}`);
+    const track = target.closest<HTMLElement>(`.${SliderTrackClass}`);
     const end = isEndInput(target);
-    const bubble = track?.querySelector<HTMLElement>(end ? `.${RangeBubbleClass}--end` : `.${RangeBubbleClass}:not(.${RangeBubbleClass}--end)`) ?? null;
-    const anchor = track?.querySelector<HTMLElement>(end ? `.${RangeAnchorClass}--end` : `.${RangeAnchorClass}:not(.${RangeAnchorClass}--end)`) ?? null;
+    const bubble = track?.querySelector<HTMLElement>(end ? `.${SliderBubbleClass}--end` : `.${SliderBubbleClass}:not(.${SliderBubbleClass}--end)`) ?? null;
+    const anchor = track?.querySelector<HTMLElement>(end ? `.${SliderThumbAnchorClass}--end` : `.${SliderThumbAnchorClass}:not(.${SliderThumbAnchorClass}--end)`) ?? null;
 
     if (bubble === null || anchor === null)
         return null;

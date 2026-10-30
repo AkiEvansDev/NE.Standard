@@ -123,8 +123,9 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// <summary>Processes a client-originated event command.</summary>
     /// <remarks>
     /// A background command whose request carries a <see cref="UICommandRequest.RequestId"/> is answered as
-    /// <see cref="UICommandExecutionResult.Accepted"/> and runs on, pushing its result to <paramref name="invoker"/>; it keeps
-    /// <paramref name="cancellationToken"/>, so pass one that lives as long as the connection.
+    /// <see cref="UICommandExecutionResult.Accepted"/> and runs on, pushing its result to <paramref name="invoker"/>; it lives on the
+    /// tab's stay on this runtime, ended by the tab going to another runtime, its retention running out or the runtime going, not on
+    /// <paramref name="cancellationToken"/>, which only an awaited command runs on.
     /// </remarks>
     Task<UICommandExecutionResult> ProcessEventAsync(UIHandle invoker, UICommandRequest request, CancellationToken cancellationToken = default);
 
@@ -132,7 +133,7 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// Answers the reader starting to leave the page for <paramref name="target"/>, an address of this site: the controller's answer
     /// while it holds unsaved work, else the navigation itself.
     /// </summary>
-    /// <remarks>Runs in a command's turn; its effects come back in the answer, never pushed, whatever the runtime's update mode.</remarks>
+    /// <remarks>Runs in a command's turn; its effects come back in the answer, never pushed.</remarks>
     Task<UICommandExecutionResult> RequestLeaveAsync(UIHandle invoker, string target, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -163,9 +164,4 @@ public interface IUIRuntime : IUIRuntimeAccess, IAsyncDisposable, IDisposable
     /// waits for it to end.
     /// </remarks>
     bool HasCommandsInFlight { get; }
-
-    /// <summary>
-    /// Flushes pending server-originated updates.
-    /// </summary>
-    Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default);
 }

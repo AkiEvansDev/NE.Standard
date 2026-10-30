@@ -37,6 +37,14 @@
 .ui-toggle-answers(~".ui-switch", ~".ui-switch__input:not(:disabled)", ~".ui-switch__box", {
     background: @ui-toggle-leaned;
     border-color: @ui-toggle-leaned;
+}, {
+    &::after {
+        background: @ui-toggle-ring-hover;
+    }
+}, {
+    &::after {
+        background: @ui-toggle-ring-press;
+    }
 });
 
 // Whole pixels at the root size, centred by auto margins: translate(-50%) leaves a half pixel the grid does not snap, a soft edge.

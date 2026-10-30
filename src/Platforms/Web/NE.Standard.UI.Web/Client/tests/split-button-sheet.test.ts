@@ -10,7 +10,7 @@ const tierListeners: (() => void)[] = [];
 
 installFakeDom({
     window: { addEventListener: () => undefined, removeEventListener: () => undefined, setTimeout, innerWidth: 390, innerHeight: 844 },
-    matchMedia: (query: string) => ({ matches: width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0), addEventListener: (_: string, listener: () => void) => tierListeners.push(listener) }),
+    matchMedia: (query: string) => ({ get matches() { return width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0); }, addEventListener: (_: string, listener: () => void) => tierListeners.push(listener) }),
     getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr", transitionProperty: "all", transitionDuration: "0s", getPropertyValue: () => "" }),
     MutationObserver: class {
         public observe(): void {

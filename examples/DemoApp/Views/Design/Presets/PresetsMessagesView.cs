@@ -20,7 +20,7 @@ internal sealed class PresetsMessagesView : PresetsViewBase, IUIViewDefinition
 
         _ = container
             .AddChild(CreateHeading("UIMessage — a message that stays in the page"))
-            .AddChildren(DemoUI.CreateColumns([CreateSeverityGroup()], [CreateMessageCreateGroup()]))
+            .AddChildren(DemoUI.CreateColumns([CreateToneGroup()], [CreateMessageCreateGroup()]))
             .AddChild(CreateHeading("UIDetails — names and values to read"))
             .AddChildren(DemoUI.CreateColumns([CreateDetailsListGroup()], [CreateDetailsRowGroup()]))
             .AddChild(CreateSumsGroup());

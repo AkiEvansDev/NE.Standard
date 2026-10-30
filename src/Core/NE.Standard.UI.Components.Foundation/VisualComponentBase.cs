@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 using System.Threading;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Interaction;
@@ -32,7 +35,7 @@ internal static class ComponentIdGenerator
 /// <summary>
 /// Base class for visual components with layout, binding, interaction, and event authoring support.
 /// </summary>
-public abstract partial class VisualComponentBase<TComponent>(string? id = null) : IVisualComponent, IDialogOwnerComponent
+public abstract partial class VisualComponentBase<TComponent>(string? id = null) : IVisualComponent, IDialogOwnerComponent, IPropertyBindingComponent
     where TComponent : VisualComponentBase<TComponent>, IUIComponentDefinition
 {
     private readonly Dictionary<UIProperty, int> _bindingIndexes = [];
@@ -210,6 +213,24 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         return Self;
     }
 
+    private List<UIDefaultsRule>? _defaults;
+
+    /// <inheritdoc/>
+    public IReadOnlyList<UIDefaultsRule> Defaults => (IReadOnlyList<UIDefaultsRule>?)_defaults ?? [];
+
+    /// <summary>
+    /// Sets default configuration for every descendant assignable to <typeparamref name="TDescendant"/> in this component's subtree;
+    /// a descendant's own authored value wins over any default set here.
+    /// </summary>
+    public TComponent SetDefaults<TDescendant>(Action<TDescendant> configure)
+        where TDescendant : class, IVisualComponent
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        (_defaults ??= []).Add(new UIDefaultsRule(typeof(TDescendant), component => configure((TDescendant)component)));
+        return Self;
+    }
+
     /// <summary>
     /// Applies custom configuration to the component.
     /// </summary>
@@ -237,6 +258,12 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     }
 
     /// <summary>
+    /// Binds the component context to a typed path expression.
+    /// </summary>
+    public TComponent BindContext<TSource>(Expression<Func<TSource, object?>> path, UIBindingScope scope = UIBindingScope.Root)
+        => BindContext(RecursivePath.FromExpression(path), scope);
+
+    /// <summary>
     /// Binds the component context to a recursive source path.
     /// </summary>
     public virtual TComponent BindContext(RecursivePath path, UIBindingScope scope = UIBindingScope.Root)
@@ -247,6 +274,13 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     }
 
     /// <summary>
+    /// Binds a component property to a typed path expression, in the property's own default mode unless one is named; an
+    /// <paramref name="optional"/> one expects sources without the path.
+    /// </summary>
+    public TComponent Bind<TSource>(UIProperty property, Expression<Func<TSource, object?>> path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode? mode = null, bool optional = false)
+        => Bind(property, RecursivePath.FromExpression(path), scope, mode, optional);
+
+    /// <summary>
     /// Binds a component property to a recursive source path, in the property's own default mode unless one is named; an
     /// <paramref name="optional"/> one expects sources without the path.
     /// </summary>
@@ -255,6 +289,12 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         return Bind(property, RecursivePath.Parse(path), scope, mode, optional);
     }
+
+    // The same by the interface, for a wrapper holding the component as an IVisualComponent (IPropertyBindingComponent). The
+    // visible member is Bind of the same shape, fluent in the component's own type; this one returns what a wrapper holds.
+    [SuppressMessage("Usage", "CA1033:Interface methods should be callable by child types", Justification = "Bind(UIProperty, …) of the same shape is public; this is its face for a wrapper holding an IVisualComponent.")]
+    IVisualComponent IPropertyBindingComponent.BindProperty(UIProperty property, string path, UIBindingScope scope, UIBindingMode? mode, bool optional)
+        => Bind(property, path, scope, mode, optional);
 
     /// <summary>
     /// Binds a component property to a recursive source path, in the property's own default mode unless one is named; an
@@ -358,6 +398,99 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         _propertiesRegistered = true;
     }
 
+    [SuppressMessage("Usage", "CA1033:Interface methods should be callable by child types", Justification = "Compiler hook for applying ancestor SetDefaults rules while keeping the component's own authored state.")]
+    void IPropertyBindingComponent.ApplyDefaults(ReadOnlySpan<UIDefaultsRule> rules, ReadOnlySpan<UIPropertyDefinition> definitions)
+    {
+        if (rules.IsEmpty)
+            return;
+
+        var ownValues = new object?[definitions.Length];
+
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            ownValues[i] = definitions[i].Getter(this);
+
+            // Cleared before ancestor rules run so a rule's setter is not refused by a sibling property the child set and will restore.
+            if (ownValues[i] is not null)
+                definitions[i].Setter?.Invoke(this, null);
+        }
+
+        UIBinding[] ownBindings = _bindings.Count > 0 ? [.. _bindings] : [];
+        UIEvent[] ownEvents = _events.Count > 0 ? [.. _events] : [];
+        UIBinding? ownContext = Context;
+        IVisualComponent? ownContextMenu = ContextMenu;
+        var ownIsContentTree = IsContentTree;
+        HashSet<UIProperty>? ownContent = _content is { Count: > 0 } ? [.. _content] : null;
+        UIPropertyReference? ownValidationTarget = this is IInputComponent inputBefore ? inputBefore.ValidationTarget : null;
+
+        for (var i = 0; i < rules.Length; i++)
+            rules[i].Apply(this);
+
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            UIPropertyDefinition definition = definitions[i];
+            var hadOwnBinding = ContainsBindingTarget(ownBindings, definition.Property);
+
+            if (ownValues[i] is not null)
+            {
+                definition.Setter?.Invoke(this, ownValues[i]);
+
+                if (!hadOwnBinding)
+                    RemoveBinding(definition.Property);
+            }
+            else if (hadOwnBinding && definition.Getter(this) is not null)
+            {
+                definition.Setter?.Invoke(this, null);
+            }
+        }
+
+        for (var i = 0; i < ownBindings.Length; i++)
+            SetOrReplaceBinding(ownBindings[i]);
+
+        for (var i = 0; i < ownEvents.Length; i++)
+            AddOrReplaceEvent(ownEvents[i]);
+
+        if (ownContext is not null)
+            Context = ownContext;
+
+        if (ownContextMenu is not null)
+            ContextMenu = ownContextMenu;
+
+        if (ownIsContentTree)
+            IsContentTree = true;
+
+        if (ownValidationTarget is not null && this is IInputComponent inputAfter)
+            inputAfter.ValidationTarget = ownValidationTarget;
+
+        if (ownContent is not null)
+        {
+            foreach (UIProperty property in ownContent)
+                _ = (_content ??= []).Add(property);
+        }
+    }
+
+    private static bool ContainsBindingTarget(UIBinding[] bindings, UIProperty target)
+    {
+        for (var i = 0; i < bindings.Length; i++)
+        {
+            if (bindings[i].Target.Equals(target))
+                return true;
+        }
+
+        return false;
+    }
+
+    private void RemoveBinding(UIProperty target)
+    {
+        if (!_bindingIndexes.Remove(target, out var removedIndex))
+            return;
+
+        _bindings.RemoveAt(removedIndex);
+
+        for (var i = removedIndex; i < _bindings.Count; i++)
+            _bindingIndexes[_bindings[i].Target] = i;
+    }
+
     private void SetOrReplaceBinding(UIBinding binding)
     {
         if (_bindingIndexes.TryGetValue(binding.Target, out var existingIndex))
@@ -383,6 +516,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         => Interact(Id, source, target, @operator, value, whenTrue, whenFalse);
 
     /// <summary>
+    /// Adds an interaction from another component's property to a local target property.
+    /// </summary>
+    public TComponent Interact(IVisualComponent sourceComponent, UIProperty source, UIProperty target, UIComparisonOperator @operator = UIComparisonOperator.Equal, object? value = null, object? whenTrue = null, object? whenFalse = null)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return Interact(sourceComponent.Id, source, target, @operator, value, whenTrue, whenFalse);
+    }
+
+    /// <summary>
     /// Adds an interaction from a property reference to a local target property.
     /// </summary>
     public TComponent Interact(string sourceComponentId, UIProperty source, UIProperty target, UIComparisonOperator @operator = UIComparisonOperator.Equal, object? value = null, object? whenTrue = null, object? whenFalse = null)
@@ -399,8 +541,28 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// Copies another component's value into a target property of this one on the page, live while the reader drags or types — a
     /// slider previewing a picture's dim with no round trip.
     /// </summary>
+    public TComponent InteractCopyValue(IVisualComponent sourceComponent, UIProperty target)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractCopyValue(sourceComponent.Id, IInputComponent.ValueProperty, target);
+    }
+
+    /// <summary>
+    /// Copies another component's value into a target property of this one on the page, live while the reader drags or types — a
+    /// slider previewing a picture's dim with no round trip.
+    /// </summary>
     public TComponent InteractCopyValue(string sourceComponentId, UIProperty target)
         => InteractCopyValue(sourceComponentId, IInputComponent.ValueProperty, target);
+
+    /// <summary>
+    /// Copies another component's property into a target property of this one on the page, live while the reader moves the source.
+    /// </summary>
+    /// <remarks>The two properties' types are checked when the view compiles: a number takes a number, anything else its own type.</remarks>
+    public TComponent InteractCopyValue(IVisualComponent sourceComponent, UIProperty source, UIProperty target)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractCopyValue(sourceComponent.Id, source, target);
+    }
 
     /// <summary>
     /// Copies another component's property into a target property of this one on the page, live while the reader moves the source.
@@ -426,6 +588,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// <summary>
     /// Adds an interaction triggered just before the command another component runs on <paramref name="eventName"/> leaves the page.
     /// </summary>
+    public TComponent InteractBefore(IVisualComponent sourceComponent, string eventName, UIProperty target, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractBefore(sourceComponent.Id, eventName, target, value);
+    }
+
+    /// <summary>
+    /// Adds an interaction triggered just before the command another component runs on <paramref name="eventName"/> leaves the page.
+    /// </summary>
     public TComponent InteractBefore(string sourceComponentId, string eventName, UIProperty target, object? value)
         => InteractOn(sourceComponentId, LifecycleEventName(EventNames.BeforePrefix, eventName), target, value);
 
@@ -436,6 +607,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// <remarks>An effect beside a command goes here or in <see cref="InteractAfter(string, ClientEffect)"/>: an <c>InteractOn</c> of an event its source runs a command on never fires, and does not compile.</remarks>
     public TComponent InteractBefore(string eventName, ClientEffect effect)
         => InteractBefore(Id, eventName, effect);
+
+    /// <summary>
+    /// Runs a client effect just before the command another component runs on <paramref name="eventName"/> leaves the page.
+    /// </summary>
+    public TComponent InteractBefore(IVisualComponent sourceComponent, string eventName, ClientEffect effect)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractBefore(sourceComponent.Id, eventName, effect);
+    }
 
     /// <summary>
     /// Runs a client effect just before the command another component runs on <paramref name="eventName"/> leaves the page.
@@ -465,6 +645,16 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// Adds an interaction triggered once the command another component runs on <paramref name="eventName"/> has been answered and the
     /// answer applied, or the connection dropped under it.
     /// </summary>
+    public TComponent InteractAfter(IVisualComponent sourceComponent, string eventName, UIProperty target, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractAfter(sourceComponent.Id, eventName, target, value);
+    }
+
+    /// <summary>
+    /// Adds an interaction triggered once the command another component runs on <paramref name="eventName"/> has been answered and the
+    /// answer applied, or the connection dropped under it.
+    /// </summary>
     public TComponent InteractAfter(string sourceComponentId, string eventName, UIProperty target, object? value)
         => InteractOn(sourceComponentId, LifecycleEventName(EventNames.AfterPrefix, eventName), target, value);
 
@@ -474,6 +664,16 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent InteractAfter(string eventName, ClientEffect effect)
         => InteractAfter(Id, eventName, effect);
+
+    /// <summary>
+    /// Runs a client effect once the command another component runs on <paramref name="eventName"/> has been answered and the answer
+    /// applied, or the connection dropped under it.
+    /// </summary>
+    public TComponent InteractAfter(IVisualComponent sourceComponent, string eventName, ClientEffect effect)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractAfter(sourceComponent.Id, eventName, effect);
+    }
 
     /// <summary>
     /// Runs a client effect once the command another component runs on <paramref name="eventName"/> has been answered and the answer
@@ -491,6 +691,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// <summary>
     /// Adds an interaction triggered before another component's click event command.
     /// </summary>
+    public TComponent InteractBeforeClick(IVisualComponent sourceComponent, UIProperty target, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractBefore(sourceComponent.Id, EventNames.Click, target, value);
+    }
+
+    /// <summary>
+    /// Adds an interaction triggered before another component's click event command.
+    /// </summary>
     public TComponent InteractBeforeClick(string sourceComponentId, UIProperty target, object? value)
         => InteractBefore(sourceComponentId, EventNames.Click, target, value);
 
@@ -499,6 +708,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent InteractAfterClick(UIProperty target, object? value)
         => InteractAfter(EventNames.Click, target, value);
+
+    /// <summary>
+    /// Adds an interaction triggered after another component's click event command.
+    /// </summary>
+    public TComponent InteractAfterClick(IVisualComponent sourceComponent, UIProperty target, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractAfter(sourceComponent.Id, EventNames.Click, target, value);
+    }
 
     /// <summary>
     /// Adds an interaction triggered after another component's click event command.
@@ -515,6 +733,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// <summary>
     /// Runs a client effect before another component's click event command.
     /// </summary>
+    public TComponent InteractBeforeClick(IVisualComponent sourceComponent, ClientEffect effect)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractBefore(sourceComponent.Id, EventNames.Click, effect);
+    }
+
+    /// <summary>
+    /// Runs a client effect before another component's click event command.
+    /// </summary>
     public TComponent InteractBeforeClick(string sourceComponentId, ClientEffect effect)
         => InteractBefore(sourceComponentId, EventNames.Click, effect);
 
@@ -523,6 +750,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent InteractAfterClick(ClientEffect effect)
         => InteractAfter(EventNames.Click, effect);
+
+    /// <summary>
+    /// Runs a client effect after another component's click event command.
+    /// </summary>
+    public TComponent InteractAfterClick(IVisualComponent sourceComponent, ClientEffect effect)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractAfter(sourceComponent.Id, EventNames.Click, effect);
+    }
 
     /// <summary>
     /// Runs a client effect after another component's click event command.
@@ -548,6 +784,17 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// Shows this component loading for exactly the round trip of the command another component runs on <paramref name="eventName"/>
     /// — a form's panel busy while its submit button's command runs.
     /// </summary>
+    /// <remarks>The view does not compile unless <paramref name="sourceComponent"/> runs a command on that event.</remarks>
+    public TComponent ShowLoadingDuring(IVisualComponent sourceComponent, string eventName)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return ShowLoadingDuring(sourceComponent.Id, eventName);
+    }
+
+    /// <summary>
+    /// Shows this component loading for exactly the round trip of the command another component runs on <paramref name="eventName"/>
+    /// — a form's panel busy while its submit button's command runs.
+    /// </summary>
     /// <remarks>The view does not compile unless <paramref name="sourceComponentId"/> runs a command on that event.</remarks>
     public TComponent ShowLoadingDuring(string sourceComponentId, string eventName)
         => InteractBefore(sourceComponentId, eventName, IVisualComponent.LoadingProperty, true)
@@ -555,6 +802,9 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
 
     IVisualComponent IVisualComponent.On(string eventName, string command, params KeyValuePair<string, UIActionArgument>[] arguments)
         => On(eventName, command, arguments);
+
+    IVisualComponent IVisualComponent.InteractOn(string eventName, ClientEffect effect)
+        => InteractOn(eventName, effect);
 
     IVisualComponent IVisualComponent.InteractOnRow(string eventName, string rowKey, ClientEffect effect)
         => InteractOnRow(eventName, rowKey, effect);
@@ -564,6 +814,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent InteractOnHoverStart(UIProperty target, object? value)
         => InteractOn(EventNames.HoverStart, target, value);
+
+    /// <summary>
+    /// Adds an interaction triggered when the pointer enters another component.
+    /// </summary>
+    public TComponent InteractOnHoverStart(IVisualComponent sourceComponent, UIProperty target, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractOn(sourceComponent.Id, EventNames.HoverStart, target, value);
+    }
 
     /// <summary>
     /// Adds an interaction triggered when the pointer enters another component.
@@ -580,6 +839,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// <summary>
     /// Adds an interaction triggered when the pointer leaves another component.
     /// </summary>
+    public TComponent InteractOnHoverEnd(IVisualComponent sourceComponent, UIProperty target, object? value)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractOn(sourceComponent.Id, EventNames.HoverEnd, target, value);
+    }
+
+    /// <summary>
+    /// Adds an interaction triggered when the pointer leaves another component.
+    /// </summary>
     public TComponent InteractOnHoverEnd(string sourceComponentId, UIProperty target, object? value)
         => InteractOn(sourceComponentId, EventNames.HoverEnd, target, value);
 
@@ -588,6 +856,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent InteractOn(string sourceEvent, UIProperty target, object? whenTriggered)
         => InteractOn(Id, sourceEvent, target, whenTriggered);
+
+    /// <summary>
+    /// Adds an interaction triggered by another component's event.
+    /// </summary>
+    public TComponent InteractOn(IVisualComponent sourceComponent, string sourceEvent, UIProperty target, object? whenTriggered)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractOn(sourceComponent.Id, sourceEvent, target, whenTriggered);
+    }
 
     /// <summary>
     /// Adds an interaction triggered by another component event.
@@ -608,6 +885,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent InteractOn(string sourceEvent, ClientEffect effect)
         => InteractOn(Id, sourceEvent, effect);
+
+    /// <summary>
+    /// Adds an interaction that runs a client effect when another component's event fires.
+    /// </summary>
+    public TComponent InteractOn(IVisualComponent sourceComponent, string sourceEvent, ClientEffect effect)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return InteractOn(sourceComponent.Id, sourceEvent, effect);
+    }
 
     /// <summary>
     /// Adds an interaction that runs a client effect when another component's event fires.
@@ -641,6 +927,15 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent Interact(UIProperty source, ClientEffect effect, UIComparisonOperator @operator = UIComparisonOperator.Required, object? value = null)
         => Interact(Id, source, effect, @operator, value);
+
+    /// <summary>
+    /// Adds an interaction that runs a client effect while another component's property satisfies the comparison.
+    /// </summary>
+    public TComponent Interact(IVisualComponent sourceComponent, UIProperty source, ClientEffect effect, UIComparisonOperator @operator = UIComparisonOperator.Required, object? value = null)
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return Interact(sourceComponent.Id, source, effect, @operator, value);
+    }
 
     /// <summary>
     /// Adds an interaction that runs a client effect while another component's property satisfies the comparison.

@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { needRelativeTicks, RelativeRefreshMilliseconds } from "../src/runtime/relative-clock.ts";
+import { needRelativeTicks, RelativeRefreshMilliseconds } from "../src/rendering/relative-clock.ts";
 
 test("every relative text ticks by one interval, which stops once none needs it and starts again for the next", t => {
     t.mock.timers.enable({ apis: ["setInterval"] });

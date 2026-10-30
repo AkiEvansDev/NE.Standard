@@ -18,11 +18,11 @@ public abstract class DefaultFileTemplate<TTemplate> : FileTileComponent<TTempla
     /// </summary>
     protected DefaultFileTemplate()
     {
-        _ = Bind(FileNameProperty, nameof(IFileModel.FileName), UIBindingScope.Relative);
-        _ = Bind(FileSizeProperty, nameof(IFileModel.FileSize), UIBindingScope.Relative, optional: true);
-        _ = Bind(ContentTypeProperty, nameof(IFileModel.ContentType), UIBindingScope.Relative, optional: true);
-        _ = Bind(IconProperty, nameof(IFileModel.Icon), UIBindingScope.Relative, optional: true);
-        _ = Bind(IVisualComponent.LoadingProperty, nameof(IFileModel.Loading), UIBindingScope.Relative, optional: true);
+        _ = BindFileName(nameof(IFileModel.FileName), UIBindingScope.Relative);
+        _ = BindFileSize(nameof(IFileModel.FileSize), UIBindingScope.Relative, optional: true);
+        _ = BindContentType(nameof(IFileModel.ContentType), UIBindingScope.Relative, optional: true);
+        _ = BindIcon(nameof(IFileModel.Icon), UIBindingScope.Relative, optional: true);
+        _ = BindLoading(nameof(IFileModel.Loading), UIBindingScope.Relative, optional: true);
     }
 }
 

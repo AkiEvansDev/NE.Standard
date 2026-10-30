@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
@@ -25,6 +24,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// stylesheet's: a list's entries stand the list gap apart, so a chosen ground and the pointer's read as two, while a bar's and a
 /// rail's stand edge to edge, their grounds square slices with no rounded hover to set apart.
 /// </remarks>
+[UIComponentPropertyDefault(nameof(IItemsComponent.TemplateKeyProperty), nameof(DefaultTemplateKeyProperty))]
 [UIComponentPropertyBlock(typeof(IOrientationComponent))]
 [UIComponentPropertyBlock(typeof(ISpacingComponent))]
 [UIComponentPropertyBlock(typeof(ICollapsibleComponent))]
@@ -32,10 +32,15 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyDefault(nameof(ISurfaceStyleComponent.Surface), nameof(DefaultSurface))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
-public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, IOrientationComponent, ISpacingComponent, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent, IItemClickComponent, IEmptyStateComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItemModel, IButtonComponent>, IOrientationComponent, ISpacingComponent, ICollapsibleComponent, ISelectionStyleComponent, ISurfaceStyleComponent, IRegionContainerComponent, IItemClickComponent, IEmptyStateComponent, IAccessibleNameComponent
     where T : MenuComponent<T>, IUIComponentDefinition
 {
+    private const string DefaultTemplateKeyProperty = nameof(IMenuItemModel.Kind);
+
     private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
+    private int _submenuDepth;
+    private bool _readsSubmenus;
 
     // Unset, rather than the block's Background, which would paint every menu: a sidebar menu draws no ground, while a popup menu
     // (context menu, split-button list, flyout) wears the popup's surface colour; set, it is the sidebar's or rail's own ground too, a
@@ -43,7 +48,13 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     private static UISurfaceStyle? DefaultSurface => null;
 
     private static readonly UIResponsive<UIMenuDisplay> DefaultDisplay = UIMenuDisplay.List;
-    private static readonly UIResponsive<UIButtonSize> DefaultSize = UIButtonSize.Medium;
+    private static readonly UIResponsive<UISize> DefaultSize = UISize.Medium;
+
+    /// <summary>The default number of nested submenu levels compiled for a menu.</summary>
+    public const int DefaultSubmenuDepth = 1;
+
+    /// <summary>The maximum number of nested submenu levels a menu compiles.</summary>
+    public const int MaxSubmenuDepth = 4;
 
     /// <summary>The template variant key rendering <see cref="UIMenuItemKind.Header"/> entries.</summary>
     public const string HeaderTemplateKey = nameof(UIMenuItemKind.Header);
@@ -58,7 +69,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     public const string SelectTemplateKey = nameof(UIMenuItemKind.Select);
 
     /// <summary>
-    /// The template slot holding an entry's sub-entries: a nested menu bound to <see cref="IMenuItemModel.Items"/>, one level deep,
+    /// The template slot holding an entry's sub-entries: a nested menu bound to <see cref="IMenuItemModel.Items"/>,
     /// so a sub-entry is a compiled row the runtime updates like any other.
     /// </summary>
     public const string SubmenuTemplateKey = "Submenu";
@@ -72,7 +83,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// tier alone says whether a menu there is the phone's bottom bar or a rail drawn as a list; a <c>sm</c> tier never does. A rail
     /// has nothing to fold, so it ignores <c>Expanded</c> and draws no collapse toggle; the fold is kept for the widths it is a list
     /// on. An entry's label cut short shows whole as its tooltip unless the entry has one of its own; a badge stands on the icon's
-    /// corner, an empty <c>BadgeText</c> as a dot; the current entry wears its icon filled. The rail's ground is <see cref="Surface"/>'s.
+    /// corner, an empty <c>BadgeTitle</c> as a dot; the current entry wears its icon filled. The rail's ground is <see cref="Surface"/>'s.
     /// A rail takes no search (<see cref="SetSearch"/>): its groups fly out, so a match among their entries would not show; a search
     /// typed on a list is let go of where it turns into a rail. A rail that is the whole of a view's left side is the page's bottom
     /// navigation bar on a phone rather than a drawer (<see cref="UIMenuDisplay.Rail"/> says when): its entries share the width down to
@@ -106,10 +117,10 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     /// narrower than 64, 56 or 48 px.
     /// </remarks>
     [UIComponentProperty(IsBindable = false, DefaultValueMember = nameof(DefaultSize))]
-    public UIResponsive<UIButtonSize>? Size { get; set; }
+    public UIResponsive<UISize>? Size { get; set; }
 
     /// <summary>
-    /// Gets whether this menu is another entry's sub-entries: it folds and flies out with that entry, and has no sub-entries of its own.
+    /// Gets whether this menu is another entry's sub-entries: it folds and flies out with that entry.
     /// </summary>
     /// <remarks>Render-time only: a nested list is built as its entry's block.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = false)]
@@ -148,7 +159,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     }
 
     /// <summary>
-    /// Puts a search beside the menu's switch, the field <see cref="TextInputComponent{T}.SetSearch"/> makes, Tonal and small: what is
+    /// Puts a search beside the menu's switch, the field <see cref="TextInputComponent{T}.SetSearch"/> makes, Filled and small: what is
     /// typed narrows the entries in the browser by the words they show.
     /// </summary>
     /// <remarks>
@@ -159,9 +170,9 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     {
         _ = SetToggleContent(new TextInputComponent()
             .SetSearch(placeholder)
-            // Tonal, by the field rule: the menu's band already frames it.
-            .SetAppearance(UIInputAppearance.Tonal)
-            .SetSize(UIInputSize.Small)
+            // Filled, by the field rule: the menu's band already frames it.
+            .SetAppearance(UIInputAppearance.Filled)
+            .SetSize(UISize.Small)
         );
 
         EnsureDefaultEmptyTemplate();
@@ -181,29 +192,109 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     }
 
     /// <summary>
-    /// Initializes the menu with its default entry template, the caption/rule/check/select variants, and — unless it is itself an
-    /// entry's sub-entries — the nested menu those sub-entries are shown through.
+    /// Sets how many levels of nested sub-entries the menu compiles templates for (<see cref="DefaultSubmenuDepth"/> by default, up to
+    /// <see cref="MaxSubmenuDepth"/>); entries set through <c>SetItems</c> raise this to their own depth automatically.
     /// </summary>
-    protected MenuComponent(string? id = null, bool nested = false) : base(id)
+    public T SetSubmenuDepth(int depth)
     {
-        _ = SetTemplate(new DefaultMenuItemTemplate(binds: true));
-        _ = AddTemplateVariant(HeaderTemplateKey, new DefaultMenuItemTemplate(binds: true).SetKind(UIMenuItemKind.Header));
-        _ = AddTemplateVariant(SeparatorTemplateKey, new DefaultMenuItemTemplate(binds: true).SetKind(UIMenuItemKind.Separator));
-        _ = AddTemplateVariant(CheckTemplateKey, new DefaultMenuItemTemplate(binds: true).SetKind(UIMenuItemKind.Check));
-        _ = AddTemplateVariant(SelectTemplateKey, new DefaultMenuItemTemplate(binds: true).SetKind(UIMenuItemKind.Select));
+        ArgumentOutOfRangeException.ThrowIfNegative(depth);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(depth, MaxSubmenuDepth);
 
-        TemplateKeyProperty = nameof(IMenuItemModel.Kind);
+        ConfigureSubmenuDepth(depth);
+        return Self;
+    }
 
-        if (nested)
+    private void ConfigureSubmenuDepth(int depth)
+    {
+        _submenuDepth = depth;
+
+        if (depth == 0)
         {
-            Nested = true;
+            _ = RemoveTemplateVariantCore(SubmenuTemplateKey);
+            _ = RemoveTemplateVariantCore(SelectTemplateKey);
             return;
         }
 
-        // One level deep: the nested menu carries no nested menu of its own.
-        // The row decorator draws an entry's sub-entries when it has any, and opens it as it arrives when it is expanded.
-        _ = AddItemReads($"{nameof(IMenuItemModel.Items)}.{nameof(IMenuItemModel.Id)}", nameof(IMenuItemModel.Expanded));
-        _ = SetTemplateVariantCore(SubmenuTemplateKey, MenuComponent.CreateNested().BindItems(nameof(IMenuItemModel.Items), UIBindingScope.Relative));
+        if (!_readsSubmenus)
+        {
+            _readsSubmenus = true;
+            _ = AddItemReads($"{nameof(IMenuItemModel.Items)}.{nameof(IMenuItemModel.Id)}", nameof(IMenuItemModel.Expanded));
+        }
+
+        if (GetTemplateVariant(SelectTemplateKey) is null)
+            _ = AddTemplateVariant(SelectTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Select));
+
+        _ = SetTemplateVariantCore(SubmenuTemplateKey, MenuComponent.CreateNested(depth - 1).BindItems(nameof(IMenuItemModel.Items), UIBindingScope.Relative));
+    }
+
+    /// <summary>
+    /// Initializes the menu with its default entry template, the caption/rule/check/select variants, and — unless it is itself a leaf
+    /// sub-entry menu — the nested menu an entry's sub-entries are shown through.
+    /// </summary>
+    protected MenuComponent(string? id = null, bool nested = false) : this(id, nested ? 0 : DefaultSubmenuDepth, nested)
+    {
+    }
+
+    private protected MenuComponent(string? id, int submenuDepth, bool nested) : base(id)
+    {
+        _ = SetTemplate(new DefaultMenuItemTemplate(binds: true));
+        _ = AddTemplateVariant(HeaderTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Header));
+        _ = AddTemplateVariant(SeparatorTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Separator));
+        _ = AddTemplateVariant(CheckTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Check));
+
+        if (nested)
+            MarkNested();
+
+        ConfigureSubmenuDepth(submenuDepth);
+    }
+
+    private protected void MarkNested()
+        => Nested = true;
+
+    /// <inheritdoc/>
+    protected override void OnItemsChanged()
+    {
+        var depth = MeasureSubmenuDepth(Items, MaxSubmenuDepth);
+
+        if (depth > _submenuDepth)
+            ConfigureSubmenuDepth(depth);
+    }
+
+    private static int MeasureSubmenuDepth(IEnumerable<IMenuItemModel>? items, int remainingCap)
+    {
+        if (remainingCap <= 0 || items is null)
+            return 0;
+
+        var deepest = 0;
+
+        foreach (IMenuItemModel item in items)
+        {
+            if (item.Items is null)
+                continue;
+
+            var hasChild = false;
+
+            foreach (IMenuItemModel _ in item.Items)
+            {
+                hasChild = true;
+                break;
+            }
+
+            if (!hasChild)
+                continue;
+
+            var childDepth = 1 + MeasureSubmenuDepth(item.Items, remainingCap - 1);
+
+            if (childDepth > deepest)
+            {
+                deepest = childDepth;
+
+                if (deepest >= remainingCap)
+                    return remainingCap;
+            }
+        }
+
+        return deepest;
     }
 
     /// <summary>
@@ -216,20 +307,32 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
         _ = OnTemplate<IButtonComponent>(CheckTemplateKey, register);
 
         // A sub-entry runs the same command: its own key as the current item, its entry as the parent.
-        if (GetTemplateVariant(SubmenuTemplateKey) is IItemClickComponent submenu)
-            submenu.OnClickableItemTemplates(register);
+        _ = OnTemplate<IVisualComponent>(SubmenuTemplateKey, template =>
+        {
+            if (template is IItemClickComponent submenu)
+                submenu.OnClickableItemTemplates(register);
+        });
     }
 }
 
 /// <summary>
 /// A list of navigation entries, vertical or horizontal, that can collapse to icons alone.
 /// </summary>
-public sealed class MenuComponent(string? id = null, bool nested = false) : MenuComponent<MenuComponent>(id, nested), IUIComponentDefinition
+public sealed class MenuComponent : MenuComponent<MenuComponent>, IUIComponentDefinition
 {
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.menu";
 
+    /// <summary>Initializes a new menu component.</summary>
+    public MenuComponent(string? id = null, bool nested = false) : base(id, nested)
+    {
+    }
+
+    private MenuComponent(string? id, int submenuDepth) : base(id, submenuDepth, nested: true)
+    {
+    }
+
     /// <summary>The menu an entry's sub-entries are shown through.</summary>
-    internal static MenuComponent CreateNested()
-        => new(nested: true);
+    internal static MenuComponent CreateNested(int submenuDepth = 0)
+        => new(id: null, submenuDepth: submenuDepth);
 }

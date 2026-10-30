@@ -84,4 +84,13 @@ internal static class RecursiveMemberDiagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
     );
+
+    public static readonly DiagnosticDescriptor UnannotatedMutableProperty = new(
+        id: "NEUIR010",
+        title: "Mutable property on RecursiveObservable is missing [RecursiveMember]",
+        messageFormat: "Property '{0}' on '{1}' has a public setter on a RecursiveObservable without [RecursiveMember]",
+        category: "NE.Standard.UI",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
 }

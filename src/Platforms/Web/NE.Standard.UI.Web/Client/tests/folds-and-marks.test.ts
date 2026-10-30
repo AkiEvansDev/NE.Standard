@@ -45,7 +45,7 @@ test("a validation line with no words takes no room, whatever marks the field", 
 test("a read-only time segment fills under a key's focus only", () => {
     const lit = ".ui-temporal-input__segment:focus:is(:not([aria-readonly=\"true\"]), :focus-visible:not([data-ui-pointer-focus]))";
 
-    assert.match(declarations(lit) ?? "", /background: var\(--ui-color-primary\);/);
+    assert.match(declarations(lit) ?? "", /background: var\(--ui-wash-selected\);/);
     assert.match(css, new RegExp(`\\n  ${lit.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{\\s*forced-color-adjust: none;\\s*background: Highlight;`), "forced colours fill a read-only segment");
     assert.equal(declarations(".ui-temporal-input__segment:focus"), null, "a bare focus still fills a segment");
 });
@@ -53,7 +53,7 @@ test("a read-only time segment fills under a key's focus only", () => {
 test("a quiet button brightens its parts under the pointer, never the root a popup inside is placed from", () => {
     assert.doesNotMatch(css, /\.ui-button--link[^{,]*:hover \{\s*filter: brightness/, "a Link button filters its root");
     assert.doesNotMatch(css, /\):hover,\n[^{]*\{\s*background-color: transparent;\s*filter: brightness/, "a hovered row filters a quiet button's root");
-    assert.match(css, /:hover > :not\(\[role="menu"\], \[role="listbox"\]\) \{\s*filter: brightness\(1\.25\);/, "a Link button's parts do not brighten");
+    assert.match(css, /:hover > :not\(\[role="menu"\], \[role="listbox"\], \.ui-split-button__menu\) \{\s*filter: brightness\(1\.25\);/, "a Link button's parts do not brighten");
 });
 
 test("a quote paragraph's line is its own box, out of the reach of a tile's wash on the root's background", () => {
@@ -61,12 +61,9 @@ test("a quote paragraph's line is its own box, out of the reach of a tile's wash
     assert.match(declarations(".ui-paragraph--quote:not(.ui-loading)::before") ?? "", /width: 3px;\s*background-color: var\(--ui-quote-color, var\(--ui-color-border\)\);/);
 });
 
-test("a chosen row with pinned cells draws its mark once, above them", () => {
-    const row = ".ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]";
-
-    assert.match(declarations(".ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]::after") ?? "", /z-index: 1;\s*box-shadow: var\(--ui-selected-mark, inset 2px 0 0 0 var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\)\);/);
-    // In one list with a pinned start grip, which drops its line the same way.
-    assert.match(css, new RegExp(`\\n${`${row} > .ui-table__cell--pinned`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},[^{]*\\.ui-row__grip \\{\\s*box-shadow: none;`), "each pinned cell draws the mark again");
+test("a chosen row with pinned cells draws its mark once, above them, and keeps its bottom row separator", () => {
+    assert.match(declarations(".ui-table:not(.ui-table--no-separators, .ui-table--pinned) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]:not(:last-child)") ?? "", /box-shadow: var\(--ui-selected-mark, inset 0 -1px 0 var\(--ui-color-border\)\);/);
+    assert.match(declarations(".ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]::after") ?? "", /z-index: 1;\s*box-shadow: var\(--ui-selected-mark, none\);/);
     assert.doesNotMatch(css, /\.ui-table \[data-ui-items-host\] > \.ui-table__row/, "a table row rule reaches a nested table's rows");
 });
 

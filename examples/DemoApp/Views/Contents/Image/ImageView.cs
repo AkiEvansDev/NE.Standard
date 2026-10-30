@@ -28,18 +28,18 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/contents/image";
     protected override string Header => "demo.contents.image.header";
     protected override string HeaderDescription => "demo.contents.image.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/catalogue", "demo.nav.screens.catalogue");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/catalogue", "demo.nav.screens.catalogue");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new ImageComponent()
             .BindStandard()
-            .BindSource($"{ImageGroup}.{nameof(ImageGroupContext.Source)}")
-            .BindFit($"{ImageGroup}.{nameof(ImageGroupContext.Fit)}")
-            .BindBorderRadius($"{ImageGroup}.{nameof(ImageGroupContext.BorderRadius)}")
-            .BindShape($"{ImageGroup}.{nameof(ImageGroupContext.Shape)}")
-            .BindAltText($"{ImageGroup}.{nameof(ImageGroupContext.AltText)}")
-            .BindTooltip($"{ImageGroup}.{nameof(ImageGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{ImageGroup}.{nameof(ImageGroupContext.TooltipPlacement)}")
+            .BindSource<ImageController>(static x => x.ImageGroup.Source)
+            .BindFit<ImageController>(static x => x.ImageGroup.Fit)
+            .BindBorderRadius<ImageController>(static x => x.ImageGroup.BorderRadius)
+            .BindShape<ImageController>(static x => x.ImageGroup.Shape)
+            .BindAltText<ImageController>(static x => x.ImageGroup.AltText)
+            .BindTooltip<ImageController>(static x => x.ImageGroup.Tooltip)
+            .BindTooltipPlacement<ImageController>(static x => x.ImageGroup.TooltipPlacement)
             // The preview's own box, not a row; Width and Height stay the standard rows and work inside it.
             .SetMaxWidth(UILayoutLength.Absolute(320))
             .SetMaxHeight(UILayoutLength.Absolute(180))
@@ -64,9 +64,9 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBannerGroup()
     {
-        return DemoUI.CreateExample("A band across the top of something",
+        return DemoUI.CreateExample("Card hero banner (UIImageFit.Cover)",
             new CardComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetPadding(UIThickness.Uniform(0))
                 .SetWidth(UILayoutLength.Absolute(340))
                 .SetContent(new StackPanelComponent()
@@ -99,7 +99,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     {
         // A wrapping stack, not a WrapPanel: the panel sizes by column span, which would make the tiles a
         // fraction of the page rather than the same square.
-        return DemoUI.CreateExample("Four shapes, one box",
+        return DemoUI.CreateExample("Uniform thumbnail grid & missing-image fallback",
             new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetWrap(true)
@@ -109,7 +109,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                 .AddChild(CreateTile(2))
                 .AddChild(CreateTile(3))
                 .AddChild(CreateTile(DemoImages.Missing, "A picture that no longer loads")),
-            note: "Two landscapes and two portraits in the same square: Cover fills each box and crops what is left over, where Contain would leave every tile bands of its own. A picture that fails keeps its box and shows a picture's glyph on the wash; `SetFallbackIcon` names another glyph."
+            note: "Two landscapes and two portraits in the same square: Cover fills each box and crops what is left over, where Contain would leave every tile bands of its own. A picture that fails keeps its box and shows a picture's glyph on the wash; `SetIconFallback` names another glyph."
         );
     }
 
@@ -130,7 +130,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAvatarGroup()
     {
-        return DemoUI.CreateExample("A face at the start of a row",
+        return DemoUI.CreateExample("Circular avatars (UIShape.Circle)",
             UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(340))
                 .AddChild(new StackPanelComponent()
@@ -139,7 +139,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                     .AddChild(new ImageComponent()
                         .SetSource(DemoImages.Avatar)
                         .SetAltText("Robin Hale")
-                        .SetShape(UIImageShape.Circle)
+                        .SetShape(UIShape.Circle)
                         .SetWidth(UILayoutLength.Absolute(40))
                     )
                     .AddChild(new TextComponent()
@@ -157,7 +157,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                     .AddChild(new ImageComponent()
                         .SetSource(DemoImages.NightStreet)
                         .SetAltText("Alex Warren")
-                        .SetShape(UIImageShape.Circle)
+                        .SetShape(UIShape.Circle)
                         .SetWidth(UILayoutLength.Absolute(40))
                     )
                     .AddChild(new TextComponent()
@@ -170,7 +170,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                 )
                 .AddChild(CreateFacelessRow(null, "Jordan Lee", "No picture yet"))
                 .AddChild(CreateFacelessRow(DemoImages.Missing, "Casey Moore", "A picture that no longer loads")),
-            note: "A round picture with no picture — none given, or one that fails — shows the person's glyph on a neutral circle, with no visibility binding in the controller; `SetFallbackIcon` names another glyph."
+            note: "A round picture with no picture — none given, or one that fails — shows the person's glyph on a neutral circle, with no visibility binding in the controller; `SetIconFallback` names another glyph."
         );
     }
 
@@ -182,7 +182,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
             .AddChild(new ImageComponent()
                 .SetSource(source)
                 .SetAltText(name)
-                .SetShape(UIImageShape.Circle)
+                .SetShape(UIShape.Circle)
                 .SetWidth(UILayoutLength.Absolute(40))
             )
             .AddChild(new TextComponent()
@@ -199,7 +199,7 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLightboxGroup()
     {
-        return DemoUI.CreateExample("Full size at a press",
+        return DemoUI.CreateExample("Client lightbox (OnClickShowImage & ShowImageEffect)",
             UILayout.Row(24)
                 .SetWrap(true)
                 .AddChild(DemoUI.CreateLabelled("One picture: the surface's own", new SurfaceComponent()

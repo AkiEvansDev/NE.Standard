@@ -66,7 +66,7 @@ internal partial class DemoGroupContext : RecursiveObservable
             Key = new TextItem { Title = name, TitleType = UITextAppearance.Caption },
             Value = new TextItem { Title = Describe(read()), TitleType = UITextAppearance.Caption, TitleColor = UIThemeColor.Muted },
             // Small, so the row's height stays its own text rather than the control's.
-            Action = new ButtonItem { Id = name, Icon = DemoIcons.Outline(DemoIcons.ChevronRight), Type = UIButtonType.Ghost, Size = UIButtonSize.Small }
+            Action = new ButtonItem { Id = name, Icon = DemoIcons.Outline(DemoIcons.ChevronRight), Variant = UIButtonVariant.Ghost, Size = UISize.Small }
         });
     }
 

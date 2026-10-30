@@ -5,7 +5,6 @@
 @import "../mixins/interactive.less";
 @import "../mixins/range.less";
 @import "../mixins/responsive.less";
-@import "../mixins/tabs.less";
 @import "../mixins/selected.less";
 @import "../mixins/text.less";
 
@@ -15,49 +14,35 @@
     position: relative;
 }
 
-// A pointer over the whole row, not only the button: a click anywhere on the closed control opens the picker.
+// A pointer over the whole row, not only the swatch button: a click anywhere on the closed control opens the picker.
 .ui-color-input__row {
     .ui-input-field();
     cursor: pointer;
 }
 
-// Both variants are rendered and the root's data attribute picks which shows, keeping Variant an ordinary bindable property.
-.ui-color-input[data-ui-color-variant="field"] > .ui-color-input__swatch--button,
-.ui-color-input[data-ui-color-variant="swatch"] > .ui-color-input__row {
-    display: none;
+.ui-color-input:not(.ui-input--underline, .ui-input--ghost, .ui-input--small, .ui-input--title-inside):not([data-ui-input-prefix-icon]) > .ui-color-input__row {
+    padding-left: @ui-space-2;
 }
 
-// The same for what the popup offers: the pane and its caption are there and hidden, not absent.
-.ui-color-input[data-ui-color-no-picker] :is([data-ui-color-tab="picker"], [data-ui-color-pane="picker"]),
-.ui-color-input[data-ui-color-no-palette] :is([data-ui-color-tab="palette"], [data-ui-color-pane="palette"]),
+// Without the palette, only the free picker stands in the popup, so the segmented switcher and palette pane hide together.
+.ui-color-input[data-ui-color-no-palette] :is(.ui-color-input__tabs, [data-ui-color-pane="palette"]),
 .ui-color-input[data-ui-color-no-opacity] .ui-color-input__slider--opacity {
     display: none;
 }
 
-// One caption is not a choice, so the strip goes with the other pane.
-.ui-color-input[data-ui-color-no-picker] .ui-color-input__tabs,
-.ui-color-input[data-ui-color-no-palette] .ui-color-input__tabs {
-    display: none;
+.ui-color-input[data-ui-color-no-palette] .ui-color-input__pane[data-ui-color-pane="picker"] {
+    display: flex;
 }
 
-// Nothing to open: a popup already open when the last pane is taken away closes with it instead of hanging over the page.
-.ui-color-input[data-ui-color-no-picker][data-ui-color-no-palette] > .ui-color-input__popup {
-    display: none;
-}
-
-// The opening button goes with the popup: with neither pane offered what is left is a typed field with a swatch. Field variant only.
-.ui-color-input[data-ui-color-no-picker][data-ui-color-no-palette] .ui-color-input__toggle {
-    display: none;
-}
-
-// A checkerboard behind the colour so transparent reads so; the colour is a background layer, not an ::after, keeping one clip and edge.
+// A checkerboard behind the colour so transparent reads so; the swatch is the `<button>` that opens the popup.
 .ui-color-input__swatch {
     position: relative;
     flex: none;
     width: 1.4em;
     height: 1.4em;
-    // No border: an opaque border would ring a translucent colour, since only the fill shows the checkerboard.
-    border-radius: var(--ui-radius-input);
+    padding: 0;
+    border: none;
+    border-radius: calc(var(--ui-radius-input) - 2px);
     background-color: #fff;
     background-image:
         linear-gradient(var(--ui-color-input-color, transparent), var(--ui-color-input-color, transparent)),
@@ -66,107 +51,38 @@
     background-size: auto, 8px 8px, 8px 8px;
     background-position: 0 0, 0 0, 4px 4px;
     background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px var(--ui-color-mark);
     overflow: hidden;
+    cursor: pointer;
+    .ui-interactive-base();
+    transition: box-shadow @ui-motion-fast @ui-motion-ease;
     // The colour is the value, not a look: a high-contrast mode keeps it, as it keeps every colour this control draws.
     forced-color-adjust: none;
 }
 
-.ui-color-input.ui-readonly :is(.ui-color-input__row, .ui-color-input__swatch--button) {
+.ui-color-input.ui-readonly :is(.ui-color-input__row, .ui-color-input__swatch) {
     cursor: default;
 }
 
-// A boundary, since a pale value needs one: an inset shadow, as a border shows the page through at the corners. As wide as the
-// control, which is as wide as #RRGGBBAA unless a Width says otherwise, so swatches down a column line up: a query container, its
-// own width that and never its text's, so a narrower Width holds it and the text goes (below). A min-width as wide as the text
-// stood it over whatever came after.
-.ui-color-input__swatch--button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: auto;
-    min-width: 0;
-    container-type: inline-size;
-    contain-intrinsic-inline-size: 8ch;
-    flex: 1 1 auto;
-    height: auto;
-    // A field's height, a floor a smaller Height on the control goes under (its sizes inherit here): a fixed one overflowed it.
-    .ui-responsive-floor(min-height, --ui-min-height, @ui-control-height, --ui-height);
-    padding: 0 @ui-space-3;
-    // No edge to draw an authored thickness with, as ever: the boundary is the inset shadow. Its corners are the author's.
-    border: none;
-    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-input));
-    background-clip: border-box;
-    box-shadow: inset 0 0 0 var(--ui-border-width, 1px) var(--ui-color-border);
-    font: inherit;
-    cursor: pointer;
-    transition: box-shadow @ui-motion-fast @ui-motion-ease;
-}
-
-    .ui-color-input:not([data-ui-color-no-opacity]) > .ui-color-input__swatch--button {
-        contain-intrinsic-inline-size: 10ch;
-    }
-
-    // Narrower than an opaque value, the swatch is the colour alone: a cut "#006E" reads as another colour. Under the default
-    // 8ch, which rounding put a hair under itself.
-    @container (width < 7.5ch) {
-        .ui-color-input__swatch--button > .ui-color-input__text--over {
-            display: none;
-        }
-    }
-
-// The picked colour is a filled ground, so the swatch answers as a filled button does: shaded, never washed, more under a press.
 @media @{ui-can-hover} {
-    .ui-color-input@{ui-field-live} > .ui-color-input__swatch--button:hover {
-        box-shadow: inset 0 0 0 var(--ui-border-width, 1px) var(--ui-color-border), inset 0 0 0 999px @ui-filled-hover-shade;
+    .ui-color-input@{ui-field-live} .ui-color-input__swatch:hover {
+        box-shadow: inset 0 0 0 1px var(--ui-color-mark), inset 0 0 0 999px @ui-filled-hover-shade;
     }
 }
 
-.ui-color-input@{ui-field-live} > .ui-color-input__swatch--button:active {
-    box-shadow: inset 0 0 0 var(--ui-border-width, 1px) var(--ui-color-border), inset 0 0 0 999px @ui-filled-active-shade;
+.ui-color-input@{ui-field-live} .ui-color-input__swatch@{ui-keyboard-focus} {
+    box-shadow: inset 0 0 0 1px var(--ui-color-mark), inset 0 0 0 999px @ui-filled-hover-shade;
 }
 
-// min-width: 0 lets the text shrink instead of the toggle; without it a flex child refuses to shrink below its own string.
+.ui-color-input@{ui-field-live} .ui-color-input__swatch:active {
+    box-shadow: inset 0 0 0 1px var(--ui-color-mark), inset 0 0 0 999px @ui-filled-active-shade;
+}
+
+// min-width: 0 lets the text shrink; without it a flex child refuses to shrink below its own string.
 .ui-color-input__text {
     min-width: 0;
     .ui-text-nowrap();
     font-variant-numeric: tabular-nums;
-}
-
-// The engine picks the contrasting side directly, rather than a plate behind the text, which read as a control of its own.
-.ui-color-input__text--over {
-    position: relative;
-    z-index: 1;
-    color: var(--ui-color-input-on-color, inherit);
-}
-
-// No hover of its own: a plate under a decorative glyph reads as a second button. Still a <button> for the keyboard and aria-expanded.
-.ui-color-input__toggle {
-    position: relative;
-    .ui-glyph-host();
-    margin-inline-start: auto;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--ui-text-muted);
-    cursor: pointer;
-    .ui-interactive-base();
-    transition: color @ui-motion-fast @ui-motion-ease;
-}
-
-    .ui-color-input.ui-readonly .ui-color-input__toggle {
-        background: none;
-        color: var(--ui-text-muted);
-        cursor: default;
-        opacity: @ui-field-idle-part-opacity;
-    }
-
-// The library's own pipette; a picker opens rather than unfolds, so the mark takes the text's ink instead of rotating.
-.ui-color-input__toggle::before {
-    .ui-pipette-glyph(@ui-glyph-sm);
-}
-
-.ui-color-input__toggle[aria-expanded="true"] {
-    color: var(--ui-color-on-surface);
 }
 
 .ui-color-input__popup {
@@ -182,48 +98,49 @@
     .ui-popup-open(flex);
 }
 
-// The same strip Tabs/TabsView draw, from the same mixins.
+// Compact ButtonGroup-style segmented switcher aligned to the right edge of the popup.
 .ui-color-input__tabs {
-    .ui-tab-strip();
+    display: inline-flex;
+    align-self: flex-end;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--ui-color-mark);
+    border-radius: var(--ui-radius-button);
+    background-color: var(--ui-color-background);
 }
 
 .ui-color-input__tab {
     .ui-bare-button();
-    .ui-tab-caption-box();
-    .ui-tab-caption-rest-ink();
-    transition: color @ui-motion-fast @ui-motion-ease;
+    padding: 2px @ui-space-2;
+    border-radius: calc(var(--ui-radius-button) - 2px);
+    color: @ui-text-muted;
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+    transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
 }
 
-    .ui-color-input__tab::after {
-        .ui-tab-caption-mark();
-    }
-
     @media @{ui-can-hover} {
-        .ui-color-input__tab:hover {
-            .ui-tab-caption-hover-ink();
+        .ui-color-input__tab:not([data-ui-color-tab-selected]):hover {
+            background-color: var(--ui-wash-hover);
+            color: @ui-text-ink;
         }
     }
 
-    @media @{ui-can-hover} {
-        .ui-color-input__tab:hover::after {
-            .ui-tab-caption-hover-mark();
-        }
+    .ui-color-input__tab:not([data-ui-color-tab-selected])@{ui-keyboard-focus} {
+        background-color: var(--ui-wash-hover);
+        color: @ui-text-ink;
     }
 
-// The selected vocabulary, as on every strip: an authored --ui-selected-* reaches this one too.
+    .ui-color-input__tab:not([data-ui-color-tab-selected]):active {
+        background-color: var(--ui-wash-active);
+        color: @ui-text-ink;
+    }
+
 .ui-color-input__tab[data-ui-color-tab-selected] {
-    .ui-tab-caption-selected-ink();
+    .ui-selected-ground(var(--ui-wash-selected));
+    .ui-selected-ink(var(--ui-text-selected); @ui-chosen-weight);
 }
-
-    .ui-color-input__tab[data-ui-color-tab-selected]::after {
-        .ui-tab-caption-selected-mark();
-    }
-
-    @media @{ui-can-hover} {
-        .ui-color-input__tab[data-ui-color-tab-selected]:hover::after {
-            .ui-tab-caption-selected-mark();
-        }
-    }
 
 .ui-color-input__pane {
     display: none;
@@ -308,6 +225,7 @@
     .ui-field-states();
     min-width: 0;
     padding: 2px @ui-space-1;
+    outline: none;
     color: inherit;
     font: inherit;
     font-variant-numeric: tabular-nums;
@@ -337,15 +255,25 @@
     forced-color-adjust: none;
 }
 
+@media @{ui-can-hover} {
+    .ui-color-input@{ui-field-live} .ui-color-input__chip:hover {
+        box-shadow: inset 0 0 0 999px @ui-filled-hover-shade;
+    }
+}
+
 .ui-color-input__chip[data-ui-color-name-selected] {
-    outline: 2px solid var(--ui-mark-selected-fill);
+    outline: 2px solid var(--ui-mark-selected);
     outline-offset: 1px;
 }
 
-// Where the keyboard stands among the chips, and on the swatch that opens the picker: the framework's keyboard frame.
-.ui-color-input__chip@{ui-keyboard-focus},
-.ui-color-input__swatch--button@{ui-keyboard-focus} {
-    .ui-keyboard-frame-inside(var(--ui-radius-input));
+.ui-color-input__chip@{ui-keyboard-focus} {
+    box-shadow: inset 0 0 0 999px @ui-filled-hover-shade;
+    .ui-keyboard-frame();
+}
+
+.ui-color-input__chip[data-ui-color-name-selected]@{ui-keyboard-focus} {
+    outline: 2px solid var(--ui-mark-selected);
+    outline-offset: 1px;
 }
 
 .ui-color-input__slider {
@@ -355,7 +283,7 @@
 }
 
 // A mixin: -webkit- and -moz- pseudo-elements cannot share a selector, or the browser drops the rule.
-// The checker is the surface's ink, not white, which is invisible on the light theme's raised ground.
+// The checker is the surface's ink, not white, which is invisible on the light theme's surface ground.
 @ui-color-input-checker: ~"color-mix(in srgb, var(--ui-color-on-surface) 15%, transparent)";
 
 .ui-color-input-opacity-track() {
@@ -369,11 +297,13 @@
 }
 
 .ui-color-input-factor-track() {
-    background-image: linear-gradient(to right, #000, var(--ui-color-input-base, var(--ui-surface-raised)) 50%, #fff);
+    background-image: linear-gradient(to right, #000, var(--ui-color-input-base, var(--ui-color-surface)) 50%, #fff);
 }
 
 // The outline puts the track back, its fill matching the popup; the thumb carries the picked colour, since here the value is a colour.
 .ui-color-input__slider-input {
+    --ui-range-fill-color: var(--ui-color-input-solid, var(--ui-color-primary));
+
     flex: 1 1 auto;
     min-width: 0;
     .ui-range-input();
@@ -388,22 +318,14 @@
         box-shadow: inset 0 0 0 1px var(--ui-color-border);
     }
 
-    &::-webkit-slider-thumb {
-        background: var(--ui-color-input-solid, var(--ui-color-primary));
-    }
-
-    &::-moz-range-thumb {
-        background: var(--ui-color-input-solid, var(--ui-color-primary));
-    }
-
     // Through the mixin's own guard, which its hover spells: without it the mixin's primary halo outranks this one.
     @media @{ui-can-hover} {
         &@{ui-range-live}:hover::-webkit-slider-thumb {
-            .ui-range-halo(var(--ui-color-input-solid, var(--ui-color-primary)));
+            .ui-range-halo();
         }
 
         &@{ui-range-live}:hover::-moz-range-thumb {
-            .ui-range-halo(var(--ui-color-input-solid, var(--ui-color-primary)));
+            .ui-range-halo();
         }
     }
 }

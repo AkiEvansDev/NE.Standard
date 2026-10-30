@@ -15,10 +15,10 @@ public static class WebIconValue
     public const string MaskPrefix = "mask:";
 
     /// <summary>The class an untinted picture wears: painted as it is.</summary>
-    public const string ImageClassName = "ui-icon--image";
+    public const string ImageClassName = WebClassNames.IconImage;
 
     /// <summary>The class a tinted picture wears: the one form <c>.ui-icon::before</c> paints, a mask filled with the text colour.</summary>
-    public const string MaskClassName = "ui-icon--mask";
+    public const string MaskClassName = WebClassNames.IconMask;
 
     /// <summary>The slot a picture fills, inline on the element.</summary>
     public const string ImageSourceProperty = "--ui-icon-url";

@@ -8,7 +8,7 @@ import { FakeElement, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom();
 
-const { ensureEmptyState } = await import("../src/items/items-empty-renderer.ts");
+const { ensureEmptyState } = await import("../src/addressing/items-empty-renderer.ts");
 
 type Templates = Parameters<typeof ensureEmptyState>[2];
 type Renderer = Parameters<typeof ensureEmptyState>[3];

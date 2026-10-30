@@ -61,7 +61,7 @@ test("a flyout among a field's actions has its anchor compacted as the field's o
 
         assert.match(declarationsOf(anchor), /min-height: [^;]*1\.75rem/);
         assert.match(declarationsOf(`${anchor}:not(.ui-split-button)`), /padding: [^;]*0\.25rem 0\.5rem\)/);
-        assert.match(declarationsOf(`${anchor}.ui-button--ghost`), /color: var\(--ui-text-muted\)/);
+        assert.match(declarationsOf(`${anchor}.ui-button--ghost:not(.ui-disabled):not(.ui-loading):not(:disabled):where(:not([data-ui-popup-hover])):active`), /color: var\(--ui-color-on-surface\)/);
     }
 });
 

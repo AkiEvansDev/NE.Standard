@@ -2,7 +2,7 @@
 // tooltip, the keyboard, a screen reader) with its children inert; a read-only input's own change is refused here rather than by
 // `disabled`, which takes the focus with it; a disabled link has no `href`, so not even the browser's menu opens it.
 
-import { DisabledClass, HrefAttribute, LoadingClass, ReadOnlyClass } from "../addressing/dom-attributes.ts";
+import { DisabledClass, HrefAttribute, LoadingClass, MenuEntryActingAttribute, ReadOnlyClass } from "../addressing/dom-attributes.ts";
 import { isSafeLink } from "../rendering/url-safety.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { dismissOnRefusedClick } from "./popup-dismissal.ts";
@@ -123,6 +123,16 @@ function syncLinks(elements: Iterable<Element>): void {
  */
 function syncLink(element: Element, hadAddress = false): void {
     const address = element.getAttribute(HrefAttribute);
+
+    // A page-standing menu entry's role follows its row's address: a button while it holds none (the server writes one for a static
+    // entry, a row stamped with none takes one as it is built), the anchor's link while it does. A blocked state turns away only the
+    // live `href`, not the address, so the role stands.
+    if (element.hasAttribute(MenuEntryActingAttribute)) {
+        if (address === null)
+            element.setAttribute("role", "button");
+        else
+            element.removeAttribute("role");
+    }
 
     // An anchor that never had an address of its own keeps its `href`: inline markup's links are written once, as they stand.
     if (address === null && !hadAddress)

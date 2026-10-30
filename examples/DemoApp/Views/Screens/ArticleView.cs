@@ -34,7 +34,7 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
             UIText.Title("What we changed"),
             CreateChanges(),
             UIText.Paragraph("None of this is new — the pattern is described in [the rollout plan](https://docs.orvane.example/rollout) and in half the SRE books on the shelf. What was new for us was **doing all four at once**, and then *not* keeping the window as a comfort. The first release without one felt reckless. The fifth felt like Thursday."),
-            new SeparatorComponent().SetLabel("Tags"),
+            new SeparatorComponent().SetTitle("Tags"),
             UILayout.Row(8, CreateTag("Deploys"), CreateTag("Reliability"), CreateTag("Platform")),
             CreateVote(),
             CreateSubscribe(),
@@ -66,12 +66,12 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
             .SetSpacing(8)
             // A text, not a paragraph, so the description stands under the title, not the glyph; both wrap, as a cut line loses its words.
             .SetTemplate(new TextComponent()
-                .BindIcon(nameof(TextItem.Icon), UIBindingScope.Relative)
+                .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
                 .SetIconColor(UIThemeColor.Success)
-                .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                 .AsSubtitle()
                 .SetTitleWrap(true)
-                .BindDescription(nameof(TextItem.Description), UIBindingScope.Relative)
+                .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                 .SetDescriptionColor(UIThemeColor.Muted)
                 .SetWrapMode(UITextWrapMode.Wrap)
             );
@@ -80,30 +80,30 @@ internal sealed class ArticleView : DemoScreenView, IUIViewDefinition
         => new() { Id = id, Icon = DemoIcons.Outline(DemoIcons.Check), Title = title, Description = description };
 
     private static BadgeComponent CreateTag(string tag)
-        => new BadgeComponent().SetType(UIBadgeType.Surface).SetText(tag);
+        => new BadgeComponent().SetVariant(UIBadgeVariant.Surface).SetTitle(tag);
 
     /// <summary>The question at the foot, and the answer that replaces it.</summary>
     private static SurfaceComponent CreateVote()
         => UIPage.Band(
             UILayout.Ends(
-                UIText.Body().BindTitle(nameof(ArticleController.VoteLine)),
+                UIText.Body().BindTitle<ArticleController>(static x => x.VoteLine),
                 UIButtons.Outline("Yes").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "yes")),
                 UIButtons.Ghost("Not really").OnClickLiteral(nameof(ArticleController.Vote), new KeyValuePair<string, object?>("answer", "no"))
             )
         );
 
     /// <summary>One field and one button, with the rules a real box has: a shape checked on blur, a taken address refused.</summary>
-    /// <remarks>The field is Tonal: a lone field beside its own button, in a card that already frames it.</remarks>
+    /// <remarks>The field is Filled: a lone field beside its own button, in a card that already frames it.</remarks>
     private static CardComponent CreateSubscribe()
         => UICard.Create("Get the next one by mail", "One note a month, on what Orvane's staff learned.", UILayout.Columns(12,
             new TextInputComponent()
                 .SetPlaceholder("you@bramble.example")
                 .SetType(UITextInputType.Email)
                 .SetAutocomplete(UIAutocomplete.Email)
-                .SetAppearance(UIInputAppearance.Tonal)
+                .SetAppearance(UIInputAppearance.Filled)
                 .SetFormId(SubscribeFormId)
-                .BindValue(nameof(ArticleController.SubscriberEmail))
-                .BindValidation(nameof(ArticleController.SubscriberNotice))
+                .BindValue<ArticleController>(static x => x.SubscriberEmail)
+                .BindValidation<ArticleController>(static x => x.SubscriberNotice)
                 .Required("An address, so the note has somewhere to go.", UIValidationTrigger.Submit)
                 .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "That does not look like an email address.", UIValidationTrigger.Blur),
             UIButtons.Primary("Subscribe", DemoIcons.Outline(DemoIcons.Send))

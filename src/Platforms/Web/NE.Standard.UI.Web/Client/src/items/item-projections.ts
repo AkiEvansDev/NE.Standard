@@ -3,7 +3,7 @@
 
 import { getIdValue } from "../metadata/metadata-index.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logWarn } from "../metadata/logger.ts";
 
 /** The properties a record carries, by lowered name, each with what it carries inside it, null where it travels whole. */
 type Carried = {

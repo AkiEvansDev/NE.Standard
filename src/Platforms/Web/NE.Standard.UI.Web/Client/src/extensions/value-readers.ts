@@ -1,24 +1,42 @@
 import {
     FirstVisibleKeyAttribute,
     FirstVisibleKeyValueKind,
+    FlyoutOpenClass,
     ItemsQueryAttribute,
     ItemsQueryValueKind,
     LastVisibleKeyAttribute,
     LastVisibleKeyValueKind,
+    PaneLayoutAttribute,
     SelectedKeyAttribute,
     SelectedKeysAttribute,
-    PaneLayoutAttribute,
     SplitterPositionAttribute,
     TabCaptionAttribute,
-    TreeDropTargetAttribute,
-    TreeTitleAttribute,
     TabPinnedAttribute,
     TabsSelectedAttribute,
+    TreeDropTargetAttribute,
+    TreeTitleAttribute,
+    TrimInputAttribute,
     ValueHolderAttribute,
     ValueKindAttribute
 } from "../addressing/dom-attributes.ts";
-import { parseShare } from "../interactions/grid-tracks.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logWarn } from "../metadata/logger.ts";
+
+const TriggerTokenPadGlobalPattern = /\u2009/g;
+
+/** Thin space (`U+2009`, ~2px inline pad per side) wrapped around each completed trigger token so its pill has balanced horizontal air. */
+export const TriggerTokenPad = "\u2009";
+
+/** Strips synthetic inline-pill padding (`U+2009`) so bound server values hold the plain text. */
+export function stripTriggerTokenPadding(value: string): string {
+    return value.includes(TriggerTokenPad) ? value.replace(TriggerTokenPadGlobalPattern, "") : value;
+}
+
+/** A splitter's position as written on it (`data-ui-splitter-position`): a share from 0 to 1, or null for none or text that is not one. */
+export function parseShare(text: string | null): number | null {
+    const share = text === null || text.length === 0 ? Number.NaN : Number(text);
+
+    return share >= 0 && share <= 1 ? share : null;
+}
 
 export function toDomString(value: unknown): string {
     if (value === null || value === undefined)
@@ -51,14 +69,14 @@ export type ValueReading = {
     write(element: Element, value: unknown): boolean;
     /** Resolves once the value the element's component sent last has been answered and its changes applied; at once with none in flight. */
     whenSettled(element: Element): Promise<void>;
+    /** Whether a field refuses the value it holds by its own bounds and format, as the server would; a field the reader cannot change refuses nothing. */
+    isRefused(element: Element): boolean;
 };
 
 export type ValueReaderRegistration = {
     readonly kind: string;
     readonly read: ValueReader;
 };
-
-const TrimInputAttribute = "data-ui-trim-input";
 
 /** Readers by kind; an element naming no kind is read by what it is. */
 export class ValueReaderRegistry {
@@ -118,11 +136,14 @@ function readNativeValue(element: Element): unknown {
             case "range":
                 return element.value.trim().length === 0 ? null : Number(element.value);
             default:
-                return element.value;
+                return stripTriggerTokenPadding(element.value);
         }
     }
 
-    if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement)
+    if (element instanceof HTMLTextAreaElement)
+        return stripTriggerTokenPadding(element.value);
+
+    if (element instanceof HTMLSelectElement)
         return element.value;
 
     if (element instanceof HTMLDetailsElement)
@@ -144,7 +165,7 @@ export function resolveValueHolder(element: Element): Element | null {
 // The kind names are WebValueKinds on the server; the attributes each reads are written by the engine named.
 const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     // flyout-interaction-engine.ts
-    { kind: "flyout-open", read: element => element.classList.contains("ui-flyout--open") },
+    { kind: "flyout-open", read: element => element.classList.contains(FlyoutOpenClass) },
     // grid-splitter-engine.ts: the share before the bar, none for the authored tracks
     { kind: "splitter-position", read: element => parseShare(element.getAttribute(SplitterPositionAttribute)) },
     // pane-container-engine.ts: the panes' names in the order of their places

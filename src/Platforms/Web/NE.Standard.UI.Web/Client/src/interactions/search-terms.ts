@@ -1,9 +1,11 @@
 // One matching rule for every list the reader narrows by typing — a menu's search and a search field's static options: every typed
 // word, in any order, case and accents aside in the page's language, must appear in the words an entry shows.
 
+import { TextTitleClass } from "../addressing/dom-attributes.ts";
+
 const Marks = /\p{M}/gu;
 // The title an entry's own text component shows, apart from a description or a badge beside it.
-const EntryTitleSelector = ".ui-text__title";
+const EntryTitleSelector = `.${TextTitleClass}`;
 
 /** The typed words, folded as an entry's words are, in the language of the element they were typed into. */
 export function searchTerms(query: string, context: Element): string[] {

@@ -1,5 +1,6 @@
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
@@ -18,31 +19,31 @@ public interface IBadgeModel : IBindableItem
     static UIThemeColor DefaultBadgeIconColor { get; } = UIThemeColor.FromStyle(UIColorStyle.Default);
 
     /// <summary>
-    /// The badge text's role when unset.
+    /// The role of the badge's title when unset.
     /// </summary>
-    static UITextAppearance DefaultBadgeTextType { get; } = UITextAppearance.Overline;
+    static UITextAppearance DefaultBadgeTitleType { get; } = UITextAppearance.Overline;
 
     /// <summary>
     /// Gets the badge visual variant.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = UIBadgeType.Info)]
-    UIBadgeType? BadgeStyle { get; }
+    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = UIBadgeVariant.Info)]
+    UIBadgeVariant? BadgeVariant { get; }
 
     /// <summary>
-    /// Gets the badge's own colour, overriding <see cref="BadgeStyle"/> when set — a tag or a category swatch,
-    /// which the closed style enum cannot name.
+    /// Gets the badge's own colour, overriding <see cref="BadgeVariant"/> when set — a tag or a category swatch,
+    /// which the closed variant enum cannot name.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
     UIThemeColor? BadgeColor { get; }
 
     /// <summary>
-    /// Gets how the badge spends its colour; unset, a style fills and a <see cref="BadgeColor"/> tints. A plain badge ignores it.
+    /// Gets how the badge spends its colour; unset, a variant fills and a <see cref="BadgeColor"/> tints. A plain badge ignores it.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
     UIBadgeFill? BadgeFill { get; }
 
     /// <summary>
-    /// Gets the icon shown beside the badge text, by name from the registered icon font/set.
+    /// Gets the icon shown beside the badge's title, by name from the registered icon font/set.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
     string? BadgeIcon { get; }
@@ -54,23 +55,23 @@ public interface IBadgeModel : IBindableItem
     UIThemeColor? BadgeIconColor { get; }
 
     /// <summary>
-    /// Gets the badge icon size. Left unset the glyph is as tall as the badge's own text.
+    /// Gets the badge icon size. Left unset the glyph is as tall as the badge's title.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
-    UIIconSize? BadgeIconSize { get; }
+    UISize? BadgeIconSize { get; }
 
     /// <summary>
     /// Gets the short text drawn inside the badge, beside its icon.
     /// </summary>
     [Translatable]
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValue = null)]
-    UIPhrase? BadgeText { get; }
+    UIPhrase? BadgeTitle { get; }
 
     /// <summary>
-    /// Gets the badge text's role, defaulting to <see cref="DefaultBadgeTextType"/>.
+    /// Gets the role of the badge's title, defaulting to <see cref="DefaultBadgeTitleType"/>.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultBadgeTextType))]
-    UITextAppearance? BadgeTextType { get; }
+    [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultBadgeTitleType))]
+    UITextAppearance? BadgeTitleType { get; }
 
     /// <summary>
     /// Gets the tooltip for the badge content.

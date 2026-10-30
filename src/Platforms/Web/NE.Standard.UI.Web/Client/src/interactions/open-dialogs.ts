@@ -1,13 +1,8 @@
 // Which dialog is open on top. The open state lives on the DOM's `hidden` attribute, not a parallel set, so document order is the
 // stack order. Apart from the dialog engine so the popups can ask it: a popup behind a modal is out of the reader's reach until it closes.
 
-export const DialogAttribute = "data-ui-dialog";
-export const ModalAttribute = "data-ui-dialog-modal";
-export const BackdropAttribute = "data-ui-dialog-backdrop";
-export const CloseOnBackdropAttribute = "data-ui-dialog-close-backdrop";
-export const CloseOnEscapeAttribute = "data-ui-dialog-close-escape";
-/** The edge a sheet stands against: "left", "right", "top" or "bottom"; none on a centred dialog. */
-export const PlacementAttribute = "data-ui-dialog-placement";
+import { DialogAttribute, DialogModalAttribute } from "../addressing/dom-attributes.ts";
+
 /** Every open dialog, modal or not: the framework's and a package's own `<dialog>`. */
 export const OpenDialogSelector = `[${DialogAttribute}]:not([hidden]), dialog[open]`;
 const NativeModalSelector = "dialog:modal";
@@ -24,14 +19,29 @@ export function findTopmostOpenDialog(root: ParentNode): HTMLElement | null {
  * (a chooser, as the plugin contract asks) stands in the top layer over every framework dialog, so it answers first.
  */
 export function findOpenModalDialog(root: ParentNode): HTMLElement | null {
-    const native = root.querySelectorAll<HTMLElement>(NativeModalSelector);
+    const native = findNativeModalDialog(root);
 
-    if (native.length > 0)
-        return native[native.length - 1];
+    if (native !== null)
+        return native;
 
     const topmost = findTopmostOpenDialog(root);
 
-    return topmost !== null && topmost.hasAttribute(ModalAttribute) ? topmost : null;
+    return topmost !== null && topmost.hasAttribute(DialogModalAttribute) ? topmost : null;
+}
+
+/**
+ * The topmost native `<dialog>` shown modally, or null: in the top layer over the page, which leaves inert and paints under it all it
+ * does not hold, so an overlay of the page's own (a toast, a tooltip) stands in the top layer above it too.
+ */
+export function findNativeModalDialog(root: ParentNode): HTMLElement | null {
+    const native = root.querySelectorAll<HTMLElement>(NativeModalSelector);
+
+    return native.length > 0 ? native[native.length - 1] : null;
+}
+
+/** Whether an element stands in a native `<dialog>` shown modally. */
+export function isInNativeModal(element: Element): boolean {
+    return element.closest(NativeModalSelector) !== null;
 }
 
 /** Whether an open modal dialog stands over an element it does not contain, such as the popup it was opened from. */

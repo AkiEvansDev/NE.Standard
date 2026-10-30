@@ -13,7 +13,7 @@ installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, clearTimeout, innerWidth: 390, innerHeight: 844, localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined } },
     getComputedStyle: () => ({ getPropertyValue: () => "", transform: "none", filter: "none", perspective: "none", direction: "ltr", position: "static", overflowX: "visible", overflowY: "visible", transitionProperty: "all", transitionDuration: "0s" }),
     // The stylesheet's own question: a `min-width` query answered for the width this test sets.
-    matchMedia: (query: string) => ({ matches: width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0), addEventListener: (_: string, listener: () => void) => widthListeners.push(listener) }),
+    matchMedia: (query: string) => ({ get matches() { return width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0); }, addEventListener: (_: string, listener: () => void) => widthListeners.push(listener) }),
     MutationObserver: class {
         public observe(): void {
         }
@@ -98,7 +98,7 @@ test("a group of the bar flies out above it", () => {
     moreEntry.dispatchEvent(new FakeEvent("click"));
 
     assert.equal(moreSubmenu.hasAttribute("data-ui-menu-flyout"), true);
-    assert.equal(real<HTMLElement>(moreSubmenu).dataset.uiPlacement, "top-start");
+    assert.equal(real<HTMLElement>(moreSubmenu).getAttribute("data-ui-placement"), "top-start");
 
     moreEntry.dispatchEvent(new FakeEvent("click"));
     width = 390;

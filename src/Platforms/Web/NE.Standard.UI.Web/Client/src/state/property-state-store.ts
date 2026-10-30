@@ -1,5 +1,5 @@
 import { getIdValue, rowKeysText } from "../metadata/metadata-index.ts";
-import type { WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index";
+import type { WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
 import { areValuesEqual } from "./value-equality.ts";
 
 /** A row an entry was written under: the items host's component, the host's own dynamic parameters and the row's key. */
@@ -258,3 +258,24 @@ export class PropertyStateStore {
 function scopeKey(host: number, hostParameters: readonly unknown[]): string {
     return `${host}:${rowKeysText(hostParameters)}`;
 }
+
+export type PropertyValueChange = {
+    readonly reference: WebRenderPropertyReferenceMetadata;
+    readonly propertyName: string;
+    readonly dynamicParameters: readonly unknown[];
+    /** The value as the page shows it: a key looked up, a phrase filled. */
+    readonly value: unknown;
+    readonly local: boolean;
+    /** The elements the patch landed on; empty when the component only exists inside an item template. */
+    readonly components: readonly Element[];
+};
+
+export type PropertyValueChangeHandler = (change: PropertyValueChange) => void;
+
+export type PropertyPatchTarget = {
+    addValueChangeHandler(handler: PropertyValueChangeHandler): () => void;
+    applyPropertyValue(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown, local: boolean): void;
+    writeBoundValue(element: Element, value: unknown, bindingId?: number): boolean;
+    restoreBoundValue(element: Element, dynamicParameters: readonly unknown[]): void;
+    isHeldTarget(element: Element): boolean;
+};

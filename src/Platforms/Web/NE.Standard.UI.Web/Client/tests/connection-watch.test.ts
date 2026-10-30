@@ -13,7 +13,7 @@ installFakeDom({ window: { addEventListener: () => undefined, setTimeout, clearT
 
 const { ConnectionWatch } = await import("../src/runtime/connection-watch.ts");
 const { NotificationEngine } = await import("../src/interactions/notification-engine.ts");
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 
 clientStrings.register({ "ui.connection.reconnecting": "Reconnecting…" });
 

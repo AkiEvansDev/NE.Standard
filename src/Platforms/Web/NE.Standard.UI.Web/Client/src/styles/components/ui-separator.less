@@ -22,28 +22,28 @@
     color: color-mix(in srgb, var(--ui-color-border) 68%, transparent);
 }
 
-.ui-separator__label {
+.ui-separator__title {
     display: none;
 }
 
-.ui-separator__line[data-ui-separator-label] .ui-separator__label {
+.ui-separator__line[data-ui-separator-title] .ui-separator__title {
     display: inline;
 }
 
-:where(.ui-separator__line[data-ui-separator-label] .ui-separator__label) {
+:where(.ui-separator__line[data-ui-separator-title] .ui-separator__title) {
     color: @ui-text-muted;
 }
 
-.ui-separator__line[class*="ui-color--"] .ui-separator__label {
+.ui-separator__line[class*="ui-color--"] .ui-separator__title {
     color: inherit;
 }
 
 // The faint ink, as a text's fold: an aside fainter than muted words.
-.ui-separator__line.ui-color--muted[data-ui-separator-label] .ui-separator__label {
+.ui-separator__line.ui-color--muted[data-ui-separator-title] .ui-separator__title {
     color: color-mix(in srgb, @ui-text-muted percentage(@ui-text-faint-share), transparent);
 }
 
-.ui-separator__line[style] .ui-separator__label {
+.ui-separator__line[style] .ui-separator__title {
     color: inherit;
 }
 
@@ -88,6 +88,6 @@
         border-left: 1px solid currentColor;
     }
 
-.ui-separator__line:not([data-ui-separator-label]) {
+.ui-separator__line:not([data-ui-separator-title]) {
     gap: 0;
 }

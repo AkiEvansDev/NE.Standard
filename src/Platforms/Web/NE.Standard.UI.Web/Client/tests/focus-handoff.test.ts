@@ -4,9 +4,9 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, fakeDocument, fakeWindowGlobals, installFakeDom, real } from "./fake-dom.ts";
 
-installFakeDom();
+installFakeDom(fakeWindowGlobals);
 
 const { handFocusOnIfHidden } = await import("../src/interactions/focus-handoff.ts");
 const { InteractionEngine } = await import("../src/interactions/interaction-engine.ts");

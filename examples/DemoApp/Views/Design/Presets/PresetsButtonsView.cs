@@ -11,7 +11,7 @@ internal sealed class PresetsButtonsView : PresetsViewBase, IUIViewDefinition
     {
         _ = container
             .AddChild(CreateHeading("UIButtons — a button in its type, and the rows buttons go in"))
-            .AddChildren(DemoUI.CreateColumns([CreateButtonTypesGroup()], [CreateToolbarGroup()]))
+            .AddChildren(DemoUI.CreateColumns([CreateButtonVariantsGroup()], [CreateToolbarGroup()]))
             .AddChild(CreatePairGroup());
 
         _ = container

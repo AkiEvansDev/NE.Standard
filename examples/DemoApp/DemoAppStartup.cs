@@ -1,7 +1,6 @@
 using System;
 using DemoApp.Controllers.Actions;
 using DemoApp.Controllers.Actions.ButtonGroup;
-using DemoApp.Controllers.Choices.BadgeSelect;
 using DemoApp.Controllers.Choices.MultiSelect;
 using DemoApp.Controllers.Choices.RadioGroup;
 using DemoApp.Controllers.Choices.Select;
@@ -22,6 +21,7 @@ using DemoApp.Controllers.Design.Presets;
 using DemoApp.Controllers.Feedback.Message;
 using DemoApp.Controllers.Feedback.Progress;
 using DemoApp.Controllers.Feedback.Spinner;
+using DemoApp.Controllers.Inputs;
 using DemoApp.Controllers.Inputs.Calendar;
 using DemoApp.Controllers.Inputs.ColorInput;
 using DemoApp.Controllers.Inputs.FileInput;
@@ -50,6 +50,7 @@ using DemoApp.Controllers.Layouts.WrapPanel;
 using DemoApp.Controllers.Mechanisms;
 using DemoApp.Controllers.Navigation.Breadcrumbs;
 using DemoApp.Controllers.Navigation.Menu;
+using DemoApp.Controllers.Navigation.Steps;
 using DemoApp.Controllers.Navigation.Tabs;
 using DemoApp.Controllers.Navigation.TabsView;
 using DemoApp.Controllers.Overlays;
@@ -58,7 +59,6 @@ using DemoApp.Controllers.Screens;
 using DemoApp.Views;
 using DemoApp.Views.Actions;
 using DemoApp.Views.Actions.ButtonGroup;
-using DemoApp.Views.Choices.BadgeSelect;
 using DemoApp.Views.Choices.MultiSelect;
 using DemoApp.Views.Choices.RadioGroup;
 using DemoApp.Views.Choices.Select;
@@ -79,6 +79,7 @@ using DemoApp.Views.Design.Presets;
 using DemoApp.Views.Feedback.Message;
 using DemoApp.Views.Feedback.Progress;
 using DemoApp.Views.Feedback.Spinner;
+using DemoApp.Views.Inputs;
 using DemoApp.Views.Inputs.Calendar;
 using DemoApp.Views.Inputs.ColorInput;
 using DemoApp.Views.Inputs.FileInput;
@@ -107,6 +108,7 @@ using DemoApp.Views.Layouts.WrapPanel;
 using DemoApp.Views.Mechanisms;
 using DemoApp.Views.Navigation.Breadcrumbs;
 using DemoApp.Views.Navigation.Menu;
+using DemoApp.Views.Navigation.Steps;
 using DemoApp.Views.Navigation.Tabs;
 using DemoApp.Views.Navigation.TabsView;
 using DemoApp.Views.Overlays;
@@ -130,10 +132,10 @@ public sealed class DemoAppStartup : UIStartupBase
         // report in Development names only words the demo has not translated.
         _ = application.ConfigureLocalization(options => options.KeyPrefixes.Add(DemoTranslations.KeyPrefix));
 
-        // The focus ring in the brand's ink, as on every demo: the framework's default purple read 2.3:1 on the dark page.
+        // The focus ring in the brand's primary colour, as on every demo: the framework's default purple read 2.3:1 on the dark page.
         _ = application.ConfigureTheme(theme => theme
-            .ConfigureLightPalette(static palette => palette with { FocusRing = palette.PrimaryInk })
-            .ConfigureDarkPalette(static palette => palette with { FocusRing = palette.PrimaryInk }));
+            .ConfigureLightPalette(static palette => palette with { FocusRing = palette.Primary })
+            .ConfigureDarkPalette(static palette => palette with { FocusRing = palette.Primary }));
 
         _ = application.Route<HomeView>("/");
 
@@ -211,6 +213,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<LanguageSwitcherView, LanguageSwitcherController>("/actions/language-switcher");
 
         // Inputs
+        _ = application.Route<InputsOverviewView, InputsOverviewController>("/inputs");
         _ = application.Route<TextInputView, TextInputController>("/inputs/text-input");
         _ = application.Route<TextAreaView, TextAreaController>("/inputs/text-area");
         _ = application.Route<NumberInputView, NumberInputController>("/inputs/number-input");
@@ -229,7 +232,6 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<RadioGroupView, RadioGroupController>("/choices/radio-group");
         _ = application.Route<SelectView, SelectController>("/choices/select");
         _ = application.Route<MultiSelectView, MultiSelectController>("/choices/multi-select");
-        _ = application.Route<BadgeSelectView, BadgeSelectController>("/choices/badge-select");
         _ = application.Route<SliderView, SliderController>("/choices/slider");
 
         // Items
@@ -244,6 +246,7 @@ public sealed class DemoAppStartup : UIStartupBase
         _ = application.Route<TabsView, TabsController>("/navigation/tabs");
         _ = application.Route<TabsViewView, TabsViewController>("/navigation/tabs-view");
         _ = application.Route<BreadcrumbsView, BreadcrumbsController>("/navigation/breadcrumbs");
+        _ = application.Route<StepsView, StepsController>("/navigation/steps");
 
         // Feedback
         _ = application.Route<MessageView, MessageController>("/feedback/message");

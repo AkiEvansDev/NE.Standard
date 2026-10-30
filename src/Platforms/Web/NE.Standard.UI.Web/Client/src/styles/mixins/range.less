@@ -14,8 +14,8 @@
     );
 }
 
-// The ring a handle wears under the pointer and while held, in the handle's colour: a ring rather than a colour change, since
-// darkening the handle read as disabled.
+// The ring a handle wears under the pointer, while held, and under keyboard focus, in the handle's colour: a ring rather than a
+// colour change, since darkening the handle read as disabled.
 .ui-range-halo(@color: @ui-range-fill-color) {
     box-shadow: @ui-elevation-1-shadow, 0 0 0 4px color-mix(in srgb, @color @ui-halo-share, transparent);
 }
@@ -69,25 +69,14 @@
         .ui-range-thumb();
     }
 
-    @media @{ui-can-hover} {
-        &@{ui-range-live}:hover::-webkit-slider-thumb {
-            .ui-range-halo();
-        }
-
-        &@{ui-range-live}:hover::-moz-range-thumb {
-            .ui-range-halo();
-        }
-    }
-
-    // Where the keyboard stands: the framework's keyboard frame, around the handle — inside it, in place of the rim, it was lost on the
-    // light palette, the ink being the handle's own colour there; on the handle, so a band's two tell the arrows' one apart. One prefix
-    // per rule, since a browser drops a rule naming a pseudo-element it lacks.
+    // Where the keyboard stands: the handle's halo, matching pointer hover; on the handle, so a band's two tell the arrows' one
+    // apart. One prefix per rule, since a browser drops a rule naming a pseudo-element it lacks.
     &@{ui-keyboard-focus}::-webkit-slider-thumb {
-        .ui-range-thumb-frame();
+        .ui-range-halo();
     }
 
     &@{ui-keyboard-focus}::-moz-range-thumb {
-        .ui-range-thumb-frame();
+        .ui-range-halo();
     }
 
     // On the thumb as well as the input: the thumb is what the pointer is over, and it carries its own hand.
@@ -99,10 +88,4 @@
     &:is(:disabled, [aria-readonly='true'])::-moz-range-thumb {
         cursor: default;
     }
-}
-
-// The keyboard's frame round a handle, 2 px off it, in the frame's line and ink: the handle is round, so its frame is the one that
-// follows its own shape rather than the frame's corner.
-.ui-range-thumb-frame() {
-    .ui-keyboard-frame(@takes: false; @offset: 2px);
 }

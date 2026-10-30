@@ -49,7 +49,7 @@ function multiple(): Scene {
     const popup = FakeElement.of("ui-select__popup ui-select__list", { role: "listbox" }).append(...["a", "b"].map(key => {
         const option = FakeElement.of("ui-select__option", { "data-ui-key": key, role: "option" });
 
-        option.dataset.uiKey = key;
+        option.setAttribute("data-ui-key", key);
         return option;
     }));
     const select = FakeElement.of("ui-select ui-multi-select", { "data-ui-id": "4", "data-ui-selected-keys": "[\"a\",\"b\"]", "data-ui-clearable": "" }).append(trigger, popup);

@@ -5,9 +5,10 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Authoring.Components;
 
 /// <summary>
-/// Represents a component that folds away toward one edge and back, with its own optional switch for it.
+/// Represents a component that folds away toward one edge and back, with its own optional switch for it; a fold of its switch raises
+/// its expand and collapse events (<see cref="IExpandableComponent"/>).
 /// </summary>
-public interface ICollapsibleComponent : IVisualComponent
+public interface ICollapsibleComponent : IExpandableComponent
 {
     /// <summary>
     /// Gets the registered property key for <see cref="Expanded"/>.
@@ -29,7 +30,7 @@ public interface ICollapsibleComponent : IVisualComponent
     /// and may later disagree.
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
-    bool? Expanded { get; }
+    new bool? Expanded { get; }
 
     /// <summary>
     /// Gets the edge the component sits on and folds toward, which decides whether width or height collapses.

@@ -1,7 +1,8 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
-import { ComponentIdAttribute, ComponentSelector, GroupHeaderAttribute, ensureElementId } from "./dom-attributes.ts";
+import { BindingAttributePrefix, ComponentIdAttribute, ComponentSelector, DisabledClass, GroupHeaderAttribute, LoadingClass, ReadOnlyClass, ValueBindingAttribute, ensureElementId } from "./dom-attributes.ts";
 import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount } from "./dynamic-parameters.ts";
-import { rowKeysText } from "../metadata/metadata-index.ts";
+import { getBindingMode, rowKeysText } from "../metadata/metadata-index.ts";
+import type { ClientEffect, MetadataIndex, WebBindingMode, WebRenderBindingMetadata } from "../metadata/metadata-index.ts";
 
 const GroupHeaderSelector = `[${GroupHeaderAttribute}]`;
 
@@ -35,6 +36,18 @@ export function componentParts(components: Iterable<Element>, selector: string):
  * The page's components by id. A change confined to one subtree (`invalidate(scope)`) is read on the next lookup from that subtree
  * alone; a lookup answers exactly what a rebuild over the page would, never an element taken off it.
  */
+/** The matching descendants that belong to `root` rather than to one of the same kind nested inside it. */
+export function ownDescendants<TElement extends Element = HTMLElement>(root: Element, selector: string, rootSelector: string): TElement[] {
+    const own: TElement[] = [];
+
+    for (const element of root.querySelectorAll<TElement>(selector)) {
+        if (element.closest(rootSelector) === root)
+            own.push(element);
+    }
+
+    return own;
+}
+
 export class DomRegistry {
     public readonly root: ParentNode;
 
@@ -126,6 +139,11 @@ export class DomRegistry {
     /** The element's own id, or one out of the page's single run of generated ids — what an `aria-` attribute points at. */
     public ensureId(element: Element, prefix: string): string {
         return ensureElementId(element, prefix);
+    }
+
+    /** The matching descendants that belong to `root` rather than to one of the same kind nested inside it. */
+    public ownDescendants<TElement extends Element = HTMLElement>(root: Element, selector: string, rootSelector: string): TElement[] {
+        return ownDescendants<TElement>(root, selector, rootSelector);
     }
 
     /** The elements matching `selector` that a component addresses: itself when it matches, else the ones inside it. */
@@ -424,3 +442,90 @@ function isInDocumentOrder(elements: readonly Element[]): boolean {
 function containsNode(root: ParentNode, node: Node): boolean {
     return root === node || (root instanceof Node && root.contains(node));
 }
+
+/** What takes the reader's press away from everything inside it: a disabled or loading component, or anything inert. */
+export const BlockedSelector = `.${DisabledClass}, .${LoadingClass}, [inert]`;
+
+/** The nearer of an element's own component root and a read-only mark: an outer component's mark stops at the inner root. */
+const ReadOnlyScopeSelector = `[${ComponentIdAttribute}], .${ReadOnlyClass}`;
+
+/** Whether an element takes no press, key or caret: itself disabled, or inside a component that is disabled, loading or inert. */
+export function isInert(element: Element): boolean {
+    return element.closest(BlockedSelector) !== null || element.matches(":disabled, [aria-disabled='true']");
+}
+
+/** Whether an element belongs to an input the reader may look at but not change, by its own component's mark. */
+export function isReadOnly(element: Element): boolean {
+    // Not an outer one's: a select in a read-only code field's status bar answers for itself.
+    return element.closest(ReadOnlyScopeSelector)?.matches(`.${ReadOnlyClass}`) === true;
+}
+
+export const ValueSyncEventNames: readonly string[] = ["change", "toggle"];
+
+// The pipeline's longer list: each of these is a `toggle` read again, so a command on one waits for that sync.
+export const ValueSettleEventNames: readonly string[] = [...ValueSyncEventNames, "expand", "collapse", "open", "close"];
+
+/** Every mode the runtime accepts a client value for. */
+export function isWritableMode(mode: WebBindingMode | undefined): boolean {
+    const name = getBindingMode(mode);
+
+    return name === "TwoWay" || name === "OneWayToSource" || name === "OnSubmit";
+}
+
+export function isBufferedMode(mode: WebBindingMode | undefined): boolean {
+    return getBindingMode(mode) === "OnSubmit";
+}
+
+/** The binding an element's own value goes through; `binding` is undefined where its id names none the metadata knows. */
+export type WritableBinding = {
+    readonly bindingId: string;
+    readonly binding: WebRenderBindingMetadata | undefined;
+    readonly buffered: boolean;
+};
+
+/** The binding an element writes back through, read off the element: one element carries one writable value; null when it has none. */
+export function resolveWritableBinding(element: Element, metadata: Pick<MetadataIndex, "getBindingById">): WritableBinding | null {
+    const value = element.getAttribute(ValueBindingAttribute);
+
+    if (value !== null) {
+        const bound = metadata.getBindingById(Number(value));
+
+        return { bindingId: value, binding: bound, buffered: bound !== undefined && isBufferedMode(bound.mode) };
+    }
+
+    for (const name of element.getAttributeNames()) {
+        if (!name.startsWith(BindingAttributePrefix))
+            continue;
+
+        const bindingId = element.getAttribute(name) ?? "";
+        const binding = metadata.getBindingById(Number(bindingId));
+
+        if (binding !== undefined && isWritableMode(binding.mode))
+            return { bindingId, binding, buffered: isBufferedMode(binding.mode) };
+    }
+
+    return null;
+}
+
+/** A form's buffered fields and the values they held when read. */
+export type FormValues = ReadonlyMap<Element, unknown>;
+
+/** A form as a submit read it at its press: the buffered values it sends, and its text fields' words, kept until `close`. */
+export type PressedForm = {
+    readonly values: FormValues;
+    /** Ends the press's hold on its text fields' words: the submit's answer has been applied, or it sends nothing. */
+    close(): void;
+};
+
+export type EffectContext = {
+    readonly effect: ClientEffect;
+    readonly dom: DomRegistry;
+    // The row an interaction ran for, innermost key last; none for a command's effect.
+    readonly row?: readonly unknown[];
+};
+
+export type EffectRunner = {
+    apply(context: EffectContext): void;
+    applyAll(effects: readonly ClientEffect[] | undefined, dom: DomRegistry): void;
+    registerItemRenamer(hostClass: string, renamer: (host: HTMLElement, key: string) => boolean): void;
+};

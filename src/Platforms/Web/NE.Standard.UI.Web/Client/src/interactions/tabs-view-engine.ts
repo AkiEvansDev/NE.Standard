@@ -1,58 +1,39 @@
 // The items variant of a tabs strip: captions and pages from one collection, keyed by the item, with a tab menu of its own.
 
-import {
-    BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemClass, MenuItemKindAttribute, PassiveMenuEntrySelector,
-    TabCaptionAttribute, TabPinnedAttribute, TabsMenuAttribute, TabsRemovesAttribute, TabsRenamableAttribute, TabsSelectedAttribute,
-    UndraggableAttribute, TabsDraggableAttribute, TabsNoneRemovableAttribute, TabsUnremovableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes
-} from "../addressing/dom-attributes";
-import { EffectRegistry } from "../effects/effect-registry";
-import { aheadOfAnswer } from "../events/ahead-of-answer";
-import { EventRegistration } from "../events/event-descriptor";
-import { getIdValue, RenameTabClientEffect } from "../metadata/metadata-index";
-import { logWarn } from "../runtime/logger";
-import { isFieldKey } from "./caret-fields";
-import { ContextMenuOpeningDetail, ContextMenuOpeningEventName } from "./context-menu-engine";
-import { happenedInside, observeComponents } from "./dom-mutations";
-import { markDragStart } from "./drag-marks";
-import { isLaidOut } from "./element-visibility";
-import { isInRenameField, openInlineRename } from "./inline-rename";
-import { isInert } from "./interactive-state";
-import { isPlainKey } from "./keyboard-shortcut";
-import { ownDescendants } from "./own-descendants";
-import { focusAsLastInput } from "./popup-focus";
-import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus";
-import { resolveShownKey, writeSelectedKey } from "./selected-key";
-import { OverflowButtonClass, StripFitter } from "./strip-overflow";
-import { trackInnerPointer } from "./surface-press-engine";
-import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch";
-import {
-    MenuRow, PinEntry, RemoveSeparatorEntry, RenameEntry, SeparatorEntry, TabMenuName, TabMenuPrefix, UnpinEntry, readTabMenuChoice, shownRules, tabMenuEntries,
-    tabMenuEntryParameters
-} from "./tab-menu";
-import { raiseItemMove } from "./items-reorder-engine";
-import { StripTab, pinnedBoundary } from "./tab-order";
-import { isTabRefused, rowOf, stripHostOf, TabItemClass as ItemClass } from "./tab-rows";
+import { BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ContextMenuOpeningEventName, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemClass, PassiveMenuEntrySelector, TabCaptionAttribute, TabItemCaptionClass, TabItemCaptionOverflowedClass, TabItemClass, TabItemCloseClass, TabItemDraggingClass, TabItemLabelClass, TabItemPageClass, TabItemPinClass, TabItemRenameClass, TabItemSelectedClass, TabOverflowClass, TabPinnedAttribute, TabsDraggableAttribute, TabsRenamableAttribute, TabsSelectedAttribute, TabsViewClass, TabsViewNoOverflowClass, TabsViewOverflowingClass, TextTitleClass, UndraggableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import type { EffectRunner } from "../addressing/dom-registry.ts";
+import { aheadOfAnswer } from "../events/ahead-of-answer.ts";
+import type { EventRegistration } from "../events/event-descriptor.ts";
+import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
+import { isFieldKey } from "./caret-fields.ts";
+import type { ContextMenuOpeningDetail } from "./context-menu-engine.ts";
+import { happenedInside, observeComponents } from "./dom-mutations.ts";
+import { markDragStart } from "./drag-marks.ts";
+import { isLaidOut } from "./element-visibility.ts";
+import { openInlineRename } from "./inline-rename.ts";
+import { isInert } from "./interactive-state.ts";
+import { isPlainKey } from "./keyboard-shortcut.ts";
+import { ownDescendants } from "./own-descendants.ts";
+import { focusAsLastInput } from "./popup-focus.ts";
+import { applyRovingTabIndex, moveRovingFocus, resolveRovingTarget } from "./roving-focus.ts";
+import { resolveShownKey, writeSelectedKey } from "./selected-key.ts";
+import { StripFitter } from "./strip-overflow.ts";
+import { trackInnerPointer } from "./surface-press-engine.ts";
+import { fadeInPage, reserveCaptionWidth, slideCaptionMark } from "./tab-switch.ts";
+import { PinEntry, RenameEntry, TabMenuName, TabMenuPrefix, UnpinEntry, shownRules, tabMenuEntryParameters } from "./tab-menu.ts";
+import { raiseItemMove } from "./items-reorder-engine.ts";
+import type { MenuRow } from "./tab-menu.ts";
+import { pinnedBoundary } from "./tab-order.ts";
+import { captionLabel, draggedItem, isClosable, isRemovable, isRule, isTabRefused, lastPinnedRow, markNoneRemovable, menuRows, offeredEntries, ownTabs, rowOf, stripHostOf, stripTab, tabKey } from "./tab-rows.ts";
 
-const RootClass = "ui-tabs-view";
-const LabelClass = "ui-tab-item__label";
-const CloseClass = "ui-tab-item__close";
-const RenameClass = "ui-tab-item__rename";
-const CaptionClass = "ui-tab-item__caption";
-const PinClass = "ui-tab-item__pin";
-const TitleSelector = ".ui-text__title";
-const DraggingModifier = "ui-tab-item--dragging";
-const OverflowedModifier = "ui-tab-item__caption--overflowed";
-const OverflowingModifier = "ui-tabs-view--overflowing";
-const NoOverflowModifier = "ui-tabs-view--no-overflow";
-const PageClass = "ui-tab-item__page";
-const SelectedModifier = "ui-tab-item--selected";
+const TitleSelector = `.${TextTitleClass}`;
 
 const MenuEntrySelector = `.${MenuItemClass}`;
 
-/** An application's entry of the tab menu, raised on the tab the menu was opened on: EventNames.TabMenuEntry. */
-const TabMenuEntryEventName = "tab-menu-entry";
+/** An application's entry of the tab menu, raised on the tab the menu was opened on: EventNames.ItemMenuEntry. */
+const ItemMenuEntryEventName = "item-menu-entry";
 
-type TabMenuEntryDetail = {
+type ItemMenuEntryDetail = {
     readonly entry: string;
 };
 
@@ -60,8 +41,8 @@ type TabMenuEntryDetail = {
  * How the pipeline reads the tab menu's entry event: the entry's key rides after the keys that address the tab, where
  * `UIAction.ArgEventValue` reads it, so the tab answers for it as for its own events, in a strip standing in a row too.
  */
-export const TabMenuEntryEvent: { readonly name: string; readonly registration: Omit<EventRegistration<CustomEvent<TabMenuEntryDetail>>, "name"> } = {
-    name: TabMenuEntryEventName,
+export const ItemMenuEntryEvent: { readonly name: string; readonly registration: Omit<EventRegistration<CustomEvent<ItemMenuEntryDetail>>, "name"> } = {
+    name: ItemMenuEntryEventName,
     registration: { dynamicParameters: context => tabMenuEntryParameters(context.domEvent.detail?.entry, context.dynamicParameters) }
 };
 
@@ -84,12 +65,17 @@ const StripHeightVariable = "--ui-tabs-view-strip";
 
 export type TabsViewEngineOptions = {
     readonly root?: ParentNode;
-    readonly effects?: EffectRegistry;
+    readonly effects?: EffectRunner;
+    readonly propertyPatchEngine?: Pick<PropertyPatchEngine, "addValueChangeHandler">;
 };
 
 export class TabsViewEngine {
     private readonly root: ParentNode;
     private readonly fitter: StripFitter;
+    private readonly unsubscribePatches: (() => void) | null;
+
+    // The caption text a committed rename replaced, put back when the server answers a refused RenamedTitle with no text of its own.
+    private readonly beforeRename = new WeakMap<HTMLElement, string>();
 
     // Where the dragged tab's row sat before the drag, so a cancelled drop can put it back rather than commit the live reorder.
     private dragStart: { readonly parent: Node; readonly next: Node | null } | null = null;
@@ -103,10 +89,10 @@ export class TabsViewEngine {
     public constructor(options: TabsViewEngineOptions = {}) {
         this.root = options.root ?? document;
         this.fitter = new StripFitter({
-            rootClass: RootClass,
-            overflowingClass: OverflowingModifier,
-            wraps: root => root.classList.contains(NoOverflowModifier),
-            hiddenClass: OverflowedModifier,
+            rootClass: TabsViewClass,
+            overflowingClass: TabsViewOverflowingClass,
+            wraps: root => root.classList.contains(TabsViewNoOverflowClass),
+            hiddenClass: TabItemCaptionOverflowedClass,
             refit: root => this.apply(root),
             pick: (root, key) => this.pickFromOverflow(root, key)
         });
@@ -114,25 +100,15 @@ export class TabsViewEngine {
         this.applyAll();
 
         // A controller may ask for the field a double-click opens, from a context menu or a shortcut of its own.
-        options.effects?.register("RenameTab", context => {
-            const effect = context.effect as RenameTabClientEffect;
-            const target = effect.target;
+        options.effects?.registerItemRenamer(TabsViewClass, (root, key) => {
+            const item = this.ownItems(root).find(candidate => tabKey(candidate) === key);
+            const label = item?.querySelector<HTMLElement>(`.${TabItemLabelClass}`) ?? null;
 
-            if (target === undefined || target.id === undefined || typeof effect.key !== "string") {
-                logWarn("rename tab effect carries no target or key.", effect);
-                return;
-            }
-
-            const root = context.dom.findComponent(getIdValue(target.id), target.dynamicParameters ?? []);
-            const item = root === null ? undefined : this.ownItems(root as HTMLElement).find(candidate => tabKey(candidate) === effect.key);
-            const label = item?.querySelector<HTMLElement>(`.${LabelClass}`) ?? null;
-
-            if (label === null) {
-                logWarn("rename tab effect names no tab on the page.", effect);
-                return;
-            }
+            if (label === null)
+                return false;
 
             this.startRename(label);
+            return true;
         });
 
         this.root.addEventListener(ContextMenuOpeningEventName, domEvent => this.prepareMenu(domEvent));
@@ -147,7 +123,7 @@ export class TabsViewEngine {
         // A press on a tab's close is the close's: `:active` holds on the caption around it, which takes no pressed wash under it — through
         // a drag of the tab too, whose start cancels the pointer while `:active` holds until the drag ends.
         trackInnerPointer(this.root, ["press"], target => {
-            const caption = target.closest(`.${CloseClass}`)?.closest<HTMLElement>(`.${CaptionClass}`) ?? null;
+            const caption = target.closest(`.${TabItemCloseClass}`)?.closest<HTMLElement>(`.${TabItemCaptionClass}`) ?? null;
 
             return caption === null ? [] : [caption];
         });
@@ -156,17 +132,23 @@ export class TabsViewEngine {
         // strip none to close. What happens inside a page is its own: a table patched there must not force a strip layout on every push.
         observeComponents(
             this.root,
-            `.${RootClass}`,
-            { childList: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, UnremovableAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `.${PageClass}`, `.${RootClass}`) },
+            `.${TabsViewClass}`,
+            { childList: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, UnremovableAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `.${TabItemPageClass}`, `.${TabsViewClass}`) },
             views => {
                 for (const view of views)
                     this.apply(view);
             }
         );
+
+        this.unsubscribePatches = options.propertyPatchEngine?.addValueChangeHandler(change => this.handlePropertyChange(change)) ?? null;
+    }
+
+    public dispose(): void {
+        this.unsubscribePatches?.();
     }
 
     private applyAll(): void {
-        for (const root of this.root.querySelectorAll<HTMLElement>(`.${RootClass}`))
+        for (const root of this.root.querySelectorAll<HTMLElement>(`.${TabsViewClass}`))
             this.apply(root);
     }
 
@@ -175,6 +157,7 @@ export class TabsViewEngine {
         const items = this.ownItems(root);
 
         markNoneRemovable(root, items);
+        ownTabs(root, items);
 
         const shown = items.filter(isLaidOut);
         const selected = root.getAttribute(TabsSelectedAttribute) ?? "";
@@ -189,7 +172,7 @@ export class TabsViewEngine {
         }
 
         const reorderable = root.hasAttribute(TabsDraggableAttribute);
-        const previous = items.find(item => item.classList.contains(SelectedModifier))?.querySelector<HTMLElement>(`.${CaptionClass}`) ?? null;
+        const previous = items.find(item => item.classList.contains(TabItemSelectedClass))?.querySelector<HTMLElement>(`.${TabItemCaptionClass}`) ?? null;
         const captions: HTMLElement[] = [];
         let currentCaption: HTMLElement | null = null;
         let currentPage: HTMLElement | null = null;
@@ -197,9 +180,9 @@ export class TabsViewEngine {
         for (const item of items) {
             const own = tabKey(item) === selected;
 
-            item.classList.toggle(SelectedModifier, own);
+            item.classList.toggle(TabItemSelectedClass, own);
 
-            const caption = item.querySelector<HTMLElement>(`.${CaptionClass}`);
+            const caption = item.querySelector<HTMLElement>(`.${TabItemCaptionClass}`);
 
             if (caption !== null) {
                 caption.draggable = reorderable;
@@ -213,13 +196,13 @@ export class TabsViewEngine {
                 }
             }
 
-            item.querySelector<HTMLElement>(`.${LabelClass}`)?.setAttribute("aria-selected", own ? "true" : "false");
+            item.querySelector<HTMLElement>(`.${TabItemLabelClass}`)?.setAttribute("aria-selected", own ? "true" : "false");
 
-            for (const page of item.querySelectorAll<HTMLElement>(`.${PageClass}`))
+            for (const page of item.querySelectorAll<HTMLElement>(`.${TabItemPageClass}`))
                 page.hidden = !own;
 
             if (own)
-                currentPage = item.querySelector<HTMLElement>(`.${PageClass}`);
+                currentPage = item.querySelector<HTMLElement>(`.${TabItemPageClass}`);
         }
 
         this.fitCaptions(root, captions, currentCaption);
@@ -234,9 +217,9 @@ export class TabsViewEngine {
         let current: HTMLElement | null = null;
 
         for (const caption of captions) {
-            const label = caption.querySelector<HTMLElement>(`.${LabelClass}`);
+            const label = caption.querySelector<HTMLElement>(`.${TabItemLabelClass}`);
 
-            if (label === null || caption.classList.contains(OverflowedModifier))
+            if (label === null || caption.classList.contains(TabItemCaptionOverflowedClass))
                 continue;
 
             labels.push(label);
@@ -245,7 +228,11 @@ export class TabsViewEngine {
                 current = label;
         }
 
-        applyRovingTabIndex(labels, current);
+        const stop = previous !== null && previous !== currentCaption
+            ? current
+            : labels.find(label => label === document.activeElement) ?? current;
+
+        applyRovingTabIndex(labels, stop);
         this.focusAfterClose(root, current);
     }
 
@@ -281,7 +268,7 @@ export class TabsViewEngine {
     /** Hides the captions past the strip's room and shows the "…" control when any is hidden. */
     private fitCaptions(root: HTMLElement, captions: readonly HTMLElement[], selected: HTMLElement | null): void {
         const host = this.hostOf(root);
-        const button = root.querySelector<HTMLElement>(`:scope > .${OverflowButtonClass}`);
+        const button = root.querySelector<HTMLElement>(`:scope > .${TabOverflowClass}`);
 
         // The host holds the pages too: its width is the strip's room, and a page growing taller changes nothing on the strip.
         if (host !== null && button !== null)
@@ -291,7 +278,7 @@ export class TabsViewEngine {
     /** A tab picked from the list is the current one, fitted onto the strip first, and the keyboard carries on from its caption. */
     private pickFromOverflow(root: HTMLElement, key: string): void {
         this.select(root, key);
-        this.ownItems(root).find(item => tabKey(item) === key)?.querySelector<HTMLElement>(`.${LabelClass}`)?.focus({ preventScroll: true });
+        this.ownItems(root).find(item => tabKey(item) === key)?.querySelector<HTMLElement>(`.${TabItemLabelClass}`)?.focus({ preventScroll: true });
     }
 
     private toggleOverflow(root: HTMLElement, button: HTMLElement): void {
@@ -300,9 +287,9 @@ export class TabsViewEngine {
 
             return this.ownItems(root).filter(isLaidOut).map(item => ({
                 key: tabKey(item),
-                title: item.querySelector(`.${LabelClass}`)?.textContent?.trim() ?? tabKey(item),
+                title: item.querySelector(`.${TabItemLabelClass}`)?.textContent?.trim() ?? tabKey(item),
                 current: tabKey(item) === selected,
-                disabled: isInert(item.querySelector(`.${LabelClass}`) ?? item)
+                disabled: isInert(item.querySelector(`.${TabItemLabelClass}`) ?? item)
             }));
         });
     }
@@ -315,9 +302,9 @@ export class TabsViewEngine {
             return;
 
         const root = menu.parentElement;
-        const item = (domEvent.detail as ContextMenuOpeningDetail).target.closest<HTMLElement>(`.${ItemClass}`);
+        const item = (domEvent.detail as ContextMenuOpeningDetail).target.closest<HTMLElement>(`.${TabItemClass}`);
 
-        if (root === null || !root.classList.contains(RootClass) || item === null || item.closest(`.${RootClass}`) !== root) {
+        if (root === null || !root.classList.contains(TabsViewClass) || item === null || item.closest(`.${TabsViewClass}`) !== root) {
             domEvent.preventDefault();
             return;
         }
@@ -357,7 +344,7 @@ export class TabsViewEngine {
         const root = menu?.parentElement ?? null;
         const entry = target.closest<HTMLElement>(MenuEntrySelector);
 
-        if (menu === null || root === null || !root.classList.contains(RootClass) || entry === null || !menu.contains(entry))
+        if (menu === null || root === null || !root.classList.contains(TabsViewClass) || entry === null || !menu.contains(entry))
             return false;
 
         const key = entry.closest(`[${ComponentKeyAttribute}]`)?.getAttribute(ComponentKeyAttribute) ?? "";
@@ -369,7 +356,7 @@ export class TabsViewEngine {
             return true;
 
         if (!key.startsWith(TabMenuPrefix)) {
-            item.dispatchEvent(new CustomEvent<TabMenuEntryDetail>(TabMenuEntryEventName, { bubbles: true, detail: { entry: key } }));
+            item.dispatchEvent(new CustomEvent<ItemMenuEntryDetail>(ItemMenuEntryEventName, { bubbles: true, detail: { entry: key } }));
             return true;
         }
 
@@ -379,7 +366,7 @@ export class TabsViewEngine {
 
         switch (key) {
             case RenameEntry: {
-                const label = item.querySelector<HTMLElement>(`.${LabelClass}`);
+                const label = item.querySelector<HTMLElement>(`.${TabItemLabelClass}`);
 
                 if (label !== null)
                     this.startRename(label);
@@ -404,7 +391,7 @@ export class TabsViewEngine {
         if (item.hasAttribute(TabPinnedAttribute) === pinned)
             return;
 
-        const pin = item.querySelector<HTMLElement>(`:scope > .${CaptionClass} > .${PinClass}`);
+        const pin = item.querySelector<HTMLElement>(`:scope > .${TabItemCaptionClass} > .${TabItemPinClass}`);
 
         item.toggleAttribute(TabPinnedAttribute, pinned);
 
@@ -442,25 +429,25 @@ export class TabsViewEngine {
         if (this.handleClose(domEvent, domEvent.target))
             return;
 
-        const overflowButton = domEvent.target.closest<HTMLElement>(`.${OverflowButtonClass}`);
+        const overflowButton = domEvent.target.closest<HTMLElement>(`.${TabOverflowClass}`);
         const overflowRoot = overflowButton?.parentElement ?? null;
 
-        if (overflowButton !== null && overflowRoot !== null && overflowRoot.classList.contains(RootClass)) {
+        if (overflowButton !== null && overflowRoot !== null && overflowRoot.classList.contains(TabsViewClass)) {
             domEvent.preventDefault();
             this.toggleOverflow(overflowRoot, overflowButton);
             return;
         }
 
         const label = captionLabel(domEvent.target);
-        const root = label?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const root = label?.closest<HTMLElement>(`.${TabsViewClass}`) ?? null;
 
         if (label === null || root === null || isInert(label))
             return;
 
-        const item = label.closest<HTMLElement>(`.${ItemClass}`);
+        const item = label.closest<HTMLElement>(`.${TabItemClass}`);
 
         // Scoped to the strip that owns it: a nested tabs view must not switch the outer one.
-        if (item === null || item.closest(`.${RootClass}`) !== root)
+        if (item === null || item.closest(`.${TabsViewClass}`) !== root)
             return;
 
         domEvent.preventDefault();
@@ -473,9 +460,9 @@ export class TabsViewEngine {
 
     /** Fires the tab's own `remove` event, which carries its key by sitting inside it. */
     private handleClose(domEvent: Event, target: Element): boolean {
-        const close = target.closest<HTMLElement>(`.${CloseClass}`);
-        const item = close?.closest<HTMLElement>(`.${ItemClass}`) ?? null;
-        const root = item?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const close = target.closest<HTMLElement>(`.${TabItemCloseClass}`);
+        const item = close?.closest<HTMLElement>(`.${TabItemClass}`) ?? null;
+        const root = item?.closest<HTMLElement>(`.${TabsViewClass}`) ?? null;
 
         if (close === null || item === null || root === null)
             return false;
@@ -498,7 +485,7 @@ export class TabsViewEngine {
             return;
 
         const label = captionLabel(domEvent.target);
-        const root = label?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const root = label?.closest<HTMLElement>(`.${TabsViewClass}`) ?? null;
 
         if (label === null || root === null || !root.hasAttribute(TabsRenamableAttribute))
             return;
@@ -511,18 +498,23 @@ export class TabsViewEngine {
     private startRename(label: HTMLElement): void {
         const caption = label.parentElement;
         const title = label.querySelector<HTMLElement>(TitleSelector) ?? label;
-        const item = label.closest<HTMLElement>(`.${ItemClass}`);
+        const item = label.closest<HTMLElement>(`.${TabItemClass}`);
 
         if (caption === null || item === null || isTabRefused(item, UnrenamableAttribute))
             return;
 
+        const previousText = title.textContent ?? "";
+
         openInlineRename({
             container: caption,
             title,
-            className: RenameClass,
+            className: TabItemRenameClass,
             value: label.getAttribute(TabCaptionAttribute) ?? title.textContent?.trim() ?? "",
             commit: value => {
+                this.beforeRename.set(title, previousText);
                 label.setAttribute(TabCaptionAttribute, value);
+                title.textContent = value;
+                reserveCaptionWidth(caption);
 
                 // Two events: `change` carries the value back, `rename` is what a command hangs on.
                 label.dispatchEvent(new Event("change", { bubbles: true }));
@@ -532,12 +524,41 @@ export class TabsViewEngine {
         });
     }
 
+    /** Reconciles the optimistic caption when the server answers `RenamedTitle` (for example, refusing a gated write back to the old name). */
+    private handlePropertyChange(change: PropertyValueChange): void {
+        if (change.local || change.propertyName !== "RenamedTitle")
+            return;
+
+        for (const component of change.components) {
+            if (!component.classList.contains(TabItemClass))
+                continue;
+
+            const caption = component.querySelector<HTMLElement>(`:scope > .${TabItemCaptionClass}`);
+            const label = caption?.querySelector<HTMLElement>(`.${TabItemLabelClass}`) ?? null;
+            const title = label === null ? null : (label.querySelector<HTMLElement>(TitleSelector) ?? label);
+
+            if (caption === null || title === null)
+                continue;
+
+            const pushed = typeof change.value === "string" ? change.value.trim() : "";
+            const fallback = this.beforeRename.get(title) ?? "";
+            const next = pushed.length > 0 ? pushed : fallback;
+
+            this.beforeRename.delete(title);
+
+            if (next.length > 0 && title.textContent !== next) {
+                title.textContent = next;
+                reserveCaptionWidth(caption);
+            }
+        }
+    }
+
     private handleKeydown(domEvent: Event): void {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || !(domEvent.target instanceof Element) || isFieldKey(domEvent))
             return;
 
-        const label = domEvent.target.closest<HTMLElement>(`.${LabelClass}`);
-        const root = label?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const label = domEvent.target.closest<HTMLElement>(`.${TabItemLabelClass}`);
+        const root = label?.closest<HTMLElement>(`.${TabsViewClass}`) ?? null;
 
         if (label === null || root === null)
             return;
@@ -552,9 +573,9 @@ export class TabsViewEngine {
             return;
         }
 
-        const item = label.closest<HTMLElement>(`.${ItemClass}`);
+        const item = label.closest<HTMLElement>(`.${TabItemClass}`);
 
-        if (item === null || item.closest(`.${RootClass}`) !== root)
+        if (item === null || item.closest(`.${TabsViewClass}`) !== root)
             return;
 
         // Delete closes the tab as its cross does, where the cross is offered: a removal the application wired, on a tab that allows it.
@@ -577,7 +598,8 @@ export class TabsViewEngine {
             return;
 
         const labels = this.ownItems(root)
-            .map(item => item.querySelector<HTMLElement>(`.${LabelClass}`))
+            .filter(candidate => !candidate.querySelector(`.${TabItemCaptionClass}`)?.classList.contains(TabItemCaptionOverflowedClass))
+            .map(candidate => candidate.querySelector<HTMLElement>(`.${TabItemLabelClass}`))
             .filter((candidate): candidate is HTMLElement => candidate !== null);
 
         const next = resolveRovingTarget({ key: domEvent.key, items: labels, current: label, axis: "horizontal" });
@@ -586,14 +608,7 @@ export class TabsViewEngine {
             return;
 
         domEvent.preventDefault();
-
-        const nextItem = next.closest<HTMLElement>(`.${ItemClass}`);
-
-        // A strip selects as the caret moves, the same rule the plain variant follows.
-        if (nextItem !== null)
-            this.select(root, tabKey(nextItem));
-
-        next.focus();
+        moveRovingFocus(labels, next);
     }
 
     /**
@@ -634,7 +649,7 @@ export class TabsViewEngine {
             return;
         }
 
-        markDragStart(domEvent, item.closest(`.${RootClass}`) ?? item, item, DraggingModifier, tabKey(item));
+        markDragStart(domEvent, item.closest(`.${TabsViewClass}`) ?? item, item, TabItemDraggingClass, tabKey(item));
 
         const row = rowOf(item);
 
@@ -645,13 +660,13 @@ export class TabsViewEngine {
         if (!(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element))
             return;
 
-        const over = domEvent.target.closest<HTMLElement>(`.${CaptionClass}`)?.closest<HTMLElement>(`.${ItemClass}`) ?? null;
-        const root = over?.closest<HTMLElement>(`.${RootClass}`) ?? null;
+        const over = domEvent.target.closest<HTMLElement>(`.${TabItemCaptionClass}`)?.closest<HTMLElement>(`.${TabItemClass}`) ?? null;
+        const root = over?.closest<HTMLElement>(`.${TabsViewClass}`) ?? null;
 
         if (over === null || root === null)
             return;
 
-        const dragging = root.querySelector<HTMLElement>(`.${DraggingModifier}`);
+        const dragging = root.querySelector<HTMLElement>(`.${TabItemDraggingClass}`);
 
         if (dragging === null)
             return;
@@ -666,7 +681,7 @@ export class TabsViewEngine {
             return;
 
         // Which side of the tab under the pointer decides the insertion point, so nothing is dropped on a gap.
-        const bounds = over.querySelector<HTMLElement>(`.${CaptionClass}`)?.getBoundingClientRect();
+        const bounds = over.querySelector<HTMLElement>(`.${TabItemCaptionClass}`)?.getBoundingClientRect();
 
         if (bounds === undefined)
             return;
@@ -689,9 +704,9 @@ export class TabsViewEngine {
         if (!(domEvent instanceof DragEvent) || !(domEvent.target instanceof Element))
             return;
 
-        const root = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const root = domEvent.target.closest<HTMLElement>(`.${TabsViewClass}`);
 
-        if (root === null || root.querySelector(`.${DraggingModifier}`) === null)
+        if (root === null || root.querySelector(`.${TabItemDraggingClass}`) === null)
             return;
 
         domEvent.preventDefault();
@@ -706,7 +721,7 @@ export class TabsViewEngine {
         if (item === null)
             return;
 
-        item.classList.remove(DraggingModifier);
+        item.classList.remove(TabItemDraggingClass);
 
         const start = this.dragStart;
 
@@ -724,7 +739,7 @@ export class TabsViewEngine {
         if (start !== null && row.parentNode === start.parent && row.nextSibling === start.next)
             return;
 
-        const root = item.closest<HTMLElement>(`.${RootClass}`);
+        const root = item.closest<HTMLElement>(`.${TabsViewClass}`);
 
         if (root === null)
             return;
@@ -738,89 +753,6 @@ export class TabsViewEngine {
     }
 
     private ownItems(root: HTMLElement): HTMLElement[] {
-        return ownDescendants(root, `.${ItemClass}`, `.${RootClass}`);
+        return ownDescendants(root, `.${TabItemClass}`, `.${TabsViewClass}`);
     }
-}
-
-/** The row of the last pinned tab in the strip, leaving the dragged row out; null when nothing is pinned. */
-function lastPinnedRow(root: HTMLElement, draggingRow: HTMLElement): HTMLElement | null {
-    let last: HTMLElement | null = null;
-
-    for (const item of ownDescendants(root, `.${ItemClass}`, `.${RootClass}`)) {
-        const row = rowOf(item);
-
-        if (row !== draggingRow && item.hasAttribute(TabPinnedAttribute))
-            last = row;
-    }
-
-    return last;
-}
-
-/** Marks a strip none of whose tabs can be closed, which keeps no room for a close; the render marked the first paint. */
-function markNoneRemovable(root: HTMLElement, items: readonly HTMLElement[]): void {
-    const none = !items.some(item => !isTabRefused(item, UnremovableAttribute));
-
-    if (root.hasAttribute(TabsNoneRemovableAttribute) !== none)
-        root.toggleAttribute(TabsNoneRemovableAttribute, none);
-}
-
-/** Whether a tab may be closed: neither the strip nor the tab's item refuses it. */
-function isRemovable(root: HTMLElement, item: HTMLElement): boolean {
-    return !root.hasAttribute(TabsUnremovableAttribute) && !isTabRefused(item, UnremovableAttribute);
-}
-
-/** Whether Delete closes a tab: one the cross closes — removable, its close raising a command — and not pinned, as a browser keeps one. */
-function isClosable(root: HTMLElement, item: HTMLElement): boolean {
-    return root.hasAttribute(TabsRemovesAttribute) && isRemovable(root, item) && !item.hasAttribute(TabPinnedAttribute) && !isInert(item);
-}
-
-/** The built-in tab-menu entries a tab is offered: what the strip chose, as the tab allows. */
-function offeredEntries(root: HTMLElement, item: HTMLElement): ReadonlyMap<string, boolean> {
-    return tabMenuEntries(readTabMenuChoice(root.getAttribute(TabsMenuAttribute)), {
-        pinned: item.hasAttribute(TabPinnedAttribute),
-        // The item's CanRename alone: the strip's Renamable governs the double click and F2.
-        renamable: !isTabRefused(item, UnrenamableAttribute),
-        removable: root.hasAttribute(TabsRemovesAttribute) && isRemovable(root, item)
-    });
-}
-
-/** Whether a row of the tab menu is a rule: one of the strip's own, or one among the application's entries. */
-function isRule(row: HTMLElement): boolean {
-    const key = row.getAttribute(ComponentKeyAttribute);
-
-    return key === SeparatorEntry || key === RemoveSeparatorEntry || row.querySelector(`:scope > [${MenuItemKindAttribute}="separator"]`) !== null;
-}
-
-/** The tab menu's entries and rules, its items host's own rows: an entry's sub-entries are rows of a host of their own. */
-function menuRows(menu: HTMLElement): HTMLElement[] {
-    const host = menu.querySelector<HTMLElement>(`[${ItemsHostAttribute}]`);
-
-    return host === null ? [] : Array.from(host.children).filter((row): row is HTMLElement => row instanceof HTMLElement && row.hasAttribute(ComponentKeyAttribute));
-}
-
-/** The label of the caption a press landed on — anywhere but its close or an open rename field. */
-function captionLabel(target: Element): HTMLElement | null {
-    if (target.closest(`.${CloseClass}`) !== null || isInRenameField(target))
-        return null;
-
-    // The caption washes under the pointer as a whole, so it answers the press as a whole.
-    return target.closest<HTMLElement>(`.${CaptionClass}`)?.querySelector<HTMLElement>(`:scope > .${LabelClass}`) ?? null;
-}
-
-function draggedItem(domEvent: Event): HTMLElement | null {
-    if (!(domEvent.target instanceof Element))
-        return null;
-
-    const caption = domEvent.target.closest<HTMLElement>(`.${CaptionClass}`);
-
-    return caption?.closest<HTMLElement>(`.${ItemClass}`) ?? null;
-}
-
-function stripTab(item: HTMLElement): StripTab {
-    return { pinned: item.hasAttribute(TabPinnedAttribute) };
-}
-
-/** A tab is keyed by its item, so the key sits on the wrapper the items host renders, not on the tab. */
-function tabKey(item: HTMLElement): string {
-    return item.closest(`[${ComponentKeyAttribute}]`)?.getAttribute(ComponentKeyAttribute) ?? "";
 }

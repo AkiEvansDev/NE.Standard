@@ -15,8 +15,8 @@ public static class WebClassNames
     /// <summary>On an input's root while its <c>IsReadOnly</c> is true, whatever its own control carries for the browser.</summary>
     public const string ReadOnly = "ui-readonly";
 
-    /// <summary>On a wrap panel's root when it lays its children in even columns (<c>ItemMinWidth</c>).</summary>
-    public const string WrapPanelColumns = "ui-wrap-panel--columns";
+    /// <summary>On the root of a component laying its children or options in even columns (<c>ItemMinWidth</c>).</summary>
+    public const string EvenColumns = "ui-even-columns";
 
     /// <summary>A component standing level with captioned fields' boxes beside it (<c>AlignWithFieldBoxes</c>).</summary>
     public const string FieldAligned = "ui-field-aligned";
@@ -66,6 +66,9 @@ public static class WebClassNames
 
     /// <summary>On a field's root while its validation is an error.</summary>
     public const string Invalid = "ui-invalid";
+
+    /// <summary>A field's icon before its text, which the select engine draws the chosen option after.</summary>
+    public const string InputAffixIconPrefix = "ui-input__affix-icon--prefix";
 
     /// <summary>On a part a flag hides — a chevron an action or an expander does not show.</summary>
     public const string Hidden = "ui-hidden";
@@ -124,6 +127,397 @@ public static class WebClassNames
     /// <summary>A flyout's popup content.</summary>
     public const string FlyoutContent = "ui-flyout__content";
 
+    /// <summary>The accordion classes the client finds elements by too.</summary>
+    public const string Accordion = "ui-accordion";
+
+    /// <summary>The action classes the client finds elements by too.</summary>
+    public const string Action = "ui-action";
+
+    /// <summary>The badge classes the client finds elements by too.</summary>
+    public const string Badge = "ui-badge";
+
+    public const string BadgeColored = "ui-badge--colored";
+
+    public const string BadgeIcon = "ui-badge__icon";
+
+    public const string BadgeTitle = "ui-badge__title";
+
+    /// <summary>The badge select classes the client finds elements by too.</summary>
+    public const string BadgeSelect = "ui-badge-select";
+
+    /// <summary>The breadcrumb classes the client finds elements by too.</summary>
+    public const string Breadcrumb = "ui-breadcrumb";
+
+    /// <summary>The breadcrumbs classes the client finds elements by too.</summary>
+    public const string Breadcrumbs = "ui-breadcrumbs";
+
+    public const string BreadcrumbsItem = "ui-breadcrumbs__item";
+
+    /// <summary>The button classes the client finds elements by too.</summary>
+    public const string ButtonContent = "ui-button__content";
+
+    /// <summary>The button group classes the client finds elements by too.</summary>
+    public const string ButtonGroup = "ui-button-group";
+
+    public const string ButtonGroupItem = "ui-button-group__item";
+
+    /// <summary>The calendar classes the client finds elements by too.</summary>
+    public const string Calendar = "ui-calendar";
+
+    public const string CalendarBody = "ui-calendar__body";
+
+    /// <summary>The card classes the client finds elements by too.</summary>
+    public const string Card = "ui-card";
+
+    /// <summary>The checkbox classes the client finds elements by too.</summary>
+    public const string Checkbox = "ui-checkbox";
+
+    public const string CheckboxBox = "ui-checkbox__box";
+
+    public const string CheckboxInput = "ui-checkbox__input";
+
+    /// <summary>The collapsible classes the client finds elements by too.</summary>
+    public const string Collapsible = "ui-collapsible";
+
+    public const string CollapsibleBar = "ui-collapsible__bar";
+
+    public const string CollapsibleBarContent = "ui-collapsible__bar-content";
+
+    public const string CollapsibleContent = "ui-collapsible__content";
+
+    /// <summary>The color input classes the client finds elements by too.</summary>
+    public const string ColorInput = "ui-color-input";
+
+    public const string ColorInputHueThumb = "ui-color-input__hue-thumb";
+
+    public const string ColorInputPopup = "ui-color-input__popup";
+
+    public const string ColorInputRow = "ui-color-input__row";
+
+    public const string ColorInputSquareThumb = "ui-color-input__square-thumb";
+
+    public const string ColorInputText = "ui-color-input__text";
+
+    public const string ColorInputValueInput = "ui-color-input__value-input";
+
+    /// <summary>The command bar classes the client finds elements by too.</summary>
+    public const string CommandBar = "ui-command-bar";
+
+    public const string CommandBarHost = "ui-command-bar__host";
+
+    public const string CommandBarOverflow = "ui-command-bar__overflow";
+
+    public const string CommandBarItem = "ui-command-bar__item";
+
+    /// <summary>The container classes the client finds elements by too.</summary>
+    public const string Container = "ui-container";
+
+    /// <summary>The dialog classes the client finds elements by too.</summary>
+    public const string Dialog = "ui-dialog";
+
+    public const string DialogBackdrop = "ui-dialog__backdrop";
+
+    /// <summary>The expander classes the client finds elements by too.</summary>
+    public const string ExpanderHeader = "ui-expander__header";
+
+    /// <summary>The field classes the client finds elements by too.</summary>
+    public const string Field = "ui-field";
+
+    /// <summary>The field box classes the client finds elements by too.</summary>
+    public const string FieldBox = "ui-field-box";
+
+    /// <summary>The file input classes the client finds elements by too.</summary>
+    public const string FileInput = "ui-file-input";
+
+    /// <summary>The flyout classes the client finds elements by too.</summary>
+    public const string Flyout = "ui-flyout";
+
+    public const string FlyoutOpen = "ui-flyout--open";
+
+    public const string FlyoutAnchor = "ui-flyout__anchor";
+
+    /// <summary>The grid splitter classes the client finds elements by too.</summary>
+    public const string GridSplitter = "ui-grid-splitter";
+
+    /// <summary>The icon classes the client finds elements by too.</summary>
+    public const string Icon = "ui-icon";
+
+    public const string IconImage = "ui-icon--image";
+
+    public const string IconMask = "ui-icon--mask";
+
+    /// <summary>The icon stand in classes the client finds elements by too.</summary>
+    public const string IconStandIn = "ui-icon-stand-in";
+
+    /// <summary>The image input classes the client finds elements by too.</summary>
+    public const string ImageInput = "ui-image-input";
+
+    public const string ImageInputMultiple = "ui-image-input--multiple";
+
+    /// <summary>The items view classes the client finds elements by too.</summary>
+    public const string ItemsView = "ui-items-view";
+
+    public const string ItemsViewHost = "ui-items-view__host";
+
+    public const string ItemsViewItem = "ui-items-view__item";
+
+    /// <summary>The key value action classes the client finds elements by too.</summary>
+    public const string KeyValueAction = "ui-key-value-action";
+
+    public const string KeyValueActionEditable = "ui-key-value-action--editable";
+
+    public const string KeyValueActionAction = "ui-key-value-action__action";
+
+    public const string KeyValueActionEditAction = "ui-key-value-action__edit-action";
+
+    public const string KeyValueActionRow = "ui-key-value-action__row";
+
+    public const string KeyValueActionValue = "ui-key-value-action__value";
+
+    public const string KeyValueActionValueInput = "ui-key-value-action__value-input";
+
+    /// <summary>The language switcher classes the client finds elements by too.</summary>
+    public const string LanguageSwitcherChoice = "ui-language-switcher__choice";
+
+    public const string LanguageSwitcherLabelText = "ui-language-switcher__label-text";
+
+    public const string LanguageSwitcherLabelTextCurrent = "ui-language-switcher__label-text--current";
+
+    public const string LanguageSwitcherLabelTextPage = "ui-language-switcher__label-text--page";
+
+    public const string LanguageSwitcherMenu = "ui-language-switcher__menu";
+
+    public const string LanguageSwitcherTrigger = "ui-language-switcher__trigger";
+
+    /// <summary>The menu classes the client finds elements by too.</summary>
+    public const string MenuHost = "ui-menu__host";
+
+    public const string MenuItemWrapper = "ui-menu__item";
+
+    public const string MenuSubmenu = "ui-menu__submenu";
+
+    /// <summary>The menu item classes the client finds elements by too.</summary>
+    public const string MenuItemShortcut = "ui-menu-item__shortcut";
+
+    public const string MenuItemValue = "ui-menu-item__value";
+
+    /// <summary>The multi select classes the client finds elements by too.</summary>
+    public const string MultiSelect = "ui-multi-select";
+
+    public const string MultiSelectCheckboxes = "ui-multi-select--checkboxes";
+
+    public const string MultiSelectCheck = "ui-multi-select__check";
+
+    public const string MultiSelectChip = "ui-multi-select__chip";
+
+    public const string MultiSelectChipLabel = "ui-multi-select__chip-label";
+
+    public const string MultiSelectChipRemove = "ui-multi-select__chip-remove";
+
+    public const string MultiSelectChips = "ui-multi-select__chips";
+
+    public const string MultiSelectEntry = "ui-multi-select__entry";
+
+    /// <summary>The number input classes the client finds elements by too.</summary>
+    public const string NumberInput = "ui-number-input";
+
+    /// <summary>The pager classes the client finds elements by too.</summary>
+    public const string Pager = "ui-pager";
+
+    public const string PagerButton = "ui-pager__button";
+
+    public const string PagerPages = "ui-pager__pages";
+
+    public const string PagerRange = "ui-pager__range";
+
+    public const string PagerSize = "ui-pager__size";
+
+    public const string PagerSizeChoice = "ui-pager__size-choice";
+
+    public const string PagerSizeLabel = "ui-pager__size-label";
+
+    public const string PagerSizeTrigger = "ui-pager__size-trigger";
+
+    public const string PagerSizes = "ui-pager__sizes";
+
+    /// <summary>The pane container classes the client finds elements by too.</summary>
+    public const string PaneContainer = "ui-pane-container";
+
+    public const string PaneContainerGrip = "ui-pane-container__grip";
+
+    public const string PaneContainerPane = "ui-pane-container__pane";
+
+    public const string PaneContainerPlace = "ui-pane-container__place";
+
+    /// <summary>The progress classes the client finds elements by too.</summary>
+    public const string Progress = "ui-progress";
+
+    public const string ProgressFill = "ui-progress__fill";
+
+    public const string ProgressTrack = "ui-progress__track";
+
+    /// <summary>The radio group classes the client finds elements by too.</summary>
+    public const string RadioGroup = "ui-radio-group";
+
+    public const string RadioGroupDot = "ui-radio-group__dot";
+
+    public const string RadioGroupInput = "ui-radio-group__input";
+
+    public const string RadioGroupItem = "ui-radio-group__item";
+
+    /// <summary>The search classes the client finds elements by too.</summary>
+    public const string Search = "ui-search";
+
+    public const string SearchInput = "ui-search__input";
+
+    public const string SearchField = "ui-search__field";
+
+    /// <summary>The select classes the client finds elements by too.</summary>
+    public const string SelectList = "ui-select__list";
+
+    public const string SelectOption = "ui-select__option";
+
+    public const string SelectPlaceholder = "ui-select__placeholder";
+
+    public const string SelectPopup = "ui-select__popup";
+
+    public const string SelectTriggerContent = "ui-select__trigger-content";
+
+    public const string SelectValueInput = "ui-select__value-input";
+
+    /// <summary>The slider classes the client finds elements by too.</summary>
+    public const string Slider = "ui-slider";
+
+    public const string SliderRange = "ui-slider--range";
+
+    public const string SliderBubble = "ui-slider__bubble";
+
+    public const string SliderInput = "ui-slider__input";
+
+    public const string SliderInputEnd = "ui-slider__input--end";
+
+    public const string SliderThumbAnchor = "ui-slider__thumb-anchor";
+
+    public const string SliderTrack = "ui-slider__track";
+
+    public const string SliderValue = "ui-slider__value";
+
+    /// <summary>The split button classes the client finds elements by too.</summary>
+    public const string SplitButton = "ui-split-button";
+
+    public const string SplitButtonMain = "ui-split-button__main";
+
+    public const string SplitButtonMenu = "ui-split-button__menu";
+
+    public const string SplitButtonToggle = "ui-split-button__toggle";
+
+    /// <summary>The steps classes the client finds elements by too.</summary>
+    public const string Steps = "ui-steps";
+
+    public const string StepsItem = "ui-steps__item";
+
+    /// <summary>The surface classes the client finds elements by too.</summary>
+    public const string Surface = "ui-surface";
+
+    public const string SurfaceClickable = "ui-surface--clickable";
+
+    /// <summary>The tab caption classes the client finds elements by too.</summary>
+    public const string TabCaption = "ui-tab-caption";
+
+    /// <summary>A strip's overflow button, which the client finds the tabs it hides by.</summary>
+    public const string TabOverflow = "ui-tab-overflow";
+
+    public const string TabCaptionSelected = "ui-tab-caption--selected";
+
+    /// <summary>The tab item classes the client finds elements by too.</summary>
+    public const string TabItem = "ui-tab-item";
+
+    public const string TabItemSelected = "ui-tab-item--selected";
+
+    public const string TabItemCaption = "ui-tab-item__caption";
+
+    public const string TabItemClose = "ui-tab-item__close";
+
+    public const string TabItemLabel = "ui-tab-item__label";
+
+    public const string TabItemPage = "ui-tab-item__page";
+
+    public const string TabItemPin = "ui-tab-item__pin";
+
+    /// <summary>The table classes the client finds elements by too.</summary>
+    public const string Table = "ui-table";
+
+    public const string TableNoHeader = "ui-table--no-header";
+
+    public const string TableReorderable = "ui-table--reorderable";
+
+    public const string TableHeaderCell = "ui-table__header-cell";
+
+    public const string TableHost = "ui-table__host";
+
+    /// <summary>The tabs classes the client finds elements by too.</summary>
+    public const string Tabs = "ui-tabs";
+
+    public const string TabsNoOverflow = "ui-tabs--no-overflow";
+
+    public const string TabsBand = "ui-tabs__band";
+
+    public const string TabsStrip = "ui-tabs__strip";
+
+    /// <summary>The tabs view classes the client finds elements by too.</summary>
+    public const string TabsView = "ui-tabs-view";
+
+    public const string TabsViewNoOverflow = "ui-tabs-view--no-overflow";
+
+    public const string TabsViewTablist = "ui-tabs-view__tablist";
+
+    /// <summary>The temporal input classes the client finds elements by too.</summary>
+    public const string TemporalInput = "ui-temporal-input";
+
+    /// <summary>The text classes the client finds elements by too.</summary>
+    public const string TextMaxLines = "ui-text--max-lines";
+
+    public const string TextBody = "ui-text__body";
+
+    public const string TextCode = "ui-text__code";
+
+    public const string TextFold = "ui-text__fold";
+
+    public const string TextFoldContent = "ui-text__fold-content";
+
+    public const string TextFoldToggle = "ui-text__fold-toggle";
+
+    public const string TextHeader = "ui-text__header";
+
+    public const string TextIconInline = "ui-text__icon-inline";
+
+    public const string TextLink = "ui-text__link";
+
+    public const string TextTitle = "ui-text__title";
+
+    /// <summary>The text area classes the client finds elements by too.</summary>
+    public const string TextAreaGrow = "ui-text-area--grow";
+
+    /// <summary>The theme switcher classes the client finds elements by too.</summary>
+    public const string ThemeSwitcherChoice = "ui-theme-switcher__choice";
+
+    public const string ThemeSwitcherMenu = "ui-theme-switcher__menu";
+
+    /// <summary>The tree classes the client finds elements by too.</summary>
+    public const string TreeNodeWrapper = "ui-tree__node";
+
+    public const string TreeRowFolded = "ui-tree__row--folded";
+
+    /// <summary>The tree node classes the client finds elements by too.</summary>
+    public const string TreeNodeText = "ui-tree-node__text";
+
+    public const string TreeNodeToggle = "ui-tree-node__toggle";
+
+    /// <summary>The validation classes the client finds elements by too.</summary>
+    public const string ValidationInfo = "ui-validation--info";
+
+    public const string ValidationWarning = "ui-validation--warning";
+
     public static string Color(UIColorStyle value)
         => value switch
         {
@@ -154,17 +548,17 @@ public static class WebClassNames
             _ => string.Empty
         };
 
-    public static string IconSize(UIIconSize value)
+    public static string IconSize(UISize value)
         => value switch
         {
-            UIIconSize.Small => "ui-icon-size--small",
-            UIIconSize.Medium => "ui-icon-size--medium",
-            UIIconSize.Large => "ui-icon-size--large",
+            UISize.Small => "ui-icon-size--small",
+            UISize.Medium => "ui-icon-size--medium",
+            UISize.Large => "ui-icon-size--large",
             _ => string.Empty
         };
 
-    public static string IconShape(UIIconShape value)
-        => value == UIIconShape.Circle ? "ui-icon--circle" : string.Empty;
+    public static string IconShape(UIShape value)
+        => value == UIShape.Circle ? "ui-icon--circle" : string.Empty;
 
     public static string TextType(UITextType value)
         => value switch
@@ -245,17 +639,17 @@ public static class WebClassNames
             _ => string.Empty
         };
 
-    public static string BadgeStyle(UIBadgeType value)
+    public static string BadgeVariant(UIBadgeVariant value)
         => value switch
         {
-            UIBadgeType.Primary => "ui-badge-style--primary",
-            UIBadgeType.Accent => "ui-badge-style--accent",
-            UIBadgeType.Info => "ui-badge-style--info",
-            UIBadgeType.Warning => "ui-badge-style--warning",
-            UIBadgeType.Success => "ui-badge-style--success",
-            UIBadgeType.Danger => "ui-badge-style--danger",
-            UIBadgeType.Surface => "ui-badge-style--surface",
-            UIBadgeType.Plain => "ui-badge-style--plain",
+            UIBadgeVariant.Primary => "ui-badge-variant--primary",
+            UIBadgeVariant.Accent => "ui-badge-variant--accent",
+            UIBadgeVariant.Info => "ui-badge-variant--info",
+            UIBadgeVariant.Warning => "ui-badge-variant--warning",
+            UIBadgeVariant.Success => "ui-badge-variant--success",
+            UIBadgeVariant.Danger => "ui-badge-variant--danger",
+            UIBadgeVariant.Surface => "ui-badge-variant--surface",
+            UIBadgeVariant.Plain => "ui-badge-variant--plain",
             _ => string.Empty
         };
 
@@ -333,9 +727,8 @@ public static class WebClassNames
         => value switch
         {
             UISurfaceStyle.Background => $"{SurfaceStylePrefix}background",
-            UISurfaceStyle.Raised => $"{SurfaceStylePrefix}raised",
+            UISurfaceStyle.Surface => $"{SurfaceStylePrefix}surface",
             UISurfaceStyle.Tinted => $"{SurfaceStylePrefix}tinted",
-            UISurfaceStyle.Flat => $"{SurfaceStylePrefix}flat",
             _ => string.Empty
         };
 
@@ -394,32 +787,32 @@ public static class WebClassNames
             _ => string.Empty
         };
 
-    public static string ButtonSize(UIButtonSize value)
+    public static string ButtonSize(UISize value)
         => value switch
         {
-            UIButtonSize.Small => "ui-button--small",
-            UIButtonSize.Medium => "ui-button--medium",
-            UIButtonSize.Large => "ui-button--large",
+            UISize.Small => "ui-button--small",
+            UISize.Medium => "ui-button--medium",
+            UISize.Large => "ui-button--large",
             _ => string.Empty
         };
 
     /// <summary>A button group's size, on the group rather than on its segments, which inherit it through the stylesheet.</summary>
-    public static string ButtonGroupSize(UIButtonSize value)
+    public static string ButtonGroupSize(UISize value)
         => value switch
         {
-            UIButtonSize.Small => "ui-button-group--small",
-            UIButtonSize.Medium => "ui-button-group--medium",
-            UIButtonSize.Large => "ui-button-group--large",
+            UISize.Small => "ui-button-group--small",
+            UISize.Medium => "ui-button-group--medium",
+            UISize.Large => "ui-button-group--large",
             _ => string.Empty
         };
 
     /// <summary>A rail's size, on the menu, whose entries and bottom bar follow it through the stylesheet.</summary>
-    public static string MenuRailSize(UIButtonSize value)
+    public static string MenuRailSize(UISize value)
         => value switch
         {
-            UIButtonSize.Small => "ui-menu--small",
-            UIButtonSize.Medium => "ui-menu--medium",
-            UIButtonSize.Large => "ui-menu--large",
+            UISize.Small => "ui-menu--small",
+            UISize.Medium => "ui-menu--medium",
+            UISize.Large => "ui-menu--large",
             _ => string.Empty
         };
 
@@ -430,16 +823,15 @@ public static class WebClassNames
             UIInputAppearance.Outline => "ui-input--outline",
             UIInputAppearance.Underline => "ui-input--underline",
             UIInputAppearance.Ghost => "ui-input--ghost",
-            UIInputAppearance.Tonal => "ui-input--tonal",
             _ => string.Empty
         };
 
-    public static string InputSize(UIInputSize value)
+    public static string InputSize(UISize value)
         => value switch
         {
-            UIInputSize.Small => "ui-input--small",
-            UIInputSize.Medium => "ui-input--medium",
-            UIInputSize.Large => "ui-input--large",
+            UISize.Small => "ui-input--small",
+            UISize.Medium => "ui-input--medium",
+            UISize.Large => "ui-input--large",
             _ => string.Empty
         };
 
@@ -469,27 +861,26 @@ public static class WebClassNames
             _ => string.Empty
         };
 
-    public static string ButtonClass(UIButtonType type)
-        => type switch
+    public static string ButtonVariant(UIButtonVariant variant)
+        => variant switch
         {
-            UIButtonType.Primary => "ui-button--primary",
-            UIButtonType.Accent => "ui-button--accent",
-            UIButtonType.Danger => "ui-button--danger",
-            UIButtonType.Outline => "ui-button--outline",
-            UIButtonType.Ghost => "ui-button--ghost",
-            UIButtonType.Link => "ui-button--link",
-            UIButtonType.Surface => "ui-button--surface",
+            UIButtonVariant.Primary => "ui-button--primary",
+            UIButtonVariant.Accent => "ui-button--accent",
+            UIButtonVariant.Danger => "ui-button--danger",
+            UIButtonVariant.Outline => "ui-button--outline",
+            UIButtonVariant.Ghost => "ui-button--ghost",
+            UIButtonVariant.Link => "ui-button--link",
+            UIButtonVariant.Surface => "ui-button--surface",
             _ => string.Empty
         };
 
-    /// <summary>The four looks an image input is drawn as, on its root.</summary>
+    /// <summary>The three looks an image input is drawn as, on its root.</summary>
     public static string ImageInputVariant(UIImageInputVariant value)
         => value switch
         {
             UIImageInputVariant.Picture => "ui-image-input--picture",
             UIImageInputVariant.Avatar => "ui-image-input--avatar",
             UIImageInputVariant.Inline => "ui-image-input--inline",
-            UIImageInputVariant.Shelf => "ui-image-input--shelf",
             _ => string.Empty
         };
 
@@ -507,8 +898,8 @@ public static class WebClassNames
     public static string ExpanderVariant(UIExpanderVariant value)
         => value == UIExpanderVariant.Quiet ? "ui-expander--quiet" : string.Empty;
 
-    public static string ImageShape(UIImageShape value)
-        => value == UIImageShape.Circle ? "ui-image--circle" : string.Empty;
+    public static string ImageShape(UIShape value)
+        => value == UIShape.Circle ? "ui-image--circle" : string.Empty;
 
     public static string ProgressVariant(UIProgressVariant value)
         => value switch

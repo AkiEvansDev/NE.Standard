@@ -36,6 +36,7 @@ installFakeDom({
 });
 
 const { isInRenameField, openInlineRename } = await import("../src/interactions/inline-rename.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 
 type Opened = { readonly field: FakeInput; readonly title: FakeElement; readonly commits: string[]; readonly refocused: string[]; readonly done: string[] };
 
@@ -237,4 +238,14 @@ test("a field closed before its container is shown stops waiting", () => {
     press(field, "Escape");
 
     assert.equal(observers.size, 0);
+});
+
+test("the field is named by what it does, in the page's language, its value the name it holds", () => {
+    clientStrings.useTable({ language: "en", complete: true, prefixes: [], words: { "ui.action.rename": "Rename" } });
+
+    const { field } = open("draft.md");
+
+    assert.equal(field.getAttribute("aria-label"), "Rename");
+    assert.equal(field.value, "draft.md");
+    press(field, "Escape");
 });

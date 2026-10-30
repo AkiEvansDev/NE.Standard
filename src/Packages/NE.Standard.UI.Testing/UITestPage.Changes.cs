@@ -10,11 +10,9 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
-using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Sessions;
@@ -27,6 +25,8 @@ internal sealed record UITestRowEntry(string Key, object? Item);
 
 public sealed partial class UITestPage
 {
+    private static readonly JsonSerializerOptions ItemJsonOptions = new(JsonSerializerDefaults.Web);
+
     /// <summary>Takes the attached runtime and applies the snapshot a connecting page starts from: every binding's value and every list.</summary>
     internal async Task StartAsync(RuntimeResolution resolution, CancellationToken cancellationToken)
     {
@@ -116,6 +116,7 @@ public sealed partial class UITestPage
         }
 
         WriteValueNoLock(address, update.Value, local: false, depth: 0, writes: []);
+        ClearShadowedRowValuesNoLock(address);
 
         if (!_fields.TryGetValue(address.Component, out UITestField? field))
             return;
@@ -128,6 +129,29 @@ public sealed partial class UITestPage
             field.BoundRefusal = null;
         else if (field.BoundRefusal is not null && (address.Property == IBoundedInputComponent.MinProperty || address.Property == IBoundedInputComponent.MaxProperty))
             field.BoundRefusal = BoundRefusalNoLock(address.Component);
+    }
+
+    private void ClearShadowedRowValuesNoLock(UIPropertyAddress outer)
+    {
+        List<UIPropertyAddress>? shadowed = null;
+
+        foreach (UIPropertyAddress held in _values.Keys)
+        {
+            if (held.Component.Id == outer.Component.Id
+                && held.Property == outer.Property
+                && held.Component.DynamicParameters.Length > outer.Component.DynamicParameters.Length
+                && !_held.ContainsKey(held)
+                && HasRowKeyPrefix(held.Component.DynamicParameters, outer.Component.DynamicParameters))
+            {
+                (shadowed ??= []).Add(held);
+            }
+        }
+
+        if (shadowed is null)
+            return;
+
+        for (var i = 0; i < shadowed.Count; i++)
+            _ = _values.Remove(shadowed[i]);
     }
 
     /// <summary>
@@ -191,8 +215,6 @@ public sealed partial class UITestPage
     /// <summary>Whether a row's item is the one it was: the same object, or one that writes the same JSON, as the page compares the items it was sent.</summary>
     private static bool IsSameItem(object? kept, object? item)
         => ReferenceEquals(kept, item) || Equals(kept, item) || JsonSerializer.Serialize(kept, ItemJsonOptions) == JsonSerializer.Serialize(item, ItemJsonOptions);
-
-    private static readonly JsonSerializerOptions ItemJsonOptions = new(JsonSerializerDefaults.Web);
 
     private void ApplyCollectionNoLock(ServerCollectionChangeUIUpdate update)
     {
@@ -316,6 +338,18 @@ public sealed partial class UITestPage
                 _ = _values.Remove(address);
         }
 
+        foreach (UIPropertyAddress address in _held.Keys.ToArray())
+        {
+            if (IsUnderRow(address.Component, host, key))
+                _ = _held.Remove(address);
+        }
+
+        foreach (UIPropertyAddress address in _serverValues.Keys.ToArray())
+        {
+            if (IsUnderRow(address.Component, host, key))
+                _ = _serverValues.Remove(address);
+        }
+
         foreach (UIComponentAddress list in _rows.Keys.ToArray())
         {
             if (IsUnderRow(list, host, key))
@@ -361,8 +395,8 @@ public sealed partial class UITestPage
 
     /// <summary>
     /// Runs the effects the page was sent, as the client does: dialogs open and close — the viewer's close raising the dialog's close
-    /// once the act is done — an address effect rewrites the address, a discard lets a form's held edits go, a show or hide writes its
-    /// target's visibility, and a language or theme the session does not hold yet is told to the session.
+    /// once the act is done — an address effect rewrites the address, a discard lets a form's held edits go, and a language or theme the
+    /// session does not hold yet is told to the session.
     /// </summary>
     private void ApplyEffectsNoLock(IReadOnlyList<ClientEffect> effects)
     {
@@ -389,10 +423,6 @@ public sealed partial class UITestPage
                     break;
                 case DiscardFormEffect discard:
                     DiscardFormNoLock(discard.FormId);
-                    break;
-                case CompiledTargetedClientEffect targeted when VisibilityOf(effect.Kind) is UIVisibility visibility:
-                    // Every tier at once, as the page writes it, and no rule hears it: the page sets the attributes, not the property's state.
-                    _values[new UIPropertyAddress(targeted.Target, IVisualComponent.VisibilityProperty)] = visibility;
                     break;
                 case SetLanguageEffect or SetThemeEffect or SetThemeColorsEffect when !SessionHoldsNoLock(effect):
                     _reactions.Add(new UITestReaction(DialogClosed: null, Setting: effect));
@@ -444,16 +474,6 @@ public sealed partial class UITestPage
 
         return false;
     }
-
-    /// <summary>The visibility a show, hide or collapse writes; none for any other kind.</summary>
-    private static UIVisibility? VisibilityOf(string kind)
-        => kind switch
-        {
-            ClientEffectKinds.Show => UIVisibility.Visible,
-            ClientEffectKinds.Hide => UIVisibility.Hidden,
-            ClientEffectKinds.Collapse => UIVisibility.Collapsed,
-            _ => null
-        };
 
     /// <summary>
     /// Whether the page's session holds the setting already: the server's push of a switch made elsewhere, which the page does not tell

@@ -6,7 +6,7 @@
 import { ConnectionAttribute } from "../addressing/dom-attributes.ts";
 import type { NotificationEngine } from "../interactions/notification-engine.ts";
 import type { SignalRTransport } from "../transport/signalr-transport.ts";
-import { clientStrings } from "./client-strings.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
 
 /** How long a dropped connection may be away unseen. */
 const ReconnectGraceMilliseconds = 2000;
@@ -76,5 +76,13 @@ export class ConnectionWatch {
         this.given = true;
         this.clear();
         this.root.setAttribute(ConnectionAttribute, "lost");
+    }
+
+    public dispose(): void {
+        this.given = true;
+        this.clear();
+
+        if (this.root.getAttribute(ConnectionAttribute) === "reconnecting")
+            this.root.removeAttribute(ConnectionAttribute);
     }
 }

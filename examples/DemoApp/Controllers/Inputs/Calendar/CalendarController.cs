@@ -30,6 +30,9 @@ internal sealed partial class CalendarDaysGroupContext : InputValueGroupContext
     public partial DateOnly? EndValue { get; set; } = Sample.AddDays(4);
 
     [RecursiveMember]
+    public partial TimeSpan? MinDistance { get; set; }
+
+    [RecursiveMember]
     public partial DateOnly? Min { get; set; }
 
     [RecursiveMember]
@@ -45,6 +48,7 @@ internal sealed partial class CalendarDaysGroupContext : InputValueGroupContext
     {
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(EndValue), CycleEndValue, () => EndValue);
+        AddOption(nameof(MinDistance), CycleMinDistance, () => MinDistance);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
         AddOption(nameof(MarkedDays), CycleMarkedDays, () => MarkedDays is null ? null : string.Join(", ", MarkedDays.Select(static day => day.Day)));
@@ -62,6 +66,13 @@ internal sealed partial class CalendarDaysGroupContext : InputValueGroupContext
     public void CycleEndValue()
     {
         SetLastChange(nameof(EndValue), EndValue = CycleValue(EndValue, Sample.AddDays(4), Sample.AddDays(14), null));
+        Fit();
+    }
+
+    // Whole days: a calendar refuses a part of one.
+    public void CycleMinDistance()
+    {
+        SetLastChange(nameof(MinDistance), MinDistance = CycleValue(MinDistance, null, TimeSpan.FromDays(2), TimeSpan.FromDays(5)));
         Fit();
     }
 
@@ -98,8 +109,8 @@ internal sealed partial class CalendarDaysGroupContext : InputValueGroupContext
     }
 
     /// <summary>
-    /// Holds the day and the period's end to what the rows allow: inside the bounds and, with only marked days on offer, on marked
-    /// days — as the calendar itself would refuse anything else.
+    /// Holds the day and the period's end to what the rows allow: inside the bounds, on marked days where only those are on offer, and
+    /// the least distance apart — as the calendar itself would refuse anything else.
     /// </summary>
     private void Fit()
     {
@@ -109,7 +120,7 @@ internal sealed partial class CalendarDaysGroupContext : InputValueGroupContext
         Value = FitDay(Value);
         EndValue = FitDay(EndValue);
 
-        if (Value is DateOnly start && EndValue is DateOnly end && end < start)
+        if (Value is DateOnly start && EndValue is DateOnly end && end.DayNumber - start.DayNumber < (MinDistance?.Days ?? 0))
             EndValue = null;
     }
 

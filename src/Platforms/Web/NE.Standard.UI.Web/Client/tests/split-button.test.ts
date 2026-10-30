@@ -124,7 +124,7 @@ test("the list opens under the button from its end, or where the author placed i
             at.button.setAttribute("data-ui-split-placement", attribute);
 
         press(at);
-        const side = menu.dataset.uiPlacement;
+        const side = menu.getAttribute("data-ui-placement") ?? undefined;
 
         escape();
 
@@ -133,4 +133,15 @@ test("the list opens under the button from its end, or where the author placed i
 
     assert.equal(placed(null), "bottom-end");
     assert.equal(placed("bottom-start"), "bottom-start");
+});
+
+test("the open list is called what its opener says", () => {
+    const at = scene();
+
+    at.toggle.setAttribute("aria-label", "More actions");
+    press(at);
+
+    assert.notEqual(at.toggle.id, "");
+    assert.equal(at.list.getAttribute("aria-labelledby"), at.toggle.id);
+    escape();
 });

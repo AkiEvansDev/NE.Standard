@@ -36,16 +36,16 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/navigation/menu";
     protected override string Header => "demo.navigation.menu.header";
     protected override string HeaderDescription => "demo.navigation.menu.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(600,
             ("Bound entries", frame => frame.AddChild(Bind(new MenuComponent())
-                .BindItems($"{MenuGroup}.{nameof(MenuGroupContext.Entries)}")
+                .BindItems<MenuController>(static x => x.MenuGroup.Entries)
                 .OnItemClickWithItemKey(nameof(MenuController.Choose))
                 .SetPlacement(1, 1, 24, 1)
             )),
-            ("Set entries, with a group", frame => frame.AddChild(Bind(new MenuComponent(SetMenuId))
+            ("Set entries, with nested groups", frame => frame.AddChild(Bind(new MenuComponent(SetMenuId))
                 .SetShowCollapseToggle(true)
                 .SetItems(CreateSetEntries())
                 .SetPlacement(1, 1, 24, 1)
@@ -55,16 +55,26 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
     private static MenuComponent Bind(MenuComponent menu)
         => menu
             .BindStandard()
-            .BindOrientation($"{MenuGroup}.{nameof(MenuGroupContext.Orientation)}")
-            .BindSpacing($"{MenuGroup}.{nameof(MenuGroupContext.Spacing)}")
-            .BindExpanded($"{MenuGroup}.{nameof(MenuGroupContext.Expanded)}")
-            .BindSelectionStyle($"{MenuGroup}.{nameof(MenuGroupContext.SelectionStyle)}");
+            .BindOrientation<MenuController>(static x => x.MenuGroup.Orientation)
+            .BindSpacing<MenuController>(static x => x.MenuGroup.Spacing)
+            .BindExpanded<MenuController>(static x => x.MenuGroup.Expanded)
+            .BindSelectionStyle<MenuController>(static x => x.MenuGroup.SelectionStyle);
 
     /// <summary>
     /// The shape a sidebar has: a group open on the page it holds, one closed, and an entry outside both.
     /// </summary>
     private static MenuItem[] CreateSetEntries()
     {
+        MenuItem production = new() { Id = "production", Title = "Production", Expanded = true };
+
+        production.Items.Add(new MenuItem { Id = "prod-eu-west", Title = "EU West", Selected = true });
+        production.Items.Add(new MenuItem { Id = "prod-us-east", Title = "US East" });
+
+        MenuItem staging = new() { Id = "staging", Title = "Staging" };
+
+        staging.Items.Add(new MenuItem { Id = "staging-preview", Title = "Preview" });
+        staging.Items.Add(new MenuItem { Id = "staging-qa", Title = "QA" });
+
         MenuItem environments = new()
         {
             Id = "environments",
@@ -73,12 +83,12 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
             Expanded = true
         };
 
-        environments.Items.Add(new MenuItem { Id = "production", Title = "Production", Selected = true });
-        environments.Items.Add(new MenuItem { Id = "staging", Title = "Staging" });
+        environments.Items.Add(production);
+        environments.Items.Add(staging);
 
         MenuItem access = new() { Id = "access", Title = "Access", Icon = DemoIcons.Outline(DemoIcons.Lock) };
 
-        access.Items.Add(new MenuItem { Id = "members", Title = "Members", BadgeText = "8" });
+        access.Items.Add(new MenuItem { Id = "members", Title = "Members", BadgeTitle = "8" });
         access.Items.Add(new MenuItem { Id = "tokens", Title = "Tokens" });
 
         return
@@ -112,10 +122,10 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                 .SetRow(1, UIGridUnit.Auto())
                 .SetSpacing(16)
                 .AddChild(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetMaxWidth(UILayoutLength.Absolute(280))
                     .SetContent(new MenuComponent()
-                        .BindItems(nameof(FiltersGroupContext.Entries), UIBindingScope.Relative)
+                        .BindItems<FiltersGroupContext>(static x => x.Entries, UIBindingScope.Relative)
                         .OnItemClickWithItemKey(nameof(MenuController.Filter))
                     )
                     .SetPlacement(1, 1, 24, 1, md: UIGridPlacement.At(1, 1, 12, 1))
@@ -123,16 +133,34 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                 // Outlined, as a filter bar's buttons are: the bar is a row of choices, none of them the page's main action.
                 .AddChild(new SplitButtonComponent()
                     .SetMode(UISplitButtonMode.Menu)
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Sliders))
                     .SetTitle("Filters")
                     .SetHorizontalAlignment(UIAlignment.Start)
-                    .BindItems(nameof(FiltersGroupContext.Entries), UIBindingScope.Relative)
+                    .BindItems<FiltersGroupContext>(static x => x.Entries, UIBindingScope.Relative)
                     .OnItemClickWithItemKey(nameof(MenuController.Filter))
                     .SetPlacement(1, 2, 24, 1, md: UIGridPlacement.At(13, 1, 12, 1))
                 ),
             note: "Kind = Select carries Value and its Items as the choices; Kind = Check carries Checked. Both click the entry command with their key, and the controller answers on the bound items.",
             context: FiltersGroup
+        );
+    }
+
+    /// <summary>
+    /// Entries that run something rather than go somewhere, each with the key that fires it without the menu.
+    /// </summary>
+    private static ContainerComponent CreateCommandsGroup()
+    {
+        return DemoUI.CreateExample("Commands, and the keys that fire them",
+            new SurfaceComponent()
+                .SetSurface(UISurfaceStyle.Surface)
+                // Room for the longest entry beside its shortcut: at 280 "Download the config" lost its end.
+                .SetWidth(UILayoutLength.Absolute(360))
+                .SetContent(new MenuComponent()
+                    .BindItems<MenuListGroupContext>(static x => x.Entries, UIBindingScope.Relative)
+                    .OnItemClickWithItemKey(nameof(MenuController.Run))
+                ),
+            context: CommandsGroup
         );
     }
 
@@ -145,15 +173,18 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A sidebar with sections",
             new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetContent(new MenuComponent(SidebarId)
                     .SetShowCollapseToggle(true)
+                    .OnExpand(nameof(MenuController.SidebarExpanded))
+                    .OnCollapse(nameof(MenuController.SidebarCollapsed))
                     .SetSearch()
                     .SetMinWidth(UILayoutLength.Absolute(200))
-                    .BindItems(nameof(SidebarGroupContext.Entries), UIBindingScope.Relative)
+                    .SetSubmenuDepth(2)
+                    .BindItems<SidebarGroupContext>(static x => x.Entries, UIBindingScope.Relative)
                 ),
-            note: "Type into the box: a section stays while any of its entries matches, and opens to show it. Type what no entry holds and the menu says \"Nothing to show.\", the framework's own line, in the page's language.",
+            note: "Type into the box: a section stays while any of its entries matches, and opens to show it. Type what no entry holds and the menu says \"Nothing to show.\", the framework's own line, in the page's language. The switch folds the menu to its icons and raises Collapse, and back raises Expand, logged below; a section opening or closing is an entry's fold and raises neither.",
             context: SidebarGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
@@ -163,43 +194,119 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// A menu on one ordinary component, through one <c>SetContextMenu</c> and nothing placed in the tree.
+    /// Context menus on ordinary components: first a file card opened by right-click, long-press or a <c>⋮</c> header button with
+    /// three-level cascading submenus, and below it a message surface carrying <c>SetActionBar</c> so the entries marked
+    /// <c>InActionBar</c> float above it as compact icon buttons beside <c>⋯</c>.
     /// </summary>
     private static ContainerComponent CreateContextGroup()
     {
-        return DemoUI.CreateExample("As a context menu on one component",
-            new CardComponent()
-                .SetContextMenu(new MenuComponent().SetItems(
-                [
-                    new MenuItem { Id = "card-actions", Kind = UIMenuItemKind.Header, Title = "Card" },
-                    new MenuItem { Id = "rename", Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit) },
-                    new MenuItem { Id = "duplicate", Title = "Duplicate", Icon = DemoIcons.Outline(DemoIcons.Copy) }
-                ]).SetSurface(UISurfaceStyle.Background).OnItemClickWithItemKey(nameof(MenuController.RunCardAction), "entry"))
-                // A paragraph: the explanation is prose, which a text's one line would cut.
-                .SetContent(new ParagraphComponent()
-                    .SetTitle("Right-click or long-press this card")
-                    .SetDescription("The menu is set on the card itself — it compiles with the card and opens where the pointer is; Surface = Background puts it on the page's ground.")
+        return DemoUI.CreateExample("Context menu and floating action bar",
+            UILayout.Stack(16)
+                .AddChild(new CardComponent()
+                    .ConfigureDefaultHeader(header => header
+                        .SetIcon(DemoIcons.Code)
+                        .SetTitle("Program.cs")
+                        .SetDescription("src/Orvane.Api · 4.2 KB")
+                    )
+                    .SetHeaderAction(UIIconButtons.More(CreateContextMenuEntries())
+                        .SetPopupPlacement(UIPopupPlacement.BottomEnd)
+                        .OnItemClickWithItemKey(nameof(MenuController.RunCardAction), "entry")
+                    )
+                    .SetContextMenu(new MenuComponent()
+                        .SetItems(CreateContextMenuEntries())
+                        .SetSurface(UISurfaceStyle.Background)
+                        .OnItemClickWithItemKey(nameof(MenuController.RunCardAction), "entry")
+                    )
+                    // A paragraph: the explanation is prose, which a text's one line would cut.
+                    .SetContent(new ParagraphComponent()
+                        .SetTitle("Right-click, long-press, or press ⋮")
+                        .SetDescription("Opens a context menu with nested Copy and Move to submenus cascading three levels deep. Surface = Background puts the right-click menu on the page's ground.")
+                    )
+                )
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Surface)
+                    .SetContextMenu(new MenuComponent()
+                        .SetItems(CreateActionBarMenuEntries())
+                        .SetSurface(UISurfaceStyle.Background)
+                        .OnItemClickWithItemKey(nameof(MenuController.RunMessageAction), "entry")
+                    )
+                    .SetActionBar(UIActionBarAlignment.End)
+                    .SetContent(new ParagraphComponent()
+                        .SetTitle("Maya Lin · 14:20")
+                        .SetTitleType(UITextAppearance.Caption)
+                        .SetTitleColor(UIThemeColor.Primary)
+                        .SetDescription("Click or tap this message to reveal the compact icon bar above it (SetActionBar + InActionBar), press ⋯ for the full menu, or right-click anywhere on the surface.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                    )
                 ),
+            note: "`SetContextMenu` attaches the menu for right-click and long-press. Adding `SetActionBar(UIActionBarAlignment.End)` floats the entries marked `InActionBar = true` as small icon buttons above the host when chosen or focused, with `⋯` opening the full menu.",
             context: ContextGroup
         );
     }
 
-    /// <summary>
-    /// Entries that run something rather than go somewhere, each with the key that fires it without the menu.
-    /// </summary>
-    private static ContainerComponent CreateCommandsGroup()
+    private static MenuItem[] CreateContextMenuEntries()
     {
-        return DemoUI.CreateExample("Commands, and the keys that fire them",
-            new SurfaceComponent()
-                .SetSurface(UISurfaceStyle.Raised)
-                // Room for the longest entry beside its shortcut: at 280 "Download the config" lost its end.
-                .SetWidth(UILayoutLength.Absolute(360))
-                .SetContent(new MenuComponent()
-                    .BindItems(nameof(MenuListGroupContext.Entries), UIBindingScope.Relative)
-                    .OnItemClickWithItemKey(nameof(MenuController.Run))
-                ),
-            context: CommandsGroup
-        );
+        MenuItem copyAs = new() { Id = "copy-as", Title = "Copy as" };
+
+        copyAs.Items.Add(new MenuItem { Id = "copy-markdown", Title = "Markdown Link" });
+        copyAs.Items.Add(new MenuItem { Id = "copy-uri", Title = "File URI" });
+        copyAs.Items.Add(new MenuItem { Id = "copy-namespace", Title = "C# Namespace" });
+
+        MenuItem copy = new() { Id = "copy", Title = "Copy", Icon = DemoIcons.Outline(DemoIcons.Copy) };
+
+        copy.Items.Add(new MenuItem { Id = "copy-path", Title = "Copy Path", Shortcut = "Ctrl+Alt+C" });
+        copy.Items.Add(new MenuItem { Id = "copy-relative-path", Title = "Copy Relative Path", Shortcut = "Ctrl+Shift+C" });
+        copy.Items.Add(copyAs);
+
+        MenuItem apiFolder = new() { Id = "move-api", Title = "src/Orvane.Api", Icon = DemoIcons.Outline(DemoIcons.Folder) };
+
+        apiFolder.Items.Add(new MenuItem { Id = "move-controllers", Title = "Controllers" });
+        apiFolder.Items.Add(new MenuItem { Id = "move-endpoints", Title = "Endpoints" });
+        apiFolder.Items.Add(new MenuItem { Id = "move-middleware", Title = "Middleware" });
+
+        MenuItem moveTo = new() { Id = "move-to", Title = "Move to", Icon = DemoIcons.Outline(DemoIcons.Folder) };
+
+        moveTo.Items.Add(apiFolder);
+        moveTo.Items.Add(new MenuItem { Id = "move-tests", Title = "tests/Orvane.Tests", Icon = DemoIcons.Outline(DemoIcons.Folder) });
+
+        return
+        [
+            new MenuItem { Id = "open", Title = "Open", Icon = DemoIcons.Outline(DemoIcons.FileText), Shortcut = "Enter" },
+            new MenuItem { Id = "open-side", Title = "Open to the Side", Icon = DemoIcons.Outline(DemoIcons.ExternalLink) },
+            new MenuItem { Id = "rule-1", Kind = UIMenuItemKind.Separator },
+            copy,
+            moveTo,
+            new MenuItem { Id = "rule-2", Kind = UIMenuItemKind.Separator },
+            new MenuItem { Id = "rename", Title = "Rename", Icon = DemoIcons.Outline(DemoIcons.Edit), Shortcut = "F2" },
+            new MenuItem { Id = "duplicate", Title = "Duplicate", Icon = DemoIcons.Outline(DemoIcons.Copy) },
+            new MenuItem { Id = "delete", Title = "Delete", Icon = UIGlyphs.Delete, IconColor = UIThemeColor.Danger, TitleColor = UIThemeColor.Danger, Shortcut = "Delete" }
+        ];
+    }
+
+    private static MenuItem[] CreateActionBarMenuEntries()
+    {
+        MenuItem direct = new() { Id = "forward-direct", Title = "Direct message" };
+
+        direct.Items.Add(new MenuItem { Id = "forward-maya", Title = "Maya Lin" });
+        direct.Items.Add(new MenuItem { Id = "forward-tomasz", Title = "Tomasz Kowalski" });
+
+        MenuItem forward = new() { Id = "forward", Title = "Forward to", Icon = DemoIcons.Outline(DemoIcons.ExternalLink) };
+
+        forward.Items.Add(new MenuItem { Id = "forward-deployments", Title = "#deployments" });
+        forward.Items.Add(new MenuItem { Id = "forward-incidents", Title = "#incidents" });
+        forward.Items.Add(direct);
+
+        return
+        [
+            new MenuItem { Id = "reply", Title = "Reply", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), InActionBar = true, Shortcut = "R" },
+            new MenuItem { Id = "pin", Title = "Pin", Icon = UIGlyphs.Pin, InActionBar = true, Shortcut = "P" },
+            new MenuItem { Id = "copy", Title = "Copy Text", Icon = DemoIcons.Outline(DemoIcons.Copy), InActionBar = true, Shortcut = "Ctrl+C" },
+            new MenuItem { Id = "rule-1", Kind = UIMenuItemKind.Separator },
+            forward,
+            new MenuItem { Id = "unread", Title = "Mark Unread", Icon = DemoIcons.Outline(DemoIcons.Mail) },
+            new MenuItem { Id = "rule-2", Kind = UIMenuItemKind.Separator },
+            new MenuItem { Id = "delete", Title = "Delete", Icon = UIGlyphs.Delete, IconColor = UIThemeColor.Danger, TitleColor = UIThemeColor.Danger, InActionBar = true, Shortcut = "Delete" }
+        ];
     }
 
     /// <summary>
@@ -212,7 +319,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Across the top and down the edge",
             UILayout.Stack(24)
                 .AddChild(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetContent(new StackPanelComponent()
                         .SetOrientation(UIOrientation.Horizontal)
                         .SetSpacing(24)
@@ -226,7 +333,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                         )
                         .AddChild(new MenuComponent()
                             .SetOrientation(UIOrientation.Horizontal)
-                            .BindItems(nameof(BarsGroupContext.TopEntries), UIBindingScope.Relative)
+                            .BindItems<BarsGroupContext>(static x => x.TopEntries, UIBindingScope.Relative)
                             .OnItemClickWithItemKey(nameof(MenuController.Navigate))
                         )
                     )
@@ -235,11 +342,11 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                     .AddChild(DemoUI.CreateLabelled("Side = Left, no ground", CreateRail()))
                     .AddChild(DemoUI.CreateLabelled("Side = Right", CreateRail().SetSide(UISide.Right)))
                     .AddChild(DemoUI.CreateLabelled("Surface = Tinted", CreateRail().SetSurface(UISurfaceStyle.Tinted)))
-                    .AddChild(DemoUI.CreateLabelled("Size = Small", CreateRail().SetSize(UIButtonSize.Small)))
-                    .AddChild(DemoUI.CreateLabelled("Size = Large", CreateRail().SetSize(UIButtonSize.Large)))
+                    .AddChild(DemoUI.CreateLabelled("Size = Small", CreateRail().SetSize(UISize.Small)))
+                    .AddChild(DemoUI.CreateLabelled("Size = Large", CreateRail().SetSize(UISize.Large)))
                 ),
             columns: 24,
-            note: "`SetOrientation(UIOrientation.Horizontal)` lays the entries along a bar. `SetDisplay(UIMenuDisplay.Rail)`: each entry its icon over a one-line label, the badge on the icon's corner — a count on Chat, an empty `BadgeText` as the dot on Profile. "
+            note: "`SetOrientation(UIOrientation.Horizontal)` lays the entries along a bar. `SetDisplay(UIMenuDisplay.Rail)`: each entry its icon over a one-line label, the badge on the icon's corner — a count on Chat, an empty `BadgeTitle` as the dot on Profile. "
                 + "A label cut short shows whole as its tooltip; the current entry wears a bar on the rail's edge and its icon filled; Administration's two entries fly out beside the rail. The buttons push a count and move the current mark, into the group and out. "
                 + "`SetSize` picks the rail's measures, Medium unless set: Small is a column of 48 px squares whose labels are only their tooltips, Large a 72 px column of larger glyphs and labels. The entries stand edge to edge at every size.",
             context: BarsGroup,
@@ -255,6 +362,6 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
     private static MenuComponent CreateRail()
         => new MenuComponent()
             .SetDisplay(UIMenuDisplay.Rail)
-            .BindItems(nameof(BarsGroupContext.Entries), UIBindingScope.Relative)
+            .BindItems<BarsGroupContext>(static x => x.Entries, UIBindingScope.Relative)
             .OnItemClickWithItemKey(nameof(MenuController.SelectRailEntry));
 }

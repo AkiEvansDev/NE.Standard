@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Shell.Filters;
 using NE.Standard.UI.Shell.Hosting;
@@ -56,6 +57,9 @@ public sealed class UIViewFilterContext : IUIFilterContext
     /// <summary>Gets which half of the page request this is — see <see cref="UIViewRequestPhase"/>.</summary>
     /// <remarks>A filter with a side effect has to test this, because one page load resolves the view twice.</remarks>
     public UIViewRequestPhase Phase { get; }
+
+    /// <summary>Gets the token that cancels the resolution when the request that asked for it goes away.</summary>
+    public CancellationToken CancellationToken { get; init; }
 
     /// <summary>Gets the resolved view, available to a filter after it has awaited the rest of the pipeline.</summary>
     /// <remarks>

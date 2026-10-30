@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
+using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
@@ -88,6 +91,15 @@ public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IReg
     public T BindItems(string path, UIBindingScope scope = UIBindingScope.Root)
     {
         _ = Menu.BindItems(path, scope);
+        return Self;
+    }
+
+    /// <summary>
+    /// Binds the menu's entries to a collection of <see cref="MenuItem"/> on the controller.
+    /// </summary>
+    public T BindItems<TSource>(Expression<Func<TSource, object?>> path, UIBindingScope scope = UIBindingScope.Root)
+    {
+        _ = Menu.BindItems(RecursivePath.FromExpression(path), scope);
         return Self;
     }
 

@@ -25,9 +25,11 @@ type Hub = {
     answer(): void;
     /** The connection drops under the oldest change set in flight; this hub is attached again at once. */
     drop(): void;
+    /** The server fails the oldest change set in flight, the connection standing. */
+    fail(): void;
 };
 
-type PageOptions = Pick<ConstructorParameters<typeof ValueBindingEngine>[0], "readRecorded" | "markConflict">;
+type PageOptions = Pick<ConstructorParameters<typeof ValueBindingEngine>[0], "readRecorded" | "markConflict" | "failed">;
 
 function createPage(componentClasses = "", refuses?: (element: Element) => boolean, options: PageOptions = {}): { readonly field: FakeInput; readonly flyout: FakeElement; readonly component: FakeElement; readonly hub: Hub; readonly engine: InstanceType<typeof ValueBindingEngine> } {
     const field = new FakeInput("text");
@@ -56,8 +58,8 @@ function createPage(componentClasses = "", refuses?: (element: Element) => boole
         }
     };
 
-    const answers: { readonly answer: () => void; readonly drop: () => void }[] = [];
-    const hub: Hub = { sent: [], heldAtAnswer: [], answer: () => answers.shift()?.answer(), drop: () => answers.shift()?.drop() };
+    const answers: { readonly answer: () => void; readonly drop: () => void; readonly fail: () => void }[] = [];
+    const hub: Hub = { sent: [], heldAtAnswer: [], answer: () => answers.shift()?.answer(), drop: () => answers.shift()?.drop(), fail: () => answers.shift()?.fail() };
     let engine: InstanceType<typeof ValueBindingEngine> | null = null;
 
     const transport = {
@@ -70,7 +72,8 @@ function createPage(componentClasses = "", refuses?: (element: Element) => boole
                     hub.heldAtAnswer.push(engine?.isHeld(real<Element>(field)) === true);
                     resolve();
                 },
-                drop: () => reject(new ConnectionDropped(new Error("the socket closed")))
+                drop: () => reject(new ConnectionDropped(new Error("the socket closed"))),
+                fail: () => reject(new Error("the server threw"))
             }));
         },
         whenAttached: () => Promise.resolve()
@@ -486,4 +489,25 @@ test("a value carried over a reload goes as the reader's edit where the server s
     await settle();
 
     assert.deepEqual(page.hub.sent, ["mine"]);
+});
+
+test("a value the server failed, the connection standing, is said to the person: the field holds what the server lacks", async () => {
+    const failures: unknown[] = [];
+    const error = console.error;
+    const page = createPage("", undefined, { failed: failure => failures.push(failure) });
+
+    console.error = () => undefined;
+
+    try {
+        edit(page.field, "a");
+        await settle();
+        page.hub.fail();
+        await settle();
+    }
+    finally {
+        console.error = error;
+    }
+
+    assert.equal(failures.length, 1);
+    assert.match(String(failures[0]), /the server threw/);
 });

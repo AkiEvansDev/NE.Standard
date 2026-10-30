@@ -1,17 +1,19 @@
 using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>Renders a display-only field of the chosen names, with a pick button over a hidden native <c>&lt;input type="file"&gt;</c>.</summary>
+/// <summary>Renders a display-only field of the chosen names, or a shelf of square tiles (<c>Tiles</c> and <c>Shelf</c>), over a hidden native <c>&lt;input type="file"&gt;</c>.</summary>
 public sealed class FileInputComponentRenderer : TextContentRendererBase
 {
-    private const string RootClassName = "ui-file-input";
+    private const string RootClassName = WebClassNames.FileInput;
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
 
@@ -21,10 +23,29 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
 
     protected override string ClassName => RootClassName;
 
+    protected override (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        _ = ResolveRenderValue(context, FileInputComponent.VariantProperty, out UIFileInputVariant? variant, out _);
+
+        return variant is UIFileInputVariant.Tiles or UIFileInputVariant.Shelf
+            ? (ElementName, WebClassNames.ImageInput)
+            : (ElementName, ClassName);
+    }
+
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
+
+        _ = ResolveRenderValue(context, FileInputComponent.VariantProperty, out UIFileInputVariant? variant, out _);
+
+        if (variant is UIFileInputVariant.Tiles or UIFileInputVariant.Shelf)
+        {
+            ImageInputComponentRenderer.Shared.RenderTileShelfComponent(context, root, withPick: variant == UIFileInputVariant.Tiles, files: true);
+            return;
+        }
 
         RenderTooltip(context, root);
 
@@ -64,7 +85,7 @@ public sealed class FileInputComponentRenderer : TextContentRendererBase
             _ = row.Element("input", input =>
             {
                 _ = input.Class($"{ClassName}__field");
-                _ = input.Class("ui-field");
+                _ = input.Class(WebClassNames.Field);
                 _ = input.Attribute("type", "text");
 
                 // Display-only: what syncs back is SelectionId, on its own hidden input below.

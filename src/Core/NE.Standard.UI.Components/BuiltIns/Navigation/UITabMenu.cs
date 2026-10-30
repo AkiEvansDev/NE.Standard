@@ -37,13 +37,13 @@ public static class UITabMenu
     public const string RemoveSeparator = "tabs:separator-remove";
 
     /// <summary>
-    /// The application's entry that was clicked, by its id: what <c>EventNames.TabMenuEntry</c>, raised on the tab, carries after the
+    /// The application's entry that was clicked, by its id: what <c>EventNames.ItemMenuEntry</c>, raised on the tab, carries after the
     /// keys that address the tab.
     /// </summary>
     public static KeyValuePair<string, UIActionArgument> Entry(string name)
         => UIAction.ArgEventValue(name);
 
-    /// <summary>The key of the tab the menu was opened on, which <c>EventNames.TabMenuEntry</c> is raised on.</summary>
+    /// <summary>The key of the tab the menu was opened on, which <c>EventNames.ItemMenuEntry</c> is raised on.</summary>
     public static KeyValuePair<string, UIActionArgument> Tab(string name)
         => UIAction.ArgCurrentItemKey(name);
 }

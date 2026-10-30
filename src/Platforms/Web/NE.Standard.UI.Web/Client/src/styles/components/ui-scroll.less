@@ -12,18 +12,7 @@
     background-color: var(--ui-surface-color, transparent);
     // `::before`, so the blur's layer comes ahead of the content it stays under while that scrolls.
     .ui-surface-image(before; true);
-}
-
-.ui-scroll.ui-scroll-x--disabled {
-    overflow-x: hidden;
-}
-
-.ui-scroll.ui-scroll-x--auto {
-    overflow-x: auto;
-}
-
-.ui-scroll.ui-scroll-x--always {
-    overflow-x: scroll;
+    .ui-scroll-axes();
 }
 
 // Sideways, the content is its own width and never narrower than the box; an authored width or floor still holds.
@@ -31,18 +20,6 @@
 .ui-scroll.ui-scroll-x--always > [data-ui-id] {
     .ui-responsive-property(width, --ui-width, max-content);
     min-width: ~"max(100%, var(--ui-min-width-xxl, var(--ui-min-width-xl, var(--ui-min-width-md, var(--ui-min-width-sm, var(--ui-min-width, 0px))))))";
-}
-
-.ui-scroll.ui-scroll-y--disabled {
-    overflow-y: hidden;
-}
-
-.ui-scroll.ui-scroll-y--auto {
-    overflow-y: auto;
-}
-
-.ui-scroll.ui-scroll-y--always {
-    overflow-y: scroll;
 }
 
 // `both` rather than a class per axis pair: an axis that doesn't overflow has nothing to snap to anyway.

@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Hosting;
 using NE.Standard.UI.Runtime;
 using NE.Standard.UI.Shell.Runtime;
-using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Scheduling;
 
@@ -24,7 +23,6 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
     }
 
     private readonly UIRuntimeStore _runtimeStore;
-    private readonly UIUpdateDispatcher _dispatcher;
     private readonly ILogger _logger;
     private readonly UIMetrics? _metrics;
     private readonly int _maxParallelFlushes;
@@ -32,16 +30,14 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
     // A runtime whose flush outlived its pass, still running on its own: no later pass starts another beside it.
     private readonly ConcurrentDictionary<IUIRuntime, byte> _inFlight = new(ReferenceEqualityComparer.Instance);
 
-    public UIFlushTask(UIRuntimeStore runtimeStore, UIUpdateDispatcher dispatcher, ILogger logger, TimeSpan interval, int maxParallelFlushes, UIMetrics? metrics = null)
+    public UIFlushTask(UIRuntimeStore runtimeStore, ILogger logger, TimeSpan interval, int maxParallelFlushes, UIMetrics? metrics = null)
         : base(new RuntimeScheduledTaskOptions { Interval = interval })
     {
         ArgumentNullException.ThrowIfNull(runtimeStore);
-        ArgumentNullException.ThrowIfNull(dispatcher);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxParallelFlushes);
 
         _runtimeStore = runtimeStore;
-        _dispatcher = dispatcher;
         _logger = logger;
         _metrics = metrics;
         _maxParallelFlushes = maxParallelFlushes;
@@ -135,24 +131,12 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
 
     /// <summary>
     /// Drains one runtime into the dispatcher — handed over, not sent here: a full transport would otherwise hold this flush until it
-    /// gave up — and answers whether anything went to an attached instance. A disconnected runtime is still drained, to keep its queue
-    /// from growing with no one to notify.
+    /// gave up — inside the drain that took it, so an answer drained after it is queued behind it; answers whether anything went to an
+    /// attached instance. A disconnected runtime is still drained, to keep its queue from growing with no one to notify.
     /// </summary>
-    private async Task<bool> FlushToDispatcherAsync(IUIRuntime runtime, CancellationToken cancellationToken)
-    {
-        // Inside the drain that took it, so an answer drained after it is queued behind it.
-        if (runtime is IUIRuntimeConnectionUpdater own)
-            return await own.FlushToDispatcherAsync(cancellationToken).ConfigureAwait(false);
-
-        ServerChangeSet changes = await runtime.FlushAsync(cancellationToken).ConfigureAwait(false);
-
-        if (changes.IsEmpty || runtime.AttachedInstanceIds.Count == 0)
-            return false;
-
-        _dispatcher.Enqueue(runtime, changes);
-
-        return true;
-    }
+    /// <remarks>Every runtime the store holds is a <see cref="UIRuntime"/>.</remarks>
+    private static Task<bool> FlushToDispatcherAsync(IUIRuntime runtime, CancellationToken cancellationToken)
+        => ((IUIRuntimeConnectionUpdater)runtime).FlushToDispatcherAsync(cancellationToken);
 
     /// <summary>What one pass queued and failed; a flush that outlives its pass counts into a pass already logged.</summary>
     private sealed class PassCounts

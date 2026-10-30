@@ -5,6 +5,7 @@
 @import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 @import "../mixins/row-grip.less";
+@import "../mixins/scroll-room.less";
 @import "../mixins/selected.less";
 @import "../mixins/table.less";
 @import "../mixins/text.less";
@@ -204,8 +205,8 @@
         outline-offset: calc(-1 * var(--ui-focus-ring-width, 0px));
     }
 
-    // The header's keyboard stop (table-header-group.ts) wears the keyboard's wash and frame, as the row cursor does: the wash an inset
-    // shadow over the opaque ground a pinned caption keeps, the frame what still reads on a striped table on a dark page.
+    // The header's keyboard stop (table-header-group.ts) wears the keyboard's wash, as the row cursor does: an inset shadow over the
+    // opaque ground a pinned caption keeps, with the browser ring suppressed.
     .ui-table > .ui-table__scroll > .ui-table__header > .ui-table__header-cell@{ui-keyboard-focus} {
         box-shadow: inset 0 0 0 100vmax var(--ui-wash-hover);
         .ui-keyboard-frame();
@@ -268,6 +269,7 @@
     min-height: 0;
     // The engines size the spacers themselves; the browser's own anchoring would fight every pass that changes them.
     overflow-anchor: none;
+    .ui-scroll-axes();
 }
 
     // What stands among the rows but is not one spans the row: the empty state, a window's spacers, a bucket's header.
@@ -292,30 +294,6 @@
         padding-inline: @ui-space-3;
     }
 
-.ui-table__host.ui-scroll-x--disabled {
-    overflow-x: hidden;
-}
-
-.ui-table__host.ui-scroll-x--auto {
-    overflow-x: auto;
-}
-
-.ui-table__host.ui-scroll-x--always {
-    overflow-x: scroll;
-}
-
-.ui-table__host.ui-scroll-y--disabled {
-    overflow-y: hidden;
-}
-
-.ui-table__host.ui-scroll-y--auto {
-    overflow-y: auto;
-}
-
-.ui-table__host.ui-scroll-y--always {
-    overflow-y: scroll;
-}
-
 // A row takes the table's tracks; its cells carry the inset, so a wash and a separator run edge to edge.
 .ui-table__row {
     display: grid;
@@ -336,8 +314,8 @@
 
 // :where(), or `:nth-child(of S)` counts S and outranks hover and focus on an even row. The table's own rows only, as every row rule.
 :where(.ui-table--striped > .ui-table__scroll > [data-ui-items-host]) > .ui-table__row:where(:nth-child(even of .ui-table__row)) {
-    background-color: @ui-table-ground;
-    --ui-row-wash: @ui-table-ground;
+    background-color: @ui-table-stripe;
+    --ui-row-wash: @ui-table-stripe;
 }
 
 @media @{ui-can-hover} {
@@ -346,7 +324,8 @@
     }
 }
 
-.ui-row-cursor(~'.ui-table:not([role="grid"])', ~".ui-table__row", ~".ui-table__scroll > ");
+// A table's row holds the focus itself (row-cursor.ts); a grid's root holds it and names the cell.
+.ui-row-cursor-on-row(~'.ui-table[role="table"]', ~".ui-table__row", ~".ui-table__scroll > ");
 
 // A grid's keyboard stands on a cell (row-cursor.ts): its row keeps the keyboard's wash, as a list's row does, and the cell wears the
 // frame.
@@ -363,6 +342,7 @@
 }
 
 .ui-table[role="grid"]@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus] > [data-ui-cell-focus] {
+    background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
     .ui-keyboard-frame();
 }
 .ui-row-bar(~".ui-table", ~".ui-table__row", ~".ui-table__scroll > ");
@@ -545,7 +525,7 @@
     top: 0;
     bottom: 0;
     width: 2px;
-    background: var(--ui-mark-selected-fill);
+    background: var(--ui-mark-selected);
     pointer-events: none;
     z-index: 2;
 }
@@ -568,23 +548,33 @@
     .ui-selected-row();
 }
 
-// A chosen row's mark (the author's SelectionMark) is its box-shadow, which pinned cells' opaque ground covers: with pinned cells (the
-// root's `ui-table--pinned`) the row draws it once on a layer above them, and they drop their separator as the row's mark does.
-.ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected] {
-    position: relative;
-    box-shadow: none;
+// Without an authored SelectionMark, a chosen row keeps its bottom 1px separator between rows.
+.ui-table:not(.ui-table--no-separators, .ui-table--pinned) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]:not(:last-child) {
+    box-shadow: var(--ui-selected-mark, inset 0 -1px 0 var(--ui-color-border));
 }
 
+// A chosen row's mark (the author's SelectionMark) is its box-shadow, which pinned cells' opaque ground covers: with pinned cells (the
+// root's `ui-table--pinned`) the row keeps its bottom separator and draws the mark once on a layer above them.
+.ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected] {
+    position: relative;
+    box-shadow: inset 0 -1px 0 var(--ui-color-border);
+}
+
+    .ui-table.ui-table--pinned.ui-table--no-separators > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected],
+    .ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]:last-child {
+        box-shadow: none;
+    }
+
     .ui-table.ui-table--pinned > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]::after {
-        .ui-table-row-layer({ .ui-selected-mark(@ui-selected-mark-left); });
+        .ui-table-row-layer({ .ui-selected-mark(); });
     }
 
 // The keyboard's edge runs under pinned cells too: such a row draws it again on the same layer above them. A grid's cell frames itself.
-.ui-table.ui-table--pinned:not([role="grid"])@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus] {
+.ui-table.ui-table--pinned[role="table"] > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]@{ui-row-cursor-focus} {
     position: relative;
 }
 
-    .ui-table.ui-table--pinned:not([role="grid"])@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]::after {
+    .ui-table.ui-table--pinned[role="table"] > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]@{ui-row-cursor-focus}::after {
         .ui-table-row-layer({
             outline: inherit;
             outline-offset: inherit;
@@ -592,10 +582,30 @@
         });
     }
 
-    // A start grip beside a pinned first column drops it too, or the grip alone keeps a line the row's mark has taken away.
-    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected] > .ui-table__cell--pinned,
-    @{ui-table-gripped-start}.ui-table--pinned:not(.ui-table--no-separators) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]:not(:last-child) > .ui-row__grip {
-        box-shadow: none;
+// The checkbox column (`SelectionMode.Many`), as narrow as the box: the row's air is cut here, or it would sit around the box twice
+// and misalign the header's.
+.ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row > .ui-table__cell--select,
+.ui-table > .ui-table__scroll > .ui-table__header > .ui-table__header-cell[data-ui-table-select-all] {
+    padding-inline: @ui-space-1;
+}
+
+    // The box takes its own width so the cell's centring places it, not the start of whatever the padding left.
+    .ui-table__cell--select > [data-ui-id],
+    .ui-table__header-cell[data-ui-table-select-all] > [data-ui-id] {
+        flex: 0 0 auto;
+    }
+
+    // A box that takes nothing is marked on its input, not on the checkbox's root: a disabled root makes the input inert, which
+    // drops a focus it holds, and would read as a disabled row to the row keyboard.
+    .ui-table__cell--select .ui-checkbox__input.ui-disabled ~ .ui-checkbox__box,
+    .ui-table__header-cell[data-ui-table-select-all] .ui-checkbox__input.ui-disabled ~ .ui-checkbox__box {
+        .ui-disabled-state();
+    }
+
+    // Nor a hand beside it: the root, the box and its gap, keeps the checkbox's pointer, which only a disabled root takes back; the
+    // selection engine marks the root of a box it turned off.
+    .ui-checkbox[data-ui-table-box-off] {
+        cursor: default;
     }
 
 // A row the reader drags to another place (Draggable): faint where it stands, and a line on the edge of the row it would land beside —
@@ -605,11 +615,11 @@
 }
 
 .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="before"] > .ui-table__cell {
-    box-shadow: inset 0 2px 0 var(--ui-mark-selected-fill);
+    box-shadow: inset 0 2px 0 var(--ui-mark-selected);
 }
 
 .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-drop="after"] > .ui-table__cell {
-    box-shadow: inset 0 -2px 0 var(--ui-mark-selected-fill);
+    box-shadow: inset 0 -2px 0 var(--ui-mark-selected);
 }
 
 // A table dragged by grips (DragHandle): a track of its own past the columns' or before them holds each row's grip, the whole row's
@@ -653,7 +663,7 @@
         left: 0;
         right: 0;
         height: 2px;
-        background: var(--ui-mark-selected-fill);
+        background: var(--ui-mark-selected);
         visibility: visible;
         pointer-events: none;
     }

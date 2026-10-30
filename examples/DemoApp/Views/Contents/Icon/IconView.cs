@@ -23,11 +23,11 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new IconComponent()
             .BindStandard()
-            .BindIcon($"{IconGroup}.{nameof(IconGroupContext.Icon)}")
-            .BindColor($"{IconGroup}.{nameof(IconGroupContext.Color)}")
-            .BindSize($"{IconGroup}.{nameof(IconGroupContext.Size)}")
-            .BindTooltip($"{IconGroup}.{nameof(IconGroupContext.Tooltip)}")
-            .BindTooltipPlacement($"{IconGroup}.{nameof(IconGroupContext.TooltipPlacement)}")
+            .BindIcon<IconController>(static x => x.IconGroup.Icon)
+            .BindColor<IconController>(static x => x.IconGroup.Color)
+            .BindSize<IconController>(static x => x.IconGroup.Size)
+            .BindTooltip<IconController>(static x => x.IconGroup.Tooltip)
+            .BindTooltipPlacement<IconController>(static x => x.IconGroup.TooltipPlacement)
             .SetPlacement(1, 1, 24, 1)
         ));
 
@@ -46,7 +46,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstPropertyGroup()
     {
-        return DemoUI.CreateExample("A property, and a component",
+        return DemoUI.CreateExample("Icon property vs standalone IconComponent",
             UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(360))
                 .AddChild(UIText.Label("As a text body's property"))
@@ -107,7 +107,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
     /// <remarks>With no size given, text content draws the picture as a square the height of the block, or a circle as tall.</remarks>
     private static ContainerComponent CreatePictureGroup()
     {
-        return DemoUI.CreateExample("A picture as an icon",
+        return DemoUI.CreateExample("Images, masks & circular avatars as icons",
             UILayout.Stack(12)
                 .AddChild(UIText.Label("On the component"))
                 .AddChild(new StackPanelComponent()
@@ -162,7 +162,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                     .SetVerticalAlignment(UIAlignment.Center)
                     .AddChild(new IconComponent()
                         .SetIcon(DemoImages.Avatar)
-                        .SetShape(UIIconShape.Circle)
+                        .SetShape(UIShape.Circle)
                         .SetColor(null)
                         .SetWidth(UILayoutLength.Absolute(32))
                     )
@@ -188,7 +188,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                 // A person: the shape cuts the picture round, and a portrait fills the circle rather than hanging in it.
                 .AddChild(new TextComponent()
                     .SetIcon(DemoImages.NightStreet)
-                    .SetIconShape(UIIconShape.Circle)
+                    .SetIconShape(UIShape.Circle)
                     .SetTitle("Alex Warren")
                     .SetDescription("IconShape Circle: a portrait, round and filling the circle.")
                     .SetWrapMode(UITextWrapMode.Wrap)
@@ -196,7 +196,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                 // A person whose picture is gone: the circle keeps its tile, the person's glyph standing in it.
                 .AddChild(new TextComponent()
                     .SetIcon(DemoImages.Missing)
-                    .SetIconShape(UIIconShape.Circle)
+                    .SetIconShape(UIShape.Circle)
                     .SetTitle("Casey Moore")
                     .SetDescription("IconShape Circle with a picture that fails to load, or none: the person's glyph on a neutral circle.")
                     .SetWrapMode(UITextWrapMode.Wrap)
@@ -206,7 +206,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                     .SetTitle("A size given")
                     .SetDescription("The picture obeys it, like a glyph — no tile, no square.")
                     .SetWrapMode(UITextWrapMode.Wrap)
-                    .SetIconSize(UIIconSize.Medium)
+                    .SetIconSize(UISize.Medium)
                 )
                 // A line that is already coloured does not get muted on top: it would fall below contrast.
                 .AddChild(new TextComponent()
@@ -226,16 +226,16 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateScaleGroup()
     {
-        return DemoUI.CreateExample("Beside text, and on its own",
+        return DemoUI.CreateExample("UISize steps vs explicit Width",
             UILayout.Stack(12)
                 .AddChild(UIText.Label("Size — the ladder that goes with text"))
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetSpacing(16)
                     .SetVerticalAlignment(UIAlignment.Center)
-                    .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Star)).SetSize(UIIconSize.Small))
-                    .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Star)).SetSize(UIIconSize.Medium))
-                    .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Star)).SetSize(UIIconSize.Large))
+                    .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Star)).SetSize(UISize.Small))
+                    .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Star)).SetSize(UISize.Medium))
+                    .AddChild(new IconComponent().SetIcon(DemoIcons.Outline(DemoIcons.Star)).SetSize(UISize.Large))
                 )
                 .AddChild(new SeparatorComponent())
                 .AddChild(UIText.Label("Width — a mark standing on its own"))
@@ -267,7 +267,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateLegendGroup()
     {
-        return DemoUI.CreateExample("A key to something else",
+        return DemoUI.CreateExample("Status legend rows",
             new SurfaceComponent()
                 .SetContent(UILayout.Stack(8)
                     .AddChild(new StackPanelComponent()
@@ -278,7 +278,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                         .AddChild(new IconComponent()
                             .SetIcon(DemoIcons.Outline(DemoIcons.Check))
                             .SetColor(UIThemeColor.FromStyle(UIColorStyle.Success))
-                            .SetSize(UIIconSize.Small)
+                            .SetSize(UISize.Small)
                         )
                         .AddChild(new TextComponent()
                             .SetTitle("Passed")
@@ -300,7 +300,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                         .AddChild(new IconComponent()
                             .SetIcon(DemoIcons.Outline(DemoIcons.Clock))
                             .SetColor(UIThemeColor.FromStyle(UIColorStyle.Warning))
-                            .SetSize(UIIconSize.Small)
+                            .SetSize(UISize.Small)
                         )
                         .AddChild(new TextComponent()
                             .SetTitle("Waiting")
@@ -321,7 +321,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
                         .AddChild(new IconComponent()
                             .SetIcon(DemoIcons.Outline(DemoIcons.Alert))
                             .SetColor(UIThemeColor.FromStyle(UIColorStyle.Danger))
-                            .SetSize(UIIconSize.Small)
+                            .SetSize(UISize.Small)
                         )
                         .AddChild(new TextComponent()
                             .SetTitle("Refused")

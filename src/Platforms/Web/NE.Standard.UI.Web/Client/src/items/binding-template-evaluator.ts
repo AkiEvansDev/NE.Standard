@@ -2,7 +2,7 @@
 import { ComponentIdAttribute, ComponentKeyAttribute } from "../addressing/dom-attributes.ts";
 import type { IdValue, WebRenderBindingMetadata, WebRenderBindingParameterMetadata } from "../metadata/metadata-index.ts";
 import { getBindingParameterKind, getIdValue } from "../metadata/metadata-index.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logWarn } from "../metadata/logger.ts";
 
 export type BindingTemplateResolution =
     | { readonly ok: true; readonly value: unknown; /** The item the value was read off: the innermost, or the one a Dynamic parameter names. */ readonly scope?: unknown }
@@ -70,7 +70,7 @@ export function tryResolveItemTemplateValue(
         }
 
         if (character === "[") {
-            if (i + 1 >= path.length || path[i + 1] !== "]")
+            if ((expectSegment && i > 0) || i + 1 >= path.length || path[i + 1] !== "]")
                 return NotResolved;
 
             if (parameterIndex >= effectiveParameters.length)
@@ -105,6 +105,9 @@ export function tryResolveItemTemplateValue(
             expectSegment = false;
             continue;
         }
+
+        if (!expectSegment)
+            return NotResolved;
 
         const start = i;
 
@@ -178,6 +181,9 @@ function resolveStackItem(stack: readonly ItemStackEntry[], componentId: IdValue
 
 /** The value at a dotted property path of an item, each step read by the one rule below; undefined where a step cannot be taken. */
 export function readItemPropertyPath(item: unknown, path: string): unknown {
+    if (path.length === 0 || path === ".")
+        return item;
+
     let current: unknown = item;
 
     for (const segment of path.split(".")) {

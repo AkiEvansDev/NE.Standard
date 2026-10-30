@@ -19,14 +19,14 @@ internal sealed class SpinnerView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/feedback/spinner";
     protected override string Header => "demo.feedback.spinner.header";
     protected override string HeaderDescription => "demo.feedback.spinner.description";
-    protected override (string Route, string Label)? ComposedIn => ("/mechanisms/commands", "demo.nav.mechanisms.commands");
+    protected override (string Route, string Title)? ComposedIn => ("/mechanisms/commands", "demo.nav.mechanisms.commands");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new SpinnerComponent()
             .BindStandard()
-            .BindLabel($"{SpinnerGroup}.{nameof(SpinnerGroupContext.Label)}")
-            .BindSize($"{SpinnerGroup}.{nameof(SpinnerGroupContext.Size)}")
-            .BindColor($"{SpinnerGroup}.{nameof(SpinnerGroupContext.Color)}")
+            .BindTitle<SpinnerController>(static x => x.SpinnerGroup.Title)
+            .BindSize<SpinnerController>(static x => x.SpinnerGroup.Size)
+            .BindColor<SpinnerController>(static x => x.SpinnerGroup.Color)
             .SetPlacement(1, 1, 24, 1)
         ));
 
@@ -45,13 +45,13 @@ internal sealed class SpinnerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstLoadingGroup()
     {
-        return DemoUI.CreateExample("Against a control's own Loading",
+        return DemoUI.CreateExample("Control Loading property vs standalone SpinnerComponent",
             new SurfaceComponent()
                 .SetMaxWidth(UILayoutLength.Absolute(352))
                 .SetContent(UILayout.Stack(12)
                     .AddChild(UIText.Label("The control says it"))
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Primary)
+                        .SetVariant(UIButtonVariant.Primary)
                         .SetLoading(true)
                         .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
                         .SetTitle("Deploying")
@@ -63,7 +63,7 @@ internal sealed class SpinnerView : DemoComponentView, IUIViewDefinition
                         .SetOrientation(UIOrientation.Horizontal)
                         .SetSpacing(10)
                         .AddChild(new ButtonComponent()
-                            .SetType(UIButtonType.Primary)
+                            .SetVariant(UIButtonVariant.Primary)
                             .SetEnabled(false)
                             .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
                             .SetTitle("Deploy")
@@ -83,9 +83,9 @@ internal sealed class SpinnerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateRegionGroup()
     {
-        return DemoUI.CreateExample("Instead of a region",
+        return DemoUI.CreateExample("Centered region placeholder",
             new CardComponent()
-                .SetSurface(UISurfaceStyle.Raised)
+                .SetSurface(UISurfaceStyle.Surface)
                 .SetWidth(UILayoutLength.Absolute(340))
                 .ConfigureDefaultHeader(header => header
                     .SetTitle("Deploys this week")
@@ -94,8 +94,8 @@ internal sealed class SpinnerView : DemoComponentView, IUIViewDefinition
                 .SetContent(new ContainerComponent()
                     .SetMinHeight(UILayoutLength.Absolute(120))
                     .AddChild(new SpinnerComponent()
-                        .SetLabel("Reading")
-                        .SetSize(UIIconSize.Large)
+                        .SetTitle("Reading")
+                        .SetSize(UISize.Large)
                         .SetColor(UIThemeColor.Muted)
                         .SetHorizontalAlignment(UIAlignment.Center)
                         .SetVerticalAlignment(UIAlignment.Center)
@@ -109,18 +109,18 @@ internal sealed class SpinnerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateInlineGroup()
     {
-        return DemoUI.CreateExample("Beside a word",
+        return DemoUI.CreateExample("Inline status spinner",
             new SurfaceComponent()
                 .SetMaxWidth(UILayoutLength.Absolute(352))
                 .SetContent(UILayout.Stack(14)
                     .AddChild(new SpinnerComponent()
-                        .SetLabel("Reading metrics")
-                        .SetSize(UIIconSize.Small)
+                        .SetTitle("Reading metrics")
+                        .SetSize(UISize.Small)
                         .SetHorizontalAlignment(UIAlignment.Start)
                     )
                     .AddChild(new SeparatorComponent())
                     .AddChild(new SpinnerComponent()
-                        .SetLabel("Checking five regions")
+                        .SetTitle("Checking five regions")
                         .SetColor(UIThemeColor.Muted)
                         .SetHorizontalAlignment(UIAlignment.Start)
                     )

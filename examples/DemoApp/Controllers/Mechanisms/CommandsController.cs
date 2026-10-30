@@ -42,12 +42,12 @@ internal sealed partial class ProgressGroupContext : DemoGroupContext
     public partial UIPhrase? Stage { get; set; } = UIPhrase.Of("demo.mechanisms.commands.progress.not-started");
 
     [RecursiveMember]
-    public partial UIBadgeType StageStyle { get; set; } = UIBadgeType.Surface;
+    public partial UIBadgeVariant StageVariant { get; set; } = UIBadgeVariant.Surface;
 
-    public void Enter(UIPhrase stage, UIBadgeType style)
+    public void Enter(UIPhrase stage, UIBadgeVariant variant)
     {
         Stage = stage;
-        StageStyle = style;
+        StageVariant = variant;
     }
 }
 
@@ -115,20 +115,20 @@ internal sealed partial class DecisionGroupContext : DemoGroupContext
     public partial UIPhrase? Outcome { get; set; } = UIPhrase.Of(Waiting);
 
     [RecursiveMember]
-    public partial UIBadgeType OutcomeStyle { get; set; } = UIBadgeType.Surface;
+    public partial UIBadgeVariant OutcomeVariant { get; set; } = UIBadgeVariant.Surface;
 
-    public void Decide(UIPhrase outcome, UIBadgeType style)
+    public void Decide(UIPhrase outcome, UIBadgeVariant variant)
     {
         Open = false;
         Outcome = outcome;
-        OutcomeStyle = style;
+        OutcomeVariant = variant;
     }
 
     public void Reopen()
     {
         Open = true;
         Outcome = UIPhrase.Of(Waiting);
-        OutcomeStyle = UIBadgeType.Surface;
+        OutcomeVariant = UIBadgeVariant.Surface;
     }
 }
 
@@ -189,12 +189,12 @@ internal sealed partial class AddressGroupContext : DemoGroupContext
 /// </summary>
 internal sealed partial class CommandsController() : DemoController
 {
-    private static readonly (string Stage, UIBadgeType Style)[] ProvisioningStages =
+    private static readonly (string Stage, UIBadgeVariant Variant)[] ProvisioningStages =
     [
-        ("demo.mechanisms.commands.progress.disk", UIBadgeType.Info),
-        ("demo.mechanisms.commands.progress.image", UIBadgeType.Info),
-        ("demo.mechanisms.commands.progress.checks", UIBadgeType.Warning),
-        ("demo.mechanisms.commands.progress.firewall", UIBadgeType.Primary)
+        ("demo.mechanisms.commands.progress.disk", UIBadgeVariant.Info),
+        ("demo.mechanisms.commands.progress.image", UIBadgeVariant.Info),
+        ("demo.mechanisms.commands.progress.checks", UIBadgeVariant.Warning),
+        ("demo.mechanisms.commands.progress.firewall", UIBadgeVariant.Primary)
     ];
 
     [RecursiveMember]
@@ -336,7 +336,7 @@ internal sealed partial class CommandsController() : DemoController
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 
-        DecisionGroup.Decide(UIPhrase.Of("demo.mechanisms.commands.decision.approved"), UIBadgeType.Success);
+        DecisionGroup.Decide(UIPhrase.Of("demo.mechanisms.commands.decision.approved"), UIBadgeVariant.Success);
     }
 
     [UICommand]
@@ -349,7 +349,7 @@ internal sealed partial class CommandsController() : DemoController
 
         await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
 
-        DecisionGroup.Decide(UIPhrase.Of("demo.mechanisms.commands.decision.rejected"), UIBadgeType.Danger);
+        DecisionGroup.Decide(UIPhrase.Of("demo.mechanisms.commands.decision.rejected"), UIBadgeVariant.Danger);
     }
 
     [UICommand]
@@ -369,19 +369,19 @@ internal sealed partial class CommandsController() : DemoController
 
         try
         {
-            foreach ((var stage, UIBadgeType style) in ProvisioningStages)
+            foreach ((var stage, UIBadgeVariant variant) in ProvisioningStages)
             {
-                ProgressGroup.Enter(UIPhrase.Of(stage), style);
+                ProgressGroup.Enter(UIPhrase.Of(stage), variant);
 
                 await Task.Delay(800, cancellationToken).ConfigureAwait(false);
             }
 
-            ProgressGroup.Enter(UIPhrase.Of("demo.mechanisms.commands.progress.running"), UIBadgeType.Success);
+            ProgressGroup.Enter(UIPhrase.Of("demo.mechanisms.commands.progress.running"), UIBadgeVariant.Success);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // The tab that pressed it went away mid-way (a reload): the page that comes back finds it not started, not stuck half done.
-            ProgressGroup.Enter(UIPhrase.Of("demo.mechanisms.commands.progress.not-started"), UIBadgeType.Surface);
+            ProgressGroup.Enter(UIPhrase.Of("demo.mechanisms.commands.progress.not-started"), UIBadgeVariant.Surface);
             throw;
         }
         finally

@@ -29,7 +29,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// The class a field-shaped box (a textarea, a package's editor) wears for its ground and states — the stylesheet's contract
     /// for fields it doesn't know.
     /// </summary>
-    public const string FieldBoxClassName = "ui-field-box";
+    public const string FieldBoxClassName = WebClassNames.FieldBox;
 
     // On the root of a field whose caption stands inside its box, for the stylesheet to read the value from the trailing edge.
     private const string TitleInsideClassName = "ui-input--title-inside";
@@ -40,8 +40,11 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private const string PrefixIconShownAttribute = "data-ui-input-prefix-icon";
     private const string SuffixIconShownAttribute = "data-ui-input-suffix-icon";
 
-    // On the element a field's caption names (RenderFieldLabel): what a live title change rewrites the aria-label of.
-    private const string LabelledAttribute = "data-ui-labelled";
+    /// <summary>
+    /// On the element a component's title names while no <c>AccessibleName</c> does (a field's control, a bar): what a pushed title
+    /// rewrites the <c>aria-label</c> of, so it never overwrites the name an author gave.
+    /// </summary>
+    public const string LabelledAttribute = "data-ui-labelled";
 
     /// <summary>
     /// On the element a control's tooltip names while the control shows no title — an icon-only button, or a split button's press:
@@ -62,6 +65,11 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
     // A field its container and its caret already frame (`ShowFocusEdge = false`): the stylesheet leaves its focus edge undrawn.
     private const string NoFocusEdgeClassName = "ui-input--no-focus-edge";
+    private const string MaxLinesClassName = WebClassNames.TextMaxLines;
+    private const string MaxLinesVariable = "--ui-text-max-lines";
+    private const string TitleWrapClassName = "ui-text--title-wrap";
+    private const string QuoteClassName = "ui-paragraph--quote";
+    private const string QuoteColorVariable = "--ui-quote-color";
 
     // A text body is drawn per row, so its operation lists are built once rather than per body.
     private static readonly WebDomOperation[] TextAlignmentOperations = [WebDomOperation.Class(converter: WebDomConverters.TextAlignmentClass)];
@@ -70,7 +78,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] BadgePlacementOperations = [WebDomOperation.Class(converter: WebDomConverters.TextBadgePlacementHostClass)];
     private static readonly WebDomOperation[] AffixTextOperations = [WebDomOperation.Text()];
     private static readonly WebDomOperation[] InputAppearanceOperations = [WebDomOperation.Class(converter: WebDomConverters.InputAppearanceClass)];
-    private static readonly TierClassFamily<UIInputSize> InputSizeFamily = new(WebAttributes.TierSize, WebDomConverters.InputSizeClass, WebDomConverters.InputSizeTierClasses, WebClassNames.InputSize);
+    private static readonly TierClassFamily<UISize> InputSizeFamily = new(WebAttributes.TierSize, WebDomConverters.InputSizeClass, WebDomConverters.InputSizeTierClasses, WebClassNames.InputSize);
     private static readonly WebDomOperation[] PrefixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(PrefixIconShownAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
     private static readonly WebDomOperation[] SuffixIconOperations = [.. IconValueRenderer.Operations, WebDomOperation.ToggleAttribute(SuffixIconShownAttribute, target: "root", condition: WebValueCondition.DrawsIcon)];
     private static readonly WebDomOperation[] WrapModeOperations = [WebDomOperation.Class(converter: WebDomConverters.TextWrapClass)];
@@ -88,7 +96,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] FieldTitleOperations =
     [
         .. TitleOperations,
-        WebDomOperation.Attribute("aria-label", $"[{LabelledAttribute}]", optional: true)
+        WebDomOperation.Attribute("aria-label", $"[{LabelledAttribute}]", converter: WebDomConverters.NonBlankText, optional: true)
     ];
     // After the title's mark is written: a title shown names the host by its words, so the tooltip's name comes off; a title pushed
     // empty hands the name back to the tooltip, whose words the title's value cannot carry, so the client reads them off the root.
@@ -107,14 +115,14 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] DescriptionOperations = [WebDomOperation.Markup(), WebDomOperation.ToggleAttribute(WebAttributes.TextDescription, target: "root", condition: WebValueCondition.HasText)];
     private static readonly WebBadgeRenderOptions TextBadgeOptions = new()
     {
-        StyleProperty = ITextBaseComponent.BadgeStyleProperty,
+        VariantProperty = ITextBaseComponent.BadgeVariantProperty,
         ColorProperty = ITextBaseComponent.BadgeColorProperty,
         FillProperty = ITextBaseComponent.BadgeFillProperty,
         IconProperty = ITextBaseComponent.BadgeIconProperty,
         IconColorProperty = ITextBaseComponent.BadgeIconColorProperty,
         IconSizeProperty = ITextBaseComponent.BadgeIconSizeProperty,
-        TextProperty = ITextBaseComponent.BadgeTextProperty,
-        TextTypeProperty = ITextBaseComponent.BadgeTextTypeProperty,
+        TitleProperty = ITextBaseComponent.BadgeTitleProperty,
+        TitleTypeProperty = ITextBaseComponent.BadgeTitleTypeProperty,
         TooltipProperty = ITextBaseComponent.BadgeTooltipProperty,
         TooltipPlacementProperty = ITextBaseComponent.BadgeTooltipPlacementProperty,
         ContentStateTarget = $".{TextClassPrefix}__badge",
@@ -137,6 +145,11 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         WebDomOperation.Text($".{HelpDescriptionClassName}", WebDomConverters.InlineMarkupPlainText, optional: true)
     ];
     private static readonly WebBadgeRenderOptions CaptionBadgeOptions = TextBadgeOptions with { TooltipOperations = CaptionBadgeTooltipOperations };
+    private static readonly ConcurrentDictionary<(WebBadgeRenderOptions Options, WebDomOperation Then), WebBadgeRenderOptions> FollowedBadgeOptions = new();
+
+    // A part's operations with the body's one more after them, built once per pair: a text body is drawn per row.
+    private static readonly ConcurrentDictionary<(WebDomOperation[] Operations, WebDomOperation Then), WebDomOperation[]> FollowedOperations = new();
+    private static readonly ConcurrentDictionary<WebDomOperation, WebIconShapeSite> FollowedIconShapeSites = new();
 
     /// <summary>
     /// Renders the whole text body into <paramref name="container"/>; <paramref name="root"/> must be the root carrying the patch hooks.
@@ -167,7 +180,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             {
                 _ = header.Class($"{TextClassPrefix}__header");
 
-                _ = header.Element("span", title => RenderTitle(context, root, title, options.NamesField, options.TooltipNamesHost, options.PartsShownOperation));
+                _ = header.Element(TitleElementName(context, options.IncludeTextLayout), title => RenderTitle(context, root, title, options.NamesField, options.TooltipNamesHost, options.PartsShownOperation));
 
                 options.Trailing?.Invoke(header);
 
@@ -177,6 +190,25 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             if (options.IncludeTextLayout)
                 _ = body.Element("span", description => RenderDescription(context, root, container, description, options.PartsShownOperation));
         });
+    }
+
+    private static string TitleElementName(WebRenderContext context, bool includeTextLayout)
+    {
+        if (!includeTextLayout)
+            return "span";
+
+        _ = ResolveRenderValue(context, ITextComponent.HeadingLevelProperty, out int? level, out _);
+
+        return level switch
+        {
+            1 => "h1",
+            2 => "h2",
+            3 => "h3",
+            4 => "h4",
+            5 => "h5",
+            6 => "h6",
+            _ => "span"
+        };
     }
 
     /// <summary>
@@ -191,13 +223,13 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         _ = ResolveRenderValue(context, ITextComponent.DescriptionProperty, out string? description, out _);
         _ = ResolveRenderValue(context, ITextBaseComponent.IconProperty, out string? icon, out _);
         _ = ResolveRenderValue(context, ITextBaseComponent.BadgeIconProperty, out string? badgeIcon, out _);
-        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTextProperty, out string? badgeText, out _);
+        _ = ResolveRenderValue(context, ITextBaseComponent.BadgeTitleProperty, out string? badgeTitle, out _);
 
         return !string.IsNullOrWhiteSpace(title)
             || !string.IsNullOrWhiteSpace(description)
             || IconValueRenderer.Draws(icon)
             || IconValueRenderer.Draws(badgeIcon)
-            || !string.IsNullOrWhiteSpace(badgeText);
+            || !string.IsNullOrWhiteSpace(badgeTitle);
     }
 
     private static void RenderTextLayout(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder container, bool alignsRoot)
@@ -225,12 +257,10 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         }, alignsRoot ? RootTextAlignmentOperations : TextAlignmentOperations);
     }
 
-    private static readonly ConcurrentDictionary<(WebBadgeRenderOptions Options, WebDomOperation Then), WebBadgeRenderOptions> FollowedBadgeOptions = new();
-
     private static void RenderTextBadge(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder container, IHtmlElementBuilder badge, WebTextBodyOptions options)
     {
         _ = badge.Class($"{TextClassPrefix}__badge");
-        _ = badge.Class("ui-badge");
+        _ = badge.Class(WebClassNames.Badge);
 
         if (options.DefaultBadgePlacement is UITextBadgePlacement placement)
             _ = RenderProperty<UITextBadgePlacement?>(context, container, ITextBaseComponent.BadgePlacementProperty, (target, value) => _ = target.Class(WebClassNames.TextBadgePlacementHost(value ?? placement)), BadgePlacementOperations);
@@ -374,10 +404,13 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// caption's help and its validation line, and invalid where the render already knows the value was refused.
     /// </summary>
     /// <remarks>
-    /// For the element a screen reader lands on (the native field, a picker's trigger, a period's group): the caption drawn beside a
+    /// For the element a screen reader lands on (the native field, a picker's trigger; a group's is <see cref="RenderGroupLabel"/>): the caption drawn beside a
     /// field is not its label, since most fields' roots are not a label element.
     /// </remarks>
     public static void RenderFieldLabel(WebRenderContext context, IHtmlElementBuilder field)
+        => RenderFieldLabel(context, field, required: true);
+
+    private static void RenderFieldLabel(WebRenderContext context, IHtmlElementBuilder field, bool required)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(field);
@@ -397,7 +430,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         RenderAccessibleName(context, field);
 
-        if (HasRequiredValidation(context))
+        if (required && HasRequiredValidation(context))
             _ = field.Attribute("aria-required", "true");
 
         // The caption's help (RenderHelpBadge) first, then the validation line.
@@ -425,19 +458,19 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             WebWords.Write(context, field, "aria-label", fallbackKey);
     }
 
+    /// <summary>
+    /// <see cref="RenderFieldLabel(WebRenderContext, IHtmlElementBuilder)"/> on a group of controls answering one caption (<c>role="group"</c>:
+    /// a period's two parts, a band's two handles, a set of boxes) without <c>aria-required</c>, which a group does not take.
+    /// </summary>
+    public static void RenderGroupLabel(WebRenderContext context, IHtmlElementBuilder group)
+        => RenderFieldLabel(context, group, required: false);
+
     /// <summary>Whether a caption or an <c>AccessibleName</c> names the field, now or once its binding delivers one.</summary>
     public static bool IsFieldNamed(WebRenderContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        return IsNamedBy(context, IAccessibleNameComponent.AccessibleNameProperty) || IsNamedBy(context, ITextBaseComponent.TitleProperty);
-    }
-
-    private static bool IsNamedBy(WebRenderContext context, UIProperty property)
-    {
-        WebRenderValueKind kind = ResolveRenderValue(context, property, out string? words, out _);
-
-        return kind == WebRenderValueKind.Binding || (kind == WebRenderValueKind.Static && !string.IsNullOrWhiteSpace(words));
+        return HasWords(context, IAccessibleNameComponent.AccessibleNameProperty) || HasWords(context, ITextBaseComponent.TitleProperty);
     }
 
     /// <summary>
@@ -475,7 +508,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// <summary>How the field surface is drawn, as a modifier on the component root.</summary>
     public static void RenderInputAppearance(WebRenderContext context, IHtmlElementBuilder root)
     {
-        RenderFieldAppearance(context, root);
+        RenderFieldAppearance(context, root, IFieldInputComponent.AppearanceProperty);
 
         RenderFlagClass(context, root, IFieldInputComponent.ShowFocusEdgeProperty, NoFocusEdgeClassName, WebValueCondition.IsFalse);
 
@@ -483,15 +516,15 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     }
 
     /// <summary>
-    /// The field surface's appearance alone, for a field-shaped control that is no input (a page switcher's field), whose size and focus
-    /// edge are not an input's.
+    /// The field surface's appearance alone, read from <paramref name="appearanceProperty"/>: also for a field-shaped control that is no
+    /// input (a page switcher's <c>FieldVariant</c>), whose size and focus edge are not an input's.
     /// </summary>
-    public static void RenderFieldAppearance(WebRenderContext context, IHtmlElementBuilder root)
+    public static void RenderFieldAppearance(WebRenderContext context, IHtmlElementBuilder root, UIProperty appearanceProperty)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = RenderProperty<UIInputAppearance?>(context, root, IFieldInputComponent.AppearanceProperty, static (target, value) =>
+        _ = RenderProperty<UIInputAppearance?>(context, root, appearanceProperty, static (target, value) =>
         {
             if (value is UIInputAppearance appearance)
                 _ = target.Class(WebClassNames.InputAppearance(appearance));
@@ -514,11 +547,9 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(icon);
 
-        var modifier = suffix ? "suffix" : "prefix";
-
         _ = icon.Class($"{InputClassPrefix}__affix-icon");
-        _ = icon.Class($"{InputClassPrefix}__affix-icon--{modifier}");
-        _ = icon.Class("ui-icon");
+        _ = icon.Class(suffix ? $"{InputClassPrefix}__affix-icon--suffix" : WebClassNames.InputAffixIconPrefix);
+        _ = icon.Class(WebClassNames.Icon);
 
         UIProperty property = suffix ? IAffixedInputComponent.SuffixIconProperty : IAffixedInputComponent.PrefixIconProperty;
         var attribute = suffix ? SuffixIconShownAttribute : PrefixIconShownAttribute;
@@ -617,12 +648,6 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         }, TitleWrapOperations);
     }
 
-    private const string MaxLinesClassName = "ui-text--max-lines";
-    private const string MaxLinesVariable = "--ui-text-max-lines";
-    private const string TitleWrapClassName = "ui-text--title-wrap";
-    private const string QuoteClassName = "ui-paragraph--quote";
-    private const string QuoteColorVariable = "--ui-quote-color";
-
     protected static void RenderIcon(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder icon, WebDomOperation? partsShown = null)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -630,7 +655,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(icon);
 
         _ = icon.Class($"{TextClassPrefix}__icon");
-        _ = icon.Class("ui-icon");
+        _ = icon.Class(WebClassNames.Icon);
 
         // The glyph's size on the root as well as on the glyph: a glyph edge hangs an icon-only button by its own glyph (ui-button.less).
         IconValueRenderer.RenderGlyphSize(context, root, icon, ITextBaseComponent.IconSizeProperty);
@@ -646,10 +671,6 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             }
         }, Followed(IconOperations, partsShown));
     }
-
-    // A part's operations with the body's one more after them, built once per pair: a text body is drawn per row.
-    private static readonly ConcurrentDictionary<(WebDomOperation[] Operations, WebDomOperation Then), WebDomOperation[]> FollowedOperations = new();
-    private static readonly ConcurrentDictionary<WebDomOperation, WebIconShapeSite> FollowedIconShapeSites = new();
 
     private static WebDomOperation[] Followed(WebDomOperation[] operations, WebDomOperation? then)
         => then is null ? operations : FollowedOperations.GetOrAdd((operations, then), static key => [.. key.Operations, key.Then]);

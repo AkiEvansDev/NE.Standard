@@ -1,6 +1,6 @@
 // A flyout whose owner is only out of sight — a tab's page not shown, a closed dialog, a fold — stays open to its IsOpen and the server,
 // raising nothing, and is placed once in sight again without taking the keyboard; one open at the page's start in such a place waits
-// so too. A flyout whose owner turned disabled goes, telling its two-way IsOpen, and raises no close, which the server would refuse.
+// so too. A flyout the page takes down — its owner disabled or gone — tells its two-way IsOpen and raises no close; a person's dismissal does.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -124,4 +124,23 @@ test("a flyout whose owner turned disabled closes and raises no close, which the
 
     assert.equal(flyout.classes.has("ui-flyout--open"), false);
     assert.deepEqual(heard, ["toggle"]);
+});
+
+test("a flyout the page takes down with its owner tells its IsOpen and raises no close: the person dismissed nothing", () => {
+    const { box, flyout, heard } = openFlyout();
+
+    box.remove();
+    changed();
+
+    assert.equal(flyout.classes.has("ui-flyout--open"), false);
+    assert.deepEqual(heard, ["toggle"]);
+});
+
+test("a flyout the person dismisses with its anchor raises its close", () => {
+    const { flyout, heard } = openFlyout();
+
+    flyout.children[0].children[0].dispatchEvent(new FakeEvent("click"));
+
+    assert.equal(flyout.classes.has("ui-flyout--open"), false);
+    assert.deepEqual(heard, ["toggle", "close"]);
 });

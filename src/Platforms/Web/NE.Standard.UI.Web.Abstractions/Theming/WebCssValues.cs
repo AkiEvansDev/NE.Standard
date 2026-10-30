@@ -115,11 +115,11 @@ public static class WebCssValues
         => string.Create(CultureInfo.InvariantCulture, $"{value.Top}px {value.Right}px {value.Bottom}px {value.Left}px");
 
     /// <summary>
-    /// A padding: each side at least the overlay bar's room where its box keeps it, and across, at least a capped column's centring inset
+    /// A padding: the right side and the bottom at least the overlay bar's room where its box keeps it, and across, at least a capped column's centring inset
     /// (the stylesheet sets both, <c>core/scrollbar.less</c>; elsewhere both are 0 and the thickness stands as written).
     /// </summary>
     public static string Padding(UIThickness value)
-        => string.Create(CultureInfo.InvariantCulture, $"{value.Top}px max({value.Right}px, var(--ui-scroll-room-right), var(--ui-scroll-cap)) max({value.Bottom}px, var(--ui-scroll-room-x)) max({value.Left}px, var(--ui-scroll-room-left), var(--ui-scroll-cap))");
+        => string.Create(CultureInfo.InvariantCulture, $"{value.Top}px max({value.Right}px, var(--ui-scroll-room-right), var(--ui-scroll-cap)) max({value.Bottom}px, var(--ui-scroll-room-x)) max({value.Left}px, var(--ui-scroll-cap))");
 
     public static string Radius(UICornerRadius radius)
     {
@@ -193,12 +193,12 @@ public static class WebCssValues
     }
 
     /// <summary>The attribute value a component root carries for its glyph's size (<c>data-ui-icon-size</c>).</summary>
-    public static string IconSize(UIIconSize value)
+    public static string IconSize(UISize value)
         => value switch
         {
-            UIIconSize.Small => "small",
-            UIIconSize.Medium => "medium",
-            UIIconSize.Large => "large",
+            UISize.Small => "small",
+            UISize.Medium => "medium",
+            UISize.Large => "large",
             _ => string.Empty
         };
 

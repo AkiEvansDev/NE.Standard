@@ -103,7 +103,7 @@ internal sealed partial class ItemsViewGroupContext : DraggableSelectionGroupCon
     {
         var id = string.Create(CultureInfo.InvariantCulture, $"service-{++_added}");
 
-        Items.Add(DemoSamples.Service(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added while the page was open", "Added", "New", UIBadgeType.Info, DemoIcons.Star));
+        Items.Add(DemoSamples.Service(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added while the page was open", "Added", "New", UIBadgeVariant.Info, DemoIcons.Star));
     }
 
     public void RemoveService()

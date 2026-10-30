@@ -5,7 +5,7 @@
 // focused element's ancestors up to its component root say whose the focus is (`data-ui-focus-within`), which a field's edge and a
 // list's quiet read in place of a `:has()`: that made Chrome re-check the page on every focus.
 
-import { ComponentIdAttribute, ComponentSelector, DialogSurfaceClass, FlyoutContentClass, FocusHolderAttribute, FocusWithinAttribute, NestedMenuClass, PointerFocusAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
+import { ActiveAttribute, ComponentIdAttribute, ComponentSelector, DialogSurfaceClass, FlyoutContentClass, FocusHolderAttribute, FocusWithinAttribute, NestedMenuClass, PointerFocusAttribute, RegionAttribute } from "../addressing/dom-attributes.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { isCaretField } from "./caret-fields.ts";
@@ -15,9 +15,6 @@ import { FieldBoxSelector } from "./own-control.ts";
 import { applyRovingTabIndex, isRovingCandidate } from "./roving-focus.ts";
 import { cellOf, rowKeyTarget, setRowFocus } from "./row-cursor.ts";
 import { ownRows } from "./row-selection.ts";
-
-/** A list's current entry, the keyboard's or the pointer's (`@ui-list-keyboard` frames it while it is not the pointer's). */
-const ActiveEntryAttribute = "data-ui-active";
 
 /** What counts as focusable, for every surface that opens a popup. */
 export const FocusableSelector = [
@@ -139,7 +136,7 @@ export function noteFocus(target: EventTarget | null): void {
 export function noteBlur(domEvent: FocusEvent): void {
     // A list's current entry keeps it: a press outside takes the focus while the list fades out, and the entry would wear the keyboard's
     // frame through the fade. A key takes the mark off, as from every other element.
-    if (!(domEvent.target instanceof Element && domEvent.target.hasAttribute(ActiveEntryAttribute)))
+    if (!(domEvent.target instanceof Element && domEvent.target.hasAttribute(ActiveAttribute)))
         markPointerFocus(domEvent.target, false);
 
     if (domEvent.relatedTarget === null)

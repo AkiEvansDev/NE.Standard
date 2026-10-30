@@ -1,10 +1,9 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ComponentSelector, EmptyTemplateAttribute, GroupTemplateAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, EmptyTemplateAttribute, GroupTemplateAttribute, TemplateAttribute } from "../addressing/dom-attributes.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
-import { forEachSubtree } from "../runtime/client-strings.ts";
+import { forEachSubtree } from "../rendering/client-strings.ts";
 
-const TemplateAttribute = "data-ui-template";
 const DefaultTemplateKey = "default";
 
 export class ItemsTemplateRegistry {

@@ -94,7 +94,7 @@ installFakeDom({
     requestAnimationFrame: (callback: () => void) => callback()
 });
 
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 const { ImageInputEngine } = await import("../src/interactions/image-input-engine.ts");
 
 type Mark = { readonly field: Element; readonly severity: FieldMarkSeverity | null; readonly words: FieldMarkWords | null | undefined };

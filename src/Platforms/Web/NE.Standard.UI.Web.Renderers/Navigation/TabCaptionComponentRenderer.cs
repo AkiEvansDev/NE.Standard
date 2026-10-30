@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
@@ -13,11 +14,11 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// <summary>One caption in the strip: the button chrome plus the key of the page it selects.</summary>
 public sealed class TabCaptionComponentRenderer : ButtonRendererBase
 {
-    private const string SelectedClassName = "ui-tab-caption--selected";
+    private const string SelectedClassName = WebClassNames.TabCaptionSelected;
 
     public override string ComponentTypeKey => TabCaptionComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-tab-caption";
+    protected override string ClassName => WebClassNames.TabCaption;
 
     // The underline is drawn outside the caption's box; an inline clip would cut it off before any stylesheet rule could say otherwise.
     protected override bool RendersOverflow => false;
@@ -38,14 +39,17 @@ public sealed class TabCaptionComponentRenderer : ButtonRendererBase
         if (!string.IsNullOrWhiteSpace(tabKey))
         {
             _ = root.Attribute(WebAttributes.TabKey, tabKey);
-            RenderSelected(context, root, tabKey);
+            RenderOwnTab(context, root, tabKey);
         }
 
         RenderButtonLabel(context, root);
     }
 
-    /// <summary>The selected mark the tabs engine keeps, written for the first paint from the strip's own key.</summary>
-    private static void RenderSelected(WebRenderContext context, IHtmlElementBuilder root, string tabKey)
+    /// <summary>
+    /// The tab's id and the page it controls, which names itself by it (<see cref="TabsComponentRenderer"/>); and the selected mark the
+    /// tabs engine keeps, written for the first paint from the strip's own key.
+    /// </summary>
+    private static void RenderOwnTab(WebRenderContext context, IHtmlElementBuilder root, string tabKey)
     {
         CompiledView view = context.ViewResolution.View;
 
@@ -53,8 +57,16 @@ public sealed class TabCaptionComponentRenderer : ButtonRendererBase
             return;
 
         WebRenderContext owner = context.ForNode(tabs, root);
+        List<string> keys = TabsComponentRenderer.ResolveTabKeys(owner);
+        var index = keys.IndexOf(tabKey);
 
-        if (TabsComponentRenderer.ResolveSelectedTab(owner, TabsComponentRenderer.ResolveTabKeys(owner)) is not string selected)
+        if (index >= 0 && TabsComponentRenderer.TabPartId(owner, TabsComponentRenderer.TabPart, index) is string id)
+        {
+            _ = root.Attribute("id", id);
+            _ = root.Attribute("aria-controls", TabsComponentRenderer.TabPartId(owner, TabsComponentRenderer.PanelPart, index));
+        }
+
+        if (TabsComponentRenderer.ResolveSelectedTab(owner, keys) is not string selected)
             return;
 
         var own = string.Equals(selected, tabKey, StringComparison.Ordinal);

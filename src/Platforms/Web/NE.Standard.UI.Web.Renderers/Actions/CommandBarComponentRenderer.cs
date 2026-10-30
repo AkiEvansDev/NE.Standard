@@ -15,13 +15,14 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 /// <summary>Renders a command bar as a flat list of buttons, owning only the flex layout and spacing; a toolbar to the keyboard.</summary>
 public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string ItemClassName = "ui-command-bar__item";
+    private const string ItemClassName = WebClassNames.CommandBarItem;
 
     private static readonly WebDomOperation[] GroupSeparatorOperations = [WebDomOperation.Class(converter: WebDomConverters.GroupSeparatorClass)];
+    private static readonly string OverflowClassNames = $"{WebClassNames.CommandBarOverflow} {WebClassNames.Button} {WebClassNames.ButtonVariant(UIButtonVariant.Ghost)}";
 
     public override string ComponentTypeKey => CommandBarComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-command-bar";
+    protected override string ClassName => WebClassNames.CommandBar;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -34,6 +35,7 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
 
         // One Tab stop walked by the arrows (command-bar-engine.ts), as the action bar and the pager are.
         _ = root.Attribute("role", "toolbar");
+        RenderAccessibleName(context, root);
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-command-bar-spacing");
 
@@ -51,7 +53,7 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
         RenderItems(context, root);
 
         // After the host: a bar too long for its row moves its trailing commands into this button's menu rather than cutting labels.
-        RenderOverflowButton(context, root, "ui-command-bar__overflow ui-button ui-button--ghost", UIStrings.CommandBarMore, tabStop: true);
+        RenderOverflowButton(context, root, OverflowClassNames, UIStrings.CommandBarMore, tabStop: true);
     }
 
     /// <summary>Renders the items into an inner host; the client's lookup searches descendants only, so the root cannot be it.</summary>
@@ -59,6 +61,6 @@ public sealed class CommandBarComponentRenderer : ItemsCollectionRendererBase
     {
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        RenderItemsHost(context, root, "ui-command-bar__host", items, isBound, ItemClassName);
+        RenderItemsHost(context, root, WebClassNames.CommandBarHost, items, isBound, ItemClassName);
     }
 }

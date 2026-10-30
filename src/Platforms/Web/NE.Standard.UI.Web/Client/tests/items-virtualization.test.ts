@@ -234,3 +234,18 @@ test("the row holding the focus keeps its editor through a whole new item, a rep
     assert.notEqual(rowOf(), undefined);
     assert.notEqual(rowOf(), row);
 });
+
+test("a virtualized list's drawn rows say where each stands in the whole set, as a windowed one's do, after a scroll too", () => {
+    const { host, engine } = scene(100);
+    const places = (): string[][] => host.children.filter(child => child.hasAttribute("data-ui-key")).map(row => [row.getAttribute("data-ui-key") ?? "", row.getAttribute("aria-posinset") ?? "", row.getAttribute("aria-setsize") ?? ""]);
+
+    assert.deepEqual(places()[0], ["k0", "1", "100"]);
+
+    scrollTo(host, engine, 32 * 50);
+
+    const [first] = places();
+
+    assert.ok(first !== undefined && first[0] !== "k0");
+    assert.equal(first[1], String(Number(first[0].slice(1)) + 1));
+    assert.ok(places().every(([, , size]) => size === "100"));
+});

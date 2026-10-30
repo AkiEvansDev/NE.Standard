@@ -1,10 +1,10 @@
 // `.ts` on the value imports, and the rest kept as `import type`: `node --test` runs this module directly.
 import { ComponentKeyAttribute, GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes.ts";
 import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort.ts";
-import { findEmptyPlaceholder, getRealItemElements, toNodes } from "./items-empty-renderer.ts";
+import { findEmptyPlaceholder, getRealItemElements, toNodes } from "../addressing/items-empty-renderer.ts";
 import { bucketByGroup, drawGroupHeader, firstShownRow, markGroupHeader } from "./items-group-runs.ts";
 import { placeInOrder } from "./items-dom-order.ts";
-import { getSourceOrder } from "./items-source-order.ts";
+import { getSourceOrder } from "../addressing/items-source-order.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 import type { ItemsTemplateRegistry } from "./items-template-registry";
 import type { MetadataIndex } from "../metadata/metadata-index";

@@ -1,8 +1,9 @@
 // Makes a text field raise the ordinary `change` a moment after the viewer pauses, instead of only when they leave it. The pause is
 // `CommitPauses`, which a search field's own pause (search-input-engine.ts) is one of too, so a leave sees and commits either.
 
-const DebounceAttribute = "data-ui-input-debounce";
-const Selector = `input[${DebounceAttribute}], textarea[${DebounceAttribute}]`;
+import { InputDebounceAttribute } from "../addressing/dom-attributes.ts";
+
+const Selector = `input[${InputDebounceAttribute}], textarea[${InputDebounceAttribute}]`;
 
 type DebouncedField = HTMLInputElement | HTMLTextAreaElement;
 
@@ -132,7 +133,7 @@ export class DebouncedCommitEngine {
         if (!isDebouncedField(input) || (domEvent as Partial<InputEvent>).isComposing === true)
             return;
 
-        const debounce = Number(input.getAttribute(DebounceAttribute));
+        const debounce = Number(input.getAttribute(InputDebounceAttribute));
 
         this.pauses.wait(input, Number.isFinite(debounce) && debounce >= 0 ? debounce : 0, () => input.dispatchEvent(new Event("change", { bubbles: true })));
     }

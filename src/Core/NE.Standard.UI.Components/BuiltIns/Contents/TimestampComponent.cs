@@ -1,6 +1,5 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -16,10 +15,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// The server paints it in UTC, which the page writes in the reader's zone before the body is first painted: one render of a view is
 /// shared by every reader, so it cannot carry any one reader's zone.
 /// </remarks>
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultVerticalAlignment))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
-public abstract partial class TimestampComponent<T> : VisualComponentBase<T>, ITooltipComponent
+public abstract partial class TimestampComponent<T>(string? id = null) : VisualComponentBase<T>(id), ITooltipComponent
     where T : TimestampComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIAlignment> DefaultVerticalAlignment = UIAlignment.Center;
     private static readonly UITextAppearance DefaultTextType = UITextAppearance.Body;
     private static readonly UIThemeColor DefaultColor = UIThemeColor.FromStyle(UIColorStyle.Default);
 
@@ -47,15 +48,6 @@ public abstract partial class TimestampComponent<T> : VisualComponentBase<T>, IT
     /// </summary>
     [UIComponentProperty(DefaultValueMember = nameof(DefaultColor))]
     public UIThemeColor? Color { get; set; }
-
-    /// <summary>
-    /// Initializes the timestamp stretched across its column and centred in its row, as text is.
-    /// </summary>
-    protected TimestampComponent(string? id = null) : base(id)
-    {
-        HorizontalAlignment = UIAlignment.Stretch;
-        VerticalAlignment = UIAlignment.Center;
-    }
 }
 
 /// <summary>

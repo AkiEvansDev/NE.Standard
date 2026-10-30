@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { formatWords, isAuthorText, isPhrase, resolveText, translateKey } from "../src/runtime/words.ts";
-import type { WordLookup } from "../src/runtime/words.ts";
+import { formatWords, isAuthorText, isPhrase, resolveText, translateKey } from "../src/rendering/words.ts";
+import type { WordLookup } from "../src/rendering/words.ts";
 
 type FormatCase = { readonly name: string; readonly template: string; readonly markup?: boolean; readonly args: Record<string, unknown>; readonly expected: string };
 type ResolveCase = {

@@ -140,11 +140,11 @@ internal sealed partial class SearchListContext : RecursiveObservable
 {
     private static readonly ServiceEntry[] Catalogue =
     [
-        new("billing", "Billing", "12 replicas · eu-west", "Healthy", UIBadgeType.Success, DemoIcons.Shield),
-        new("panel", "Panel", "4 replicas · eu-west", "Healthy", UIBadgeType.Success, DemoIcons.LayoutDashboard),
-        new("dns", "DNS", "2 replicas · eu-west", "Degraded", UIBadgeType.Warning, DemoIcons.Search),
-        new("mail-relay", "Mail Relay", "1 replica · us-east", "Paused", UIBadgeType.Surface, DemoIcons.Mail),
-        new("metrics", "Metrics", "3 replicas · us-east", "Healthy", UIBadgeType.Success, DemoIcons.FileText)
+        new("billing", "Billing", "12 replicas · eu-west", "Healthy", UIBadgeVariant.Success, DemoIcons.Shield),
+        new("panel", "Panel", "4 replicas · eu-west", "Healthy", UIBadgeVariant.Success, DemoIcons.LayoutDashboard),
+        new("dns", "DNS", "2 replicas · eu-west", "Degraded", UIBadgeVariant.Warning, DemoIcons.Search),
+        new("mail-relay", "Mail Relay", "1 replica · us-east", "Paused", UIBadgeVariant.Surface, DemoIcons.Mail),
+        new("metrics", "Metrics", "3 replicas · us-east", "Healthy", UIBadgeVariant.Success, DemoIcons.FileText)
     ];
 
     [RecursiveMember]
@@ -178,12 +178,12 @@ internal sealed partial class SearchListContext : RecursiveObservable
             Icon = entry.Icon,
             Title = entry.Title,
             Description = entry.Description,
-            BadgeText = entry.Badge,
-            BadgeStyle = entry.BadgeStyle
+            BadgeTitle = entry.Badge,
+            BadgeVariant = entry.BadgeVariant
         }));
     }
 
-    private readonly record struct ServiceEntry(string Id, string Title, string Description, string Badge, UIBadgeType BadgeStyle, string Icon);
+    private readonly record struct ServiceEntry(string Id, string Title, string Description, string Badge, UIBadgeVariant BadgeVariant, string Icon);
 }
 
 /// <summary>
@@ -219,6 +219,9 @@ internal sealed partial class SearchController() : DemoStandardController
     public partial SearchListContext PickList { get; set; } = new();
 
     [RecursiveMember]
+    public partial SearchListContext FreeTextList { get; set; } = new();
+
+    [RecursiveMember]
     public partial SearchListContext MinLengthList { get; set; } = new();
 
     [RecursiveMember]
@@ -247,6 +250,7 @@ internal sealed partial class SearchController() : DemoStandardController
         => list switch
         {
             nameof(PickList) => PickList,
+            nameof(FreeTextList) => FreeTextList,
             nameof(MinLengthList) => MinLengthList,
             nameof(ManualList) => ManualList,
             _ => ServicesList

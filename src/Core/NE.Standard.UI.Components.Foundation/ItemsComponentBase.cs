@@ -86,6 +86,7 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
         ArgumentNullException.ThrowIfNull(item);
 
         _items.Add(item);
+        OnItemsChanged();
         return Self;
     }
 
@@ -102,6 +103,7 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
             ArgumentNullException.ThrowIfNull(buffer[i]);
 
         _items.AddRange(buffer);
+        OnItemsChanged();
         return Self;
     }
 
@@ -119,8 +121,16 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
 
         _items.Clear();
         _items.AddRange(buffer);
+        OnItemsChanged();
 
         return Self;
+    }
+
+    /// <summary>
+    /// Runs after authored items are added or replaced.
+    /// </summary>
+    protected virtual void OnItemsChanged()
+    {
     }
 
     /// <summary>

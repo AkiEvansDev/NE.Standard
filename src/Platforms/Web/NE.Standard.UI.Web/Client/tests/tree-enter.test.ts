@@ -1,5 +1,5 @@
 // Enter on a tree's node is a list row's Enter (issue #92): it chooses where the tree chooses, raises the node's click — the command
-// `OnNodeClick` hangs on the row — and then its open. A node is never one control, so its chevron, a button, is not pressed in its place.
+// `OnItemClick` hangs on the row — and then its open. A node is never one control, so its chevron, a button, is not pressed in its place.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -16,7 +16,7 @@ installFakeDom({
 });
 
 const { enterRow, pressRow } = await import("../src/interactions/items-selection-engine.ts");
-const { RowPressEventName } = await import("../src/interactions/row-cursor.ts");
+const { RowPressEventName } = await import("../src/addressing/dom-attributes.ts");
 
 type Tree = { readonly root: FakeElement; readonly rows: FakeElement[]; readonly folded: () => number; readonly raised: string[] };
 

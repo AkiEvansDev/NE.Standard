@@ -51,8 +51,8 @@ function contrast(ink: string, share: number, ground: string): number {
     return (Math.max(over, under) + 0.05) / (Math.min(over, under) + 0.05);
 }
 
-test("muted words are the page's ink at 75%, and a filled ground's on-colour at a share that reads 4.5:1 on every fill", () => {
-    const muted = /color: color-mix\(in srgb, var\(--ui-faint-base, var\(--ui-color-on-surface\)\) (\d+(?:\.\d+)?)%, color-mix\(in srgb, var\(--ui-faint-base, transparent\) (\d+(?:\.\d+)?)%, transparent\)\);/
+test("muted words are the page's ink at --ui-text-muted-share (60% default), and a filled ground's on-colour at a share that reads 4.5:1 on every fill", () => {
+    const muted = /color: color-mix\(in srgb, var\(--ui-faint-base, var\(--ui-color-on-surface\)\) var\(--ui-text-muted-share, (\d+(?:\.\d+)?)%\), color-mix\(in srgb, var\(--ui-faint-base, transparent\) (\d+(?:\.\d+)?)%, transparent\)\);/
         .exec(declarations(".ui-color--muted") ?? "");
 
     assert.ok(muted !== null, "the muted colour is not the page's share over the base's veil");
@@ -61,18 +61,18 @@ test("muted words are the page's ink at 75%, and a filled ground's on-colour at 
     // Where a base is set, the veil is the base too, so the two shares add up; unset, the veil is transparent and adds nothing.
     const filled = page + ((1 - page) * Number(muted[2]) / 100);
 
-    assert.equal(page, 0.75, "the page's own muted words changed their look");
+    assert.equal(page, 0.64, "the page's own muted words changed their look");
 
     for (const [name, [fill, onColor]] of Object.entries(Fills))
         assert.ok(contrast(onColor, filled, fill) >= 4.5, `muted words on ${name} read ${contrast(onColor, filled, fill).toFixed(2)}:1`);
 });
 
 test("a themed element's muted words lift on a filled ground as every other part's do", () => {
-    assert.match(declarations("[data-ui-theme].ui-color--muted") ?? "", /color-mix\(in srgb, var\(--ui-faint-base, var\(--ui-color-on-background\)\) 75%, color-mix\(in srgb, var\(--ui-faint-base, transparent\) /);
+    assert.match(declarations("[data-ui-theme].ui-color--muted") ?? "", /color-mix\(in srgb, var\(--ui-faint-base, var\(--ui-color-on-background\)\) var\(--ui-text-muted-share, 64%\), color-mix\(in srgb, var\(--ui-faint-base, transparent\) /);
 });
 
 test("a key-value list with no edge drops its rows' inset on its default Surface, and keeps it on a fill of its own", () => {
-    const selector = ".ui-key-value-action.ui-border--none:not(.ui-surface--raised, .ui-surface--tinted, .ui-surface--flat, [style*=\"--ui-surface-color\"], .ui-key-value-action--row-hover) .ui-key-value-action__row";
+    const selector = ".ui-key-value-action.ui-border--none:not(.ui-surface--surface, .ui-surface--tinted, [style*=\"--ui-surface-color\"], .ui-key-value-action--row-hover) .ui-key-value-action__row";
 
     assert.ok(css.includes(`\n${selector},`), "the inset rule does not match a list on Surface Background, which every list carries");
     assert.doesNotMatch(css, /\.ui-border--none:not\([^)]*\.ui-surface--background/, "Surface Background still counts as an edge");
@@ -101,7 +101,7 @@ test("every rule that sets the ground's ink names the ground too, so a part cut 
 
 test("a surface's own opaque fill is its ground, and a Tinted one's mix outranks the Background colour written inline", () => {
     assert.match(declarations(".ui-surface--background") ?? "", /--ui-ground: var\(--ui-surface-fill\);/);
-    assert.match(declarations(".ui-surface--raised") ?? "", /--ui-ground: var\(--ui-surface-fill\);/);
+    assert.match(declarations(".ui-surface--surface") ?? "", /--ui-ground: var\(--ui-surface-fill\);/);
     assert.match(declarations(".ui-surface--tinted") ?? "", /--ui-ground: var\(--ui-surface-fill\) !important;/);
     assert.match(declarations(".ui-button--primary") ?? "", /--ui-ground: var\(--ui-surface-color, var\(--ui-color-primary\)\);/);
 });
@@ -113,7 +113,7 @@ test("a range's track is the mark, translucent over whatever ground it stands on
     assert.ok(tracks.length >= 2, "no range track rules");
 
     for (const track of tracks)
-        assert.match(track, /background-color: var\(--ui-color-mark\);/, "a track painted in the raised ground vanishes on a dialog, whose ground it is");
+        assert.match(track, /background-color: var\(--ui-color-mark\);/, "a track painted in the surface ground vanishes on a dialog, whose ground it is");
 });
 
 test("a popup is never wider than the window less the margin its placement keeps", () => {
@@ -128,7 +128,7 @@ test("a list on Background takes its holder's ground rather than painting the pa
     assert.match(list, /--ui-surface-fill: inherit;/);
 });
 
-test("a quiet expander stands on its holder's ground whatever its Surface: no Raised shadow, no Tinted ground or ink", () => {
+test("a quiet expander stands on its holder's ground whatever its Surface: no shadow, no Tinted ground or ink", () => {
     const quiet = declarations(".ui-expander.ui-expander--quiet") ?? "";
 
     assert.match(quiet, /box-shadow: none;/);

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
@@ -14,9 +16,12 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
 {
     private const string CaptionRegionPrefix = "tab-caption:";
 
+    internal const string TabPart = "tab";
+    internal const string PanelPart = "panel";
+
     public override string ComponentTypeKey => TabsComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-tabs";
+    protected override string ClassName => WebClassNames.Tabs;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -27,7 +32,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
 
         TabsSelectionRenderer.RenderSelectedKey(context, root);
 
-        RenderFlagClass(context, root, TabsComponent.ShowOverflowProperty, "ui-tabs--no-overflow", WebValueCondition.IsFalse);
+        RenderFlagClass(context, root, TabsComponent.ShowOverflowProperty, WebClassNames.TabsNoOverflow, WebValueCondition.IsFalse);
 
         List<string> keys = ResolveTabKeys(context);
         var selected = ResolveSelectedTab(context, keys);
@@ -42,7 +47,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
         {
             _ = root.Element("div", band =>
             {
-                _ = band.Class("ui-tabs__band");
+                _ = band.Class(WebClassNames.TabsBand);
                 RenderStrip(context, band, keys);
                 _ = band.Element("div", actions => RenderActions(context, actions, keys, selected));
             });
@@ -52,13 +57,23 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
         {
             _ = pages.Class("ui-tabs__pages");
 
-            foreach (var key in keys)
+            for (var i = 0; i < keys.Count; i++)
             {
+                var key = keys[i];
+                var index = i;
+
                 _ = pages.Element("div", page =>
                 {
                     _ = page.Class("ui-tabs__page");
                     _ = page.Attribute(WebAttributes.TabPage, key);
                     _ = page.Attribute("role", "tabpanel");
+
+                    // Named by its tab, which names it back (TabCaptionComponentRenderer).
+                    if (TabPartId(context, PanelPart, index) is string id)
+                    {
+                        _ = page.Attribute("id", id);
+                        _ = page.Attribute("aria-labelledby", TabPartId(context, TabPart, index));
+                    }
 
                     // Hidden here as the engine would hide it, so the first paint shows one page rather than all of them stacked.
                     if (selected is not null && !string.Equals(key, selected, StringComparison.Ordinal))
@@ -104,7 +119,7 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
     private static void RenderStrip(WebRenderContext context, IHtmlElementBuilder host, List<string> keys)
         => _ = host.Element("div", strip =>
         {
-            _ = strip.Class("ui-tabs__strip");
+            _ = strip.Class(WebClassNames.TabsStrip);
             _ = strip.Attribute("role", "tablist");
 
             foreach (var key in keys)
@@ -139,4 +154,11 @@ public sealed class TabsComponentRenderer : WebComponentRendererBase
         for (var i = 0; HasRegion(context, TabRegionNames.Action(i)); i++)
             RenderRegion(context, actions, TabRegionNames.Action(i));
     }
+
+    /// <summary>
+    /// The id of the tab at <paramref name="index"/> in the strip of <paramref name="tabs"/>, or of its page; null where the tabs may
+    /// stand on the page more than once.
+    /// </summary>
+    internal static string? TabPartId(WebRenderContext tabs, string part, int index)
+        => ComponentPartId(tabs, string.Create(CultureInfo.InvariantCulture, $"{part}-{index}"));
 }

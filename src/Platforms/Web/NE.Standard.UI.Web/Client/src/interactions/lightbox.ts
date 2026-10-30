@@ -10,29 +10,19 @@
 // and its arrows, which may hold the focus — never moves in the document.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, and types imported as types.
-import { ImageFailedAttribute, ItemsHostAttribute } from "../addressing/dom-attributes.ts";
+import { ImageFailedAttribute, ItemsHostAttribute, LightboxCaptionClass, LightboxClass, LightboxCloseClass, LightboxCountClass, LightboxCounterClass, LightboxCountRoomClass, LightboxFigureClass, LightboxNavClass, LightboxPartAttribute, LightboxPictureClass, LightboxSetAttribute, LightboxSlotAttribute, LightboxStageClass, LightboxStepClass, LightboxStepNextClass, LightboxStepPreviousClass, LightboxStillAttribute, LightboxSurfaceClass, LightboxTitleClass, LightboxTitleId, TextTypeBodyClass, TextTypeCaptionClass } from "../addressing/dom-attributes.ts";
 import { afterTransitions, motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { readImageSource } from "../rendering/url-safety.ts";
-import { clientStrings } from "../runtime/client-strings.ts";
-import { logWarn } from "../runtime/logger.ts";
-import type { AuthorText, Phrase } from "../runtime/words.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import { logWarn } from "../metadata/logger.ts";
+import type { AuthorText, Phrase } from "../rendering/words.ts";
 import type { DialogEngine } from "./dialog-engine.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { buildPageDialog, PageDialogParts } from "./page-dialog.ts";
 import { FlickSpeed, followSwipe, SwipeSlop } from "./swipe-follow.ts";
 
-const LightboxKey = "ui-lightbox";
-const TitleId = "ui-lightbox-title";
-const Parts = new PageDialogParts("data-ui-lightbox-part");
-
-/** On the lightbox while it shows a set, which its arrows and counter walk; a single picture shows neither. */
-const SetAttribute = "data-ui-lightbox-set";
-
-/** A figure's place in the strip: `previous`, `current` or `next`, which the stylesheet sets a pitch apart. */
-const SlotAttribute = "data-ui-lightbox-slot";
-
-/** On the stage while the strip follows a finger or goes back under a picture that slid in: it moves at once, with no transition. */
-const StillAttribute = "data-ui-lightbox-still";
+const LightboxKey = LightboxClass;
+const Parts = new PageDialogParts(LightboxPartAttribute);
 
 /** How far the strip stands off its rest, in pixels: a finger's drag, or a step's whole pitch. */
 const ShiftProperty = "--ui-lightbox-shift";
@@ -100,7 +90,7 @@ export function showLightbox(dialogs: DialogEngine, pictures: readonly LightboxP
 
     turning = null;
     showing = { pictures: safe, index: clampIndex(start - skipped, safe.length) };
-    parts.dialog.toggleAttribute(SetAttribute, safe.length > 1);
+    parts.dialog.toggleAttribute(LightboxSetAttribute, safe.length > 1);
 
     for (const neighbour of parts.neighbours)
         neighbour.hidden = safe.length < 2;
@@ -170,33 +160,33 @@ function clampIndex(index: number, count: number): number {
 function buildLightbox(dialogs: DialogEngine): LightboxParts {
     const { dialog, surface } = buildPageDialog({
         key: LightboxKey,
-        className: "ui-lightbox",
-        surfaceClassName: "ui-lightbox__surface",
+        className: LightboxClass,
+        surfaceClassName: LightboxSurfaceClass,
         role: "dialog",
-        labelledBy: TitleId,
+        labelledBy: LightboxTitleId,
         closesOnEscapeAndBackdrop: true
     });
 
-    const title = Parts.element("h2", "ui-lightbox__title");
-    const close = button("ui-lightbox__close", "close");
-    const stage = Parts.element("div", "ui-lightbox__stage");
+    const title = Parts.element("h2", LightboxTitleClass);
+    const close = button(LightboxCloseClass, "close");
+    const stage = Parts.element("div", LightboxStageClass);
     const [previousFigure, previousPicture] = figure("previous");
     const [current, picture] = figure("current");
     const [nextFigure, nextPicture] = figure("next");
-    const nav = Parts.element("div", "ui-lightbox__nav");
-    const previous = button("ui-lightbox__step ui-lightbox__step--previous", "previous");
-    const next = button("ui-lightbox__step ui-lightbox__step--next", "next");
-    const counter = Parts.element("span", "ui-lightbox__counter ui-text-type--caption");
+    const nav = Parts.element("div", LightboxNavClass);
+    const previous = button(`${LightboxStepClass} ${LightboxStepPreviousClass}`, "previous");
+    const next = button(`${LightboxStepClass} ${LightboxStepNextClass}`, "next");
+    const counter = Parts.element("span", `${LightboxCounterClass} ${TextTypeCaptionClass}`);
     // The counter's words for the set's last picture, unseen beneath the shown ones: the counter holds the width of its widest, so
     // "9 of 10" going to "10 of 10" moves neither arrow, whatever the language writes round the numbers.
-    const countRoom = Parts.element("span", "ui-lightbox__count-room");
-    const count = Parts.element("span", "ui-lightbox__count");
-    const caption = Parts.element("p", "ui-lightbox__caption ui-text-type--body", "caption");
+    const countRoom = Parts.element("span", LightboxCountRoomClass);
+    const count = Parts.element("span", LightboxCountClass);
+    const caption = Parts.element("p", `${LightboxCaptionClass} ${TextTypeBodyClass}`, "caption");
 
-    title.id = TitleId;
+    title.id = LightboxTitleId;
     count.setAttribute("aria-live", "polite");
     countRoom.setAttribute("aria-hidden", "true");
-    clientStrings.write(title, null, "ui.lightbox.label");
+    clientStrings.write(title, null, "ui.lightbox.name");
     clientStrings.write(close, "aria-label", "ui.action.close");
     clientStrings.write(previous, "aria-label", "ui.lightbox.previous");
     clientStrings.write(next, "aria-label", "ui.lightbox.next");
@@ -232,7 +222,7 @@ function buildLightbox(dialogs: DialogEngine): LightboxParts {
             return;
 
         domEvent.preventDefault();
-        turn(isRightToLeft(dialog) ? -by : by);
+        turn(by);
     });
 
     followTurns(dialog, stage);
@@ -242,10 +232,10 @@ function buildLightbox(dialogs: DialogEngine): LightboxParts {
 
 /** A figure of the strip and its picture; a neighbour is the screen reader's to pass over, as it stands off the screen. */
 function figure(slot: "previous" | "current" | "next"): [HTMLElement, HTMLImageElement] {
-    const holder = Parts.element("div", "ui-lightbox__figure");
-    const picture = Parts.element("img", "ui-lightbox__picture", slot === "current" ? "picture" : undefined) as HTMLImageElement;
+    const holder = Parts.element("div", LightboxFigureClass);
+    const picture = Parts.element("img", LightboxPictureClass, slot === "current" ? "picture" : undefined) as HTMLImageElement;
 
-    holder.setAttribute(SlotAttribute, slot);
+    holder.setAttribute(LightboxSlotAttribute, slot);
     picture.decoding = "async";
     picture.draggable = false;
     // A picture that cannot be drawn leaves its room empty rather than show the browser's broken mark.
@@ -288,11 +278,9 @@ function turn(by: number): void {
     }
 
     const step: Turn = { by, landed: false };
-    const way = isRightToLeft(lightbox.dialog) ? -1 : 1;
-
     turning = step;
-    lightbox.stage.removeAttribute(StillAttribute);
-    lightbox.stage.style.setProperty(ShiftProperty, `${-by * way * pitch(lightbox.stage)}px`);
+    lightbox.stage.removeAttribute(LightboxStillAttribute);
+    lightbox.stage.style.setProperty(ShiftProperty, `${-by * pitch(lightbox.stage)}px`);
 
     afterTransitions(lightbox.current, motion.normal + 100, () => land(lightbox, step));
 }
@@ -351,7 +339,7 @@ function advance(lightbox: LightboxParts, by: number): void {
 
 /** The strip back at rest at once, with no movement. */
 function restStrip(lightbox: LightboxParts): void {
-    lightbox.stage.setAttribute(StillAttribute, "");
+    lightbox.stage.setAttribute(LightboxStillAttribute, "");
     lightbox.stage.style.setProperty(ShiftProperty, "0px");
     // Read, so the rest is laid out with no transition before the next move may run one.
     void lightbox.stage.getBoundingClientRect();
@@ -380,10 +368,6 @@ function showPicture(picture: HTMLImageElement, source: string): void {
     picture.src = source;
 }
 
-function isRightToLeft(element: Element): boolean {
-    return getComputedStyle(element).direction === "rtl";
-}
-
 /**
  * A finger's swipe across the lightbox turns the set: the strip follows it, the neighbour coming in from the side it is dragged
  * away from; let go past a fifth of the window or on a flick it slides on the same way, short of that it springs back. A tap is left
@@ -400,16 +384,16 @@ function followTurns(dialog: HTMLElement, stage: HTMLElement): void {
             settleTurn(parts);
             return true;
         },
-        start: () => stage.setAttribute(StillAttribute, ""),
+        start: () => stage.setAttribute(LightboxStillAttribute, ""),
         follow: offset => stage.style.setProperty(ShiftProperty, `${offset}px`),
         end: (offset, speed, letGo) => {
             if (letGo && swipeTurns(offset, window.innerWidth, speed)) {
-                // A finger moving the picture leftward brings the next one in, as a page is turned; rightward where the page reads so.
-                turn((isRightToLeft(dialog) ? offset > 0 : offset < 0) ? 1 : -1);
+                // A finger moving the picture leftward brings the next one in, as a page is turned.
+                turn(offset < 0 ? 1 : -1);
                 return;
             }
 
-            stage.removeAttribute(StillAttribute);
+            stage.removeAttribute(LightboxStillAttribute);
             stage.style.setProperty(ShiftProperty, "0px");
         }
     });

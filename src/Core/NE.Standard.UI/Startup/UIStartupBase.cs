@@ -25,10 +25,18 @@ public abstract class UIStartupBase
     /// Runs startup configuration, applies default services, and validates required UI services.
     /// </summary>
     public void Configure(IServiceCollection services)
+        => Configure(services, configureApplication: null);
+
+    /// <summary>
+    /// Runs startup configuration as <see cref="Configure(IServiceCollection)"/> does, then <paramref name="configureApplication"/> on
+    /// the application builder before it is built.
+    /// </summary>
+    internal void Configure(IServiceCollection services, Action<UIApplicationBuilder>? configureApplication)
     {
         UIApplicationBuilder application = new();
 
         Configure(services, application);
+        configureApplication?.Invoke(application);
 
         // Built in the host's own container, on first resolve: a provider built here would construct every singleton the build touches a second time.
         _ = services.AddSingleton(application.Build);
@@ -36,8 +44,8 @@ public abstract class UIStartupBase
         AddHostServices(services, static provider => (UIHost)provider.GetRequiredService<IUIHost>());
     }
 
-    /// <summary>Registers what the host itself serves, read from <paramref name="host"/>; a test host, built after its container, passes its own.</summary>
-    internal static void AddHostServices(IServiceCollection services, Func<IServiceProvider, UIHost> host)
+    /// <summary>Registers what the host itself serves, read from <paramref name="host"/>.</summary>
+    private static void AddHostServices(IServiceCollection services, Func<IServiceProvider, UIHost> host)
     {
         // The host holds the runtimes a session's end has to reach, so it is what ends one.
         _ = services.AddSingleton<IUISessions>(host);

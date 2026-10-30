@@ -7,7 +7,7 @@ import {
     ScrollViewportAttribute,
     SourceLineAttribute
 } from "../addressing/dom-attributes";
-import { viewportOf } from "../items/items-viewport";
+import { viewportOf } from "../addressing/items-viewport";
 import type { ScrollAnchors } from "./scroll-group-mapping";
 import { lineAtTop, topOfLine } from "./scroll-group-mapping";
 

@@ -5,16 +5,16 @@
 @import "../mixins/selected.less";
 @import "../mixins/surface-image.less";
 
-// A field's strip cut into segments: the field's ground and edge, a hairline between segments, the current one filled.
+// Segmented capsule with a 1px mark border, 2px inner padding and gap, no divider lines, and neutral pill selection.
 .ui-button-group {
     display: inline-flex;
     align-self: var(--ui-align-v, center);
     .ui-responsive-property(min-height, --ui-min-height, @ui-control-height);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
-    .ui-field-ground();
-    // The field's list after the root's: the strip is a component root, and the field's list alone would stop it fading for Hide.
+    padding: 2px;
+    .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-button); var(--ui-color-mark));
     transition: @ui-root-transition, border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
-    background-color: var(--ui-surface-color, var(--ui-field-rest));
+    background-color: var(--ui-surface-color, var(--ui-color-background));
     // On `::before`, the strip's first item, so the blur's layer stays over what is in view while the strip scrolls.
     .ui-surface-image(before; row);
     // Reset on the root carrying [data-ui-id]; the size rules below re-read the chain with their own defaults.
@@ -83,6 +83,7 @@
     display: flex;
     flex: 1 1 auto;
     align-items: stretch;
+    gap: 2px;
     min-width: 0;
 }
 
@@ -92,11 +93,7 @@
     align-items: stretch;
 }
 
-    .ui-button-group__item + .ui-button-group__item {
-        border-left: 1px solid var(--ui-color-border);
-    }
-
-    // The segment is the button template, stripped of a button's own box: the strip's edge and corners are the only ones.
+    // Each segment is a concentric inner pill with 1st-degree muted ink at rest, stepping up to 2nd-degree on hover/focus.
     .ui-button-group__item > .ui-button {
         align-self: stretch;
         .ui-responsive-property(min-height, --ui-min-height, 0);
@@ -104,15 +101,28 @@
         border-style: none;
         border-color: currentColor;
         .ui-responsive-property(border-width, --ui-border-thickness, 0);
-        .ui-responsive-property(border-radius, --ui-border-radius, 0);
+        .ui-responsive-property(border-radius, --ui-border-radius, ~"calc(var(--ui-radius-button) - 2px)");
+        background-color: transparent;
+        color: @ui-text-muted;
     }
 
-    // An icon alone is a square, as an icon button is: as wide as the strip is tall inside its edge. Not aspect-ratio, which a segment
-    // stretched in a strip with no set height cannot resolve; narrower, the strip read as squashed beside its icon buttons.
+    @media @{ui-can-hover} {
+        .ui-button-group__item:not([data-ui-selected]) > .ui-button@{ui-button-live}:hover {
+            background-color: var(--ui-wash-hover);
+            color: @ui-text-ink;
+        }
+    }
+
+    .ui-button-group__item:not([data-ui-selected]) > .ui-button@{ui-button-live}@{ui-keyboard-focus} {
+        background-color: var(--ui-wash-hover);
+        color: @ui-text-ink;
+    }
+
+    // An icon alone is a square, as an icon button is: as wide as the strip is tall inside its edge and 2px padding.
     .ui-button-group__item > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
         .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
         aspect-ratio: auto;
-        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-control-height} - 2 * var(--ui-border-width, 1px))");
+        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-control-height} - 4px - 2 * var(--ui-border-width, 1px))");
         justify-content: center;
     }
 
@@ -122,25 +132,25 @@
 
     .ui-button-group--small .ui-button-group__item > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
         .ui-responsive-property(padding, --ui-padding, @ui-space-1);
-        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-button-height-sm} - 2 * var(--ui-border-width, 1px))");
+        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-button-height-sm} - 4px - 2 * var(--ui-border-width, 1px))");
     }
 
     .ui-button-group--large .ui-button-group__item > .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
-        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-button-height-lg} - 2 * var(--ui-border-width, 1px))");
+        .ui-responsive-property(min-width, --ui-min-width, ~"calc(@{ui-button-height-lg} - 4px - 2 * var(--ui-border-width, 1px))");
     }
 
     .ui-button-group--large .ui-button-group__item > .ui-button {
         .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-4);
     }
 
-    // The current segment: primary fill, or the author's selection style; no hover brightening, since the fill already says it.
-    // Its words read on the fill: muted ones and a link in its ink, as on any filled ground, not the page's.
+    // The current segment: neutral selected pill (`--ui-wash-selected`) and 3rd-degree bright ink (`--ui-text-selected`), or the author's SelectionStyle.
     .ui-button-group__item[data-ui-selected] > .ui-button {
-        .ui-selected-ground(var(--ui-color-primary));
-        .ui-selected-ink(var(--ui-color-on-primary));
-        --ui-faint-base: var(--ui-selected-foreground, var(--ui-color-on-primary));
-        --ui-ground: var(--ui-selected-background, var(--ui-color-primary));
+        .ui-selected-ground(var(--ui-wash-selected));
+        .ui-selected-ink(var(--ui-text-selected));
+        --ui-faint-base: var(--ui-selected-foreground, var(--ui-text-selected));
+        --ui-ground: var(--ui-selected-background, var(--ui-wash-selected));
         .ui-reveal-hover-off({
-            .ui-selected-ground(var(--ui-color-primary));
+            .ui-selected-ground(var(--ui-wash-selected));
+            .ui-selected-ink(var(--ui-text-selected));
         });
     }

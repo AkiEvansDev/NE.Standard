@@ -170,8 +170,8 @@ internal sealed partial class CatalogueController : UIControllerBase
             PriceLine = $"€{price.ToString("0", CultureInfo.InvariantCulture)}",
             Available = available,
             // As short as a price leaves room for: the region is the switch's word beside the list.
-            BadgeText = available ? null : "Not here",
-            BadgeStyle = available ? null : UIBadgeType.Warning,
+            BadgeTitle = available ? null : "Not here",
+            BadgeVariant = available ? null : UIBadgeVariant.Warning,
             Image = image
         };
 }

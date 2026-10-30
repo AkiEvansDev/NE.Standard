@@ -32,7 +32,7 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
     [
         new() { Id = "panel", Kind = UIMenuItemKind.Header, Title = "Panel" },
         new() { Id = OverviewId, Title = "Overview", Icon = DemoIcons.Outline(DemoIcons.LayoutDashboard), Selected = true },
-        new() { Id = DeploysId, Title = "Deploys", Icon = DemoIcons.Outline(DemoIcons.Upload), BadgeText = "3" },
+        new() { Id = DeploysId, Title = "Deploys", Icon = DemoIcons.Outline(DemoIcons.Upload), BadgeTitle = "3" },
         new() { Id = LogsId, Title = "Logs", Icon = DemoIcons.Outline(DemoIcons.FileText), Shortcut = SampleShortcut },
         new() { Id = "rule", Kind = UIMenuItemKind.Separator },
         new() { Id = SettingsId, Title = "Settings", Icon = DemoIcons.Outline(DemoIcons.Settings) }
@@ -45,7 +45,7 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
         AddOption(nameof(Expanded), ToggleExpanded, () => Expanded);
         AddOption(nameof(SelectionStyle), CycleSelectionStyle, () => SelectionStyle);
         AddOption("Deploys selected", ToggleDeploysSelected, () => Entry(DeploysId).Selected);
-        AddOption("Deploys badge", CycleDeploysBadge, () => Entry(DeploysId).BadgeText);
+        AddOption("Deploys badge", CycleDeploysBadge, () => Entry(DeploysId).BadgeTitle);
         AddOption("Logs enabled", ToggleLogsEnabled, () => Entry(LogsId).Enabled);
         AddOption("Logs shortcut", ToggleLogsShortcut, () => Entry(LogsId).Shortcut);
         AddOption("Settings visible", ToggleSettingsVisible, () => Entry(SettingsId).Visibility?.Base);
@@ -79,7 +79,7 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
     {
         MenuItem deploys = Entry(DeploysId);
 
-        deploys.BadgeText = CycleValue(deploys.BadgeText, null, "3", "12");
+        deploys.BadgeTitle = CycleValue(deploys.BadgeTitle, null, "3", "12");
     }
 
     public void ToggleLogsEnabled()
@@ -143,11 +143,11 @@ internal sealed partial class CommandBarGroupContext : DemoGroupContext
     [RecursiveMember(false)]
     public RecursiveCollection<ButtonItem> Commands { get; } =
     [
-        new() { Id = SaveId, Title = "Save", Icon = DemoIcons.Outline(DemoIcons.Check), Type = UIButtonType.Primary, Group = "draft" },
-        new() { Id = "discard", Title = "Discard", Icon = DemoIcons.Outline(DemoIcons.Undo), Type = UIButtonType.Ghost, Group = "draft" },
-        new() { Id = "duplicate", Title = "Duplicate", Icon = DemoIcons.Outline(DemoIcons.Copy), Type = UIButtonType.Ghost, Group = "copy" },
-        new() { Id = ExportId, Title = "Export", Icon = DemoIcons.Outline(DemoIcons.Download), Type = UIButtonType.Ghost, Enabled = false, Group = "copy" },
-        new() { Id = DeleteId, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close), Type = UIButtonType.Danger, Group = "danger" }
+        new() { Id = SaveId, Title = "Save", Icon = DemoIcons.Outline(DemoIcons.Check), Variant = UIButtonVariant.Primary, Group = "draft" },
+        new() { Id = "discard", Title = "Discard", Icon = DemoIcons.Outline(DemoIcons.Undo), Variant = UIButtonVariant.Ghost, Group = "draft" },
+        new() { Id = "duplicate", Title = "Duplicate", Icon = DemoIcons.Outline(DemoIcons.Copy), Variant = UIButtonVariant.Ghost, Group = "copy" },
+        new() { Id = ExportId, Title = "Export", Icon = DemoIcons.Outline(DemoIcons.Download), Variant = UIButtonVariant.Ghost, Enabled = false, Group = "copy" },
+        new() { Id = DeleteId, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close), Variant = UIButtonVariant.Danger, Group = "danger" }
     ];
 
     public CommandBarGroupContext()
@@ -156,10 +156,10 @@ internal sealed partial class CommandBarGroupContext : DemoGroupContext
         AddOption(nameof(Wrap), ToggleWrap, () => Wrap);
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
         AddOption(nameof(GroupSeparator), CycleGroupSeparator, () => GroupSeparator);
-        AddOption("Save type", CycleSaveType, () => Command(SaveId).Type);
-        AddOption("Save size", CycleSaveSize, () => Command(SaveId).Size);
-        AddOption("Export enabled", ToggleExportEnabled, () => Command(ExportId).Enabled);
-        AddOption("Delete visible", ToggleDeleteVisible, () => Command(DeleteId).Visibility?.Base);
+        AddOption($"Save {nameof(ButtonItem.Variant)}", CycleSaveVariant, () => Command(SaveId).Variant);
+        AddOption($"Save {nameof(ButtonItem.Size)}", CycleSaveSize, () => Command(SaveId).Size);
+        AddOption($"Export {nameof(ButtonItem.Enabled)}", ToggleExportEnabled, () => Command(ExportId).Enabled);
+        AddOption($"Delete {nameof(ButtonItem.Visibility)}", ToggleDeleteVisible, () => Command(DeleteId).Visibility?.Base);
     }
 
     public void CycleOrientation()
@@ -174,12 +174,12 @@ internal sealed partial class CommandBarGroupContext : DemoGroupContext
     public void CycleGroupSeparator()
         => SetLastChange(nameof(GroupSeparator), GroupSeparator = CycleEnum(GroupSeparator));
 
-    // Stepped on one button rather than on the bar: the bar has no type of its own.
-    public void CycleSaveType()
+    // Stepped on one button rather than on the bar: the bar has no variant of its own.
+    public void CycleSaveVariant()
     {
         ButtonItem save = Command(SaveId);
 
-        save.Type = CycleEnum(save.Type);
+        save.Variant = CycleEnum(save.Variant);
     }
 
     public void CycleSaveSize()

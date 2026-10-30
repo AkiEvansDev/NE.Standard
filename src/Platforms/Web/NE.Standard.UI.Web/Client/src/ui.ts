@@ -1,6 +1,6 @@
 import "./ui.less";
 import { installGlobalApi } from "./runtime/global-api";
-import { logError } from "./runtime/logger";
+import { logError } from "./metadata/logger";
 import { startWebUIAsync } from "./runtime/web-ui-runtime";
 
 installGlobalApi();

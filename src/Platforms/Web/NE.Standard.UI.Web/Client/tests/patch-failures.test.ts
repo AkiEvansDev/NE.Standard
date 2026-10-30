@@ -7,7 +7,7 @@ import { FakeElement, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom();
 
-const { setLogLevel } = await import("../src/runtime/logger.ts");
+const { setLogLevel } = await import("../src/metadata/logger.ts");
 const { ConverterRegistry } = await import("../src/extensions/converters.ts");
 const { DomOperationRegistry } = await import("../src/updates/dom-operation-registry.ts");
 const { PropertyPatchEngine } = await import("../src/updates/property-patch-engine.ts");

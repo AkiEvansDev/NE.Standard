@@ -130,7 +130,7 @@ test("the tools' row stands between the field's insets with the groups' own half
 
     // The insets the columns take by appearance and size: the row's or the box's own padding and border.
     const insets: [string, string, string][] = [
-        [":is(.ui-input--filled, .ui-input--tonal, .ui-input--outline)", "--ui-field-inset", "calc(0.75rem + var(--ui-border-width, 1px))"],
+        [":is(.ui-input--filled, .ui-input--outline)", "--ui-field-inset", "calc(0.75rem + var(--ui-border-width, 1px))"],
         [".ui-input--ghost", "--ui-field-inset", "calc(0.5rem + var(--ui-border-width, 1px))"],
         [".ui-input--underline", "--ui-field-inset", "0px"],
         [".ui-input--small", "--ui-field-inset", "calc(0.375rem + var(--ui-border-width, 1px))"],

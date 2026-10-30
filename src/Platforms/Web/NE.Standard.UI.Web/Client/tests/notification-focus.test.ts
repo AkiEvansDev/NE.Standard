@@ -52,7 +52,7 @@ test("a toast the focus came to from nowhere hands it to the next toast's close"
 
 test("a toast's action comes after its close, as it is drawn under the message", () => {
     const { engine } = page();
-    const toast = real<FakeElement>(engine.show({ message: "Lost", sticky: true, action: { label: "Reload", run: () => undefined } }));
+    const toast = real<FakeElement>(engine.show({ message: "Lost", sticky: true, action: { title: "Reload", run: () => undefined } }));
 
     assert.deepEqual(toast.children.map(child => child.className.split(" ")[0]), ["ui-notification__message", "ui-notification__close", "ui-notification__action"]);
 });
@@ -77,4 +77,29 @@ test("a toast holding the keyboard is what a dialog or a drawer leaves Escape to
 
     assert.equal(hasOpenPopups(real(close)), true);
     assert.equal(hasOpenPopups(real(opener)), false);
+});
+
+test("a toast raised into a package's native dialog keeps its keys and presses from the dialog, and raises no component's event", () => {
+    const { engine } = page();
+    const toast = engine.show({ message: "Saved", sticky: true });
+    const host = real<FakeElement>(toast).parentElement!;
+    const close = real<FakeElement>(toast.querySelector(".ui-notification__close"));
+    const heard: string[] = [];
+
+    assert.equal(host.hasAttribute("data-ui-event-boundary"), true);
+
+    fakeDocument.body.addEventListener("keydown", () => heard.push("page"));
+    close.dispatchEvent(new FakeKeyboardEvent("a", close));
+    assert.deepEqual(heard, ["page"], "under the page's container a key goes on");
+
+    const dialog = FakeElement.of("", {}, "dialog");
+
+    fakeDocument.body.append(dialog);
+    dialog.append(host);
+    dialog.addEventListener("keydown", () => heard.push("dialog"));
+    dialog.addEventListener("pointerdown", () => heard.push("dialog press"));
+    close.dispatchEvent(new FakeKeyboardEvent("a", close));
+    close.dispatchEvent(new FakeEvent("pointerdown"));
+
+    assert.deepEqual(heard, ["page"]);
 });

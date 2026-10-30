@@ -10,7 +10,7 @@ installFakeDom();
 
 const { regroupHost } = await import("../src/items/items-group-renderer.ts");
 const { PropertyStateStore } = await import("../src/state/property-state-store.ts");
-const { getSourceOrder, insertSourceItem, removeSourceItem } = await import("../src/items/items-source-order.ts");
+const { getSourceOrder, insertSourceItem, removeSourceItem } = await import("../src/addressing/items-source-order.ts");
 
 type Args = Parameters<typeof regroupHost>;
 

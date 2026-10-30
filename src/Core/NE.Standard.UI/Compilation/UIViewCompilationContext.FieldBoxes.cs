@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -106,19 +105,19 @@ internal sealed partial class UIViewCompilationContext
     /// A sibling's caption box at <paramref name="tier"/> where it draws one for certain: shown there by a written value, not one a
     /// binding may take away (it would leave its neighbour a caption line low).
     /// </summary>
-    private static UIInputSize? CertainCaption(IVisualComponent child, UIResponsiveTier tier)
+    private static UISize? CertainCaption(IVisualComponent child, UIResponsiveTier tier)
         => IsGone(child, tier) || Binds(child, IVisualComponent.VisibilityProperty) ? null : UIFieldBoxes.CaptionRowBox(child, tier);
 
     /// <summary>The box captioned fields stand on together: their size, the medium one where they differ.</summary>
-    private static UIInputSize Merge(UIInputSize? size, UIInputSize own)
-        => size is null || size == own ? own : UIInputSize.Medium;
+    private static UISize Merge(UISize? size, UISize own)
+        => size is null || size == own ? own : UISize.Medium;
 
-    private static UIFieldBoxAlignment? ToAlignment(UIInputSize? size)
+    private static UIFieldBoxAlignment? ToAlignment(UISize? size)
         => size switch
         {
             null => null,
-            UIInputSize.Small => UIFieldBoxAlignment.Small,
-            UIInputSize.Large => UIFieldBoxAlignment.Large,
+            UISize.Small => UIFieldBoxAlignment.Small,
+            UISize.Large => UIFieldBoxAlignment.Large,
             _ => UIFieldBoxAlignment.Medium
         };
 
@@ -129,7 +128,7 @@ internal sealed partial class UIViewCompilationContext
         private readonly Stack<List<int>> _spare = new();
         private IReadOnlyList<IVisualComponent> _children = [];
         private UIFieldBoxAlignment[] _tiers = [];
-        private UIInputSize?[] _captions = [];
+        private UISize?[] _captions = [];
 
         /// <summary>Clears the tiers for a container of <paramref name="count"/> children, each one's tiers one after another.</summary>
         public UIFieldBoxAlignment[] Begin(int count)
@@ -138,7 +137,7 @@ internal sealed partial class UIViewCompilationContext
                 _tiers = new UIFieldBoxAlignment[count * TierCount];
 
             if (_captions.Length < count)
-                _captions = new UIInputSize?[count];
+                _captions = new UISize?[count];
 
             Array.Clear(_tiers, 0, count * TierCount);
 
@@ -197,11 +196,11 @@ internal sealed partial class UIViewCompilationContext
         /// <summary>The boxes every captioned child stands on: a stack running across holds them all side by side.</summary>
         public UIFieldBoxAlignment? AllBoxes()
         {
-            UIInputSize? size = null;
+            UISize? size = null;
 
             for (var i = 0; i < _children.Count; i++)
             {
-                if (_captions[i] is UIInputSize own)
+                if (_captions[i] is UISize own)
                     size = Merge(size, own);
             }
 
@@ -212,7 +211,7 @@ internal sealed partial class UIViewCompilationContext
         public UIFieldBoxAlignment? BoxesBeside(IVisualComponent child, UIResponsiveTier tier)
         {
             UIGridPlacement placement = child.Placement?.Resolve(tier) ?? WholeRow;
-            UIInputSize? size = null;
+            UISize? size = null;
 
             for (var row = placement.Row; row < placement.Row + placement.RowSpan; row++)
             {
@@ -223,7 +222,7 @@ internal sealed partial class UIViewCompilationContext
                 {
                     UIGridPlacement other = _children[index].Placement?.Resolve(tier) ?? WholeRow;
 
-                    if (!Overlap(placement.Column, placement.ColumnSpan, other.Column, other.ColumnSpan) && _captions[index] is UIInputSize own)
+                    if (!Overlap(placement.Column, placement.ColumnSpan, other.Column, other.ColumnSpan) && _captions[index] is UISize own)
                         size = Merge(size, own);
                 }
             }

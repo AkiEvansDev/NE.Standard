@@ -37,7 +37,7 @@ internal sealed partial class DemoChatItem : TextItem
     public List<DemoChatMessage> History { get; } = [];
 
     /// <summary>How many messages are unread, the badge's count.</summary>
-    public int Unread { get; set; }
+    internal int Unread { get; set; }
 }
 
 /// <summary>A photo a message carries: a press shows it full size among the message's others.</summary>
@@ -131,7 +131,7 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
             new() { Id = "edit", Title = "demo.screens.chat.action.edit", Icon = UIGlyphs.Edit, InActionBar = true, Shortcut = "E" },
             new() { Id = "delete", Title = "demo.screens.chat.action.delete", Icon = UIGlyphs.Delete, IconColor = UIThemeColor.Danger, TitleColor = UIThemeColor.Danger, InActionBar = true, Shortcut = "Delete" },
             new() { Id = "rule", Kind = UIMenuItemKind.Separator },
-            new() { Id = "reply", Title = "demo.screens.chat.action.reply", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), Shortcut = "R" },
+            new() { Id = "reply", Title = "demo.screens.chat.action.reply", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), InActionBar = true, Shortcut = "R" },
             // C alone: Ctrl+C stays the browser's copy of the words the reader selected in a message.
             new() { Id = CopyAction, Title = "demo.screens.chat.action.copy", Icon = DemoIcons.Outline(DemoIcons.Copy), Shortcut = "C" }
         ];
@@ -352,6 +352,18 @@ internal sealed partial class ChatController : UIControllerBase
     [RecursiveMember]
     public partial IReadOnlyList<string>? AttachmentIds { get; set; }
 
+    [RecursiveMember]
+    public partial string ReplyAuthor { get; set; } = string.Empty;
+
+    [RecursiveMember]
+    public partial string ReplyText { get; set; } = string.Empty;
+
+    [RecursiveMember]
+    public partial UIVisibility ReplyVisibility { get; set; } = UIVisibility.Collapsed;
+
+    [RecursiveMember]
+    public partial IReadOnlyList<UITextTriggerItem>? MentionItems { get; set; }
+
     /// <summary>The chats while the rail's Chats is open, the people while People is.</summary>
     [RecursiveMember]
     public partial UIVisibility ChatsVisibility { get; set; } = UIVisibility.Visible;
@@ -406,7 +418,7 @@ internal sealed partial class ChatController : UIControllerBase
         foreach (DemoChatItem chat in Chats)
         {
             if (!chat.IsGroup)
-                People.Add(new MenuItem { Id = chat.Id, Title = chat.Title, Icon = chat.Avatar, IconShape = UIIconShape.Circle, BadgeStyle = UIBadgeType.Primary, IsContent = true });
+                People.Add(new MenuItem { Id = chat.Id, Title = chat.Title, Icon = chat.Avatar, IconShape = UIShape.Circle, BadgeVariant = UIBadgeVariant.Primary, IsContent = true });
         }
 
         Describe(_open);
@@ -424,10 +436,10 @@ internal sealed partial class ChatController : UIControllerBase
 
         return
         [
-            new MenuItem { Id = "chats", Title = "Chats", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), BadgeStyle = UIBadgeType.Primary, Selected = true },
+            new MenuItem { Id = "chats", Title = "Chats", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), BadgeVariant = UIBadgeVariant.Primary, Selected = true },
             new MenuItem { Id = "people", Title = "People", Icon = DemoIcons.Outline(DemoIcons.Groups) },
             // Empty, not null: a dot on the icon's corner, something new with nothing to count.
-            new MenuItem { Id = "activity", Title = "Activity", Icon = DemoIcons.Outline(DemoIcons.Bell), BadgeText = "", BadgeStyle = UIBadgeType.Primary },
+            new MenuItem { Id = "activity", Title = "Activity", Icon = DemoIcons.Outline(DemoIcons.Bell), BadgeTitle = "", BadgeVariant = UIBadgeVariant.Primary },
             settings
         ];
     }
@@ -546,7 +558,7 @@ internal sealed partial class ChatController : UIControllerBase
             At = at,
             IsGroup = isGroup,
             Unread = unread,
-            BadgeStyle = UIBadgeType.Primary,
+            BadgeVariant = UIBadgeVariant.Primary,
             IsContent = true
         };
 
@@ -558,7 +570,7 @@ internal sealed partial class ChatController : UIControllerBase
 
         chat.Description = last;
         chat.SearchText = $"{chat.Title} {last}";
-        chat.BadgeText = chat.Unread == 0 ? null : chat.Unread.ToString(CultureInfo.InvariantCulture);
+        chat.BadgeTitle = chat.Unread == 0 ? null : chat.Unread.ToString(CultureInfo.InvariantCulture);
         chat.UnreadVisibility = chat.Unread == 0 ? UIVisibility.Collapsed : UIVisibility.Visible;
 
         return chat;
@@ -694,7 +706,85 @@ internal sealed partial class ChatController : UIControllerBase
         OpenStatus = chat.Status;
         OpenAvatar = chat.Avatar;
         Draft = null;
+        CancelReply();
+        MentionItems = CreateRootMentionItems();
         MarkDays(chat);
+    }
+
+    /// <summary>Clears the reply banner over the composer.</summary>
+    [UICommand]
+    public void CancelReply()
+    {
+        ReplyAuthor = string.Empty;
+        ReplyText = string.Empty;
+        ReplyVisibility = UIVisibility.Collapsed;
+    }
+
+    /// <summary>
+    /// The <c>@</c> categories in the composer: <c>People</c> carries its second-level items on the client, while <c>Files</c>
+    /// queries <see cref="SearchMentions"/> on the server.
+    /// </summary>
+    private IReadOnlyList<UITextTriggerItem> CreateRootMentionItems()
+    {
+        UITextTriggerItem[] people =
+        [
+            .. Chats
+                .Where(static chat => !chat.IsGroup)
+                .Select(static chat => new UITextTriggerItem(chat.Id, chat.Title?.ToString() ?? chat.Id, chat.Status, DemoIcons.Outline(DemoIcons.User), insertText: $"@{chat.Title} "))
+        ];
+
+        return
+        [
+            new UITextTriggerItem("people", "People", "Members in this workspace", DemoIcons.Outline(DemoIcons.Groups), "Client")
+            {
+                Items = people
+            },
+            new UITextTriggerItem("files", "Files", "Shared in the conversations", DemoIcons.Outline(DemoIcons.FileText), "Server")
+            {
+                LoadsFromServer = true
+            }
+        ];
+    }
+
+    /// <summary>Answers a server-backed <c>@</c> category (<c>Files</c>) by narrowing the shared files on the server.</summary>
+    [UICommand]
+    public void SearchMentions(string scope, string query)
+    {
+        if (!string.Equals(scope, "files", StringComparison.Ordinal))
+        {
+            MentionItems = CreateRootMentionItems();
+            return;
+        }
+
+        var trimmed = query?.Trim() ?? string.Empty;
+        List<UITextTriggerItem> files = [];
+
+        foreach (DemoChatItem chat in Chats)
+        {
+            foreach (DemoChatMessage message in chat.History)
+            {
+                foreach (FileItem file in message.Files)
+                {
+                    if (string.IsNullOrEmpty(file.FileName))
+                        continue;
+
+                    if (trimmed.Length == 0
+                        || file.FileName.Contains(trimmed, StringComparison.OrdinalIgnoreCase)
+                        || (chat.Title?.ToString()?.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ?? false))
+                    {
+                        files.Add(new UITextTriggerItem(
+                            file.Id,
+                            file.FileName,
+                            chat.Title?.ToString(),
+                            DemoIcons.Outline(DemoIcons.FileText),
+                            insertText: $"@{file.FileName} "
+                        ));
+                    }
+                }
+            }
+        }
+
+        MentionItems = files;
     }
 
     /// <summary>The days the calendar offers: from the chat's first message to the reader's today, the days with messages marked.</summary>
@@ -720,7 +810,7 @@ internal sealed partial class ChatController : UIControllerBase
     {
         var unread = Chats.Sum(static chat => chat.Unread);
 
-        Sections[0].BadgeText = unread == 0 ? null : unread.ToString(CultureInfo.InvariantCulture);
+        Sections[0].BadgeTitle = unread == 0 ? null : unread.ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>Each person's entry: their chat's last words and moment as a phrase the page writes in its language, and its count.</summary>
@@ -732,7 +822,7 @@ internal sealed partial class ChatController : UIControllerBase
             DemoChatMessage last = chat.History[^1];
 
             person.Description = UIPhrase.Of(Said, ("words", last.Text), ("at", new UIMoment(last.Sent, UITimestampFormat.Relative)));
-            person.BadgeText = chat.BadgeText;
+            person.BadgeTitle = chat.BadgeTitle;
             person.Selected = chat == _open;
         }
     }
@@ -785,6 +875,12 @@ internal sealed partial class ChatController : UIControllerBase
         // Enter on an empty composer still runs the command; there is nothing to send then.
         if (words.Length == 0 && files == 0)
             return;
+
+        if (ReplyVisibility == UIVisibility.Visible && ReplyText.Length > 0)
+        {
+            words = words.Length == 0 ? $"> {ReplyText}" : $"> {ReplyText}\n{words}";
+            CancelReply();
+        }
 
         if (files > 0)
             words = (words.Length == 0 ? string.Empty : words + "\n") + (files == 1 ? "📎 1 file" : string.Create(CultureInfo.InvariantCulture, $"📎 {files} files"));
@@ -960,9 +1056,12 @@ internal sealed partial class ChatController : UIControllerBase
                 break;
             case "delete":
                 return Delete(message);
-            // The quote is composed from the message here: no effect builds text from a component's words on the page.
+            // The reply banner above the composer names the message being answered until it is sent or dismissed.
             case "reply":
-                return UICommandResult.Ok([InsertTextEffect.Literal(ComposerId, $"> {message.Text}\n")]);
+                ReplyAuthor = message.Author.Length > 0 ? message.Author : (message.Side == DemoChatMessage.Mine ? You : OpenName);
+                ReplyText = message.Text;
+                ReplyVisibility = UIVisibility.Visible;
+                break;
             default:
                 break;
         }

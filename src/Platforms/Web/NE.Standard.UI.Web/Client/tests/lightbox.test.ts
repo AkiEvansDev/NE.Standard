@@ -29,8 +29,7 @@ class FakePointerEvent extends FakeEvent {
 // The window's capture listeners: a swipe's release swallows the click it raises there.
 const windowListeners = new Map<string, ((domEvent: FakeEvent) => void)[]>();
 
-// The page's direction and the reader's motion preference, as a test sets them.
-let direction = "ltr";
+// The reader's motion preference, as a test sets it.
 let reducedMotion = false;
 
 installFakeDom({
@@ -41,12 +40,12 @@ installFakeDom({
         setTimeout,
         clearTimeout
     },
-    getComputedStyle: () => ({ direction }),
+    getComputedStyle: () => ({}),
     matchMedia: (query: string) => ({ matches: query.includes("prefers-reduced-motion") && reducedMotion }),
     PointerEvent: FakePointerEvent
 });
 
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
 const { DialogEngine } = await import("../src/interactions/dialog-engine.ts");
 const { picturesOnPage, showLightbox } = await import("../src/interactions/lightbox.ts");
 
@@ -212,21 +211,13 @@ test("A step slides the strip its own way, round the set's end too, and the stri
     await landed();
     assert.equal(shown(), "/c.jpg");
 
-    // Where the page reads right to left the next picture comes in from the left.
-    direction = "rtl";
-    key("ArrowLeft");
-    assert.equal(shift(), "406px");
-    await landed();
-    assert.equal(shown(), "/a.jpg");
-    direction = "ltr";
-
     // A second press while one slides lands that one at once, then slides on.
     press(part("next"));
     press(part("next"));
-    assert.equal(shown(), "/b.jpg");
+    assert.equal(shown(), "/a.jpg");
     assert.equal(shift(), "-406px");
     await landed();
-    assert.equal(shown(), "/c.jpg");
+    assert.equal(shown(), "/b.jpg");
 
     key("Escape");
 });

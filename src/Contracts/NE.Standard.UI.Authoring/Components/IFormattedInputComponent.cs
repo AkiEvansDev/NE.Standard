@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Authoring.Components;
@@ -30,22 +31,38 @@ public interface IFormattedInputComponent : IInputComponent
     static UIProperty FormatMessageProperty { get; } = new(nameof(FormatMessage));
 
     /// <summary>
-    /// Gets the format string used to parse what the user typed.
+    /// Gets the format string the server parses typed text against.
     /// </summary>
+    /// <remarks>
+    /// Render-time only: the runtime reads it once off the compiled state while normalizing what the user typed. A temporal field reads
+    /// text in the format it shows on the page and sends the value; this is a further shape it accepts, read on the server.
+    /// </remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     string? Format { get; }
 
     /// <summary>
-    /// Gets the format string used to display the value.
+    /// Gets the format string used to display the value; a temporal field reads what is typed in it by this format too, and without
+    /// one shows the application's (<c>yyyy-MM-dd</c> and <c>HH:mm</c> unless it follows the culture), or its own
+    /// <see cref="Culture"/>'s where it names one.
     /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
     string? DisplayFormat { get; }
 
     /// <summary>
-    /// Gets the culture used to parse and format the value.
+    /// Gets the culture used to parse and format the value; a temporal field that names one shows its date and time patterns.
     /// </summary>
+    /// <remarks>Render-time only: it resolves a culture pack server-side that no client-side converter could reproduce.</remarks>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     string? Culture { get; }
 
     /// <summary>
     /// Gets the message shown when what the user typed cannot be read as <see cref="Format"/>.
     /// </summary>
+    /// <remarks>
+    /// Unbindable: the runtime reads it once off the compiled state while rejecting a value. The page translates it as it does a
+    /// label; <c>AsContent</c> keeps it as written.
+    /// </remarks>
+    [Translatable]
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     UIPhrase? FormatMessage { get; }
 }

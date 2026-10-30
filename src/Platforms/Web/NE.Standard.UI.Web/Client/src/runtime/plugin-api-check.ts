@@ -2,7 +2,7 @@
 // what the contract lets in it takes. Compiled by `tsc --noEmit`; nothing imports it, so it bundles to nothing.
 
 import type * as Contract from "ne-standard-ui";
-import type { DomRegistry } from "../addressing/dom-registry";
+import type { DomRegistry, ownDescendants } from "../addressing/dom-registry";
 import type { DialogEngine } from "../interactions/dialog-engine";
 import type { observeSize } from "../interactions/element-size";
 import type { numberFormatting } from "../rendering/number-format";
@@ -35,7 +35,8 @@ import type { ItemRows } from "../items/item-rows";
 import type { ItemWindows } from "../items/items-window-engine";
 import type { DomOperationContext, DomOperationRegistration } from "../updates/dom-operation-registry";
 import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine";
-import type { ClientWords } from "./client-strings";
+import type { ClientWords } from "../rendering/client-strings";
+import type { EngineDisposable } from "./engine-start";
 import type { NEStandardUIGlobalApi, WebUIPluginEventRegistration } from "./global-api";
 import type { Badges, Icons, PluginEngineContext, PropertyWriting, Urls } from "./web-ui-runtime";
 
@@ -51,6 +52,7 @@ export type HandedOut = [
     Assignable<ClientWords, Contract.ClientStrings>,
     Assignable<typeof observeComponents, Contract.ObserveComponents>,
     Assignable<typeof observeSize, Contract.ObserveSize>,
+    Assignable<typeof ownDescendants, Contract.OwnDescendants>,
     Assignable<DialogEngine, Contract.Dialogs>,
     Assignable<ClientStore, Contract.ClientStore>,
     Assignable<typeof numberFormatting, Contract.NumberFormatting>,
@@ -102,6 +104,8 @@ export type HandedIn = [
     Assignable<Contract.ValidationSeverity, FieldMarkSeverity>,
     Assignable<Contract.ValidationWords, FieldMarkWords>,
     Assignable<Contract.EventRegistration, WebUIPluginEventRegistration>,
+    Assignable<Contract.EngineDisposable, EngineDisposable>,
     Assignable<Contract.PluginEngine, Parameters<NEStandardUIGlobalApi["registerEngine"]>[0]>,
+    Assignable<Contract.DomNames, typeof pluginDomNames>,
     Assignable<Contract.ContractVersion, NEStandardUIGlobalApi["contractVersion"]>
 ];

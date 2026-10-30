@@ -4,8 +4,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { clientStrings } from "../src/runtime/client-strings.ts";
-import type { WordsTable } from "../src/runtime/client-strings.ts";
+import { clientStrings } from "../src/rendering/client-strings.ts";
+import type { WordsTable } from "../src/rendering/client-strings.ts";
 import { messageWords, readValidationMessage } from "../src/interactions/validation-words.ts";
 
 function tableOf(language: string, words: Record<string, string>): WordsTable {

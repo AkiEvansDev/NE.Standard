@@ -32,7 +32,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/contents/paragraph";
     protected override string Header => "demo.contents.paragraph.header";
     protected override string HeaderDescription => "demo.contents.paragraph.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/article", "demo.nav.screens.article");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/article", "demo.nav.screens.article");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(Bind(new ParagraphComponent()).SetPlacement(1, 1, 24, 1)));
@@ -41,26 +41,26 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
         => paragraph
             .BindStandard()
             .BindTextContent(ContentGroup)
-            .BindDescription($"{ContentGroup}.{nameof(TextContentGroupContext.Description)}")
-            .BindDescriptionType($"{ContentGroup}.{nameof(TextContentGroupContext.DescriptionType)}")
-            .BindDescriptionColor($"{ContentGroup}.{nameof(TextContentGroupContext.DescriptionColor)}")
-            .BindTextAlignment($"{LayoutGroup}.{nameof(ParagraphLayoutGroupContext.TextAlignment)}")
-            .BindWrapMode($"{LayoutGroup}.{nameof(ParagraphLayoutGroupContext.WrapMode)}")
-            .BindMaxLines($"{LayoutGroup}.{nameof(ParagraphLayoutGroupContext.MaxLines)}")
-            .BindShowQuoteLine($"{LayoutGroup}.{nameof(ParagraphLayoutGroupContext.ShowQuoteLine)}")
-            .BindQuoteLineColor($"{LayoutGroup}.{nameof(ParagraphLayoutGroupContext.QuoteLineColor)}")
-            .BindTextSelectable($"{LayoutGroup}.{nameof(ParagraphLayoutGroupContext.TextSelectable)}")
-            .BindBadgePlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgePlacement)}")
-            .BindBadgeStyle($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeStyle)}")
-            .BindBadgeColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeColor)}")
-            .BindBadgeFill($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeFill)}")
-            .BindBadgeIcon($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIcon)}")
-            .BindBadgeIconColor($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconColor)}")
-            .BindBadgeIconSize($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeIconSize)}")
-            .BindBadgeText($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeText)}")
-            .BindBadgeTextType($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTextType)}")
-            .BindBadgeTooltip($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
-            .BindBadgeTooltipPlacement($"{BadgeGroup}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}");
+            .BindDescription<ParagraphController>(static x => x.ContentGroup.Description)
+            .BindDescriptionType<ParagraphController>(static x => x.ContentGroup.DescriptionType)
+            .BindDescriptionColor<ParagraphController>(static x => x.ContentGroup.DescriptionColor)
+            .BindTextAlignment<ParagraphController>(static x => x.LayoutGroup.TextAlignment)
+            .BindWrapMode<ParagraphController>(static x => x.LayoutGroup.WrapMode)
+            .BindMaxLines<ParagraphController>(static x => x.LayoutGroup.MaxLines)
+            .BindShowQuoteLine<ParagraphController>(static x => x.LayoutGroup.ShowQuoteLine)
+            .BindQuoteLineColor<ParagraphController>(static x => x.LayoutGroup.QuoteLineColor)
+            .BindTextSelectable<ParagraphController>(static x => x.LayoutGroup.TextSelectable)
+            .BindBadgePlacement<ParagraphController>(static x => x.BadgeGroup.BadgePlacement)
+            .BindBadgeVariant<ParagraphController>(static x => x.BadgeGroup.BadgeVariant)
+            .BindBadgeColor<ParagraphController>(static x => x.BadgeGroup.BadgeColor)
+            .BindBadgeFill<ParagraphController>(static x => x.BadgeGroup.BadgeFill)
+            .BindBadgeIcon<ParagraphController>(static x => x.BadgeGroup.BadgeIcon)
+            .BindBadgeIconColor<ParagraphController>(static x => x.BadgeGroup.BadgeIconColor)
+            .BindBadgeIconSize<ParagraphController>(static x => x.BadgeGroup.BadgeIconSize)
+            .BindBadgeTitle<ParagraphController>(static x => x.BadgeGroup.BadgeTitle)
+            .BindBadgeTitleType<ParagraphController>(static x => x.BadgeGroup.BadgeTitleType)
+            .BindBadgeTooltip<ParagraphController>(static x => x.BadgeGroup.BadgeTooltip)
+            .BindBadgeTooltipPlacement<ParagraphController>(static x => x.BadgeGroup.BadgeTooltipPlacement);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
@@ -83,7 +83,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
     /// </remarks>
     private static ContainerComponent CreateUsesGroup()
     {
-        return DemoUI.CreateExample("What it is for",
+        return DemoUI.CreateExample("Multi-line prose vs single-line TextComponent",
             UILayout.Stack(16,
                 // Each one inside the ground it actually has, or four blocks of loose prose read as a rendering fault.
                 UILayout.Columns(16,
@@ -111,22 +111,22 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
                 ),
                 UILayout.Columns(16,
                     new SurfaceComponent()
-                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetSurface(UISurfaceStyle.Surface)
                         .SetContent(new ParagraphComponent()
                             .SetTitle("Daily backups")
-                            .SetBadgeText("Recommended")
-                            .SetBadgeStyle(UIBadgeType.Success)
+                            .SetBadgeTitle("Recommended")
+                            .SetBadgeVariant(UIBadgeVariant.Success)
                             .SetDescription("Every server in the account is backed up **once a day**, and each backup is kept for 30 days. Turning this off leaves backups already taken alone — see [the backup policy](https://docs.orvane.example/backups).")
                             .SetDescriptionColor(UIThemeColor.Muted)
                         ),
                     new SurfaceComponent()
-                        .SetSurface(UISurfaceStyle.Raised)
+                        .SetSurface(UISurfaceStyle.Surface)
                         .SetContent(new ParagraphComponent()
                             .SetIcon(DemoIcons.FileText)
                             .SetTitle("Provisioner 2.4")
                             .SetTitleType(UITextAppearance.Subtitle)
-                            .SetBadgeText("12 Aug")
-                            .SetBadgeStyle(UIBadgeType.Info)
+                            .SetBadgeTitle("12 Aug")
+                            .SetBadgeVariant(UIBadgeVariant.Info)
                             .SetDescription("**One-minute servers in Europe North**, a rewritten disk allocator and forty-one fixes. The rollout pauses itself if the error rate doubles in any region — [full changelog](https://docs.orvane.example/releases/provisioner-2.4).")
                         )
                 ),
@@ -136,16 +136,16 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
                         .SetIcon(DemoIcons.FileText)
                         .SetTitle(LongTitle)
                         .SetDescription(LongMarkup)
-                        .SetBadgeText("New")
-                        .SetBadgeStyle(UIBadgeType.Success)
+                        .SetBadgeTitle("New")
+                        .SetBadgeVariant(UIBadgeVariant.Success)
                         .SetMaxWidth(UILayoutLength.Absolute(290))
                     ),
                     DemoUI.CreateLabelled("As a paragraph", new ParagraphComponent()
                         .SetIcon(DemoIcons.FileText)
                         .SetTitle(LongTitle)
                         .SetDescription(LongMarkup)
-                        .SetBadgeText("New")
-                        .SetBadgeStyle(UIBadgeType.Success)
+                        .SetBadgeTitle("New")
+                        .SetBadgeVariant(UIBadgeVariant.Success)
                         .SetMaxWidth(UILayoutLength.Absolute(290))
                     )
                 )
@@ -160,7 +160,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateQuoteGroup()
     {
-        return DemoUI.CreateExample("Set off by a line",
+        return DemoUI.CreateExample("Quote & callout accent line (ShowQuoteLine)",
             UILayout.Columns(16,
                 new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Background)
@@ -172,7 +172,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     ),
                 new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetContent(new ParagraphComponent()
                         .SetShowQuoteLine(true)
                         .SetQuoteLineColor(UIThemeColor.FromStyle(UIColorStyle.Primary))
@@ -200,7 +200,7 @@ internal sealed class ParagraphView : DemoComponentView, IUIViewDefinition
     /// <remarks>The two lists in halves of the group, each the width of a feed's column, so the clamp has a column to bite in.</remarks>
     private static ContainerComponent CreateClampGroup()
     {
-        return DemoUI.CreateExample("When a run of prose must not push everything down",
+        return DemoUI.CreateExample("Line clamping (SetMaxLines)",
             UILayout.Columns(16,
                 DemoUI.CreateLabelled("Unclamped", UILayout.Stack(10)
                     .SetMaxWidth(UILayoutLength.Absolute(360))

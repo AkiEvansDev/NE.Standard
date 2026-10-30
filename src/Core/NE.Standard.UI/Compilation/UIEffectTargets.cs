@@ -4,14 +4,13 @@ using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Items;
-using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Components.Foundation.Items;
 
 namespace NE.Standard.UI.Compilation;
 
 /// <summary>
 /// The kind of component an effect can act on: a chooser opens from a file or image input, a row is shown in a list, a rename opens in a
-/// tree or a tabs view, text goes into a field the reader types into (<see cref="ICaretFieldComponent"/>). The compiler holds an interaction's effect to it and the runtime a command's, so a
+/// host that renames its items in place (<see cref="IItemRenameComponent"/>), text goes into a field the reader types into (<see cref="ICaretFieldComponent"/>). The compiler holds an interaction's effect to it and the runtime a command's, so a
 /// wrong target fails where the author sees it rather than as a warning in the browser's console.
 /// </summary>
 /// <remarks>
@@ -29,9 +28,8 @@ internal static class UIEffectTargets
         None = 0,
         Picker = 1,
         Rows = 2,
-        NodeRename = 4,
-        TabRename = 8,
-        Text = 16
+        ItemRename = 4,
+        Text = 8
     }
 
     /// <summary>
@@ -66,8 +64,7 @@ internal static class UIEffectTargets
         {
             OpenPickerEffect when !takes.HasFlag(Takes.Picker) => "a file or an image input, whose chooser it opens",
             ScrollToItemEffect when !takes.HasFlag(Takes.Rows) => "a list, a table or a tree, whose row it shows",
-            RenameNodeEffect when !takes.HasFlag(Takes.NodeRename) => "a tree, whose node it renames",
-            RenameTabEffect when !takes.HasFlag(Takes.TabRename) => "a tabs view, whose caption it renames",
+            RenameItemEffect when !takes.HasFlag(Takes.ItemRename) => "a host that renames its items in place (IItemRenameComponent: a tree, a tabs view), whose item it renames",
             InsertTextEffect when !takes.HasFlag(Takes.Text) => "a field the reader types into (ICaretFieldComponent), whose caret it inserts at",
             _ => null
         };
@@ -86,11 +83,8 @@ internal static class UIEffectTargets
         if (typeof(IItemsComponent).IsAssignableFrom(type))
             takes |= Takes.Rows;
 
-        if (DerivesFrom(type, typeof(TreeComponent<>)))
-            takes |= Takes.NodeRename;
-
-        if (DerivesFrom(type, typeof(TabsViewComponent<>)))
-            takes |= Takes.TabRename;
+        if (typeof(IItemRenameComponent).IsAssignableFrom(type))
+            takes |= Takes.ItemRename;
 
         if (typeof(ICaretFieldComponent).IsAssignableFrom(type))
             takes |= Takes.Text;

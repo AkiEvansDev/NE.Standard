@@ -1,10 +1,13 @@
 using System;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -57,7 +60,10 @@ public static class UILayout
         return row;
     }
 
-    /// <summary>The boxes the row's captioned things stand on at each width, or null where none draws a caption row at any.</summary>
+    /// <summary>
+    /// The boxes the row's captioned things stand on at each width, or null where none draws a caption row at any; a captioned thing
+    /// that takes the whole line at a width (<see cref="UILayoutLength.Fill"/>) has nothing beside it there.
+    /// </summary>
     private static UIResponsive<UIFieldBoxAlignment>? RowBoxes(IVisualComponent[] children)
     {
         UIFieldBoxAlignment[] tiers = new UIFieldBoxAlignment[(int)UIResponsiveTier.Xxl + 1];
@@ -65,7 +71,7 @@ public static class UILayout
 
         for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
         {
-            tiers[(int)tier] = UIFieldBoxes.Of(children, tier) ?? UIFieldBoxAlignment.None;
+            tiers[(int)tier] = UIFieldBoxes.Of(Array.FindAll(children, child => child.Width?.Resolve(tier) != UILayoutLength.Fill()), tier) ?? UIFieldBoxAlignment.None;
             any |= tiers[(int)tier] != UIFieldBoxAlignment.None;
         }
 
@@ -78,8 +84,8 @@ public static class UILayout
 
     /// <summary>
     /// A thing with no caption level with captioned fields' boxes in a row: a column of its own through itself, anything else in a cell
-    /// shown as the thing is, so a thing hidden at a width leaves no gap. Both by their padding, never a translate: the offset takes
-    /// room, so the row's line and what follows it grow with it.
+    /// shown and sized across the row as the thing is, so a thing hidden at a width leaves no gap and one filling a phone's line takes it.
+    /// Both by their padding, never a translate: the offset takes room, so the row's line and what follows it grow with it.
     /// </summary>
     private static StackPanelComponent LevelWithBoxes(IVisualComponent child, UIResponsive<UIFieldBoxAlignment> boxes)
     {
@@ -91,6 +97,9 @@ public static class UILayout
             .SetVerticalAlignment(UIAlignment.Start)
             .SetAlignWithFieldBoxes(boxes)
             .AddChild(child);
+
+        if (child.Width is { } width)
+            _ = cell.SetWidth(width);
 
         return FollowVisibility(cell, child);
     }
@@ -107,8 +116,9 @@ public static class UILayout
     }
 
     /// <summary>
-    /// Shows <paramref name="cell"/> as <paramref name="child"/> is shown — its written Visibility and a bound one — so a cell around a
-    /// thing hidden at a width (<c>Back().ShownBelow(Md)</c>) goes with it, and its margin or spacing too.
+    /// Shows <paramref name="cell"/> as <paramref name="child"/> is shown — its written Visibility, a bound one and an interaction — so
+    /// a cell around a thing hidden at a width (<c>Back().ShownBelow(Md)</c>) or by another field (<c>ShownWhen</c>) goes with it, and
+    /// its margin or spacing too.
     /// </summary>
     internal static StackPanelComponent FollowVisibility(StackPanelComponent cell, IVisualComponent child)
     {
@@ -116,7 +126,21 @@ public static class UILayout
             _ = cell.SetVisibility(visibility);
 
         if (PresetBindings.TryFind(child, IVisualComponent.VisibilityProperty, out UIBinding binding))
-            _ = cell.BindVisibility(binding.Source.ToString(), binding.Scope);
+            _ = cell.Bind(IVisualComponent.VisibilityProperty, binding.Source, binding.Scope, binding.Mode, binding.Optional);
+
+        foreach (UIInteraction interaction in child.Interactions)
+        {
+            if (interaction.TargetProperty != IVisualComponent.VisibilityProperty)
+                continue;
+
+            _ = interaction switch
+            {
+                { ActionKind: UIInteractionActionKind.CopyValue, SourceProperty: { } source } => cell.InteractCopyValue(interaction.ComponentId, source, IVisualComponent.VisibilityProperty),
+                { SourceKind: UIInteractionSourceKind.Property, SourceProperty: { } source } => cell.Interact(interaction.ComponentId, source, IVisualComponent.VisibilityProperty, interaction.Operator, interaction.Value, interaction.TrueValue, interaction.FalseValue),
+                { SourceKind: UIInteractionSourceKind.Event, SourceEvent: { } sourceEvent } => cell.InteractOn(interaction.ComponentId, sourceEvent, IVisualComponent.VisibilityProperty, interaction.TrueValue),
+                _ => cell
+            };
+        }
 
         return cell;
     }
@@ -208,7 +232,7 @@ public static class UILayout
     /// Add: the end as wide as it is, never half the row, the start the rest, both on the row's middle, 12 px apart; beside a start
     /// with a caption over its box (a titled field) the end stands level with the box, as a form row stands a control with no caption.
     /// On a phone buttons with words stand under the start at the far end, as a page header's do; icons and the rest keep the row.
-    /// An icon or quiet words at either end stand their glyph on the row's edge.
+    /// An icon or switcher at either end stands its glyph on the row's edge.
     /// </summary>
     public static ContainerComponent Ends(IVisualComponent start, params IVisualComponent[] end)
         => Ends(start, null, end, titleLine: false);
@@ -246,7 +270,7 @@ public static class UILayout
             .AddChild(start);
 
         if (firstLineOnEnd)
-            _ = first.SetFirstLineOnControl(UIButtonSize.Medium);
+            _ = first.SetFirstLineOnControl(UISize.Medium);
 
         if (end.Length == 0)
         {
@@ -391,7 +415,18 @@ public static class UILayout
     // The cell is only as tall as its child, so the child's VerticalAlignment has no room to act in it: the cell takes it over,
     // unless the caller names one alignment for every cell.
     private static StackPanelComponent Cell(IVisualComponent child, int index, int count, int column, int span, double spacing, bool wide, UIAlignment? alignment = null)
-        => Place(new StackPanelComponent().SetOrientation(UIOrientation.Vertical).AddChild(child), index, count, column, span, spacing, wide, (UIResponsive<UIAlignment>?)alignment ?? child.VerticalAlignment ?? UIAlignment.Start);
+        => Place(new StackPanelComponent().SetOrientation(UIOrientation.Vertical).AddChild(child), index, count, column, span, spacing, wide, (UIResponsive<UIAlignment>?)alignment ?? child.VerticalAlignment ?? RegisteredCellAlignment(child));
+
+    private static UIResponsive<UIAlignment> RegisteredCellAlignment(IVisualComponent child)
+    {
+        UIPropertyRegister.EnsureRegistered(child.GetType());
+
+        return UIPropertyRegister.TryGet(child.TypeKey, IVisualComponent.VerticalAlignmentProperty, out UIPropertyDefinition? definition)
+            && definition.DefaultValue is UIResponsive<UIAlignment> registered
+            && registered != UIResponsive<UIAlignment>.FromValue(UIAlignment.Stretch)
+            ? registered
+            : UIAlignment.Start;
+    }
 
     /// <summary>
     /// A cell in its column from the breakpoint and under the one before it below. Beside, one of <paramref name="count"/> equal

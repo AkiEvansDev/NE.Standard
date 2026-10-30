@@ -25,14 +25,14 @@ internal sealed partial class DeployActionsGroupContext : DemoGroupContext
     public partial string State { get; set; } = "Succeeded";
 
     [RecursiveMember]
-    public partial UIBadgeType StateStyle { get; set; } = UIBadgeType.Success;
+    public partial UIBadgeVariant StateVariant { get; set; } = UIBadgeVariant.Success;
 
     [RecursiveMember(false)]
     public RecursiveCollection<ButtonItem> Actions { get; } =
     [
-        new() { Id = PromoteId, Title = "Promote", Icon = DemoIcons.Outline(DemoIcons.Upload), Type = UIButtonType.Primary },
-        new() { Id = "rollback", Title = "Roll back", Icon = DemoIcons.Outline(DemoIcons.Undo), Type = UIButtonType.Ghost },
-        new() { Id = "logs", Title = "Logs", Icon = DemoIcons.Outline(DemoIcons.FileText), Type = UIButtonType.Ghost }
+        new() { Id = PromoteId, Title = "Promote", Icon = DemoIcons.Outline(DemoIcons.Upload), Variant = UIButtonVariant.Primary },
+        new() { Id = "rollback", Title = "Roll back", Icon = DemoIcons.Outline(DemoIcons.Undo), Variant = UIButtonVariant.Ghost },
+        new() { Id = "logs", Title = "Logs", Icon = DemoIcons.Outline(DemoIcons.FileText), Variant = UIButtonVariant.Ghost }
     ];
 
     /// <summary>
@@ -41,12 +41,12 @@ internal sealed partial class DeployActionsGroupContext : DemoGroupContext
     public void Fail()
     {
         State = "Failed";
-        StateStyle = UIBadgeType.Danger;
+        StateVariant = UIBadgeVariant.Danger;
 
         RemoveAction(PromoteId);
 
         if (!HasAction(RetryId))
-            Actions.Insert(0, new ButtonItem { Id = RetryId, Title = "Retry", Icon = DemoIcons.Outline(DemoIcons.Refresh), Type = UIButtonType.Primary });
+            Actions.Insert(0, new ButtonItem { Id = RetryId, Title = "Retry", Icon = DemoIcons.Outline(DemoIcons.Refresh), Variant = UIButtonVariant.Primary });
 
         LogEvent("Deploy failed — Promote is gone and Retry is there");
     }
@@ -54,12 +54,12 @@ internal sealed partial class DeployActionsGroupContext : DemoGroupContext
     public void Succeed()
     {
         State = "Succeeded";
-        StateStyle = UIBadgeType.Success;
+        StateVariant = UIBadgeVariant.Success;
 
         RemoveAction(RetryId);
 
         if (!HasAction(PromoteId))
-            Actions.Insert(0, new ButtonItem { Id = PromoteId, Title = "Promote", Icon = DemoIcons.Outline(DemoIcons.Upload), Type = UIButtonType.Primary });
+            Actions.Insert(0, new ButtonItem { Id = PromoteId, Title = "Promote", Icon = DemoIcons.Outline(DemoIcons.Upload), Variant = UIButtonVariant.Primary });
 
         LogEvent("Deploy succeeded — Promote is back");
     }
@@ -100,23 +100,23 @@ internal sealed partial class CommandBarController() : DemoStandardController
     [RecursiveMember]
     public partial CommandListGroupContext ToolbarGroup { get; set; } = new(
     [
-        new ButtonItem { Id = "undo", Icon = DemoIcons.Outline(DemoIcons.Undo), Tooltip = "Undo", Type = UIButtonType.Ghost, Size = UIButtonSize.Small, Group = "edit" },
-        new ButtonItem { Id = "copy", Icon = DemoIcons.Outline(DemoIcons.Copy), Tooltip = "Copy", Type = UIButtonType.Ghost, Size = UIButtonSize.Small, Group = "edit" },
-        new ButtonItem { Id = "edit", Icon = DemoIcons.Outline(DemoIcons.Edit), Tooltip = "Edit", Type = UIButtonType.Ghost, Size = UIButtonSize.Small, Group = "edit" },
-        new ButtonItem { Id = "star", Icon = DemoIcons.Outline(DemoIcons.Star), Tooltip = "Star", Type = UIButtonType.Ghost, Size = UIButtonSize.Small, Group = "mark" },
-        new ButtonItem { Id = "share", Icon = DemoIcons.Outline(DemoIcons.Send), Tooltip = "Share", Type = UIButtonType.Ghost, Size = UIButtonSize.Small, Group = "out" },
-        new ButtonItem { Id = "download", Icon = DemoIcons.Outline(DemoIcons.Download), Tooltip = "Download", Type = UIButtonType.Ghost, Size = UIButtonSize.Small, Group = "out" },
+        new ButtonItem { Id = "undo", Icon = DemoIcons.Outline(DemoIcons.Undo), Tooltip = "Undo", Variant = UIButtonVariant.Ghost, Size = UISize.Small, Group = "edit" },
+        new ButtonItem { Id = "copy", Icon = DemoIcons.Outline(DemoIcons.Copy), Tooltip = "Copy", Variant = UIButtonVariant.Ghost, Size = UISize.Small, Group = "edit" },
+        new ButtonItem { Id = "edit", Icon = DemoIcons.Outline(DemoIcons.Edit), Tooltip = "Edit", Variant = UIButtonVariant.Ghost, Size = UISize.Small, Group = "edit" },
+        new ButtonItem { Id = "star", Icon = DemoIcons.Outline(DemoIcons.Star), Tooltip = "Star", Variant = UIButtonVariant.Ghost, Size = UISize.Small, Group = "mark" },
+        new ButtonItem { Id = "share", Icon = DemoIcons.Outline(DemoIcons.Send), Tooltip = "Share", Variant = UIButtonVariant.Ghost, Size = UISize.Small, Group = "out" },
+        new ButtonItem { Id = "download", Icon = DemoIcons.Outline(DemoIcons.Download), Tooltip = "Download", Variant = UIButtonVariant.Ghost, Size = UISize.Small, Group = "out" },
         // A group of its own: the rule sets the destructive tool apart, so it is hard to reach by accident.
-        new ButtonItem { Id = "delete", Icon = DemoIcons.Outline(DemoIcons.Alert), Tooltip = "Delete", Type = UIButtonType.Danger, Size = UIButtonSize.Small, Group = "danger" }
+        new ButtonItem { Id = "delete", Icon = DemoIcons.Outline(DemoIcons.Alert), Tooltip = "Delete", Variant = UIButtonVariant.Danger, Size = UISize.Small, Group = "danger" }
     ]);
 
     [RecursiveMember]
     public partial CommandListGroupContext RailGroup { get; set; } = new(
     [
-        new ButtonItem { Id = "reply", Icon = DemoIcons.Outline(DemoIcons.Send), Tooltip = "Reply", Type = UIButtonType.Ghost },
-        new ButtonItem { Id = "star", Icon = DemoIcons.Outline(DemoIcons.Star), Tooltip = "Star", Type = UIButtonType.Ghost },
-        new ButtonItem { Id = "archive", Icon = DemoIcons.Outline(DemoIcons.History), Tooltip = "Archive", Type = UIButtonType.Ghost },
-        new ButtonItem { Id = "delete", Icon = DemoIcons.Outline(DemoIcons.Close), Tooltip = "Delete", Type = UIButtonType.Ghost }
+        new ButtonItem { Id = "reply", Icon = DemoIcons.Outline(DemoIcons.Send), Tooltip = "Reply", Variant = UIButtonVariant.Ghost },
+        new ButtonItem { Id = "star", Icon = DemoIcons.Outline(DemoIcons.Star), Tooltip = "Star", Variant = UIButtonVariant.Ghost },
+        new ButtonItem { Id = "archive", Icon = DemoIcons.Outline(DemoIcons.History), Tooltip = "Archive", Variant = UIButtonVariant.Ghost },
+        new ButtonItem { Id = "delete", Icon = DemoIcons.Outline(DemoIcons.Close), Tooltip = "Delete", Variant = UIButtonVariant.Ghost }
     ]);
 
     [RecursiveMember]

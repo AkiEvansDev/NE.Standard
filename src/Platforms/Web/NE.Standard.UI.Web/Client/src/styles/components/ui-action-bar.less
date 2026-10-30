@@ -28,7 +28,9 @@
 .ui-action-bar--strip > .ui-action-bar__button,
 .ui-action-bar > .ui-action-bar__button:not(.ui-action-bar__button--icon, .ui-action-bar__more) {
     &@{ui-keyboard-focus} {
-        .ui-keyboard-frame(@takes: false);
+        background-color: var(--ui-wash-hover);
+        color: @ui-text-ink;
+        .ui-keyboard-frame();
     }
 }
 

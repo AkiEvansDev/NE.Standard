@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
@@ -26,8 +25,8 @@ public abstract partial class DateInputComponent<T>(string? id = null) : Tempora
     }
 
     /// <inheritdoc/>
-    protected override void ValidatePeriod(DateOnly? start, DateOnly? end)
-        => OrderedRange.ValidatePeriod(start, end, "date");
+    protected override void ValidatePeriod(DateOnly? start, DateOnly? end, TimeSpan? minDistance)
+        => OrderedRange.ValidateDayPeriod(start, end, minDistance);
 }
 
 /// <summary>

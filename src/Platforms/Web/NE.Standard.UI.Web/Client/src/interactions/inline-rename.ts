@@ -1,8 +1,9 @@
 // The one rename field — for a tab's caption, a tree node's title and a package's — laid over the title so a refusal leaves it as it was.
 
 // `.ts` on the value import: `node --test` runs this module directly.
-import { EventBoundaryAttribute } from "../addressing/dom-attributes.ts";
+import { EventBoundaryAttribute, RenameFieldAttribute } from "../addressing/dom-attributes.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
 
 export type InlineRenameOptions = {
     /** The positioned element the field is appended to; the title must be inside it. */
@@ -26,9 +27,6 @@ export type InlineRenames = {
     open(options: InlineRenameOptions): boolean;
 };
 
-// On every rename field, whatever class its caller dresses it in: what an engine asks before it takes the field's Enter or Escape.
-const RenameFieldAttribute = "data-ui-rename-field";
-
 /** Whether a key or press landed in an open rename field, whose Enter and Escape are its own. */
 export function isInRenameField(target: EventTarget | null): boolean {
     return target instanceof Element && target.closest(`[${RenameFieldAttribute}]`) !== null;
@@ -49,6 +47,8 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
     // A press or a key in the field is the field's: never the click of the node, tab or row it covers.
     input.setAttribute(EventBoundaryAttribute, "");
     input.value = options.value;
+    // Named by what it does; the name it holds is its value, which a reader hears after it.
+    clientStrings.write(input, "aria-label", "ui.action.rename");
 
     // In the title's own type and place, so nothing moves under a rename.
     placeOver(input, title, container);

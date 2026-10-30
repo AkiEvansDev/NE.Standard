@@ -28,7 +28,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             .SetPlacement(1, 1, 24, 1);
 
     /// <summary>Filled fields, each committing on blur through the same command; the note under the card names the save.</summary>
-    /// <remarks>Filled, as a long form whose fields stack is; the danger zone's one field beside its button is Tonal.</remarks>
+    /// <remarks>Filled, as a long form whose fields stack is, and as the danger zone's one field beside its button is.</remarks>
     private static CardComponent CreateProfile()
         => UICard.Create("Profile", "How you appear to the rest of the staff.", UILayout.Stack(16,
             new ImageInputComponent()
@@ -39,14 +39,14 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             new TextInputComponent()
                 .SetTitle("Display name")
                 .SetFormId(ProfileFormId)
-                .BindValue(nameof(WorkspaceSettingsController.DisplayName))
+                .BindValue<WorkspaceSettingsController>(static x => x.DisplayName)
                 .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
             UIForm.Field(new TextAreaComponent()
                 .SetTitle("About you")
                 .SetRows(2)
                 .SetMaxLength(160)
                 .SetFormId(ProfileFormId)
-                .BindValue(nameof(WorkspaceSettingsController.Bio))
+                .BindValue<WorkspaceSettingsController>(static x => x.Bio)
                 .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
                 "A line under your name, a hundred and sixty characters at most."),
             new SelectComponent()
@@ -59,9 +59,9 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                     new OptionItem { Id = "america-ashburn", Title = "Ashburn (UTC−4)" },
                     new OptionItem { Id = "asia-singapore", Title = "Singapore (UTC+8)" }
                 ])
-                .BindValue(nameof(WorkspaceSettingsController.TimeZone))
+                .BindValue<WorkspaceSettingsController>(static x => x.TimeZone)
                 .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
-            UIText.Note().BindDescription(nameof(WorkspaceSettingsController.ProfileNote))
+            UIText.Note().BindDescription<WorkspaceSettingsController>(static x => x.ProfileNote)
         ), DemoIcons.Outline(DemoIcons.UserRound));
 
     /// <summary>
@@ -89,21 +89,21 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                     new OptionItem { Id = "hourly", Title = "Hourly" },
                     new OptionItem { Id = "daily", Title = "Once a day" }
                 ])
-                .BindValue(nameof(WorkspaceSettingsController.Digest))
+                .BindValue<WorkspaceSettingsController>(static x => x.Digest)
                 .OnChange(nameof(WorkspaceSettingsController.SaveNotifications)),
             CreateSwitch("Quiet hours", "Nothing is sent between the two times.", nameof(WorkspaceSettingsController.QuietHours), QuietHoursId),
             UIForm.Row(
                 new TimeInputComponent()
                     .SetTitle("From")
-                    .BindValue(nameof(WorkspaceSettingsController.QuietFrom))
+                    .BindValue<WorkspaceSettingsController>(static x => x.QuietFrom)
                     .OnChange(nameof(WorkspaceSettingsController.SaveNotifications)),
                 new TimeInputComponent()
                     .SetTitle("Until")
-                    .BindValue(nameof(WorkspaceSettingsController.QuietUntil))
+                    .BindValue<WorkspaceSettingsController>(static x => x.QuietUntil)
                     .OnChange(nameof(WorkspaceSettingsController.SaveNotifications))
             )
             .ShownWhen(QuietHoursId),
-            UIText.Note().BindDescription(nameof(WorkspaceSettingsController.NotificationsNote))
+            UIText.Note().BindDescription<WorkspaceSettingsController>(static x => x.NotificationsNote)
         ), DemoIcons.Outline(DemoIcons.Bell));
 
     private static SwitchComponent CreateSwitch(string title, string description, string path, string? id = null)
@@ -120,7 +120,8 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             new KeyValueActionComponent()
                 .SetRowHoverable(true)
                 .SetBorderThickness(UIThickness.Uniform(0))
-                .BindItems(nameof(WorkspaceSettingsController.SecurityRows))
+                .BindItems<WorkspaceSettingsController>(static x => x.SecurityRows)
+                .SetValueInputTemplate(new TextInputComponent())
                 .AddValueInputTemplate("password", new TextInputComponent()
                     .SetType(UITextInputType.Password)
                     .SetAutocomplete(UIAutocomplete.NewPassword)
@@ -133,7 +134,7 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 .EnableEditing(nameof(WorkspaceSettingsController.SaveRow), nameof(WorkspaceSettingsController.OpenRow)),
             new SeparatorComponent(),
             UILayout.Ends(
-                UIText.Body("Signed-in devices").BindDescription(nameof(WorkspaceSettingsController.DevicesLine)).SetDescriptionColor(UIThemeColor.Muted).SetWrapMode(UITextWrapMode.Wrap),
+                UIText.Body("Signed-in devices").BindDescription<WorkspaceSettingsController>(static x => x.DevicesLine).SetDescriptionColor(UIThemeColor.Muted).SetWrapMode(UITextWrapMode.Wrap),
                 UIButtons.Ghost("Sign out the others").OnClick(nameof(WorkspaceSettingsController.SignOutOthers))
             )
         ), DemoIcons.Outline(DemoIcons.Lock));
@@ -145,11 +146,11 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
             UIText.Paragraph("Type the account's name to unlock the button."),
             UIForm.Row(
                 new TextInputComponent(DeleteConfirmationId)
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetPlaceholder(WorkspaceSettingsController.AccountName)
                     .SetTrimInput()
                     .SetDebounceMilliseconds(150)
-                    .BindValue(nameof(WorkspaceSettingsController.DeleteConfirmation)),
+                    .BindValue<WorkspaceSettingsController>(static x => x.DeleteConfirmation),
                 UIButtons.Danger("Delete account", DemoIcons.Outline(DemoIcons.Alert))
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .EnabledWhen(DeleteConfirmationId, WorkspaceSettingsController.AccountName)

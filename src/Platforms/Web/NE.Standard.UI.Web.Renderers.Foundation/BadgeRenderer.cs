@@ -15,12 +15,12 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// <summary>The properties a badge is drawn from; a text body's badge and the badge component name different ones.</summary>
 public sealed record WebBadgeRenderOptions
 {
-    public required UIProperty StyleProperty { get; init; }
+    public required UIProperty VariantProperty { get; init; }
 
-    /// <summary>Optional raw-color override, rendered instead of <see cref="StyleProperty"/> when set.</summary>
+    /// <summary>Optional raw-color override, rendered instead of <see cref="VariantProperty"/> when set.</summary>
     public UIProperty? ColorProperty { get; init; }
 
-    /// <summary>How the badge spends its colour (<c>UIBadgeFill</c>); unset, a style fills and a colour tints.</summary>
+    /// <summary>How the badge spends its colour (<c>UIBadgeFill</c>); unset, a variant fills and a colour tints.</summary>
     public UIProperty? FillProperty { get; init; }
 
     public required UIProperty IconProperty { get; init; }
@@ -30,14 +30,14 @@ public sealed record WebBadgeRenderOptions
     public required UIProperty IconSizeProperty { get; init; }
 
     /// <summary>
-    /// The shape a picture icon is drawn in (<c>UIIconShape</c>) and its fallback, where the badge has them — a chip's, not a text's;
+    /// The shape a picture icon is drawn in (<c>UIShape</c>) and its fallback, where the badge has them — a chip's, not a text's;
     /// shown by <see cref="WebAttributes.BadgeIcon"/> on the badge's own element.
     /// </summary>
     public WebIconShapeSite? IconShape { get; init; }
 
-    public required UIProperty TextProperty { get; init; }
+    public required UIProperty TitleProperty { get; init; }
 
-    public required UIProperty TextTypeProperty { get; init; }
+    public required UIProperty TitleTypeProperty { get; init; }
 
     public required UIProperty TooltipProperty { get; init; }
 
@@ -53,27 +53,27 @@ public sealed record WebBadgeRenderOptions
 
     /// <summary>
     /// The element that says the badge shows, for the layout around it: a text body's component root, which wears
-    /// <see cref="WebAttributes.TextBadgeIcon"/> and <see cref="WebAttributes.TextBadgeText"/> beside the body's other marks; null for a
+    /// <see cref="WebAttributes.TextBadgeIcon"/> and <see cref="WebAttributes.TextBadgeTitle"/> beside the body's other marks; null for a
     /// badge nothing lays out by.
     /// </summary>
     public string? ShownMarkTarget { get; init; }
 
-    /// <summary>One more operation after the icon's and the text's own, as a text body's other parts run it (<c>WebTextBodyOptions.PartsShownOperation</c>).</summary>
+    /// <summary>One more operation after the icon's and the title's own, as a text body's other parts run it (<c>WebTextBodyOptions.PartsShownOperation</c>).</summary>
     public WebDomOperation? PartsShownOperation { get; init; }
 }
 
-/// <summary>Renders a badge — its style or raw colour, icon and text — into an element, whichever component owns it.</summary>
+/// <summary>Renders a badge — its variant or raw colour, icon and title — into an element, whichever component owns it.</summary>
 public static class BadgeRenderer
 {
     private const string ColorVariable = "--ui-badge-color";
     private const string InkVariable = "--ui-badge-ink";
     private const string OnColorVariable = "--ui-badge-on";
-    private const string ColoredClassName = "ui-badge--colored";
+    private const string ColoredClassName = WebClassNames.BadgeColored;
 
-    private static readonly WebDomOperation[] StyleOperations = [WebDomOperation.Class(converter: WebDomConverters.BadgeStyleClass)];
+    private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Class(converter: WebDomConverters.BadgeVariantClass)];
     private static readonly WebDomOperation[] FillOperations = [WebDomOperation.Class(converter: WebDomConverters.BadgeFillClass)];
 
-    // A colour names the three a style's class names (ui-badge.less): itself, its ink and the words that read on it; the fill picks
+    // A colour names the three a variant's class names (ui-badge.less): itself, its ink and the words that read on it; the fill picks
     // which of them the badge wears, so a fill changed later needs nothing rewritten here. A raw colour names no ink: the stylesheet
     // shades one from the colour against the theme's grounds.
     private static readonly WebDomOperation[] ColorOperations =
@@ -106,7 +106,7 @@ public static class BadgeRenderer
         else
             WebComponentRendererBase.RenderTooltip(context, badgeRoot, options.TooltipProperty, options.TooltipPlacementProperty);
 
-        _ = WebComponentRendererBase.RenderProperty<UIBadgeType?>(context, badgeRoot, options.StyleProperty, static (target, value) => WriteStyle(target, value), StyleOperations);
+        _ = WebComponentRendererBase.RenderProperty<UIBadgeVariant?>(context, badgeRoot, options.VariantProperty, static (target, value) => WriteVariant(target, value), VariantOperations);
 
         if (options.ColorProperty is UIProperty colorProperty)
             _ = WebComponentRendererBase.RenderProperty<UIThemeColor?>(context, badgeRoot, colorProperty, static (target, value) => WriteColor(target, value), ColorOperations);
@@ -115,14 +115,14 @@ public static class BadgeRenderer
             _ = WebComponentRendererBase.RenderProperty<UIBadgeFill?>(context, badgeRoot, fillProperty, static (target, value) => WriteFill(target, value), FillOperations);
 
         // On the badge, not only its text, so an icon with no size of its own inherits the text's height.
-        TextAppearanceRenderer.RenderTextAppearance(context, badgeRoot, options.TextTypeProperty);
+        TextAppearanceRenderer.RenderTextAppearance(context, badgeRoot, options.TitleTypeProperty);
 
         BadgeStateOperations state = StateOperations.GetOrAdd((options.ContentStateTarget, options.ShownMarkTarget, options.PartsShownOperation, options.IconShape?.StandInOperation), static key => new BadgeStateOperations(key.Target, key.ShownTarget, key.Then, key.StandIn));
 
         _ = badgeRoot.Element("span", icon =>
         {
-            _ = icon.Class("ui-badge__icon");
-            _ = icon.Class("ui-icon");
+            _ = icon.Class(WebClassNames.BadgeIcon);
+            _ = icon.Class(WebClassNames.Icon);
 
             IconValueRenderer.RenderIconAppearance(context, icon, options.IconSizeProperty, options.IconColorProperty);
 
@@ -140,31 +140,31 @@ public static class BadgeRenderer
             }, state.Icon);
         });
 
-        _ = badgeRoot.Element("span", content =>
+        _ = badgeRoot.Element("span", title =>
         {
-            _ = content.Class("ui-badge__text");
+            _ = title.Class(WebClassNames.BadgeTitle);
 
-            TextAppearanceRenderer.RenderTextAppearance(context, content, options.TextTypeProperty);
+            TextAppearanceRenderer.RenderTextAppearance(context, title, options.TitleTypeProperty);
 
-            _ = WebComponentRendererBase.RenderProperty<string?>(context, content, options.TextProperty, (target, value) =>
+            _ = WebComponentRendererBase.RenderProperty<string?>(context, title, options.TitleProperty, (target, value) =>
             {
                 if (value is not null)
                     _ = badgeRoot.Attribute(WebAttributes.BadgeSet);
 
                 if (!string.IsNullOrWhiteSpace(value))
                 {
-                    _ = badgeRoot.Attribute(WebAttributes.BadgeText, BadgeTextFit(value));
-                    _ = shownMarkHost?.Attribute(WebAttributes.TextBadgeText);
+                    _ = badgeRoot.Attribute(WebAttributes.BadgeTitle, BadgeTitleFit(value));
+                    _ = shownMarkHost?.Attribute(WebAttributes.TextBadgeTitle);
                     _ = target.Text(value);
                 }
-            }, state.Text);
+            }, state.Title);
         });
     }
 
     /// <summary>
     /// A badge drawn from an item's values rather than a component's properties — a chosen option standing in a field as its badge, no
     /// binding behind it. <paramref name="words"/> is what it reads, which <paramref name="renderWords"/> writes into its text marked
-    /// as the item's row writes it. What the item leaves unset falls back as a bound badge's does: an Info style, an overline's words.
+    /// as the item's row writes it. What the item leaves unset falls back as a bound badge's does: an Info variant, an overline's words.
     /// </summary>
     public static void RenderBadge(IHtmlElementBuilder badge, IBadgeModel model, string words, Action<IHtmlElementBuilder> renderWords)
     {
@@ -172,18 +172,18 @@ public static class BadgeRenderer
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(renderWords);
 
-        UITextAppearance textType = model.BadgeTextType ?? IBadgeModel.DefaultBadgeTextType;
+        UITextAppearance titleType = model.BadgeTitleType ?? IBadgeModel.DefaultBadgeTitleType;
 
-        _ = badge.Class("ui-badge");
-        WriteStyle(badge, model.BadgeStyle ?? UIBadgeType.Info);
+        _ = badge.Class(WebClassNames.Badge);
+        WriteVariant(badge, model.BadgeVariant ?? UIBadgeVariant.Info);
         WriteColor(badge, model.BadgeColor);
         WriteFill(badge, model.BadgeFill);
-        TextAppearanceRenderer.RenderTextAppearance(badge, textType);
+        TextAppearanceRenderer.RenderTextAppearance(badge, titleType);
 
         _ = badge.Element("span", icon =>
         {
-            _ = icon.Class("ui-badge__icon");
-            _ = icon.Class("ui-icon");
+            _ = icon.Class(WebClassNames.BadgeIcon);
+            _ = icon.Class(WebClassNames.Icon);
 
             IconValueRenderer.RenderIconAppearance(icon, model.BadgeIconSize, model.BadgeIconColor ?? IBadgeModel.DefaultBadgeIconColor);
 
@@ -194,25 +194,25 @@ public static class BadgeRenderer
             }
         });
 
-        _ = badge.Element("span", text =>
+        _ = badge.Element("span", title =>
         {
-            _ = text.Class("ui-badge__text");
+            _ = title.Class(WebClassNames.BadgeTitle);
 
-            TextAppearanceRenderer.RenderTextAppearance(text, textType);
+            TextAppearanceRenderer.RenderTextAppearance(title, titleType);
 
             if (!string.IsNullOrWhiteSpace(words))
             {
                 _ = badge.Attribute(WebAttributes.BadgeSet);
-                _ = badge.Attribute(WebAttributes.BadgeText, BadgeTextFit(words));
-                renderWords(text);
+                _ = badge.Attribute(WebAttributes.BadgeTitle, BadgeTitleFit(words));
+                renderWords(title);
             }
         });
     }
 
-    private static void WriteStyle(IHtmlElementBuilder target, UIBadgeType? value)
+    private static void WriteVariant(IHtmlElementBuilder target, UIBadgeVariant? value)
     {
-        if (value is UIBadgeType style)
-            _ = target.Class(WebClassNames.BadgeStyle(style));
+        if (value is UIBadgeVariant variant)
+            _ = target.Class(WebClassNames.BadgeVariant(variant));
     }
 
     private static void WriteColor(IHtmlElementBuilder target, UIThemeColor? value)
@@ -244,30 +244,30 @@ public static class BadgeRenderer
     /// A bare count badge with no component behind it, whose figure a package's own script writes and hides; <paramref name="configure"/>
     /// adds the package's own class or mark.
     /// </summary>
-    public static void RenderCountBadge(IHtmlElementBuilder parent, UIBadgeType style, string? count = null, Action<IHtmlElementBuilder>? configure = null, UIBadgeFill fill = UIBadgeFill.Filled)
+    public static void RenderCountBadge(IHtmlElementBuilder parent, UIBadgeVariant variant, string? count = null, Action<IHtmlElementBuilder>? configure = null, UIBadgeFill fill = UIBadgeFill.Filled)
     {
         ArgumentNullException.ThrowIfNull(parent);
 
         _ = parent.Element("span", badge =>
         {
-            _ = badge.Class("ui-badge");
-            _ = badge.Class(WebClassNames.BadgeStyle(style));
+            _ = badge.Class(WebClassNames.Badge);
+            _ = badge.Class(WebClassNames.BadgeVariant(variant));
 
-            // A style fills by itself, so the default writes no class.
+            // A variant fills by itself, so the default writes no class.
             if (fill != UIBadgeFill.Filled)
                 _ = badge.Class(WebClassNames.BadgeFill(fill));
 
             if (!string.IsNullOrWhiteSpace(count))
-                _ = badge.Attribute(WebAttributes.BadgeText, BadgeTextFit(count));
+                _ = badge.Attribute(WebAttributes.BadgeTitle, BadgeTitleFit(count));
 
             configure?.Invoke(badge);
 
-            _ = badge.Element("span", text =>
+            _ = badge.Element("span", title =>
             {
-                _ = text.Class("ui-badge__text");
+                _ = title.Class(WebClassNames.BadgeTitle);
 
                 if (!string.IsNullOrWhiteSpace(count))
-                    _ = text.Text(count);
+                    _ = title.Text(count);
             });
         });
     }
@@ -283,12 +283,12 @@ public static class BadgeRenderer
             .. Then(then)
         ];
 
-        public WebDomOperation[] Text { get; } =
+        public WebDomOperation[] Title { get; } =
         [
             WebDomOperation.Text(),
-            WebDomOperation.ToggleAttribute(WebAttributes.BadgeText, target: target, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTextFit),
+            WebDomOperation.ToggleAttribute(WebAttributes.BadgeTitle, target: target, condition: WebValueCondition.HasText, converter: WebDomConverters.BadgeTitleFit),
             WebDomOperation.ToggleAttribute(WebAttributes.BadgeSet, target: target, condition: WebValueCondition.HasValue),
-            .. ShownMark(WebAttributes.TextBadgeText, shownTarget, WebValueCondition.HasText),
+            .. ShownMark(WebAttributes.TextBadgeTitle, shownTarget, WebValueCondition.HasText),
             .. Then(then)
         ];
 
@@ -301,9 +301,9 @@ public static class BadgeRenderer
     }
 
     // Two cells fit a circle without touching its edge: a narrow character is one, an East Asian wide one or an emoji two, so two
-    // digits make a circle and two ideographs do not. Mirrored by `toBadgeTextFit` in web-dom-converters.ts, both held to
+    // digits make a circle and two ideographs do not. Mirrored by `toBadgeTitleFit` in web-dom-converters.ts, both held to
     // eng/Tests/Shared/badge-fit-corpus.json.
-    private static string? BadgeTextFit(string text)
+    private static string? BadgeTitleFit(string text)
         => CountCells(text.Trim(), CompactCells + 1) is > 0 and <= CompactCells ? "compact" : null;
 
     private const int CompactCells = 2;

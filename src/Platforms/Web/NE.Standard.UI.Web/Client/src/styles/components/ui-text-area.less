@@ -69,7 +69,7 @@
 }
 
 // The box's side padding and border by appearance, which the field's row keeps where the box lays its parts on the root
-// (`.ui-field-actions-below()`, ui-input.less). Not `--ui-field-inset`: a small area's box keeps its padding.
+// (`.ui-field-actions-below()`, ui-input.less). Its own, not `--ui-field-inset`, which a small field narrows.
 .ui-text-area {
     --ui-text-area-inset: calc(@ui-space-3 + var(--ui-border-width, 1px));
 }
@@ -80,6 +80,20 @@
 
 .ui-text-area.ui-input--underline {
     --ui-text-area-inset: 0px;
+}
+
+// A small area's box keeps its padding too, so its message and its note start where its words do, not at a small field's inset
+// (`.ui-field-insets()`, ui-input.less). The note stands beside the root, so it takes the value by appearance rather than inherits it.
+.ui-text-area.ui-input--small {
+    --ui-field-inset: var(--ui-text-area-inset);
+}
+
+.ui-text-area:is(.ui-input--filled, .ui-input--outline).ui-input--small + .ui-paragraph--field-note {
+    --ui-field-inset: calc(@ui-space-3 + var(--ui-border-width, 1px));
+}
+
+.ui-text-area.ui-input--ghost.ui-input--small + .ui-paragraph--field-note {
+    --ui-field-inset: calc(@ui-space-2 + var(--ui-border-width, 1px));
 }
 
 // A growing area follows its text from its rows to its most rows, then scrolls (text-area-grow-engine.ts sets the height where the

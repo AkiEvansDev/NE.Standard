@@ -15,7 +15,7 @@ const stored = new Map<string, string>();
 installFakeDom({
     CSS: { escape: (value: string) => value },
     requestAnimationFrame: () => undefined,
-    matchMedia: (query: string) => ({ matches: width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0), addEventListener: (_: string, listener: () => void) => widthListeners.push(listener) }),
+    matchMedia: (query: string) => ({ get matches() { return width >= Number(/min-width: (\d+)px/.exec(query)?.[1] ?? 0); }, addEventListener: (_: string, listener: () => void) => widthListeners.push(listener) }),
     window: {
         addEventListener: () => undefined,
         localStorage: {

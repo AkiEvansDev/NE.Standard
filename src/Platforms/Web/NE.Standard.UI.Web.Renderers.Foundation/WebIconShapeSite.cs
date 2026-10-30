@@ -24,7 +24,7 @@ public sealed class WebIconShapeSite
         WebDomOperation shapeClass = WebDomOperation.Class(converter: WebDomConverters.IconShapeClass);
 
         WebDomOperation[] shapeOperations = then is null ? [shapeClass, StandInOperation] : [shapeClass, StandInOperation, then];
-        WebDomOperation[] fallbackOperations = [WebDomOperation.Attribute(WebAttributes.FallbackIcon), StandInOperation];
+        WebDomOperation[] fallbackOperations = [WebDomOperation.Attribute(WebAttributes.IconFallback, converter: WebDomConverters.DrawnIcon), StandInOperation];
 
         ShapeOperations = shapeOperations;
         FallbackOperations = fallbackOperations;

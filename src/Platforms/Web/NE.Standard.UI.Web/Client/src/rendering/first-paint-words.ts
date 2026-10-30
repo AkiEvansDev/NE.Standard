@@ -4,8 +4,8 @@
 
 // `.ts` on the value imports: `node --test` runs this module and resolves files literally.
 import { PageTemporalAttribute, WordsAttribute } from "../addressing/dom-attributes.ts";
-import { isFileSize, isMoment, isPhrase } from "../runtime/words.ts";
-import type { Moment } from "../runtime/words.ts";
+import { isFileSize, isMoment, isPhrase } from "./words.ts";
+import type { Moment } from "./words.ts";
 import { dateTimePattern, formatTemporal, localDate } from "./temporal-format.ts";
 import type { TemporalLanguage } from "./temporal-format.ts";
 import { readInstant } from "./timestamp-format.ts";

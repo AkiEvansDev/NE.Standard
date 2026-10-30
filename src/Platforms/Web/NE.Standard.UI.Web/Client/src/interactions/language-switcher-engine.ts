@@ -3,29 +3,23 @@
 // made it. A page in a language the switcher does not offer shows that language as a label only, and no choice as current.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { LanguageAttribute, LanguageSwitcherAttribute, ListTriggerClass, TooltipAttribute } from "../addressing/dom-attributes.ts";
-import type { DomRegistry } from "../addressing/dom-registry.ts";
-import type { EffectRegistry } from "../effects/effect-registry.ts";
+import { LanguageAttribute, LanguageSwitcherAttribute, LanguageSwitcherChoiceClass, LanguageSwitcherLabelTextClass, LanguageSwitcherLabelTextCurrentClass, LanguageSwitcherLabelTextPageClass, LanguageSwitcherMenuClass, LanguageSwitcherOpenClass, LanguageSwitcherTriggerClass, ListTriggerClass, TooltipAttribute } from "../addressing/dom-attributes.ts";
+import type { DomRegistry, EffectRunner } from "../addressing/dom-registry.ts";
 import { ClientEffectKinds } from "../metadata/metadata-index.ts";
-import { clientStrings, readWords } from "../runtime/client-strings.ts";
-import type { ClientStringKey } from "../runtime/client-strings.ts";
-import { isPhrase } from "../runtime/words.ts";
+import { clientStrings, readWords } from "../rendering/client-strings.ts";
+import type { ClientStringKey } from "../rendering/client-strings.ts";
+import { isPhrase } from "../rendering/words.ts";
 import { isInert } from "./interactive-state.ts";
 import { SwitcherList } from "./switcher-list.ts";
 
 export type LanguageSwitcherEngineOptions = {
     readonly root?: ParentNode;
-    readonly effects: EffectRegistry;
+    readonly effects: EffectRunner;
     readonly dom: DomRegistry;
 };
 
 // The button's press, or the field's box, a select's trigger.
-const TriggerSelector = `.ui-language-switcher__trigger, .${ListTriggerClass}`;
-const LabelTextClass = "ui-language-switcher__label-text";
-const CurrentLabelClass = "ui-language-switcher__label-text--current";
-// The page's language where the switcher does not offer it: shown only while the page is in it, and never a choice.
-const PageLabelClass = "ui-language-switcher__label-text--page";
-const ChoiceClass = "ui-language-switcher__choice";
+const TriggerSelector = `.${LanguageSwitcherTriggerClass}, .${ListTriggerClass}`;
 // The button's name: with two languages what it switches to, with more the page's language alone (the list says the rest).
 const SwitchKey: ClientStringKey = "ui.language.switch";
 const CurrentKey: ClientStringKey = "ui.language.current";
@@ -36,9 +30,9 @@ export class LanguageSwitcherEngine {
 
     private readonly list = new SwitcherList({
         attribute: LanguageSwitcherAttribute,
-        menuClass: "ui-language-switcher__menu",
-        choiceClass: ChoiceClass,
-        openClass: "ui-language-switcher--open",
+        menuClass: LanguageSwitcherMenuClass,
+        choiceClass: LanguageSwitcherChoiceClass,
+        openClass: LanguageSwitcherOpenClass,
         triggerSelector: TriggerSelector
     });
 
@@ -58,7 +52,7 @@ export class LanguageSwitcherEngine {
         if (!(event.target instanceof Element))
             return;
 
-        const choice = event.target.closest<HTMLElement>(`.${ChoiceClass}`);
+        const choice = event.target.closest<HTMLElement>(`.${LanguageSwitcherChoiceClass}`);
         const switcher = this.list.switcherOf(event.target);
 
         if (switcher === null)
@@ -128,13 +122,13 @@ export class LanguageSwitcherEngine {
             for (const choice of choices)
                 choice.setAttribute(chosen, choice.getAttribute(LanguageAttribute) === language ? "true" : "false");
 
-            for (const text of trigger.querySelectorAll<HTMLElement>(`.${LabelTextClass}`)) {
+            for (const text of trigger.querySelectorAll<HTMLElement>(`.${LanguageSwitcherLabelTextClass}`)) {
                 const current = text.getAttribute(LanguageAttribute) === language;
 
                 // Every offered language's words stay stacked in the button, so it keeps one width; one it does not offer takes no room.
-                text.classList.toggle(CurrentLabelClass, current);
+                text.classList.toggle(LanguageSwitcherLabelTextCurrentClass, current);
 
-                if (text.classList.contains(PageLabelClass))
+                if (text.classList.contains(LanguageSwitcherLabelTextPageClass))
                     text.toggleAttribute("hidden", !current);
             }
 

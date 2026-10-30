@@ -1,16 +1,10 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { eventSuppressAttribute, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
-import type { DomRegistry } from "../addressing/dom-registry.ts";
+import { ComponentSelector, eventSuppressAttribute, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
+import { isInert, ValueSettleEventNames } from "../addressing/dom-registry.ts";
+import type { DomRegistry, EffectRunner, FormValues, PressedForm } from "../addressing/dom-registry.ts";
 import type { CommandDispatcher } from "../transport/command-dispatcher.ts";
-import type { EffectRegistry } from "../effects/effect-registry.ts";
 import type { EventCatalog } from "../extensions/events.ts";
-import type { InteractionEngine } from "../interactions/interaction-engine.ts";
-import { isInert } from "../interactions/interactive-state.ts";
-import type { UploadsInFlight } from "../interactions/uploads-in-flight.ts";
-import type { ValidationEngine } from "../interactions/validation-engine.ts";
 import type { MetadataIndex, UICommandRequest } from "../metadata/metadata-index.ts";
-import { ValueSettleEventNames } from "../updates/value-binding-engine.ts";
-import type { PressedForm, ValueBindingEngine } from "../updates/value-binding-engine.ts";
 import { isBehindEventBoundary } from "./event-boundary.ts";
 import { CommandTurns } from "./command-turns.ts";
 import type { CommandTurn } from "./command-turns.ts";
@@ -18,8 +12,30 @@ import type { EventCompletionContext, EventDispatchContext, EventRegistration, R
 import { EventRegistry } from "./event-registry.ts";
 import { EventRequestFactory } from "./event-request-factory.ts";
 import { markPending, PendingDelayMilliseconds, PendingEventName } from "./pending-mark.ts";
-import { logDebug, logError } from "../runtime/logger.ts";
+import { logDebug, logError } from "../metadata/logger.ts";
 import { CommandExpired } from "../transport/attach-gate.ts";
+
+type PipelineInteractions = {
+    hasEvent(eventName: string): boolean;
+    hasEventForComponent(eventName: string, componentId: number): boolean;
+    takesRowEvent(eventName: string, componentId: number, dynamicParameters: readonly unknown[]): boolean;
+    applyEvent(context: { readonly name: string; readonly componentId: number; readonly dynamicParameters: readonly unknown[]; readonly domEvent?: Event }): void;
+};
+
+type PipelineValidation = {
+    runSubmitValidation(formId: string): boolean;
+    focusFirstInvalid(formId: string): void;
+    focusField(component: Element): void;
+    isRefused(component: Element): boolean;
+};
+
+type PipelineValueBinding = {
+    whenSent(): Promise<void>;
+    whenSettled(component: Element): Promise<void>;
+    pressForm(formId: string): PressedForm;
+    submitFormAsync(formId: string, pressedValues?: FormValues, skipField?: (field: Element) => boolean): Promise<void>;
+    conflictedField(formId: string): Element | null;
+};
 
 export type EventPipelineOptions = {
     readonly root?: ParentNode;
@@ -32,20 +48,23 @@ export type EventPipelineOptions = {
     /** Run once the command's effects have been applied, for whatever has to look at the DOM they moved. */
     readonly afterEffects?: () => void;
 
-    readonly interactionEngine: InteractionEngine;
+    readonly interactionEngine: PipelineInteractions;
     readonly eventCatalog: EventCatalog;
-    readonly effects: EffectRegistry;
+    readonly effects: EffectRunner;
     readonly events?: Iterable<EventRegistration>;
 
-    readonly validationEngine?: ValidationEngine;
+    readonly validationEngine?: PipelineValidation;
 
-    readonly valueBinding?: ValueBindingEngine;
+    readonly valueBinding?: PipelineValueBinding;
 
     /** The pickers' uploads on their way, which a submit of their form waits for (docs/FILES.md §7). */
-    readonly uploads?: Pick<UploadsInFlight, "whenUploadedAsync">;
+    readonly uploads?: { whenUploadedAsync(formId: string): Promise<ReadonlySet<Element>> };
 
     /** Whether a command sent now waits for the connection to attach again; a press then is marked pending at once. */
     readonly isReattaching?: () => boolean;
+
+    /** Says to the person a press that failed (`FailureNotice`); left out, the failure is only logged. */
+    readonly failed?: (error: unknown) => void;
 };
 
 type EventOutcome = Pick<EventCompletionContext, "dispatched" | "success" | "error">;
@@ -96,8 +115,12 @@ export class EventPipeline {
      * Registers an event and attaches it where the view raises it. A registration saying how the event is heard — a package's, whose
      * module runs after the view's own events were attached bare — attaches it again, the bare listener left in place but unheard:
      * attaching the view's events later instead would put them after the engines started since, whose order on the root is load-bearing.
+     * A package's (`fromPackage`) is refused for a name another package registered (`EventRegistry.claim`).
      */
-    public addEvent<TEvent extends Event = Event>(name: string, registration: Omit<EventRegistration<TEvent>, "name"> = {}): void {
+    public addEvent<TEvent extends Event = Event>(name: string, registration: Omit<EventRegistration<TEvent>, "name"> = {}, fromPackage = false): void {
+        if (fromPackage && !this.registry.claim(name))
+            return;
+
         const registered = this.registry.add(name, registration);
         const hearsAnew = registration.attach !== undefined || registration.domEventName !== undefined || registration.options !== undefined;
 
@@ -157,10 +180,13 @@ export class EventPipeline {
 
             void this.handleDomEventAsync(registered.name, domEvent).catch(error => {
                 // Expected, and said to the reader already (`SignalRTransport.onCommandExpired`): no error of the page's.
-                if (error instanceof CommandExpired)
+                if (error instanceof CommandExpired) {
                     logDebug("a press waited past its bound for the page to attach again and was dropped.", error);
-                else
-                    logError("event pipeline failed.", error);
+                    return;
+                }
+
+                logError("event pipeline failed.", error);
+                this.options.failed?.(error);
             });
         };
 
@@ -194,6 +220,11 @@ export class EventPipeline {
             return;
 
         if (isBehindEventBoundary(domEvent.target, resolved.element))
+            return;
+
+        // The component the target stands in, not the target itself: an engine raises a component's own event on a part of it — a
+        // tab's label, a grid's query element, a canvas's value element — and a component nested in it is another one's.
+        if (this.options.eventCatalog.get(eventName)?.ownTarget === true && domEvent.target.closest(ComponentSelector) !== resolved.element)
             return;
 
         const serverEvent = this.options.metadata.getEvent(resolved.componentId, eventName);
@@ -458,7 +489,6 @@ function isInnerBoundaryCrossing(domEvent: Event, component: Element): boolean {
     return related instanceof Node && component.contains(related);
 }
 
-/** The form of the field an event came from: the target's own, or the first field inside the component that declares one. */
 function isInsideAny(roots: ReadonlySet<Element>, element: Element): boolean {
     for (const root of roots) {
         if (root.contains(element))
@@ -468,6 +498,7 @@ function isInsideAny(roots: ReadonlySet<Element>, element: Element): boolean {
     return false;
 }
 
+/** The form of the field an event came from: the target's own, or the first field inside the component that declares one. */
 function fieldFormId(context: EventDispatchContext): string | null {
     const target = context.domEvent.target;
     const field = (target instanceof Element ? target.closest(`[${FormIdAttribute}]`) : null) ?? context.component.querySelector(`[${FormIdAttribute}]`);

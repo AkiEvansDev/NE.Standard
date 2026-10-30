@@ -9,17 +9,10 @@
 // thumb is clipped to what can be seen of its scroller.
 
 // `.ts` on the value imports: `node --test` loads this module directly.
+import { OverlayScrollbarBoxClass, OverlayScrollbarClass, OverlayScrollbarShownClass, OverlayScrollbarThumbClass, OverlayScrollbarThumbHeldClass } from "../addressing/dom-attributes.ts";
 import { setPressStandIn } from "./popup-dismissal.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { releaseScrollHolds } from "./scroll-anchor-engine.ts";
-
-const LayerClass = "ui-overlay-scrollbar";
-const BoxClass = "ui-overlay-scrollbar__box";
-const ThumbClass = "ui-overlay-scrollbar__thumb";
-const ShownClass = "ui-overlay-scrollbar--shown";
-const HeldClass = "ui-overlay-scrollbar__thumb--held";
-const ArrowClass = "ui-overlay-scrollbar__arrow";
-const NearClass = "ui-overlay-scrollbar--near";
 
 // Where the bars are drawn over the content: a pointer that hovers, and no forced colours, which keep the platform's own bar
 // (core/scrollbar.less reads the same condition).
@@ -35,13 +28,6 @@ const HungProperty = "--ui-scroll-hung";
 const Strip = 12;
 const Inset = 2;
 const LeastThumb = 24;
-// The arrows at the track's ends, each a strip square, and the least track that keeps them: a shorter scroller's thumb runs end to end.
-const Arrow = 12;
-const ArrowedLeast = 80;
-// What an arrow's press scrolls, and how soon and how often a held one repeats, near a platform bar's line and repeat.
-const ArrowStep = 40;
-const RepeatDelay = 400;
-const RepeatEvery = 50;
 // How far past the strip a pointer nearing the edge brings the thumb in.
 const Approach = 16;
 // How long a scroll keeps its thumb shown after it settles, and a scroller the pointer left stays the one.
@@ -55,15 +41,12 @@ type Axis = "y" | "x";
 
 type Box = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number; readonly width: number; readonly height: number };
 
-type Track = { readonly start: number; readonly length: number; readonly thumb: number; readonly max: number; readonly arrow: number };
+type Track = { readonly start: number; readonly length: number; readonly thumb: number; readonly max: number };
 
 /** Where a thumb stands on the viewport. */
 type ThumbBox = { readonly left: number; readonly top: number; readonly width: number; readonly height: number };
 
-/** Where the arrows stand on the viewport, back (up or left) and forward; null where the track is too short to keep them. */
-type Arrows = { readonly back: ThumbBox; readonly forward: ThumbBox } | null;
-
-type Placement = { readonly view: Box; readonly thumb: ThumbBox; readonly arrows: Arrows; readonly rtl: boolean };
+type Placement = { readonly view: Box; readonly thumb: ThumbBox };
 
 type Drag = {
     readonly axis: Axis;
@@ -72,13 +55,12 @@ type Drag = {
     readonly from: number;
     readonly scroll: number;
     readonly ratio: number;
-    readonly rtl: boolean;
 };
 
 type Point = { readonly x: number; readonly y: number };
 
-/** `view`, the scroller's seen box as the last frame measured it, and `rtl` its side, answer whether the pointer nears the bar between frames. */
-type Bar = { readonly axis: Axis; readonly box: HTMLElement; readonly thumb: HTMLElement; readonly back: HTMLElement; readonly forward: HTMLElement; scroller: Element | null; view: Box | null; rtl: boolean; near: boolean };
+/** `view`, the scroller's seen box as the last frame measured it, answers whether the pointer nears the bar between frames. */
+type Bar = { readonly axis: Axis; readonly box: HTMLElement; readonly thumb: HTMLElement; scroller: Element | null; view: Box | null; near: boolean };
 
 export class OverlayScrollbarEngine {
     private readonly doc: Document;
@@ -97,9 +79,6 @@ export class OverlayScrollbarEngine {
     private repick = false;
     private hovered = false;
     private drag: Drag | null = null;
-    // The axis whose arrow is held, and its repeat's timer.
-    private stepping: Axis | null = null;
-    private repeat = 0;
     private frame = 0;
     private settle = 0;
     // The reader is scrolling: the thumbs show until it settles.
@@ -111,7 +90,7 @@ export class OverlayScrollbarEngine {
     public constructor(doc: Document = document) {
         this.doc = doc;
         this.layer = doc.createElement("div");
-        this.layer.className = LayerClass;
+        this.layer.className = OverlayScrollbarClass;
         this.layer.setAttribute("aria-hidden", "true");
         this.layer.setAttribute("popover", "manual");
         this.bars = { y: this.createBar(doc, "y"), x: this.createBar(doc, "x") };
@@ -147,12 +126,10 @@ export class OverlayScrollbarEngine {
     private createBar(doc: Document, axis: Axis): Bar {
         const box = doc.createElement("div");
         const thumb = doc.createElement("div");
-        const back = this.createArrow(doc, axis, -1);
-        const forward = this.createArrow(doc, axis, 1);
 
-        box.className = `${BoxClass} ${BoxClass}--${axis}`;
-        thumb.className = `${ThumbClass} ${ThumbClass}--${axis}`;
-        box.append(back, thumb, forward);
+        box.className = `${OverlayScrollbarBoxClass} ${OverlayScrollbarBoxClass}--${axis}`;
+        thumb.className = `${OverlayScrollbarThumbClass} ${OverlayScrollbarThumbClass}--${axis}`;
+        box.append(thumb);
         this.layer.append(box);
 
         thumb.addEventListener("pointerdown", domEvent => this.grab(domEvent, axis));
@@ -164,28 +141,13 @@ export class OverlayScrollbarEngine {
         // A wheel over the thumb is the scroller's: the layer is no ancestor of it, so the browser would scroll nothing.
         thumb.addEventListener("wheel", domEvent => this.forwardWheel(domEvent, axis), { passive: false });
 
-        return { axis, box, thumb, back, forward, scroller: null, view: null, rtl: false, near: false };
-    }
-
-    /** An arrow at one end of the track: a press scrolls a step towards it, and a held one goes on. */
-    private createArrow(doc: Document, axis: Axis, direction: -1 | 1): HTMLElement {
-        const arrow = doc.createElement("div");
-
-        arrow.className = `${ArrowClass} ${ArrowClass}--${direction < 0 ? "back" : "forward"}`;
-        arrow.addEventListener("pointerdown", domEvent => this.step(domEvent, axis, direction));
-        arrow.addEventListener("pointerup", () => this.stopStepping());
-        arrow.addEventListener("pointercancel", () => this.stopStepping());
-        arrow.addEventListener("lostpointercapture", () => this.stopStepping());
-        arrow.addEventListener("wheel", domEvent => this.forwardWheel(domEvent, axis), { passive: false });
-
-        return arrow;
+        return { axis, box, thumb, scroller: null, view: null, near: false };
     }
 
     /** The overlay starts or stops as the pointer's hover and the forced colours come and go. */
     private follow(): void {
         this.active = this.media.matches;
         this.drag = null;
-        this.stopStepping();
         this.target = null;
         this.hovered = false;
         this.scrolling = false;
@@ -337,7 +299,7 @@ export class OverlayScrollbarEngine {
         let changed = false;
 
         for (const bar of [this.bars.y, this.bars.x]) {
-            const near = this.point !== null && bar.view !== null && nearsBar(this.point, bar.view, bar.axis, bar.rtl);
+            const near = this.point !== null && bar.view !== null && nearsBar(this.point, bar.view, bar.axis);
 
             changed ||= near !== bar.near;
             bar.near = near;
@@ -347,16 +309,12 @@ export class OverlayScrollbarEngine {
             this.paint();
     }
 
-    /**
-     * Each measured thumb shown or faded as the reader scrolls, nears it or holds it; its arrows only as the pointer nears it or holds
-     * one of its parts, as a platform's overlay bar shows them, so a wheel's scroll shows the thumb alone.
-     */
+    /** Each measured thumb shown or faded as the reader scrolls, nears it or holds it. */
     private paint(): void {
         for (const bar of [this.bars.y, this.bars.x]) {
-            const held = this.drag?.axis === bar.axis || this.stepping === bar.axis;
+            const held = this.drag?.axis === bar.axis;
 
-            bar.box.classList.toggle(ShownClass, bar.view !== null && (this.scrolling || bar.near || held));
-            bar.box.classList.toggle(NearClass, bar.view !== null && (bar.near || held));
+            bar.box.classList.toggle(OverlayScrollbarShownClass, bar.view !== null && (this.scrolling || bar.near || held));
         }
     }
 
@@ -487,7 +445,7 @@ export class OverlayScrollbarEngine {
 
         const client = axis === "y" ? barBox(scroller) : clientBox(scroller);
 
-        return { view, thumb: thumbBox(scroller, axis, client, both), arrows: arrowBoxes(scroller, axis, client, both), rtl: isRightToLeft(scroller) };
+        return { view, thumb: thumbBox(scroller, axis, client, both) };
     }
 
     /** Where the thumb stands; whether it shows is paint's. */
@@ -497,62 +455,10 @@ export class OverlayScrollbarEngine {
         if (placement === null)
             return;
 
-        const { view, thumb, arrows } = placement;
+        const { view, thumb } = placement;
 
-        bar.rtl = placement.rtl;
         Object.assign(bar.box.style, { left: `${view.left}px`, top: `${view.top}px`, width: `${view.width}px`, height: `${view.height}px` });
         placeIn(bar.thumb, thumb, view);
-        bar.back.hidden = arrows === null;
-        bar.forward.hidden = arrows === null;
-
-        if (arrows !== null) {
-            placeIn(bar.back, arrows.back, view);
-            placeIn(bar.forward, arrows.forward, view);
-        }
-    }
-
-    /** A press on an arrow: a step at once, then on and on while it is held, as a platform bar's arrow repeats. */
-    private step(domEvent: PointerEvent, axis: Axis, direction: -1 | 1): void {
-        const scroller = this.bars[axis].scroller;
-
-        if (domEvent.button !== 0 || scroller === null || this.drag !== null)
-            return;
-
-        // The reader moves the list: a list held at its end, or a row held in view, lets go, as under the reader's own wheel.
-        releaseScrollHolds(scroller);
-
-        (domEvent.currentTarget as HTMLElement).setPointerCapture(domEvent.pointerId);
-        this.stopStepping();
-        this.stepping = axis;
-
-        const once = (): void => {
-            if (!scroller.isConnected) {
-                this.stopStepping();
-                return;
-            }
-
-            // Physical, as the arrow stands: a right-to-left strip's left arrow shows more of its left too.
-            scroller.scrollBy(axis === "y" ? { top: direction * ArrowStep } : { left: direction * ArrowStep });
-            this.flash();
-        };
-
-        once();
-        this.repeat = window.setTimeout(() => {
-            this.repeat = window.setInterval(once, RepeatEvery);
-        }, RepeatDelay);
-    }
-
-    private stopStepping(): void {
-        // One list of timers holds both: the delay before the repeat, or the repeat.
-        window.clearTimeout(this.repeat);
-        window.clearInterval(this.repeat);
-        this.repeat = 0;
-
-        if (this.stepping === null)
-            return;
-
-        this.stepping = null;
-        this.paint();
     }
 
     private grab(domEvent: PointerEvent, axis: Axis): void {
@@ -561,23 +467,21 @@ export class OverlayScrollbarEngine {
         if (domEvent.button !== 0 || scroller === null)
             return;
 
-        const rtl = axis === "x" && isRightToLeft(scroller);
-        const track = trackOf(scroller, axis, clientBox(scroller), this.bars[axis === "y" ? "x" : "y"].scroller === scroller, rtl);
+        const track = trackOf(scroller, axis, clientBox(scroller), this.bars[axis === "y" ? "x" : "y"].scroller === scroller);
         const room = track.length - track.thumb;
 
         // The reader moves the list: a list held at its end, or a row held in view, lets go, as under the reader's own wheel.
         releaseScrollHolds(scroller);
 
         this.bars[axis].thumb.setPointerCapture(domEvent.pointerId);
-        this.bars[axis].thumb.classList.add(HeldClass);
+        this.bars[axis].thumb.classList.add(OverlayScrollbarThumbHeldClass);
         this.drag = {
             axis,
             scroller,
             pointerId: domEvent.pointerId,
             from: axis === "y" ? domEvent.clientY : domEvent.clientX,
             scroll: position(scroller, axis),
-            ratio: room > 0 ? track.max / room : 0,
-            rtl
+            ratio: room > 0 ? track.max / room : 0
         };
     }
 
@@ -590,9 +494,9 @@ export class OverlayScrollbarEngine {
         const moved = (drag.axis === "y" ? domEvent.clientY : domEvent.clientX) - drag.from;
 
         if (drag.axis === "y")
-            drag.scroller.scrollTop = dragScroll(drag.scroll, moved, drag.ratio, false);
+            drag.scroller.scrollTop = dragScroll(drag.scroll, moved, drag.ratio);
         else
-            drag.scroller.scrollLeft = dragScroll(drag.scroll, moved, drag.ratio, drag.rtl);
+            drag.scroller.scrollLeft = dragScroll(drag.scroll, moved, drag.ratio);
     }
 
     private release(domEvent: PointerEvent): void {
@@ -627,9 +531,9 @@ export class OverlayScrollbarEngine {
         domEvent.preventDefault();
 
         if (drag.axis === "y")
-            drag.scroller.scrollTop = dragScroll(drag.scroll, 0, drag.ratio, false);
+            drag.scroller.scrollTop = drag.scroll;
         else
-            drag.scroller.scrollLeft = dragScroll(drag.scroll, 0, drag.ratio, drag.rtl);
+            drag.scroller.scrollLeft = drag.scroll;
 
         // Let go before the capture is released, so the `lostpointercapture` it raises finds no drag to end again.
         this.endDrag();
@@ -644,7 +548,7 @@ export class OverlayScrollbarEngine {
 
     private endDrag(): void {
         if (this.drag !== null)
-            this.bars[this.drag.axis].thumb.classList.remove(HeldClass);
+            this.bars[this.drag.axis].thumb.classList.remove(OverlayScrollbarThumbHeldClass);
 
         this.drag = null;
         this.paint();
@@ -673,11 +577,8 @@ export class OverlayScrollbarEngine {
     }
 }
 
-/**
- * Whether the pointer stands near enough the bar along `axis` to bring it in: over the strip at the edge it stands at in `view` (the
- * left one in a right-to-left scroller), or a little short of it.
- */
-export function nearsBar(point: Point, view: Box, axis: Axis, rtl: boolean): boolean {
+/** Whether the pointer stands near enough the bar along `axis` to bring it in: over the strip at the edge it stands at in `view`, or a little short of it. */
+export function nearsBar(point: Point, view: Box, axis: Axis): boolean {
     const reach = Strip + Approach;
 
     if (axis === "x")
@@ -686,7 +587,7 @@ export function nearsBar(point: Point, view: Box, axis: Axis, rtl: boolean): boo
     if (point.y < view.top || point.y > view.bottom)
         return false;
 
-    return rtl ? point.x >= view.left && point.x < view.left + reach : point.x <= view.right && point.x > view.right - reach;
+    return point.x <= view.right && point.x > view.right - reach;
 }
 
 /** The nearest element at or above `start` that scrolls along `axis`: the document's scroller at the top. */
@@ -712,10 +613,8 @@ function scrollerWithRoom(scroller: Element, axis: Axis, delta: number): Element
 function hasRoom(scroller: Element, axis: Axis, delta: number): boolean {
     const max = axis === "y" ? scroller.scrollHeight - scroller.clientHeight : scroller.scrollWidth - scroller.clientWidth;
     const at = position(scroller, axis);
-    // A right-to-left scroller runs its horizontal offset from its right end: a wheel to the right goes back towards it.
-    const onward = axis === "x" && isRightToLeft(scroller) ? delta < 0 : delta > 0;
 
-    return delta !== 0 && (onward ? at < max - 1 : at > 0);
+    return delta !== 0 && (delta > 0 ? at < max - 1 : at > 0);
 }
 
 function wheelUnit(domEvent: WheelEvent, scroller: Element, axis: Axis): number {
@@ -784,7 +683,7 @@ export function barBox(scroller: Element): Box {
     if (!(hung > 0))
         return client;
 
-    return isRightToLeft(scroller) ? box(client.left - hung, client.top, client.right, client.bottom) : box(client.left, client.top, client.right + hung, client.bottom);
+    return box(client.left, client.top, client.right + hung, client.bottom);
 }
 
 /**
@@ -823,54 +722,24 @@ function clipBox(element: Element, style: CSSStyleDeclaration): Box {
 
 /** Where the thumb along `axis` stands over the scroller's scrollport `client`, for how far it has scrolled. */
 export function thumbBox(scroller: Element, axis: Axis, client: Box, both: boolean): ThumbBox {
-    const rtl = isRightToLeft(scroller);
-    const track = trackOf(scroller, axis, client, both, rtl);
+    const track = trackOf(scroller, axis, client, both);
     const along = track.max > 0 ? (position(scroller, axis) / track.max) * (track.length - track.thumb) : 0;
 
     if (axis === "y")
-        return { left: rtl ? client.left : client.right - Strip, top: track.start + along, width: Strip, height: track.thumb };
+        return { left: client.right - Strip, top: track.start + along, width: Strip, height: track.thumb };
 
-    // A right-to-left scroller starts at its right end, and its thumb runs back from there.
-    return { left: rtl ? track.start + track.length - track.thumb - along : track.start + along, top: client.bottom - Strip, width: track.thumb, height: Strip };
+    return { left: track.start + along, top: client.bottom - Strip, width: track.thumb, height: Strip };
 }
 
-/** Where the arrows stand at the ends of the thumb's track, in the thumb's strip; null where the track keeps none. */
-export function arrowBoxes(scroller: Element, axis: Axis, client: Box, both: boolean): Arrows {
-    const rtl = isRightToLeft(scroller);
-    const track = trackOf(scroller, axis, client, both, rtl);
-
-    if (track.arrow === 0)
-        return null;
-
-    if (axis === "y") {
-        const left = rtl ? client.left : client.right - Strip;
-
-        return { back: { left, top: track.start - Arrow, width: Strip, height: Arrow }, forward: { left, top: track.start + track.length, width: Strip, height: Arrow } };
-    }
-
-    const top = client.bottom - Strip;
-
-    return { back: { left: track.start - Arrow, top, width: Arrow, height: Strip }, forward: { left: track.start + track.length, top, width: Arrow, height: Strip } };
-}
-
-/**
- * The room an arrow takes at each end of the track: kept whether the arrows show or not, so the thumb at an end stands clear of a
- * rounded corner rather than running into it; none on a track too short to give it.
- */
-function arrowRoom(client: Box, axis: Axis, both: boolean, stuck: number): number {
-    return (axis === "y" ? client.height : client.width) - stuck - 2 * Inset - (both ? Strip : 0) >= ArrowedLeast ? Arrow : 0;
-}
-
-function trackOf(scroller: Element, axis: Axis, client: Box, both: boolean, rtl: boolean): Track {
+function trackOf(scroller: Element, axis: Axis, client: Box, both: boolean): Track {
     const stuck = axis === "y" ? stuckRows(scroller) : { top: 0, bottom: 0 };
-    const arrow = arrowRoom(client, axis, both, stuck.top + stuck.bottom);
     // Where the scroller scrolls both ways the two thumbs keep clear of each other's corner: the vertical one's side, the bottom's end.
-    const start = (axis === "y" ? client.top + stuck.top : client.left) + Inset + arrow + (both && rtl && axis === "x" ? Strip : 0);
-    const length = (axis === "y" ? client.height - stuck.top - stuck.bottom : client.width) - 2 * Inset - 2 * arrow - (both ? Strip : 0);
+    const start = (axis === "y" ? client.top + stuck.top : client.left) + Inset;
+    const length = (axis === "y" ? client.height - stuck.top - stuck.bottom : client.width) - 2 * Inset - (both ? Strip : 0);
     const shown = axis === "y" ? scroller.clientHeight : scroller.clientWidth;
     const whole = axis === "y" ? scroller.scrollHeight : scroller.scrollWidth;
 
-    return { start, length, thumb: Math.min(length, Math.max(LeastThumb, (length * shown) / whole)), max: whole - shown, arrow };
+    return { start, length, thumb: Math.min(length, Math.max(LeastThumb, (length * shown) / whole)), max: whole - shown };
 }
 
 /**
@@ -886,21 +755,14 @@ function stuckRows(scroller: Element): { readonly top: number; readonly bottom: 
     return { top: Number.parseFloat(style.scrollPaddingTop) || 0, bottom: Number.parseFloat(style.scrollPaddingBottom) || 0 };
 }
 
-/**
- * The scroll a drag puts the scroller at: where it stood, plus how far the pointer moved times the scroll a pixel of the track stands
- * for. A right-to-left scroller counts its horizontal offset back from zero, and a move to the right goes back towards its start.
- */
-export function dragScroll(from: number, moved: number, ratio: number, rtl: boolean): number {
-    return rtl ? -(from - moved * ratio) : from + moved * ratio;
+/** The scroll a drag puts the scroller at: where it stood, plus how far the pointer moved times the scroll a pixel of the track stands for. */
+export function dragScroll(from: number, moved: number, ratio: number): number {
+    return from + moved * ratio;
 }
 
-/** How far the scroller is along `axis`: a right-to-left scroller counts its horizontal offset back from zero. */
+/** How far the scroller is along `axis`. */
 function position(scroller: Element, axis: Axis): number {
-    return axis === "y" ? scroller.scrollTop : Math.abs(scroller.scrollLeft);
-}
-
-function isRightToLeft(scroller: Element): boolean {
-    return getComputedStyle(scroller).direction === "rtl";
+    return axis === "y" ? scroller.scrollTop : scroller.scrollLeft;
 }
 
 /** Stands `part` at `at`, a box on the viewport, inside the bar's box at `view`. */

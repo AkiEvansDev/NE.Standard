@@ -3,31 +3,32 @@
 // the server takes past a moment to answer turns the field's glyph into the loading ring until the last one asked is answered.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, ItemsEmptyAttribute, SelectClass } from "../addressing/dom-attributes.ts";
+import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, ItemsEmptyAttribute, SearchAnsweredAttribute, SearchDebounceAttribute, SearchFieldClass, SearchInputClass, SearchManualAttribute, SearchMinLengthAttribute, SearchWaitingAttribute, SelectClass, SelectListClass, SelectOptionClass } from "../addressing/dom-attributes.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { PendingDelayMilliseconds } from "../events/pending-mark.ts";
 import { CommitPauses } from "./debounced-commit-engine.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { entryWords, foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
-const DebounceAttribute = "data-ui-search-debounce";
-const MinLengthAttribute = "data-ui-search-min-length";
-const ManualAttribute = "data-ui-search-manual";
-// On the field of a search whose list is the server's answer to `OnSearch` (SearchComponentRenderer).
-const AnsweredAttribute = "data-ui-search-answered";
-const SearchInputClass = "ui-search__input";
-// The listbox the options stand in, under the field.
-const ListClass = "ui-select__list";
-const OptionClass = "ui-select__option";
 const DefaultDebounceMilliseconds = 300;
-// On the field's box while a query is past its moment unanswered: the glyph in it is the loading ring (ui-search.less).
-const WaitingAttribute = "data-ui-search-waiting";
-const FieldClass = "ui-search__field";
 
 /** The queries a field has asked and not had answered, and the moment that shows the ring if they outlast it. */
 type SearchWait = { asked: number; timer: number | null };
 
 const waits = new WeakMap<Element, SearchWait>();
+const askedTerms = new WeakMap<HTMLInputElement, string>();
+
+/** Forgets the last term a search input asked `OnSearch` for, so a cleared field asks afresh next time. */
+export function clearAskedTerm(input: HTMLInputElement): void {
+    askedTerms.delete(input);
+}
+
+/** Whether a manual search input (`AutoSearch = false`) holds a searchable term that has not asked `OnSearch` yet. */
+export function needsManualSearch(input: HTMLInputElement): boolean {
+    const term = input.value.trim();
+
+    return input.hasAttribute(SearchManualAttribute) && term.length > 0 && meetsMinLength(input) && askedTerms.get(input) !== term;
+}
 
 /**
  * How the pipeline reads a search's `search`: from the query's command taken to its answer — answered, failed, refused, the connection
@@ -56,7 +57,7 @@ function awaitAnswer(target: EventTarget | null): void {
     listOf(target)?.setAttribute("aria-busy", "true");
     wait.timer = window.setTimeout(() => {
         wait.timer = null;
-        target.closest(`.${FieldClass}`)?.setAttribute(WaitingAttribute, "");
+        target.closest(`.${SearchFieldClass}`)?.setAttribute(SearchWaitingAttribute, "");
     }, PendingDelayMilliseconds);
 }
 
@@ -75,12 +76,12 @@ function settleAnswer(target: EventTarget | null): void {
         window.clearTimeout(wait.timer);
 
     listOf(target)?.removeAttribute("aria-busy");
-    target.closest(`.${FieldClass}`)?.removeAttribute(WaitingAttribute);
+    target.closest(`.${SearchFieldClass}`)?.removeAttribute(SearchWaitingAttribute);
 }
 
 /** The listbox a search's field asks the options of. */
 function listOf(input: Element): Element | null {
-    return input.closest(`.${SelectClass}`)?.querySelector(`.${ListClass}`) ?? null;
+    return input.closest(`.${SelectClass}`)?.querySelector(`.${SelectListClass}`) ?? null;
 }
 
 export type SearchInputEngineOptions = {
@@ -111,9 +112,13 @@ export class SearchInputEngine {
             return;
 
         const input = domEvent.target;
+
+        if (askedTerms.get(input) !== input.value.trim())
+            askedTerms.delete(input);
+
         narrowToTerm(input);
 
-        const debounceText = input.getAttribute(DebounceAttribute);
+        const debounceText = input.getAttribute(SearchDebounceAttribute);
         const debounce = debounceText === null ? DefaultDebounceMilliseconds : Number(debounceText);
 
         this.pauses.wait(input, Number.isFinite(debounce) && debounce >= 0 ? debounce : DefaultDebounceMilliseconds, () => this.commit(input));
@@ -138,12 +143,13 @@ export class SearchInputEngine {
     private commit(input: HTMLInputElement, asked = false): void {
         input.dispatchEvent(new Event("change", { bubbles: true }));
 
-        if (!asked && input.hasAttribute(ManualAttribute))
+        if (!asked && input.hasAttribute(SearchManualAttribute))
             return;
 
         if (!meetsMinLength(input))
             return;
 
+        askedTerms.set(input, input.value.trim());
         input.dispatchEvent(new Event("search", { bubbles: true }));
     }
 }
@@ -153,7 +159,7 @@ export class SearchInputEngine {
  * against a least length that reads as a number, none otherwise.
  */
 function meetsMinLength(input: HTMLInputElement): boolean {
-    const minLength = Number(input.getAttribute(MinLengthAttribute) ?? 0);
+    const minLength = Number(input.getAttribute(SearchMinLengthAttribute) ?? 0);
 
     return !Number.isFinite(minLength) || input.value.trim().length >= minLength;
 }
@@ -161,11 +167,11 @@ function meetsMinLength(input: HTMLInputElement): boolean {
 /** Narrows a search's own options to the term its field holds; a list the server answers stands as it is. */
 export function narrowToTerm(input: HTMLInputElement): void {
     // Narrowed here as well, the answer's own options could be hidden by a rule the server's match does not share.
-    if (input.hasAttribute(AnsweredAttribute))
+    if (input.hasAttribute(SearchAnsweredAttribute))
         return;
 
     const select = input.closest<HTMLElement>(`.${SelectClass}`);
-    const list = select?.querySelector<HTMLElement>(`.${ListClass}`);
+    const list = select?.querySelector<HTMLElement>(`.${SelectListClass}`);
 
     if (select === null || select === undefined || list === null || list === undefined)
         return;
@@ -195,7 +201,7 @@ function narrow(list: HTMLElement, keep: (option: HTMLElement) => boolean): numb
             continue;
         }
 
-        if (!row.classList.contains(OptionClass))
+        if (!row.classList.contains(SelectOptionClass))
             continue;
 
         const shown = keep(row);
@@ -222,7 +228,7 @@ function show(row: HTMLElement, shown: boolean): void {
 
 /** The empty state, decided from what is in the list rather than from the query that narrowed it; a refill's headers follow its options. */
 export function refreshEmptyState(select: HTMLElement): void {
-    const list = select.querySelector<HTMLElement>(`.${ListClass}`);
+    const list = select.querySelector<HTMLElement>(`.${SelectListClass}`);
 
     if (list === null)
         return;

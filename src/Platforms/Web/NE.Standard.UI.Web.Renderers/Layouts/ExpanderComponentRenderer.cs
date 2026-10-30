@@ -37,7 +37,7 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
 
         _ = root.Element("summary", header =>
         {
-            _ = header.Class("ui-expander__header");
+            _ = header.Class(WebClassNames.ExpanderHeader);
 
             // A wrapper the region sits in, not the region itself, so laying out this column leaves the text body's grid alone.
             _ = header.Element("div", text =>

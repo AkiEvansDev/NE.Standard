@@ -131,3 +131,25 @@ test("an item's phrase is judged and sorted by its key, an author's text by its 
     assert.ok(compareItems({ title: { key: "b.key" } }, { title: "a.text" }, [sort("Title")]) > 0);
     assert.ok(compareItems({ title: { key: "a.key" } }, { title: { text: "b.text" } }, [sort("Title")]) < 0);
 });
+
+test("query.search matches every word case-insensitively across text and number properties while skipping booleans and phrase keys", () => {
+    const row = {
+        id: "sub-1",
+        number: "SUB-001001",
+        customer: "Bramble Studio",
+        country: "Germany",
+        seats: 24,
+        paid: true,
+        canSelect: false,
+        statusCaption: { key: "grid-demo.status.active" },
+        note: { text: "Priority account" }
+    };
+
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "bramble germany" }), true);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "1001 24" }), true);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "priority" }), true);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "bramble france" }), false);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "true" }), false);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "false" }), false);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "grid-demo" }), false);
+});

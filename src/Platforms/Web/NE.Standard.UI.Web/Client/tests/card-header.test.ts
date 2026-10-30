@@ -38,7 +38,7 @@ test("a title, a description, an icon or a badge arriving makes the band one aga
         ["data-ui-text-title", (on: boolean) => text.toggleAttribute("data-ui-text-title", on)],
         ["data-ui-text-description", (on: boolean) => text.toggleAttribute("data-ui-text-description", on)],
         ["data-ui-text-icon", (on: boolean) => text.toggleAttribute("data-ui-text-icon", on)],
-        ["data-ui-text-badge-text", (on: boolean) => text.toggleAttribute("data-ui-text-badge-text", on)],
+        ["data-ui-text-badge-title", (on: boolean) => text.toggleAttribute("data-ui-text-badge-title", on)],
         ["data-ui-text-badge-icon", (on: boolean) => text.toggleAttribute("data-ui-text-badge-icon", on)]
     ] as const) {
         write(true);
@@ -55,7 +55,7 @@ test("one part leaving while another shows keeps the band", () => {
     const { header, text } = card(false);
 
     text.setAttribute("data-ui-text-title", "");
-    text.setAttribute("data-ui-text-badge-text", "");
+    text.setAttribute("data-ui-text-badge-title", "");
     shown(text);
 
     text.removeAttribute("data-ui-text-title");

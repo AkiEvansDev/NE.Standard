@@ -1,6 +1,5 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Choices.Toggle;
-using DemoApp.Controllers.Inputs;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views.Choices.Toggle;
@@ -35,13 +34,13 @@ internal abstract class ToggleView : DemoComponentView
     {
         return toggle
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(ToggleValueGroupContext.Value)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(ToggleValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(ToggleValueGroupContext.Size)}")
+            .BindValue<ToggleController>(static x => x.ValueGroup.Value)
+            .BindIsReadOnly<ToggleController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<ToggleController>(static x => x.ValueGroup.Size)
             .BindTextContent(ContentGroup)
-            .BindDescription($"{ContentGroup}.{nameof(TextContentGroupContext.Description)}")
-            .BindDescriptionType($"{ContentGroup}.{nameof(TextContentGroupContext.DescriptionType)}")
-            .BindDescriptionColor($"{ContentGroup}.{nameof(TextContentGroupContext.DescriptionColor)}")
+            .BindDescription<ToggleController>(static x => x.ContentGroup.Description)
+            .BindDescriptionType<ToggleController>(static x => x.ContentGroup.DescriptionType)
+            .BindDescriptionColor<ToggleController>(static x => x.ContentGroup.DescriptionColor)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);

@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Templates;
@@ -19,7 +18,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(IPopupPlacementComponent))]
 [UIComponentPropertyBlock(typeof(IClearableInputComponent))]
-public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IAffixedInputComponent, IPlaceholderInputComponent, IPopupPlacementComponent, IClearableInputComponent
+public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IBorderedComponent, IAffixedInputComponent, IPlaceholderInputComponent, IPopupPlacementComponent, IClearableInputComponent
     where T : SelectComponentBase<T, TItem, TValue>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {
@@ -34,11 +33,17 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     /// </summary>
     protected SelectComponentBase(string? id = null) : base(id)
     {
-        // Content, not Title: an option is a list row, so its glyph stands for both lines.
-        _ = SetTemplate(new DefaultTextTemplate(binds: true).SetIconAlignment(UITextIconAlignment.Content));
+        _ = SetTemplate(CreateOptionTemplate());
         _ = SetEmptyTemplate(new DefaultEmptyTemplate());
         _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
     }
+
+    /// <summary>
+    /// A new default option template: a list row's.
+    /// </summary>
+    protected static DefaultTextTemplate CreateOptionTemplate()
+        // Content, not Title: an option is a list row, so its glyph stands for both lines.
+        => new DefaultTextTemplate(binds: true).SetIconAlignment(UITextIconAlignment.Content);
 
     /// <summary>
     /// Configures the built-in default group template, throwing if a different template has been set.

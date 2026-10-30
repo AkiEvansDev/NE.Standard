@@ -30,6 +30,7 @@ installFakeDom({
 const { CommitGate } = await import("../src/interactions/commit-gate.ts");
 const { DebouncedCommitEngine } = await import("../src/interactions/debounced-commit-engine.ts");
 const { FieldKeysEngine } = await import("../src/interactions/field-keys-engine.ts");
+const { NumberInputEngine } = await import("../src/interactions/number-input-engine.ts");
 const { ValueBindingEngine } = await import("../src/updates/value-binding-engine.ts");
 const { ValueChangeDispatcher } = await import("../src/transport/value-change-dispatcher.ts");
 const { ValueReaderRegistry } = await import("../src/extensions/value-readers.ts");
@@ -250,4 +251,46 @@ test("a clear is an edit the Change rules hear, even back to the value last comm
     assert.equal(page.field.value, "");
     assert.equal(edits, 2, "the typing and the clear");
     assert.deepEqual(page.sent, [], "the field holds what it took the focus with");
+});
+
+test("a number field's commit gate reads its invariant value across P0 edit text, and Enter leaves it formatted at rest", async () => {
+    const field = new FakeInput("text");
+    const component = FakeElement.of("ui-number-input", { "data-ui-id": "1", "data-ui-number-format": "P0" }).append(field);
+    const root = FakeElement.of("ui-root").append(component);
+    const changes: string[] = [];
+
+    field.classes.add("ui-number-input__field");
+    field.value = "0.25";
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(root);
+    fakeDocument.activeElement = fakeDocument.body;
+
+    let numberEngine: InstanceType<typeof NumberInputEngine> | undefined;
+
+    new CommitGate({
+        root: real<ParentNode>(root),
+        readValue: target => numberEngine?.readValue(target) ?? target.value
+    });
+    numberEngine = new NumberInputEngine({ root: real<ParentNode>(root) });
+    new FieldKeysEngine({ root: real<ParentNode>(root) });
+    root.addEventListener("change", () => changes.push(numberEngine?.readValue(real(field)) ?? field.value));
+
+    assert.equal(field.value, "25 %");
+
+    // Typing "2500" in a P0 field stands for 25 (2,500 %), not the "25" edit text of 0.25 (25 %).
+    field.focus();
+    assert.equal(field.value, "25");
+    type(field, "2500");
+    field.dispatchEvent(new FakeKeyboardEvent("Enter", field));
+
+    assert.deepEqual(changes, ["25"]);
+    assert.equal(field.value, "2,500 %");
+
+    // Focusing and leaving with Escape without editing raises no change.
+    field.focus();
+    assert.equal(field.value, "2500");
+    field.dispatchEvent(new FakeKeyboardEvent("Escape", field));
+
+    assert.deepEqual(changes, ["25"]);
+    assert.equal(field.value, "2,500 %");
 });

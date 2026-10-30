@@ -156,6 +156,9 @@ internal sealed partial class TextAreaController() : DemoStandardController
     [RecursiveMember]
     public partial CommentsGroupContext CommentsGroup { get; set; } = new();
 
+    [RecursiveMember]
+    public partial DemoGroupContext TriggersGroup { get; set; } = new();
+
     [UICommand]
     public void PostComment()
         => CommentsGroup.Post();
@@ -167,4 +170,8 @@ internal sealed partial class TextAreaController() : DemoStandardController
     [UICommand]
     public void DropCommentEdit()
         => CommentsGroup.DropEdit();
+
+    [UICommand]
+    public void ClickTriggerToken(string trigger, string key)
+        => TriggersGroup.LogEvent($"{trigger}{key} clicked");
 }

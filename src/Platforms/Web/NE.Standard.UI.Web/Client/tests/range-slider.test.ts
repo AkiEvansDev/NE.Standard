@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeEvent, FakeInput, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import type { PropertyValueChange } from "../src/updates/property-patch-engine.ts";
 
 class FakePointerEvent extends FakeEvent {
     public readonly button = 0;
@@ -232,6 +233,73 @@ test("a press on a read-only band moves neither handle and only gives the nearer
     assert.equal(end.value, "80");
     assert.equal(fakeDocument.activeElement, end);
     assert.deepEqual(changes, []);
+});
+
+/** A single slider as drawn — 0 to 100 — whose value the browser already holds as `value` against the server's `written`, and the engine's push handler. */
+function drawnSlider(value: string, written: string): { readonly root: FakeElement; readonly input: FakeInput; readonly changes: string[]; readonly push: (propertyName: string, pushed: unknown) => void } {
+    const input = new FakeInput("range");
+
+    input.classes.add("ui-slider__input");
+    input.setAttribute("min", "0");
+    input.setAttribute("max", "100");
+    Object.assign(input, { value, defaultValue: written });
+
+    const root = FakeElement.of("ui-slider", { "data-ui-id": "4" }).append(FakeElement.of("ui-slider__track").append(input));
+    const page = FakeElement.of("").append(root);
+    const changes: string[] = [];
+    const handlers: ((change: PropertyValueChange) => void)[] = [];
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(page);
+    // Ahead of the engine: the value binding is listening before the engines start.
+    page.addEventListener("change", domEvent => changes.push((domEvent.target as FakeInput).value));
+    new RangeValueEngine({ root: real(page), propertyPatchEngine: real({ addValueChangeHandler: (handler: (change: PropertyValueChange) => void) => handlers.push(handler) }) });
+
+    const push = (propertyName: string, pushed: unknown): void => {
+        for (const handler of handlers)
+            handler(real({ reference: { componentId: 4, propertyId: propertyName }, propertyName, dynamicParameters: [], value: pushed, local: false, components: [root] }));
+    };
+
+    return { root, input, changes, push };
+}
+
+test("a value the browser moved onto the step as the page was drawn is reported, and one it kept is not", () => {
+    assert.deepEqual(drawnSlider("10", "7").changes, ["10"]);
+    assert.deepEqual(drawnSlider("7.5", "7.50").changes, [], "the same number written another way");
+});
+
+test("a pushed Min, Max or Step that moved the value is reported once the set is applied; one that left it is not", async () => {
+    const slider = drawnSlider("20", "20");
+
+    slider.input.setAttribute("min", "30");
+    slider.input.value = "30";
+    slider.push("Min", 30);
+
+    assert.deepEqual(slider.changes, [], "inside the set");
+    await Promise.resolve();
+    assert.deepEqual(slider.changes, ["30"]);
+
+    slider.input.setAttribute("max", "90");
+    slider.push("Max", 90);
+    slider.input.setAttribute("step", "25");
+    slider.input.value = "25";
+    slider.push("Step", 25);
+    await Promise.resolve();
+
+    assert.deepEqual(slider.changes, ["30", "25"]);
+});
+
+test("a pushed bound followed by the set's own Value reports nothing the Value already says", async () => {
+    const slider = drawnSlider("20", "20");
+
+    slider.input.setAttribute("min", "30");
+    slider.input.value = "30";
+    slider.push("Min", 30);
+    slider.input.value = "50";
+    slider.push("Value", 50);
+    await Promise.resolve();
+
+    assert.deepEqual(slider.changes, []);
 });
 
 type Reference = { readonly componentId: number; readonly propertyId: string };

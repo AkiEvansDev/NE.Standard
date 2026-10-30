@@ -1,11 +1,10 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -17,6 +16,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 /// as ghost buttons on the field's ground, ruled between segments; the current one fills primary unless <c>SelectionStyle</c> says
 /// otherwise. Always horizontal.
 /// </remarks>
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultHorizontalAlignment))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultVerticalAlignment))]
 [UIComponentPropertyBlock(typeof(ISurfaceComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISelectionStyleComponent))]
@@ -24,23 +25,22 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IButtonModel, IButtonComponent>, ISurfaceComponent, IBorderedComponent, ISelectionStyleComponent, ISelectedKeyComponent, IItemClickComponent
     where T : ButtonGroupComponent<T>, IUIComponentDefinition
 {
-    private static readonly UIResponsive<UIButtonSize> DefaultSize = UIButtonSize.Medium;
+    private static readonly UIResponsive<UIAlignment> DefaultHorizontalAlignment = UIAlignment.Start;
+    private static readonly UIResponsive<UIAlignment> DefaultVerticalAlignment = UIAlignment.Center;
+    private static readonly UIResponsive<UISize> DefaultSize = UISize.Medium;
 
     /// <summary>
     /// Gets or sets how much room the strip takes, optionally per breakpoint; every segment follows it.
     /// </summary>
     [UIComponentProperty(DefaultValueMember = nameof(DefaultSize))]
-    public UIResponsive<UIButtonSize>? Size { get; set; }
+    public UIResponsive<UISize>? Size { get; set; }
 
     /// <summary>
     /// Initializes the group with its segment template: a ghost button, since the strip draws the ground.
     /// </summary>
     protected ButtonGroupComponent(string? id = null) : base(id)
     {
-        HorizontalAlignment = UIAlignment.Start;
-        VerticalAlignment = UIAlignment.Center;
-
-        _ = SetTemplate(new DefaultButtonTemplate(binds: true).SetType(UIButtonType.Ghost));
+        _ = SetTemplate(new DefaultButtonTemplate(binds: true).SetVariant(UIButtonVariant.Ghost));
     }
 
     /// <summary>

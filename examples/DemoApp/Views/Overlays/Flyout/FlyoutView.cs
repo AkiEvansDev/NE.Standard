@@ -23,17 +23,17 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/overlays/flyout";
     protected override string Header => "demo.overlays.flyout.header";
     protected override string HeaderDescription => "demo.overlays.flyout.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new FlyoutComponent()
             .BindStandard()
-            .BindIsOpen($"{FlyoutGroup}.{nameof(FlyoutGroupContext.IsOpen)}")
-            .BindPopupPlacement($"{FlyoutGroup}.{nameof(FlyoutGroupContext.FlyoutPlacement)}")
-            .BindCloseOnBackdrop($"{FlyoutGroup}.{nameof(FlyoutGroupContext.CloseOnBackdrop)}")
-            .BindCloseOnEscape($"{FlyoutGroup}.{nameof(FlyoutGroupContext.CloseOnEscape)}")
+            .BindIsOpen<FlyoutController>(static x => x.FlyoutGroup.IsOpen)
+            .BindPopupPlacement<FlyoutController>(static x => x.FlyoutGroup.FlyoutPlacement)
+            .BindCloseOnBackdrop<FlyoutController>(static x => x.FlyoutGroup.CloseOnBackdrop)
+            .BindCloseOnEscape<FlyoutController>(static x => x.FlyoutGroup.CloseOnEscape)
             .SetAnchor(new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
+                .SetVariant(UIButtonVariant.Ghost)
                 .SetIcon(DemoIcons.Outline(DemoIcons.Sliders))
                 .SetTitle("Filters")
             )
@@ -74,13 +74,13 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFilterGroup()
     {
-        return DemoUI.CreateExample("A panel that belongs to one button",
+        return DemoUI.CreateExample("Button-anchored filter panel",
             new FlyoutComponent()
                 .SetPopupPlacement(UIPopupPlacement.BottomStart)
                 // The wrapper leaves the anchor the box it would have had, so the flyout says where it sits.
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetAnchor(new ButtonComponent()
-                    .SetType(UIButtonType.Ghost)
+                    .SetVariant(UIButtonVariant.Ghost)
                     .SetIcon(DemoIcons.Outline(DemoIcons.Sliders))
                     .SetTitle("Filters")
                 )
@@ -94,8 +94,8 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
                         .AddChild(new TextComponent().SetIcon(DemoIcons.Outline(DemoIcons.Check)).SetTitle("Successful only").SetTitleType(UITextAppearance.Body))
                         .AddChild(new SeparatorComponent())
                         .AddChild(new ButtonComponent()
-                            .SetType(UIButtonType.Primary)
-                            .SetSize(UIButtonSize.Small)
+                            .SetVariant(UIButtonVariant.Primary)
+                            .SetSize(UISize.Small)
                             .SetTitle("Apply")
                             .SetHorizontalAlignment(UIAlignment.Start)
                         )
@@ -109,7 +109,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateDetailGroup()
     {
-        return DemoUI.CreateExample("A detail beside a row",
+        return DemoUI.CreateExample("Side-placed row detail (RightStart)",
             new SurfaceComponent()
                 .SetWidth(UILayoutLength.Absolute(320))
                 .SetContent(UILayout.Stack(4)
@@ -117,8 +117,8 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
                         // To the side: below is where the next row is.
                         .SetPopupPlacement(UIPopupPlacement.RightStart)
                         .SetAnchor(new ActionComponent()
-                            .SetType(UIButtonType.Ghost)
-                            .SetSize(UIButtonSize.Small)
+                            .SetVariant(UIButtonVariant.Ghost)
+                            .SetSize(UISize.Small)
                             .SetShowChevron(false)
                             .SetTitle("billing")
                             .SetDescription("Deployed 4 minutes ago")
@@ -136,15 +136,15 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
                         )
                     )
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetTitle("dns")
                         .SetDescription("Rolled back")
                     )
                     .AddChild(new ActionComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetShowChevron(false)
                         .SetTitle("panel")
                         .SetDescription("Waiting on approval")
@@ -158,15 +158,15 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateDismissGroup()
     {
-        return DemoUI.CreateExample("When it goes away",
+        return DemoUI.CreateExample("Backdrop & Escape dismissal options",
             UILayout.Stack(14)
                 .AddChild(UIText.Label("Both — a press outside, or Escape"))
                 .AddChild(new FlyoutComponent()
                     .SetPopupPlacement(UIPopupPlacement.BottomStart)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetAnchor(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetTitle("Ordinary")
                     )
                     // A width and nothing else: the panel already is a surface, so a Surface inside it would be a second frame.
@@ -185,8 +185,8 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
                     .SetCloseOnBackdrop(false)
                     .SetCloseOnEscape(false)
                     .SetAnchor(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
-                        .SetSize(UIButtonSize.Small)
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
                         .SetTitle("Stays open")
                     )
                     .SetContent(new ContainerComponent()
@@ -207,7 +207,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateAgainstBuiltInGroup()
     {
-        return DemoUI.CreateExample("Against the ones that already are one",
+        return DemoUI.CreateExample("Flyout vs Select, ContextMenu & ColorInput",
             UILayout.Stack(14)
                 .AddChild(UIText.Label("Select — a list of options, and a value bound to the chosen one").SetTitleWrap(true))
                 .AddChild(new SelectComponent()
@@ -224,7 +224,7 @@ internal sealed class FlyoutView : DemoComponentView, IUIViewDefinition
                 )
                 .AddChild(UIText.Label("ContextMenu — the same panel, opened by a right-click or a long press instead").SetTitleWrap(true))
                 .AddChild(new SurfaceComponent()
-                    .SetSurface(UISurfaceStyle.Raised)
+                    .SetSurface(UISurfaceStyle.Surface)
                     .SetWidth(UILayoutLength.Absolute(280))
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetContextMenu(new MenuComponent().SetItems(

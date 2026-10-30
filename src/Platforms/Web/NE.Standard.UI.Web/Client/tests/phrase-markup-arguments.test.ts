@@ -8,14 +8,14 @@ import { FakeElement, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom();
 
-const { setLogLevel } = await import("../src/runtime/logger.ts");
+const { setLogLevel } = await import("../src/metadata/logger.ts");
 const { ConverterRegistry } = await import("../src/extensions/converters.ts");
 const { DomOperationRegistry } = await import("../src/updates/dom-operation-registry.ts");
 const { PropertyPatchEngine } = await import("../src/updates/property-patch-engine.ts");
 const { ItemsTemplateRenderer } = await import("../src/items/items-template-renderer.ts");
 const { PropertyStateStore } = await import("../src/state/property-state-store.ts");
-const { clientStrings } = await import("../src/runtime/client-strings.ts");
-const { markupWords } = await import("../src/updates/shown-words.ts");
+const { clientStrings } = await import("../src/rendering/client-strings.ts");
+const { markupWords } = await import("../src/rendering/shown-words.ts");
 
 setLogLevel("silent");
 clientStrings.register({ "page.signed": "Signed by **{name}**" });

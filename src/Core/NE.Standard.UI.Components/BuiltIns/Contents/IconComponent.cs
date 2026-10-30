@@ -1,5 +1,4 @@
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
@@ -10,10 +9,13 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// <summary>
 /// A standalone icon glyph, rendered by name from the registered icon font/set.
 /// </summary>
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultAlignment))]
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultAlignment))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
-public abstract partial class IconComponent<T> : VisualComponentBase<T>, ITooltipComponent
+public abstract partial class IconComponent<T>(string? id = null) : VisualComponentBase<T>(id), ITooltipComponent
     where T : IconComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Center;
     private static readonly UIThemeColor DefaultColor = UIThemeColor.FromStyle(UIColorStyle.Default);
 
     /// <summary>
@@ -31,28 +33,22 @@ public abstract partial class IconComponent<T> : VisualComponentBase<T>, IToolti
     /// <summary>
     /// Gets or sets the icon's size — Small, Medium, or Large; default Medium.
     /// </summary>
-    [UIComponentProperty(DefaultValue = UIIconSize.Medium)]
-    public UIIconSize? Size { get; set; }
+    [UIComponentProperty(DefaultValue = UISize.Medium)]
+    public UISize? Size { get; set; }
 
     /// <summary>
-    /// Gets or sets the shape an icon is drawn in — <see cref="UIIconShape.Circle"/> cuts a picture round, for a person's avatar, and
+    /// Gets or sets the shape an icon is drawn in — <see cref="UIShape.Circle"/> cuts a picture round, for a person's avatar, and
     /// stands a glyph on a faint disc of its colour twice its size, for a status's mark.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
-    public UIIconShape? Shape { get; set; }
+    public UIShape? Shape { get; set; }
 
     /// <summary>
     /// Gets or sets the glyph a picture shows while it has no picture — a round one (<see cref="Shape"/> Circle) none given or one that
     /// fails, any other one that fails; unset, <c>UIGlyphs.Person</c> on a round one and <c>UIGlyphs.Image</c> on any other.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
-    public string? FallbackIcon { get; set; }
-
-    protected IconComponent(string? id = null) : base(id)
-    {
-        HorizontalAlignment = UIAlignment.Center;
-        VerticalAlignment = UIAlignment.Center;
-    }
+    public string? IconFallback { get; set; }
 }
 
 /// <summary>

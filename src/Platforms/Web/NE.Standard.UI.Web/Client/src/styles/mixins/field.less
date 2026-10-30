@@ -11,10 +11,6 @@
     // One step off whatever it stands on, falling back to the page background; mixed from on-surface, so it steps up dark and down light.
     --ui-field-ground: var(--ui-surface-fill, var(--ui-color-background));
     --ui-field-rest: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-field-ground));
-    // Six points past resting, not the washes' ten: hover is a level of its own, not a full step change.
-    --ui-field-hover: color-mix(in srgb, var(--ui-color-on-surface) 16%, var(--ui-field-ground));
-    // Outline's and Underline's border on hover; a control that doesn't lift (a code field) sets it to its rest.
-    --ui-field-hover-accent: color-mix(in srgb, var(--ui-mark-field) 60%, transparent);
     .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-input); var(--ui-field-rest));
     background: var(--ui-field-rest);
     transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
@@ -72,8 +68,8 @@
 // never inside a `:has()`, which the browser drops whole.
 @ui-adornment-live: ~":not(:disabled, [aria-disabled='true'])";
 
-// A glyph button inside a field (a clear, a picker toggle): round, borderless, muted. Hover moves its ink alone — the row already
-// lifts, and a wash too would read as a button on a button — and nothing while `aria-disabled` (a read-only field's toggle). Drawn
+// A glyph button inside a field (a clear, a picker toggle): round, borderless, muted. Hover moves its ink alone — a wash inside
+// the field would read as a button on a field — and nothing while `aria-disabled` (a read-only field's toggle). Drawn
 // smaller than a target, it takes a target's press round it (`::after`; its glyph is its `::before`).
 .ui-field-adornment() {
     position: relative;
@@ -81,8 +77,8 @@
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: @ui-glyph-sm;
+    height: @ui-glyph-sm;
     padding: 0;
     border: none;
     border-radius: 999px;
@@ -137,7 +133,7 @@
 }
 
 // One of those buttons, whatever its size: a small button's height, a caption's words, and a ghost answering with its ink alone,
-// since the field is the surface that lifts. A split button's padding is its parts' (ui-split-button.less), so its root keeps none
+// since a wash inside the field box reads heavy. A split button's padding is its parts' (ui-split-button.less), so its root keeps none
 // here either: padded twice, it stood taller than the line and lifted the whole group off it.
 .ui-field-action-button() {
     .ui-responsive-property(min-height, --ui-min-height, @ui-button-height-sm);
@@ -187,14 +183,13 @@
     }
 
     &.ui-button--ghost {
-        color: var(--ui-text-muted);
         .ui-reveal-hover-off({ color: var(--ui-color-on-surface); });
     }
 }
 
 // The veil over a replaceable picture: a pencil on the dark glass.
-.ui-picture-veil(@glyph: 1.5rem) {
-    .ui-picture-glass();
+.ui-image-veil(@glyph: 1.5rem) {
+    .ui-image-glass();
 
     &::before {
         .ui-pencil-glyph(@glyph; 0);
@@ -203,13 +198,13 @@
 
 // Dark glass over a whole picture with its mark centred on it, hidden and not pressable while it cannot be seen (on a touch screen
 // the tap that brings the hover is also the click); the caller draws the mark and shows it (pointer, keyboard, never when empty).
-.ui-picture-glass() {
+.ui-image-glass() {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: @ui-picture-plate;
+    background: @ui-image-plate;
     color: white;
     opacity: 0;
     transition: opacity @ui-motion-fast @ui-motion-ease;
@@ -218,7 +213,7 @@
 
 // Where nothing hovers, a veil's mark stands in the picture's corner at all times instead of over the whole picture: a small round
 // mark that leaves the picture to be seen (a shelf tile's cross, a picture's pencil).
-.ui-picture-corner-mark() {
+.ui-image-corner-mark() {
     inset: 0.25rem 0.25rem auto auto;
     width: 1.5rem;
     height: 1.5rem;
@@ -237,9 +232,12 @@
 // is the path from @root to the button; @empty a whole selector, since only the field knows how it says empty.
 .ui-field-clear-host(@root; @clear; @empty) {
     @{root}:not([data-ui-clearable]) @{clear},
-    @{root}:is(.ui-disabled, .ui-readonly) @{clear},
-    @{empty} {
+    @{root}:is(.ui-disabled, .ui-readonly) @{clear} {
         display: none;
+    }
+
+    @{empty} {
+        visibility: hidden;
     }
 }
 
@@ -312,18 +310,22 @@
     }
 }
 
-// The pick control at a file field's end: an ellipsis behind a stepper's divider, answering the pointer with its ink alone.
+// The pick control at a file field's end: an ellipsis behind a stepper's divider and matching its geometry, answering the pointer with its ink alone.
 .ui-field-pick() {
-    .ui-ellipsis-glyph();
+    .ui-ellipsis-glyph(horizontal; @ui-glyph-sm);
+    position: relative;
     display: inline-flex;
     flex: 0 0 auto;
     align-self: stretch;
     align-items: center;
     justify-content: center;
-    min-width: @ui-control-height;
-    padding: 0 @ui-space-3;
+    box-sizing: content-box;
+    width: 1.25rem;
+    margin: calc(@ui-space-1 - var(--ui-field-top-edge, var(--ui-border-width, 1px))) -0.5em calc(@ui-space-1 - var(--ui-border-width, 1px)) 0;
+    padding: 0 0 0 0.4em;
     border-left: 1px solid var(--ui-color-border);
     color: var(--ui-text-muted);
+    .ui-hit-area(after);
 }
 
 // The `*` beside a required field's caption; checkbox and switch place their caption beside the box instead and don't use this.
@@ -333,24 +335,20 @@
     line-height: 1;
 }
 
-// A field's state edges, for ui-input.less and a field-shaped non-input (a band button): hover, and focus or an open popup.
-.ui-field-edge-hover(@color: var(--ui-field-hover)) {
-    border-color: @color;
-}
-
+// A field's active edge and soft outer halo, for ui-input.less and a field-shaped non-input (a band button): focus or an open popup.
 .ui-field-edge-active(@color: var(--ui-mark-field)) {
     border-color: @color;
-    box-shadow: inset 0 0 0 var(--ui-input-focus-ring, 1px) @color;
+    box-shadow: 0 0 0 var(--ui-input-focus-ring, 2px) color-mix(in srgb, @color @ui-halo-share, transparent);
+
+    // Forced colours drop the shadow and force the edge's colour: the selection colour's outline stands for both (core/preferences.less).
+    @media (forced-colors: active) {
+        outline: 2px solid Highlight;
+        outline-offset: -2px;
+    }
 }
 
-// The states of an own field-shaped control on `.ui-field-ground()`: hover, and the active edge on a field's focus or an open popup.
-.ui-field-states(@hover: var(--ui-field-hover)) {
-    @media @{ui-can-hover} {
-        &@{ui-button-live}:hover {
-            .ui-field-edge-hover(@hover);
-        }
-    }
-
+// The states of an own field-shaped control on `.ui-field-ground()`: the active edge on a field's focus or an open popup.
+.ui-field-states() {
     &@{ui-button-live}:is(@{ui-field-focus}, [aria-expanded="true"]) {
         .ui-field-edge-active();
     }
@@ -373,10 +371,6 @@
         }
     }
 }
-
-// A Ghost field under the pointer: its focus's wash at 80%, a step under the focus it would take. Rejected: half and 70%, which read
-// as nothing on the dark page.
-@ui-ghost-hover-wash: color-mix(in srgb, var(--ui-wash-hover) 80%, transparent);
 
 // A field showing any message, which colours its edge in the message's own colour (--ui-validation-color): an error, a warning, an info.
 @ui-validation-marked: ~".ui-invalid, .ui-validation--warning, .ui-validation--info";

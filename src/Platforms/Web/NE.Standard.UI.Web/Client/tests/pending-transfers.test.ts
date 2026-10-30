@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PendingTransfers } from "../src/items/pending-transfers.ts";
+import { PendingTransfers } from "../src/state/pending-transfers.ts";
 
 type Host = { readonly name: string; readonly order: string[]; isConnected: boolean };
 

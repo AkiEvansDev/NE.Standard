@@ -23,6 +23,13 @@ public readonly record struct UIComponentReference
     }
 
     /// <summary>
+    /// Creates a reference from an authoring component and the row keys it needs, outermost first.
+    /// </summary>
+    public UIComponentReference(IBindableComponent component, object?[]? dynamicParameters = null)
+        : this(component is null ? throw new ArgumentNullException(nameof(component)) : component.Id, dynamicParameters)
+    { }
+
+    /// <summary>
     /// Gets the authoring component id.
     /// </summary>
     public string Id { get; }

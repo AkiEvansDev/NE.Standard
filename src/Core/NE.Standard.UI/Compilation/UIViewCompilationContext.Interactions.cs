@@ -223,6 +223,9 @@ internal sealed partial class UIViewCompilationContext
 
         EnsureLifecycleSourceRunsCommand(targetComponent, interaction.ComponentId, interaction.SourceEvent);
 
+        if (!IsLocalLifecycleEvent(interaction.SourceEvent))
+            EnsureEventFits(GetComponent(interaction.ComponentId), interaction.SourceEvent);
+
         if (interaction.RowKey is null)
             EnsureNoCommandBeside(targetComponent, interaction.ComponentId, interaction.SourceEvent);
         else
@@ -356,7 +359,6 @@ internal sealed partial class UIViewCompilationContext
     private static string RefusedEffectHint(ClientEffect effect)
         => effect switch
         {
-            ShowEffect or HideEffect or CollapseEffect => "; an interaction writes the target's Visibility itself (InteractOn(…, IVisualComponent.VisibilityProperty, …))",
             ShowNotificationEffect => "; a toast with an action is offered by a command's answer, one without runs here",
             _ => "; return it from a command"
         };

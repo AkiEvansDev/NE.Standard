@@ -251,28 +251,8 @@
     display: grid;
 }
 
-.ui-items-view__host.ui-scroll-x--disabled {
-    overflow-x: hidden;
-}
-
-.ui-items-view__host.ui-scroll-x--auto {
-    overflow-x: auto;
-}
-
-.ui-items-view__host.ui-scroll-x--always {
-    overflow-x: scroll;
-}
-
-.ui-items-view__host.ui-scroll-y--disabled {
-    overflow-y: hidden;
-}
-
-.ui-items-view__host.ui-scroll-y--auto {
-    overflow-y: auto;
-}
-
-.ui-items-view__host.ui-scroll-y--always {
-    overflow-y: scroll;
+.ui-items-view__host {
+    .ui-scroll-axes();
 }
 
 .ui-items-view__host.ui-scroll-snap--disabled {
@@ -334,12 +314,27 @@
     }
 }
 
-.ui-row-cursor(~".ui-items-view", ~".ui-items-view__item");
+// A list's row holds the focus itself, a wrap list's tile (row-cursor.ts); a listbox holds it on the root.
+.ui-row-cursor(~'.ui-items-view:not([role="list"])', ~".ui-items-view__item");
+.ui-row-cursor-on-row(~'.ui-items-view[role="list"]:not(.ui-items-view--wrap)', ~".ui-items-view__item");
 
-// A wrap's row is display: contents and draws no outline: its tile wears the keyboard's edge.
-.ui-items-view--wrap@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
-    // Inside the tile's own corner, a card's, as far as keeps the frame's one radius.
-    .ui-keyboard-frame-inside(var(--ui-radius-card));
+// A wrap's row is display: contents and draws no outline: its tile wears the keyboard's wash.
+.ui-items-view--wrap:not([role="list"])@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
+    --ui-row-wash: var(--ui-wash-hover);
+    --ui-row-cursor-wash: var(--ui-wash-hover);
+    .ui-keyboard-frame();
+}
+
+// A wrap list's tile holds the focus itself: it takes the washes its row hands down where the root holds the focus (the row cannot
+// hand down what it does not wear), and no ring of its own over it. At once: no wash fades on the tile.
+.ui-items-view--wrap[role="list"] > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id]@{ui-row-cursor-focus} {
+    --ui-row-wash: var(--ui-wash-hover);
+    --ui-row-cursor-wash: var(--ui-wash-hover);
+    .ui-keyboard-frame();
+}
+
+.ui-items-view--wrap[role="list"] > [data-ui-items-host] > .ui-items-view__item > [data-ui-id]:focus {
+    outline: none;
 }
 .ui-row-bar(~".ui-items-view", ~".ui-items-view__item");
 
@@ -384,7 +379,7 @@
     right: 0;
     height: 2px;
     z-index: 1;
-    background: var(--ui-mark-selected-fill);
+    background: var(--ui-mark-selected);
     pointer-events: none;
 }
 
@@ -396,7 +391,7 @@
     bottom: var(--ui-row-drop-at);
 }
 
-    // Rows that run across: the line stands at the start or the end of the tile, which a right-to-left list turns round.
+    // Rows that run across: the line stands at the left or the right of the tile.
     :is(@{ui-row-drop-across})::after {
         top: 0;
         bottom: 0;
@@ -406,13 +401,11 @@
         height: auto;
     }
 
-    :is(@{ui-row-drop-across})[data-ui-row-drop="before"]:not(:dir(rtl))::after,
-    :is(@{ui-row-drop-across})[data-ui-row-drop="after"]:dir(rtl)::after {
+    :is(@{ui-row-drop-across})[data-ui-row-drop="before"]::after {
         left: var(--ui-row-drop-at);
     }
 
-    :is(@{ui-row-drop-across})[data-ui-row-drop="after"]:not(:dir(rtl))::after,
-    :is(@{ui-row-drop-across})[data-ui-row-drop="before"]:dir(rtl)::after {
+    :is(@{ui-row-drop-across})[data-ui-row-drop="after"]::after {
         right: var(--ui-row-drop-at);
     }
 

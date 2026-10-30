@@ -403,6 +403,15 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
             change = RecursiveChange.Reset(RecursivePath.Empty);
         }
 
+        ReleaseRemoved(removedItems);
+
+        Notify(change);
+        NotifyCountChanged();
+    }
+
+    /// <summary>Lets go of items taken out of the list, outside the lock.</summary>
+    private void ReleaseRemoved(T[] removedItems)
+    {
         HashSet<RecursiveObservable> visited = new(removedItems.Length, ReferenceEqualityComparer.Instance);
 
         for (var i = 0; i < removedItems.Length; i++)
@@ -410,9 +419,6 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
             removedItems[i].DetachOwner(this);
             removedItems[i].ResetNotifier(visited);
         }
-
-        Notify(change);
-        NotifyCountChanged();
     }
 
     /// <inheritdoc />
@@ -596,16 +602,6 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
         NotifyCountChanged();
     }
 
-    /// <summary>Lets go of items taken out of the list, outside the lock.</summary>
-    private void ReleaseRemoved(T[] removedItems)
-    {
-        for (var i = 0; i < removedItems.Length; i++)
-        {
-            removedItems[i].DetachOwner(this);
-            removedItems[i].ResetNotifier();
-        }
-    }
-
     /// <summary>
     /// Removes every item <paramref name="match"/> picks, in one pass and one reindex, and emits one remove change per run of
     /// neighbouring items it took, in order; answers how many went.
@@ -766,12 +762,8 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
     }
 
     /// <inheritdoc />
-    protected internal override void SetNotifier(Action<RecursiveChange> notify, HashSet<RecursiveObservable>? visited = null)
+    protected internal override void PropagateNotifier(HashSet<RecursiveObservable> visited)
     {
-        base.SetNotifier(notify, visited);
-
-        visited ??= new HashSet<RecursiveObservable>(ReferenceEqualityComparer.Instance);
-
         T[] snapshot;
         ItemForwarder[] forwarders;
 

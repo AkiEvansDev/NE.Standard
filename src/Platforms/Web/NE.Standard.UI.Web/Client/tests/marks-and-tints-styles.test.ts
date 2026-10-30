@@ -1,7 +1,7 @@
-// Read back from the compiled stylesheet: a chosen row of a list on the page draws the brand's line on its leading edge while a
-// popup's list draws none, a current entry writes in the text's ink, a tint mixes over the mode's own ground at the mode's share,
-// the page has no brand glow, a disabled day still reads, a period with its caption inside reads from the trailing edge, and an
-// underlined picture row starts at the rule, and a validation mark's tooltip carries its severity down its leading edge in a straight bar.
+// Read back from the compiled stylesheet: a chosen row of a list or a vertical menu is a full rounded wash with 3rd-degree text and no
+// side bar (unless SelectionMark sets one), while a horizontal menu bar and a rail keep their 2px line; a folded menu group holding the
+// current page washes its header; a tint mixes over the mode's own ground at the mode's share; the page has no brand glow; and a
+// validation mark's tooltip carries its severity down its leading edge in a straight bar.
 
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -12,7 +12,7 @@ import less from "less";
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
-const leadingMark = "box-shadow: var(--ui-selected-mark, inset 2px 0 0 0 var(--ui-selected-mark-color, var(--ui-mark-selected)));";
+const defaultMark = "box-shadow: var(--ui-selected-mark, none);";
 
 /** The declarations of the first rule whose selector is exactly `selector`, or null. */
 function declarations(selector: string): string | null {
@@ -21,54 +21,49 @@ function declarations(selector: string): string | null {
     return start < 0 ? null : css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
 }
 
-test("a chosen row of a list on the page draws the brand's line on its leading edge; a wrapped tile draws none", () => {
+test("a chosen row of a list or a wrapped tile draws no leading bar unless SelectionMark sets one", () => {
     for (const row of [
         ".ui-items-view:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-selected]",
         ".ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-selected]",
         ".ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-selected]"
     ])
-        assert.ok((declarations(row) ?? "").includes(leadingMark), `${row} draws no leading mark`);
+        assert.ok((declarations(row) ?? "").includes(defaultMark), `${row} draws a default leading mark`);
 
     assert.match(declarations(".ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item[data-ui-selected] > [data-ui-id]") ?? "", /box-shadow: var\(--ui-selected-mark, none\);/);
 });
 
-test("a popup's list marks no line: a folded menu's flyout's current entry is its ground alone, rounded as its neighbours", () => {
-    const entry = declarations(".ui-menu .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item--selected") ?? "";
+test("a vertical menu marks no line, while a horizontal bar and a rail keep their edge line", () => {
+    const entry = declarations(".ui-menu-item--selected") ?? "";
 
-    assert.match(entry, /box-shadow: var\(--ui-selected-mark, none\);/);
-    assert.match(entry, /--ui-menu-entry-tl: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);[\s\S]*--ui-menu-entry-bl: calc\(var\(--ui-radius-button\) \* 2 \/ 3\);/);
+    assert.doesNotMatch(entry, /box-shadow/);
+    assert.match(declarations(".ui-menu.ui-orientation--horizontal .ui-menu-item--selected") ?? "", /box-shadow: var\(--ui-selected-mark, inset 0 -2px 0 0 var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\)\);/);
+    assert.match(declarations(".ui-menu.ui-menu--rail.ui-side--left .ui-menu-item--selected") ?? "", /box-shadow: var\(--ui-selected-mark, inset 2px 0 0 0 var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\)\);/);
     assert.doesNotMatch(declarations(".ui-select__option[aria-selected=\"true\"]") ?? "", /box-shadow/);
 });
 
-test("a folded group holding the current page wears a short, whole piece of the line on the current entry's edge, its words in the ink, by its mark", () => {
-    const mark = /\.ui-menu__item\[data-ui-menu-group\]\[data-ui-menu-holds-current\]:not\(\[data-ui-menu-open\]\) > \.ui-menu-item:not\(\.ui-menu-item--selected\)::before,[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+test("a folded group holding the current page washes its header and steps its ink up to 2nd degree; only a rail or horizontal bar draws the short line", () => {
+    const groupHeader = /\.ui-menu__item\[data-ui-menu-group\]\[data-ui-menu-holds-current\]:not\(\[data-ui-menu-open\]\) > \.ui-menu-item:not\(\.ui-menu-item--selected\),[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "";
 
-    assert.match(mark, /inset: var\(--ui-menu-group-mark-inset, 25% auto 25% 0\);/);
-    assert.match(mark, /width: var\(--ui-menu-group-mark-width, 2px\);/);
-    assert.match(mark, /background: var\(--ui-selected-mark-color, var\(--ui-mark-selected\)\);/);
-    assert.doesNotMatch(mark, /opacity/);
-    assert.doesNotMatch(/\.ui-menu__item\[data-ui-menu-group\]\[data-ui-menu-holds-current\]:not\(\[data-ui-menu-open\]\) > \.ui-menu-item:not\(\.ui-menu-item--selected\),[^{]*\{([^}]*)\}/.exec(css)?.[1] ?? "", /--ui-color-primary-ink/);
-    assert.match(declarations(".ui-menu.ui-side--right") ?? "", /--ui-menu-group-mark-inset: 25% 0 25% auto;/);
-    assert.match(declarations(".ui-menu:is(.ui-side--top, .ui-side--bottom, .ui-orientation--horizontal)") ?? "", /--ui-menu-group-mark-inset: auto 25% 0 25%;/);
+    assert.match(groupHeader, /background-image: linear-gradient\(var\(--ui-wash-descendant\), var\(--ui-wash-descendant\)\);/);
+    assert.match(groupHeader, /color: var\(--ui-faint-base, var\(--ui-color-on-surface\)\);/);
+    assert.match(css, /\.ui-menu:is\(\.ui-menu--rail, \.ui-orientation--horizontal\) \.ui-menu__item\[data-ui-menu-group\]\[data-ui-menu-holds-current\] > \.ui-menu-item:not\(\.ui-menu-item--selected\)::before/);
 });
 
-test("a current entry writes in the text's ink, never the brand's: the brand stays in its mark", () => {
-    const ink = "color: var(--ui-selected-foreground, var(--ui-faint-base, var(--ui-color-on-surface)));";
-
+test("a current entry writes in the 3rd-degree selected ink, never the brand's", () => {
     for (const entry of [
         ".ui-menu-item--selected",
         ".ui-button[data-ui-value-kind=\"pressed\"][aria-pressed=\"true\"]:not([data-ui-drawer-pin])",
         ".ui-language-switcher__choice:is([aria-checked='true'], [aria-selected='true'])",
         ".ui-theme-switcher__choice[aria-selected='true']"
     ])
-        assert.ok((declarations(entry) ?? "").includes(ink), `${entry} does not write in the text's ink`);
+        assert.match(declarations(entry) ?? "", /color: var\(--ui-selected-foreground,/, `${entry} does not write in the selected ink`);
 
     // A drawer's pin is a toggle only so an interaction can read it: held down it keeps the hover's wash, not the selected ground.
     assert.match(declarations("[data-ui-drawer-pin][aria-pressed=\"true\"]") ?? "", /background-image: linear-gradient\(var\(--ui-wash-hover\), var\(--ui-wash-hover\)\);/);
 
     assert.doesNotMatch(css, /\.ui-menu-item--selected(?: [^{),]*)? \{[^}]*--ui-color-primary-ink/);
     assert.doesNotMatch(declarations(".ui-multi-select .ui-select__option::after") ?? "", /--ui-color-primary-ink/);
-    assert.match(declarations(".ui-multi-select__chip:not(.ui-badge)") ?? "", /color: var\(--ui-color-primary-ink-on-tint\);/);
+    assert.match(declarations(".ui-multi-select__chip:not(.ui-badge)") ?? "", /color: var\(--ui-text-selected\);/);
 });
 
 test("a tint mixes over the mode's own ground at the mode's share", () => {

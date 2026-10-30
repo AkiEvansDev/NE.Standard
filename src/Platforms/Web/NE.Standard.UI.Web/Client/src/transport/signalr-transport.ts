@@ -1,10 +1,14 @@
-import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from "@microsoft/signalr";
-import { ServerChangeSet, ThemeColorsModel, UICommandExecutionResult, UICommandRequest, WebUIAttachRequest, WebUIAttachResult, WebUIChangeSetRequest, WebUIItemWindowRequest } from "../metadata/metadata-index";
-import type { ClientState } from "../runtime/client-state";
-import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../runtime/logger";
-import { AttachGate, CommandExpired, ConnectionDropped, pressAllowance } from "./attach-gate";
-import { ChangeSink, InboundOrder } from "./inbound-order";
-import { DefaultReconnectWindowMilliseconds, ReconnectLoop } from "./reconnect-loop";
+// `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
+import { HubConnectionBuilder, HubConnectionState, LogLevel } from "@microsoft/signalr";
+import type { HubConnection } from "@microsoft/signalr";
+import type { ServerChangeSet, ThemeColorsModel, UICommandExecutionResult, UICommandRequest, WebUIAttachRequest, WebUIAttachResult, WebUIChangeSetRequest, WebUIItemWindowRequest } from "../metadata/metadata-index.ts";
+import { isOnScreen } from "../state/client-state.ts";
+import type { ClientState } from "../state/client-state.ts";
+import { isDebugEnabled, logDebug, logElapsed, logError, logWarn } from "../metadata/logger.ts";
+import { AttachGate, CommandExpired, ConnectionDropped, pressAllowance } from "./attach-gate.ts";
+import { InboundOrder } from "./inbound-order.ts";
+import type { ChangeSink } from "./inbound-order.ts";
+import { DefaultReconnectWindowMilliseconds, ReconnectLoop } from "./reconnect-loop.ts";
 
 // A call waiting behind the attach longer than this is said in the console.
 const AttachStallWarningMilliseconds = 500;
@@ -62,6 +66,13 @@ export class SignalRTransport {
 
     // Pushes and the answers that carry changes, applied in the order they arrived.
     private readonly inbound: InboundOrder;
+    private readonly onOnline = (): void => this.reconnect?.wake();
+    private readonly onPageShow = (): void => this.reconnect?.wake();
+    private readonly onVisibilityChange = (): void => {
+        if (isOnScreen(document.visibilityState))
+            this.reconnect?.wake();
+    };
+    private disposed = false;
 
     /** `applyChanges` takes every change set an answer carries, in its turn; the answer resolves once it has, without them. */
     public constructor(windowId: string, applyChanges: ChangeSink, options: SignalRTransportOptions = {}) {
@@ -79,12 +90,9 @@ export class SignalRTransport {
         this.connection.onclose(error => this.closed(error));
 
         // The network back or the page on screen again: a try now beats the rest of a wait of up to half a minute.
-        window.addEventListener("online", () => this.reconnect?.wake());
-        window.addEventListener("pageshow", () => this.reconnect?.wake());
-        document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "visible")
-                this.reconnect?.wake();
-        });
+        window.addEventListener("online", this.onOnline);
+        window.addEventListener("pageshow", this.onPageShow);
+        document.addEventListener("visibilitychange", this.onVisibilityChange);
     }
 
     /** A connection closed under the page is started again until the server's retention runs out; one the page closed is said closed. */
@@ -92,13 +100,11 @@ export class SignalRTransport {
         this.started = false;
 
         if (this.stopping || this.gate.failure !== null || !this.connected) {
-            for (const handler of this.closedHandlers)
-                handler(error);
-
+            tellEach(this.closedHandlers, error, "a closed connection's handler failed.");
             return;
         }
 
-        void this.reconnectAsync(error);
+        void this.reconnectAsync(error).catch(failure => logError("reconnecting failed.", failure));
     }
 
     private async reconnectAsync(error?: Error): Promise<void> {
@@ -117,8 +123,7 @@ export class SignalRTransport {
         // Nothing may be sent until the runtime re-attaches: the new connection is attached to nothing.
         this.gate.rearm();
 
-        for (const handler of this.reconnectingHandlers)
-            handler(error);
+        tellEach(this.reconnectingHandlers, error, "a reconnecting handler failed.");
 
         const back = await loop.runAsync();
 
@@ -143,8 +148,7 @@ export class SignalRTransport {
 
         logWarn("reconnecting gave up: the server would have let the page's runtime go by now.", error);
 
-        for (const handler of this.closedHandlers)
-            handler(error ?? new Error("the connection to the server did not come back."));
+        tellEach(this.closedHandlers, error ?? new Error("the connection to the server did not come back."), "a closed connection's handler failed.");
     }
 
     public get instanceId(): string | null {
@@ -166,7 +170,7 @@ export class SignalRTransport {
         this.connection.on("ui.changes", this.inbound.pushed((payload: unknown, sender?: unknown) => handler(payload as ServerChangeSet, readRuntime(sender))));
     }
 
-    // Effects raised outside a command, a Direct runtime's command effects, and a background command's whole result, by its request id.
+    // Effects raised outside a command, and a background command's whole result, by its request id.
     public onCommandResult(handler: (result: UICommandExecutionResult, runtime: string | null) => void): void {
         this.connection.on("ui.commandResult", this.inbound.pushed((payload: unknown, sender?: unknown) => handler(payload as UICommandExecutionResult, readRuntime(sender))));
     }
@@ -234,6 +238,23 @@ export class SignalRTransport {
     public close(reason: Error): void {
         this.gate.close(reason);
         void this.stopAsync().catch(error => logWarn("stopping the lost connection failed.", error));
+    }
+
+    /** Detaches browser wake listeners and closes the underlying SignalR connection. */
+    public dispose(): void {
+        if (this.disposed)
+            return;
+
+        this.disposed = true;
+        window.removeEventListener("online", this.onOnline);
+        window.removeEventListener("pageshow", this.onPageShow);
+        document.removeEventListener("visibilitychange", this.onVisibilityChange);
+        this.reconnectingHandlers.length = 0;
+        this.reconnectedHandlers.length = 0;
+        this.closedHandlers.length = 0;
+        this.expiredHandlers.length = 0;
+        this.dropWatchers.clear();
+        this.close(new Error("the runtime was disposed."));
     }
 
     public async attachAsync(request: WebUIAttachRequest): Promise<WebUIAttachResult> {
@@ -431,5 +452,17 @@ export class SignalRTransport {
         }
 
         throw new Error(`SignalR connection is not ready. State: ${this.connection.state}.`);
+    }
+}
+
+/** Tells each handler, one that throws logged and passed over so the rest are still told, as the reconnected ones are. */
+function tellEach(handlers: readonly ((error?: Error) => void)[], error: Error | undefined, failure: string): void {
+    for (const handler of handlers) {
+        try {
+            handler(error);
+        }
+        catch (thrown) {
+            logError(failure, thrown);
+        }
     }
 }

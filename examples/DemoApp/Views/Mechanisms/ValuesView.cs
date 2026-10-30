@@ -53,7 +53,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "change.title",
             new TextInputComponent()
                 .SetTitle("demo.mechanisms.values.service-name")
-                .BindValue(nameof(ChangeGroupContext.Name), UIBindingScope.Relative)
+                .BindValue<ChangeGroupContext>(static x => x.Name, UIBindingScope.Relative)
                 .OnChange(nameof(ValuesController.NameChanged)),
             note: Words + "change.note",
             context: nameof(ValuesController.ChangeGroup),
@@ -66,7 +66,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
             new TextInputComponent()
                 .SetTitle("demo.mechanisms.values.trim.field")
                 .SetTrimInput()
-                .BindValue(nameof(TrimGroupContext.Name), UIBindingScope.Relative)
+                .BindValue<TrimGroupContext>(static x => x.Name, UIBindingScope.Relative)
                 .OnChange(nameof(ValuesController.TrimmedNameChanged)),
             note: Words + "trim.note",
             context: nameof(ValuesController.TrimGroup),
@@ -78,16 +78,16 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "filter.title",
             UILayout.Stack(12)
                 .AddChild(new TextInputComponent()
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetTitle("demo.mechanisms.values.filter.field")
                     .SetSearch("demo.mechanisms.values.filter.placeholder")
                     .SetDebounceMilliseconds(250)
-                    .BindValue(nameof(FilterGroupContext.Query), UIBindingScope.Relative)
+                    .BindValue<FilterGroupContext>(static x => x.Query, UIBindingScope.Relative)
                     .OnChange(nameof(ValuesController.Filter))
                 )
                 .AddChild(new ItemsViewComponent()
                     .SetSpacing(4)
-                    .BindItems(nameof(FilterGroupContext.Services), UIBindingScope.Relative)
+                    .BindItems<FilterGroupContext>(static x => x.Services, UIBindingScope.Relative)
                 ),
             note: Words + "filter.note",
             context: nameof(ValuesController.FilterGroup),
@@ -128,10 +128,10 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                 .AddChild(new TextInputComponent()
                     .SetTitle("demo.mechanisms.values.on-submit.field")
                     .SetFormId(OnSubmitFormId)
-                    .BindValue(nameof(OnSubmitGroupContext.Note), UIBindingScope.Relative, UIBindingMode.OnSubmit)
+                    .BindValue<OnSubmitGroupContext>(static x => x.Note, UIBindingScope.Relative, UIBindingMode.OnSubmit)
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("demo.mechanisms.values.on-submit.send")
                     .OnSubmit(OnSubmitFormId, nameof(ValuesController.SendNote))
@@ -170,23 +170,23 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                 .AddChild(new NumberInputComponent()
                     .SetTitle("demo.mechanisms.values.triggers.change")
                     .SetFormId(TriggersFormId)
-                    .BindValue(nameof(TriggersGroupContext.Limit), UIBindingScope.Relative)
+                    .BindValue<TriggersGroupContext>(static x => x.Limit, UIBindingScope.Relative)
                     .Validate(UIValidationTrigger.Change, UIComparisonOperator.Greater, 0, "demo.mechanisms.values.limit.zero")
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("demo.mechanisms.values.triggers.blur")
                     .SetFormId(TriggersFormId)
-                    .BindValue(nameof(TriggersGroupContext.Email), UIBindingScope.Relative)
+                    .BindValue<TriggersGroupContext>(static x => x.Email, UIBindingScope.Relative)
                     .Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "demo.mechanisms.values.email.invalid", UIValidationTrigger.Blur)
                 )
                 .AddChild(new TextInputComponent()
                     .SetTitle("demo.mechanisms.values.triggers.submit")
                     .SetFormId(TriggersFormId)
-                    .BindValue(nameof(TriggersGroupContext.Name), UIBindingScope.Relative)
+                    .BindValue<TriggersGroupContext>(static x => x.Name, UIBindingScope.Relative)
                     .Required("demo.mechanisms.values.name.required", UIValidationTrigger.Submit)
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("demo.mechanisms.values.triggers.check")
                     .OnSubmit(TriggersFormId, nameof(ValuesController.CheckTriggers))
@@ -203,12 +203,12 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                 .AddChild(new TextInputComponent()
                     .SetTitle("demo.mechanisms.values.owner-email")
                     .SetFormId(SubmitFormId)
-                    .BindValue(nameof(SubmitGroupContext.Email), UIBindingScope.Relative)
+                    .BindValue<SubmitGroupContext>(static x => x.Email, UIBindingScope.Relative)
                     .Required("demo.mechanisms.values.email.required", UIValidationTrigger.Submit)
                     .Regex("@orvane\\.example$", "demo.mechanisms.values.email.outside", UIValidationTrigger.Blur, UIValidationSeverity.Warning)
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("demo.mechanisms.values.submit.save")
                     .OnSubmit(SubmitFormId, nameof(ValuesController.SaveOwner))
@@ -225,11 +225,11 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                 .AddChild(new TextInputComponent()
                     .SetTitle("demo.mechanisms.values.owner-email")
                     .SetFormId(ServerFormId)
-                    .BindValue(nameof(ServerGroupContext.Email), UIBindingScope.Relative)
-                    .BindValidation(nameof(ServerGroupContext.EmailValidation), UIBindingScope.Relative)
+                    .BindValue<ServerGroupContext>(static x => x.Email, UIBindingScope.Relative)
+                    .BindValidation<ServerGroupContext>(static x => x.EmailValidation, UIBindingScope.Relative)
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("demo.mechanisms.values.server.claim")
                     .OnSubmit(ServerFormId, nameof(ValuesController.ClaimEmail))
@@ -247,7 +247,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                 .AddChild(new TextInputComponent()
                     .SetTitle("demo.mechanisms.values.service-name")
                     .SetFormId(UnderFormId)
-                    .BindValue(nameof(UnderFormGroupContext.Name), UIBindingScope.Relative)
+                    .BindValue<UnderFormGroupContext>(static x => x.Name, UIBindingScope.Relative)
                     .Required("demo.mechanisms.values.name.required", UIValidationTrigger.Submit)
                     .Regex("^[a-z0-9-]+$", "demo.mechanisms.values.name.pattern", UIValidationTrigger.Blur)
                     .ValidationInto(UnderFormErrorsId, ITextComponent.DescriptionProperty)
@@ -255,7 +255,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                 .AddChild(new TextInputComponent()
                     .SetTitle("demo.mechanisms.values.port")
                     .SetFormId(UnderFormId)
-                    .BindValue(nameof(UnderFormGroupContext.Port), UIBindingScope.Relative)
+                    .BindValue<UnderFormGroupContext>(static x => x.Port, UIBindingScope.Relative)
                     .Required("demo.mechanisms.values.port.required", UIValidationTrigger.Submit)
                     .Regex("^[0-9]{2,5}$", "demo.mechanisms.values.port.pattern", UIValidationTrigger.Blur)
                     .ValidationInto(UnderFormErrorsId, ITextComponent.DescriptionProperty)
@@ -266,7 +266,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                     .SetDescriptionColor(UIThemeColor.Danger)
                 )
                 .AddChild(new ButtonComponent()
-                    .SetType(UIButtonType.Primary)
+                    .SetVariant(UIButtonVariant.Primary)
                     .SetHorizontalAlignment(UIAlignment.Start)
                     .SetTitle("demo.mechanisms.values.under-form.create")
                     .OnSubmit(UnderFormId, nameof(ValuesController.CreateService))
@@ -284,7 +284,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateRowMarksGroup()
         => DemoUI.CreateExample(Words + "row-marks.title",
             new KeyValueActionComponent()
-                .BindItems(nameof(RowMarksGroupContext.Items), UIBindingScope.Relative)
+                .BindItems<RowMarksGroupContext>(static x => x.Items, UIBindingScope.Relative)
                 .AddValueInputTemplate("limit", new NumberInputComponent()
                     .Validate(UIValidationTrigger.Change, UIComparisonOperator.Greater, 0, "demo.mechanisms.values.limit.zero")
                 )
@@ -292,7 +292,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                     .Regex("@", "demo.mechanisms.values.owner.team", UIValidationTrigger.Change, UIValidationSeverity.Warning)
                 )
                 .AddValueInputTemplate("region", new TextInputComponent()
-                    .BindValidation(nameof(NotedRowItem.Note), UIBindingScope.Relative)
+                    .BindValidation<NotedRowItem>(static x => x.Note, UIBindingScope.Relative)
                 )
                 .EnableEditing(nameof(ValuesController.SaveMarkedRow)),
             note: Words + "row-marks.note",
@@ -304,7 +304,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateRowRulesGroup()
         => DemoUI.CreateExample(Words + "row-rules.title",
             new KeyValueActionComponent()
-                .BindItems(nameof(RowRulesGroupContext.Items), UIBindingScope.Relative)
+                .BindItems<RowRulesGroupContext>(static x => x.Items, UIBindingScope.Relative)
                 .AddValueInputTemplate("limit", new NumberInputComponent()
                     .SetShowStepper()
                     .SetStep(50)
@@ -323,7 +323,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "beside-list.title",
             UILayout.Stack(8)
                 .AddChild(new KeyValueActionComponent()
-                    .BindItems(nameof(BesideListGroupContext.Items), UIBindingScope.Relative)
+                    .BindItems<BesideListGroupContext>(static x => x.Items, UIBindingScope.Relative)
                     .AddValueInputTemplate("limit", new NumberInputComponent()
                         .SetShowStepper()
                         .Validate(UIValidationTrigger.Change, UIComparisonOperator.Greater, 0, "demo.mechanisms.values.limit.zero", UIValidationSeverity.Error)
@@ -352,7 +352,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
                 .SetTitle("demo.mechanisms.values.replicas")
                 .SetRange(1, 10)
                 .SetShowStepper()
-                .BindValue(nameof(NumberBoundsGroupContext.Replicas), UIBindingScope.Relative)
+                .BindValue<NumberBoundsGroupContext>(static x => x.Replicas, UIBindingScope.Relative)
                 .OnChange(nameof(ValuesController.ReplicasChanged)),
             note: Words + "number-bounds.note",
             context: nameof(ValuesController.NumberBoundsGroup),
@@ -365,7 +365,7 @@ internal sealed class ValuesView : DemoMechanismView, IUIViewDefinition
             new DateInputComponent()
                 .SetTitle("demo.mechanisms.values.keep-until")
                 .SetMax(DayBoundsGroupContext.Latest)
-                .BindValue(nameof(DayBoundsGroupContext.KeepUntil), UIBindingScope.Relative)
+                .BindValue<DayBoundsGroupContext>(static x => x.KeepUntil, UIBindingScope.Relative)
                 .OnChange(nameof(ValuesController.KeepUntilChanged)),
             note: Words + "day-bounds.note",
             context: nameof(ValuesController.DayBoundsGroup),

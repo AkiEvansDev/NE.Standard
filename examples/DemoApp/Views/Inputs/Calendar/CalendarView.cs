@@ -30,7 +30,7 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/inputs/calendar";
     protected override string Header => "demo.inputs.calendar.header";
     protected override string HeaderDescription => "demo.inputs.calendar.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(720,
@@ -42,20 +42,21 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
     private static CalendarComponent Bind(CalendarComponent calendar)
         => calendar
             .BindStandard()
-            .BindValue($"{DaysGroup}.{nameof(CalendarDaysGroupContext.Value)}")
-            .BindEndValue($"{DaysGroup}.{nameof(CalendarDaysGroupContext.EndValue)}")
-            .BindMin($"{DaysGroup}.{nameof(CalendarDaysGroupContext.Min)}")
-            .BindMax($"{DaysGroup}.{nameof(CalendarDaysGroupContext.Max)}")
-            .BindMarkedDays($"{DaysGroup}.{nameof(CalendarDaysGroupContext.MarkedDays)}")
-            .BindMarkedDaysOnly($"{DaysGroup}.{nameof(CalendarDaysGroupContext.MarkedDaysOnly)}")
-            .BindIsReadOnly($"{DaysGroup}.{nameof(CalendarDaysGroupContext.IsReadOnly)}")
+            .BindValue<CalendarController>(static x => x.DaysGroup.Value)
+            .BindEndValue<CalendarController>(static x => x.DaysGroup.EndValue)
+            .BindMinDistance<CalendarController>(static x => x.DaysGroup.MinDistance)
+            .BindMin<CalendarController>(static x => x.DaysGroup.Min)
+            .BindMax<CalendarController>(static x => x.DaysGroup.Max)
+            .BindMarkedDays<CalendarController>(static x => x.DaysGroup.MarkedDays)
+            .BindMarkedDaysOnly<CalendarController>(static x => x.DaysGroup.MarkedDaysOnly)
+            .BindIsReadOnly<CalendarController>(static x => x.DaysGroup.IsReadOnly)
             .BindTextContent(ContentGroup)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(DaysGroup, "Days", note: "Turning MarkedDaysOnly on, or moving a bound, moves the day and the period's end onto a day still on offer."),
+            DemoUI.CreateOptionSection(DaysGroup, "Days", note: "Turning MarkedDaysOnly on, or moving a bound, moves the day and the period's end onto a day still on offer. MinDistance takes the days too near the start off offer for the end."),
             DemoUI.CreateOptionSection(ContentGroup, "Content")
         );
 
@@ -66,7 +67,7 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
     /// <summary>One day, and a period chosen with two presses on one grid.</summary>
     private static ContainerComponent CreatePeriodGroup()
     {
-        return DemoUI.CreateExample("A day, and a period",
+        return DemoUI.CreateExample("Single date & range selection",
             UILayout.Row(32)
                 .AddChild(DemoUI.CreateLabelled("One day", new CalendarComponent()
                     .SetTitle("Release date")
@@ -88,7 +89,7 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
     /// <summary>A window of one quarter, and the week drawn from Sunday.</summary>
     private static ContainerComponent CreateBoundsGroup()
     {
-        return DemoUI.CreateExample("One quarter, weeks from Sunday",
+        return DemoUI.CreateExample("Date bounds & first day of week",
             new CalendarComponent()
                 .SetTitle("Inside the third quarter")
                 .SetFirstDayOfWeek(UIDayOfWeek.Sunday)
@@ -121,10 +122,10 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
     /// <summary>A press on a day raises the change event, so <c>OnChange</c> is what the day does.</summary>
     private static ContainerComponent CreateChangeGroup()
     {
-        return DemoUI.CreateExample("A press is the command",
+        return DemoUI.CreateExample("Selection command (OnChange)",
             new CalendarComponent()
                 .SetTitle("Show the deploys of")
-                .BindValue(nameof(CalendarPickGroupContext.Day), UIBindingScope.Relative)
+                .BindValue<CalendarPickGroupContext>(static x => x.Day, UIBindingScope.Relative)
                 .OnChange(nameof(CalendarController.Picked)),
             note: "`OnChange` runs on every press on a day, the day already on the bound value; the line under the calendar is the command's.",
             context: PickGroup

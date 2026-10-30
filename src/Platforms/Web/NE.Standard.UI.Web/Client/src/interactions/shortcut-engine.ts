@@ -6,14 +6,13 @@
 // unmodified key typed into a field is the text's, an open modal keeps everything outside it out of reach, and a chord claimed twice
 // fires neither.
 
-import { ContextMenuAttribute, MenuItemClass, MenuItemShortcutAttribute, ShortcutAttribute } from "../addressing/dom-attributes.ts";
+import { CommitInPlaceEventName, ContextMenuAttribute, MenuItemClass, MenuItemShortcutAttribute, MenuItemShortcutClass, ShortcutAttribute, TextTitleClass } from "../addressing/dom-attributes.ts";
 import type { WebUIMetadata } from "../metadata/metadata-index.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
-import { logWarn } from "../runtime/logger.ts";
+import { logWarn } from "../metadata/logger.ts";
 import { isShownEntry } from "./action-bar.ts";
 import { isCaretField, isFieldKey } from "./caret-fields.ts";
 import { contextMenuAt, keyboardPlace } from "./context-menu-engine.ts";
-import { CommitInPlaceEventName } from "./field-keys-engine.ts";
 import { isInert } from "./interactive-state.ts";
 import { onlyPressWaves } from "./press-wave.ts";
 import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
@@ -27,10 +26,10 @@ import { registerTooltipWords } from "./tooltip-engine.ts";
 const ViewShortcutPrefix = "shortcut:";
 
 // A menu entry's chord at its end, written by this engine in the reader's platform's words.
-const EntryShortcutSelector = ":scope > .ui-menu-item__shortcut";
+const EntryShortcutSelector = `:scope > .${MenuItemShortcutClass}`;
 const ContextMenuSelector = `[${ContextMenuAttribute}]`;
 const ShortcutSelector = `[${ShortcutAttribute}]`;
-const TitleSelector = ".ui-text__title";
+const TitleSelector = `.${TextTitleClass}`;
 
 /** A view's own chord: the event it is raised as and the component it is raised on, the view's content. */
 export type ViewShortcut = {
@@ -100,7 +99,7 @@ export class ShortcutEngine {
         if (this.stale || this.laterVersion !== (this.options.laterChords?.version ?? -1))
             this.rebuild();
 
-        // A key the field keeps â€” typing, and a caret's chord such as Ctrl+Left â€” is not the page's.
+        // A key the field keeps — typing, and a caret's chord such as Ctrl+Left — is not the page's.
         if ((this.claims.size === 0 && this.entryShortcuts.size === 0) || isFieldKey(domEvent))
             return;
 

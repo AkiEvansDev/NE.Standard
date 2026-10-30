@@ -5,15 +5,15 @@
 // Under the pointer it washes and presses only where no control of its own takes the pointer: `data-ui-inner-pointer` says so.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { ComponentIdAttribute, DisabledClass, FileTileClass, InnerPointerAttribute, LoadingClass, writeAttribute } from "../addressing/dom-attributes.ts";
+import { CardClass, ComponentIdAttribute, DisabledClass, FileTileClass, InnerPointerAttribute, LoadingClass, SurfaceClass, SurfaceClickableClass, writeAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isPlainKey, SpaceRelease } from "./keyboard-shortcut.ts";
 import { ControlSelector, isOwnControlOf, soleControlOf } from "./own-control.ts";
+import { isRovingStop } from "./row-cursor.ts";
 import { KeyboardRowsRootSelector, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
 // Component roots only: a picture of a surface (a select's chosen option) carries no id, and takes no press. A file tile is pressed as one.
-const SurfaceSelector = `:is(.ui-surface, .ui-card, .${FileTileClass})[${ComponentIdAttribute}]`;
-const ClickableClass = "ui-surface--clickable";
+const SurfaceSelector = `:is(.${SurfaceClass}, .${CardClass}, .${FileTileClass})[${ComponentIdAttribute}]`;
 
 /** What the pointer does on a control inside a clickable surface (or a column's edge in its caption): rests over it, or holds it pressed. */
 export type InnerPointer = "hover" | "press";
@@ -57,7 +57,7 @@ export class SurfacePressEngine {
     }
 
     private sync(surface: Element): void {
-        if (!surface.classList.contains(ClickableClass) || isLink(surface)) {
+        if (!surface.classList.contains(SurfaceClickableClass) || isLink(surface)) {
             if (this.pressable.delete(surface)) {
                 surface.removeAttribute("tabindex");
                 surface.removeAttribute("role");
@@ -71,8 +71,9 @@ export class SurfacePressEngine {
         // The role first: whether a row is this one surface reads it.
         writeAttribute(surface, "role", holdsControl(surface) ? "group" : "button");
 
-        // Its own disabled or loading state takes it out of the Tab order; a surface inside such a component is made inert already.
-        writeAttribute(surface, "tabindex", surface.matches(`.${DisabledClass}, .${LoadingClass}`) ? null : isRowsOneControl(surface) ? "-1" : "0");
+        // Its own disabled or loading state takes it out of the Tab order; a surface inside such a component is made inert already. A
+        // wrap list's tile that is the list's stop keeps the stop's.
+        writeAttribute(surface, "tabindex", surface.matches(`.${DisabledClass}, .${LoadingClass}`) ? null : isRowsOneControl(surface) && !isRovingStop(surface) ? "-1" : "0");
     }
 
     private handleKeyDown(domEvent: Event): void {
@@ -106,7 +107,7 @@ function pressedSurface(domEvent: Event): HTMLElement | null {
     const target = domEvent.target;
 
     // A row's one surface is no stop but takes the focus a press gives it, and the keys after it, as a button there does.
-    return target instanceof HTMLElement && target.classList.contains(ClickableClass) && target.hasAttribute("tabindex") && !isLink(target) ? target : null;
+    return target instanceof HTMLElement && target.classList.contains(SurfaceClickableClass) && target.hasAttribute("tabindex") && !isLink(target) ? target : null;
 }
 
 /** Whether the surface links to an address: an anchor, whose keys and role are the browser's. */
@@ -115,8 +116,8 @@ function isLink(surface: Element): boolean {
 }
 
 /**
- * Whether the surface is the one control its row is, in a list whose cursor presses it (items-selection-engine.ts): the list is
- * the stop then, as for a row that is one button, whichever engine reads the row first.
+ * Whether the surface is the one control its row is, in a list whose cursor presses it (items-selection-engine.ts): the list's stop is
+ * its cursor's then, as for a row that is one button, whichever engine reads the row first.
  */
 function isRowsOneControl(surface: Element): boolean {
     const row = surface.closest(SelectionRowSelector);
@@ -141,7 +142,7 @@ function holdsControl(surface: Element): boolean {
 function surfacesAround(control: Element | null): Element[] {
     const surfaces: Element[] = [];
 
-    for (let surface = control?.parentElement?.closest(`.${ClickableClass}`) ?? null; surface !== null; surface = surface.parentElement?.closest(`.${ClickableClass}`) ?? null)
+    for (let surface = control?.parentElement?.closest(`.${SurfaceClickableClass}`) ?? null; surface !== null; surface = surface.parentElement?.closest(`.${SurfaceClickableClass}`) ?? null)
         surfaces.push(surface);
 
     return surfaces;

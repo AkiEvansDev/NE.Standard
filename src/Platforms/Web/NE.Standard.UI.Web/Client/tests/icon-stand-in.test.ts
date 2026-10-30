@@ -32,7 +32,7 @@ installFakeDom({ Image: ProbeImage });
 
 const { webDomConverters } = await import("../src/rendering/web-dom-converters.ts");
 const { DomOperationRegistry } = await import("../src/updates/dom-operation-registry.ts");
-const { FailedRetryMilliseconds } = await import("../src/updates/icon-stand-in.ts");
+const { FailedRetryMilliseconds } = await import("../src/rendering/icon-stand-in.ts");
 type DomOperationContext = import("../src/updates/dom-operation-registry.ts").DomOperationContext;
 
 const Shown = "data-ui-text-icon";
@@ -48,7 +48,7 @@ function squareIcon(fallback?: string): { readonly host: FakeElement; readonly i
 }
 
 function textIcon(className: string, fallback: string | undefined): { readonly host: FakeElement; readonly icon: FakeElement } {
-    const icon = FakeElement.of(className, fallback === undefined ? {} : { "data-ui-fallback-icon": fallback }, "span");
+    const icon = FakeElement.of(className, fallback === undefined ? {} : { "data-ui-icon-fallback": fallback }, "span");
     const host = FakeElement.of("ui-text").append(icon);
 
     return { host, icon };

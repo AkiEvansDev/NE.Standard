@@ -23,22 +23,22 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/contents/file-tile";
     protected override string Header => "demo.contents.file-tile.header";
     protected override string HeaderDescription => "demo.contents.file-tile.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
 
     // The size in words under the tile, as a file's dialog heads it: a UIFileSize, which the page writes as the tile writes its own.
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame
             .AddChild(new FileTileComponent()
                 .BindStandard()
-                .BindFileName($"{FileGroup}.{nameof(FileTileGroupContext.FileName)}")
-                .BindFileSize($"{FileGroup}.{nameof(FileTileGroupContext.FileSize)}")
-                .BindContentType($"{FileGroup}.{nameof(FileTileGroupContext.ContentType)}")
-                .BindIcon($"{FileGroup}.{nameof(FileTileGroupContext.Icon)}")
-                .BindClickable($"{FileGroup}.{nameof(FileTileGroupContext.Clickable)}")
+                .BindFileName<FileTileController>(static x => x.FileGroup.FileName)
+                .BindFileSize<FileTileController>(static x => x.FileGroup.FileSize)
+                .BindContentType<FileTileController>(static x => x.FileGroup.ContentType)
+                .BindIcon<FileTileController>(static x => x.FileGroup.Icon)
+                .BindClickable<FileTileController>(static x => x.FileGroup.Clickable)
                 .SetPlacement(1, 1, 24, 1)
             )
             .AddChild(new TextComponent()
-                .BindTitle($"{FileGroup}.{nameof(FileTileGroupContext.SizeWords)}")
+                .BindTitle<FileTileController>(static x => x.FileGroup.SizeWords)
                 .SetTitleType(UITextAppearance.Caption)
                 .SetPlacement(1, 2, 24, 1)
             )
@@ -56,7 +56,7 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
     /// <summary>The files sent with a message, under its words: a press on one opens it.</summary>
     private static ContainerComponent CreateAttachmentsGroup()
     {
-        return DemoUI.CreateExample("A message's attachments",
+        return DemoUI.CreateExample("Clickable message attachments",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Tinted)
                 .SetPadding(UIThickness.Uniform(10))
@@ -98,7 +98,7 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
     /// <summary>Files the panel has ready for its reader, each a press away, under the card's heading.</summary>
     private static ContainerComponent CreateDownloadsGroup()
     {
-        return DemoUI.CreateExample("A list of downloads",
+        return DemoUI.CreateExample("Download cards & explicit ContentType",
             UICard.Create("Downloads", "Kept for a week, then deleted.", UILayout.Row(8)
                 .SetWrap(true)
                 .AddChild(new FileTileComponent()
@@ -133,12 +133,12 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateExportGroup()
     {
-        return DemoUI.CreateExample("While the server writes it",
+        return DemoUI.CreateExample("Loading state during server export",
             UILayout.Row(16)
                 .AddChild(new FileTileComponent()
                     .SetFileName("subscriptions-2026-10.csv")
-                    .BindFileSize(nameof(FileTileExportGroupContext.Size), UIBindingScope.Relative)
-                    .BindLoading(nameof(FileTileExportGroupContext.Busy), UIBindingScope.Relative)
+                    .BindFileSize<FileTileExportGroupContext>(static x => x.Size, UIBindingScope.Relative)
+                    .BindLoading<FileTileExportGroupContext>(static x => x.Busy, UIBindingScope.Relative)
                 )
                 .AddChild(UIButtons.Outline("Export again", DemoIcons.Outline(DemoIcons.Refresh))
                     .SetVerticalAlignment(UIAlignment.Center)
@@ -155,7 +155,7 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateUploadGroup()
     {
-        return DemoUI.CreateExample("What an upload sent",
+        return DemoUI.CreateExample("Uploaded files via DefaultFileTemplate",
             UILayout.Stack(12)
                 .AddChild(UILayout.Row(8)
                     .AddChild(new FileInputComponent()
@@ -163,8 +163,8 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
                         .SetMultiple(true)
                         .SetMaxFileSize(5 * 1024 * 1024)
                         .SetPlaceholder("Up to 5 MB each")
-                        .BindValue(nameof(FileTileUploadGroupContext.Value), UIBindingScope.Relative)
-                        .BindSelectionId(nameof(FileTileUploadGroupContext.SelectionId), UIBindingScope.Relative)
+                        .BindValue<FileTileUploadGroupContext>(static x => x.Value, UIBindingScope.Relative)
+                        .BindSelectionId<FileTileUploadGroupContext>(static x => x.SelectionId, UIBindingScope.Relative)
                         .SetWidth(UILayoutLength.Absolute(280))
                     )
                     .AddChild(UIButtons.Primary("Upload")
@@ -173,7 +173,7 @@ internal sealed class FileTileView : DemoComponentView, IUIViewDefinition
                     )
                 )
                 .AddChild(new ItemsViewComponent()
-                    .BindItems(nameof(FileTileUploadGroupContext.Files), UIBindingScope.Relative)
+                    .BindItems<FileTileUploadGroupContext>(static x => x.Files, UIBindingScope.Relative)
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetLayoutType(UIItemsLayoutType.Wrap)
                     .SetSpacing(4)

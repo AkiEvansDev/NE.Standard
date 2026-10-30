@@ -6,26 +6,42 @@ import {
 import type { ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
 import { resolveOperationElements } from "../addressing/operation-targets.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
-import type { ExtensionRegistry } from "../extensions/extension-registry.ts";
+import type { ConverterRegistry } from "../extensions/converters.ts";
+import type { RowDecoratorRegistry } from "./row-decorators.ts";
 import { getIdValue } from "../metadata/metadata-index.ts";
-import type { MetadataIndex, WebRenderBindingMetadata } from "../metadata/metadata-index.ts";
-import { shownValue } from "../runtime/client-strings.ts";
-import { logWarn } from "../runtime/logger.ts";
+import type { MetadataIndex, WebDomOperation, WebRenderBindingMetadata } from "../metadata/metadata-index.ts";
+import { shownValue } from "../rendering/client-strings.ts";
+import { logWarn } from "../metadata/logger.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
-import type { DomOperationRegistry } from "../updates/dom-operation-registry.ts";
-import { markupWords, readsMarkup } from "../updates/shown-words.ts";
+import { markupWords, readsMarkup } from "../rendering/shown-words.ts";
 import {
     isContentItem, readsDrawnRow, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty, tryResolveItemTemplateValue, tryWriteCollectionItem
 } from "./binding-template-evaluator.ts";
 import type { ItemStackEntry, ItemValueStep } from "./binding-template-evaluator.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 
+type TemplateExtensions = {
+    readonly converters: Pick<ConverterRegistry, "convert">;
+    readonly rowDecorators: Pick<RowDecoratorRegistry, "get">;
+};
+
+type TemplateOperations = {
+    apply(context: {
+        readonly resolved: ResolvedPropertyAddress;
+        readonly operation: WebDomOperation;
+        readonly target: Element;
+        readonly value: unknown;
+        readonly convertedValue: unknown;
+        readonly local?: boolean;
+    }): void;
+};
+
 export class ItemsTemplateRenderer {
     // Fields rather than parameter properties, which a type-stripping loader cannot run.
     private readonly metadata: MetadataIndex;
     private readonly templates: ItemsTemplateRegistry;
-    private readonly extensions: ExtensionRegistry;
-    private readonly operations: DomOperationRegistry;
+    private readonly extensions: TemplateExtensions;
+    private readonly operations: TemplateOperations;
     private readonly state: PropertyStateStore;
 
     // Keyed by each rendered item's own root element, so a scope is found by walking the DOM upwards.
@@ -43,7 +59,7 @@ export class ItemsTemplateRenderer {
     // A component root's selector by its id, built once rather than for every bound element of every row.
     private readonly componentSelectors = new Map<number, string>();
 
-    public constructor(metadata: MetadataIndex, templates: ItemsTemplateRegistry, extensions: ExtensionRegistry, operations: DomOperationRegistry, state: PropertyStateStore) {
+    public constructor(metadata: MetadataIndex, templates: ItemsTemplateRegistry, extensions: TemplateExtensions, operations: TemplateOperations, state: PropertyStateStore) {
         this.metadata = metadata;
         this.templates = templates;
         this.extensions = extensions;

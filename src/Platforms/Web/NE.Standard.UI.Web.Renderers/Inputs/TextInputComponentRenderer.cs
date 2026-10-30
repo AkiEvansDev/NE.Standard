@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Primitives.Styling;
@@ -19,12 +18,12 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
     private static readonly WebDomOperation[] PlaceholderOperations =
     [
         WebDomOperation.Attribute("placeholder", converter: WebDomConverters.PlaceholderText, convertsNull: true),
-        WebDomOperation.Attribute("aria-label", $"[{PlaceholderNamesAttribute}]", optional: true)
+        WebDomOperation.Attribute("aria-label", $"[{PlaceholderNamesAttribute}]", converter: WebDomConverters.NonEmptyText, optional: true)
     ];
 
     // Every field registers these same lists, so they are built once rather than per field.
     private static readonly WebDomOperation[] TypeOperations = [WebDomOperation.Attribute("type", converter: WebDomConverters.TextInputTypeAttribute)];
-    private static readonly WebDomOperation[] AutocompleteOperations = [WebDomOperation.Attribute("autocomplete")];
+    private static readonly WebDomOperation[] AutocompleteOperations = [WebDomOperation.Attribute("autocomplete", converter: WebDomConverters.NonBlankText)];
     private static readonly WebDomOperation[] InputModeOperations = [WebDomOperation.Attribute("inputmode", converter: WebDomConverters.InputModeAttribute)];
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Property("value")];
 
@@ -44,6 +43,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         RenderInputHeader(context, root, titleCanGoInside: true);
 
         NativeInputRendererBase.RenderClearable(context, root);
+        NativeInputRendererBase.RenderTriggers(context, root);
 
         FieldActionsRenderer.RenderActionsBelow(context, root, TextInputComponent.ActionsBelowProperty);
 
@@ -65,7 +65,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
             _ = row.Element("input", input =>
             {
                 _ = input.Class($"{ClassName}__field");
-                _ = input.Class("ui-field");
+                _ = input.Class(WebClassNames.Field);
 
                 _ = RenderProperty<UITextInputType?>(context, input, TextInputComponent.TypeProperty, static (target, value) =>
                 {

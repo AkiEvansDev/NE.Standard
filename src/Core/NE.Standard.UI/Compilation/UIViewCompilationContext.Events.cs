@@ -4,13 +4,19 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
@@ -35,6 +41,7 @@ internal sealed partial class UIViewCompilationContext
             {
                 UIEvent sourceEvent = component.Events[j];
                 EnsureServerEventAllowed(sourceEvent.Name);
+                EnsureEventFits(component, sourceEvent.Name);
                 EnsureCommandFits(component, sourceEvent);
 
                 events.Add(new CompiledUIEvent
@@ -112,6 +119,57 @@ internal sealed partial class UIViewCompilationContext
     private static bool IsLocalLifecycleEvent(string eventName)
         => eventName.StartsWith(EventNames.BeforePrefix, StringComparison.Ordinal)
         || eventName.StartsWith(EventNames.AfterPrefix, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Refuses a standard event on a component whose contract never raises it — <c>change</c> on a non-input, <c>expand</c> on a
+    /// non-expandable component, <c>search</c> on a non-search input, <c>enter</c>/<c>escape</c> on a non-text-entry input, or an item
+    /// event outside its item template — so a misplaced event fails when the view compiles rather than going unheard on the page.
+    /// </summary>
+    private void EnsureEventFits(IVisualComponent component, string eventName)
+    {
+        var needs = eventName switch
+        {
+            EventNames.Click when component is not (IButtonComponent or IClickableComponent or ITabItemComponent or IItemAbilitiesComponent)
+                && component.TypeKey != LinkComponent.ComponentTypeKey
+                && !IsItemsTemplateRootOf<IItemClickComponent>(component) => "a button, a clickable component, a tab item, or an item template of a host that clicks its items (IItemClickComponent)",
+            EventNames.Change when component is not IInputComponent => "an input (IInputComponent)",
+            EventNames.Expand or EventNames.Collapse when component is not IExpandableComponent => "an expandable component (IExpandableComponent: an expander, a collapsible panel, a menu entry)",
+            EventNames.Search when component.TypeKey != SearchComponent.ComponentTypeKey => "a search input (SearchComponent)",
+            EventNames.Enter or EventNames.Escape or EventNames.TriggerSearch or EventNames.TriggerSelect or EventNames.TriggerClick when component is not ITextEntryInputComponent => "a text input or a text area (ITextEntryInputComponent)",
+            EventNames.TabPin or EventNames.ItemMenuEntry when component is not ITabItemComponent => "a tab item template (ITabItemComponent)",
+            EventNames.Unfold when !IsItemsTemplateRootOf<IItemUnfoldComponent>(component) => "an item template of a host that unfolds its items (IItemUnfoldComponent: a tree)",
+            EventNames.Rename when component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemRenameComponent>(component) => "a tab item or an item template of a host that renames its items (IItemRenameComponent: a tree, a tabs view)",
+            EventNames.Move when component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemMoveComponent>(component) => "a tab item or an item template of a host that moves its items (IItemMoveComponent)",
+            EventNames.Remove when component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemRemoveComponent>(component) => "a tab item or an item template of a host that removes its items (IItemRemoveComponent)",
+            EventNames.Open when component.TypeKey != FlyoutComponent.ComponentTypeKey && !IsItemsTemplateRootOf<IItemOpenComponent>(component) => "a flyout or an item template of a host that opens its items (IItemOpenComponent)",
+            EventNames.Close when component.TypeKey != FlyoutComponent.ComponentTypeKey && !IsDialogContentRoot(component) => "a flyout or a dialog's content root (UIDialog.OnClose)",
+            _ => null
+        };
+
+        if (needs is not null)
+            throw new InvalidOperationException($"Component '{component.Id}' ({component.TypeKey}) cannot raise '{eventName}'; '{eventName}' is raised on {needs}.");
+
+        if (eventName is EventNames.TriggerSearch or EventNames.TriggerSelect or EventNames.TriggerClick && component is ITextEntryInputComponent { Triggers: not { Count: > 0 } })
+            throw new InvalidOperationException($"Component '{component.Id}' ({component.TypeKey}) registers '{eventName}' without any character triggers; add at least one trigger with AddTrigger or SetTriggers.");
+    }
+
+    private bool IsItemsTemplateRootOf<THost>(IVisualComponent component)
+        => _slotByRootComponentId.TryGetValue(component.Id, out UIComponentSlot? slot)
+            && IsItemsTemplateSlot(slot.Kind)
+            && _components[GetAuthoringId(slot.OwnerComponentId)] is THost;
+
+    private bool IsDialogContentRoot(IVisualComponent component)
+    {
+        UIComponentId id = GetComponentId(component.Id);
+
+        for (var i = 0; i < _dialogs.Count; i++)
+        {
+            if (_dialogs[i].RootComponentId == id)
+                return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Refuses an event whose command the controller does not declare, or which leaves a parameter the command cannot run without
@@ -198,7 +256,7 @@ internal sealed partial class UIViewCompilationContext
             {
                 Name = name,
                 Kind = CompiledUIActionArgumentKind.EventKey,
-                Value = CountItemScopes(component, componentContexts)
+                Value = CountItemScopes(component, componentContexts) + (argument.Value is int offset ? offset : 0)
             },
             UIActionArgumentKind.CurrentItem => BuildBindingActionArgument(component, name, argument.Kind, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.Binding, templatesByKey, componentContexts, rootPath),
             UIActionArgumentKind.CurrentItemKey => BuildBindingActionArgument(component, name, argument.Kind, UIBindingPath.Relative(RecursivePath.Empty), CompiledUIActionArgumentKind.CurrentItemKey, templatesByKey, componentContexts, rootPath),
@@ -270,12 +328,16 @@ internal sealed partial class UIViewCompilationContext
             if (slot.Kind == UIComponentSlotKind.GroupTemplate || slot.KeyProperty is not null)
                 return true;
 
-            if (_components[GetAuthoringId(slot.OwnerComponentId)] is ITemplatedComponent { TemplateKeyProperty: not null })
+            if (HasTemplateKeyProperty(_components[GetAuthoringId(slot.OwnerComponentId)]))
                 return true;
         }
 
         return false;
     }
+
+    private bool HasTemplateKeyProperty(IVisualComponent owner)
+        => owner is ITemplatedComponent templated
+            && (templated.TemplateKeyProperty ?? (TryGetPropertyDefinition(owner.TypeKey, ITemplatedComponent.TemplateKeyPropertyProperty, out UIPropertyDefinition? definition) ? definition.DefaultValue as string : null)) is not null;
 
     /// <summary>
     /// Whether the compile can prove no row of the component's template is ever drawn: it stands in the rows of a list bound to one

@@ -29,19 +29,19 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
             .SetPlacement(1, 1, 24, 1);
 
     /// <summary>The controls the rules read, on one band, each written into the address as it changes; the order at its far end.</summary>
-    /// <remarks>Its fields are Tonal: the band frames them, a toolbar's lone controls, not a form whose fields stack.</remarks>
+    /// <remarks>Its fields are Filled: the band frames them, a toolbar's lone controls, not a form whose fields stack.</remarks>
     private static SurfaceComponent CreateFilters()
         => UIPage.Band(
             UILayout.Row(16,
                 new TextInputComponent(SearchId)
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetSearch("Search the offers")
                     .SetDebounceMilliseconds(150)
-                    .BindValue(nameof(CatalogueController.Search))
+                    .BindValue<CatalogueController>(static x => x.Search)
                     .OnChange(nameof(CatalogueController.WriteAddress))
-                    .SetWidth(UILayoutLength.Absolute(200)),
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(200))),
                 new SelectComponent(RoleId)
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetPlaceholder("Any role")
                     .SetShowClearButton()
                     .SetOptions(
@@ -53,42 +53,42 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
                         new OptionItem { Id = CatalogueController.Queue, Title = "Queue" },
                         new OptionItem { Id = CatalogueController.Storage, Title = "Storage" }
                     ])
-                    .BindValue(nameof(CatalogueController.Role))
+                    .BindValue<CatalogueController>(static x => x.Role)
                     .OnChange(nameof(CatalogueController.WriteAddress))
-                    .SetWidth(UILayoutLength.Absolute(180)),
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(180))),
                 new SliderComponent(PriceId)
                     .SetTitle("Price, €/mo")
                     .SetIsRange()
                     .SetMin(0)
                     .SetMax(CatalogueController.Ceiling)
                     .SetStep(10)
-                    .BindValue(nameof(CatalogueController.MinPrice))
-                    .BindEndValue(nameof(CatalogueController.MaxPrice))
+                    .BindValue<CatalogueController>(static x => x.MinPrice)
+                    .BindEndValue<CatalogueController>(static x => x.MaxPrice)
                     .OnChange(nameof(CatalogueController.WriteAddress))
                     .SetShowValue(true)
-                    .SetWidth(UILayoutLength.Absolute(200)),
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(200))),
                 new SwitchComponent(AvailableId)
                     .SetTitle("In eu-north only")
-                    .BindValue(nameof(CatalogueController.InRegion))
+                    .BindValue<CatalogueController>(static x => x.InRegion)
                     .OnChange(nameof(CatalogueController.WriteAddress))
                     .SetVerticalAlignment(UIAlignment.Center),
                 new SelectComponent(SortId)
-                    .SetAppearance(UIInputAppearance.Tonal)
+                    .SetAppearance(UIInputAppearance.Filled)
                     .SetOptions(
                     [
                         new OptionItem { Id = CatalogueController.ByName, Title = "By name" },
                         new OptionItem { Id = CatalogueController.Cheapest, Title = "Cheapest first" },
                         new OptionItem { Id = CatalogueController.Dearest, Title = "Dearest first" }
                     ])
-                    .BindValue(nameof(CatalogueController.Sort))
+                    .BindValue<CatalogueController>(static x => x.Sort)
                     .OnChange(nameof(CatalogueController.WriteAddress))
-                    .SetWidth(UILayoutLength.Absolute(160)),
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(160))),
                 new TextComponent()
                     .SetIcon(DemoIcons.Outline(DemoIcons.Upload))
                     .SetTitle("Order")
                     .AsBody()
-                    .BindBadgeText(nameof(CatalogueController.OrderLine))
-                    .SetBadgeStyle(UIBadgeType.Primary)
+                    .BindBadgeTitle<CatalogueController>(static x => x.OrderLine)
+                    .SetBadgeVariant(UIBadgeVariant.Primary)
                     .SetVerticalAlignment(UIAlignment.Center)
             )
         );
@@ -99,7 +99,7 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
     /// </summary>
     private static ItemsViewComponent CreateShelf()
         => new ItemsViewComponent()
-            .BindItems(nameof(CatalogueController.Offers))
+            .BindItems<CatalogueController>(static x => x.Offers)
             .FilterBy(SearchId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Title))
             .FilterBy(RoleId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Role), UIComparisonOperator.Equal)
             .FilterBy(PriceId, IInputComponent.ValueProperty, nameof(DemoOfferItem.Price), UIComparisonOperator.GreaterOrEqual)
@@ -123,41 +123,41 @@ internal sealed class CatalogueView : DemoScreenView, IUIViewDefinition
     /// <summary>A share of the shelf's line rather than a fixed width, so the tiles end where the filter band does.</summary>
     private static SurfaceComponent CreateTile()
         => new SurfaceComponent()
-            .SetSurface(UISurfaceStyle.Raised)
+            .SetSurface(UISurfaceStyle.Surface)
             .SetPlacement(1, 1, 24, 1, sm: UIGridPlacement.At(1, 1, 12, 1), xl: UIGridPlacement.At(1, 1, 6, 1))
             .SetPadding(UIThickness.Uniform(0))
             .SetContent(UILayout.Stack(0,
                 new ImageComponent()
-                    .BindSource(nameof(DemoOfferItem.Image), UIBindingScope.Relative)
-                    .BindAltText(nameof(DemoOfferItem.Title), UIBindingScope.Relative)
+                    .BindSource<DemoOfferItem>(static x => x.Image, UIBindingScope.Relative)
+                    .BindAltText<DemoOfferItem>(static x => x.Title, UIBindingScope.Relative)
                     .SetFit(UIImageFit.Cover)
                     .SetHeight(UILayoutLength.Absolute(132))
                     .SetBorderRadius(UICornerRadius.Top(8)),
                 UILayout.Stack(10,
                     new TextComponent()
-                        .BindTitle(nameof(DemoOfferItem.Title), UIBindingScope.Relative)
+                        .BindTitle<DemoOfferItem>(static x => x.Title, UIBindingScope.Relative)
                         .AsSubtitle()
-                        .BindDescription(nameof(DemoOfferItem.Description), UIBindingScope.Relative)
+                        .BindDescription<DemoOfferItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted),
                     // The badge sits by the price, where there is room; beside the title it would cost the title its end.
                     // A plain row, not a Split: a Split flips on the viewport's width, which says nothing about a tile's own.
                     new ContainerComponent()
                         .SetColumn(24, UIGridUnit.Auto())
                         .AddChild(new TextComponent()
-                            .BindTitle(nameof(DemoOfferItem.PriceLine), UIBindingScope.Relative)
+                            .BindTitle<DemoOfferItem>(static x => x.PriceLine, UIBindingScope.Relative)
                             .AsSubtitle()
-                            .BindBadgeText(nameof(DemoOfferItem.BadgeText), UIBindingScope.Relative)
-                            .BindBadgeStyle(nameof(DemoOfferItem.BadgeStyle), UIBindingScope.Relative)
+                            .BindBadgeTitle<DemoOfferItem>(static x => x.BadgeTitle, UIBindingScope.Relative)
+                            .BindBadgeVariant<DemoOfferItem>(static x => x.BadgeVariant, UIBindingScope.Relative)
                             .SetVerticalAlignment(UIAlignment.Center)
                             .SetPlacement(1, 1, 23, 1)
                         )
                         .AddChild(new ButtonComponent()
-                            .SetType(UIButtonType.Ghost)
-                            .SetSize(UIButtonSize.Small)
+                            .SetVariant(UIButtonVariant.Ghost)
+                            .SetSize(UISize.Small)
                             .SetTitle("Add")
                             .SetMargin(UIThickness.All(8, 0, 0, 0))
                             .SetVerticalAlignment(UIAlignment.Center)
-                            .BindEnabled(nameof(DemoOfferItem.Available), UIBindingScope.Relative)
+                            .BindEnabled<DemoOfferItem>(static x => x.Available, UIBindingScope.Relative)
                             .OnClick(nameof(CatalogueController.AddToOrder), UIAction.ArgCurrentItemKey("id"))
                             .SetPlacement(24, 1, 1, 1)
                         )

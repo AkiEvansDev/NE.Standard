@@ -1,12 +1,12 @@
 // A toggle button: a press flips its pressed state and raises a `change`, sent like any field's.
 // Started before the event pipeline, so a click command from the same press already reads the new state.
 
-import { DrawerPinAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
+import { ButtonClass, DrawerPinAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
 import { isInert } from "./interactive-state.ts";
 
 /** A toggle button's value kind (`WebValueKinds.Pressed`): its value is `aria-pressed`. */
 export const PressedKind = "pressed";
-const ButtonSelector = `.ui-button[${ValueKindAttribute}="${PressedKind}"]`;
+const ButtonSelector = `.${ButtonClass}[${ValueKindAttribute}="${PressedKind}"]`;
 
 export type ToggleButtonEngineOptions = {
     readonly root?: ParentNode;

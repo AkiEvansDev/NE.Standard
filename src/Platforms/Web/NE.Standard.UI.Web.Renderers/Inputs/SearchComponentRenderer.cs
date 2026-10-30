@@ -27,14 +27,19 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 
     public override string ComponentTypeKey => SearchComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-search";
+    protected override string ClassName => WebClassNames.Search;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
+        var freeText = ReadRenderValue<bool?>(context, SearchComponent.AllowFreeTextProperty, null) == true;
+
         _ = root.Class(WebClassNames.Select);
+
+        if (freeText)
+            _ = root.Attribute(WebAttributes.SelectFreeText);
 
         RenderTooltip(context, root);
         TextContentRendererBase.RenderInputAppearance(context, root);
@@ -44,12 +49,12 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         WebRenderValueKind valueKind = SelectComponentRenderer.RenderSelectValue(context, root, out var currentValue, out CompiledUIBinding? valueBinding);
 
         RenderTemplates(context, root);
-        RegisterItemsTemplateMetadata(context, SelectComponentRenderer.OptionWrapperElementName, SelectComponentRenderer.OptionWrapperClassName);
+        RegisterItemsTemplateMetadata(context, SelectComponentRenderer.OptionWrapperElementName, SelectComponentRenderer.OptionWrapperClassName, itemWrapperRole: SelectComponentRenderer.OptionRole);
         RegisterItemsFilterSortMetadata(context);
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        SelectComponentRenderer.RenderTrigger(context, root, items, currentValue);
+        SelectComponentRenderer.RenderTrigger(context, root, items, currentValue, freeText);
         SelectComponentRenderer.RenderValueInput(context, root, valueKind, currentValue, valueBinding);
         SelectComponentRenderer.RenderPopup(context, root, items, isBound, head: popup => RenderSearchField(context, popup));
 
@@ -74,10 +79,10 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 
             _ = head.Element("div", field =>
             {
-                _ = field.Class("ui-search__field ui-field-box");
+                _ = field.Class($"{WebClassNames.SearchField} {WebClassNames.FieldBox}");
 
                 // An icon rather than a mark the stylesheet draws: an application's glyph map (MapUIGlyph) reaches it, as it reaches a search field's.
-                IconValueRenderer.RenderIcon(field, UIGlyphs.Search, $"ui-search__glyph {WebClassNames.IconSize(UIIconSize.Small)}");
+                IconValueRenderer.RenderIcon(field, UIGlyphs.Search, $"ui-search__glyph {WebClassNames.IconSize(UISize.Small)}");
 
                 _ = field.Element("input", input => RenderSearchInput(context, input));
             });
@@ -86,13 +91,14 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
 
     private static void RenderSearchInput(WebRenderContext context, IHtmlElementBuilder input)
     {
-        _ = input.Class("ui-search__input");
-        _ = input.Class("ui-field");
+        _ = input.Class(WebClassNames.SearchInput);
+        _ = input.Class(WebClassNames.Field);
         _ = input.Attribute("type", "search");
         NativeInputRendererBase.RenderFieldName(context, input, "search");
         _ = input.Attribute("autocomplete", "off");
 
-        // An editable combobox over the list below it: the engine names the list, says it is open and names the option the arrows mark.
+        // An editable combobox over the list below it: the engine points it at the list (aria-controls), says it is open and names the
+        // option the arrows mark.
         _ = input.Attribute("role", "combobox");
         _ = input.Attribute("aria-autocomplete", "list");
         _ = input.Attribute("aria-expanded", "false");

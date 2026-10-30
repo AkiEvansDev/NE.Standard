@@ -20,8 +20,6 @@ public static partial class UIStrings
     public const string PickerNow = "ui.picker.now";
     public const string PickerClear = "ui.picker.clear";
     public const string PickerDone = "ui.picker.done";
-    public const string PickerPrevious = "ui.picker.previous";
-    public const string PickerNext = "ui.picker.next";
     public const string PickerHours = "ui.picker.hours";
     public const string PickerMinutes = "ui.picker.minutes";
     public const string PickerSeconds = "ui.picker.seconds";
@@ -30,6 +28,12 @@ public static partial class UIStrings
     public const string PickerEnd = "ui.picker.end";
     public const string SliderFrom = "ui.slider.from";
     public const string SliderTo = "ui.slider.to";
+
+    /// <summary>A calendar's arrows, by the page they turn: a month in the days, a year in the months.</summary>
+    public const string PickerPreviousMonth = "ui.picker.month.previous";
+    public const string PickerNextMonth = "ui.picker.month.next";
+    public const string PickerPreviousYear = "ui.picker.year.previous";
+    public const string PickerNextYear = "ui.picker.year.next";
 
     /// <summary>The letter a year's digits read as in a date field's placeholder: <c>yyyy</c>, <c>гггг</c>.</summary>
     public const string PickerLetterYear = "ui.picker.letter.year";
@@ -89,10 +93,10 @@ public static partial class UIStrings
     /// <summary>Every search field's hint: a search's list field, a text input's <c>SetSearch</c>, a menu's search.</summary>
     public const string SearchField = "ui.search.field";
     public const string InputClear = "ui.input.clear";
-    public const string BreadcrumbsLabel = "ui.breadcrumbs.label";
+    public const string BreadcrumbsName = "ui.breadcrumbs.name";
 
     /// <summary>A pager's name, its four buttons, and a page's number button: <c>{page}</c>.</summary>
-    public const string PagerLabel = "ui.pager.label";
+    public const string PagerName = "ui.pager.name";
     public const string PagerFirst = "ui.pager.first";
     public const string PagerPrevious = "ui.pager.previous";
     public const string PagerNext = "ui.pager.next";
@@ -134,7 +138,7 @@ public static partial class UIStrings
     public const string ColorChoose = "ui.color.choose";
     public const string PickerOpen = "ui.picker.open";
     public const string FileChoose = "ui.file.choose";
-    public const string SplitterLabel = "ui.splitter.label";
+    public const string SplitterName = "ui.splitter.name";
 
     /// <summary>The name of a pane's grip, which carries the pane to another place in its pane container.</summary>
     public const string PaneMove = "ui.pane.move";
@@ -163,21 +167,20 @@ public static partial class UIStrings
     public const string ImageUnreadable = "ui.image.unreadable";
 
     /// <summary>The picture shown full size over the page (<c>ShowImageEffect</c>): its name, its set's arrows and counter.</summary>
-    public const string LightboxLabel = "ui.lightbox.label";
+    public const string LightboxName = "ui.lightbox.name";
     public const string LightboxPrevious = "ui.lightbox.previous";
     public const string LightboxNext = "ui.lightbox.next";
     public const string LightboxCounter = "ui.lightbox.counter";
 
-    /// <summary>A row's grip, which drags it (<c>DragHandle</c>).</summary>
-    public const string RowDrag = "ui.row.drag";
-    public const string TableResizeColumn = "ui.table.resize";
-    public const string TreeToggle = "ui.tree.toggle";
     public const string ItemsEmpty = "ui.items.empty";
     public const string CollapseToggle = "ui.collapse.toggle";
     public const string SideOpen = "ui.side.open";
 
-    /// <summary>The name of a side open as a drawer over the page, a dialog of its own, where nothing in it names it.</summary>
-    public const string SidePanel = "ui.side.panel";
+    /// <summary>The name of the left side's landmark, and of its drawer, where its menu has no name of its own.</summary>
+    public const string LeftPanel = "ui.side.left";
+
+    /// <summary>The name of the right side's landmark, and of its drawer, where its menu has no name of its own.</summary>
+    public const string RightPanel = "ui.side.right";
 
     /// <summary>The name of an open drawer's own switch, which puts the drawer away there rather than folding its side.</summary>
     public const string SideClose = "ui.side.close";
@@ -219,6 +222,13 @@ public static partial class UIStrings
     public const string ValueAtLeast = "ui.value.min";
     public const string ValueNotAfter = "ui.value.after";
     public const string ValueNotBefore = "ui.value.before";
+
+    /// <summary>A period's end typed nearer the other than its least distance and written back: the earliest end, the latest start it takes.</summary>
+    public const string ValueEndTooNear = "ui.value.near.end";
+    public const string ValueStartTooNear = "ui.value.near.start";
+
+    /// <summary>A day typed into a field that offers only its marked days, not one of them, and written back.</summary>
+    public const string ValueDayNotOffered = "ui.value.unmarked";
     public const string TreeLoading = "ui.tree.loading";
     public const string ConnectionLost = "ui.connection.lost";
     public const string ConnectionReload = "ui.connection.reload";
@@ -239,11 +249,27 @@ public static partial class UIStrings
     public const string LeaveStay = "ui.leave.stay";
 
     /// <summary>An action bar's name, and its "more" that opens the context menu it is a view of (<c>SetActionBar</c>).</summary>
-    public const string ActionBarLabel = "ui.actionbar.label";
+    public const string ActionBarName = "ui.actionbar.name";
     public const string ActionBarMore = "ui.actionbar.more";
 
     /// <summary>The row atop a list opened from a phone's sheet, back to the list under it: <c>{entry}</c> is the entry it opened from.</summary>
     public const string SheetBack = "ui.sheet.back";
+
+    /// <summary>A tab's close where the tab has a title, which <c>{title}</c> holds.</summary>
+    public const string TabsClose = "ui.tabs.close";
+
+    /// <summary>The cross over a shelf's square that names what it takes away: <c>{name}</c>, the picture's or the file's name.</summary>
+    public const string ShelfRemove = "ui.shelf.remove";
+
+    /// <summary>A toast's close, named by the toast: <c>{title}</c>, its title, else its message.</summary>
+    public const string NotificationClose = "ui.notification.close";
+
+    /// <summary>A spinner's name where it shows no words of its own.</summary>
+    public const string SpinnerLoading = "ui.spinner.loading";
+
+    /// <summary>A row's checkbox name for a screen reader, and the checkbox over the rows.</summary>
+    public const string TableSelectRow = "ui.table.select.row";
+    public const string TableSelectAll = "ui.table.select.all";
 
     private const string ColorNamePrefix = "ui.color.name.";
 
@@ -260,8 +286,10 @@ public static partial class UIStrings
         [PickerNow] = "Now",
         [PickerClear] = "Clear",
         [PickerDone] = "Done",
-        [PickerPrevious] = "Previous",
-        [PickerNext] = "Next",
+        [PickerPreviousMonth] = "Previous month",
+        [PickerNextMonth] = "Next month",
+        [PickerPreviousYear] = "Previous year",
+        [PickerNextYear] = "Next year",
         [PickerHours] = "Hours",
         [PickerMinutes] = "Minutes",
         [PickerSeconds] = "Seconds",
@@ -316,8 +344,8 @@ public static partial class UIStrings
         [SelectFull] = "No more than {max}.",
         [SearchField] = "Search",
         [InputClear] = "Clear",
-        [BreadcrumbsLabel] = "Breadcrumb",
-        [PagerLabel] = "Pages",
+        [BreadcrumbsName] = "Breadcrumb",
+        [PagerName] = "Pages",
         [PagerFirst] = "First page",
         [PagerPrevious] = "Previous page",
         [PagerNext] = "Next page",
@@ -346,7 +374,7 @@ public static partial class UIStrings
         [ColorChoose] = "Choose a colour",
         [PickerOpen] = "Open the picker",
         [FileChoose] = "Choose files",
-        [SplitterLabel] = "Resize",
+        [SplitterName] = "Resize",
         [PaneMove] = "Move the panel",
         [PaneGrip] = "Move {name}",
         [PaneLifted] = "Lifted: the arrow keys choose a place, Space or Enter puts the panel there, Escape puts it back",
@@ -363,17 +391,15 @@ public static partial class UIStrings
         [ImageCropApply] = "Done",
         [ImageCropCancel] = "Cancel",
         [ImageUnreadable] = "The picture could not be opened.",
-        [LightboxLabel] = "Picture",
+        [LightboxName] = "Picture",
         [LightboxPrevious] = "Previous picture",
         [LightboxNext] = "Next picture",
         [LightboxCounter] = "{index} of {count}",
-        [RowDrag] = "Reorder",
-        [TableResizeColumn] = "Resize column",
-        [TreeToggle] = "Expand or collapse",
         [ItemsEmpty] = "Nothing to show.",
         [CollapseToggle] = "Expand or collapse",
         [SideOpen] = "Open the side panel",
-        [SidePanel] = "Side panel",
+        [LeftPanel] = "Left panel",
+        [RightPanel] = "Right panel",
         [SideClose] = "Close the side panel",
         [SidePin] = "Pin the side panel",
         [ThemeSwitch] = "Switch theme",
@@ -398,6 +424,9 @@ public static partial class UIStrings
         [ValueAtLeast] = "At least {min}.",
         [ValueNotAfter] = "Not after {max}.",
         [ValueNotBefore] = "Not before {min}.",
+        [ValueEndTooNear] = "The end no earlier than {min}.",
+        [ValueStartTooNear] = "The start no later than {max}.",
+        [ValueDayNotOffered] = "That day cannot be chosen.",
         [TreeLoading] = "Loading…",
         [ConnectionLost] = "The connection to the server was lost. Reload the page to go on.",
         [ConnectionReload] = "Reload",
@@ -408,9 +437,15 @@ public static partial class UIStrings
         [LeaveMessage] = "The changes on this page are not saved and will be lost.",
         [LeaveConfirm] = "Leave",
         [LeaveStay] = "Stay",
-        [ActionBarLabel] = "Actions",
+        [ActionBarName] = "Actions",
         [ActionBarMore] = "More actions",
-        [SheetBack] = "Back from {entry}"
+        [SheetBack] = "Back from {entry}",
+        [TabsClose] = "Close {title}",
+        [ShelfRemove] = "Remove {name}",
+        [NotificationClose] = "Close {title}",
+        [SpinnerLoading] = "Loading",
+        [TableSelectRow] = "Select row",
+        [TableSelectAll] = "Select all rows"
     }).ToFrozenDictionary(StringComparer.Ordinal);
 
     /// <summary>

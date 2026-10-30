@@ -6,11 +6,11 @@
 // keyboard's row there, the target choosing the effect as a drop does. In a field the caret sits in the three keys stay the browser's.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ComponentKeyAttribute, cssAttributeValue, DragKindAttribute, ItemDropOverAttribute, TreeRootClass, TreeRowClass } from "../addressing/dom-attributes.ts";
+import { ComponentKeyAttribute, cssAttributeValue, DragKindAttribute, ItemDropOverAttribute, RowCutClass, TreeRootClass, TreeRowClass } from "../addressing/dom-attributes.ts";
 import { aheadOfAnswer } from "../events/ahead-of-answer.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
-import { resolveHostMode, windowOffset } from "../items/items-host-mode.ts";
-import type { PendingTransfer, PendingTransfers } from "../items/pending-transfers.ts";
+import { resolveHostMode, windowOffset } from "../addressing/items-host-mode.ts";
+import type { PendingTransfer, PendingTransfers } from "../state/pending-transfers.ts";
 import { leftAltogether, markDropBoxed } from "./drag-marks.ts";
 import { isInert } from "./interactive-state.ts";
 import type { ItemDrag, ItemDropEffect } from "./item-drags.ts";
@@ -26,9 +26,6 @@ import { dropFolderOf, markTreeDrop } from "./tree-drop.ts";
 
 /** What items of a kind dropped on a component are raised as on it, the kind after it (`EventNames.DropPrefix`). */
 export const DropEventPrefix = "drop:";
-
-// On the rows a Ctrl+X took, until they are pasted or let go of: the stylesheet dims them.
-const CutClass = "ui-row--cut";
 
 // By the key's place, not its letter: Ctrl+X is the same key on a Cyrillic layout. Cmd stands for Ctrl on a Mac.
 const CutKeys: KeyboardShortcut = { code: "KeyX", ctrl: true, shift: false, alt: false, meta: false };
@@ -317,7 +314,7 @@ export class ItemDragEngine {
 
     private letGo(): void {
         for (const row of this.clipboard?.items.rows ?? [])
-            (rowBox(row) ?? row).classList.remove(CutClass);
+            (rowBox(row) ?? row).classList.remove(RowCutClass);
 
         this.clipboard = null;
     }
@@ -372,7 +369,7 @@ export class ItemDragEngine {
         if (cut) {
             // On the box: a wrap's row has none of its own for the fade to show on.
             for (const taken of items.rows)
-                (rowBox(taken) ?? taken).classList.add(CutClass);
+                (rowBox(taken) ?? taken).classList.add(RowCutClass);
         }
     }
 }

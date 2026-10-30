@@ -144,8 +144,8 @@ internal sealed partial class WorkspaceSettingsController : UIControllerBase
     private static string Now()
         => DateTime.Now.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
 
-    private static UICommandResult Notify(string message, UIColorStyle severity)
-        => UICommandResult.Ok([new ShowNotificationEffect(message, severity)]);
+    private static UICommandResult Notify(string message, UIColorStyle tone)
+        => UICommandResult.Ok([new ShowNotificationEffect(message, tone)]);
 
     private static TextItem Text(KeyValueActionItem row)
         => (TextItem)row.Value;

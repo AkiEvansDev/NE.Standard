@@ -2,80 +2,36 @@
 // package's mark — in the page's language: each kept as it came and written with its mark, so a language switch writes it again.
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
-import { cssAttributeValue, FormIdAttribute, InvalidClass as ErrorClass, ListTriggerClass, PopupRoleSelector, TooltipAttribute, TooltipMarkAttribute, TooltipPlacementAttribute as PlacementAttribute, TooltipPressAttribute, TooltipSeverityAttribute, ValidationMessageAttribute as MessageAttribute } from "../addressing/dom-attributes.ts";
+import { cssAttributeValue, FormIdAttribute, InvalidClass as ErrorClass, PopupRoleSelector, ValidationMessageAttribute as MessageAttribute } from "../addressing/dom-attributes.ts";
 import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
 import { findOwningComponentAddress, readComponentId } from "../addressing/dom-registry.ts";
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { resolveValueHolder } from "../extensions/value-readers.ts";
-import { getIdValue, getInteractionOperator, getPropertyKeyName, getValidationTrigger } from "../metadata/metadata-index.ts";
-import type { MetadataIndex, ServerValidationUIUpdate, WebRenderPropertyReferenceMetadata, WebRenderValidationMetadata, WebValidationSeverityName } from "../metadata/metadata-index.ts";
-import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
+import { getIdValue, getPropertyKeyName, getValidationTrigger } from "../metadata/metadata-index.ts";
+import type { MetadataIndex, ServerValidationUIUpdate, WebRenderPropertyReferenceMetadata, WebRenderValidationMetadata } from "../metadata/metadata-index.ts";
 import { prefersReducedMotion } from "../rendering/motion.ts";
-import { clientStrings, forgetWords, readTextWords } from "../runtime/client-strings.ts";
-import type { AuthorText, Phrase } from "../runtime/words.ts";
-import { isPhrase } from "../runtime/words.ts";
-import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
-import type { UpdateProcessor } from "../updates/update-processor.ts";
+import { clientStrings, readTextWords } from "../rendering/client-strings.ts";
+import { isPhrase } from "../rendering/words.ts";
+import type { PropertyPatchTarget, PropertyValueChange } from "../state/property-state-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
-import { evaluateOperator } from "./interaction-evaluator.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
-import { numberBoundRefusal } from "./number-input-engine.ts";
-import { temporalBoundRefusal, TemporalRootSelector } from "./temporal-dom.ts";
-import { pinTooltip, updateTooltip } from "./tooltip-engine.ts";
-import { messageWords, readValidationMessage, toSeverityName } from "./validation-words.ts";
-import type { ValidationDisplay } from "./validation-words.ts";
+import { applyPresentation, applyValidationState, boundRefusalOf, FieldControlSelector, isSameWords, markInvalid, MarkSeverity, messageWords, passesRule, readValidationMessage, RenderedSelector, renderedSeverity, SeverityRank, TooltipSeverity, toSeverityName } from "./validation-words.ts";
+import type { FieldMarkSeverity, FieldMarkWords, ValidationDisplay } from "./validation-words.ts";
 
-const WarningClass = "ui-validation--warning";
-const InfoClass = "ui-validation--info";
-const MarkerClass = "ui-validation-message--marker";
-// Right edge on the mark: it sits at a field's corner at the end of a cell, where a centred tooltip would hang off the page.
-const MarkerPlacement = "top-end";
-// The copy's words stand beside its dot, after the value they speak of: above, they covered the row over it.
-const MirrorPlacement = "right";
-const MarkerHostProperty = "--ui-validation-marker-host";
-const MirrorClass = "ui-validation-mark";
-const PresentationProperty = "--ui-validation-presentation";
-const SeverityColorProperty = "--ui-validation-color";
+export type { FieldMarkSeverity, FieldMarkWords };
+
 const ValidationPropertyName = "Validation";
 /** The property a field's rules judge, and a rule against another field reads (`IInputComponent.Value`). */
 const ValuePropertyName = "Value";
 /** The properties a field's value stands in, and its bounds' (`IInputComponent.Value`, a period's end, `IBoundedInputComponent`). */
 const ValuePropertyNames: ReadonlySet<string> = new Set(["Value", "EndValue"]);
 const BoundPropertyNames: ReadonlySet<string> = new Set(["Min", "Max"]);
-/** The native controls a field reads its value through, which carry `aria-invalid` for the reader; a popup's own fields are not the field. */
-const FieldControlSelector = `input:not([type='hidden']), textarea, select, .${ListTriggerClass}[role='combobox'], [role='spinbutton']`;
-
-/** Highest first, which is the order two messages on one field are settled in. */
-const SeverityRank: Readonly<Record<WebValidationSeverityName, number>> = { Error: 0, Warning: 1, Info: 2 };
-
-const SeverityClass: Readonly<Record<WebValidationSeverityName, string>> = { Error: ErrorClass, Warning: WarningClass, Info: InfoClass };
-
-/** A field the server rendered a message on, which is how such a field is found before any patch names it. */
-const RenderedSelector = `.${ErrorClass}, .${WarningClass}, .${InfoClass}`;
-const SeverityColor: Readonly<Record<WebValidationSeverityName, string>> = { Error: "danger", Warning: "warning", Info: "info" };
-
-/** What a mark's tooltip wears for its severity (`data-ui-tooltip-severity`). */
-const TooltipSeverity: Readonly<Record<WebValidationSeverityName, FieldMarkSeverity>> = { Error: "error", Warning: "warning", Info: "info" };
-
-const MirrorSeverityClass: Readonly<Record<WebValidationSeverityName, string>> = {
-    Error: `${MirrorClass}--error`,
-    Warning: `${MirrorClass}--warning`,
-    Info: `${MirrorClass}--info`
-};
-
-/** A severity as the plugin surface spells it. */
-export type FieldMarkSeverity = "error" | "warning" | "info";
-
-/** A package's mark's words: a key filled from its arguments, or an author's text. */
-export type FieldMarkWords = Phrase | AuthorText;
 
 /** A package's own field marked through this engine: what the plugin surface hands out as `validation`. */
 export type FieldValidation = {
     mark(field: Element, severity: FieldMarkSeverity | null, words?: FieldMarkWords | null): void;
 };
-
-const MarkSeverity: Readonly<Record<FieldMarkSeverity, WebValidationSeverityName>> = { error: "Error", warning: "Warning", info: "Info" };
 
 const ConflictMark: ValidationDisplay = { message: { key: "ui.value.conflict" }, severity: "Warning" };
 
@@ -108,8 +64,8 @@ export type ValidationEngineOptions = {
     readonly root?: ParentNode;
     readonly metadata: MetadataIndex;
     readonly dom: DomRegistry;
-    readonly propertyPatchEngine: PropertyPatchEngine;
-    readonly updateProcessor?: UpdateProcessor;
+    readonly propertyPatchEngine: PropertyPatchTarget;
+    readonly updateProcessor?: { addValidationHandler(handler: (update: ServerValidationUIUpdate) => void): void };
     readonly valueReaders: ValueReaderRegistry;
     /** A field's value as its binding sends it — a number field's invariant text, whatever its culture shows; the readers' otherwise. */
     readonly readValue?: (element: Element) => unknown;
@@ -829,179 +785,4 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
         this.applyCurrentState(componentId, element);
     }
-}
-
-/**
- * Whether a value passes a rule as validation judges it, against what the rule compares with: every rule but `Required` passes on an
- * empty value, so a field left empty — tabbed through, never typed in — says only that it is required. An interaction's rules read
- * the shared evaluator as it is.
- */
-function passesRule(value: unknown, rule: Pick<WebRenderValidationMetadata, "operator">, comparand: unknown): boolean {
-    if (getInteractionOperator(rule.operator) !== "Required" && isEmptyValue(value))
-        return true;
-
-    return evaluateOperator(value, rule.operator, comparand);
-}
-
-/** Nothing given: what `Required` refuses, but a toggle's `false`, which is a value a rule may judge. */
-function isEmptyValue(value: unknown): boolean {
-    return value !== false && !evaluateOperator(value, "Required", null);
-}
-
-/** The words a field's value past its bounds is refused in: a number field's, a temporal control's or a calendar's; null for any other. */
-function boundRefusalOf(element: Element, read: (field: Element) => unknown): Phrase | null {
-    return numberBoundRefusal(element, read) ?? (element.matches(TemporalRootSelector) ? temporalBoundRefusal(element as HTMLElement) : null);
-}
-
-function isSameWords(standing: unknown, words: Phrase | null): boolean {
-    if (standing === undefined || words === null)
-        return standing === undefined && words === null;
-
-    return isPhrase(standing) && standing.key === words.key && JSON.stringify(standing.args) === JSON.stringify(words.args);
-}
-
-function renderedSeverity(element: Element): WebValidationSeverityName {
-    if (element.classList.contains(WarningClass))
-        return "Warning";
-
-    return element.classList.contains(InfoClass) ? "Info" : "Error";
-}
-
-function applyValidationState(mirrors: WeakMap<HTMLElement, HTMLElement>, element: Element, display: ValidationDisplay | undefined): void {
-    for (const className of Object.values(SeverityClass))
-        element.classList.toggle(className, display !== undefined && SeverityClass[display.severity] === className);
-
-    markInvalid(element, display?.severity === "Error");
-
-    const htmlElement = element as HTMLElement;
-
-    if (display === undefined)
-        htmlElement.style.removeProperty(SeverityColorProperty);
-    else
-        htmlElement.style.setProperty(SeverityColorProperty, `var(--ui-color-${SeverityColor[display.severity]}-ink)`);
-
-    // The field's own line before any inside it: a composite field (a code field's find box) holds fields with lines of their own.
-    const messageTarget = element.querySelector<HTMLElement>(`:scope > [${MessageAttribute}]`) ?? element.querySelector<HTMLElement>(`[${MessageAttribute}]`);
-
-    if (messageTarget === null)
-        return;
-
-    // Words marked content are written as they came and carry no mark, so a language switch leaves them alone.
-    if (display?.content === true) {
-        forgetWords(messageTarget, null);
-        messageTarget.textContent = String(display.message ?? "");
-    }
-    else {
-        clientStrings.writeValue(messageTarget, null, display?.message ?? null);
-    }
-
-    applyPresentation(mirrors, htmlElement, messageTarget, display);
-}
-
-/** Says on the field's native controls what `ui-invalid` says to the eye: only an error, since a warning leaves the value acceptable. */
-function markInvalid(element: Element, invalid: boolean): void {
-    for (const control of element.querySelectorAll(FieldControlSelector)) {
-        const popup = control.closest(PopupRoleSelector);
-
-        if (popup !== null && element.contains(popup))
-            continue;
-
-        if (invalid)
-            control.setAttribute("aria-invalid", "true");
-        else
-            control.removeAttribute("aria-invalid");
-    }
-}
-
-/** Reads where the stylesheet put the message — a line, or a mark speaking in a tooltip while the field holds focus. */
-function applyPresentation(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTMLElement, message: HTMLElement, display: ValidationDisplay | undefined): void {
-    const style = getComputedStyle(message);
-    const presentation = style.getPropertyValue(PresentationProperty).trim();
-    const marker = display !== undefined && presentation === "marker";
-
-    message.classList.toggle(MarkerClass, marker);
-
-    // A line or a mark alike leaves its copy in the value's cell, for the row once it closes; words sent elsewhere leave none.
-    applyMarkerMirror(mirrors, root, presentation === "elsewhere" ? undefined : display, message.textContent ?? "", style.getPropertyValue(MarkerHostProperty).trim());
-
-    if (display !== undefined && marker) {
-        // The line's own words, which the page wrote in its language — as text: the tooltip reads markup, and a message may quote
-        // the reader's value or a pattern.
-        message.setAttribute(TooltipAttribute, escapeInlineMarkup(message.textContent ?? ""));
-        message.setAttribute(PlacementAttribute, MarkerPlacement);
-        message.setAttribute(TooltipSeverityAttribute, TooltipSeverity[display.severity]);
-        root.setAttribute(TooltipMarkAttribute, "");
-
-        // A mark appearing as the reader types has no focus event coming to open it: it speaks straight away.
-        if (root.contains(document.activeElement))
-            pinTooltip(message);
-        else
-            updateTooltip(message);
-
-        return;
-    }
-
-    message.removeAttribute(TooltipAttribute);
-    message.removeAttribute(PlacementAttribute);
-    message.removeAttribute(TooltipSeverityAttribute);
-    root.removeAttribute(TooltipMarkAttribute);
-
-    // The mark may be the one on screen: with nothing left to say it closes rather than standing over the field with a stale line.
-    updateTooltip(message);
-}
-
-/** Copies the mark of a field sharing its cell with the value it edits into the value's cell; only one of the two is shown. */
-function applyMarkerMirror(mirrors: WeakMap<HTMLElement, HTMLElement>, root: HTMLElement, display: ValidationDisplay | undefined, words: string, hostClassName: string): void {
-    const existing = mirrors.get(root);
-    const host = display === undefined || hostClassName.length === 0 ? null : findMarkerHost(root, hostClassName);
-
-    if (display === undefined || host === null) {
-        if (existing !== undefined)
-            removeMarkerMirror(existing);
-
-        mirrors.delete(root);
-        return;
-    }
-
-    const mirror = existing ?? document.createElement("span");
-
-    // The mark's own text, hidden as the field's is: a reader on the value's line hears it there, not from a hidden field.
-    mirror.className = `${MirrorClass} ${MirrorSeverityClass[display.severity]}`;
-    mirror.textContent = words;
-    mirror.setAttribute(TooltipAttribute, escapeInlineMarkup(words));
-    mirror.setAttribute(PlacementAttribute, MirrorPlacement);
-    mirror.setAttribute(TooltipSeverityAttribute, TooltipSeverity[display.severity]);
-    mirror.setAttribute(TooltipPressAttribute, "");
-
-    if (mirror.parentElement !== host) {
-        removeMarkerMirror(mirror);
-        host.append(mirror);
-    }
-
-    // The whole value speaks through its dot, so the dot need not be aimed at: a hover anywhere on it, and a press, a touch's one way.
-    host.setAttribute(TooltipMarkAttribute, "");
-    mirrors.set(root, mirror);
-    updateTooltip(mirror);
-}
-
-/** Takes a copy out of its cell, and the cell's word for it with the last one. */
-function removeMarkerMirror(mirror: HTMLElement): void {
-    const host = mirror.parentElement;
-
-    mirror.remove();
-
-    if (host !== null && host.querySelector(`:scope > .${MirrorClass}`) === null)
-        host.removeAttribute(TooltipMarkAttribute);
-}
-
-/** The cell stands beside one of the field's own ancestors — a row of the same list — which is as far up as the search goes. */
-function findMarkerHost(root: HTMLElement, className: string): HTMLElement | null {
-    for (let node = root.parentElement; node !== null; node = node.parentElement) {
-        const host = node.querySelector<HTMLElement>(`:scope > .${className}`);
-
-        if (host !== null)
-            return host;
-    }
-
-    return null;
 }

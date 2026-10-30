@@ -29,7 +29,6 @@ public sealed class UIRouteDefinitionBuilder
         public required UIAccessRule[] AccessRules { get; init; }
         public required IUIViewFilter[] ViewFilters { get; init; }
         public required UIViewCompilationMode ViewCompilationMode { get; init; }
-        public required UIControllerUpdateMode ControllerUpdateMode { get; init; }
         public required int FlushIntervalMilliseconds { get; init; }
     }
 
@@ -44,7 +43,6 @@ public sealed class UIRouteDefinitionBuilder
     private string[]? _identityParameters;
 
     private UIViewCompilationMode? _viewCompilationMode;
-    private UIControllerUpdateMode? _controllerUpdateMode;
     private int? _flushIntervalMilliseconds;
 
     private UIRouteDefinitionBuilder(string route, string viewKey, Type viewType, Type? controllerType, Func<IServiceProvider, IUIView> factory)
@@ -150,20 +148,9 @@ public sealed class UIRouteDefinitionBuilder
     }
 
     /// <summary>
-    /// Sets the controller update mode and uses the runtime default flush interval.
+    /// Sets how often the route's controller changes are flushed to its pages, in place of the application's flush interval.
     /// </summary>
-    public UIRouteDefinitionBuilder ControllerUpdates(UIControllerUpdateMode mode)
-    {
-        _controllerUpdateMode = mode;
-        _flushIntervalMilliseconds = -1;
-
-        return this;
-    }
-
-    /// <summary>
-    /// Sets the controller update mode and route-specific flush interval.
-    /// </summary>
-    public UIRouteDefinitionBuilder ControllerUpdates(UIControllerUpdateMode mode, TimeSpan interval)
+    public UIRouteDefinitionBuilder FlushInterval(TimeSpan interval)
     {
         if (interval <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(interval), interval, "Flush interval must be greater than zero.");
@@ -173,7 +160,6 @@ public sealed class UIRouteDefinitionBuilder
         if (milliseconds > int.MaxValue)
             throw new ArgumentOutOfRangeException(nameof(interval), interval, "Flush interval is too large.");
 
-        _controllerUpdateMode = mode;
         _flushIntervalMilliseconds = checked((int)milliseconds);
 
         return this;
@@ -207,7 +193,6 @@ public sealed class UIRouteDefinitionBuilder
             ViewFilters = defaults.ViewFilters,
 
             ViewCompilationMode = viewMode,
-            ControllerUpdateMode = _controllerUpdateMode ?? defaults.ControllerUpdateMode,
             FlushIntervalMilliseconds = _flushIntervalMilliseconds ?? defaults.FlushIntervalMilliseconds
         };
 
@@ -249,7 +234,6 @@ public sealed class UIRouteDefinitionBuilder
             ViewFilters = ReadViewFilters(viewType, controllerType),
 
             ViewCompilationMode = viewRuntime?.CompilationMode ?? UIViewCompilationMode.Startup,
-            ControllerUpdateMode = controllerRuntime?.UpdateMode ?? UIControllerUpdateMode.Batch,
             FlushIntervalMilliseconds = controllerRuntime?.FlushIntervalMilliseconds ?? -1
         };
     }
@@ -349,6 +333,7 @@ public sealed class UIRouteDefinitionBuilder
                 filters.Add(new UIViewFilterFactoryAdapter(factory));
         }
     }
+
     private static Func<CompiledView> CreateViewGetter(UIViewCompilationMode mode, UIViewFactory factory)
     {
         return mode switch

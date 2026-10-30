@@ -23,60 +23,68 @@ with the item models and the enums on their own pages beside it.
 - `SurfaceComponent` - one framed region (fill, edge, radius; `OnClick`/`OnClickWithItemKey` makes it pressable, `OnClickShowImage`,
   `SetUrl` makes it a link; `SetClickable(false)` turns a click off).
 - `CardComponent` - a surface with a header and footer band; `CardHeaderRegion` draws its header.
-- `ExpanderComponent` - a header that folds its content; `ExpanderHeaderRegion` draws the header.
+- `ExpanderComponent` - a header that folds its content; `ExpanderHeaderRegion` draws the header. `OnExpand`/`OnCollapse` (with
+  bound or literal arguments: `OnExpandLiteral`/`OnCollapseLiteral`) on a person's fold, as on every `IExpandableComponent`.
 - `AccordionComponent` - expanders of which one is open at a time.
-- `CollapsiblePanelComponent` - a panel folding to an edge (a sidebar, a properties pane, a log) with its own switch.
-- `FlyoutComponent` - a popup anchored to another component.
+- `CollapsiblePanelComponent` - a panel folding to an edge (a sidebar, a properties pane, a log) with its own switch; a press on
+  it raises `OnExpand`/`OnCollapse`, a pushed `Expanded` neither.
+- `FlyoutComponent` - a popup anchored to another component; its panel is named by the anchor's button unless `AccessibleName`
+  names it; `IsOpen` two-way, `OnClose` only for a person's dismissal (the anchor, a press outside, Escape), never the page's take-down.
 - `GridSplitterComponent` - a dragged track boundary; `BindPosition` keeps the share in the controller.
 - `PaneContainerComponent` - panes the reader moves between places by a grip; `AddPane`, `BindLayout`.
 
 ## Contents
 
-- `TextComponent` - an icon, a title, a description and a badge, one line each unless told to wrap; `TitleType` is its role.
+- `TextComponent` - an icon, a title, a description and a badge, one line each unless told to wrap; `TitleType` is its role and `SetHeadingLevel(1..6)` renders `.ui-text__title` as `<h1>`–`<h6>`.
 - `ParagraphComponent` - text meant to be read, wrapping, `MaxLines`.
 - `IconComponent`, `ImageComponent`, `BadgeComponent`, `SeparatorComponent`. A picture with no picture - no address, an empty one,
-  one that fails - draws a glyph (`UIGlyphs.Person` in a circle, `UIGlyphs.Image` otherwise); `FallbackIcon`/`IconFallback`
+  one that fails - draws a glyph (`UIGlyphs.Person` in a circle, `UIGlyphs.Image` otherwise); `IconFallback`
   replaces it, and an image tries `FallbackSource` first.
 - `LinkComponent` - an address the platform opens (only safe schemes survive).
 - `StatusComponent` - a page's state in place of its content (not found, refused, failed); `UIPage.Status` builds it.
 - `TimestampComponent` - a moment in the reader's zone and language, a day, a time or how long ago, kept current by the page.
 - `FileTileComponent` - a file as a tile: glyph, name, size; `OnClickWithItemKey(command)` for a row's tile, `SetUrl` a link to the file. The same size in any
   other text is a `UIFileSize` phrase argument.
-- `KeyValueActionComponent` - key/value rows with an optional trailing action (`KeyValueActionItem`); `UIDetails` builds lists.
+- `KeyValueActionComponent` - key/value rows with an optional trailing action (`KeyValueActionItem`), edited in place with `EnableEditing` (an unnamed value-input template is named by `Key.Title`); `UIDetails` builds lists.
 
 ## Actions
 
 - `ButtonComponent` - `OnClick`, `OnClickWithItemKey`, `OnClickShowingLoading`, `OnSubmit(formId, command)`,
-  `OnSubmitShowingLoading(formId, command)`, `SetType(UIButtonType.*)`, `SetShortcut`, `SetUrl` (the button's look on a link).
+  `OnSubmitShowingLoading(formId, command)`, `SetVariant(UIButtonVariant.*)`, `SetShortcut`, `SetUrl` (the button's look on a link).
 - `ActionComponent` - a full-width row that runs a command, with a chevron and a value; the row a list jumps to (`SetUrl`: a link).
 - `SplitButtonComponent` - a main press and a menu at its end.
 - `CommandBarComponent` - a toolbar of button items that folds what does not fit; a standard one is
-  `UIStandardAction.Delete.ToButtonItem(id, type, iconOnly)`, as `ToMenuItem(id)` is a menu's.
-- `ThemeSwitcherComponent`, `LanguageSwitcherComponent` - the reader's theme and language, as a button or a field.
+  `UIStandardAction.Delete.ToButtonItem(id, variant, iconOnly)`, as `ToMenuItem(id)` is a menu's.
+- `ThemeSwitcherComponent`, `LanguageSwitcherComponent` - the reader's theme and language, as a button (`ButtonVariant`) or a
+  field (`AsField()`, its box `FieldVariant`).
 
 ## Inputs
 
 All share `Value` (two-way), `Title` (the caption above), `SetHelp`, the validation rules and `OnChange`/`OnBlur` (with bound
 arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a box
 (`IFieldInputComponent`: text, number, select, date and time, file, colour, image) takes `Appearance`
-(`UIInputAppearance.Filled`/`Outline`/`Underline`/`Ghost`/`Tonal`); a checkbox, a switch, a radio group, a slider and a calendar have none.
+(`UIInputAppearance.Filled`/`Outline`/`Underline`/`Ghost`); a checkbox, a switch, a radio group, a slider and a calendar have none.
 
-- `TextInputComponent`, `TextAreaComponent`, `NumberInputComponent`, `SliderComponent` (one value or a range).
-- `CheckboxComponent`, `SwitchComponent`, `RadioGroupComponent`.
-- `SelectComponent`, `MultiSelectComponent`, `BadgeSelectComponent` (badges chosen into the field), `SearchComponent` (a select
-  with a search field; `OnSearch` asks the server).
+- `TextInputComponent`, `TextAreaComponent` (inline `@`/`/` trigger suggestions and pill tokens via `AddTrigger`, `SetTriggerItems`/`BindTriggerItems` of `UITextTriggerItem`, `OnTriggerSearch`, `OnTriggerSelect` and `OnTriggerClick`), `NumberInputComponent`, `SliderComponent` (one value or a range; its value on `Step` from `Min`, 1 unless set).
+- `CheckboxComponent`, `SwitchComponent`, `RadioGroupComponent` (`ItemMinWidth` stands its radios in even columns, as a wrap
+  panel's children).
+- `SelectComponent`, `MultiSelectComponent`, `SearchComponent` (a select with a popup search field; `OnSearch` asks the server, and `SetAllowFreeText()` lets `Enter` in the popup search field commit a typed value not in `Options`). A
+  multi-select's `SetVariant(UIMultiSelectVariant…)` draws it as `Chips` (the default), `Badges` (each option its badge, chosen
+  into the field as the badge) or `Checkboxes` (a box per option in place, no list; `Orientation`/`Spacing`/`ItemMinWidth` as a radio group's;
+  no free text). `SetVariant` installs the variant's option template unless one of your own is set.
 - `DateInputComponent`, `TimeInputComponent`, `DateTimeInputComponent`, `CalendarComponent` (a month in place, a day or a period).
-- `ColorInputComponent` - a palette colour or one picked freely.
-- `FileInputComponent`, `ImageInputComponent` - upload on pick, `SelectionId`; the image input is an avatar, a drop area, a row
-  or a shelf of thumbnails.
+  A period (`SetIsRange()`) keeps its ends `SetMinDistance(TimeSpan)` apart, as a range slider keeps its handles; a date's in whole days, a time's under a day.
+- `ColorInputComponent` - a colour picked freely in an always-available picker, with `ShowPalette` optionally adding a palette tab and `Picker | Palette` switcher.
+- `FileInputComponent` (`UIFileInputVariant`: `Row`, `Tiles` or `Shelf`, binding `SelectionId` or `SelectionIds`), `ImageInputComponent` (`UIImageInputVariant`: `Picture`, `Avatar` or `Inline`, plus `SetMultiple(true)` for a multi-picture shelf) - upload on pick.
 
 ## Items
 
 - `ItemsViewComponent` - a collection held whole, virtualized or windowed from a source (`BindSource`), grouped, scrolled,
   laid out any way; `SetTemplate`, `AnchorToEnd`, `SetLoadingLook`.
-- `TableComponent` - rows under a header, a template per column, filters and sorts by rule, selection.
+- `TableComponent` - rows under a header, a template per column, filters and sorts by rule, selection (`SelectionMode = Many` adds a leading checkbox column with `Shift+Click` range selection and a three-state select-all header box); each row named by its
+  header cell, the first captioned column or `SetRowHeaderColumn(key)`.
 - `TreeComponent` with `TreeNodeComponent` - thin rows with a glyph and a title over `TreeNode` items; inline rename
-  (`RenameNodeEffect`), moves; for a small set or folders loaded as they open (`HasChildren` + `OnNodeUnfold`), never virtualized.
+  (`RenameItemEffect`), moves; for a small set or folders loaded as they open (`HasChildren` + `OnItemUnfold`), never virtualized.
 - `PagerComponent` - the pages of a paged list (`SetPaging(true)` on its list).
 
 Built-in item models: `TextItem`, `TextBaseItem`, `ButtonItem`, `MenuItem`, `TabItem`, `BreadcrumbItem`, `BadgeItem`,
@@ -87,15 +95,16 @@ Built-in item models: `TextItem`, `TextBaseItem`, `ButtonItem`, `MenuItem`, `Tab
 
 ## Navigation
 
-- `MenuComponent` with `MenuItemComponent` - navigation entries, folding to icons or standing as a rail (`UIMenuDisplay.Rail`).
+- `MenuComponent` with `MenuItemComponent` - navigation entries and nested submenus (`SetSubmenuDepth(1..4)`, auto-sized for static items), folding to icons or standing as a rail (`UIMenuDisplay.Rail`);
+  its switch raises `OnExpand`/`OnCollapse`, a section of entries opening neither.
 - `TabsComponent` with `TabItemComponent` and `TabCaptionComponent` - fixed pages under captions; `TabCaptionRegion` draws a caption.
-- `TabsViewComponent` - document tabs over a collection, renamed in place (`RenameTabEffect`).
-- `BreadcrumbsComponent` with `BreadcrumbItemComponent` - the trail back.
+- `TabsViewComponent` - document tabs over a collection, renamed in place (`RenameItemEffect`).
+- `BreadcrumbsComponent` with `BreadcrumbItemComponent` - the trail back. `StepsComponent` - numbered wizard steps over `TextItem`s, one current by `SelectedKey` and the ones before it completed, auto-switching from horizontal to vertical when container width runs short.
 - `ButtonGroupComponent` - segments pressed flush, one current: a view's mode.
 
 ## Indicators
 
-- `ProgressComponent` (linear or circular), `SpinnerComponent`.
+- `ProgressComponent` (linear or circular), `SpinnerComponent` (with no title or `AccessibleName`, it says "Loading").
 
 ## Add-on components
 

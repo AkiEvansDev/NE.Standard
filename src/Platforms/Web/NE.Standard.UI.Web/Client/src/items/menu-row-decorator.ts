@@ -1,14 +1,13 @@
 // The client's half of MenuComponentRenderer.RenderSubmenu: a client-built row gets its kind's mark and its sub-entries in the same
 // wrapper under the entry; the two must stay one shape, since the group engine and the stylesheet both read it.
 
-import { MenuGroupAttribute, MenuOpenAttribute, MenuPassiveRowAttribute, MenuSelectAttribute } from "../addressing/dom-attributes";
-import { logWarn } from "../runtime/logger";
-import { tryReadItemProperty } from "./binding-template-evaluator";
-import { applyItemParameterAttributes } from "./items-template-renderer";
-import { RowDecoratorContext, RowDecoratorRegistration } from "./row-decorators";
+import { HrefAttribute, MenuEntryActingAttribute, MenuGroupAttribute, MenuOpenAttribute, MenuPassiveRowAttribute, MenuSelectAttribute, MenuSubmenuClass } from "../addressing/dom-attributes.ts";
+import { logWarn } from "../metadata/logger.ts";
+import { tryReadItemProperty } from "./binding-template-evaluator.ts";
+import { applyItemParameterAttributes } from "./items-template-renderer.ts";
+import type { RowDecoratorContext, RowDecoratorRegistration } from "./row-decorators.ts";
 
 const SubmenuVariantKey = "Submenu";
-const SubmenuClass = "ui-menu__submenu";
 const SelectKind = "Select";
 const PassiveKinds: readonly unknown[] = ["Header", "Separator"];
 
@@ -18,6 +17,13 @@ function decorateMenuRow(context: RowDecoratorContext): void {
     // A caption's or a rule's row takes its own width along a bar, not an entry's.
     if (PassiveKinds.includes(readItemProperty(context.item, "Kind")))
         context.row.setAttribute(MenuPassiveRowAttribute, "");
+
+    // A page-standing entry that acts is a button while its row holds no address, an anchor's link while it does: the server writes
+    // the mark for such an entry, and the refusal engine follows an address that comes or goes later.
+    const acting = context.row.querySelector(`:scope > [${MenuEntryActingAttribute}]`);
+
+    if (acting !== null && !acting.hasAttribute(HrefAttribute))
+        acting.setAttribute("role", "button");
 
     if (!hasChildren(context.item))
         return;
@@ -47,7 +53,7 @@ function decorateMenuRow(context: RowDecoratorContext): void {
 
     const wrapper = document.createElement("div");
 
-    wrapper.className = SubmenuClass;
+    wrapper.className = MenuSubmenuClass;
     wrapper.appendChild(content);
     applyItemParameterAttributes(wrapper, context.key, context.item);
 

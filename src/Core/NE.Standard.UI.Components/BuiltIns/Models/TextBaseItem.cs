@@ -47,11 +47,11 @@ public partial class TextBaseItem : BadgeItem, ITextBaseModel, IItemAbilitiesMod
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIIconSize? IconSize { get; set; }
+    public partial UISize? IconSize { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial UIIconShape? IconShape { get; set; }
+    public partial UIShape? IconShape { get; set; }
 
     /// <inheritdoc />
     [RecursiveMember]

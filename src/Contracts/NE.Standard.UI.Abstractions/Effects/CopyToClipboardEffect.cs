@@ -1,5 +1,6 @@
 using System;
 using System.Text.Json.Serialization;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 
 namespace NE.Standard.UI.Abstractions.Effects;
@@ -30,6 +31,13 @@ public sealed class CopyToClipboardEffect : ClientEffect
     /// </summary>
     public static CopyToClipboardEffect ValueOf(string targetComponentId, params object?[]? dynamicParameters)
         => ValueOf(new UIComponentReference(targetComponentId, dynamicParameters));
+
+    /// <summary>
+    /// Copies what <paramref name="targetComponent"/> holds when the effect runs: a field's value, else the
+    /// words it shows — a message's text in its row, copied by the row's own button with no round trip.
+    /// </summary>
+    public static CopyToClipboardEffect ValueOf(IBindableComponent targetComponent, params object?[]? dynamicParameters)
+        => ValueOf(new UIComponentReference(targetComponent, dynamicParameters));
 
     /// <summary>
     /// Copies what the given component holds when the effect runs: a field's value, else the words it shows.

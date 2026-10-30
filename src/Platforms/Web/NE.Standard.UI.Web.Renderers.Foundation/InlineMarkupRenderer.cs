@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Renderers.Foundation;
 
 /// <summary>Writes the runs <see cref="UIInlineMarkup"/> parses out of a description or a tooltip.</summary>
 public static class InlineMarkupRenderer
 {
-    private const string FoldClass = "ui-text__fold";
-    private const string FoldToggleClass = "ui-text__fold-toggle";
-    private const string FoldContentClass = "ui-text__fold-content";
+    private const string FoldClass = WebClassNames.TextFold;
+    private const string FoldToggleClass = WebClassNames.TextFoldToggle;
+    private const string FoldContentClass = WebClassNames.TextFoldContent;
 
     /// <summary>
     /// Replaces the target's content with the parsed text, writing plain runs as text; an element holding a fold is marked
@@ -82,7 +83,7 @@ public static class InlineMarkupRenderer
         {
             _ = target.Element("a", anchor =>
             {
-                _ = anchor.Class("ui-text__link");
+                _ = anchor.Class(WebClassNames.TextLink);
                 _ = anchor.Attribute("href", url);
 
                 // A link out of the app opens in its own tab and never with a handle back to this one.
@@ -132,7 +133,7 @@ public static class InlineMarkupRenderer
         {
             _ = target.Element("code", element =>
             {
-                _ = element.Class("ui-text__code");
+                _ = element.Class(WebClassNames.TextCode);
                 RenderStyles(element, segment with { Styles = segment.Styles & ~UIInlineStyles.Code }, autolinks, insideLink);
             });
 
@@ -177,8 +178,8 @@ public static class InlineMarkupRenderer
     private static void RenderIcon(IHtmlBuilder target, string icon)
         => target.Element("i", element =>
         {
-            _ = element.Class("ui-icon");
-            _ = element.Class("ui-text__icon-inline");
+            _ = element.Class(WebClassNames.Icon);
+            _ = element.Class(WebClassNames.TextIconInline);
             // `.ui-icon::before` stays hidden until this says there is a glyph to draw.
             if (IconValueRenderer.Draws(icon))
                 _ = element.Attribute(WebAttributes.Icon);

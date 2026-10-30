@@ -57,10 +57,10 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
             UILayout.Row(8)
                 .AddChild(new BadgeComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
-                    .BindText(nameof(WordsController.Label))
+                    .BindTitle<WordsController>(static x => x.Label)
                 )
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("demo.language.cards").OnClick(nameof(WordsController.ShowCards)))
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetTitle("demo.language.decks").OnClick(nameof(WordsController.ShowDecks))),
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Ghost).SetTitle("demo.language.cards").OnClick(nameof(WordsController.ShowCards)))
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Ghost).SetTitle("demo.language.decks").OnClick(nameof(WordsController.ShowDecks))),
             note: Words + "note.command-key",
             controller: [DemoCode.Of<WordsController>(nameof(WordsController.Label), nameof(WordsController.ShowCards), nameof(WordsController.ShowDecks))]
         );
@@ -70,17 +70,17 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
             UILayout.Row(8)
                 .AddChild(new TextComponent()
                     .SetVerticalAlignment(UIAlignment.Center)
-                    .BindTitle(nameof(WordsController.Files))
+                    .BindTitle<WordsController>(static x => x.Files)
                 )
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Remove).SetTooltip("demo.language.remove-file").OnClick(nameof(WordsController.RemoveFile)))
-                .AddChild(new ButtonComponent().SetType(UIButtonType.Ghost).SetIcon(DemoIcons.Add).SetTooltip("demo.language.add-file").OnClick(nameof(WordsController.AddFile))),
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Remove).SetTooltip("demo.language.remove-file").OnClick(nameof(WordsController.RemoveFile)))
+                .AddChild(new ButtonComponent().SetVariant(UIButtonVariant.Ghost).SetIcon(DemoIcons.Add).SetTooltip("demo.language.add-file").OnClick(nameof(WordsController.AddFile))),
             note: Words + "note.count",
             controller: [DemoCode.Of<WordsController>("_files", nameof(WordsController.Files), nameof(WordsController.AddFile), nameof(WordsController.RemoveFile), "FilesPhrase")]
         );
 
     private static ContainerComponent CreateNameGroup()
         => DemoUI.CreateExample(Words + "group.name",
-            new TextComponent().BindTitle(nameof(WordsController.Greeting)),
+            new TextComponent().BindTitle<WordsController>(static x => x.Greeting),
             note: Words + "note.name",
             controller: [DemoCode.Of<WordsController>(nameof(WordsController.Greeting), "OnAttachedAsync", "GreetingFor", "OnLanguageChangedAsync")]
         );
@@ -154,26 +154,26 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
         => DemoUI.CreateExample(Words + "group.rows",
             UILayout.Stack(12)
                 .AddChild(new ItemsViewComponent()
-                    .BindItems(nameof(WordsController.Effects))
+                    .BindItems<WordsController>(static x => x.Effects)
                     .SetSpacing(8)
                     .SetTemplate(UILayout.Columns(8,
                         new TextComponent()
-                            .BindTitle(nameof(TextItem.Title), UIBindingScope.Relative)
+                            .BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative)
                             .SetVerticalAlignment(UIAlignment.Center),
                         new SelectComponent()
-                            .BindOptions(nameof(WordsController.Schools), UIBindingScope.Root)
-                            .BindValue(nameof(LanguageEffectItem.School), UIBindingScope.Relative)
+                            .BindOptions<WordsController>(static x => x.Schools, UIBindingScope.Root)
+                            .BindValue<LanguageEffectItem>(static x => x.School, UIBindingScope.Relative)
                     ))
                 )
                 .AddChild(UILayout.Row(8)
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Add)
                         .SetTitle("demo.language.add-effect")
                         .OnClick(nameof(WordsController.AddEffect))
                     )
                     .AddChild(new ButtonComponent()
-                        .SetType(UIButtonType.Ghost)
+                        .SetVariant(UIButtonVariant.Ghost)
                         .SetIcon(DemoIcons.Add)
                         .SetTitle("demo.language.add-school")
                         .OnClick(nameof(WordsController.AddSchool))
@@ -189,12 +189,12 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
                 .AddChild(new ActionComponent()
                     .SetIcon(DemoIcons.Mail)
                     .SetTitle("Release notes for 1.4")
-                    .BindDescription(nameof(MomentWordsGroupContext.Sent), UIBindingScope.Relative)
+                    .BindDescription<MomentWordsGroupContext>(static x => x.Sent, UIBindingScope.Relative)
                 )
                 .AddChild(new ActionComponent()
                     .SetIcon(DemoIcons.Clock)
                     .SetTitle("Maintenance window")
-                    .BindDescription(nameof(MomentWordsGroupContext.Starts), UIBindingScope.Relative)
+                    .BindDescription<MomentWordsGroupContext>(static x => x.Starts, UIBindingScope.Relative)
                 ),
             note: Words + "note.moment",
             context: nameof(WordsController.MomentGroup),
@@ -210,7 +210,7 @@ internal sealed class WordsView : DemoMechanismView, IUIViewDefinition
     private static ContainerComponent CreateCommandGroup()
         => DemoUI.CreateExample(Words + "group.command",
             new ButtonComponent()
-                .SetType(UIButtonType.Ghost)
+                .SetVariant(UIButtonVariant.Ghost)
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetTitle("demo.language.switch-from-command")
                 .OnClick(nameof(WordsController.SwitchFromCommandAsync)),

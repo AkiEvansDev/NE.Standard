@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeDialog, FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 const transitions = new Map<FakeElement, { transitionProperty: string; transitionDuration: string }>();
 const transformed = new Set<FakeElement>();
@@ -104,4 +104,24 @@ test("a popup under an ancestor moved by an individual transform is lifted, even
 
 test("a popup under an ancestor with no transform of any kind stays where it stands", () => {
     assert.equal(liftedUnder({}), false);
+});
+
+test("a popup under the body whose anchor stands in a native modal dialog is lifted above it; one inside that dialog stays", () => {
+    const dialog = new FakeDialog();
+    const anchor = FakeElement.of("anchor");
+    const outside = FakeElement.of("tooltip");
+    const inside = FakeElement.of("list");
+
+    anchor.rect = { left: 100, top: 300, width: 80, height: 30 };
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(dialog.append(anchor, inside), outside);
+    dialog.showModal();
+
+    placeAnchoredPopup(real(anchor), real(outside), { placement: "top", gap: 6 });
+    placeAnchoredPopup(real(anchor), real(inside), { placement: "bottom" });
+
+    assert.equal(outside.popoverOpen, true, "the dialog's top layer would paint over the tooltip");
+    assert.equal(outside.getAttribute("popover"), "manual");
+    assert.equal(inside.popoverOpen, false);
+    dialog.close();
 });

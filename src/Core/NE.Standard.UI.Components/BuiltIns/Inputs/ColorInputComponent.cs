@@ -1,3 +1,5 @@
+using NE.Colors;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
@@ -7,18 +9,14 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 
 /// <summary>
-/// A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.
+/// A colour input: a swatch that opens a free picker, optionally paired with the named palette.
 /// </summary>
 /// <remarks>Semantic roles are not offered: a role pushed into <c>Value</c> is kept as-is and reads as empty until something is picked.</remarks>
-public abstract partial class ColorInputComponent<T>(string? id = null) : FieldInputComponentBase<T, UIThemeColor?>(id)
+[UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyBlock(typeof(IFieldInputComponent))]
+public abstract partial class ColorInputComponent<T>(string? id = null) : InputComponentBase<T, UIThemeColor?>(id), IBorderedComponent, IFieldInputComponent, IClientWriteCheckComponent
     where T : ColorInputComponent<T>, IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets or sets how the input presents itself when closed.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = UIColorInputVariant.Field)]
-    public UIColorInputVariant? Variant { get; set; }
-
     /// <summary>
     /// Gets or sets how the colour is written.
     /// </summary>
@@ -32,22 +30,14 @@ public abstract partial class ColorInputComponent<T>(string? id = null) : FieldI
     public bool? ShowOpacity { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the palette tab is offered; with both tabs off the field still reads its colour.
+    /// Gets or sets whether the palette tab and segmented switcher are offered alongside the free picker.
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowPalette { get; set; }
 
-    /// <summary>
-    /// Gets or sets whether the free picker tab is offered.
-    /// </summary>
-    [UIComponentProperty(DefaultValue = true)]
-    public bool? ShowPicker { get; set; }
-
-    /// <summary>
-    /// Presents the input as a swatch alone, with the colour written across it.
-    /// </summary>
-    public T AsSwatch()
-        => SetVariant(UIColorInputVariant.Swatch);
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(IClientWriteCheckComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
+    public UIClientWriteCheck? ClientWriteCheck => ColorInputWriteCheck.Instance;
 
     /// <summary>
     /// Writes the colour as <c>rgb(...)</c> rather than as hex.
@@ -57,10 +47,22 @@ public abstract partial class ColorInputComponent<T>(string? id = null) : FieldI
 }
 
 /// <summary>
-/// A colour input: a swatch that opens a picker, holding either a palette colour or one picked freely.
+/// A colour input: a swatch that opens a free picker, optionally paired with the named palette.
 /// </summary>
 public sealed class ColorInputComponent(string? id = null) : ColorInputComponent<ColorInputComponent>(id), IUIComponentDefinition
 {
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.color";
+}
+
+/// <summary>Refuses semantic roles and split light/dark pairs, which the colour picker never offers.</summary>
+internal sealed class ColorInputWriteCheck : UIClientWriteCheck
+{
+    public static ColorInputWriteCheck Instance { get; } = new();
+
+    /// <inheritdoc/>
+    public override bool Accepts(UIProperty property, object? value)
+        => property != IInputComponent.ValueProperty
+            || value is null
+            || (value is UIThemeColor { Style: null, Light: ColorVariant light, Dark: ColorVariant dark } && light == dark);
 }

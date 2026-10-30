@@ -1,12 +1,11 @@
 // The keyboard's row in a host with rows (an items view, a table, a tree): one mark, one way of moving it, one answer
-// to which row a key acts on. The host's root holds focus and names the row via aria-activedescendant. A table acting as a grid
-// walks its cells too: the cursor stands on a cell of its row, and the root names that cell.
+// to which row a key acts on. A listbox, a grid and a tree hold the focus on the root, which names the row via aria-activedescendant;
+// a list and a table, whose roles do not carry it, hand the focus to the cursor's row itself, the host's one Tab stop (roving tabindex) —
+// a wrap list's to the row's tile, the row being display: contents with no box to take it.
+// A table acting as a grid walks its cells too: the cursor stands on a cell of its row, and the root names that cell.
 
-import {
-    CellFocusAttribute, CellKeyEventName, ComponentIdAttribute, ComponentKeyAttribute, OwnsKeysAttribute, RowCursorWaitsAttribute, RowFocusAttribute, SelectedAttribute, TableColumnAttribute,
-    TableScrollClass, ensureElementId
-} from "../addressing/dom-attributes.ts";
-import { readHostScroll, viewportOf } from "../items/items-viewport.ts";
+import { CellFocusAttribute, CellIdPrefix, CellKeyEventName, ComponentIdAttribute, ComponentKeyAttribute, ensureElementId, ItemsViewWrapClass, OwnsKeysAttribute, RowCursorWaitsAttribute, RowFocusAttribute, RowIdPrefix, RowNameIdPrefix, SelectedAttribute, TableClass, TableColumnAttribute, TableScrollClass, writeAttribute } from "../addressing/dom-attributes.ts";
+import { readHostScroll, viewportOf } from "../addressing/items-viewport.ts";
 import { isFieldKey } from "./caret-fields.ts";
 import { isItemDisabled } from "./interactive-state.ts";
 import { ownControlOf } from "./own-control.ts";
@@ -16,13 +15,20 @@ import { ownRows, rowBox, SelectionRootSelector, SelectionRowSelector } from "./
 import { readColumnLayout } from "./table-column-layout.ts";
 
 // A table whose rows are chosen or pressed renders as a grid; a table that is only read, a list and a tree walk their rows alone.
-const CellCursorRootSelector = ".ui-table[role='grid']";
-const CellRole = "gridcell";
+const CellCursorRootSelector = `.${TableClass}[role='grid']`;
+// A row's header cell is walked as any other: it is a cell that also names its row.
+const CellRoles = new Set(["gridcell", "rowheader"]);
 // What marks a cell spanning its row under the column cells (a grid's open detail).
 const SpanAttribute = "aria-colspan";
 
 // The column the cursor last stood in, per root, by its authored index: what Up and Down, a redraw and a row drawn again keep.
 const cursorColumns = new WeakMap<Element, string>();
+
+// The roles that take no active descendant: their cursor's row takes the focus itself.
+const RovingRoles = new Set(["list", "table"]);
+
+// The row holding a roving host's one Tab stop, per root.
+const rovingStops = new WeakMap<Element, HTMLElement>();
 
 /** How a host's rows lie for the arrows: along one axis or both (a list), or in a wrap's lines, where Up and Down change line. */
 export type RowAxis = RovingAxis | "grid";
@@ -56,11 +62,14 @@ export function hostKeyTarget(domEvent: KeyboardEvent): RowKeyTarget | null {
     return domEvent.target instanceof Element && !isFieldKey(domEvent) ? unclaimedRowKeyTarget(domEvent.target) : null;
 }
 
-/** `rowKeyTarget` where nothing nearer claims the key: not a row's own control (a field, a button), nor a box that owns its keys. */
+/**
+ * `rowKeyTarget` where nothing nearer claims the key: not a row's own control (a field, a button), nor a box that owns its keys. A wrap
+ * list's tile holding the row's focus is the row, a tile that is a button too: its arrows walk the tiles, its Enter presses it.
+ */
 export function unclaimedRowKeyTarget(target: Element): RowKeyTarget | null {
     const found = rowKeyTarget(target);
 
-    if (found === null || (found.row !== null && ownControlOf(target, found.row) !== null))
+    if (found === null || (found.row !== null && target !== rowFocusElement(found.root, found.row) && ownControlOf(target, found.row) !== null))
         return null;
 
     const owner = target.closest(`[${OwnsKeysAttribute}]`);
@@ -117,7 +126,7 @@ export function nameRowBy(row: Element, label: Element | null): void {
     if (label === null)
         row.removeAttribute("aria-labelledby");
     else
-        row.setAttribute("aria-labelledby", ensureElementId(label, "ui-row-name"));
+        row.setAttribute("aria-labelledby", ensureElementId(label, RowNameIdPrefix));
 }
 
 /**
@@ -159,7 +168,11 @@ function nameCursor(root: HTMLElement, row: Element, named: Element | null): HTM
     }
 
     if (cell === null) {
-        root.setAttribute("aria-activedescendant", ensureElementId(row, "ui-row"));
+        if (rovesFocus(root))
+            roveTo(root, row);
+        else
+            root.setAttribute("aria-activedescendant", ensureElementId(row, RowIdPrefix));
+
         return null;
     }
 
@@ -171,9 +184,105 @@ function nameCursor(root: HTMLElement, row: Element, named: Element | null): HTM
     if (column !== null)
         cursorColumns.set(root, column);
 
-    root.setAttribute("aria-activedescendant", ensureElementId(cell, "ui-cell"));
+    root.setAttribute("aria-activedescendant", ensureElementId(cell, CellIdPrefix));
 
     return cell;
+}
+
+/** Whether a host's cursor row takes the focus itself rather than being named by the root: a list's, a wrap list's too, and a read-only table's. */
+export function rovesFocus(root: Element): boolean {
+    return RovingRoles.has(root.getAttribute("role") ?? "");
+}
+
+/**
+ * What takes a roving host's focus for a row: the row, or in a wrap its tile — the template's root, which is the control itself where
+ * the tile is a button — since a wrap's row is display: contents, with no box to be focused.
+ */
+export function rowFocusElement(root: Element, row: HTMLElement): HTMLElement {
+    if (!root.classList.contains(ItemsViewWrapClass))
+        return row;
+
+    return row.querySelector<HTMLElement>(`:scope > [${ComponentIdAttribute}]`) ?? row;
+}
+
+/** Whether the element is a roving host's one Tab stop now: its cursor row, or that row's tile. */
+export function isRovingStop(element: Element): boolean {
+    const root = element.closest(SelectionRootSelector);
+
+    return root !== null && rovingStops.get(root) === element;
+}
+
+/**
+ * Makes the cursor's row the host's one Tab stop, the root and the row that held it out of the Tab order; the focus goes with it where
+ * the host held it — on the root, or on that row — and stays where it is elsewhere (a search box's typing, a row's own control).
+ */
+function roveTo(root: HTMLElement, row: Element): void {
+    const previous = rovingStops.get(root) ?? null;
+    const active = document.activeElement;
+    const stop = row instanceof HTMLElement ? rowFocusElement(root, row) : null;
+
+    root.removeAttribute("aria-activedescendant");
+
+    if (previous !== null && previous !== stop)
+        writeAttribute(previous, "tabindex", "-1");
+
+    if (stop === null)
+        return;
+
+    rovingStops.set(root, stop);
+    writeAttribute(stop, "tabindex", "0");
+    writeAttribute(root, "tabindex", "-1");
+
+    if (active !== stop && (active === root || (previous !== null && active === previous)))
+        stop.focus({ preventScroll: true });
+}
+
+/**
+ * The cursor names no row any more — its row gone or hidden, or waiting off the page: the root stops naming it, and a roving host's
+ * root is its Tab stop again, taking the focus its row held.
+ */
+export function forgetCursorName(root: HTMLElement): void {
+    root.removeAttribute("aria-activedescendant");
+
+    const stop = rovingStops.get(root);
+
+    if (stop === undefined)
+        return;
+
+    rovingStops.delete(root);
+    writeAttribute(root, "tabindex", "0");
+
+    if (stop.isConnected)
+        writeAttribute(stop, "tabindex", "-1");
+
+    if (document.activeElement === stop)
+        root.focus({ preventScroll: true });
+}
+
+/**
+ * Keeps a roving host's one Tab stop on its cursor's row after its rows changed: on the row marked, else back on the root where the
+ * row that held it is gone. A wrap's stop is the row's tile: one drawn anew takes it over.
+ */
+export function keepRovingStop(root: HTMLElement, rows: readonly HTMLElement[]): void {
+    const stop = rovingStops.get(root);
+    const row = stop?.closest<HTMLElement>(SelectionRowSelector) ?? null;
+
+    if (!rovesFocus(root) || (stop !== undefined && row !== null && stop.isConnected && row.hasAttribute(RowFocusAttribute) && rows.includes(row) && rowFocusElement(root, row) === stop))
+        return;
+
+    const marked = rows.find(row => row.hasAttribute(RowFocusAttribute));
+
+    if (marked !== undefined)
+        roveTo(root, marked);
+    else if (stop !== undefined)
+        forgetCursorName(root);
+}
+
+/** What holds a host's focus: a roving host's cursor row, else the root. */
+export function cursorFocusTarget(root: HTMLElement): HTMLElement {
+    const stop = rovingStops.get(root);
+
+    return stop !== undefined && stop.isConnected && root.contains(stop) ? stop : root;
 }
 
 /** Whether a host's cursor stands on cells: a table acting as a grid. A list, a tree and a table that is only read walk rows. */
@@ -186,7 +295,7 @@ export function walksCells(root: Element): boolean {
  * own, the cell under it —, else the column the cursor stood in, else the shown one standing nearest it, else the row's first.
  */
 function cursorCellIn(root: Element, row: Element, named: Element | null): HTMLElement | null {
-    if (named instanceof HTMLElement && named.parentElement === row && named.getAttribute("role") === CellRole) {
+    if (named instanceof HTMLElement && named.parentElement === row && isCellRole(named)) {
         if (!named.hasAttribute(OwnsKeysAttribute))
             return named;
 
@@ -244,7 +353,11 @@ export function rowCells(root: Element, row: Element): HTMLElement[] {
 }
 
 function isWalkedCell(cell: Element): boolean {
-    return cell.getAttribute("role") === CellRole && !cell.hasAttribute(OwnsKeysAttribute);
+    return isCellRole(cell) && !cell.hasAttribute(OwnsKeysAttribute);
+}
+
+function isCellRole(element: Element): boolean {
+    return CellRoles.has(element.getAttribute("role") ?? "");
 }
 
 /**
@@ -262,7 +375,7 @@ function revealCell(root: Element, row: Element, cell: HTMLElement): void {
     let start = area.left + box.clientLeft;
     let end = start + box.clientWidth;
 
-    // A pinned cell sticks at the edge it stands nearer to: the start, or the end in a right-to-left table.
+    // A pinned cell sticks at the edge it stands nearer to: the start or the end.
     for (const other of row.children) {
         if (other === cell || !(other instanceof HTMLElement) || getComputedStyle(other).position !== "sticky")
             continue;
@@ -370,7 +483,7 @@ export function cellOf(row: Element, element: Element): Element | null {
     while (cell !== null && cell.parentElement !== row)
         cell = cell.parentElement;
 
-    return cell?.getAttribute("role") === CellRole ? cell : null;
+    return cell !== null && isCellRole(cell) ? cell : null;
 }
 
 /**
@@ -492,9 +605,6 @@ function centreOf(rect: DOMRect): number {
     return rect.left + rect.width / 2;
 }
 
-/** What a row pressed from the keyboard raises in place of a click: the event pipeline runs the row's click command for it. */
-export const RowPressEventName = "ui-row-press";
-
 /** Raises a row's own event on the component the row is — the wrapper when it is one, else the template's root inside it — carrying `detail` when given. */
 export function dispatchRowEvent(row: HTMLElement, name: string, detail?: unknown): void {
     const target = row.hasAttribute(ComponentIdAttribute) ? row : row.querySelector(`:scope > [${ComponentIdAttribute}]`) ?? row;
@@ -546,7 +656,7 @@ export function planRowRemoval(root: HTMLElement, rows: readonly Element[], remo
         if (next !== null)
             setRowFocus(root, remaining, next, null, reveal);
         else if (cursor !== null)
-            root.removeAttribute("aria-activedescendant");
+            forgetCursorName(root);
     };
 }
 
@@ -605,7 +715,7 @@ export function keepRowCursorShown(root: HTMLElement, rows: readonly HTMLElement
 
     marked.removeAttribute(RowFocusAttribute);
     cursorCellOf(marked)?.removeAttribute(CellFocusAttribute);
-    root.removeAttribute("aria-activedescendant");
+    forgetCursorName(root);
 }
 
 /** The element holding a host's focus and cursor row: the items view, tree or table around it (over a table's scroll box), else its parent. */
@@ -642,23 +752,20 @@ export function giveRowCursor(host: Element, row: Element | null, held: HeldRowC
     if (held === null || root === null)
         return;
 
-    if (held.focus && !root.contains(document.activeElement))
-        root.focus({ preventScroll: true });
-
-    if (!held.cursor)
-        return;
-
-    if (row === null) {
+    // The cursor first, then the focus: a roving host's focus goes to the row the cursor is on, which must be marked by then.
+    if (held.cursor && row === null) {
         if (typeof held.key === "string")
             root.setAttribute(RowCursorWaitsAttribute, held.key);
 
         // The row it named is off the page; drawn again, it is named anew (`restoreWaitingCursor`).
-        root.removeAttribute("aria-activedescendant");
-        return;
+        forgetCursorName(root);
+    }
+    else if (held.cursor && row !== null && ![...host.children].some(child => child !== row && child.hasAttribute(RowFocusAttribute))) {
+        markCursorRow(root, row);
     }
 
-    if (![...host.children].some(child => child !== row && child.hasAttribute(RowFocusAttribute)))
-        markCursorRow(root, row);
+    if (held.focus && !root.contains(document.activeElement))
+        cursorFocusTarget(root).focus({ preventScroll: true });
 }
 
 /**

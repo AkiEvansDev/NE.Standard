@@ -2,13 +2,17 @@ using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
@@ -16,10 +20,10 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// <summary>One tab: a caption and the page it opens, with the close control a sibling button rather than a nested one.</summary>
 public sealed class TabItemComponentRenderer : WebComponentRendererBase
 {
-    private const string CloseClass = "ui-tab-item__close";
-    private const string LabelClass = "ui-tab-item__label";
-    private const string PinClass = "ui-tab-item__pin";
-    private const string SelectedClassName = "ui-tab-item--selected";
+    private const string CloseClass = WebClassNames.TabItemClose;
+    private const string LabelClass = WebClassNames.TabItemLabel;
+    private const string PinClass = WebClassNames.TabItemPin;
+    private const string SelectedClassName = WebClassNames.TabItemSelected;
 
     private static readonly WebDomOperation[] PinnedOperations =
     [
@@ -27,11 +31,11 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
         WebDomOperation.ToggleAttribute(WebAttributes.TabPinned, target: "." + PinClass, condition: WebValueCondition.IsTrue)
     ];
 
-    private static readonly WebDomOperation[] RenamedTitleOperations = [WebDomOperation.Attribute(WebAttributes.TabCaption, target: "." + LabelClass)];
+    private static readonly WebDomOperation[] RenamedTitleOperations = [WebDomOperation.Attribute(WebAttributes.TabCaption, target: "." + LabelClass, converter: WebDomConverters.NonBlankText)];
 
     public override string ComponentTypeKey => TabItemComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-tab-item";
+    protected override string ClassName => WebClassNames.TabItem;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -57,14 +61,14 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
 
         _ = root.Element("div", caption =>
         {
-            _ = caption.Class("ui-tab-item__caption");
+            _ = caption.Class(WebClassNames.TabItemCaption);
 
             // A right press on the caption opens the strip's tab menu; a template with a menu of its own is the nearer owner.
             _ = caption.Attribute(WebAttributes.ContextMenuUse, UITabMenu.Name);
 
             _ = caption.Element("button", label =>
             {
-                _ = label.Class(LabelClass + " ui-button ui-button--ghost");
+                _ = label.Class($"{LabelClass} {WebClassNames.Button} {WebClassNames.ButtonVariant(UIButtonVariant.Ghost)}");
                 _ = label.Attribute("type", "button");
                 _ = label.Attribute("role", "tab");
 
@@ -100,14 +104,14 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
             {
                 _ = close.Class(CloseClass);
                 _ = close.Attribute("type", "button");
-                WebWords.Write(context, close, "aria-label", UIStrings.ActionClose);
+                WriteCloseWords(context, close);
                 _ = close.Attribute("tabindex", "-1");
             });
         });
 
         _ = root.Element("div", page =>
         {
-            _ = page.Class("ui-tab-item__page");
+            _ = page.Class(WebClassNames.TabItemPage);
             _ = page.Attribute("role", "tabpanel");
 
             // Hidden here as the engine would hide it, so the first paint shows one page rather than all of them stacked.
@@ -156,5 +160,42 @@ public sealed class TabItemComponentRenderer : WebComponentRendererBase
         }
 
         return null;
+    }
+
+    /// <summary>Names a tab's close after its tab, so a reader walking the strip hears which one each closes; a tab with no title's is "Close".</summary>
+    private static void WriteCloseWords(WebRenderContext context, IHtmlElementBuilder close)
+    {
+        if (ReadCaptionTitle(context, close) is not { } title)
+        {
+            WebWords.Write(context, close, "aria-label", UIStrings.ActionClose);
+            return;
+        }
+
+        WebWords.Write(context, close, "aria-label", UIStrings.TabsClose, new Dictionary<string, object?>(StringComparer.Ordinal) { ["title"] = title });
+    }
+
+    /// <summary>
+    /// The caption's title as the close's argument: the author's key or text, translated with the rest; words shown as written (a bound
+    /// value's, content) as a literal; null where the caption has none.
+    /// </summary>
+    private static object? ReadCaptionTitle(WebRenderContext context, IHtmlElementBuilder html)
+    {
+        CompiledView view = context.ViewResolution.View;
+
+        if (!view.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out UIComponentSlot? slot, RegionNames.Header)
+            || !view.Graph.TryGet(slot.RootComponentId, out UIComponentNode? caption))
+        {
+            return null;
+        }
+
+        _ = ResolveRenderWord(context.ForNode(caption, html), ITextBaseComponent.TitleProperty, out var key, out var words);
+
+        // Object, not a phrase: a string would turn into the author's text, translated, where the words are shown as written.
+        return key switch
+        {
+            UIPhrase phrase => phrase,
+            string text => UIPhrase.Text(text),
+            _ => string.IsNullOrWhiteSpace(words) ? null : (object)words
+        };
     }
 }

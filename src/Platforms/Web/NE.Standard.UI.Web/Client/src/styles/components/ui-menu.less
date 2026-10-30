@@ -76,16 +76,6 @@
     min-width: 0;
 }
 
-// The keyboard's frame on an entry: the frame's corner, but square on the side the current entry's line stands on.
-@ui-menu-frame-corners: ~"var(--ui-menu-frame-tl, @{ui-keyboard-frame-radius}) var(--ui-menu-frame-tr, @{ui-keyboard-frame-radius}) var(--ui-menu-frame-br, @{ui-keyboard-frame-radius}) var(--ui-menu-frame-bl, @{ui-keyboard-frame-radius})";
-
-.ui-menu-frame-square(@tl: initial; @tr: initial; @br: initial; @bl: initial) {
-    --ui-menu-frame-tl: @tl;
-    --ui-menu-frame-tr: @tr;
-    --ui-menu-frame-br: @br;
-    --ui-menu-frame-bl: @bl;
-}
-
 // An entry's four corners, which its shape rules set one by one and its border's chain reads.
 .ui-menu-entry-corners(@radius) {
     --ui-menu-entry-tl: @radius;
@@ -105,6 +95,7 @@
     // Re-called with this control's own default; 1.75rem, not 2, keeps rows close enough to read as one list rather than loose items.
     .ui-responsive-property(min-height, --ui-min-height, @ui-list-row-height);
     .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
+    color: @ui-text-muted;
     text-align: start;
 }
 
@@ -136,18 +127,25 @@
     .ui-menu-entry-corners(@ui-list-entry-radius);
 }
 
-// The current entry keeps its ground under the pointer: restated at the ghost button's hover specificity, which this file wins by order.
+// A group whose flyout is open in a popup stays lit (wash + ink) while the pointer or keyboard explores its child flyout.
+:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) [data-ui-menu-group][data-ui-menu-open] > .ui-menu-item:not(.ui-menu-item--selected) {
+    background-color: var(--ui-wash-hover);
+    color: @ui-text-ink;
+}
+
+// The current entry keeps its ground and 3rd-degree ink under the pointer: restated at the ghost button's hover specificity.
 .ui-menu-item--selected {
     .ui-selected-ground();
     .ui-selected-ink();
-    .ui-reveal-hover-off({ .ui-selected-ground(); });
+    .ui-reveal-hover-off({
+        .ui-selected-ground();
+        .ui-selected-ink();
+    });
 }
 
-// The entry the arrows reached, lit only while a key put it there; the current entry is the keyboard's place already. The frame lies
-// inside the entry's border, where the current entry's line is drawn, so the two are one line, not a thicker one; it rounds as every
-// frame does but on the line's side, which stays straight (`--ui-menu-frame-*`, set with the line below).
+// The entry the arrows reached, lit only while a key put it there.
 .ui-menu-item@{ui-button-live} {
-    .ui-entry-keyboard(~".ui-menu-item--selected"; chain; @ui-menu-frame-corners; ~"calc(-2px - var(--ui-border-width, 1px))");
+    .ui-entry-keyboard(~".ui-menu-item--selected");
 }
 
 // In a popup the keyboard's entry is the one current entry: the pointer takes its place by moving (menu-engine.ts). Read on the menu,
@@ -156,41 +154,35 @@
     .ui-entry-quiet(~".ui-menu-item"; @ui-button-live; ~".ui-menu-item--selected");
 }
 
-// The mark is a straight line on the edge the menu hangs off, so the current entry is straight there and rounds its other side as
-// its neighbours do; a bar's and a rail's entries are square slices whatever their side. A mark the author moved (SelectionStyle)
-// keeps the side's corners.
-.ui-menu.ui-side--left .ui-menu-item--selected {
+// A rail's and a horizontal bar's current entry carries the brand's line on the edge it hangs off; a vertical non-rail menu's entry
+// rounds all four corners and uses the chosen wash + 3rd-degree selected ink without a side bar.
+.ui-menu.ui-menu--rail.ui-side--left .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-left);
     --ui-menu-entry-tl: 0;
     --ui-menu-entry-bl: 0;
-    .ui-menu-frame-square(@tl: 0; @bl: 0);
 }
 
-.ui-menu.ui-side--right .ui-menu-item--selected {
+.ui-menu.ui-menu--rail.ui-side--right .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-right);
     --ui-menu-entry-tr: 0;
     --ui-menu-entry-br: 0;
-    .ui-menu-frame-square(@tr: 0; @br: 0);
 }
 
-.ui-menu.ui-side--top .ui-menu-item--selected {
+.ui-menu.ui-menu--rail.ui-side--top .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-top);
     --ui-menu-entry-tl: 0;
     --ui-menu-entry-tr: 0;
-    .ui-menu-frame-square(@tl: 0; @tr: 0);
 }
 
-.ui-menu.ui-side--bottom .ui-menu-item--selected {
+.ui-menu.ui-menu--rail.ui-side--bottom .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-bottom);
     --ui-menu-entry-bl: 0;
     --ui-menu-entry-br: 0;
-    .ui-menu-frame-square(@br: 0; @bl: 0);
 }
 
 // A bar's current entry is marked along its bottom edge whatever Side says: a line on one side of a row reads as a box.
 .ui-menu.ui-orientation--horizontal .ui-menu-item--selected {
     .ui-selected-mark(@ui-selected-mark-bottom);
-    .ui-menu-frame-square(@br: 0; @bl: 0);
 }
 
 // Along a bar the line alone says which entry is current, as a tab strip's does: the list's ground under it read as a stuck hover.
@@ -211,7 +203,6 @@
 .ui-menu .ui-menu__submenu[data-ui-menu-flyout] .ui-menu-item--selected {
     .ui-selected-mark(none);
     .ui-menu-entry-corners(@ui-list-entry-radius);
-    .ui-menu-frame-square();
 }
 
 // Collapsed, an entry keeps its padding so the glyph stays in line with the page title's edge; not in the flyout, which keeps titles.
@@ -262,6 +253,7 @@
     .ui-chevron(@ui-glyph-md);
     .ui-chevron-right();
     margin-left: auto;
+    margin-right: -0.125rem;
     opacity: 0.6;
 }
 
@@ -277,7 +269,19 @@
 // Collapsed, a group's entries fly out beside the icon; the flyout mark outlasts the open one by the fade (menu-group-engine.ts).
 .ui-menu__submenu[data-ui-menu-flyout] {
     .ui-popup-list();
+    width: max-content;
     block-size: auto;
+}
+
+// Docked to another popup's edge, a submenu casts its shadow away from the seam they share so none of the blur falls over the parent.
+:is(@{ui-menu-host-popups}, .ui-flyout__content, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
+    &[data-ui-placement^="right"] {
+        .ui-elevation-2-docked(right);
+    }
+
+    &[data-ui-placement^="left"] {
+        .ui-elevation-2-docked(left);
+    }
 }
 
 [data-ui-menu-open] > .ui-menu__submenu[data-ui-menu-flyout] {
@@ -316,6 +320,8 @@
     .ui-responsive-property(min-height, --ui-min-height, 0);
     .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
     .ui-responsive-property(padding, --ui-padding, 0);
+    .ui-menu-entry-corners(0);
+    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-top: 1px solid var(--ui-color-border);
     background: none;
     pointer-events: none;
@@ -324,6 +330,11 @@
     .ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-button__content {
         display: none;
     }
+
+:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-item[data-ui-menu-item-kind="separator"] {
+    .ui-menu-entry-corners(0);
+    .ui-responsive-property(margin, --ui-margin, @ui-space-1 -@ui-space-1);
+}
 
 .ui-menu.ui-orientation--horizontal .ui-menu-item[data-ui-menu-item-kind="separator"] {
     align-self: stretch;
@@ -411,7 +422,7 @@
         inset-inline-end: 0;
     }
 
-    @{ui-menu-collapsed-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon]) {
+    @{ui-menu-collapsed-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-title], [data-ui-badge-icon]) {
         inset-block-start: 0.125rem;
         inset-inline-end: 0.25rem;
     }
@@ -437,6 +448,8 @@
     .ui-responsive-property(min-height, --ui-min-height, 0);
     .ui-responsive-property(margin, --ui-margin, @ui-space-2 0);
     .ui-responsive-property(padding, --ui-padding, 0);
+    .ui-menu-entry-corners(0);
+    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-top: 1px solid var(--ui-color-border);
 }
 
@@ -461,24 +474,27 @@
 .ui-menu__item[data-ui-menu-group][data-ui-menu-holds-current]:not([data-ui-menu-open]) > .ui-menu-item:not(.ui-menu-item--selected),
 @{ui-menu-folded} .ui-menu__item[data-ui-menu-group][data-ui-menu-holds-current] > .ui-menu-item:not(.ui-menu-item--selected) {
     background-image: linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
+    color: @ui-text-ink;
 
-    // The keyboard's wash over the mark, not in its place.
+    .ui-reveal-hover-off({
+        color: var(--ui-text-selected);
+    });
+
+    // The keyboard's focus steps up the ink without adding a second wash over the mark.
     &@{ui-button-live}@{ui-keyboard-focus} {
-        background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover)), linear-gradient(var(--ui-wash-descendant), var(--ui-wash-descendant));
+        background-color: transparent;
+        color: var(--ui-text-selected);
     }
+}
 
-    // "Current inside": a short piece of the current entry's line on the same edge, half its length, so it never reads as the
-    // current entry itself nor as the pointer's wash — on a dark palette, whose descendant wash is none, it is the group's one mark,
-    // so it is whole: at 0.6 it read 1.8:1.
-    &::before {
-        content: "";
-        position: absolute;
-        inset: var(--ui-menu-group-mark-inset, 25% auto 25% 0);
-        width: var(--ui-menu-group-mark-width, 2px);
-        height: var(--ui-menu-group-mark-height, auto);
-        background: @ui-selected-mark-color;
-        pointer-events: none;
-    }
+.ui-menu:is(.ui-menu--rail, .ui-orientation--horizontal) .ui-menu__item[data-ui-menu-group][data-ui-menu-holds-current] > .ui-menu-item:not(.ui-menu-item--selected)::before {
+    content: "";
+    position: absolute;
+    inset: var(--ui-menu-group-mark-inset, 25% auto 25% 0);
+    width: var(--ui-menu-group-mark-width, 2px);
+    height: var(--ui-menu-group-mark-height, auto);
+    background: @ui-selected-mark-color;
+    pointer-events: none;
 }
 
 // The edge a folded group's short mark stands on: the current entry's (the menu's side; a bar's bottom; a phone's bottom bar's top).
@@ -519,8 +535,8 @@
     font-size: 0.625rem;
 }
 
-// An empty text is a badge with nothing to say: a dot, in the badge's style, the primary's when it has none.
-@{ui-menu-icon-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon]) {
+// An empty text is a badge with nothing to say: a dot, in the badge's variant, the primary's when it has none.
+@{ui-menu-icon-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-title], [data-ui-badge-icon]) {
     display: inline-flex;
     width: 0.5rem;
     min-height: 0;
@@ -528,7 +544,7 @@
     padding: 0;
 }
 
-    :where(@{ui-menu-icon-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon])) {
+    :where(@{ui-menu-icon-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-title], [data-ui-badge-icon])) {
         background-color: var(--ui-color-primary);
     }
 
@@ -550,13 +566,15 @@
     margin-left: @ui-space-2;
 }
 
-[data-ui-menu-select][data-ui-menu-open] > .ui-menu-item::after {
+[data-ui-menu-select][data-ui-menu-open] > .ui-menu-item::after,
+:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) [data-ui-menu-group][data-ui-menu-open] > .ui-menu-item::after {
     .ui-chevron-right();
 }
 
 // The choices are a popup beside the entry in an unfolded menu too; a collapsed menu's flyout rules above already say the rest. Not as
 // a phone's sheet, which stands its lists in its own padding, both sides alike (here and above).
-[data-ui-menu-select] > .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
+[data-ui-menu-select] > .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])),
+:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) [data-ui-menu-group] > .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
     padding-left: @ui-space-1;
 }
 
@@ -578,11 +596,9 @@
     --ui-popup-ground: var(--ui-color-background);
 }
 
-:is(@{ui-menu-host-popups})[data-ui-menu-surface="raised"],
-:is(@{ui-menu-host-popups})[data-ui-menu-surface="flat"],
-.ui-menu.ui-surface--raised .ui-menu__submenu[data-ui-menu-flyout],
-.ui-menu.ui-surface--flat .ui-menu__submenu[data-ui-menu-flyout] {
-    --ui-popup-ground: var(--ui-surface-raised);
+:is(@{ui-menu-host-popups})[data-ui-menu-surface="surface"],
+.ui-menu.ui-surface--surface .ui-menu__submenu[data-ui-menu-flyout] {
+    --ui-popup-ground: var(--ui-color-surface);
 }
 
 :is(@{ui-menu-host-popups})[data-ui-menu-surface="tinted"],
@@ -595,7 +611,7 @@
     width: 0;
 }
 
-// The search's box is an entry's (Tonal, MenuComponent.SetSearch), its glyph in the entries' glyph column past the same 1px border and
+// The search's box is an entry's (Filled, MenuComponent.SetSearch), its glyph in the entries' glyph column past the same 1px border and
 // padding; the author's own content stands at the bar's start too, where a button of the page's lines up with the header's.
 .ui-menu[data-ui-menu-search] > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input__row {
     padding-inline-start: @ui-space-2;
@@ -742,7 +758,6 @@
 
         @{ui-menu-bottom-bar} > .ui-menu__host > .ui-menu__item > .ui-menu-item--selected {
             .ui-selected-mark(@ui-selected-mark-top);
-            .ui-menu-frame-square(@tl: 0; @tr: 0);
         }
 
         // The line on the top edge would all but meet a count on the glyph's corner: the column steps down, the count with it.
@@ -827,7 +842,7 @@
         inset-inline-start: calc(50% + var(--ui-menu-rail-glyph) / 2 - 0.5rem);
     }
 
-    @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-text], [data-ui-badge-icon]) {
+    @{ui-menu-rail-entry} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-title], [data-ui-badge-icon]) {
         inset-block-start: var(--ui-menu-rail-glyph-top);
         inset-inline-start: calc(50% + var(--ui-menu-rail-glyph) / 2 - 0.25rem);
     }

@@ -1,4 +1,4 @@
-﻿@import "./tokens.less";
+@import "./tokens.less";
 
 // Text colour only, declared before every modifier below so an explicit colour still wins the tie on the same element.
 [data-ui-theme] {
@@ -82,7 +82,7 @@
 
 // A themed element carries the page's ground, not a surface's.
 [data-ui-theme].ui-color--muted {
-    color: color-mix(in srgb, var(--ui-faint-base, var(--ui-color-on-background)) percentage(@ui-text-muted-share), @ui-faint-lift);
+    color: color-mix(in srgb, var(--ui-faint-base, var(--ui-color-on-background)) var(--ui-text-muted-share, percentage(@ui-text-muted-share)), @ui-faint-lift);
 }
 
 .ui-color--selected {

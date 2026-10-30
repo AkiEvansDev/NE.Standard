@@ -6,20 +6,18 @@ import { typeAheadEntry } from "./popup-list.ts";
 import { applyRovingTabIndex, moveRovingFocus, isRovingCandidate, resolveRovingTarget } from "./roving-focus.ts";
 import type { TooltipWordsProvider } from "./tooltip-engine.ts";
 import { isComposing, isPlainKey, SpaceRelease } from "./keyboard-shortcut.ts";
-import { isBottomBar, isFlyoutGroup, menuWalk, submenuGroupOf, towardContent, walkRootOf } from "./menu-group-engine.ts";
+import { isBottomBar, isFlyoutGroup, menuWalk, outermostMenuOf, submenuGroupOf, towardContent, walkRootOf } from "./menu-group-engine.ts";
 import { isPressWaveRecord } from "./press-wave.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 import { typeAheadCharacter } from "./type-ahead.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
-import { CollapsedAttribute, MenuGroupEntrySelector, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchAttribute, MenuUnmatchedAttribute, PassiveMenuEntrySelector, TooltipAttribute } from "../addressing/dom-attributes.ts";
-
-const HorizontalClass = "ui-orientation--horizontal";
+import { ButtonContentClass, CollapsedAttribute, CollapsibleBarClass, MenuGroupEntrySelector, MenuHostClass, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuItemWrapperClass, MenuOpenAttribute, MenuRailClass, MenuRootClass, MenuRootClass as RootClass, MenuSearchAttribute, MenuSubmenuClass, MenuUnmatchedAttribute, OrientationHorizontalClass, PassiveMenuEntrySelector, TextBodyClass, TextHeaderClass, TextTitleClass, TooltipAttribute } from "../addressing/dom-attributes.ts";
 
 // A rail's own entries (UIMenuDisplay.Rail), whose one-line label may be cut; a collapsed menu's, whose title is hidden; the title.
-const RailEntrySelector = `.${MenuRailClass} > .ui-menu__host > .ui-menu__item > .${ItemClass}`;
-const CollapsedEntrySelector = `.ui-menu[${CollapsedAttribute}] > .ui-menu__host > .ui-menu__item > .${ItemClass}`;
+const RailEntrySelector = `.${MenuRailClass} > .${MenuHostClass} > .${MenuItemWrapperClass} > .${ItemClass}`;
+const CollapsedEntrySelector = `.${MenuRootClass}[${CollapsedAttribute}] > .${MenuHostClass} > .${MenuItemWrapperClass} > .${ItemClass}`;
 const TitledEntrySelector = `${RailEntrySelector}, ${CollapsedEntrySelector}`;
-const TitleSelector = ":scope > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__title";
+const TitleSelector = `:scope > .${ButtonContentClass} > .${TextBodyClass} > .${TextHeaderClass} > .${TextTitleClass}`;
 
 // A popup menu's entries, the only ones rendered as menu items (a check among them as a checkbox of the menu).
 const PopupEntrySelector = "[role='menuitem'], [role='menuitemcheckbox']";
@@ -149,7 +147,7 @@ export class MenuEngine {
         }
 
         // One axis only: the other arrows belong to whatever the menu sits in. A rail laid along the bottom bar runs across.
-        const axis = root.classList.contains(HorizontalClass) || isBottomBar(root) ? "horizontal" : "vertical";
+        const axis = root.classList.contains(OrientationHorizontalClass) || isBottomBar(root) ? "horizontal" : "vertical";
 
         if (!isPlainKey(domEvent) || this.handleGroupKey(domEvent, item, root, axis))
             return;
@@ -246,7 +244,7 @@ export class MenuEngine {
             return;
         }
 
-        const next = isPlainKey(domEvent) ? resolveRovingTarget({ key: domEvent.key, items, current: null, axis: menu.classList.contains(HorizontalClass) ? "horizontal" : "vertical" }) : null;
+        const next = isPlainKey(domEvent) ? resolveRovingTarget({ key: domEvent.key, items, current: null, axis: menu.classList.contains(OrientationHorizontalClass) ? "horizontal" : "vertical" }) : null;
 
         if (next === null)
             return;
@@ -275,18 +273,20 @@ export class MenuEngine {
         if (item === null || item === document.activeElement || !item.matches(PopupEntrySelector) || item.matches(PassiveMenuEntrySelector) || !isRovingCandidate(item))
             return;
 
-        // The menu's keyboard is in it: on an entry, or on the menu itself where the pointer opened it.
+        // The menu's keyboard is in it: on an entry (in this list or an ancestor/child popup submenu), or on the menu itself where the pointer opened it.
         const active = document.activeElement;
         const holdsMenu = active instanceof HTMLElement && active.getAttribute("role") === "menu" && active.contains(item);
+        const menu = item.closest<HTMLElement>(`.${RootClass}`);
+        const sharesPopupTree = menu !== null && active instanceof Element && (menu.contains(active) || (active.matches(PopupEntrySelector) && outermostMenuOf(menu).contains(active)));
 
-        if (holdsMenu || item.closest(`.${RootClass}`)?.contains(active) === true)
+        if (holdsMenu || sharesPopupTree)
             focusByPointer(item);
     }
 }
 
 /** The first entry the keyboard can reach in an open group's block or flyout. */
 function firstOfBlock(group: HTMLElement): HTMLElement | null {
-    const block = group.querySelector<HTMLElement>(`:scope > .ui-menu__submenu > .${RootClass}`);
+    const block = group.querySelector<HTMLElement>(`:scope > .${MenuSubmenuClass} > .${RootClass}`);
 
     return block === null ? null : menuWalk(block).find(isRovingCandidate) ?? null;
 }
@@ -301,7 +301,7 @@ function groupAround(item: HTMLElement): HTMLElement | null {
 
 /** The search field in a menu's own bar, where it has one. */
 function searchFieldOf(menu: HTMLElement): HTMLInputElement | null {
-    return menu.hasAttribute(MenuSearchAttribute) ? menu.querySelector<HTMLInputElement>(":scope > .ui-collapsible__bar input") : null;
+    return menu.hasAttribute(MenuSearchAttribute) ? menu.querySelector<HTMLInputElement>(`:scope > .${CollapsibleBarClass} input`) : null;
 }
 
 /**

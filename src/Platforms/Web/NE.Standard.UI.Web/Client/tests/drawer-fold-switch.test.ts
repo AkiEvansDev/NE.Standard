@@ -48,6 +48,10 @@ function press(element: FakeElement): void {
 
 test("the burger opens the drawer, and the sidebar's switch lying where it was puts the drawer away with the sidebar left open", () => {
     const { root, burger, panel, fold } = page();
+    const heard: string[] = [];
+
+    for (const name of ["expand", "collapse"])
+        panel.addEventListener(name, () => heard.push(name));
 
     press(burger);
 
@@ -55,6 +59,8 @@ test("the burger opens the drawer, and the sidebar's switch lying where it was p
 
     fold.focus();
     press(fold);
+
+    assert.deepEqual(heard, [], "putting the drawer away raised a fold event of the sidebar's");
 
     assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
     assert.equal(panel.hasAttribute("data-ui-collapsed"), false, "the press folded the sidebar inside the drawer");

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
@@ -15,12 +14,12 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
-/// <summary>A picture over a hidden native picker; under <c>Multiple</c>, or as the <c>Shelf</c> variant, the surface is a shelf of pictures instead.</summary>
+/// <summary>A picture over a hidden native picker; under <c>Multiple</c>, the <c>Picture</c> variant draws a shelf of pictures instead.</summary>
 /// <remarks><c>Value</c> paints the picture and the upload rides back on its own hidden input, as <c>SelectionId</c> or, under <c>Multiple</c>, <c>SelectionIds</c> as a JSON list.</remarks>
 public sealed class ImageInputComponentRenderer : TextContentRendererBase
 {
-    private const string RootClassName = "ui-image-input";
-    private const string MultipleClassName = "ui-image-input--multiple";
+    private const string RootClassName = WebClassNames.ImageInput;
+    private const string MultipleClassName = WebClassNames.ImageInputMultiple;
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string PlaceholderAttribute = "data-ui-image-placeholder";
 
@@ -29,14 +28,14 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
 
     // Every image input registers these same lists, so they are built once rather than per instance.
     private static readonly WebDomOperation[] FitOperations = [WebDomOperation.Class(target: $".{RootClassName}__picture", converter: WebDomConverters.ImageFitClass)];
-    private static readonly WebDomOperation[] CaptionOperations = [WebDomOperation.Attribute(WebAttributes.ImageCaption)];
+    private static readonly WebDomOperation[] CaptionOperations = [WebDomOperation.Attribute(WebAttributes.ImageCaption, converter: WebDomConverters.NonEmptyText)];
     private static readonly WebDomOperation[] PlaceholderIconOperations =
     [
         .. IconValueRenderer.Operations,
         WebDomOperation.ToggleAttribute(WebAttributes.Icon, target: "root", condition: WebValueCondition.DrawsIcon)
     ];
 
-    private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute(PlaceholderAttribute)];
+    private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute(PlaceholderAttribute, converter: WebDomConverters.NonEmptyText)];
 
     private static readonly WebDomOperation[] ValueOperations =
     [
@@ -50,6 +49,8 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         WebDomOperation.Attribute(WebAttributes.SelectedKeys, target: "root")
     ];
 
+    public static ImageInputComponentRenderer Shared { get; } = new();
+
     public override string ComponentTypeKey => ImageInputComponent.ComponentTypeKey;
 
     protected override string ClassName => RootClassName;
@@ -59,11 +60,20 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        RenderTooltip(context, root);
-
         // Render-time only: the variant, and whether it is a shelf, are how the control is built.
         _ = ResolveRenderValue(context, ImageInputComponent.VariantProperty, out UIImageInputVariant? variant, out _);
         _ = ResolveRenderValue(context, ImageInputComponent.MultipleProperty, out bool? multiple, out _);
+
+        RenderCrop(context, root, shelf: multiple == true);
+
+        if (multiple == true)
+        {
+            RenderTileShelfComponent(context, root, withPick: true);
+            return;
+        }
+
+        RenderTooltip(context, root);
+
         _ = root.Class(WebClassNames.ImageInputVariant(variant ?? UIImageInputVariant.Picture));
 
         RenderInputAppearance(context, root);
@@ -75,22 +85,33 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         NativeInputRendererBase.RenderMaxFileSize(context, root);
         NativeInputRendererBase.RenderDropTargetId(context, root);
 
-        RenderCrop(context, root, shelf: multiple == true || variant == UIImageInputVariant.Shelf);
+        (IHtmlElementBuilder surface, IHtmlElementBuilder picture) = RenderSurface(context, root, variant ?? UIImageInputVariant.Picture);
+        RenderNative(context, root, surface, multiple: false);
+        RenderValues(context, root, picture);
 
-        // The thumbnails-only shelf is a shelf whatever Multiple says: a row of one picture is not what it is for.
-        if (multiple == true || variant == UIImageInputVariant.Shelf)
-        {
-            _ = root.Class(MultipleClassName);
-            IHtmlElementBuilder? add = RenderShelf(context, root, withPick: variant != UIImageInputVariant.Shelf);
-            RenderNative(context, root, add, multiple: true);
-            RenderSelections(context, root);
-        }
-        else
-        {
-            (IHtmlElementBuilder surface, IHtmlElementBuilder picture) = RenderSurface(context, root, variant ?? UIImageInputVariant.Picture);
-            RenderNative(context, root, surface, multiple: false);
-            RenderValues(context, root, picture);
-        }
+        RenderValidationMessage(context, root);
+    }
+
+    /// <summary>Renders the tile shelf shared by an image input under <c>Multiple</c> and a file input's <c>Tiles</c> and <c>Shelf</c> variants.</summary>
+    internal void RenderTileShelfComponent(WebRenderContext context, IHtmlElementBuilder root, bool withPick, bool files = false)
+    {
+        RenderTooltip(context, root);
+
+        _ = root.Class(withPick ? "ui-image-input--picture" : "ui-image-input--shelf");
+
+        if (files)
+            _ = root.Class("ui-image-input--files");
+
+        RenderInputAppearance(context, root);
+        RenderInputHeader(context, root, titleCanGoInside: false);
+
+        NativeInputRendererBase.RenderMaxFileSize(context, root);
+        NativeInputRendererBase.RenderDropTargetId(context, root);
+
+        _ = root.Class(MultipleClassName);
+        IHtmlElementBuilder? add = RenderShelf(context, root, withPick, files);
+        RenderNative(context, root, add, multiple: true);
+        RenderSelections(context, root);
 
         RenderValidationMessage(context, root);
     }
@@ -188,7 +209,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     /// The shelf the viewer drops on: the squares the engine keeps and, <paramref name="withPick"/>, the square that opens the picker
     /// and the words while it is empty — the thumbnails-only shelf draws neither, its chooser opened from elsewhere.
     /// </summary>
-    private IHtmlElementBuilder? RenderShelf(WebRenderContext context, IHtmlElementBuilder root, bool withPick)
+    private IHtmlElementBuilder? RenderShelf(WebRenderContext context, IHtmlElementBuilder root, bool withPick, bool files)
     {
         IHtmlElementBuilder? addElement = null;
 
@@ -213,7 +234,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
                 _ = add.Class($"{ClassName}__add");
                 _ = add.Attribute("type", "button");
                 _ = add.Attribute(WebAttributes.FilePick);
-                WebWords.Write(context, add, "aria-label", UIStrings.ImageChoose);
+                WebWords.Write(context, add, "aria-label", files ? UIStrings.FileChoose : UIStrings.ImageChoose);
 
                 RenderPlaceholderGlyph(context, root, add);
             });
@@ -230,9 +251,9 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         _ = parent.Element("span", placeholder =>
         {
             _ = placeholder.Class($"{ClassName}__placeholder");
-            _ = placeholder.Class("ui-icon");
+            _ = placeholder.Class(WebClassNames.Icon);
 
-            _ = RenderProperty<string?>(context, placeholder, ImageInputComponent.PlaceholderIconProperty, (target, icon) =>
+            _ = RenderProperty<string?>(context, placeholder, ComponentTypeKey, IFilePickerInputComponent.PlaceholderIconProperty, (target, icon) =>
             {
                 if (!IconValueRenderer.Draws(icon))
                     return;
@@ -250,7 +271,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         {
             _ = text.Class($"{ClassName}__text");
 
-            _ = RenderProperty<string?>(context, text, IPlaceholderInputComponent.PlaceholderProperty, static (target, placeholder) =>
+            _ = RenderProperty<string?>(context, text, ComponentTypeKey, IPlaceholderInputComponent.PlaceholderProperty, static (target, placeholder) =>
             {
                 if (!string.IsNullOrEmpty(placeholder))
                     _ = target.Attribute(PlaceholderAttribute, placeholder);
@@ -272,7 +293,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
         });
 
         // The stylesheet cues the pointer by the root's mark.
-        NativeInputRendererBase.RenderIsReadOnlyAsPick(context, root, pick is null ? [] : [pick], nativeInput, ReadOnlyOperations);
+        NativeInputRendererBase.RenderIsReadOnlyAsPick(context, root, pick is null ? [] : [pick], nativeInput, ReadOnlyOperations, ComponentTypeKey);
     }
 
     /// <summary>The picture's URL and the upload's handle, each on a hidden input the value engine writes and reads.</summary>
@@ -304,7 +325,7 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
     /// </summary>
     private void RenderSelections(WebRenderContext context, IHtmlElementBuilder root)
     {
-        _ = ResolveRenderValue(context, ImageInputComponent.SelectionIdsProperty, out IReadOnlyList<string>? _, out CompiledUIBinding? binding);
+        _ = ResolveRenderValue(context, IFilePickerInputComponent.SelectionIdsProperty, out IReadOnlyList<string>? _, out CompiledUIBinding? binding);
 
         _ = root.Element("input", selections =>
         {
@@ -315,9 +336,12 @@ public sealed class ImageInputComponentRenderer : TextContentRendererBase
             NativeInputRendererBase.RenderFormId(context, selections);
             NativeInputRendererBase.RenderFieldName(context, selections, "selections");
 
-            _ = RenderProperty<IReadOnlyList<string>?>(context, selections, ImageInputComponent.SelectionIdsProperty, (target, value) =>
+            _ = RenderProperty<IReadOnlyList<string>?>(context, selections, IFilePickerInputComponent.SelectionIdsProperty, (target, value) =>
             {
-                var json = JsonSerializer.Serialize(value ?? []);
+                if (value is null)
+                    return;
+
+                var json = JsonSerializer.Serialize(value);
 
                 _ = target.Attribute(WebAttributes.SelectedKeys, json);
                 _ = root.Attribute(WebAttributes.SelectedKeys, json);

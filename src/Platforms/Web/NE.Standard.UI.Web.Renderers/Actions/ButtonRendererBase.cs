@@ -1,5 +1,6 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Constants;
@@ -12,13 +13,13 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Actions;
 
-/// <summary>The chrome every button-shaped control draws: type class, submit form id, padding, background and border.</summary>
+/// <summary>The chrome every button-shaped control draws: variant class, submit form id, padding, background and border.</summary>
 public abstract class ButtonRendererBase : WebComponentRendererBase
 {
     // Every button, menu entry, breadcrumb and tab caption registers these, so they are built once.
-    private static readonly WebDomOperation[] TypeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonClass)];
-    private static readonly TierClassFamily<UIButtonSize> SizeFamily = new(WebAttributes.TierSize, WebDomConverters.ButtonSizeClass, WebDomConverters.ButtonSizeTierClasses, WebClassNames.ButtonSize);
-    private static readonly WebDomOperation[] ShortcutOperations = [WebDomOperation.Attribute(WebAttributes.Shortcut)];
+    private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonVariantClass)];
+    private static readonly TierClassFamily<UISize> SizeFamily = new(WebAttributes.TierSize, WebDomConverters.ButtonSizeClass, WebDomConverters.ButtonSizeTierClasses, WebClassNames.ButtonSize);
+    private static readonly WebDomOperation[] ShortcutOperations = [WebDomOperation.Attribute(WebAttributes.Shortcut, converter: WebDomConverters.NonBlankText)];
 
     protected override string ElementName => "button";
 
@@ -61,21 +62,29 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
         ResponsiveRenderer.ApplyResponsiveThickness(context, root, ButtonComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
 
         SurfaceStyleRenderer.RenderBackground(context, root, ButtonComponent.BackgroundProperty);
+        SurfaceStyleRenderer.RenderBackgroundImage(context, root);
 
         BorderStyleRenderer.RenderBorderStyle(context, root);
     }
 
     /// <summary>
-    /// A button's look on <paramref name="root"/>, kept in step with its <c>Type</c> and <c>Size</c>: the classes <c>ui-button.less</c>
-    /// draws by — every button-shaped control's, the page switchers' among them.
+    /// A button's look on <paramref name="root"/>, kept in step with its <c>Variant</c> and <c>Size</c>: the classes <c>ui-button.less</c>
+    /// draws by — every button-shaped control's.
     /// </summary>
     public static void RenderButtonLook(WebRenderContext context, IHtmlElementBuilder root)
+        => RenderButtonLook(context, root, ButtonComponent.VariantProperty);
+
+    /// <summary>
+    /// The same, its variant read from <paramref name="variantProperty"/> — a page switcher's <c>ButtonVariant</c>, since its own
+    /// <c>Variant</c> is its button-or-field shape.
+    /// </summary>
+    public static void RenderButtonLook(WebRenderContext context, IHtmlElementBuilder root, UIProperty variantProperty)
     {
-        _ = RenderProperty<UIButtonType?>(context, root, ButtonComponent.TypeProperty, static (target, value) =>
+        _ = RenderProperty<UIButtonVariant?>(context, root, variantProperty, static (target, value) =>
         {
-            if (value is UIButtonType type)
-                _ = target.Class(WebClassNames.ButtonClass(type));
-        }, TypeOperations);
+            if (value is UIButtonVariant variant)
+                _ = target.Class(WebClassNames.ButtonVariant(variant));
+        }, VariantOperations);
 
         TierClassRenderer.Render(context, root, ButtonComponent.SizeProperty, SizeFamily);
     }
@@ -167,7 +176,7 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
 
         _ = host.Element("span", label =>
         {
-            _ = label.Class("ui-button__content");
+            _ = label.Class(WebClassNames.ButtonContent);
 
             TextContentRendererBase.RenderTextBody(context, root, label, new WebTextBodyOptions
             {

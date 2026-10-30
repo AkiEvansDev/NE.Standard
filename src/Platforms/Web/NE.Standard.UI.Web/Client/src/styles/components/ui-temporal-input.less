@@ -1,4 +1,4 @@
-﻿@import "../core/tokens.less";
+@import "../core/tokens.less";
 @import "../mixins/field.less";
 @import "../mixins/popup.less";
 @import "../mixins/interactive.less";
@@ -18,7 +18,6 @@
 
 .ui-temporal-input__row {
     .ui-input-field();
-    gap: @ui-space-2;
 }
 
 // A calendar drawn in place: its caption over the grid a temporal input's popup draws (temporal-picker-engine.ts), no surface of its own.
@@ -67,7 +66,7 @@
 // The calendar's toggle stands out of the wrap at the row's end, the room for it kept: as the row's last item it was what wrapped
 // first, alone onto a second line, while the period itself still fitted on the first. The row holding it is marked by the render.
 .ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row.ui-temporal-input__row--picker {
-    padding-inline-end: calc(@ui-space-3 + 1.25rem + @ui-space-2);
+    padding-inline-end: calc(@ui-space-3 + @ui-glyph-sm + 0.4em);
 }
 
     .ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row > .ui-temporal-input__toggle {
@@ -138,7 +137,8 @@
     // A read-only segment is no caret: filled under a key's focus only, as nothing shows a keyboard mark after a pointer action.
     .ui-temporal-input__segment:focus:is(:not([aria-readonly="true"]), @{ui-keyboard-focus}) {
         outline: none;
-        .ui-filled-ground(var(--ui-color-primary); var(--ui-color-on-primary));
+        background: var(--ui-wash-selected);
+        color: var(--ui-text-selected);
     }
 
 :where(.ui-temporal-input__segment-literal) {
@@ -208,7 +208,7 @@
 
 .ui-temporal-input__calendar-label {
     flex: 1 1 auto;
-    font-weight: 600;
+    font-weight: var(--ui-text-title-font-weight);
 }
 
 .ui-temporal-input__calendar-pane {
@@ -239,6 +239,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: @ui-list-row-height;
     min-height: @ui-list-row-height;
     padding: 0 @ui-space-1;
     border-radius: @ui-list-entry-radius;
@@ -303,7 +304,7 @@
 }
 
 .ui-temporal-input__day--today {
-    box-shadow: inset 0 0 0 1px var(--ui-color-primary);
+    box-shadow: inset 0 0 0 1px var(--ui-color-mark);
 }
 
 // A day the application marks — one with messages, a free slot — wears a dot under its number, in the chosen day's ink when chosen.
@@ -386,14 +387,19 @@
         inset-inline-end: 50%;
     }
 
-// Which end the next click on the calendar sets.
+// Which end the next click on the calendar sets, quietly at the bottom-left rather than taking a header band above the month.
 .ui-temporal-input__period-caption {
+    align-self: flex-start;
+    margin-inline-end: auto;
     color: var(--ui-text-muted);
     font-size: var(--ui-text-caption-font-size);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-weight: normal;
 }
+
+    .ui-temporal-input__popup-footer > .ui-temporal-input__period-caption {
+        align-self: center;
+        padding-inline-start: @ui-space-1;
+    }
 
 .ui-temporal-input__months {
     display: grid;
@@ -482,17 +488,19 @@
 
     // Weight, not a fill: a filled cell moving under a fixed band would read as two selections disagreeing while the column scrolls.
     .ui-temporal-input__time-cell--selected {
-        font-weight: 600;
+        font-weight: @ui-chosen-weight;
     }
 
 .ui-temporal-input__popup-footer {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: @ui-space-1;
-    padding-top: @ui-space-1;
+    padding-top: @ui-space-2;
     border-top: 1px solid var(--ui-color-border);
 }
 
     .ui-temporal-input__popup-footer > .ui-temporal-input__nav {
-        .ui-word-action();
+        padding: 0 @ui-space-2;
+        font-size: var(--ui-text-caption-font-size);
     }

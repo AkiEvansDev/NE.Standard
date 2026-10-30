@@ -1,7 +1,7 @@
 // A menu's search, by the one matching rule (`search-terms.ts`) over the words an entry shows — translated, not the keys behind
 // them; one that leaves nothing says so, as a select's does. Emptied, or the menu folded, the menu is as it was.
 
-import { CollapsedAttribute, ComponentKeyAttribute, MenuGroupAttribute, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuOpenAttribute, MenuRailClass, MenuRootClass as RootClass, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuUnmatchedAttribute } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, CollapsibleBarClass, ComponentKeyAttribute, MenuGroupAttribute, MenuHostClass, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuItemWrapperClass, MenuOpenAttribute, MenuRailClass, MenuRootClass, MenuRootClass as RootClass, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuSubmenuClass, MenuUnmatchedAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isRovingCandidate } from "./roving-focus.ts";
 import { toggleNoMatchPlaceholder } from "./search-input-engine.ts";
@@ -10,11 +10,10 @@ import { menuWalk } from "./menu-group-engine.ts";
 import { entryWords, foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
 const SearchableSelector = `.${RootClass}[${MenuSearchAttribute}]`;
-const BarSelector = ":scope > .ui-collapsible__bar";
-const HostSelector = ":scope > .ui-menu__host";
-const ItemWrapperClass = "ui-menu__item";
+const BarSelector = `:scope > .${CollapsibleBarClass}`;
+const HostSelector = `:scope > .${MenuHostClass}`;
 const EntrySelector = `:scope > .${EntryClass}`;
-const SubmenuHostSelector = ":scope > .ui-menu__submenu > .ui-menu > .ui-menu__host";
+const SubmenuHostSelector = `:scope > .${MenuSubmenuClass} > .${MenuRootClass} > .${MenuHostClass}`;
 
 export type MenuSearchEngineOptions = {
     readonly root?: ParentNode;
@@ -201,7 +200,7 @@ function openGroups(host: HTMLElement): Set<Element | string> {
 }
 
 function wrappers(host: Element): HTMLElement[] {
-    return [...host.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains(ItemWrapperClass));
+    return [...host.children].filter((child): child is HTMLElement => child instanceof HTMLElement && child.classList.contains(MenuItemWrapperClass));
 }
 
 function kindOf(wrapper: HTMLElement): string {

@@ -22,23 +22,23 @@ internal sealed class SignInView : DemoScreenView, IUIViewDefinition
 
     private static CardComponent CreateCard()
         => UICard.Create("Sign in", null, UILayout.Stack(16,
-            UIText.Note().BindDescription(nameof(SignInController.ReasonLine)),
-            // Tonal: two fields on a neat centred card, which frames them; the line is for long forms that stack.
+            UIText.Note().BindDescription<SignInController>(static x => x.ReasonLine),
+            // Filled: two fields on a neat centred card, which frames them; the line is for long forms that stack.
             new TextInputComponent()
                 .SetTitle("User name")
-                .SetAppearance(UIInputAppearance.Tonal)
+                .SetAppearance(UIInputAppearance.Filled)
                 .SetAutocomplete(UIAutocomplete.Username)
                 .SetFormId(FormId)
-                .BindValue(nameof(SignInController.UserName))
+                .BindValue<SignInController>(static x => x.UserName)
                 .Required("A user name is required.", UIValidationTrigger.Submit),
             new TextInputComponent()
                 .SetTitle("Password")
                 .SetType(UITextInputType.Password)
-                .SetAppearance(UIInputAppearance.Tonal)
+                .SetAppearance(UIInputAppearance.Filled)
                 .SetAutocomplete(UIAutocomplete.CurrentPassword)
                 .SetFormId(FormId)
-                .BindValue(nameof(SignInController.Password))
-                .BindValidation(nameof(SignInController.Notice))
+                .BindValue<SignInController>(static x => x.Password)
+                .BindValidation<SignInController>(static x => x.Notice)
                 .Required("A password is required.", UIValidationTrigger.Submit),
             UIButtons.Toolbar(
                 UIButtons.Ghost("Use Robin, an admin", DemoIcons.Outline(DemoIcons.Shield)).OnClick(nameof(SignInController.UseAdmin)),

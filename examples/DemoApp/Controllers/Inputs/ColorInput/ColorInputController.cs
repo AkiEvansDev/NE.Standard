@@ -30,18 +30,12 @@ internal sealed partial class ColorValueGroupContext : InputValueGroupContext
 }
 
 /// <summary>
-/// How the control presents itself: the field's surface, which variant it wears, and what its popup offers.
+/// How the control presents itself: the field's surface, and what its popup offers.
 /// </summary>
 internal sealed partial class ColorFieldGroupContext : DemoGroupContext
 {
     [RecursiveMember]
-    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Tonal;
-
-    [RecursiveMember]
-    public partial UIColorInputVariant? Variant { get; set; } = UIColorInputVariant.Field;
-
-    [RecursiveMember]
-    public partial bool ShowPicker { get; set; } = true;
+    public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Filled;
 
     [RecursiveMember]
     public partial bool ShowPalette { get; set; } = true;
@@ -52,8 +46,6 @@ internal sealed partial class ColorFieldGroupContext : DemoGroupContext
     public ColorFieldGroupContext()
     {
         AddOption(nameof(Appearance), CycleAppearance, () => Appearance);
-        AddOption(nameof(Variant), CycleVariant, () => Variant);
-        AddOption(nameof(ShowPicker), ToggleShowPicker, () => ShowPicker);
         AddOption(nameof(ShowPalette), ToggleShowPalette, () => ShowPalette);
         AddOption(nameof(ShowOpacity), ToggleShowOpacity, () => ShowOpacity);
     }
@@ -61,29 +53,8 @@ internal sealed partial class ColorFieldGroupContext : DemoGroupContext
     public void CycleAppearance()
         => SetLastChange(nameof(Appearance), Appearance = CycleEnum(Appearance));
 
-    public void CycleVariant()
-        => SetLastChange(nameof(Variant), Variant = CycleEnum(Variant));
-
-    // The two panes never both go off, or there is nothing left to open.
-    public void ToggleShowPicker()
-    {
-        ShowPicker = !ShowPicker;
-
-        if (!ShowPicker)
-            ShowPalette = true;
-
-        SetLastChange(nameof(ShowPicker), ShowPicker);
-    }
-
     public void ToggleShowPalette()
-    {
-        ShowPalette = !ShowPalette;
-
-        if (!ShowPalette)
-            ShowPicker = true;
-
-        SetLastChange(nameof(ShowPalette), ShowPalette);
-    }
+        => SetLastChange(nameof(ShowPalette), ShowPalette = !ShowPalette);
 
     public void ToggleShowOpacity()
         => SetLastChange(nameof(ShowOpacity), ShowOpacity = !ShowOpacity);

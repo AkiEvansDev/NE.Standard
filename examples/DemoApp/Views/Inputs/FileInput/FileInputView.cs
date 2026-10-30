@@ -5,11 +5,9 @@ using DemoApp.Views.Base;
 namespace DemoApp.Views.Inputs.FileInput;
 
 /// <summary>
-/// One file field and every property that can be bound to it; then what it will accept, how much of it, and what it looks like once
-/// something is chosen.
+/// File input preview with live upload round-trip, followed by single/multiple inline file fields, <c>MaxFileSize</c> client validation,
+/// card form integration, and the <c>UIFileInputVariant.Tiles</c> dropzone.
 /// </summary>
-/// <remarks>The client writes the uploaded files' handle into the two-way <c>SelectionId</c>, which the server reads back; the examples
-/// upload nothing, so only the preview needs the controller.</remarks>
 internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
@@ -26,21 +24,22 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/inputs/file-input";
     protected override string Header => "demo.inputs.file-input.header";
     protected override string HeaderDescription => "demo.inputs.file-input.description";
+    protected override (string Route, string Title)? ComposedIn => ("/screens/chat", "demo.nav.screens.chat");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new FileInputComponent()
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(FileInputValueGroupContext.Value)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(FileInputValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(FileInputValueGroupContext.Size)}")
-            .BindSelectionId($"{ValueGroup}.{nameof(FileInputValueGroupContext.SelectionId)}")
-            .BindAccept($"{FileGroup}.{nameof(FileInputFileGroupContext.Accept)}")
-            .BindMaxFileSize($"{FileGroup}.{nameof(FileInputFileGroupContext.MaxFileSize)}")
-            .BindMultiple($"{FileGroup}.{nameof(FileInputFileGroupContext.Multiple)}")
-            .BindAppearance($"{FileGroup}.{nameof(FileInputFileGroupContext.Appearance)}")
-            .BindPlaceholder($"{FileGroup}.{nameof(FileInputFileGroupContext.Placeholder)}")
-            .BindPrefixIcon($"{FileGroup}.{nameof(FileInputFileGroupContext.PrefixIcon)}")
-            .BindSuffixIcon($"{FileGroup}.{nameof(FileInputFileGroupContext.SuffixIcon)}")
+            .BindValue<FileInputController>(static x => x.ValueGroup.Value)
+            .BindIsReadOnly<FileInputController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<FileInputController>(static x => x.ValueGroup.Size)
+            .BindSelectionId<FileInputController>(static x => x.ValueGroup.SelectionId)
+            .BindAccept<FileInputController>(static x => x.FileGroup.Accept)
+            .BindMaxFileSize<FileInputController>(static x => x.FileGroup.MaxFileSize)
+            .BindMultiple<FileInputController>(static x => x.FileGroup.Multiple)
+            .BindAppearance<FileInputController>(static x => x.FileGroup.Appearance)
+            .BindPlaceholder<FileInputController>(static x => x.FileGroup.Placeholder)
+            .BindPrefixIcon<FileInputController>(static x => x.FileGroup.PrefixIcon)
+            .BindSuffixIcon<FileInputController>(static x => x.FileGroup.SuffixIcon)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .BindBorder(BorderGroup)
@@ -59,61 +58,86 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => [.. DemoUI.CreateColumns([CreateUsesGroup()], [CreateFormGroup()]), CreateContractGroup(), CreateRefusalGroup()];
+        => [
+            .. DemoUI.CreateColumns([CreateFieldsGroup(), CreateSizeLimitGroup()], [CreateFormGroup()]),
+            CreateTilesGroup()
+        ];
 
     /// <summary>
-    /// The jobs it is given, and what a single file and a set of them look like in one row.
+    /// Single-file MIME/extension filters (<c>SetAccept</c>) and multi-file selection (<c>SetMultiple(true)</c>) on inline fields.
     /// </summary>
-    private static ContainerComponent CreateUsesGroup()
+    private static ContainerComponent CreateFieldsGroup()
     {
-        return DemoUI.CreateExample("Where it is used",
-            UILayout.Stack(16)
+        return DemoUI.CreateExample("Single & multiple file fields",
+            UILayout.Stack(14)
                 .AddChild(new FileInputComponent()
-                    .SetTitle("Avatar")
-                    .SetIcon(DemoIcons.UserRound)
-                    .SetAccept("image/png,image/jpeg")
-                    .SetPlaceholder("PNG or JPEG, up to 2 MB")
-                    .SetMaxFileSize(2 * Megabyte)
-                )
-                .AddChild(new FileInputComponent()
-                    .SetTitle("TLS certificate")
+                    .SetTitle("TLS certificate (.pem, .crt)")
                     .SetIcon(DemoIcons.FileText)
                     .SetAccept(".pem,.crt")
-                    .SetPlaceholder("One certificate for bramble.example")
+                    .SetPlaceholder("Choose a single certificate")
                 )
                 .AddChild(new FileInputComponent()
-                    .SetTitle("Attachments")
+                    .SetTitle("Deploy manifest (.yaml, up to 256 KB)")
+                    .SetAccept(".yaml,.yml")
+                    .SetPlaceholder("Single .yaml up to 256 KB")
+                    .SetMaxFileSize(256 * 1024)
+                )
+                .AddChild(new FileInputComponent()
+                    .SetTitle("Review attachments")
                     .SetIcon(DemoIcons.Upload)
                     .SetMultiple(true)
-                    .SetPlaceholder("Anything the reviewer should see")
-                    .SetBadgeText("several at once")
-                    .SetBadgeStyle(UIBadgeType.Info)
-                )
+                    .SetPlaceholder("Choose one or more files")
+                    .SetBadgeTitle("Multiple")
+                    .SetBadgeVariant(UIBadgeVariant.Info)
+                ),
+            note: "`SetAccept` filters the OS file dialog by MIME type or extension; `SetMultiple(true)` accepts a batch in one pick."
         );
     }
 
     /// <summary>
-    /// The field among the others it is submitted with: one row of a form rather than a page of its own.
+    /// Immediate client-side <c>MaxFileSize</c> refusal for single and multi-file picks, localized in the active UI culture.
     /// </summary>
-    /// <remarks>Its fields are Tonal: a short form its card already frames, not a long one whose fields stack.</remarks>
+    private static ContainerComponent CreateSizeLimitGroup()
+    {
+        return DemoUI.CreateExample("Size limit validation (MaxFileSize)",
+            UILayout.Stack(14)
+                .AddChild(new FileInputComponent()
+                    .SetTitle("Signed contract (single file, max 1 MB)")
+                    .SetAccept(".pdf")
+                    .SetPlaceholder("Pick a file larger than 1 MB to test refusal")
+                    .SetMaxFileSize(Megabyte)
+                )
+                .AddChild(new FileInputComponent()
+                    .SetTitle("Expense receipts (multiple, max 1 MB each)")
+                    .SetMultiple(true)
+                    .SetMaxFileSize(Megabyte)
+                    .SetPlaceholder("Files within 1 MB stay; oversized files are listed below")
+                ),
+            note: "Files over `MaxFileSize` are rejected before upload and reported on the validation line; the server transfer endpoint still enforces its own limit."
+        );
+    }
+
+    /// <summary>
+    /// <c>Filled</c> file field with <c>Required</c> validation inside a <see cref="CardComponent"/> submission form.
+    /// </summary>
     private static ContainerComponent CreateFormGroup()
     {
-        return DemoUI.CreateExample("In a form",
+        return DemoUI.CreateExample("Form submission",
             new CardComponent()
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.FileText)
-                    .SetTitle("Attach to the review")
-                    .SetDescription("Everything here is submitted together")
+                    .SetTitle("Attach to change review")
+                    .SetDescription("Submitted together with the form fields")
                 )
                 .SetContent(UILayout.Stack(12)
                     .AddChild(new TextInputComponent()
-                        .SetAppearance(UIInputAppearance.Tonal)
-                        .SetTitle("What it is")
+                        .SetAppearance(UIInputAppearance.Filled)
+                        .SetTitle("Document title")
                         .SetValue("Rollback plan")
                     )
                     .AddChild(new FileInputComponent()
-                        .SetAppearance(UIInputAppearance.Tonal)
-                        .SetTitle("The file")
+                        .SetAppearance(UIInputAppearance.Filled)
+                        .SetTitle("Attachment")
                         .SetIcon(DemoIcons.File)
                         .SetAccept(".md,.pdf")
                         .SetPlaceholder("Markdown or PDF, up to 2 MB")
@@ -129,67 +153,18 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// With nothing chosen the placeholder is the whole contract, so it is written rather than left to the filter.
+    /// Multi-file square tile dropzone (<c>UIFileInputVariant.Tiles</c>) with thumbnails for images, file-type glyphs for documents,
+    /// per-tile upload progress and soft hover remove buttons.
     /// </summary>
-    /// <remarks>Side by side, because the three contracts only read as a set of choices when they can be compared.</remarks>
-    private static ContainerComponent CreateContractGroup()
+    private static ContainerComponent CreateTilesGroup()
     {
-        return DemoUI.CreateExample("What the empty field promises",
-            // Three to a row at the page's width, each as wide as a form's field: at 320 the third wrapped onto a row alone.
-            UILayout.Row(24)
-                .AddChild(DemoUI.CreateLabelled("One kind of file", new FileInputComponent()
-                    .SetTitle("Deploy manifest")
-                    .SetAccept(".yaml,.yml")
-                    .SetPlaceholder("A single .yaml, up to 256 KB")
-                    .SetMaxFileSize(256 * 1024)
-                    .SetWidth(UILayoutLength.Absolute(300))
-                    )
-                )
-                .AddChild(DemoUI.CreateLabelled("A whole family of them", new FileInputComponent()
-                    .SetTitle("Screenshot")
-                    .SetAccept("image/*")
-                    .SetPlaceholder("Any image, up to 5 MB")
-                    .SetMaxFileSize(5 * Megabyte)
-                    .SetWidth(UILayoutLength.Absolute(300))
-                    )
-                )
-                .AddChild(DemoUI.CreateLabelled("Several, each within the limit", new FileInputComponent()
-                    .SetTitle("Attachments")
-                    .SetMultiple(true)
-                    .SetMaxFileSize(5 * Megabyte)
-                    .SetPlaceholder("Up to 5 MB each")
-                    .SetWidth(UILayoutLength.Absolute(300))
-                    )
-                ),
+        return DemoUI.CreateExample("Tile dropzone (UIFileInputVariant.Tiles)",
+            new FileInputComponent()
+                .SetVariant(UIFileInputVariant.Tiles)
+                .SetTitle("Incident attachments")
+                .SetPlaceholder("Drop logs, captures or screenshots here, or click to browse"),
             columns: 24,
-            note: "The filter and the limit are a courtesy to the reader, **not a guarantee**: the transfer endpoint enforces its own, because nothing the client says about a file can be trusted — see [the transfer design](https://docs.orvane.example/files)."
-        );
-    }
-
-    /// <summary>
-    /// A file over the limit is refused where the field is, in the page's language: one file by the limit, several by the names left out.
-    /// </summary>
-    private static ContainerComponent CreateRefusalGroup()
-    {
-        return DemoUI.CreateExample("A file over the limit",
-            UILayout.Row(24)
-                .AddChild(DemoUI.CreateLabelled("One file, 1 MB at most", new FileInputComponent()
-                    .SetTitle("Signed contract")
-                    .SetPlaceholder("A PDF of 1 MB at most")
-                    .SetMaxFileSize(Megabyte)
-                    .SetWidth(UILayoutLength.Absolute(320))
-                    )
-                )
-                .AddChild(DemoUI.CreateLabelled("Several, each 1 MB at most", new FileInputComponent()
-                    .SetTitle("Receipts")
-                    .SetMultiple(true)
-                    .SetMaxFileSize(Megabyte)
-                    .SetPlaceholder("Pick several, one of them larger than 1 MB")
-                    .SetWidth(UILayoutLength.Absolute(320))
-                    )
-                ),
-            columns: 24,
-            note: "Pick a file over 1 MB: the first field says \"The file is larger than 1 MB.\" on its validation line; the second keeps the files within the limit and names the ones left out. Switch the language and the line is written again; the next pick clears it."
+            note: "`UIFileInputVariant.Tiles` renders a multi-file dropzone whose uploaded handles bind to `SelectionIds`. `UIFileInputVariant.Shelf` renders the same tile strip without the drop frame for external triggers (`OpenPickerEffect`)."
         );
     }
 }

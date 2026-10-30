@@ -103,14 +103,7 @@ internal sealed class UIRuntimeEntry
 
     // Deliberately not gated on IsConnected: a disconnected runtime's pending updates still need draining.
     public bool ShouldFlush(DateTime utcNow)
-        => Flush.IsScheduled && LastFlushedAtUtc + Flush.Interval <= utcNow;
-
-    /// <summary>
-    /// Whether this entry is past its retention window — the short one until a page has presented it. A runtime with a
-    /// command in flight is kept regardless, collected on a later sweep once it finishes.
-    /// </summary>
-    public bool ShouldCleanup(DateTime utcNow, TimeSpan retention, TimeSpan unclaimedRetention)
-        => !Runtime.HasCommandsInFlight && IsPastRetention(utcNow, retention, unclaimedRetention);
+        => Flush.Interval != Timeout.InfiniteTimeSpan && LastFlushedAtUtc + Flush.Interval <= utcNow;
 
     /// <summary>Whether every tab left this entry longer ago than its retention — the short one until a page has presented it.</summary>
     public bool IsPastRetention(DateTime utcNow, TimeSpan retention, TimeSpan unclaimedRetention)

@@ -9,10 +9,14 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A numeric input with configurable step, sign, and decimal/formatting constraints.
 /// </summary>
+[UIComponentPropertyBlock(typeof(IBorderedComponent))]
+[UIComponentPropertyBlock(typeof(IFieldInputComponent))]
+[UIComponentPropertyBlock(typeof(IAffixedInputComponent))]
+[UIComponentPropertyBlock(typeof(IFormattedInputComponent))]
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(IClearableInputComponent))]
-public abstract partial class NumberInputComponent<T>(string? id = null) : MinMaxInputComponentBase<T, decimal?>(id), IPlaceholderInputComponent, IAffixTextInputComponent, IClearableInputComponent, ICaretFieldComponent
+public abstract partial class NumberInputComponent<T>(string? id = null) : BoundedInputComponentBase<T, decimal?>(id), IBorderedComponent, IFieldInputComponent, IAffixedInputComponent, IFormattedInputComponent, IPlaceholderInputComponent, IAffixTextInputComponent, IClearableInputComponent, ICaretFieldComponent
     where T : NumberInputComponent<T>, IUIComponentDefinition
 {
     /// <summary>
@@ -116,13 +120,22 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
     {
         OrderedRange.Validate(min, max, value, "value");
 
-        if (step.HasValue)
-        {
-            if (step.Value <= 0)
-                throw new ArgumentOutOfRangeException(nameof(step), step, "Step must be greater than zero.");
+        if (step.HasValue && step.Value <= 0)
+            throw new ArgumentOutOfRangeException(nameof(step), step, "Step must be greater than zero.");
 
-            if (allowDecimals.HasValue && allowDecimals == false && decimal.Truncate(step.Value) != step.Value)
+        if (allowDecimals == false)
+        {
+            if (IsFractional(step))
                 throw new ArgumentOutOfRangeException(nameof(step), step, "Step must be a whole number when decimals are not allowed.");
+
+            if (IsFractional(min))
+                throw new ArgumentOutOfRangeException(nameof(min), min, "Minimum value must be a whole number when decimals are not allowed.");
+
+            if (IsFractional(max))
+                throw new ArgumentOutOfRangeException(nameof(max), max, "Maximum value must be a whole number when decimals are not allowed.");
+
+            if (IsFractional(value))
+                throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be a whole number when decimals are not allowed.");
         }
 
         if (allowNegative.HasValue && allowNegative == false)
@@ -136,10 +149,10 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : MinMa
             if (value.HasValue && value.Value < 0)
                 throw new ArgumentOutOfRangeException(nameof(value), value, "Value cannot be negative when negative values are not allowed.");
         }
-
-        if (value.HasValue && allowDecimals.HasValue && allowDecimals == false && decimal.Truncate(value.Value) != value.Value)
-            throw new ArgumentOutOfRangeException(nameof(value), value, "Value must be a whole number when decimals are not allowed.");
     }
+
+    private static bool IsFractional(decimal? number)
+        => number.HasValue && decimal.Truncate(number.Value) != number.Value;
 }
 
 /// <summary>

@@ -2,9 +2,8 @@
 // opens its native picker — in the same task, so the browser still counts the reader's press that raised the effect.
 
 // `node --test` loads this module as it is (the file inputs' test): `.ts` on the value imports.
+import { OpenPickerEventName } from "../addressing/dom-attributes.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
-
-export const OpenPickerEventName = "ui-open-picker";
 
 /** Asks the field to open its chooser; answers whether a file or image input heard the ask, whether or not it could open now. */
 export function dispatchOpenPicker(field: Element): boolean {

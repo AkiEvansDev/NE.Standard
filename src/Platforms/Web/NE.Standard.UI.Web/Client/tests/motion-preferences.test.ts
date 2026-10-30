@@ -7,6 +7,7 @@ import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import less from "less";
+import { addOnEntries } from "./add-on-stylesheets.ts";
 
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
@@ -101,15 +102,89 @@ test("a drop line, a marked day's dot and an upload's bar are redrawn in system 
     assert.ok(forcedRules.some(rule => rule.selectors.includes(".ui-temporal-input__day--marked.ui-temporal-input__day--selected::after") && rule.body.includes("background: HighlightText;")));
 });
 
-test("a component root with a transition list of its own still fades for Show and Hide", () => {
-    for (const selector of [".ui-button", ".ui-link", ".ui-surface--clickable", ".ui-button-group"]) {
-        const own = allRules.find(rule => rule.selectors.length === 1 && rule.selectors[0] === selector && /(^|;)\s*transition:/.test(rule.body));
+/** A selector list split at its own commas, not at those inside `:is()`, `:not()` or `:where()`. */
+function selectorsOf(list: string): string[] {
+    const parts: string[] = [];
+    let depth = 0;
+    let start = 0;
 
-        assert.ok(own !== undefined, `${selector} has no transition list`);
-        assert.match(own.body, /opacity 200ms/, `${selector} replaces the root's fade`);
-        assert.match(own.body, /visibility 200ms allow-discrete/, `${selector} hides at once`);
-        assert.doesNotMatch(own.body, /display \d+ms/, `${selector} lingers after a collapse`);
+    for (let index = 0; index < list.length; index++) {
+        if (list[index] === "(")
+            depth++;
+        else if (list[index] === ")")
+            depth--;
+        else if (list[index] === "," && depth === 0) {
+            parts.push(list.slice(start, index).trim());
+            start = index + 1;
+        }
     }
+
+    parts.push(list.slice(start).trim());
+
+    return parts.filter(part => part.length > 0);
+}
+
+/** The selector with what its functional pseudo-classes hold taken out, so their insides read as no combinator. */
+function withoutArguments(selector: string): string {
+    let text = "";
+    let depth = 0;
+
+    for (const char of selector) {
+        if (char === "(")
+            depth++;
+        else if (char === ")")
+            depth--;
+        else if (depth === 0)
+            text += char;
+    }
+
+    return text;
+}
+
+// Classes that are no component's root: a popup or a veil the page or the client draws, and a field's own box inside its root.
+const NotRoots = new Set(["ui-context-menu", "ui-tooltip", "ui-dialog", "ui-sheet-scrim", "ui-field-box"]);
+
+/** Every rule of `text` that sets a transition on a component's root itself — its block class, a modifier or a state of it — and its last list. */
+function rootTransitions(text: string): { readonly selector: string; readonly transition: string }[] {
+    const found: { selector: string; transition: string }[] = [];
+
+    for (const match of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const lists = [...match[2].matchAll(/(?:^|;)\s*transition:\s*([^;]+)/g)];
+
+        if (lists.length === 0)
+            continue;
+
+        for (const selector of selectorsOf(match[1].trim())) {
+            const bare = withoutArguments(selector);
+            const block = /^\.(ui-[a-z0-9-]+)(?![\w-])/.exec(bare)?.[1];
+
+            if (block !== undefined && !NotRoots.has(block) && !/[\s>+~]/.test(bare) && !bare.includes("::"))
+                found.push({ selector, transition: lists[lists.length - 1][1].trim() });
+        }
+    }
+
+    return found;
+}
+
+function assertKeepsTheRootsFade(rules: readonly { readonly selector: string; readonly transition: string }[]): void {
+    for (const { selector, transition } of rules) {
+        assert.match(transition, /^opacity 200ms (?:[^,(]|\([^)]*\))+, visibility 200ms allow-discrete\b/, `${selector} replaces the root's fade: ${transition}`);
+        assert.doesNotMatch(transition, /display \d+ms/, `${selector} lingers after a collapse`);
+    }
+}
+
+test("a component root with a transition list of its own still fades for Show and Hide", () => {
+    const rules = rootTransitions(css);
+
+    for (const selector of [".ui-button", ".ui-link", ".ui-surface--clickable", ".ui-button-group"])
+        assert.ok(rules.some(rule => rule.selector === selector), `the sweep missed ${selector}`);
+
+    assertKeepsTheRootsFade(rules);
+});
+
+test("no add-on's component root replaces the root's fade either", async () => {
+    for (const entry of addOnEntries)
+        assertKeepsTheRootsFade(rootTransitions((await less.render(readFileSync(entry, "utf8"), { filename: entry })).css));
 });
 
 test("a collapse goes at once, as a show arrives", () => {

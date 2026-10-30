@@ -1,11 +1,10 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -21,7 +20,8 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 [UIComponentPropertyBlock(typeof(IOrientationComponent))]
 [UIComponentPropertyDefault(nameof(IOrientationComponent.Orientation), nameof(DefaultOrientation))]
 [UIComponentPropertyBlock(typeof(ISpacingComponent))]
-public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>, IItemClickComponent, IOrientationComponent, ISpacingComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase<T, IButtonModel, IButtonComponent>, IItemClickComponent, IOrientationComponent, ISpacingComponent, IAccessibleNameComponent
     where T : CommandBarComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Horizontal;

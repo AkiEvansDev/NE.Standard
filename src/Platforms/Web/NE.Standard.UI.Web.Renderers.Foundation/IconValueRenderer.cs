@@ -27,7 +27,7 @@ public static class IconValueRenderer
     public const string StandInOperationKind = "icon-stand-in";
 
     /// <summary>The glyph a picture shows while it has none, laid over the picture's place (<see cref="RenderStandInGlyph"/>).</summary>
-    public const string StandInClassName = "ui-icon-stand-in";
+    public const string StandInClassName = WebClassNames.IconStandIn;
 
     private static readonly WebDomOperation[] SizeOperations = [WebDomOperation.Class(converter: WebDomConverters.IconSizeClass)];
 
@@ -47,7 +47,7 @@ public static class IconValueRenderer
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
 
-        _ = WebComponentRendererBase.RenderProperty<UIIconSize?>(context, target, sizeProperty, static (t, value) => WriteSize(t, value), SizeOperations);
+        _ = WebComponentRendererBase.RenderProperty<UISize?>(context, target, sizeProperty, static (t, value) => WriteSize(t, value), SizeOperations);
 
         ThemeColorRenderer.RenderThemeColor(context, target, colorProperty);
     }
@@ -64,20 +64,20 @@ public static class IconValueRenderer
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(glyph);
 
-        _ = WebComponentRendererBase.RenderProperty<UIIconSize?>(context, glyph, sizeProperty, static (target, value) => WriteSize(target, value), GlyphSizeOperations);
+        _ = WebComponentRendererBase.RenderProperty<UISize?>(context, glyph, sizeProperty, static (target, value) => WriteSize(target, value), GlyphSizeOperations);
 
         // Read again, not in the glyph's callback: one reaching the root would be a closure allocated per component.
         if (!marksRoot)
             return;
 
-        _ = WebComponentRendererBase.ResolveRenderValue(context, sizeProperty, out UIIconSize? size, out _);
+        _ = WebComponentRendererBase.ResolveRenderValue(context, sizeProperty, out UISize? size, out _);
 
-        if (size is UIIconSize authored)
+        if (size is UISize authored)
             _ = root.Attribute(GlyphSizeAttribute, WebCssValues.IconSize(authored));
     }
 
     /// <summary>The same from values no property carries — an item's badge drawn from its own.</summary>
-    public static void RenderIconAppearance(IHtmlElementBuilder target, UIIconSize? size, UIThemeColor color)
+    public static void RenderIconAppearance(IHtmlElementBuilder target, UISize? size, UIThemeColor color)
     {
         ArgumentNullException.ThrowIfNull(target);
 
@@ -85,14 +85,14 @@ public static class IconValueRenderer
         ThemeColorRenderer.RenderThemeColor(target, color);
     }
 
-    private static void WriteSize(IHtmlElementBuilder target, UIIconSize? value)
+    private static void WriteSize(IHtmlElementBuilder target, UISize? value)
     {
-        if (value is UIIconSize size)
+        if (value is UISize size)
             _ = target.Class(WebClassNames.IconSize(size));
     }
 
     /// <summary>
-    /// Writes the shape a picture icon is drawn in (<see cref="UIIconShape"/>; the stylesheet leaves a glyph as it is) and its fallback;
+    /// Writes the shape a picture icon is drawn in (<see cref="UIShape"/>; the stylesheet leaves a glyph as it is) and its fallback;
     /// a round one whose value draws nothing shows the fallback glyph on a neutral circle, and its host the mark that shows the icon. A
     /// picture of any shape that fails to load is the client's to answer (<c>icon-stand-in.ts</c>).
     /// </summary>
@@ -103,21 +103,21 @@ public static class IconValueRenderer
         ArgumentNullException.ThrowIfNull(icon);
         ArgumentNullException.ThrowIfNull(site);
 
-        _ = WebComponentRendererBase.RenderProperty<UIIconShape?>(context, icon, site.ShapeProperty, static (t, value) =>
+        _ = WebComponentRendererBase.RenderProperty<UIShape?>(context, icon, site.ShapeProperty, static (t, value) =>
         {
-            if (value is UIIconShape shape && WebClassNames.IconShape(shape) is { Length: > 0 } className)
+            if (value is UIShape shape && WebClassNames.IconShape(shape) is { Length: > 0 } className)
                 _ = t.Class(className);
         }, site.ShapeOperations.Span);
 
         _ = WebComponentRendererBase.RenderProperty<string?>(context, icon, site.FallbackProperty, static (t, value) =>
         {
             if (Draws(value))
-                _ = t.Attribute(WebAttributes.FallbackIcon, value);
+                _ = t.Attribute(WebAttributes.IconFallback, value);
         }, site.FallbackOperations.Span);
 
-        _ = WebComponentRendererBase.ResolveRenderValue(context, site.ShapeProperty, out UIIconShape? shape, out _);
+        _ = WebComponentRendererBase.ResolveRenderValue(context, site.ShapeProperty, out UIShape? shape, out _);
 
-        if (shape != UIIconShape.Circle)
+        if (shape != UIShape.Circle)
             return;
 
         _ = WebComponentRendererBase.ResolveRenderValue(context, site.IconProperty, out string? value, out _);
@@ -156,7 +156,7 @@ public static class IconValueRenderer
 
         _ = parent.Element("span", element =>
         {
-            _ = element.Class(className is null ? "ui-icon" : $"ui-icon {className}");
+            _ = element.Class(className is null ? WebClassNames.Icon : $"{WebClassNames.Icon} {className}");
 
             // `.ui-icon::before` stays hidden until this says there is something to draw.
             if (Draws(icon))

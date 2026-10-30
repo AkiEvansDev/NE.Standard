@@ -9,7 +9,6 @@ using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Actions;
@@ -51,6 +50,8 @@ internal sealed class UITestField
     public UITestRefusal? Refusal { get; set; }
 
     public UIPhrase? BoundRefusal { get; set; }
+
+    public bool GateRefused { get; set; }
 }
 
 public sealed partial class UITestPage
@@ -104,7 +105,7 @@ public sealed partial class UITestPage
         bool refused;
 
         lock (_sync)
-            refused = FieldNoLock(address.Component).Refusal is not null;
+            refused = FieldNoLock(address.Component).Refusal is not null || FieldNoLock(address.Component).GateRefused;
 
         // An .OnChange command never runs for a value the page or the server refused.
         UITestCommandResult result = outOfBounds || refused
@@ -456,13 +457,64 @@ public sealed partial class UITestPage
 
             // The value it takes clears a refusal of the one before; a new refusal comes back in the answer.
             lock (_sync)
-                FieldNoLock(address.Component).Refusal = null;
+            {
+                UITestField field = FieldNoLock(address.Component);
+
+                field.Refusal = null;
+                field.GateRefused = false;
+            }
         }
 
         ServerChangeSet answer = await _app.Host.ProcessChangeSetAsync(_resolution.Handle, new ClientChangeSet { Updates = updates }, cancellationToken).ConfigureAwait(false);
 
         Receive(answer);
+        MarkRevertedWrites(writes, answer);
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private void MarkRevertedWrites(List<UITestWrite> writes, ServerChangeSet answer)
+    {
+        if (answer.IsEmpty)
+            return;
+
+        lock (_sync)
+        {
+            for (var i = 0; i < writes.Count; i++)
+            {
+                if (WasWriteReverted(answer, writes[i].Address))
+                    FieldNoLock(writes[i].Address.Component).GateRefused = true;
+            }
+        }
+    }
+
+    private static bool WasWriteReverted(ServerChangeSet answer, UIPropertyAddress written)
+    {
+        for (var i = 0; i < answer.Updates.Length; i++)
+        {
+            if (answer.Updates[i] is ServerValueUIUpdate reverted
+                && reverted.Address.Component.Id == written.Component.Id
+                && reverted.Address.Property == written.Property
+                && HasRowKeyPrefix(written.Component.DynamicParameters, reverted.Address.Component.DynamicParameters))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasRowKeyPrefix(object?[] full, object?[] prefix)
+    {
+        if (prefix.Length > full.Length)
+            return false;
+
+        for (var i = 0; i < prefix.Length; i++)
+        {
+            if (!Equals(full[i], prefix[i]))
+                return false;
+        }
+
+        return true;
     }
 
     private List<ClientEffect> EffectsSince(int mark)

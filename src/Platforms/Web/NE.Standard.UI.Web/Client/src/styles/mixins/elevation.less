@@ -11,6 +11,15 @@
     box-shadow: 0 2px 6px var(--ui-color-shadow), 0 1px 2px var(--ui-color-shadow);
 }
 
+// Level 2 cast away from a docked edge (a submenu sharing its parent popup's border), so none of the blur falls back over the parent.
+.ui-elevation-2-docked(right) {
+    box-shadow: 4px 2px 6px -2px var(--ui-color-shadow), 2px 1px 2px -1px var(--ui-color-shadow);
+}
+
+.ui-elevation-2-docked(left) {
+    box-shadow: -4px 2px 6px -2px var(--ui-color-shadow), -2px 1px 2px -1px var(--ui-color-shadow);
+}
+
 .ui-elevation-3() {
     box-shadow: 0 8px 24px var(--ui-color-shadow), 0 2px 6px var(--ui-color-shadow);
 }

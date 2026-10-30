@@ -26,8 +26,8 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
     public const string DepthVariable = "--ui-tree-depth";
 
     private const string HostClassName = "ui-tree__host";
-    private const string FoldedClassName = "ui-tree__row--folded";
-    private const string NodeClassName = "ui-tree__node";
+    private const string FoldedClassName = WebClassNames.TreeRowFolded;
+    private const string NodeClassName = WebClassNames.TreeNodeWrapper;
 
     // The client mirror of RenderRow below: the row template as the row's identity, the node's face in one slot chosen by kind.
     private static readonly WebRenderItemsCompositeMetadata CompositeItem = new()
@@ -53,6 +53,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         _ = root.Attribute("role", "tree");
+        RenderAccessibleName(context, root);
 
         SurfaceStyleRenderer.RenderSurface(context, root, ISurfaceStyleComponent.SurfaceProperty);
         BorderStyleRenderer.RenderBorderStyle(context, root);
@@ -72,7 +73,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
         RenderRowsRemove(context, root);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-tree--row-hover");
         RenderEmptyStateSwitch(context, root);
-        RenderFlagClass(context, root, TreeComponent.ShowFoldChevronProperty, "ui-tree--no-chevron", WebValueCondition.IsFalse);
+        RenderFlagClass(context, root, TreeComponent.ShowChevronProperty, "ui-tree--no-chevron", WebValueCondition.IsFalse);
 
         // The tree takes the focus whatever it chooses: the arrows fold and walk its rows.
         RenderSelection(context, root);

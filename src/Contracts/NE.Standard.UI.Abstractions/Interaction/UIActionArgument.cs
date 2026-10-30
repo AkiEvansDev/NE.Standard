@@ -132,6 +132,19 @@ public readonly record struct UIActionArgument
         => new(UIActionArgumentKind.EventValue);
 
     /// <summary>
+    /// Creates an action argument resolved from the value at <paramref name="index"/> of what the event carries after the keys that
+    /// address its component.
+    /// </summary>
+    public static UIActionArgument EventValue(int index)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+
+        return index == 0
+            ? new UIActionArgument(UIActionArgumentKind.EventValue)
+            : new UIActionArgument(UIActionArgumentKind.EventValue, index);
+    }
+
+    /// <summary>
     /// Creates an action argument resolved from a binding path.
     /// </summary>
     public static UIActionArgument Bind(UIBindingPath binding)
@@ -143,7 +156,8 @@ public readonly record struct UIActionArgument
             UIActionArgumentKind.Literal => $"{Value}",
             UIActionArgumentKind.Binding => $"{{{Binding}}}",
             UIActionArgumentKind.EventKey => $"{{{Kind}[{Value}]}}",
-            UIActionArgumentKind.CurrentItem or UIActionArgumentKind.CurrentItemKey or UIActionArgumentKind.EventValue or UIActionArgumentKind.GroupKey => $"{{{Kind}}}",
+            UIActionArgumentKind.EventValue => Value is int index ? $"{{{Kind}[{index}]}}" : $"{{{Kind}}}",
+            UIActionArgumentKind.CurrentItem or UIActionArgumentKind.CurrentItemKey or UIActionArgumentKind.GroupKey => $"{{{Kind}}}",
             _ => throw new UnreachableException()
         };
 }

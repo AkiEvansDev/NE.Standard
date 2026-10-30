@@ -17,20 +17,20 @@ namespace NE.Standard.UI.Web.Renderers.Navigation;
 /// <summary>A trail of steps resolved through the step template; the current step is marked client-side.</summary>
 public sealed class BreadcrumbsComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string ItemClassName = "ui-breadcrumbs__item";
+    private const string ItemClassName = WebClassNames.BreadcrumbsItem;
 
     public override string ComponentTypeKey => BreadcrumbsComponent.ComponentTypeKey;
 
     protected override string ElementName => "nav";
 
-    protected override string ClassName => "ui-breadcrumbs";
+    protected override string ClassName => WebClassNames.Breadcrumbs;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        WebWords.Write(context, root, "aria-label", UIStrings.BreadcrumbsLabel);
+        WebWords.Write(context, root, "aria-label", UIStrings.BreadcrumbsName);
 
         // An author's own separator is a CSS string on a pseudo-element; with none set the stylesheet draws its chevron.
         _ = ResolveRenderValue(context, BreadcrumbsComponent.SeparatorProperty, out string? separator, out _);
@@ -67,7 +67,7 @@ public sealed class BreadcrumbsComponentRenderer : ItemsCollectionRendererBase
     /// Writes on each step's wrapper the tiers its step is collapsed in and the tiers no shown step follows it in, where it draws no
     /// separator, walking the trail from its end; breadcrumbs-engine.ts keeps both, and takes a filter's hidden steps out too.
     /// </summary>
-    private static void MarkSteps(List<(IHtmlElementBuilder Row, UIResponsive<UIVisibility>? Visibility)> steps)
+    internal static void MarkSteps(List<(IHtmlElementBuilder Row, UIResponsive<UIVisibility>? Visibility)> steps)
     {
         Span<bool> shownAfter = stackalloc bool[(int)UIResponsiveTier.Xxl + 1];
         StringBuilder collapsed = new();

@@ -16,7 +16,6 @@ using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
-using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Testing;
 
@@ -28,9 +27,8 @@ namespace NE.Standard.UI.Testing;
 /// Modelled: values and collections from the change sets — a refill keeping the rows it resends unchanged — a binding read off its
 /// row's item, visibility and enabled state with their ancestors', the field rules (change, blur, submit), a value past its bounds
 /// refused on the page, a bound message and the server's refusal, a form's held values and its discard, the client interactions a
-/// view declares, dialogs — the viewer's close (an ×, Escape, a press beside it) raising <c>OnClose</c> — a show or hide effect's
-/// visibility, a language or theme the page switched to told to its session, the address an effect writes, and a submit refused
-/// while its form has an error. Not modelled: layout,
+/// view declares, dialogs — the viewer's close (an ×, Escape, a press beside it) raising <c>OnClose</c> — a language or theme the
+/// page switched to told to its session, the address an effect writes, and a submit refused while its form has an error. Not modelled: layout,
 /// a responsive value at any width but the widest, a plain host's own filter and sort rules (rows stand as the server sent them),
 /// item windows read on scroll, popups other than dialogs (a context menu and a flyout stand open), the validation message sent
 /// into another component, trimming and debouncing a field does in the browser, and fields in rows on a submit.
@@ -235,15 +233,11 @@ public sealed partial class UITestPage
         };
     }
 
-    /// <summary>Delivers what a <c>Batch</c> runtime holds for its pages, as the scheduled flush does; a <c>Direct</c> one has sent it already.</summary>
+    /// <summary>Delivers what the runtime holds for its pages, as the scheduled flush does.</summary>
     public async Task FlushAsync(CancellationToken cancellationToken = default)
     {
-        IUIRuntime runtime = RequireRuntime();
-        ServerChangeSet changes = await _app.Host.FlushAsync(_resolution.Handle, cancellationToken).ConfigureAwait(false);
-
-        // A batch runtime only drains; the scheduled flush hands what it drained to every page attached, and so does this.
-        if (runtime is Runtime.UIBatchRuntime && !changes.IsEmpty && runtime.AttachedInstanceIds.Count > 0)
-            await Runtime.UIChangeDelivery.SendAsync(_app.Client, runtime, _resolution.Handle, runtime.AttachedInstanceIds, changes, cancellationToken).ConfigureAwait(false);
+        _ = RequireRuntime();
+        _ = await _app.Host.FlushAsync(_resolution.Handle, cancellationToken).ConfigureAwait(false);
 
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
         await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
@@ -286,7 +280,7 @@ public sealed partial class UITestPage
         _app.Host.ReportClientState(_resolution.Handle, state);
 
         // The hooks a report raises are posted, so the page's report does not wait for a turn; the test waits for them instead.
-        if (_resolution.Runtime is Runtime.UIRuntimeBase runtime)
+        if (_resolution.Runtime is { } runtime)
             await runtime.WhenPostedRanAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
 
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
@@ -307,5 +301,22 @@ public sealed partial class UITestPage
         ArgumentNullException.ThrowIfNull(navigation);
 
         return _app.OpenAsync(navigation, _resolution.Handle.Session.SessionId, Session, cancellationToken);
+    }
+
+    /// <summary>
+    /// Closes the page as a reader closing its tab does: its connection leaves the runtime through the host, and the page receives
+    /// nothing more; returns once the controller's <c>OnDetachedAsync</c>, which the detach posts, has run.
+    /// </summary>
+    /// <remarks>
+    /// The runtime stays as a closed tab's does, for its retention, and a background command the page raised runs on until its tab's
+    /// stay ends; a page closed takes no further act.
+    /// </remarks>
+    public async Task CloseAsync(CancellationToken cancellationToken = default)
+    {
+        _ = _app.Host.DetachRuntime(_resolution.Handle);
+        _app.Client.Remove(_instanceId);
+
+        if (_resolution.Runtime is { } runtime)
+            await runtime.WhenPostedRanAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 }

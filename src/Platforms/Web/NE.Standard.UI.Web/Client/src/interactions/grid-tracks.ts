@@ -414,12 +414,7 @@ export function shareDelta(sizes: readonly number[], runs: GridSplitRuns, share:
     return total * Math.min(Math.max(share, 0), 1) - before;
 }
 
-/** A splitter's position as written on it (`data-ui-splitter-position`): a share from 0 to 1, or null for none or text that is not one. */
-export function parseShare(text: string | null): number | null {
-    const share = text === null || text.length === 0 ? Number.NaN : Number(text);
-
-    return share >= 0 && share <= 1 ? share : null;
-}
+export { parseShare } from "../extensions/value-readers.ts";
 
 /** Where each of a table's first `pinned` columns sticks: the laid-out widths before it added up, the first at zero. */
 export function pinOffsets(sizes: readonly number[], pinned: number): number[] {

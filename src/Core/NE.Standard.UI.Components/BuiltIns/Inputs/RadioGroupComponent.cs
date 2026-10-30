@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Components.BuiltIns.Templates;
@@ -17,8 +16,9 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(ISizedInputComponent))]
 [UIComponentPropertyBlock(typeof(IOrientationComponent))]
 [UIComponentPropertyBlock(typeof(ISpacingComponent))]
+[UIComponentPropertyBlock(typeof(IEvenColumnsComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
-public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>, ISizedInputComponent, IOrientationComponent, ISpacingComponent, IEmptyStateComponent
+public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase<T, OptionItem>, ISizedInputComponent, IOrientationComponent, ISpacingComponent, IEvenColumnsComponent, IEmptyStateComponent
     where T : RadioGroupComponent<T>, IUIComponentDefinition
 {
     private readonly DefaultTextTemplate _optionTemplate = new DefaultTextTemplate(binds: true)

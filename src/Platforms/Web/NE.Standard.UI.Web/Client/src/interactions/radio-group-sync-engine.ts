@@ -1,14 +1,8 @@
-import { ValueBindingAttribute } from "../addressing/dom-attributes";
-import { RadioInputClass } from "../items/radio-row-decorator";
-import { isItemDisabled } from "./interactive-state";
-import { ownDescendants } from "./own-descendants";
-import { isPressWaveRecord } from "./press-wave";
-
-const RadioValueAttribute = "data-ui-radio-value";
-const RadioGroupClass = "ui-radio-group";
-const ItemWrapperClass = "ui-radio-group__item";
-const GroupNameAttribute = "data-ui-radio-group-name";
-const BindValueIdAttribute = "data-ui-radio-bind-value-id";
+// `.ts` on the value imports: `node --test` loads this module as it is.
+import { DisabledClass, LoadingClass, RadioBindValueIdAttribute, RadioGroupClass, RadioGroupInputClass, RadioGroupItemClass, RadioGroupNameAttribute, RadioValueAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
+import { isItemDisabled } from "./interactive-state.ts";
+import { ownDescendants } from "./own-descendants.ts";
+import { isPressWaveRecord } from "./press-wave.ts";
 
 export type RadioGroupSyncEngineOptions = {
     readonly root?: ParentNode;
@@ -20,8 +14,23 @@ export class RadioGroupSyncEngine {
     /** Tells the copies of one group apart — see `claimGroupName`. */
     private renamed = 0;
 
+    // The one watch of every group's own options, and the groups it is on.
+    private readonly optionWatch: MutationObserver | null;
+    private readonly watched = new WeakSet<HTMLElement>();
+
     public constructor(options: RadioGroupSyncEngineOptions = {}) {
         this.root = options.root ?? document;
+
+        // Inside each group alone, an option's Enabled moving (a class): the group re-reads its options. A watch of the whole page
+        // would hear every class any element changes.
+        this.optionWatch = this.root instanceof Node
+            ? new MutationObserver(mutations => {
+                const groups = new Set(mutations.map(mutation => mutation.target instanceof HTMLElement ? mutation.target.closest<HTMLElement>(`.${RadioGroupClass}`) : null));
+
+                for (const group of groups)
+                    this.sync(group);
+            })
+            : null;
 
         this.claimGroupNames([...this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)]);
 
@@ -36,8 +45,8 @@ export class RadioGroupSyncEngine {
             const added: HTMLElement[] = [];
 
             for (const mutation of mutations) {
+                // A value pushed: the group it is on re-reads it.
                 if (mutation.type === "attributes" && mutation.target instanceof HTMLElement) {
-                    // A class change is an option's Enabled moving: the group it belongs to re-reads its options.
                     this.sync(mutation.target.closest<HTMLElement>(`.${RadioGroupClass}`));
                     continue;
                 }
@@ -59,7 +68,7 @@ export class RadioGroupSyncEngine {
                 this.sync(group);
         });
 
-        observer.observe(this.root, { attributes: true, attributeFilter: [RadioValueAttribute, "class"], childList: true, subtree: true });
+        observer.observe(this.root, { attributes: true, attributeFilter: [RadioValueAttribute], childList: true, subtree: true });
     }
 
     /** Gives each rendered group a name of its own: a candidate sharing one renames itself and its radios; the last holder keeps it. */
@@ -71,7 +80,7 @@ export class RadioGroupSyncEngine {
         const holders = new Map<string, number>();
 
         for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)) {
-            const name = group.getAttribute(GroupNameAttribute);
+            const name = group.getAttribute(RadioGroupNameAttribute);
 
             if (name !== null)
                 holders.set(name, (holders.get(name) ?? 0) + 1);
@@ -80,7 +89,7 @@ export class RadioGroupSyncEngine {
         const shared = new Set<string>();
 
         for (const group of candidates) {
-            const name = group.getAttribute(GroupNameAttribute);
+            const name = group.getAttribute(RadioGroupNameAttribute);
             const count = name === null ? 0 : holders.get(name) ?? 0;
 
             if (name === null || count < 2)
@@ -91,9 +100,9 @@ export class RadioGroupSyncEngine {
 
             const unique = `${name}-${++this.renamed}`;
 
-            group.setAttribute(GroupNameAttribute, unique);
+            group.setAttribute(RadioGroupNameAttribute, unique);
 
-            for (const radio of ownDescendants(group, `.${RadioInputClass}`, `.${RadioGroupClass}`) as HTMLInputElement[])
+            for (const radio of ownDescendants(group, `.${RadioGroupInputClass}`, `.${RadioGroupClass}`) as HTMLInputElement[])
                 radio.name = unique;
 
             this.sync(group);
@@ -104,7 +113,7 @@ export class RadioGroupSyncEngine {
 
         // The browser unchecked the group left holding a shared name, so it re-reads its own value too.
         for (const group of this.root.querySelectorAll<HTMLElement>(`.${RadioGroupClass}`)) {
-            if (shared.has(group.getAttribute(GroupNameAttribute) ?? ""))
+            if (shared.has(group.getAttribute(RadioGroupNameAttribute) ?? ""))
                 this.sync(group);
         }
     }
@@ -113,14 +122,17 @@ export class RadioGroupSyncEngine {
         if (group === null)
             return;
 
+        this.watchOptions(group);
+
         // No value is a group with nothing chosen, not one to skip: its radios still follow their options' Enabled.
         const value = group.getAttribute(RadioValueAttribute);
 
-        const name = group.getAttribute(GroupNameAttribute);
-        const bindValueId = group.getAttribute(BindValueIdAttribute);
+        const name = group.getAttribute(RadioGroupNameAttribute);
+        const bindValueId = group.getAttribute(RadioBindValueIdAttribute);
+        const groupBlocked = group.classList.contains(DisabledClass) || group.classList.contains(LoadingClass);
 
         // A read-only group keeps its radios focusable and readable; the refusal engine turns their change away.
-        for (const radio of ownDescendants(group, `.${RadioInputClass}`, `.${RadioGroupClass}`) as HTMLInputElement[]) {
+        for (const radio of ownDescendants(group, `.${RadioGroupInputClass}`, `.${RadioGroupClass}`) as HTMLInputElement[]) {
             // A row the client built has no name or binding of its own until here: one name makes the radios one choice.
             if (name !== null && radio.name !== name)
                 radio.name = name;
@@ -131,13 +143,21 @@ export class RadioGroupSyncEngine {
             radio.checked = radio.value === value;
 
             // The native radio sits beside the item template, so the template's own disabled state never reaches it.
-            const disabled = isOptionDisabled(radio);
+            const disabled = groupBlocked || isOptionDisabled(radio);
 
             if (radio.disabled !== disabled)
                 radio.disabled = disabled;
         }
     }
 
+    /** Watches a group's own options once, as the page-wide watch does not. */
+    private watchOptions(group: HTMLElement): void {
+        if (this.optionWatch === null || this.watched.has(group))
+            return;
+
+        this.watched.add(group);
+        this.optionWatch.observe(group, { attributes: true, attributeFilter: ["class"], subtree: true });
+    }
 }
 
 /** The node itself when it is a group, and the groups under it. */
@@ -147,7 +167,7 @@ function groupsIn(node: HTMLElement): HTMLElement[] {
 
 /** Whether the option this radio stands for is disabled. */
 function isOptionDisabled(radio: HTMLInputElement): boolean {
-    const wrapper = radio.closest<HTMLElement>(`.${ItemWrapperClass}`);
+    const wrapper = radio.closest<HTMLElement>(`.${RadioGroupItemClass}`);
 
     return wrapper !== null && isItemDisabled(wrapper);
 }

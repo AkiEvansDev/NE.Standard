@@ -17,6 +17,7 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 public sealed class FlyoutComponentRenderer : WebComponentRendererBase
 {
     private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Class(converter: WebDomConverters.FlyoutPlacementClass)];
+    private static readonly WebDomOperation[] PanelNameOperations = [WebDomOperation.Attribute("aria-label", target: "." + WebClassNames.FlyoutContent, converter: WebDomConverters.NonBlankText)];
 
     public override string ComponentTypeKey => FlyoutComponent.ComponentTypeKey;
 
@@ -28,7 +29,7 @@ public sealed class FlyoutComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         _ = root.Attribute(WebAttributes.ValueKind, WebValueKinds.FlyoutOpen);
-        RenderFlagClass(context, root, FlyoutComponent.IsOpenProperty, "ui-flyout--open");
+        RenderFlagClass(context, root, FlyoutComponent.IsOpenProperty, WebClassNames.FlyoutOpen);
 
         _ = RenderProperty<UIPopupPlacement?>(context, root, IPopupPlacementComponent.PopupPlacementProperty, static (target, value) =>
         {
@@ -44,6 +45,13 @@ public sealed class FlyoutComponentRenderer : WebComponentRendererBase
             FlyoutRenderer.RenderAnchor(root, anchor => RenderRegion(context, anchor, RegionNames.Anchor));
 
         if (HasRegion(context, RegionNames.Content))
-            FlyoutRenderer.RenderContent(root, content => RenderRegion(context, content, RegionNames.Content));
+        {
+            // The panel is the dialog, so the name is its own; unset, the client names it by what opened it.
+            FlyoutRenderer.RenderContent(root, content =>
+            {
+                RenderAccessibleName(context, content, PanelNameOperations);
+                RenderRegion(context, content, RegionNames.Content);
+            });
+        }
     }
 }

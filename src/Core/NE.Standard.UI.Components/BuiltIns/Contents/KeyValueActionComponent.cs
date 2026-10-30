@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
@@ -21,14 +23,27 @@ namespace NE.Standard.UI.Components.BuiltIns.Contents;
 /// <summary>
 /// A list of key/value rows, each with an optional trailing action, e.g. a settings or detail list.
 /// </summary>
+/// <remarks>
+/// A row host as a table is: one Tab stop whose arrows walk the rows. Enter on the keyboard's row clicks it and opens it — or presses
+/// the row's one control, its action —, a double click opens it, Delete raises the removal <c>OnItemRemove</c> wired, and F2 opens a
+/// row of a list that edits in place.
+/// </remarks>
+[UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultVerticalAlignment))]
 [UIComponentPropertyBlock(typeof(IOverflowComponent))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(ISurfaceStyleComponent))]
 [UIComponentPropertyBlock(typeof(IRowHoverableComponent))]
 [UIComponentPropertyBlock(typeof(IEmptyStateComponent))]
-public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase<T, IKeyValueActionModel, DefaultRowTemplate>, IOverflowComponent, IBorderedComponent, ISurfaceStyleComponent, IRowHoverableComponent, IKeyValueActionComponent, IEmptyStateComponent
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase<T, IKeyValueActionModel, DefaultRowTemplate>, IOverflowComponent, IBorderedComponent, ISurfaceStyleComponent, IRowHoverableComponent, IKeyValueActionComponent, IEmptyStateComponent, IAccessibleNameComponent
     where T : KeyValueActionComponent<T>, IUIComponentDefinition
 {
+    // A list of rows is as tall as its rows: stretched to a taller cell it would hang its last row's rule mid-air.
+    private static readonly UIResponsive<UIAlignment> DefaultVerticalAlignment = UIAlignment.Start;
+
+    /// <summary>The argument the edit and save commands receive the row's key under.</summary>
+    private const string EditArgumentName = "id";
+
     /// <summary>
     /// Gets or sets whether separator lines are shown between rows.
     /// </summary>
@@ -79,17 +94,11 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// </summary>
     public IInputComponent? ValueInputTemplate => GetTemplateVariant(TemplateNames.ValueInput) as IInputComponent;
 
-    /// <summary>The argument the edit and save commands receive the row's key under.</summary>
-    private const string EditArgumentName = "id";
-
     /// <summary>
     /// Initializes the component with its default row, key, value and action templates.
     /// </summary>
     protected KeyValueActionComponent(string? id = null) : base(id)
     {
-        // A list of rows is as tall as its rows: stretched to a taller cell it would hang its last row's rule mid-air.
-        VerticalAlignment = UIAlignment.Start;
-
         _ = SetRowTemplate(new DefaultRowTemplate());
         _ = DeclareCompositeSlot(TemplateNames.ValueInput, nameof(IKeyValueActionModel.InputTemplate));
         _ = SetKeyTemplate(new DefaultKeyTemplate(binds: true));
@@ -158,8 +167,27 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
         if (template is IFieldInputComponent { Appearance: null } field)
             field.Appearance = UIInputAppearance.Ghost;
 
+        // A field with no name of its own is named by the row's key, which stands beside it unlinked: a field with no caption is a
+        // bare role. A name said with the template wins over this; one said after it is outranked by the binding already set.
+        if (template is IAccessibleNameComponent { AccessibleName: null } && IsUnnamed(template))
+            _ = template.Bind(IAccessibleNameComponent.AccessibleNameProperty, $"{nameof(IKeyValueActionModel.Key)}.{nameof(ITextBaseModel.Title)}", UIBindingScope.Relative);
+
         // Spelled out rather than left to the input's own default: a draft that never came back would be no draft.
         return template.Bind(IInputComponent.ValueProperty, nameof(IKeyValueActionModel.EditValue), UIBindingScope.Relative, UIBindingMode.TwoWay);
+    }
+
+    private static bool IsUnnamed(IVisualComponent template)
+    {
+        if (template is ITextBaseComponent { Title: not null })
+            return false;
+
+        foreach (UIBinding binding in template.Bindings)
+        {
+            if (binding.Target == IAccessibleNameComponent.AccessibleNameProperty || binding.Target == ITextBaseComponent.TitleProperty)
+                return false;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -183,9 +211,9 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
 
         // The standard actions' words, the framework's own keys: the page translates them the way it translates any title.
         ButtonComponent pencil = new ButtonComponent()
-            .SetType(UIButtonType.Ghost)
-            .SetSize(UIButtonSize.Small)
-            .SetTitle(UIStandardAction.Edit.Word);
+            .SetVariant(UIButtonVariant.Ghost)
+            .SetSize(UISize.Small)
+            .SetTitle(UIStandardAction.Edit.Title);
 
         if (editCommand is null)
             _ = row.InteractOn(pencil.Id, EventNames.Click, DefaultRowTemplate.EditingProperty, true);
@@ -193,15 +221,15 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
             _ = pencil.OnClick(editCommand, UIAction.Offered(UIAction.ArgCurrentItemKey(EditArgumentName)));
 
         ButtonComponent save = new ButtonComponent()
-            .SetType(UIButtonType.Primary)
-            .SetSize(UIButtonSize.Small)
-            .SetTitle(UIStandardAction.Save.Word)
+            .SetVariant(UIButtonVariant.Primary)
+            .SetSize(UISize.Small)
+            .SetTitle(UIStandardAction.Save.Title)
             .OnClick(saveCommand, UIAction.Offered(UIAction.ArgCurrentItemKey(EditArgumentName)));
 
         ButtonComponent cancel = new ButtonComponent()
-            .SetType(UIButtonType.Ghost)
-            .SetSize(UIButtonSize.Small)
-            .SetTitle(UIStandardAction.Cancel.Word);
+            .SetVariant(UIButtonVariant.Ghost)
+            .SetSize(UISize.Small)
+            .SetTitle(UIStandardAction.Cancel.Title);
 
         _ = row.InteractOn(cancel.Id, EventNames.Click, DefaultRowTemplate.EditingProperty, false);
 

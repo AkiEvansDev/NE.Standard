@@ -6,6 +6,7 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 using NE.Standard.UI.Web.Renderers.Items;
 
@@ -14,18 +15,22 @@ namespace NE.Standard.UI.Web.Renderers.Contents;
 /// <summary>Renders a row per item, each with the three fixed named slots key, value and action.</summary>
 public sealed class KeyValueActionComponentRenderer : ItemsCollectionRendererBase
 {
-    private const string RowClassName = "ui-key-value-action__row";
+    private const string RowClassName = WebClassNames.KeyValueActionRow;
     private const string KeyClassName = "ui-key-value-action__key";
-    private const string ValueClassName = "ui-key-value-action__value";
-    private const string ActionClassName = "ui-key-value-action__action";
-    private const string ValueInputClassName = "ui-key-value-action__value-input";
-    private const string EditActionClassName = "ui-key-value-action__edit-action";
-    private const string EditableClassName = "ui-key-value-action--editable";
+    private const string ValueClassName = WebClassNames.KeyValueActionValue;
+    private const string ActionClassName = WebClassNames.KeyValueActionAction;
+    private const string ValueInputClassName = WebClassNames.KeyValueActionValueInput;
+    private const string EditActionClassName = WebClassNames.KeyValueActionEditAction;
+    private const string EditableClassName = WebClassNames.KeyValueActionEditable;
+
+    // A list whose rows hold controls of their own, as an items view's such rows are: a list of items, not a listbox of options.
+    private const string RowRole = "listitem";
 
     // The client mirror of RenderRow below; hoisted rather than built per render (CA1861).
     private static readonly WebRenderItemsCompositeMetadata CompositeItem = new()
     {
         ItemClassName = RowClassName,
+        ItemRole = RowRole,
         HostSlotVariantKey = TemplateNames.Row,
         Slots =
         [
@@ -40,6 +45,7 @@ public sealed class KeyValueActionComponentRenderer : ItemsCollectionRendererBas
     private static readonly WebRenderItemsCompositeMetadata EditableCompositeItem = new()
     {
         ItemClassName = RowClassName,
+        ItemRole = RowRole,
         HostSlotVariantKey = TemplateNames.Row,
         Slots =
         [
@@ -53,7 +59,7 @@ public sealed class KeyValueActionComponentRenderer : ItemsCollectionRendererBas
 
     public override string ComponentTypeKey => KeyValueActionComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-key-value-action";
+    protected override string ClassName => WebClassNames.KeyValueAction;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -61,6 +67,13 @@ public sealed class KeyValueActionComponentRenderer : ItemsCollectionRendererBas
         ArgumentNullException.ThrowIfNull(root);
 
         OverflowStyleRenderer.RenderOverflow(context, root);
+
+        // A row host as a table is: the root is the one Tab stop and names the keyboard's row, whose controls alone join the Tab
+        // order; Enter clicks and opens the row, a double click opens it, Delete raises a removal the application wired.
+        _ = root.Attribute("role", "list");
+        _ = root.Attribute("tabindex", "0");
+        RenderAccessibleName(context, root);
+        RenderRowsRemove(context, root);
 
         RenderFlagClass(context, root, KeyValueActionComponent.ShowRowSeparatorsProperty, "ui-key-value-action--no-separators", WebValueCondition.IsFalse);
         RenderFlagClass(context, root, KeyValueActionComponent.StretchValueProperty, "ui-key-value-action--no-stretch", WebValueCondition.IsFalse);
@@ -104,6 +117,7 @@ public sealed class KeyValueActionComponentRenderer : ItemsCollectionRendererBas
         _ = host.Element("div", row =>
         {
             _ = row.Class(RowClassName);
+            _ = row.Attribute("role", RowRole);
 
             StampTemplateSlotAsHost(context, row, item, TemplateNames.Row);
             RenderStampedRowAbilities(context, row, item);

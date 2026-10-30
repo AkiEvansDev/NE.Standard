@@ -1,0 +1,50 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using NE.Standard.UI.Shell.Commands;
+using NE.Standard.UI.Shell.Controllers;
+using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Updates.Client;
+
+namespace NE.Standard.UI.Runtime;
+
+internal sealed partial class UIRuntime
+{
+    private async Task<RuntimeExceptionResult> HandleRuntimeExceptionAsync(Exception exception, string operation, UICommandRequest? commandRequest, ClientChangeSet? clientChangeSet, CancellationToken cancellationToken)
+    {
+        try
+        {
+            RuntimeExceptionContext context = new()
+            {
+                Exception = exception,
+                Operation = operation,
+                CommandRequest = commandRequest,
+                ClientChangeSet = clientChangeSet
+            };
+
+            context.Validate();
+
+            RuntimeExceptionResult result = await Controller
+                .HandleRuntimeExceptionAsync(context, cancellationToken)
+                .ConfigureAwait(false);
+
+            ArgumentNullException.ThrowIfNull(result);
+
+            result.Validate();
+
+            if (result.RequestFullResync)
+                ((IUIRuntimeAccess)this).RequestFullResync();
+
+            return result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception handlerException)
+        {
+            TryLog((operation, handlerException), static (logger, state) => Log.ExceptionHandlerFailed(logger, state.handlerException, state.operation));
+            return RuntimeExceptionResult.CommandResult(DefaultRuntimeErrorCommand);
+        }
+    }
+}

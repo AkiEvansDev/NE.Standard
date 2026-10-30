@@ -1,6 +1,5 @@
 using DemoApp.Controllers.Base;
 using DemoApp.Controllers.Choices.RadioGroup;
-using DemoApp.Controllers.Inputs;
 using DemoApp.Views.Base;
 using NE.Standard.UI.Components.Foundation;
 
@@ -23,17 +22,17 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
     protected override string ComponentRoute => "/choices/radio-group";
     protected override string Header => "demo.choices.radio-group.header";
     protected override string HeaderDescription => "demo.choices.radio-group.description";
-    protected override (string Route, string Label)? ComposedIn => ("/screens/checkout", "demo.nav.screens.checkout");
+    protected override (string Route, string Title)? ComposedIn => ("/screens/checkout", "demo.nav.screens.checkout");
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new RadioGroupComponent()
             .BindStandard()
-            .BindValue($"{ValueGroup}.{nameof(OptionValueGroupContext.Value)}")
-            .BindIsReadOnly($"{ValueGroup}.{nameof(OptionValueGroupContext.IsReadOnly)}")
-            .BindSize($"{ValueGroup}.{nameof(OptionValueGroupContext.Size)}")
-            .BindItems($"{OptionsGroup}.{nameof(OptionListGroupContext.Options)}")
-            .BindOrientation($"{OptionsGroup}.{nameof(RadioOptionsGroupContext.Orientation)}")
-            .BindSpacing($"{OptionsGroup}.{nameof(RadioOptionsGroupContext.Spacing)}")
+            .BindValue<RadioGroupController>(static x => x.ValueGroup.Value)
+            .BindIsReadOnly<RadioGroupController>(static x => x.ValueGroup.IsReadOnly)
+            .BindSize<RadioGroupController>(static x => x.ValueGroup.Size)
+            .BindItems<RadioGroupController>(static x => x.OptionsGroup.Options)
+            .BindOrientation<RadioGroupController>(static x => x.OptionsGroup.Orientation)
+            .BindSpacing<RadioGroupController>(static x => x.OptionsGroup.Spacing)
             .BindTextContent(ContentGroup)
             .BindBadge(BadgeGroup)
             .SetPlacement(1, 1, 24, 1)
@@ -55,7 +54,7 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
     /// <remarks>Across rather than down, since a group of short answers is a third of its column wide.</remarks>
     private static ContainerComponent CreatePlainGroup()
     {
-        return DemoUI.CreateExample("A list of answers",
+        return DemoUI.CreateExample("Single-choice group",
             UILayout.Row(48)
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Deploy strategy")
@@ -75,7 +74,7 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
     private static ContainerComponent CreateOrientationGroup()
     {
         // Both from the top: a row centres its children, which would drop the shorter group's title below the taller one's.
-        return DemoUI.CreateExample("Laid out down, or across",
+        return DemoUI.CreateExample("Vertical & horizontal orientation",
             UILayout.Row(48)
                 .AddChild(new RadioGroupComponent()
                     .SetTitle("Vertical — the default")
@@ -100,7 +99,7 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
     /// <remarks>The same three options both times, or the difference between the two rows cannot be read.</remarks>
     private static ContainerComponent CreateItemGroup()
     {
-        return DemoUI.CreateExample("More than a name",
+        return DemoUI.CreateExample("Rich options & custom item template",
             UILayout.Row(48)
                 .AddChild(DemoUI.CreateLabelled("The default row — glyph, second line and badge", new RadioGroupComponent()
                     .SetTitle("Target environment")
@@ -114,7 +113,7 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
                     .SetIcon(DemoIcons.Navigation)
                     .SetTemplate(new TextComponent()
                         .BindText()
-                        .SetIconSize(UIIconSize.Large)
+                        .SetIconSize(UISize.Large)
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Accent))
                         .SetTitleType(UITextAppearance.Body)
                         .SetDescriptionType(UITextAppearance.Caption)

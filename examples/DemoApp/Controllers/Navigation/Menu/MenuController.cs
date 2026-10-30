@@ -165,16 +165,26 @@ internal sealed partial class SidebarGroupContext : DemoGroupContext
 
         navigation.Items.Add(new MenuItem { Id = "/navigation/menu", Title = "Menu", Url = "/navigation/menu", Selected = true });
 
+        MenuItem textFields = new() { Id = "inputs-text", Title = "Text fields" };
+
+        textFields.Items.Add(new MenuItem { Id = "/inputs/text-input", Title = "Text Input", Url = "/inputs/text-input" });
+        textFields.Items.Add(new MenuItem { Id = "/inputs/text-area", Title = "Text Area", Url = "/inputs/text-area" });
+
+        MenuItem pickers = new() { Id = "inputs-pickers", Title = "Pickers" };
+
+        pickers.Items.Add(new MenuItem { Id = "/choices/select", Title = "Select", Url = "/choices/select" });
+        pickers.Items.Add(new MenuItem { Id = "/inputs/date-time-input", Title = "Date & Time", Url = "/inputs/date-time-input" });
+
         MenuItem inputs = new() { Id = "inputs", Title = "Inputs", Icon = DemoIcons.Outline(DemoIcons.Sliders) };
 
-        inputs.Items.Add(new MenuItem { Id = "/inputs/text-input", Title = "Text Input", Url = "/inputs/text-input" });
-        inputs.Items.Add(new MenuItem { Id = "/choices/select", Title = "Select", Url = "/choices/select" });
+        inputs.Items.Add(textFields);
+        inputs.Items.Add(pickers);
 
         return
         [
             new MenuItem { Id = "/", Title = "Home", Icon = DemoIcons.Outline(DemoIcons.Home), Url = "/" },
             // A count on a top-level entry: folded, the badge stands on the icon's corner.
-            new MenuItem { Id = "/screens/inbox", Title = "Inbox", Icon = DemoIcons.Outline(DemoIcons.Mail), Url = "/screens/inbox", BadgeText = "4", BadgeStyle = UIBadgeType.Primary },
+            new MenuItem { Id = "/screens/inbox", Title = "Inbox", Icon = DemoIcons.Outline(DemoIcons.Mail), Url = "/screens/inbox", BadgeTitle = "4", BadgeVariant = UIBadgeVariant.Primary },
             layouts,
             navigation,
             inputs
@@ -197,7 +207,7 @@ internal sealed partial class BarsGroupContext : DemoGroupContext
     public RecursiveCollection<MenuItem> TopEntries { get; } =
     [
         new MenuItem { Id = "overview", Title = "Overview", Selected = true },
-        new MenuItem { Id = "deploys", Title = "Deploys", BadgeText = "3" },
+        new MenuItem { Id = "deploys", Title = "Deploys", BadgeTitle = "3" },
         new MenuItem { Id = "logs", Title = "Logs" },
         new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
         new MenuItem { Id = "settings", Title = "Settings", Icon = DemoIcons.Outline(DemoIcons.Settings) }
@@ -215,10 +225,10 @@ internal sealed partial class BarsGroupContext : DemoGroupContext
 
         return
         [
-            new MenuItem { Id = "chat", Title = "Chat", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), BadgeText = "19", BadgeStyle = UIBadgeType.Primary, Selected = true },
+            new MenuItem { Id = "chat", Title = "Chat", Icon = DemoIcons.Outline(DemoIcons.MessageSquare), BadgeTitle = "19", BadgeVariant = UIBadgeVariant.Primary, Selected = true },
             new MenuItem { Id = "archive", Title = "Archived conversations", Icon = DemoIcons.Outline(DemoIcons.Folder) },
             // Empty, not null: a dot on the icon's corner, something new with nothing to count.
-            new MenuItem { Id = "profile", Title = "Profile", Icon = DemoIcons.Outline(DemoIcons.User), BadgeText = "" },
+            new MenuItem { Id = "profile", Title = "Profile", Icon = DemoIcons.Outline(DemoIcons.User), BadgeTitle = "" },
             new MenuItem { Id = "rule", Kind = UIMenuItemKind.Separator },
             admin
         ];
@@ -244,7 +254,7 @@ internal sealed partial class BarsGroupContext : DemoGroupContext
     public void PushCount()
     {
         _unread++;
-        Find("chat")!.BadgeText = _unread.ToString(CultureInfo.InvariantCulture);
+        Find("chat")!.BadgeTitle = _unread.ToString(CultureInfo.InvariantCulture);
         LogEvent($"Chat has {_unread} unread");
     }
 
@@ -335,6 +345,17 @@ internal sealed partial class MenuController() : DemoStandardController
     public void AddSection()
         => SidebarGroup.AddSection();
 
+    /// <summary>
+    /// The sidebar's own switch pressed: the menu's fold, not a section's.
+    /// </summary>
+    [UICommand]
+    public void SidebarExpanded()
+        => SidebarGroup.LogEvent("Expand: the sidebar is open again");
+
+    [UICommand]
+    public void SidebarCollapsed()
+        => SidebarGroup.LogEvent("Collapse: the sidebar folded to its icons");
+
     [UICommand]
     public void SelectRailEntry(string id)
         => BarsGroup.Select(id);
@@ -367,4 +388,8 @@ internal sealed partial class MenuController() : DemoStandardController
     [UICommand]
     public void RunCardAction(string entry)
         => ContextGroup.Record(entry, "the card");
+
+    [UICommand]
+    public void RunMessageAction(string entry)
+        => ContextGroup.Record(entry, "the message");
 }

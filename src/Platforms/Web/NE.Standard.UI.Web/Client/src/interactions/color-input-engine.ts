@@ -1,41 +1,12 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { cssAttributeValue } from "../addressing/dom-attributes.ts";
+import { ColorChannelAttribute, ColorFactorAttribute, ColorFormatAttribute, ColorHexAttribute, ColorHueAttribute, ColorInputClass, ColorInputHueThumbClass, ColorInputOpenClass, ColorInputPopupClass, ColorInputRowClass, ColorInputSquareThumbClass, ColorInputTextClass, ColorInputValueInputClass, ColorNameAttribute, ColorNameSelectedAttribute, ColorNoOpacityAttribute, ColorNoPaletteAttribute, ColorOpacityAttribute, ColorPaneAttribute, ColorPaneSelectedAttribute, ColorSquareAttribute, ColorTabAttribute, ColorTabSelectedAttribute, ColorToggleAttribute, cssAttributeValue, writeAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
-import type { PropertyPatchEngine } from "../updates/property-patch-engine.ts";
+import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { observeComponents } from "./dom-mutations.ts";
-import { isReadOnly } from "./interactive-state.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
 import { PointerDrag } from "./pointer-drag.ts";
-import { clampByte, onColorToken, toHexByte } from "../rendering/color-bytes.ts";
-
-const RootClass = "ui-color-input";
-const OpenClass = "ui-color-input--open";
-const PopupClass = "ui-color-input__popup";
-const TextClass = "ui-color-input__text";
-const RowClass = "ui-color-input__row";
-const SwatchButtonClass = "ui-color-input__swatch--button";
-const ValueInputClass = "ui-color-input__value-input";
-const SquareThumbClass = "ui-color-input__square-thumb";
-const HueThumbClass = "ui-color-input__hue-thumb";
-
-const ToggleAttribute = "data-ui-color-toggle";
-const TabAttribute = "data-ui-color-tab";
-const TabSelectedAttribute = "data-ui-color-tab-selected";
-const PaneAttribute = "data-ui-color-pane";
-const PaneSelectedAttribute = "data-ui-color-pane-selected";
-const SquareAttribute = "data-ui-color-square";
-const HueAttribute = "data-ui-color-hue";
-const HexAttribute = "data-ui-color-hex";
-const ChannelAttribute = "data-ui-color-channel";
-const FactorAttribute = "data-ui-color-factor";
-const OpacityAttribute = "data-ui-color-opacity";
-const NameAttribute = "data-ui-color-name";
-const NameSelectedAttribute = "data-ui-color-name-selected";
-const FormatAttribute = "data-ui-color-format";
-const VariantAttribute = "data-ui-color-variant";
-// On the root: the pane the author took away; each is offered unless marked.
-const NoPickerAttribute = "data-ui-color-no-picker";
-const NoPaletteAttribute = "data-ui-color-no-palette";
+import { clampByte, toHexByte } from "../rendering/color-bytes.ts";
 
 /** What one colour input is currently showing; both the picked and the palette colour are kept. */
 type ColorState = {
@@ -67,60 +38,68 @@ type ColorDragContext = {
 
 export type ColorInputEngineOptions = {
     readonly root?: ParentNode;
-    readonly propertyPatchEngine?: PropertyPatchEngine;
+    readonly propertyPatchEngine?: PropertyPatchTarget;
 };
 
-/** The colour input's two tabs — a free picker and the palette — both views of the canonical text in the hidden input. */
+/** The colour input's free picker and optional palette tab, both views of the canonical text in the hidden input. */
 export class ColorInputEngine {
     private readonly options: ColorInputEngineOptions;
     private readonly root: ParentNode;
     private readonly states = new WeakMap<HTMLElement, ColorState>();
+    private readonly clickListener: (domEvent: Event) => void;
+    private readonly inputListener: (domEvent: Event) => void;
+    private readonly changeListener: (domEvent: Event) => void;
+    private readonly observer: MutationObserver | null;
 
     // Waits for the click, not the press: a selection dragged out of a field is still work in the popup.
     private readonly popups = new OwnedPopups({
-        show: ({ owner }) => owner.classList.add(OpenClass),
-        hide: ({ owner }) => owner.classList.remove(OpenClass)
+        show: ({ owner }) => owner.classList.add(ColorInputOpenClass),
+        hide: ({ owner }) => owner.classList.remove(ColorInputOpenClass)
     });
 
     public constructor(options: ColorInputEngineOptions = {}) {
         this.options = options;
         this.root = options.root ?? document;
+        this.clickListener = domEvent => this.handleClick(domEvent);
+        this.inputListener = domEvent => this.handleInput(domEvent);
+        this.changeListener = domEvent => this.handleFieldChange(domEvent);
 
-        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
+        this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${ColorInputClass}`));
 
         // A pushed value is a new colour to read: the swatch, the text and the picker all come from it.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
             // The elements the patch landed on, not every one the id names: a package's clone of a template is patched alone.
-            this.applyAll(componentParts(change.components, `.${RootClass}`));
+            this.applyAll(componentParts(change.components, `.${ColorInputClass}`));
         });
 
-        // The text format is an attribute on the root, so a bound change to it arrives as a mutation, not a value change.
-        observeComponents(
+        // The text format and optional parts are attributes on the root, so bound changes to them arrive as mutations.
+        this.observer = observeComponents(
             this.root,
-            `.${RootClass}`,
-            { childList: true, addedOnly: true, attributeFilter: [FormatAttribute, VariantAttribute, NoPickerAttribute, NoPaletteAttribute] },
-            inputs => this.applyAll(inputs));
+            `.${ColorInputClass}`,
+            { childList: true, addedOnly: true, attributeFilter: [ColorFormatAttribute, ColorNoPaletteAttribute, ColorNoOpacityAttribute] },
+            inputs => this.applyAll(inputs)
+        );
 
-        this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
-        this.root.addEventListener("input", domEvent => this.handleInput(domEvent), true);
-        this.root.addEventListener("change", domEvent => this.handleFieldChange(domEvent), true);
+        this.root.addEventListener("click", this.clickListener, true);
+        this.root.addEventListener("input", this.inputListener, true);
+        this.root.addEventListener("change", this.changeListener, true);
 
         new PointerDrag<ColorDragContext>({
             root: this.root,
-            resolveHandle: target => target.closest<HTMLElement>(`[${SquareAttribute}], [${HueAttribute}]`),
+            resolveHandle: target => target.closest<HTMLElement>(`[${ColorSquareAttribute}], [${ColorHueAttribute}]`),
             // Read against the box, not as a delta from the press, so the colour under the pointer at the press is the first applied.
             begin: (handle, point) => {
-                const input = handle.closest<HTMLElement>(`.${RootClass}`);
+                const input = handle.closest<HTMLElement>(`.${ColorInputClass}`);
 
-                if (input === null)
+                if (input === null || isInert(input) || isReadOnly(input))
                     return null;
 
                 const context: ColorDragContext = {
                     input,
                     element: handle,
-                    surface: handle.hasAttribute(SquareAttribute) ? "square" : "hue",
+                    surface: handle.hasAttribute(ColorSquareAttribute) ? "square" : "hue",
                     stateBefore: this.states.get(input),
-                    valueBefore: input.querySelector<HTMLInputElement>(`.${ValueInputClass}`)?.value ?? null
+                    valueBefore: input.querySelector<HTMLInputElement>(`.${ColorInputValueInputClass}`)?.value ?? null
                 };
 
                 this.applyPoint(context, point);
@@ -134,6 +113,13 @@ export class ColorInputEngine {
         });
     }
 
+    public dispose(): void {
+        this.root.removeEventListener("click", this.clickListener, true);
+        this.root.removeEventListener("input", this.inputListener, true);
+        this.root.removeEventListener("change", this.changeListener, true);
+        this.observer?.disconnect();
+    }
+
     private applyAll(inputs: Iterable<HTMLElement>): void {
         for (const input of inputs)
             this.applyState(input, this.readState(input));
@@ -143,7 +129,7 @@ export class ColorInputEngine {
     private readState(input: HTMLElement): ColorState {
         const canonical = readValue(input);
         const existing = this.states.get(input);
-        const pane = existing?.paneChosen === true ? offeredPane(input, existing.pane) : defaultPane(input);
+        const pane = existing?.paneChosen === true ? offeredPane(input, existing.pane) : "picker";
 
         // A semantic role reads as nothing held; only `held` moves, so the picker keeps the coordinates it stood on.
         if (canonical.length === 0 || canonical.startsWith("@"))
@@ -191,8 +177,6 @@ export class ColorInputEngine {
         // On the root rather than the swatch: the swatch, the thumbs and the text across it all read the same colour.
         writeStyle(input, "--ui-color-input-color", state.held ? toRgbaCss(red, green, blue, state.opacity) : "transparent");
         writeStyle(input, "--ui-color-input-solid", toRgbaCss(red, green, blue, 255));
-        // Judged over white: the swatch composites the colour over a white checkerboard, which is what its text stands on.
-        writeStyle(input, "--ui-color-input-on-color", state.held ? onColorToken(red, green, blue, state.opacity) : "inherit");
         writeTexts(input, state.held ? describe(input, red, green, blue, state.opacity) : "");
 
         this.applyPicker(input, state, red, green, blue);
@@ -202,18 +186,21 @@ export class ColorInputEngine {
             this.applyPalette(input, state);
             this.applyPanes(input, state);
         }
+
+        if (input.hasAttribute(ColorNoPaletteAttribute) && document.activeElement instanceof Element && document.activeElement.closest(`[${ColorTabAttribute}]`)?.closest(`.${ColorInputClass}`) === input)
+            input.querySelector<HTMLElement>(`[${ColorHexAttribute}]`)?.focus({ preventScroll: true });
     }
 
     private applyPicker(input: HTMLElement, state: ColorState, red: number, green: number, blue: number): void {
-        const square = input.querySelector<HTMLElement>(`[${SquareAttribute}]`);
-        const hue = input.querySelector<HTMLElement>(`[${HueAttribute}]`);
+        const square = input.querySelector<HTMLElement>(`[${ColorSquareAttribute}]`);
+        const hue = input.querySelector<HTMLElement>(`[${ColorHueAttribute}]`);
 
         const [hueRed, hueGreen, hueBlue] = hsvToRgb(state.hue, 1, 1);
 
         writeStyle(input, "--ui-color-input-hue", toRgbaCss(hueRed, hueGreen, hueBlue, 255));
 
         if (square !== null) {
-            const thumb = square.querySelector<HTMLElement>(`.${SquareThumbClass}`);
+            const thumb = square.querySelector<HTMLElement>(`.${ColorInputSquareThumbClass}`);
 
             if (thumb !== null) {
                 writeStyle(thumb, "left", `${state.saturation * 100}%`);
@@ -222,51 +209,47 @@ export class ColorInputEngine {
         }
 
         if (hue !== null) {
-            const thumb = hue.querySelector<HTMLElement>(`.${HueThumbClass}`);
+            const thumb = hue.querySelector<HTMLElement>(`.${ColorInputHueThumbClass}`);
 
             if (thumb !== null)
                 writeStyle(thumb, "top", `${(state.hue / 360) * 100}%`);
         }
 
-        writeField(input, `[${HexAttribute}]`, toHex(red, green, blue));
-        writeField(input, `[${ChannelAttribute}="r"]`, String(red));
-        writeField(input, `[${ChannelAttribute}="g"]`, String(green));
-        writeField(input, `[${ChannelAttribute}="b"]`, String(blue));
+        writeField(input, `[${ColorHexAttribute}]`, toHex(red, green, blue));
+        writeField(input, `[${ColorChannelAttribute}="r"]`, String(red));
+        writeField(input, `[${ColorChannelAttribute}="g"]`, String(green));
+        writeField(input, `[${ColorChannelAttribute}="b"]`, String(blue));
 
         // How far along its track the opacity slider is filled: CSS cannot style the part left of the thumb.
         writeStyle(input, "--ui-color-input-opacity-fill", `${(state.opacity / 255) * 100}%`);
-        writeSlider(input, `[${OpacityAttribute}]`, state.opacity);
+        writeSlider(input, `[${ColorOpacityAttribute}]`, state.opacity);
     }
 
     private applyPalette(input: HTMLElement, state: ColorState): void {
-        for (const chip of input.querySelectorAll<HTMLElement>(`[${NameAttribute}]`)) {
-            if (chip.getAttribute(NameAttribute) === state.name)
-                chip.setAttribute(NameSelectedAttribute, "");
-            else
-                chip.removeAttribute(NameSelectedAttribute);
+        for (const chip of input.querySelectorAll<HTMLElement>(`[${ColorNameAttribute}]`)) {
+            const selected = state.held && chip.getAttribute(ColorNameAttribute) === state.name;
+
+            chip.toggleAttribute(ColorNameSelectedAttribute, selected);
+            writeAttribute(chip, "aria-pressed", selected ? "true" : "false");
         }
 
         // The palette entry before any shade or tint: what the factor slider's track runs through.
-        const chip = state.name === null ? null : input.querySelector<HTMLElement>(`[${NameAttribute}="${cssAttributeValue(state.name)}"]`);
+        const chip = state.name === null ? null : input.querySelector<HTMLElement>(`[${ColorNameAttribute}="${cssAttributeValue(state.name)}"]`);
         const base = chip === null ? null : parseHex(chip.style.getPropertyValue("--ui-color-input-chip").trim());
 
         writeStyle(input, "--ui-color-input-base", base === null ? "transparent" : toRgbaCss(base[0], base[1], base[2], 255));
-        writeSlider(input, `[${FactorAttribute}]`, state.factor);
+        writeSlider(input, `[${ColorFactorAttribute}]`, state.factor);
     }
 
     private applyPanes(input: HTMLElement, state: ColorState): void {
-        for (const pane of input.querySelectorAll<HTMLElement>(`[${PaneAttribute}]`)) {
-            if (pane.getAttribute(PaneAttribute) === state.pane)
-                pane.setAttribute(PaneSelectedAttribute, "");
-            else
-                pane.removeAttribute(PaneSelectedAttribute);
-        }
+        for (const pane of input.querySelectorAll<HTMLElement>(`[${ColorPaneAttribute}]`))
+            pane.toggleAttribute(ColorPaneSelectedAttribute, pane.getAttribute(ColorPaneAttribute) === state.pane);
 
-        for (const tab of input.querySelectorAll<HTMLElement>(`[${TabAttribute}]`)) {
-            if (tab.getAttribute(TabAttribute) === state.pane)
-                tab.setAttribute(TabSelectedAttribute, "");
-            else
-                tab.removeAttribute(TabSelectedAttribute);
+        for (const tab of input.querySelectorAll<HTMLElement>(`[${ColorTabAttribute}]`)) {
+            const selected = tab.getAttribute(ColorTabAttribute) === state.pane;
+
+            tab.toggleAttribute(ColorTabSelectedAttribute, selected);
+            writeAttribute(tab, "aria-selected", selected ? "true" : "false");
         }
     }
 
@@ -275,7 +258,7 @@ export class ColorInputEngine {
         if (state.name === null)
             return hsvToRgb(state.hue, state.saturation, state.value);
 
-        const chip = input.querySelector<HTMLElement>(`[${NameAttribute}="${cssAttributeValue(state.name)}"]`);
+        const chip = input.querySelector<HTMLElement>(`[${ColorNameAttribute}="${cssAttributeValue(state.name)}"]`);
         const base = chip === null ? null : parseHex(chip.style.getPropertyValue("--ui-color-input-chip").trim());
 
         if (base === null)
@@ -288,42 +271,45 @@ export class ColorInputEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const toggle = domEvent.target.closest<HTMLElement>(`[${ToggleAttribute}]`);
+        const toggle = domEvent.target.closest<HTMLElement>(`[${ColorToggleAttribute}]`);
 
         if (toggle !== null) {
             domEvent.preventDefault();
-            this.toggle(toggle.closest<HTMLElement>(`.${RootClass}`));
+            this.toggle(toggle.closest<HTMLElement>(`.${ColorInputClass}`));
             return;
         }
 
-        const tab = domEvent.target.closest<HTMLElement>(`[${TabAttribute}]`);
-        const input = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const tab = domEvent.target.closest<HTMLElement>(`[${ColorTabAttribute}]`);
+        const input = domEvent.target.closest<HTMLElement>(`.${ColorInputClass}`);
 
-        if (input === null)
+        if (input === null || isInert(input))
             return;
 
         if (tab !== null) {
             domEvent.preventDefault();
 
-            const pane = tab.getAttribute(TabAttribute);
+            const pane = tab.getAttribute(ColorTabAttribute);
             const state = this.states.get(input);
 
-            if (state !== undefined && (pane === "picker" || pane === "palette"))
+            if (state !== undefined && (pane === "picker" || (pane === "palette" && !input.hasAttribute(ColorNoPaletteAttribute))))
                 this.applyState(input, { ...state, pane, paneChosen: true });
 
             return;
         }
 
-        const chip = domEvent.target.closest<HTMLElement>(`[${NameAttribute}]`);
+        const chip = domEvent.target.closest<HTMLElement>(`[${ColorNameAttribute}]`);
 
         if (chip !== null) {
             domEvent.preventDefault();
-            this.commit(input, state => ({ ...state, name: chip.getAttribute(NameAttribute) }));
+
+            if (!input.hasAttribute(ColorNoPaletteAttribute))
+                this.commit(input, state => ({ ...state, name: chip.getAttribute(ColorNameAttribute) }));
+
             return;
         }
 
         // Anywhere on the control opens it, not just the button; inside the popup is where the picking happens.
-        const popup = input.querySelector<HTMLElement>(`.${PopupClass}`);
+        const popup = input.querySelector<HTMLElement>(`.${ColorInputPopupClass}`);
 
         if (popup === null || !domEvent.composedPath().includes(popup)) {
             domEvent.preventDefault();
@@ -336,17 +322,19 @@ export class ColorInputEngine {
         if (!(domEvent.target instanceof HTMLInputElement))
             return;
 
-        const input = domEvent.target.closest<HTMLElement>(`.${RootClass}`);
+        const input = domEvent.target.closest<HTMLElement>(`.${ColorInputClass}`);
 
         if (input === null)
             return;
 
-        if (domEvent.target.hasAttribute(FactorAttribute)) {
-            this.commit(input, state => ({ ...state, factor: Number(domEvent.target instanceof HTMLInputElement ? domEvent.target.value : 0) }), false);
+        if (domEvent.target.hasAttribute(ColorFactorAttribute)) {
+            if (!input.hasAttribute(ColorNoPaletteAttribute))
+                this.commit(input, state => ({ ...state, factor: Number(domEvent.target instanceof HTMLInputElement ? domEvent.target.value : 0) }), false);
+
             return;
         }
 
-        if (domEvent.target.hasAttribute(OpacityAttribute))
+        if (domEvent.target.hasAttribute(ColorOpacityAttribute) && !input.hasAttribute(ColorNoOpacityAttribute))
             this.commit(input, state => ({ ...state, opacity: clampByte(Number(domEvent.target instanceof HTMLInputElement ? domEvent.target.value : 255)) }), false);
     }
 
@@ -355,21 +343,38 @@ export class ColorInputEngine {
             return;
 
         const field = domEvent.target;
-        const input = field.closest<HTMLElement>(`.${RootClass}`);
+        const input = field.closest<HTMLElement>(`.${ColorInputClass}`);
 
         if (input === null)
             return;
 
         // A slider let go: what its `input` events drew is sent now.
-        if (field.hasAttribute(FactorAttribute) || field.hasAttribute(OpacityAttribute)) {
-            this.send(input);
+        if (field.hasAttribute(ColorFactorAttribute)) {
+            if (!input.hasAttribute(ColorNoPaletteAttribute))
+                this.send(input);
+
             return;
         }
 
-        if (field.hasAttribute(HexAttribute)) {
-            const rgba = parseHex(field.value);
+        if (field.hasAttribute(ColorOpacityAttribute)) {
+            if (!input.hasAttribute(ColorNoOpacityAttribute))
+                this.send(input);
+
+            return;
+        }
+
+        if (field.hasAttribute(ColorHexAttribute)) {
+            const rgba = parseHex(field.value, !input.hasAttribute(ColorNoOpacityAttribute));
 
             if (rgba === null) {
+                const state = this.states.get(input);
+
+                if (state !== undefined) {
+                    const [red, green, blue] = this.resolveRgb(input, state);
+
+                    field.value = toHex(red, green, blue);
+                }
+
                 this.applyAll([input]);
                 return;
             }
@@ -380,7 +385,7 @@ export class ColorInputEngine {
             return;
         }
 
-        const channel = field.getAttribute(ChannelAttribute);
+        const channel = field.getAttribute(ColorChannelAttribute);
 
         if (channel === null)
             return;
@@ -401,17 +406,6 @@ export class ColorInputEngine {
     }
 
     /** The square and the hue bar are read against their own box, at whatever the pointer's position is now. */
-    /** Puts back the colour the drag began on, drawn and in the hidden input, and sends nothing: the value never changed. */
-    private restore(context: ColorDragContext): void {
-        if (context.stateBefore !== undefined)
-            this.applyState(context.input, context.stateBefore);
-
-        const valueInput = context.input.querySelector<HTMLInputElement>(`.${ValueInputClass}`);
-
-        if (valueInput !== null && context.valueBefore !== null)
-            valueInput.value = context.valueBefore;
-    }
-
     private applyPoint(context: ColorDragContext, point: { readonly x: number; readonly y: number }): void {
         const { input, element, surface } = context;
         const rect = element.getBoundingClientRect();
@@ -429,19 +423,35 @@ export class ColorInputEngine {
         this.commit(input, state => ({ ...state, saturation, value, name: null }), false);
     }
 
+    /** Puts back the colour the drag began on, drawn and in the hidden input, and sends nothing: the value never changed. */
+    private restore(context: ColorDragContext): void {
+        if (context.stateBefore !== undefined)
+            this.applyState(context.input, context.stateBefore);
+
+        const valueInput = context.input.querySelector<HTMLInputElement>(`.${ColorInputValueInputClass}`);
+
+        if (valueInput !== null && context.valueBefore !== null)
+            valueInput.value = context.valueBefore;
+    }
+
     /** Draws the new state and writes it into the hidden input, raising its two-way change unless a gesture is still moving. */
     private commit(input: HTMLElement, next: (state: ColorState) => ColorState, send = true): void {
         const state = this.states.get(input);
 
-        if (state === undefined || isReadOnly(input))
+        if (state === undefined || isInert(input) || isReadOnly(input))
             return;
 
+        const nextState = next(state);
         // Picking is what makes a control that held nothing hold something, so the flag is set once here.
-        const updated = { ...next(state), held: true };
+        const updated: ColorState = {
+            ...nextState,
+            opacity: input.hasAttribute(ColorNoOpacityAttribute) ? 255 : nextState.opacity,
+            held: true
+        };
 
         this.applyState(input, updated);
 
-        const valueInput = input.querySelector<HTMLInputElement>(`.${ValueInputClass}`);
+        const valueInput = input.querySelector<HTMLInputElement>(`.${ColorInputValueInputClass}`);
 
         if (valueInput === null)
             return;
@@ -458,12 +468,11 @@ export class ColorInputEngine {
         if (isReadOnly(input))
             return;
 
-        input.querySelector<HTMLInputElement>(`.${ValueInputClass}`)?.dispatchEvent(new Event("change", { bubbles: true }));
+        input.querySelector<HTMLInputElement>(`.${ColorInputValueInputClass}`)?.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     private toggle(input: HTMLElement | null): void {
-        // Nothing to open once the control offers neither pane; a read-only one the popups refuse to open.
-        if (input === null || (input.hasAttribute(NoPickerAttribute) && input.hasAttribute(NoPaletteAttribute)))
+        if (input === null)
             return;
 
         if (this.popups.isOpen(input)) {
@@ -471,42 +480,33 @@ export class ColorInputEngine {
             return;
         }
 
-        const popup = input.querySelector<HTMLElement>(`.${PopupClass}`);
+        const popup = input.querySelector<HTMLElement>(`.${ColorInputPopupClass}`);
 
         if (popup === null)
             return;
 
-        // The showing variant, not the root, which also holds the label and any stretched height; the focus lands on the showing tab.
-        // Its own toggle says it is open — the swatch, or the field's pipette — never the hidden variant's.
-        const swatch = input.getAttribute(VariantAttribute) === "swatch";
-        const anchor = swatch ? input.querySelector<HTMLElement>(`.${SwatchButtonClass}`) : input.querySelector<HTMLElement>(`.${RowClass}`);
-        const toggle = swatch ? anchor : anchor?.querySelector<HTMLElement>(`[${ToggleAttribute}]`) ?? null;
+        const anchor = input.querySelector<HTMLElement>(`.${ColorInputRowClass}`);
+        const toggle = anchor?.querySelector<HTMLElement>(`[${ColorToggleAttribute}]`) ?? null;
+        const initialFocus = input.hasAttribute(ColorNoPaletteAttribute)
+            ? popup.querySelector<HTMLElement>(`[${ColorHexAttribute}]`)
+            : popup.querySelector<HTMLElement>(`[${ColorTabSelectedAttribute}]`);
 
         this.popups.open({
             owner: input,
             popup,
             anchor: anchor ?? input,
-            placement: { placement: "bottom-end" },
+            placement: { placement: "bottom-start" },
             openers: toggle === null ? [] : [toggle],
-            focus: popup.querySelector<HTMLElement>(`[${TabSelectedAttribute}]`) ?? true
+            // The toggle carries the field's caption.
+            namedBy: toggle,
+            focus: initialFocus ?? true
         });
     }
 }
 
-// Both panes are always in the DOM, so a pane the root no longer offers hands over to the other one.
+// Both panes are always in the DOM; the free picker is always offered, and the palette hands over to it when turned off.
 function offeredPane(input: HTMLElement, preferred: "picker" | "palette"): "picker" | "palette" {
-    const offers = (pane: "picker" | "palette") =>
-        !input.hasAttribute(pane === "picker" ? NoPickerAttribute : NoPaletteAttribute);
-
-    if (offers(preferred))
-        return preferred;
-
-    return preferred === "picker" ? "palette" : "picker";
-}
-
-// The picker unless it is not offered.
-function defaultPane(input: HTMLElement): "picker" | "palette" {
-    return offeredPane(input, "picker");
+    return preferred === "palette" && !input.hasAttribute(ColorNoPaletteAttribute) ? "palette" : "picker";
 }
 
 function emptyState(pane: "picker" | "palette"): ColorState {
@@ -518,7 +518,7 @@ function sameRgb(left: readonly number[], right: readonly number[]): boolean {
 }
 
 function readValue(input: HTMLElement): string {
-    return input.querySelector<HTMLInputElement>(`.${ValueInputClass}`)?.value.trim() ?? "";
+    return input.querySelector<HTMLInputElement>(`.${ColorInputValueInputClass}`)?.value.trim() ?? "";
 }
 
 /** The canonical text the server reads back: a palette colour keeps its name, a picked one travels as hex. */
@@ -535,7 +535,7 @@ function toCanonical(state: ColorState, rgb: [number, number, number]): string {
 }
 
 function describe(input: HTMLElement, red: number, green: number, blue: number, opacity: number): string {
-    if (input.getAttribute(FormatAttribute) === "rgb") {
+    if (input.getAttribute(ColorFormatAttribute) === "rgb") {
         return opacity === 255
             ? `rgb(${red}, ${green}, ${blue})`
             : `rgba(${red}, ${green}, ${blue}, ${(opacity / 255).toFixed(3).replace(/0+$/, "").replace(/\.$/, "")})`;
@@ -548,7 +548,7 @@ function describe(input: HTMLElement, red: number, green: number, blue: number, 
 
 /** Written only when it differs: an unconditional `textContent` write is a mutation that wakes this engine's own observer. */
 function writeTexts(input: HTMLElement, value: string): void {
-    for (const element of input.querySelectorAll<HTMLElement>(`.${TextClass}`)) {
+    for (const element of input.querySelectorAll<HTMLElement>(`.${ColorInputTextClass}`)) {
         if (element.textContent !== value)
             element.textContent = value;
     }
@@ -591,7 +591,7 @@ function adjust(rgb: [number, number, number], factor: number): [number, number,
         ];
 }
 
-function parseHex(text: string): [number, number, number, number] | null {
+function parseHex(text: string, allowAlpha = true): [number, number, number, number] | null {
     const digits = text.trim().replace(/^#/, "");
 
     if (!/^[0-9a-fA-F]+$/.test(digits))
@@ -606,7 +606,7 @@ function parseHex(text: string): [number, number, number, number] | null {
         ];
     }
 
-    if (digits.length !== 6 && digits.length !== 8)
+    if (digits.length !== 6 && (!allowAlpha || digits.length !== 8))
         return null;
 
     return [

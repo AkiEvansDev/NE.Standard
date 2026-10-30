@@ -2,9 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Abstractions.Items;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Constants;
@@ -32,7 +33,7 @@ public static class NativeInputRendererBase
 
     // One per attribute a form's id is written under, its writers built once: a form id is rendered on every field of the page.
     private static readonly ConcurrentDictionary<string, FormIdMark> FormIdMarks = new(StringComparer.Ordinal);
-    private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder")];
+    private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder", converter: WebDomConverters.NonEmptyText)];
     private static readonly WebDomOperation[] EmptyMarkingPlaceholderOperations = [WebDomOperation.Attribute("placeholder", converter: WebDomConverters.PlaceholderText, convertsNull: true)];
     private static readonly WebDomOperation[] ClearableOperations = [ClearableMarkOperation];
     private static readonly WebDomOperation[] MaxLengthOperations = [WebDomOperation.Attribute("maxlength")];
@@ -41,10 +42,11 @@ public static class NativeInputRendererBase
     private static readonly WebDomOperation[] ReadOnlyOperations = [WebDomOperation.ToggleAttribute("readonly", condition: WebValueCondition.IsTrue), ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] ReadOnlyAriaOperations = [WebDomOperation.ToggleAttribute("aria-readonly", condition: WebValueCondition.IsTrue, value: "true"), ReadOnlyMarkOperation];
     private static readonly WebDomOperation[] ReadOnlyMarkOperations = [ReadOnlyMarkOperation];
-    private static readonly WebDomOperation[] MaxFileSizeOperations = [WebDomOperation.Attribute(WebAttributes.FileMaxSize)];
-    private static readonly WebDomOperation[] AcceptOperations = [WebDomOperation.Attribute("accept")];
+    private static readonly WebDomOperation[] MaxFileSizeOperations = [WebDomOperation.Attribute(WebAttributes.FileMaxSize, converter: WebDomConverters.PositiveCount)];
+    private static readonly WebDomOperation[] AcceptOperations = [WebDomOperation.Attribute("accept", converter: WebDomConverters.NonBlankText)];
     private static readonly WebDomOperation[] SelectionOperations = [WebDomOperation.Property("value")];
     private static readonly WebDomOperation[] RunsOnEscapeOperations = [WebDomOperation.ToggleAttribute(WebAttributes.RunsOnEscape, condition: WebValueCondition.IsTrue)];
+    private static readonly WebDomOperation[] TriggerItemsOperations = [WebDomOperation.Attribute(WebAttributes.TriggerItems, converter: WebDomConverters.SelectedKeysAttribute)];
 
     /// <summary>
     /// The field's <c>FormId</c>: the framework's form, and the browser's own the field joins by <c>form</c> — the hidden form the
@@ -85,8 +87,8 @@ public static class NativeInputRendererBase
         public FormIdMark(string attribute)
         {
             _attribute = attribute;
-            Operations = [WebDomOperation.Attribute(attribute)];
-            JoinedOperations = [WebDomOperation.Attribute(attribute), WebDomOperation.Custom(WebForms.OwnerOperationKind)];
+            Operations = [WebDomOperation.Attribute(attribute, converter: WebDomConverters.NonBlankText)];
+            JoinedOperations = [WebDomOperation.Attribute(attribute, converter: WebDomConverters.NonBlankText), WebDomOperation.Custom(WebForms.OwnerOperationKind)];
             Write = WriteMark;
             WriteJoined = WriteMarkAndForm;
         }
@@ -370,7 +372,7 @@ public static class NativeInputRendererBase
     /// picks saying they do nothing rather than turning disabled, which would drop a focus they hold, and the hidden native file picker
     /// disabled, as it must be. The engines refuse a press and a drop by the mark.
     /// </summary>
-    public static void RenderIsReadOnlyAsPick(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<IHtmlElementBuilder> picks, IHtmlElementBuilder? native, WebDomOperation[] operations)
+    public static void RenderIsReadOnlyAsPick(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<IHtmlElementBuilder> picks, IHtmlElementBuilder? native, WebDomOperation[] operations, string? propertyOwnerTypeKey = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -378,7 +380,7 @@ public static class NativeInputRendererBase
         ArgumentNullException.ThrowIfNull(operations);
 
         // One registration, every target: a property renders once per component. Applied after every pick exists.
-        _ = WebComponentRendererBase.RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, (target, value) =>
+        _ = WebComponentRendererBase.RenderProperty<bool?>(context, root, propertyOwnerTypeKey ?? context.Node.TypeKey, IInputComponent.IsReadOnlyProperty, (target, value) =>
         {
             if (value != true)
                 return;
@@ -507,5 +509,32 @@ public static class NativeInputRendererBase
             if (selectionBinding is not null)
                 _ = selection.Attribute(WebAttributes.BindValue, selectionBinding.Id.Value.ToString(CultureInfo.InvariantCulture));
         });
+    }
+
+    /// <summary>
+    /// The input's trigger prefixes, suggestions and server search mark (<see cref="ITextEntryInputComponent"/>), read on the root by
+    /// <c>TextTriggerEngine</c>.
+    /// </summary>
+    public static void RenderTriggers(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        _ = WebComponentRendererBase.ResolveRenderValue(context, ITextEntryInputComponent.TriggersProperty, out IReadOnlyList<UITextTrigger>? triggers, out _);
+
+        if (triggers is { Count: > 0 })
+            _ = root.Attribute(WebAttributes.Triggers, JsonSerializer.Serialize(triggers, WebWireJson.Options));
+
+        if (HandlesEvent(context, EventNames.TriggerSearch))
+            _ = root.Attribute(WebAttributes.TriggerSearch);
+
+        if (HandlesEvent(context, EventNames.TriggerClick))
+            _ = root.Attribute(WebAttributes.TriggerClick);
+
+        _ = WebComponentRendererBase.RenderProperty<IReadOnlyList<UITextTriggerItem>?>(context, root, ITextEntryInputComponent.TriggerItemsProperty, static (target, value) =>
+        {
+            if (value is { Count: > 0 })
+                _ = target.Attribute(WebAttributes.TriggerItems, JsonSerializer.Serialize(value, WebWireJson.Options));
+        }, TriggerItemsOperations);
     }
 }

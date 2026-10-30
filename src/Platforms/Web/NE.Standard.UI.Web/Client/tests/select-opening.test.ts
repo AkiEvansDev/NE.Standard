@@ -32,7 +32,7 @@ new SelectInteractionEngine({ root: real<ParentNode>(fakeDocument.body) });
 type Scene = { readonly select: FakeElement; readonly trigger: FakeElement; readonly options: readonly FakeElement[] };
 
 function scene(options: { readonly value?: string } = {}): Scene {
-    const trigger = FakeElement.of("ui-select__trigger", {}, "button");
+    const trigger = FakeElement.of("ui-select__trigger", { type: "button", role: "combobox", "aria-haspopup": "listbox", "aria-expanded": "false" }, "button");
     const list = ["amsterdam", "ashburn", "singapore"].map(key => FakeElement.of("ui-select__option", { "data-ui-key": key, role: "option", tabindex: "0", "aria-selected": key === options.value ? "true" : "false" }));
     const popup = FakeElement.of("ui-select__popup ui-select__list", { role: "listbox" }).append(...list);
     const select = FakeElement.of("ui-select", { "data-ui-id": "3" }).append(trigger, popup);
@@ -213,4 +213,21 @@ test("the list says while its current option is the keyboard's, so the wash move
 
     close(at);
     assert.equal(list.hasAttribute("data-ui-list-keyboard"), false);
+});
+
+test("an open select's list is called what its trigger's caption says, never by the trigger, whose chosen option is its value", () => {
+    const at = scene({ value: "amsterdam" });
+
+    // As RenderFieldLabel writes it: the caption as the trigger's own words.
+    at.trigger.setAttribute("aria-label", "City");
+    press(at);
+
+    const list = at.select.children[1];
+    const caption = at.select.querySelector("[data-ui-popup-caption]");
+
+    assert.equal(at.trigger.id, "", "named by the trigger itself");
+    assert.equal(list.getAttribute("aria-labelledby"), caption?.id);
+    assert.equal(caption?.textContent, "City");
+    assert.equal(caption?.hidden, true);
+    close(at);
 });

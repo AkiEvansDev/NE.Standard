@@ -1,5 +1,5 @@
 using System;
-using NE.Standard.UI.Authoring.BuiltIns;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Localization;
@@ -11,14 +11,25 @@ namespace NE.Standard.UI.Components.BuiltIns.Actions;
 /// A full-width row that invokes a command: the button's own content on the left, a trailing chevron — and
 /// optionally a value in front of it — on the right.
 /// </summary>
-public abstract partial class ActionComponent<T> : ButtonComponent<T>
+[UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultHorizontalAlignment))]
+[UIComponentPropertyDefault(nameof(IButtonComponent.Variant), nameof(DefaultVariant))]
+[UIComponentPropertyDefault(nameof(ITextComponent.TextAlignment), nameof(DefaultTextAlignment))]
+[UIComponentPropertyDefault(nameof(ITextMarkAlignmentComponent.BadgeAlignment), nameof(DefaultBadgeAlignment))]
+public abstract partial class ActionComponent<T>(string? id = null) : ButtonComponent<T>(id)
     where T : ActionComponent<T>, IUIComponentDefinition
 {
+    private static readonly UIResponsive<UIAlignment> DefaultHorizontalAlignment = UIAlignment.Stretch;
+    private const UIButtonVariant DefaultVariant = UIButtonVariant.Surface;
+    private const UITextAlignment DefaultTextAlignment = UITextAlignment.Start;
+    // Pinned to the content, not the title: a two-line row would hang the badge at the top of the box.
+    private const UITextBadgeAlignment DefaultBadgeAlignment = UITextBadgeAlignment.Content;
+
     /// <summary>
-    /// Gets or sets the text shown in front of the trailing chevron.
+    /// Gets or sets the words shown in front of the trailing chevron.
     /// </summary>
+    [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? TrailingText { get; set; }
+    public UIPhrase? TrailingText { get; set; }
 
     /// <summary>
     /// Gets or sets the icon replacing the trailing chevron; unset draws the chevron itself.
@@ -31,19 +42,6 @@ public abstract partial class ActionComponent<T> : ButtonComponent<T>
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? ShowChevron { get; set; }
-
-    /// <summary>
-    /// Initializes the row stretched, left-aligned and on a raised surface.
-    /// </summary>
-    protected ActionComponent(string? id = null) : base(id)
-    {
-        HorizontalAlignment = UIAlignment.Stretch;
-        Type = UIButtonType.Surface;
-
-        TextAlignment = UITextAlignment.Start;
-        // Pinned to the content, not the title: a two-line row would hang the badge at the top of the box.
-        BadgeAlignment = UITextBadgeAlignment.Content;
-    }
 
     /// <summary>
     /// Sets the row's title, description and leading icon in one call; a string is the author's text, a key with arguments a phrase.

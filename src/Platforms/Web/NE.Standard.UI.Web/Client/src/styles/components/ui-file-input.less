@@ -12,7 +12,6 @@
 .ui-file-input__row {
     .ui-input-field();
     overflow: hidden;
-    padding: 0 0 0 @ui-space-3;
     gap: @ui-space-2;
 }
 
@@ -55,11 +54,20 @@
     transition: color @ui-motion-fast @ui-motion-ease;
 }
 
-    // Ink alone: the row is the surface that lifts under the pointer.
+    // Ink alone, matching the field adornments.
     @media @{ui-can-hover} {
         .ui-file-input__pick:hover:not([aria-disabled='true']) {
             color: var(--ui-color-on-surface);
         }
+    }
+
+    .ui-file-input__pick@{ui-keyboard-focus}:not([aria-disabled='true']),
+    .ui-file-input@{ui-field-live} > .ui-file-input__row@{ui-keyboard-within} > .ui-file-input__pick:not([aria-disabled='true']) {
+        color: var(--ui-color-on-surface);
+    }
+
+    .ui-file-input__pick@{ui-keyboard-focus} {
+        .ui-keyboard-frame();
     }
 
     // Read-only: dimmed as a date field's calendar toggle is, so a pick that does nothing does not look like one that would.

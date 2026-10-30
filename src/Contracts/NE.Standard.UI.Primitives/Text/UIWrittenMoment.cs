@@ -51,27 +51,40 @@ public static partial class UIWrittenMoment
         var fraction = written.Groups[7].Success ? written.Groups[7].Value.PadRight(3, '0')[..3] : "0";
 
         moment = new DateTime(year, month, day, hour, minute, second, int.Parse(fraction, CultureInfo.InvariantCulture), DateTimeKind.Unspecified);
-        offset = ReadOffset(written.Groups[8]);
-        return true;
+
+        if (!TryReadOffset(written.Groups[8], out offset))
+            return false;
+
+        return offset is not TimeSpan span
+            || (moment.Ticks - span.Ticks >= DateTime.MinValue.Ticks && moment.Ticks - span.Ticks <= DateTime.MaxValue.Ticks);
     }
 
     private static int ReadField(Match written, int group)
         => written.Groups[group].Success ? int.Parse(written.Groups[group].ValueSpan, CultureInfo.InvariantCulture) : 0;
 
-    private static TimeSpan? ReadOffset(Group zone)
+    private static bool TryReadOffset(Group zone, out TimeSpan? offset)
     {
+        offset = null;
+
         if (!zone.Success)
-            return null;
+            return true;
 
         if (zone.Length == 1)
-            return TimeSpan.Zero;
+        {
+            offset = TimeSpan.Zero;
+            return true;
+        }
 
         // "+hh", "+hhmm" or "+hh:mm": the hours after the sign, and the minutes as the last two digits where there are any.
         var hours = int.Parse(zone.ValueSpan.Slice(1, 2), CultureInfo.InvariantCulture);
         var minutes = zone.Length > 3 ? int.Parse(zone.ValueSpan[^2..], CultureInfo.InvariantCulture) : 0;
-        TimeSpan offset = new(hours, minutes, 0);
 
-        return zone.ValueSpan[0] == '-' ? offset.Negate() : offset;
+        if (hours > 14 || minutes > 59 || (hours == 14 && minutes > 0))
+            return false;
+
+        TimeSpan span = new(hours, minutes, 0);
+        offset = zone.ValueSpan[0] == '-' ? span.Negate() : span;
+        return true;
     }
 
     // temporal-format.ts's WrittenMomentPattern, with ASCII digits as JavaScript's \d reads them.

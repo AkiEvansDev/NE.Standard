@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Compiled.Views;
@@ -24,7 +25,7 @@ public sealed class CompiledDialog
     /// <summary>
     /// Gets what the dialog's panel is made of.
     /// </summary>
-    public UISurfaceStyle Surface { get; init; } = UISurfaceStyle.Raised;
+    public UISurfaceStyle Surface { get; init; } = UISurfaceStyle.Surface;
 
     /// <summary>
     /// Gets where the panel stands.
@@ -92,9 +93,9 @@ public sealed class CompiledDialog
     public bool CloseOnEscape { get; init; } = true;
 
     /// <summary>
-    /// Gets the dialog's accessible name, a translation key or plain text, for a dialog with no <see cref="TitleComponentId"/>.
+    /// Gets the dialog's accessible name, a phrase or an author's text, for a dialog with no <see cref="TitleComponentId"/>.
     /// </summary>
-    public string? Label { get; init; }
+    public UIPhrase? AccessibleName { get; init; }
 
     /// <summary>
     /// Gets the component inside the dialog whose words name it (<c>aria-labelledby</c>), when one does.

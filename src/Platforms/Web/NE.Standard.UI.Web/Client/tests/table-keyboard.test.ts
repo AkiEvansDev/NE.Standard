@@ -23,7 +23,7 @@ installFakeDom({
 });
 
 const { ItemsSelectionEngine } = await import("../src/interactions/items-selection-engine.ts");
-const { RowPressEventName } = await import("../src/interactions/row-cursor.ts");
+const { RowPressEventName } = await import("../src/addressing/dom-attributes.ts");
 const { stampRowIndices } = await import("../src/items/table-row-indices.ts");
 const { stampColumnIndices } = await import("../src/interactions/table-column-layout.ts");
 
@@ -127,16 +127,18 @@ test("the table's scrolling boxes are no stops either, and a press past the rows
     assert.equal(fakeDocument.activeElement, root);
 });
 
-test("the arrows, Home, End and Page Up and Page Down walk a read-only table's rows; the cursor is named on the table, which keeps the focus", () => {
+test("the arrows, Home, End and Page Up and Page Down walk a read-only table's rows; the focus goes with the cursor, its row the one stop", () => {
     const { root } = table(8, null, undefined, "table");
     const walk = (key: string): string | null => {
-        assert.equal(press(root, key).defaultPrevented, true, key);
+        // On what holds the focus, as the browser sends a key: the cursor's row, a table naming no active descendant.
+        assert.equal(press(real<FakeElement>(fakeDocument.activeElement), key).defaultPrevented, true, key);
 
         return cursorOf(root);
     };
 
-    // Focused from the keyboard, the table shows its cursor on the first row before any key.
+    // Focused from the keyboard, the table hands the focus to its cursor's row, on the first row before any key.
     assert.equal(cursorOf(root), "r0");
+    assert.equal(fakeDocument.activeElement, root.querySelector("[data-ui-row-focus]"));
     assert.equal(walk("ArrowDown"), "r1");
     // A viewport of three rows: the farthest row still within it.
     assert.equal(walk("PageDown"), "r3");
@@ -144,8 +146,28 @@ test("the arrows, Home, End and Page Up and Page Down walk a read-only table's r
     assert.equal(walk("End"), "r7");
     assert.equal(walk("PageUp"), "r5");
     assert.equal(walk("Home"), "r0");
-    assert.equal(fakeDocument.activeElement, root);
-    assert.equal(root.getAttribute("aria-activedescendant"), root.querySelector("[data-ui-row-focus]")?.id);
+
+    const cursor = root.querySelector("[data-ui-row-focus]");
+
+    assert.equal(fakeDocument.activeElement, cursor);
+    assert.equal(root.getAttribute("aria-activedescendant"), null);
+    // One stop: the cursor's row; the table and the rows the cursor left are out of the Tab order.
+    assert.equal(root.getAttribute("tabindex"), "-1");
+    assert.deepEqual(root.querySelectorAll("[tabindex='0']"), [cursor]);
+});
+
+test("a read-only table's row takes Enter as the cursor's, and the focus it gave back to the table goes on to that row", () => {
+    const { root, raised } = table(3, null, undefined, "table");
+
+    press(real<FakeElement>(fakeDocument.activeElement), "ArrowDown");
+    press(real<FakeElement>(fakeDocument.activeElement), "Enter");
+
+    assert.deepEqual(raised, [`r1:${RowPressEventName}`, "r1:open"]);
+
+    fakeDocument.body.focus();
+    root.focus();
+
+    assert.equal(fakeDocument.activeElement?.getAttribute("data-ui-key"), "r1");
 });
 
 test("Enter on the keyboard's row raises its click, then its open; Space raises the click where the table chooses nothing", () => {
@@ -295,7 +317,8 @@ test("the header's keyboard stop and the keyboard's row are marked only for a fo
     const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
     assert.match(css, /\.ui-table > \.ui-table__scroll > \.ui-table__header > \.ui-table__header-cell:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*box-shadow: inset 0 0 0 100vmax var\(--ui-wash-hover\);/);
-    assert.match(css, /\.ui-table:not\(\[role="grid"\]\):focus:not\(\[data-ui-pointer-focus\]\) > \.ui-table__scroll > \[data-ui-items-host\] > \.ui-table__row\[data-ui-row-focus\]:not\(\[data-ui-selected\]\)/);
-    // A grid's row keeps the wash, and its cursor's cell wears the frame.
-    assert.match(css, /\.ui-table\[role="grid"\]:focus:not\(\[data-ui-pointer-focus\]\) > \.ui-table__scroll > \[data-ui-items-host\] > \.ui-table__row\[data-ui-row-focus\] > \[data-ui-cell-focus\] \{\s*outline: 2px solid var\(--ui-mark-keyboard\);/);
+    // A table's row holds the focus itself (roving tabindex), a grid's root holds it.
+    assert.match(css, /\.ui-table\[role="table"\] > \.ui-table__scroll > \[data-ui-items-host\] > \.ui-table__row\[data-ui-row-focus\]:focus:not\(\[data-ui-pointer-focus\]\):not\(\[data-ui-selected\]\)/);
+    // A grid's row keeps the wash, and its cursor's cell wears the wash.
+    assert.match(css, /\.ui-table\[role="grid"\]:focus:not\(\[data-ui-pointer-focus\]\) > \.ui-table__scroll > \[data-ui-items-host\] > \.ui-table__row\[data-ui-row-focus\] > \[data-ui-cell-focus\] \{\s*background-image: linear-gradient\(var\(--ui-wash-hover\), var\(--ui-wash-hover\)\);\s*outline: none;/);
 });

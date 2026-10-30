@@ -5,7 +5,7 @@
 // reload goes on as before.
 
 // `.ts` on the value import: `node --test` loads this module as it is.
-import { logWarn } from "./logger.ts";
+import { logWarn } from "../metadata/logger.ts";
 import type { UnsavedValue } from "../updates/value-binding-engine.ts";
 
 const KeyPrefix = "ne.unsaved:";
