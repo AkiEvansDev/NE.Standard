@@ -37,8 +37,23 @@ public static class ResponsiveRenderer
 
     /// <summary>As <see cref="ApplyResponsiveSize(WebRenderContext, IHtmlElementBuilder, string, UIProperty, string, UIOrientation)"/>, a patch running <paramref name="after"/> once the tiers are written.</summary>
     internal static void ApplyResponsiveSize(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, string cssVariableName, UIOrientation axis, WebDomOperation? after)
-        => ApplyResponsive(context, target, propertyOwnerTypeKey, property, cssVariableName, WebResponsiveCss.SizeFormatter(axis),
-            axis == UIOrientation.Horizontal ? WebDomConverters.ResponsiveWidthCss : WebDomConverters.ResponsiveHeightCss, after);
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cssVariableName);
+
+        WebResponsiveConverters converters = cssVariableName is WebResponsiveCss.WidthVariable or WebResponsiveCss.HeightVariable
+            ? (axis == UIOrientation.Horizontal ? WebDomConverters.ResponsiveWidthCss : WebDomConverters.ResponsiveHeightCss)
+            : (axis == UIOrientation.Horizontal ? WebDomConverters.ResponsiveWidthBoundCss : WebDomConverters.ResponsiveHeightBoundCss);
+
+        ResponsiveSizeProperty responsive = ResponsiveSizeProperty.ByVariable.GetOrAdd((cssVariableName, axis, converters, after), static key =>
+        {
+            WebDomOperation[] tiers = TierOperations(key.Variable, key.Converters);
+
+            return new ResponsiveSizeProperty(key.Variable, key.Axis, key.After is null ? tiers : [.. tiers, key.After]);
+        });
+
+        _ = WebComponentRendererBase.RenderProperty(context, target, propertyOwnerTypeKey, property, responsive.Write, responsive.Operations);
+    }
 
     /// <summary>
     /// A component's margin as <c>--ui-margin</c>'s tiers, beside each tier's sides summed across and down, which is what a <c>Fill</c>
@@ -137,6 +152,19 @@ public static class ResponsiveRenderer
         {
             if (value is UIResponsive<T> responsive)
                 WebResponsiveCss.WriteTiers(target, responsive, cssVariableName, formatter);
+        };
+    }
+
+    private sealed class ResponsiveSizeProperty(string cssVariableName, UIOrientation axis, WebDomOperation[] operations)
+    {
+        public static readonly ConcurrentDictionary<(string Variable, UIOrientation Axis, WebResponsiveConverters Converters, WebDomOperation? After), ResponsiveSizeProperty> ByVariable = new();
+
+        public WebDomOperation[] Operations { get; } = operations;
+
+        public Action<IHtmlElementBuilder, UIResponsive<UILayoutLength>?> Write { get; } = (target, value) =>
+        {
+            if (value is UIResponsive<UILayoutLength> responsive)
+                WebResponsiveCss.WriteSize(target, responsive, cssVariableName, axis);
         };
     }
 }

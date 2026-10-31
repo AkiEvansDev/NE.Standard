@@ -107,7 +107,7 @@ export class MenuGroupEngine {
         for (const group of this.root.querySelectorAll<HTMLElement>(`[${GroupAttribute}]`))
             describeGroup(group);
 
-        observeComponents(this.root, `[${GroupAttribute}]`, { childList: true, addedOnly: true, attributeFilter: [OpenAttribute] }, groups => {
+        observeComponents(this.root, `[${GroupAttribute}]`, { childList: true, addedOnly: true, attributeFilter: [GroupAttribute, OpenAttribute], removed: () => this.pruneOpenFlyouts() }, groups => {
             for (const group of groups)
                 describeGroup(group);
         });
@@ -133,6 +133,13 @@ export class MenuGroupEngine {
     private closeBarFlyout(): void {
         for (const open of [...this.flyouts.owners()].reverse()) {
             if (open.closest(`[${BottomBarAttribute}]`) !== null)
+                this.flyouts.close(open);
+        }
+    }
+
+    private pruneOpenFlyouts(): void {
+        for (const open of [...this.flyouts.owners()].reverse()) {
+            if (!open.isConnected || !open.hasAttribute(GroupAttribute))
                 this.flyouts.close(open);
         }
     }

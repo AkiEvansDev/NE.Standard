@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Items;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
@@ -53,6 +55,21 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
 
     /// <inheritdoc/>
     public bool HasItems => _items.Count > 0;
+
+    /// <summary>
+    /// Names item paths the page reads off the rows beyond what the templates bind, so each row carries them.
+    /// </summary>
+    public TComponent AddItemReads<TRow>(params Expression<Func<TRow, object?>>[] paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        var resolved = new string[paths.Length];
+
+        for (var i = 0; i < paths.Length; i++)
+            resolved[i] = RecursivePath.FromExpression(paths[i]).ToString();
+
+        return AddItemReads(resolved);
+    }
 
     /// <summary>
     /// Names item paths the page reads off the rows beyond what the templates bind (a client engine reading <c>rows.itemOf</c>), so
@@ -136,9 +153,21 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
     /// <summary>
     /// Adds a filter controlled by a local component property.
     /// </summary>
+    public TComponent FilterBy<TRow>(UIProperty source, Expression<Func<TRow, object?>> itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object? activeValue = null)
+        => FilterBy(source, RecursivePath.FromExpression(itemProperty).ToString(), @operator, activeOperator, activeValue);
+
+    /// <summary>
+    /// Adds a filter controlled by a local component property.
+    /// </summary>
     /// <remarks>Defaults to a case-insensitive substring match; pass the operator explicitly where case matters.</remarks>
     public TComponent FilterBy(UIProperty source, string itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object? activeValue = null)
         => FilterBy(Id, source, itemProperty, @operator, activeOperator, activeValue);
+
+    /// <summary>
+    /// Adds a filter controlled by another component property.
+    /// </summary>
+    public TComponent FilterBy<TRow>(string sourceComponentId, UIProperty source, Expression<Func<TRow, object?>> itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object? activeValue = null)
+        => FilterBy(sourceComponentId, source, RecursivePath.FromExpression(itemProperty).ToString(), @operator, activeOperator, activeValue);
 
     /// <summary>
     /// Adds a filter controlled by another component property.
@@ -149,6 +178,12 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
 
         return FilterBy(new UIPropertyReference(sourceComponentId, source), itemProperty, @operator, activeOperator, activeValue);
     }
+
+    /// <summary>
+    /// Adds a filter controlled by a property reference.
+    /// </summary>
+    public TComponent FilterBy<TRow>(UIPropertyReference source, Expression<Func<TRow, object?>> itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object? activeValue = null)
+        => FilterBy(source, RecursivePath.FromExpression(itemProperty).ToString(), @operator, activeOperator, activeValue);
 
     /// <summary>
     /// Adds a filter controlled by a property reference.
@@ -164,6 +199,12 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
     /// <summary>
     /// Adds an unconditionally active filter with no source, comparing against a constant value.
     /// </summary>
+    public TComponent FilterBy<TRow>(Expression<Func<TRow, object?>> itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, object? value = null)
+        => FilterBy(RecursivePath.FromExpression(itemProperty).ToString(), @operator, value);
+
+    /// <summary>
+    /// Adds an unconditionally active filter with no source, comparing against a constant value.
+    /// </summary>
     public TComponent FilterBy(string itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, object? value = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
@@ -175,8 +216,20 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
     /// <summary>
     /// Adds a sort rule controlled by a local component property.
     /// </summary>
+    public TComponent SortBy<TRow>(UIProperty source, Expression<Func<TRow, object?>> itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, UIComparisonOperator activeOperator = UIComparisonOperator.Equal, object? activeValue = null, int priority = 0)
+        => SortBy(source, RecursivePath.FromExpression(itemProperty).ToString(), direction, activeOperator, activeValue, priority);
+
+    /// <summary>
+    /// Adds a sort rule controlled by a local component property.
+    /// </summary>
     public TComponent SortBy(UIProperty source, string itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, UIComparisonOperator activeOperator = UIComparisonOperator.Equal, object? activeValue = null, int priority = 0)
         => SortBy(Id, source, itemProperty, direction, activeOperator, activeValue, priority);
+
+    /// <summary>
+    /// Adds a sort rule controlled by another component property.
+    /// </summary>
+    public TComponent SortBy<TRow>(string sourceComponentId, UIProperty source, Expression<Func<TRow, object?>> itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, UIComparisonOperator activeOperator = UIComparisonOperator.Equal, object? activeValue = null, int priority = 0)
+        => SortBy(sourceComponentId, source, RecursivePath.FromExpression(itemProperty).ToString(), direction, activeOperator, activeValue, priority);
 
     /// <summary>
     /// Adds a sort rule controlled by another component property.
@@ -191,6 +244,12 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
     /// <summary>
     /// Adds a sort rule controlled by a property reference.
     /// </summary>
+    public TComponent SortBy<TRow>(UIPropertyReference source, Expression<Func<TRow, object?>> itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, UIComparisonOperator activeOperator = UIComparisonOperator.Equal, object? activeValue = null, int priority = 0)
+        => SortBy(source, RecursivePath.FromExpression(itemProperty).ToString(), direction, activeOperator, activeValue, priority);
+
+    /// <summary>
+    /// Adds a sort rule controlled by a property reference.
+    /// </summary>
     public TComponent SortBy(UIPropertyReference source, string itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, UIComparisonOperator activeOperator = UIComparisonOperator.Equal, object? activeValue = null, int priority = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
@@ -199,6 +258,12 @@ public abstract partial class ItemsComponentBase<TComponent, TItem>(string? id =
         _sorts.Add(new UIItemsSort(source, itemProperty, direction, activeOperator, activeValue, priority));
         return Self;
     }
+
+    /// <summary>
+    /// Adds an unconditionally active sort rule with no source.
+    /// </summary>
+    public TComponent SortBy<TRow>(Expression<Func<TRow, object?>> itemProperty, UIItemsSortDirection direction = UIItemsSortDirection.Ascending, int priority = 0)
+        => SortBy(RecursivePath.FromExpression(itemProperty).ToString(), direction, priority);
 
     /// <summary>
     /// Adds an unconditionally active sort rule with no source.

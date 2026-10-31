@@ -69,6 +69,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
                 _ = services.RemoveAll<IUIUpdateSink>();
                 _ = services.RemoveAll<IUIDownloadStager>();
                 _ = services.RemoveAll<IUIUploadService>();
+                _ = services.RemoveAll<IUIContentAddressResolver>();
                 AddClient(services, client);
 
                 configureServices?.Invoke(services);
@@ -84,6 +85,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
         services.TryAddSingleton<IUIUpdateSink>(client);
         services.TryAddSingleton<IUIDownloadStager>(client);
         services.TryAddSingleton<IUIUploadService>(client);
+        services.TryAddSingleton<IUIContentAddressResolver>(new UIContentAddress("/_ne/content"));
     }
 
     /// <summary>

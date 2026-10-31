@@ -1,4 +1,5 @@
 using System;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
@@ -44,6 +45,10 @@ public static class UIMessage
     /// promo code's verdict, a sync's state — bound as the controller's words, drawn plain (a path to a key still translates), and
     /// read out as they change; otherwise <see cref="Create(UIColorStyle, UIPhrase?, UIPhrase?, ButtonComponent?, bool, string?, string?)"/>.
     /// </summary>
+    public static SurfaceComponent BoundCreate<TSource>(UIColorStyle tone, Expression<Func<TSource, object?>>? titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope = UIBindingScope.Root, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
+        => BoundCreate(tone, PresetBindings.PathOrNull(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, action, dismissible, icon, dismissCommand);
+
+    /// <summary>A message whose words are bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static SurfaceComponent BoundCreate(UIColorStyle tone, string? titlePath, string? descriptionPath, UIBindingScope scope = UIBindingScope.Root, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
     {
         if (titlePath is not null)

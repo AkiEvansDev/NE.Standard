@@ -9,6 +9,7 @@ import type { DomRegistry } from "../src/addressing/dom-registry.ts";
 installFakeDom();
 
 const { ItemsTemplateRegistry } = await import("../src/items/items-template-registry.ts");
+const { resolveTemplateKeyValue } = await import("../src/items/items-template-renderer.ts");
 
 /** An items view of `count` drawn rows beside its templates, and how many times the view was searched. */
 function view(count: number): { readonly root: FakeElement; readonly searches: () => number } {
@@ -48,4 +49,12 @@ test("a row's template, a variant, the fallback and the group's are the view's o
     assert.equal(registry.getGroupTemplate(3), root.children[2]);
     assert.equal(registry.getEmptyTemplate(3), undefined);
     assert.equal(searches(), 0);
+});
+
+test("a row's template key reads plain and dotted item paths across wire and CLR names", () => {
+    assert.equal(resolveTemplateKeyValue({ kind: "folder" }, "Kind"), "folder");
+    assert.equal(resolveTemplateKeyValue({ meta: { kind: "warning" } }, "Meta.Kind"), "warning");
+    assert.equal(resolveTemplateKeyValue({ Meta: { Detail: { Code: 42 } } }, "Meta.Detail.Code"), "42");
+    assert.equal(resolveTemplateKeyValue({ meta: null }, "Meta.Kind"), null);
+    assert.equal(resolveTemplateKeyValue({ meta: { kind: "   " } }, "Meta.Kind"), null);
 });

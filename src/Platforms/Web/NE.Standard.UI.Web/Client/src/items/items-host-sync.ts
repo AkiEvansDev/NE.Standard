@@ -7,6 +7,7 @@ import { logError } from "../metadata/logger.ts";
 import { ensureEmptyState, getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import { applyItemFilters } from "./items-filter-sort.ts";
 import { regroupHost } from "./items-group-renderer.ts";
+import { unmountEmptyMenuSubmenu } from "./menu-row-decorator.ts";
 import { drawGroupHeader, regroupWindow } from "./items-group-runs.ts";
 import { resolveHostMode } from "../addressing/items-host-mode.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry";
@@ -74,6 +75,9 @@ function syncItemsHostNow(host: Element, componentId: number, context: ItemsHost
             context.virtualization.sync(host);
             return;
         default:
+            if (unmountEmptyMenuSubmenu(host))
+                return;
+
             applyItemFilters(host, componentId, context.metadata, context.renderer, context.state);
             keepCursorShown(host);
             ensureEmptyState(host, componentId, context.templates, context.renderer);

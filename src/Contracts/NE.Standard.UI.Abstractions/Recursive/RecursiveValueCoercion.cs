@@ -35,7 +35,7 @@ public static class RecursiveValueCoercion
         if (value is null)
             return false;
 
-        if (value is T typed)
+        if (value is T typed && (value is not JsonElement || (Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T)) == typeof(JsonElement)))
         {
             result = typed;
             return true;
@@ -60,10 +60,13 @@ public static class RecursiveValueCoercion
 
         result = null;
 
+        Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
+
+        if (value is JsonElement jsonElement && underlyingType != typeof(JsonElement))
+            value = ObjectToInferredTypesConverter.ToInferredValue(jsonElement);
+
         if (value is null)
             return false;
-
-        Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
         if (underlyingType.IsInstanceOfType(value))
         {

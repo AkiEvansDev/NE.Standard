@@ -1,15 +1,20 @@
 // The client's half of MenuComponentRenderer.RenderSubmenu: a client-built row gets its kind's mark and its sub-entries in the same
 // wrapper under the entry; the two must stay one shape, since the group engine and the stylesheet both read it.
 
-import { HrefAttribute, MenuEntryActingAttribute, MenuGroupAttribute, MenuOpenAttribute, MenuPassiveRowAttribute, MenuSelectAttribute, MenuSubmenuClass } from "../addressing/dom-attributes.ts";
+import { EventBoundaryAttribute, eventSuppressAttribute, HrefAttribute, MenuEntryActingAttribute, MenuGroupAttribute, MenuHoldsCurrentAttribute, MenuItemClass, MenuOpenAttribute, MenuPassiveRowAttribute, MenuSelectAttribute, MenuSubmenuClass, NestedMenuClass } from "../addressing/dom-attributes.ts";
+import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import { logWarn } from "../metadata/logger.ts";
 import { tryReadItemProperty } from "./binding-template-evaluator.ts";
+import type { ItemStackEntry } from "./binding-template-evaluator.ts";
 import { applyItemParameterAttributes } from "./items-template-renderer.ts";
+import type { ItemsTemplateRenderer } from "./items-template-renderer.ts";
+import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 import type { RowDecoratorContext, RowDecoratorRegistration } from "./row-decorators.ts";
 
-const SubmenuVariantKey = "Submenu";
+export const SubmenuVariantKey = "Submenu";
 const SelectKind = "Select";
 const PassiveKinds: readonly unknown[] = ["Header", "Separator"];
+const NoClickAttribute = eventSuppressAttribute("click");
 
 export const MenuRowDecorator: RowDecoratorRegistration = { kind: "menu", decorate: decorateMenuRow };
 
@@ -28,36 +33,83 @@ function decorateMenuRow(context: RowDecoratorContext): void {
     if (!hasChildren(context.item))
         return;
 
-    const template = context.templates.getVariantTemplate(context.componentId, SubmenuVariantKey);
+    mountMenuRowSubmenu(context.row, context.key, context.item, context.componentId, context.ancestors, context.templates, context.renderer);
+}
+
+/** Mounts an entry's `.ui-menu__submenu` block from its parent menu's `Submenu` variant template when not already mounted. */
+export function mountMenuRowSubmenu(row: Element, key: string, item: unknown, parentComponentId: number, ancestors: readonly ItemStackEntry[], templates: Pick<ItemsTemplateRegistry, "getVariantTemplate">, renderer: Pick<ItemsTemplateRenderer, "renderFromTemplate">): Element | null {
+    const existing = row.querySelector(`:scope > .${MenuSubmenuClass}`);
+
+    if (existing !== null)
+        return existing.firstElementChild;
+
+    const template = templates.getVariantTemplate(parentComponentId, SubmenuVariantKey);
 
     if (template === undefined) {
-        logWarn("menu submenu template was not found.", { componentId: context.componentId });
-        return;
+        logWarn("menu submenu template was not found.", { componentId: parentComponentId });
+        return null;
     }
 
-    const content = context.renderer.renderFromTemplate(template, context.item, context.ancestors);
+    const content = renderer.renderFromTemplate(template, item, ancestors);
 
     if (content === null)
-        return;
+        return null;
 
     // On the wrapper, not the entry: what opens and closes is the wrapper's whole block.
-    context.row.setAttribute(MenuGroupAttribute, "");
+    row.setAttribute(MenuGroupAttribute, "");
 
     // A select's choices never unfold inline: the engine flies them out beside the entry, folded menu or not.
-    if (readItemProperty(context.item, "Kind") === SelectKind)
-        context.row.setAttribute(MenuSelectAttribute, "");
+    if (readItemProperty(item, "Kind") === SelectKind)
+        row.setAttribute(MenuSelectAttribute, "");
 
     // Open as it arrives, rather than shifting every entry below it a moment later.
-    if (readItemProperty(context.item, "Expanded") === true)
-        context.row.setAttribute(MenuOpenAttribute, "");
+    if (readItemProperty(item, "Expanded") === true)
+        row.setAttribute(MenuOpenAttribute, "");
 
     const wrapper = document.createElement("div");
 
     wrapper.className = MenuSubmenuClass;
     wrapper.appendChild(content);
-    applyItemParameterAttributes(wrapper, context.key, context.item);
+    applyItemParameterAttributes(wrapper, key, item);
 
-    context.row.appendChild(wrapper);
+    row.appendChild(wrapper);
+
+    return content;
+}
+
+/** Tears down a nested `.ui-menu__submenu` wrapper and its parent row's group marks once its items host holds no entries. */
+export function unmountEmptyMenuSubmenu(host: Element): boolean {
+    const menu = host.parentElement;
+
+    if (menu === null || !menu.classList.contains(NestedMenuClass))
+        return false;
+
+    const wrapper = menu.parentElement;
+
+    if (wrapper === null || !wrapper.classList.contains(MenuSubmenuClass))
+        return false;
+
+    const row = wrapper.parentElement;
+
+    if (row === null || getRealItemElements(host).length > 0)
+        return false;
+
+    wrapper.remove();
+    row.removeAttribute(MenuGroupAttribute);
+    row.removeAttribute(MenuOpenAttribute);
+    row.removeAttribute(MenuSelectAttribute);
+    row.removeAttribute(MenuHoldsCurrentAttribute);
+
+    const entry = row.querySelector(`:scope > .${MenuItemClass}`);
+
+    if (entry !== null) {
+        entry.removeAttribute(NoClickAttribute);
+        entry.removeAttribute(EventBoundaryAttribute);
+        entry.removeAttribute("aria-expanded");
+        entry.removeAttribute("aria-haspopup");
+    }
+
+    return true;
 }
 
 function hasChildren(item: unknown): boolean {

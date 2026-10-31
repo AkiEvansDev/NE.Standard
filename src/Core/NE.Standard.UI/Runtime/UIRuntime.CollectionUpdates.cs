@@ -96,11 +96,7 @@ internal sealed partial class UIRuntime
         if (row == 0 || path[row].Kind == PathSegmentKind.Property)
             return;
 
-        // A property deeper than the row's own can only be a rule's: a view with none asks nothing more.
         var own = row == path.Count - 2;
-
-        if (!own && !View.ItemProjections.HasRules)
-            return;
 
         PathSegment itemSegment = path[row];
         RecursivePath collectionPath = path.Take(row);
@@ -117,7 +113,7 @@ internal sealed partial class UIRuntime
             CompiledUIBinding binding = collectionBindings[i];
             UIComponentId hostId = binding.Address.Component.Id;
 
-            var redraws = own && (IsTemplateKeyProperty(hostId, path[^1].Property) || IsGroupProperty(hostId, path[^1].Property) || TakesItemValues(hostId));
+            var redraws = IsTemplateKeyProperty(hostId, path, row + 1) || (own && IsGroupProperty(hostId, path[^1].Property)) || TakesItemValues(hostId);
 
             // One the host's rows bind reaches its rules as that value does, and a row the reader writes in is not redrawn under it.
             if (!redraws && (!ReadsByRule(hostId, path, row + 1) || IsBoundInRows(hostId, path)))
@@ -174,46 +170,23 @@ internal sealed partial class UIRuntime
             AppendDescendantCollectionUpdatesNoLock(collectionPath.AppendKey(replacedKey));
     }
 
-    private bool IsTemplateKeyProperty(UIComponentId componentId, string propertyName)
+    private bool IsTemplateKeyProperty(UIComponentId componentId, RecursivePath path, int start)
     {
-        return View.State.TryGetValue(componentId, ITemplatedComponent.TemplateKeyPropertyProperty, out CompiledUIPropertyValue? value) &&
-               !value.IsBind &&
-               value.Value is string templateKeyProperty &&
-               string.Equals(templateKeyProperty, propertyName, StringComparison.Ordinal);
-    }
-
-    /// <summary>Whether the component takes its items as values rather than drawing them as rows — a chart, a canvas of nodes.</summary>
-    /// <remarks>
-    /// No components live inside its item template for a value update to reach, so any property change on an item must arrive
-    /// as a full replace, not a value alone.
-    /// </remarks>
-    private bool TakesItemValues(UIComponentId componentId)
-        => View.State.TryGetValue(componentId, IItemValuesComponent.TakesItemValuesProperty, out CompiledUIPropertyValue? value) &&
-           !value.IsBind &&
-           value.Value is true;
-
-    /// <summary>Whether the property is the item's group, on a host that actually draws groups.</summary>
-    /// <remarks>Gated on the group template; a host without one lays items out flat regardless.</remarks>
-    private bool IsGroupProperty(UIComponentId componentId, string propertyName)
-        => string.Equals(propertyName, nameof(IBindableGroup.Group), StringComparison.Ordinal) &&
-           View.Graph.TryGetSlot(componentId, UIComponentSlotKind.GroupTemplate, out _);
-
-    /// <summary>
-    /// Whether one of the host's rules reads the changed property (<see cref="UIItemProjectionIndex.TryGetRuleReads"/>): a static rule as
-    /// compiled, a bound items view or query as it stands now.
-    /// </summary>
-    private bool ReadsByRule(UIComponentId hostId, RecursivePath path, int start)
-    {
-        if (View.ItemProjections.TryGetRuleReads(hostId, out var rules))
+        if (View.State.TryGetValue(componentId, ITemplatedComponent.TemplateKeyPropertyProperty, out CompiledUIPropertyValue? value)
+            && !value.IsBind
+            && value.Value is string { Length: > 0 } templateKeyProperty
+            && RuleReadsPath(templateKeyProperty, path, start))
         {
-            for (var r = 0; r < rules.Length; r++)
-            {
-                if (RuleReadsPath(rules[r], path, start))
-                    return true;
-            }
+            return true;
         }
 
-        return View.ItemProjections.HasBoundRules(hostId) && ReadsByBoundRule(hostId, path, start);
+        foreach (UIComponentSlot slot in View.Graph.GetRequired(componentId).Slots)
+        {
+            if (slot.KeyProperty is { Length: > 0 } slotKey && RuleReadsPath(slotKey, path, start))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -240,6 +213,40 @@ internal sealed partial class UIRuntime
         }
 
         return true;
+    }
+
+    /// <summary>Whether the property is the item's group, on a host that actually draws groups.</summary>
+    /// <remarks>Gated on the group template; a host without one lays items out flat regardless.</remarks>
+    private bool IsGroupProperty(UIComponentId componentId, string propertyName)
+        => string.Equals(propertyName, nameof(IBindableGroup.Group), StringComparison.Ordinal) &&
+           View.Graph.TryGetSlot(componentId, UIComponentSlotKind.GroupTemplate, out _);
+
+    /// <summary>Whether the component takes its items as values rather than drawing them as rows — a chart, a canvas of nodes.</summary>
+    /// <remarks>
+    /// No components live inside its item template for a value update to reach, so any property change on an item must arrive
+    /// as a full replace, not a value alone.
+    /// </remarks>
+    private bool TakesItemValues(UIComponentId componentId)
+        => View.State.TryGetValue(componentId, IItemValuesComponent.TakesItemValuesProperty, out CompiledUIPropertyValue? value) &&
+           !value.IsBind &&
+           value.Value is true;
+
+    /// <summary>
+    /// Whether one of the host's rules reads the changed property (<see cref="UIItemProjectionIndex.TryGetRuleReads"/>): a static rule as
+    /// compiled, a bound items view or query as it stands now.
+    /// </summary>
+    private bool ReadsByRule(UIComponentId hostId, RecursivePath path, int start)
+    {
+        if (View.ItemProjections.TryGetRuleReads(hostId, out var rules))
+        {
+            for (var r = 0; r < rules.Length; r++)
+            {
+                if (RuleReadsPath(rules[r], path, start))
+                    return true;
+            }
+        }
+
+        return View.ItemProjections.HasBoundRules(hostId) && ReadsByBoundRule(hostId, path, start);
     }
 
     /// <summary>

@@ -3,14 +3,22 @@ import { ComponentSelector, EmptyTemplateAttribute, GroupTemplateAttribute, Temp
 import { readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { forEachSubtree } from "../rendering/client-strings.ts";
+import { SubmenuVariantKey } from "./menu-row-decorator.ts";
 
 const DefaultTemplateKey = "default";
+
+type IndexedTemplates = {
+    readonly templateComponentIds: Set<number>;
+    readonly templateOwnersById: Map<number, Element>;
+    readonly submenuParentByChildId: Map<number, number>;
+    readonly submenuChildByParentId: Map<number, number>;
+};
 
 export class ItemsTemplateRegistry {
     private readonly dom: DomRegistry;
 
-    // The components declared inside an item template, read once: the templates are the page's and do not change.
-    private templateComponentIds: Set<number> | null = null;
+    // The components declared inside an item template and their submenu links, read once: the templates are the page's and do not change.
+    private indexed: IndexedTemplates | null = null;
 
     public constructor(dom: DomRegistry) {
         this.dom = dom;
@@ -32,16 +40,24 @@ export class ItemsTemplateRegistry {
     }
 
     private findTemplate(itemsViewComponentId: number, key: string): HTMLTemplateElement | undefined {
-        const root = this.dom.findComponent(itemsViewComponentId, []);
+        const root = this.findTemplateOwner(itemsViewComponentId);
 
         return root === null ? undefined : ownTemplate(root, TemplateAttribute, key);
     }
 
     /** Whether a component is declared inside an item template — nested templates included — and so lives in rows. */
     public isTemplateComponent(componentId: number): boolean {
-        this.templateComponentIds ??= collectTemplateComponentIds(this.dom.root);
+        return this.ensureIndexed().templateComponentIds.has(componentId);
+    }
 
-        return this.templateComponentIds.has(componentId);
+    /** The parent `MenuComponent` whose `Submenu` variant declares `submenuComponentId`, or undefined for any other component. */
+    public getSubmenuParentComponentId(submenuComponentId: number): number | undefined {
+        return this.ensureIndexed().submenuParentByChildId.get(submenuComponentId);
+    }
+
+    /** The nested `MenuComponent` declared in `parentComponentId`'s `Submenu` variant, or undefined when the menu declares none. */
+    public getSubmenuComponentId(parentComponentId: number): number | undefined {
+        return this.ensureIndexed().submenuChildByParentId.get(parentComponentId);
     }
 
     public getEmptyTemplate(itemsViewComponentId: number): HTMLTemplateElement | undefined {
@@ -53,9 +69,19 @@ export class ItemsTemplateRegistry {
     }
 
     private getMarkedTemplate(itemsViewComponentId: number, attribute: string): HTMLTemplateElement | undefined {
-        const root = this.dom.findComponent(itemsViewComponentId, []);
+        const root = this.findTemplateOwner(itemsViewComponentId);
 
         return root === null ? undefined : ownTemplate(root, attribute, null);
+    }
+
+    private findTemplateOwner(itemsViewComponentId: number): Element | null {
+        return this.dom.findComponent(itemsViewComponentId, []) ?? this.ensureIndexed().templateOwnersById.get(itemsViewComponentId) ?? null;
+    }
+
+    private ensureIndexed(): IndexedTemplates {
+        this.indexed ??= indexTemplates(this.dom.root);
+
+        return this.indexed;
     }
 }
 
@@ -72,10 +98,31 @@ function ownTemplate(root: Element, attribute: string, value: string | null): HT
     return undefined;
 }
 
-function collectTemplateComponentIds(root: ParentNode): Set<number> {
-    const ids = new Set<number>();
+function indexTemplates(root: ParentNode): IndexedTemplates {
+    const templateComponentIds = new Set<number>();
+    const templateOwnersById = new Map<number, Element>();
+    const submenuParentByChildId = new Map<number, number>();
+    const submenuChildByParentId = new Map<number, number>();
 
     forEachSubtree(root, subtree => {
+        for (const template of subtree.querySelectorAll<HTMLTemplateElement>("template")) {
+            const owner = template.parentElement;
+            const ownerId = owner === null ? 0 : readComponentId(owner);
+
+            if (owner !== null && ownerId > 0 && !templateOwnersById.has(ownerId))
+                templateOwnersById.set(ownerId, owner);
+
+            if (ownerId > 0 && template.getAttribute(TemplateAttribute) === SubmenuVariantKey) {
+                const child = template.content.firstElementChild;
+                const childId = child === null ? 0 : readComponentId(child);
+
+                if (childId > 0) {
+                    submenuParentByChildId.set(childId, ownerId);
+                    submenuChildByParentId.set(ownerId, childId);
+                }
+            }
+        }
+
         // The page itself is not a template: only what a template's content declares.
         if (subtree === root)
             return;
@@ -84,9 +131,9 @@ function collectTemplateComponentIds(root: ParentNode): Set<number> {
             const componentId = readComponentId(element);
 
             if (componentId > 0)
-                ids.add(componentId);
+                templateComponentIds.add(componentId);
         }
     });
 
-    return ids;
+    return { templateComponentIds, templateOwnersById, submenuParentByChildId, submenuChildByParentId };
 }

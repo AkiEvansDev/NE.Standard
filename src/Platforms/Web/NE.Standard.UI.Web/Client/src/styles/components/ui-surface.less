@@ -66,7 +66,7 @@
     // control of its own (surface-press-engine.ts marks the surface).
     @media @{ui-can-hover} {
         .ui-surface--clickable@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
-            background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), var(--ui-surface-fill));
+            background-color: color-mix(in srgb, @ui-text-ink var(--ui-wash-hover-share), var(--ui-surface-fill));
         }
     }
 
@@ -74,13 +74,13 @@
     // under a passing pointer; its press is any surface's.
     @media @{ui-can-hover} {
         .ui-surface--clickable.ui-surface--quiet-hover@{ui-button-live}:hover:not([data-ui-inner-pointer~="hover"]) {
-            background-color: color-mix(in srgb, var(--ui-color-on-surface) calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));
+            background-color: color-mix(in srgb, @ui-text-ink calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));
         }
     }
 
 // :active bubbles to every ancestor, so presses on an inner control are excluded to stop the card animating underneath it.
 .ui-surface--clickable@{ui-button-live}:active:not([data-ui-inner-pointer~="press"]) {
-    background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-active-share), var(--ui-surface-fill));
+    background-color: color-mix(in srgb, @ui-text-ink var(--ui-wash-active-share), var(--ui-surface-fill));
 }
 
 // Names the ground, not transparent, so an element with its own [data-ui-theme] shows a background matching its text and not the page's.

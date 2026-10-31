@@ -77,11 +77,11 @@
 }
 
 .ui-surface--clickable:not(.ui-surface--quiet-hover)@{ui-button-live}@{ui-keyboard-focus} {
-    background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), var(--ui-surface-fill));
+    background-color: color-mix(in srgb, @ui-text-ink var(--ui-wash-hover-share), var(--ui-surface-fill));
 }
 
 .ui-surface--clickable.ui-surface--quiet-hover@{ui-button-live}@{ui-keyboard-focus} {
-    background-color: color-mix(in srgb, var(--ui-color-on-surface) calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));
+    background-color: color-mix(in srgb, @ui-text-ink calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));
 }
 
 .ui-expander:not(.ui-expander--quiet)@{ui-button-live} > .ui-expander__header@{ui-keyboard-focus} {

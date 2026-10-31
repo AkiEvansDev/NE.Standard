@@ -7,7 +7,7 @@ import {
     enumNames, isBackgroundImageBlurred, isTiered, toBackgroundImageCss, toBackgroundImageDimCss, toBadgeTitleFit, toBorderEdge,
     toCount, toDayTokens, toFiniteNumber, toGridPlacementPart, toGridTemplate, toGridTrackLimits, toGridUnit,
     toItemsQueryAttribute, toLayoutLength, toOptionalPixels, toPadding, toPixels, toPositiveCount, toProgressValue,
-    toRadius, toResponsiveGridTemplate, toSelectedKeysAttribute, toSelectionFontWeight, toSelectionMark,
+    toRadius, toResponsiveGridTemplate, toResponsiveSize, toSelectedKeysAttribute, toSelectionFontWeight, toSelectionMark,
     toSelectionStylePart, toSize, toTabMenuTokens, toTextAppearanceClass, toTextAppearanceField, toThickness,
     toThicknessSum, toUniqueSelectedKeysAttribute, toWindowAggregatesAttribute
 } from "./converter-values.ts";
@@ -316,8 +316,10 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["textAppearanceLineHeightCss", value => toTextAppearanceField(value, "lineHeight")],
     ["textAppearanceLetterSpacingCss", value => toTextAppearanceField(value, "letterSpacing")],
     ...tierConverters("responsiveLayoutLength", "Css", (value, tier) => toLayoutLength(toResponsiveTier(value, tier))),
-    ...tierConverters("responsiveWidth", "Css", (value, tier) => toSize(toResponsiveTier(value, tier), "horizontal")),
-    ...tierConverters("responsiveHeight", "Css", (value, tier) => toSize(toResponsiveTier(value, tier), "vertical")),
+    ...tierConverters("responsiveWidth", "Css", (value, tier) => toResponsiveSize(value, tier, "horizontal")),
+    ...tierConverters("responsiveHeight", "Css", (value, tier) => toResponsiveSize(value, tier, "vertical")),
+    ...tierConverters("responsiveWidthBound", "Css", (value, tier) => toSize(toResponsiveTier(value, tier), "horizontal")),
+    ...tierConverters("responsiveHeightBound", "Css", (value, tier) => toSize(toResponsiveTier(value, tier), "vertical")),
     ...tierConverters("responsiveThickness", "Css", (value, tier) => toThickness(toResponsiveTier(value, tier))),
     ...tierConverters("responsivePadding", "Css", (value, tier) => toPadding(toResponsiveTier(value, tier))),
     ...tierConverters("responsiveThicknessHorizontal", "Css", (value, tier) => toThicknessSum(toResponsiveTier(value, tier), "horizontal")),

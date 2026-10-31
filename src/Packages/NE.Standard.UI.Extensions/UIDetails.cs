@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
@@ -76,6 +77,10 @@ public static class UIDetails
     /// One of the sums over a total — "Subtotal", "VAT, 21%" — the name muted at the start and the amount the controller holds at
     /// <paramref name="valuePath"/> at the far end, as wide as it is; one line at every width, as a receipt's.
     /// </summary>
+    public static ContainerComponent Amount<TSource>(UIPhrase label, Expression<Func<TSource, object?>> valuePath, UIBindingScope scope = UIBindingScope.Root)
+        => Amount(label, PresetBindings.Path(valuePath), scope);
+
+    /// <summary>One of the sums over a total, its name muted and its amount bound at <paramref name="valuePath"/>.</summary>
     public static ContainerComponent Amount(UIPhrase label, string valuePath, UIBindingScope scope = UIBindingScope.Root)
     {
         PresetWords.Require(label);
@@ -84,8 +89,16 @@ public static class UIDetails
     }
 
     /// <summary>The same with the name the controller holds at <paramref name="labelPath"/> — a rate that changes — as content.</summary>
+    public static ContainerComponent BoundAmount<TSource>(Expression<Func<TSource, object?>> labelPath, Expression<Func<TSource, object?>> valuePath, UIBindingScope scope = UIBindingScope.Root)
+        => BoundAmount(PresetBindings.Path(labelPath), PresetBindings.Path(valuePath), scope);
+
+    /// <summary>The same with the name the controller holds at <paramref name="labelPath"/> — a rate that changes — as content.</summary>
     public static ContainerComponent BoundAmount(string labelPath, string valuePath, UIBindingScope scope = UIBindingScope.Root)
         => Sum(BoundLabel(labelPath, scope).AsBody().Muted(), valuePath, scope, strong: false);
+
+    /// <summary>The line the sums come to — "Total a month" — the name and the amount both in the subtitle role.</summary>
+    public static ContainerComponent Total<TSource>(UIPhrase label, Expression<Func<TSource, object?>> valuePath, UIBindingScope scope = UIBindingScope.Root)
+        => Total(label, PresetBindings.Path(valuePath), scope);
 
     /// <summary>The line the sums come to — "Total a month" — the name and the amount both in the subtitle role.</summary>
     public static ContainerComponent Total(UIPhrase label, string valuePath, UIBindingScope scope = UIBindingScope.Root)
@@ -94,6 +107,10 @@ public static class UIDetails
 
         return Sum(UIText.Subtitle(label), valuePath, scope, strong: true);
     }
+
+    /// <summary>The same with the name the controller holds at <paramref name="labelPath"/>, as content.</summary>
+    public static ContainerComponent BoundTotal<TSource>(Expression<Func<TSource, object?>> labelPath, Expression<Func<TSource, object?>> valuePath, UIBindingScope scope = UIBindingScope.Root)
+        => BoundTotal(PresetBindings.Path(labelPath), PresetBindings.Path(valuePath), scope);
 
     /// <summary>The same with the name the controller holds at <paramref name="labelPath"/>, as content.</summary>
     public static ContainerComponent BoundTotal(string labelPath, string valuePath, UIBindingScope scope = UIBindingScope.Root)

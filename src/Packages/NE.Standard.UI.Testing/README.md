@@ -66,14 +66,15 @@ gives (an argument the command has no parameter for, a `Root` binding a row's it
 ## Finding a component
 
 - `page.Component("chat-conversation")` — by the id the view gave it.
-- `page.ComponentBoundTo(nameof(SignUpController.Email))` — by the controller path its value, else another property, is
-  bound to.
+- `page.ComponentBoundTo(nameof(SignUpController.Email))` — by the controller path its value, its items or another
+  property is bound to.
 - `page.ComponentNamed("Create account")` — by what a reader knows it by: its title, accessible name or tooltip, as
   written or in the page's language.
 
 A list's rows are `component.Rows` and `component.Row(key)`; a row's components are found the same way inside it
 (`row.Component(id)`, `row.ComponentBoundTo("Text")`), and `row.ContextMenu` is what a right click on it shows. A split
-button's entries are the rows of `component.Menu`.
+button's entries are the rows of `component.Menu`; a menu row's sub-entries are `row.Rows` and `row.Row(key)`, and
+`menu.Row(key)` reaches a unique sub-entry too.
 
 ## Reading it
 

@@ -1,4 +1,5 @@
 using System;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
@@ -34,6 +35,14 @@ public static class UICard
                 _ = header.SetDescription(description);
         }, content, icon, trailing);
     }
+
+    /// <summary>The same with a name and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    public static CardComponent BoundCreate<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
+        => BoundCreate(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, content, icon, trailing);
+
+    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static CardComponent BoundCreate<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
+        => BoundCreate(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, content, icon, trailing);
 
     /// <summary>The same with a name and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
     public static CardComponent BoundCreate(string titlePath, string? descriptionPath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)

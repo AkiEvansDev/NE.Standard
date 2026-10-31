@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -7,6 +8,7 @@ using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Constants;
@@ -202,6 +204,10 @@ public sealed partial class UITestPage
     /// <exception cref="InvalidOperationException">The view has no such component, or it stands in a list's rows.</exception>
     public UITestComponent Component(string id)
         => Find(id, scope: null, rowKeys: []);
+
+    /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
+    public UITestComponent ComponentBoundTo<TSource>(Expression<Func<TSource, object?>> path)
+        => ComponentBoundTo(RecursivePath.FromExpression(path).ToString());
 
     /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
     public UITestComponent ComponentBoundTo(string path)

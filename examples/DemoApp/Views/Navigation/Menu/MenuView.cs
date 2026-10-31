@@ -10,7 +10,7 @@ namespace DemoApp.Views.Navigation.Menu;
 /// pages: a list of commands, and the panel a right-click opens.
 /// </summary>
 /// <remarks>
-/// Two panes: bound entries follow the controller, and only set entries can carry a nested group. A context menu is this same
+/// Two panes: bound entries follow the controller (their nested sub-entries included), alongside static set entries. A context menu is this same
 /// component, set on another through <c>SetContextMenu</c> rather than placed in the tree; one on every row of a list is on the items
 /// view's and the tree's pages.
 /// </remarks>
@@ -188,7 +188,8 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
             context: SidebarGroup,
             initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
             {
-                ["Add a section"] = nameof(MenuController.AddSection)
+                ["Add a section"] = nameof(MenuController.AddSection),
+                ["Toggle Inbox folders"] = nameof(MenuController.ToggleInboxFolders)
             })
         );
     }

@@ -152,6 +152,37 @@ internal sealed partial class SidebarGroupContext : DemoGroupContext
         LogEvent($"section 'Reports {number}' added");
     }
 
+    /// <summary>
+    /// Populates or clears sub-entries on the initially-empty Inbox entry at runtime.
+    /// </summary>
+    public void ToggleInboxFolders()
+    {
+        MenuItem? inbox = null;
+
+        foreach (MenuItem entry in Entries)
+        {
+            if (entry.Id == "/screens/inbox")
+            {
+                inbox = entry;
+                break;
+            }
+        }
+
+        if (inbox is null)
+            return;
+
+        if (inbox.Items.Count > 0)
+        {
+            inbox.Items.Clear();
+            LogEvent("Inbox folders cleared");
+            return;
+        }
+
+        inbox.Items.Add(new MenuItem { Id = "inbox-unread", Title = "Unread", Url = "/screens/inbox" });
+        inbox.Items.Add(new MenuItem { Id = "inbox-starred", Title = "Starred", Url = "/screens/inbox" });
+        LogEvent("Inbox folders populated");
+    }
+
     private static MenuItem[] CreateEntries()
     {
         MenuItem layouts = new() { Id = "layouts", Title = "Layouts", Icon = DemoIcons.Outline(DemoIcons.LayoutDashboard) };
@@ -344,6 +375,10 @@ internal sealed partial class MenuController() : DemoStandardController
     [UICommand]
     public void AddSection()
         => SidebarGroup.AddSection();
+
+    [UICommand]
+    public void ToggleInboxFolders()
+        => SidebarGroup.ToggleInboxFolders();
 
     /// <summary>
     /// The sidebar's own switch pressed: the menu's fold, not a section's.

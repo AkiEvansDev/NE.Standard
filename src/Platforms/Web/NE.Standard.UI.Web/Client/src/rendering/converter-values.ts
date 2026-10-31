@@ -195,6 +195,31 @@ export function toSize(value: unknown, axis: "horizontal" | "vertical"): string 
     return axis === "horizontal" ? "var(--ui-fill-width, 100%)" : "var(--ui-fill-height, 100%)";
 }
 
+function isAutoLength(value: unknown): boolean {
+    if (value === null || value === undefined || typeof value !== "object") {
+        return false;
+    }
+
+    const kind = (value as { kind?: string | number }).kind;
+
+    return kind === "Auto" || kind === 0;
+}
+
+// Mirrors WebResponsiveCss.WriteSize for --ui-width and --ui-height: an explicit Auto tier above a narrower non-Auto length writes `auto`.
+export function toResponsiveSize(value: unknown, tier: ResponsiveTier, axis: "horizontal" | "vertical"): string {
+    const own = toResponsiveTier(value, tier);
+
+    if (tier !== "base" && isAutoLength(own)) {
+        const below = resolveResponsiveTier(value, responsiveTiers[responsiveTiers.indexOf(tier) - 1]);
+
+        if (below !== null && below !== undefined && !isAutoLength(below) && toSize(below, axis).length > 0) {
+            return "auto";
+        }
+    }
+
+    return toSize(own, axis);
+}
+
 type ThicknessSides = { top: number; right: number; bottom: number; left: number };
 
 /** A thickness's four sides, a bare number for all four; none for anything that is not a thickness. */

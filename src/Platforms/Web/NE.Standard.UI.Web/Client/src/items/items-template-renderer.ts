@@ -15,7 +15,7 @@ import { logWarn } from "../metadata/logger.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
 import { markupWords, readsMarkup } from "../rendering/shown-words.ts";
 import {
-    isContentItem, readsDrawnRow, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty, tryResolveItemTemplateValue, tryWriteCollectionItem
+    isContentItem, readItemPropertyPath, readsDrawnRow, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty, tryResolveItemTemplateValue, tryWriteCollectionItem
 } from "./binding-template-evaluator.ts";
 import type { ItemStackEntry, ItemValueStep } from "./binding-template-evaluator.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
@@ -521,10 +521,12 @@ export function resolveTemplateKeyValue(item: unknown, propertyName: string | nu
     if (propertyName === null || propertyName === undefined || propertyName.trim().length === 0)
         return null;
 
-    const resolution = tryReadItemProperty(item, propertyName);
+    const value = readItemPropertyPath(item, propertyName);
 
-    if (!resolution.ok || resolution.value === null || resolution.value === undefined)
+    if (value === null || value === undefined)
         return null;
 
-    return typeof resolution.value === "string" ? resolution.value : String(resolution.value);
+    const text = typeof value === "string" ? value : String(value);
+
+    return text.trim().length === 0 ? null : text;
 }

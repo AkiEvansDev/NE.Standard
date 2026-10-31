@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Constants;
@@ -38,14 +41,26 @@ public sealed class UITestRow
     /// <summary>Gets the component shown on a right click or a long press on the row.</summary>
     public UITestComponent ContextMenu => Root.ContextMenu;
 
+    /// <summary>Gets the sub-entries a menu row shows now, in the order the server sent them; empty where the row opens none.</summary>
+    public IReadOnlyList<UITestRow> Rows => _page.SubmenuRows(_host.ComponentId, RowKeys);
+
     /// <summary>Gets the item as <typeparamref name="TItem"/>.</summary>
     /// <exception cref="InvalidOperationException">The item is of another type.</exception>
     public TItem ItemAs<TItem>()
         => _entry.Item is TItem item ? item : throw new InvalidOperationException($"Row '{Key}' holds a '{_entry.Item?.GetType().Name ?? "null"}', not a '{typeof(TItem).Name}'.");
 
+    /// <summary>Gets the sub-entry under this menu row with the key <paramref name="key"/>.</summary>
+    /// <exception cref="InvalidOperationException">The row shows no such sub-entry, or several deeper sub-entries share that key.</exception>
+    public UITestRow Row(string key)
+        => _page.FindSubmenuRow(_host, RowKeys, Key, key);
+
     /// <summary>Gets the component with the authored id <paramref name="id"/> in this row.</summary>
     public UITestComponent Component(string id)
         => _page.Find(id, Scope, RowKeys);
+
+    /// <summary>Gets the one component in this row bound to <paramref name="path"/> on the item.</summary>
+    public UITestComponent ComponentBoundTo<TItem>(Expression<Func<TItem, object?>> path)
+        => ComponentBoundTo(RecursivePath.FromExpression(path).ToString());
 
     /// <summary>Gets the one component in this row bound to <paramref name="path"/> on the item.</summary>
     public UITestComponent ComponentBoundTo(string path)

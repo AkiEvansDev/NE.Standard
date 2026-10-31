@@ -4,12 +4,16 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Data;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Testing;
@@ -147,6 +151,9 @@ public sealed partial class UITestPage
             {
                 if (scope.Item is null)
                     return false;
+
+                if (scope.Item is IMenuItemModel entry && Widest<UIVisibility>(entry.Visibility) is UIVisibility.Collapsed or UIVisibility.Hidden)
+                    return false;
             }
 
             return true;
@@ -189,8 +196,35 @@ public sealed partial class UITestPage
                     return false;
             }
 
+            foreach (UIDynamicParameterScope scope in ScopesNoLock(componentId, rowKeys))
+            {
+                if (scope.Item is IMenuItemModel entry && Widest<bool>(entry.Enabled) is false)
+                    return false;
+            }
+
             return true;
         }
+    }
+
+    /// <summary>The sub-entries a menu row shows now; empty where its host opens no submenus.</summary>
+    internal IReadOnlyList<UITestRow> SubmenuRows(UIComponentId hostId, object?[] rowKeys)
+        => SubmenuOf(hostId) is UIComponentNode submenu ? RowList(submenu, rowKeys) : [];
+
+    private UIComponentNode? SubmenuOf(UIComponentId hostId)
+        => View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out UIComponentSlot? slot, MenuComponent.SubmenuTemplateKey)
+            ? View.Graph.GetRequired(slot.RootComponentId)
+            : null;
+
+    /// <summary>The rows a host shows now, wrapped as handles.</summary>
+    internal IReadOnlyList<UITestRow> RowList(UIComponentNode host, object?[] rowKeys)
+    {
+        IReadOnlyList<UITestRowEntry> entries = Rows(host.ComponentId, rowKeys);
+        UITestRow[] rows = new UITestRow[entries.Count];
+
+        for (var i = 0; i < rows.Length; i++)
+            rows[i] = new UITestRow(this, host, rowKeys, entries[i]);
+
+        return rows;
     }
 
     /// <summary>The rows a host shows now.</summary>
@@ -198,6 +232,62 @@ public sealed partial class UITestPage
     {
         lock (_sync)
             return [.. ReadRowsNoLock(new UIComponentAddress(hostId, rowKeys))];
+    }
+
+    /// <summary>The sub-entry under a menu row with <paramref name="key"/>: a direct child first, else the one deeper sub-entry under it.</summary>
+    internal UITestRow FindSubmenuRow(UIComponentNode host, object?[] rowKeys, string parentKey, string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        var owner = $"Row '{parentKey}' of '{host.AuthoringId}'";
+
+        if (SubmenuOf(host.ComponentId) is not UIComponentNode submenu)
+            throw new InvalidOperationException($"{owner} shows no row '{key}'.");
+
+        return FindRow(submenu, rowKeys, owner, key);
+    }
+
+    /// <summary>The row of <paramref name="host"/> with <paramref name="key"/>: a direct row first, else the one sub-entry with that key.</summary>
+    internal UITestRow FindRow(UIComponentNode host, object?[] rowKeys, string owner, string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        foreach (UITestRowEntry entry in Rows(host.ComponentId, rowKeys))
+        {
+            if (string.Equals(entry.Key, key, StringComparison.Ordinal))
+                return new UITestRow(this, host, rowKeys, entry);
+        }
+
+        List<UITestRow> descendants = [];
+
+        CollectSubmenuRows(host.ComponentId, rowKeys, key, descendants);
+
+        if (descendants.Count == 1)
+            return descendants[0];
+
+        if (descendants.Count > 1)
+            throw new InvalidOperationException($"{owner} shows {descendants.Count} sub-entries '{key}': reach one through its parent Row(key).");
+
+        throw new InvalidOperationException($"{owner} shows no row '{key}'.");
+    }
+
+    private void CollectSubmenuRows(UIComponentId hostId, object?[] hostKeys, string key, List<UITestRow> matches)
+    {
+        if (SubmenuOf(hostId) is not UIComponentNode submenu)
+            return;
+
+        foreach (UITestRowEntry parent in Rows(hostId, hostKeys))
+        {
+            object?[] parentKeys = [.. hostKeys, parent.Key];
+
+            foreach (UITestRowEntry entry in Rows(submenu.ComponentId, parentKeys))
+            {
+                if (string.Equals(entry.Key, key, StringComparison.Ordinal))
+                    matches.Add(new UITestRow(this, submenu, parentKeys, entry));
+            }
+
+            CollectSubmenuRows(submenu.ComponentId, parentKeys, key, matches);
+        }
     }
 
     /// <summary>
@@ -284,18 +374,32 @@ public sealed partial class UITestPage
 
         foreach (CompiledUIBinding binding in View.Bindings.All)
         {
-            if (binding.Kind != CompiledUIBindingKind.ComponentProperty || !NamesPath(View.Templates.GetRequired(binding.TemplateId).Template, path))
-                continue;
-
             UIComponentId componentId = binding.Address.Component.Id;
+
+            if (!NamesPath(AuthoredTemplate(binding, componentId), path))
+                continue;
 
             if ((scope is UIComponentId root && !IsWithin(componentId, root)) || View.Graph.GetItemScopes(componentId).Count > rowKeys.Length)
                 continue;
 
-            found.Add((componentId, binding.Address.Property == IInputComponent.ValueProperty));
+            found.Add((componentId, binding.Kind == CompiledUIBindingKind.ComponentCollection || binding.Address.Property == IInputComponent.ValueProperty));
         }
 
         return At(SingleFound(found, path, "bound to"), rowKeys);
+    }
+
+    /// <summary>The path the view bound: a windowed source's collection binding drops the window step the compiler appended.</summary>
+    private string AuthoredTemplate(CompiledUIBinding binding, UIComponentId componentId)
+    {
+        var template = View.Templates.GetRequired(binding.TemplateId).Template;
+        const string windowSuffix = "." + UIItemSourceBase.WindowProperty;
+
+        return binding.Kind == CompiledUIBindingKind.ComponentCollection
+            && View.State.TryGetValue(componentId, IItemsHostComponent.HostModeProperty, out CompiledUIPropertyValue? mode)
+            && mode.Value is UIItemsHostMode.Windowed
+            && template.EndsWith(windowSuffix, StringComparison.Ordinal)
+            ? template[..^windowSuffix.Length]
+            : template;
     }
 
     /// <summary>Whether a binding's template names the path: itself, or the part after its last row.</summary>

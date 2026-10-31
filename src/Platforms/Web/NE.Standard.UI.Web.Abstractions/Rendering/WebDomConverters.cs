@@ -250,6 +250,12 @@ public static class WebDomConverters
     /// <summary>A component's height tier (<c>WebCssValues.ResponsiveSize</c>): <c>Fill</c> less its margins down.</summary>
     public static readonly WebResponsiveConverters ResponsiveHeightCss = new("responsiveHeight", "Css");
 
+    /// <summary>A component's min/max width tier (<c>WebCssValues.ResponsiveSize</c>): <c>Fill</c> less its margins across, nothing for <c>Auto</c>.</summary>
+    public static readonly WebResponsiveConverters ResponsiveWidthBoundCss = new("responsiveWidthBound", "Css");
+
+    /// <summary>A component's min/max height tier (<c>WebCssValues.ResponsiveSize</c>): <c>Fill</c> less its margins down, nothing for <c>Auto</c>.</summary>
+    public static readonly WebResponsiveConverters ResponsiveHeightBoundCss = new("responsiveHeightBound", "Css");
+
     /// <summary>A thickness tier (<c>WebCssValues.Thickness</c>): a padding's, a margin's or a border's at that breakpoint.</summary>
     public static readonly WebResponsiveConverters ResponsiveThicknessCss = new("responsiveThickness", "Css");
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Properties;
@@ -54,19 +55,7 @@ public sealed class UITestComponent
     public UIValidationSeverity? ValidationSeverity => _page.Message(_node.ComponentId, _rowKeys)?.Severity;
 
     /// <summary>Gets the rows a list shows now, in the order the server sent them.</summary>
-    public IReadOnlyList<UITestRow> Rows
-    {
-        get
-        {
-            IReadOnlyList<UITestRowEntry> entries = _page.Rows(_node.ComponentId, _rowKeys);
-            UITestRow[] rows = new UITestRow[entries.Count];
-
-            for (var i = 0; i < rows.Length; i++)
-                rows[i] = new UITestRow(_page, _node, _rowKeys, entries[i]);
-
-            return rows;
-        }
-    }
+    public IReadOnlyList<UITestRow> Rows => _page.RowList(_node, _rowKeys);
 
     /// <summary>Gets the component shown on a right click or a long press on this one.</summary>
     /// <exception cref="InvalidOperationException">It has none.</exception>
@@ -99,24 +88,18 @@ public sealed class UITestComponent
     public string? Text(UIProperty property)
         => _page.Words(Get(property));
 
-    /// <summary>Gets the row with the key <paramref name="key"/>.</summary>
-    /// <exception cref="InvalidOperationException">The list shows no such row.</exception>
+    /// <summary>Gets the row with the key <paramref name="key"/>: a direct row first, else the one menu sub-entry with that key.</summary>
+    /// <exception cref="InvalidOperationException">The list shows no such row, or several sub-entries share that key.</exception>
     public UITestRow Row(string key)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
-
-        foreach (UITestRowEntry entry in _page.Rows(_node.ComponentId, _rowKeys))
-        {
-            if (string.Equals(entry.Key, key, StringComparison.Ordinal))
-                return new UITestRow(_page, _node, _rowKeys, entry);
-        }
-
-        throw new InvalidOperationException($"'{Id}' shows no row '{key}'.");
-    }
+        => _page.FindRow(_node, _rowKeys, $"'{Id}'", key);
 
     /// <summary>Gets the component with the authored id <paramref name="id"/> inside this one.</summary>
     public UITestComponent Component(string id)
         => _page.Find(id, _node.ComponentId, _rowKeys);
+
+    /// <summary>Gets the one component inside this one bound to <paramref name="path"/>.</summary>
+    public UITestComponent ComponentBoundTo<TSource>(Expression<Func<TSource, object?>> path)
+        => ComponentBoundTo(RecursivePath.FromExpression(path).ToString());
 
     /// <summary>Gets the one component inside this one bound to <paramref name="path"/>.</summary>
     public UITestComponent ComponentBoundTo(string path)

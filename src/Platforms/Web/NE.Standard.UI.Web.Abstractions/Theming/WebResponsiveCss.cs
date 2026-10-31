@@ -88,9 +88,31 @@ public static class WebResponsiveCss
         WriteTiers(target, margin, MarginDownVariable, static side => WebCssValues.ThicknessSum(side, UIOrientation.Vertical));
     }
 
-    /// <summary>Writes a component's own width or height, <c>Fill</c> less its margins on that axis (<see cref="WebCssValues.ResponsiveSize"/>).</summary>
+    /// <summary>Writes a component's own width or height, <c>Fill</c> less its margins on that axis (<see cref="WebCssValues.ResponsiveSize"/>), and <c>auto</c> where a wider <c>--ui-width</c> or <c>--ui-height</c> tier resets a narrower length to <c>Auto</c>.</summary>
     public static void WriteSize(IHtmlElementBuilder target, UIResponsive<UILayoutLength> size, string cssVariableName, UIOrientation axis)
-        => WriteTiers(target, size, cssVariableName, SizeFormatter(axis));
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        var names = TierNames(cssVariableName);
+        var allowAutoReset = cssVariableName is WidthVariable or HeightVariable;
+        var hasPriorLength = false;
+
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (size.Get(tier) is not UILayoutLength tierValue)
+                continue;
+
+            var css = allowAutoReset && hasPriorLength && tierValue.Kind == UILayoutLengthKind.Auto
+                ? "auto"
+                : WebCssValues.ResponsiveSize(tierValue, axis);
+
+            if (css.Length > 0)
+            {
+                _ = target.Style(names[(int)tier], css);
+                hasPriorLength = tierValue.Kind != UILayoutLengthKind.Auto;
+            }
+        }
+    }
 
     /// <summary>A width or a height tier's value, by axis (<see cref="WebCssValues.ResponsiveSize"/>).</summary>
     public static Func<UILayoutLength, string> SizeFormatter(UIOrientation axis)

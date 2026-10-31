@@ -85,6 +85,7 @@ import { EntryValidation, FieldValidation, RuleJudging, ShownValueValidation, Va
 import { isRefusedValue } from "../interactions/validation-words";
 import { wheel } from "../interactions/wheel-notches";
 import { WindowFootEngine } from "../interactions/window-foot";
+import { setComponentItems } from "../items/component-items-writer";
 import { createItemRows, ItemRows } from "../items/item-rows";
 import { compareItems, itemMatchesFilters } from "../items/items-filter-sort";
 import { ItemsRuleWatcher } from "../items/items-rule-watcher";
@@ -415,6 +416,10 @@ export function createPluginEngineContext(
             set: (element, propertyName, value) => {
                 // By markup, not the page's index: a part may be set before it is on the page, or drawn several times from one template.
                 const component = element.closest(ComponentSelector);
+
+                if (component !== null && propertyName === "Items" && Array.isArray(value) && setComponentItems(component, value, metadata, itemsTemplates, itemsRenderer))
+                    return true;
+
                 const reference = component === null ? undefined : metadata.getExposedProperty(readComponentId(component), propertyName);
 
                 if (component === null || reference === undefined) {

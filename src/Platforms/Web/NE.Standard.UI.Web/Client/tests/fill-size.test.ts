@@ -54,6 +54,8 @@ test("a tier reads its own value, a numbered kind as the wire may send it, and a
     const fill = { kind: "Fill", value: -1 };
 
     assert.equal(convert("responsiveHeightMdCss", { base: { kind: "Auto", value: -1 }, md: fill }), "var(--ui-fill-height, 100%)");
+    assert.equal(convert("responsiveWidthMdCss", { base: fill, md: { kind: "Auto", value: -1 } }), "auto");
+    assert.equal(convert("responsiveWidthBoundMdCss", { base: fill, md: { kind: "Auto", value: -1 } }), "");
     assert.equal(convert("responsiveHeightBaseCss", { base: { kind: 2, value: -1 } }), "var(--ui-fill-height, 100%)");
     assert.equal(convert("responsiveLayoutLengthBaseCss", { base: fill }), "100%");
 });

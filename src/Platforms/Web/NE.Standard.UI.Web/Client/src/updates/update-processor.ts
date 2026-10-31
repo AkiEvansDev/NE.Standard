@@ -17,6 +17,7 @@ import type { ItemsVirtualizationEngine } from "../items/items-virtualization-en
 import { writeItemValuePath } from "../items/items-template-renderer.ts";
 import type { ItemsTemplateRenderer } from "../items/items-template-renderer.ts";
 import type { ItemsTemplateRegistry } from "../items/items-template-registry.ts";
+import { mountMenuRowSubmenu } from "../items/menu-row-decorator.ts";
 import { PendingMoves } from "../state/pending-moves.ts";
 import type { RowMenus } from "../items/row-menus.ts";
 import type { TakenRow } from "../state/pending-transfers.ts";
@@ -193,6 +194,17 @@ export class UpdateProcessor {
 
             if (items !== undefined)
                 this.refillHost(host, { componentId: owner.componentId, dynamicParameters: owner.dynamicParameters, items });
+
+            const submenuId = this.itemsTemplates.getSubmenuComponentId?.(owner.componentId);
+
+            if (submenuId !== undefined) {
+                for (const row of getRealItemElements(host)) {
+                    const rowKey = row.getAttribute(ComponentKeyAttribute);
+
+                    if (rowKey !== null && (this.held.getRow(submenuId, [...owner.dynamicParameters, rowKey])?.length ?? 0) > 0)
+                        this.mountRowSubmenu(row, rowKey, owner.componentId);
+                }
+            }
         }
     }
 
@@ -394,13 +406,17 @@ export class UpdateProcessor {
             this.rowMenus.heldChanged();
         }
 
-        const hosts = findItemsHosts(this.dom, refill.componentId, refill.dynamicParameters);
+        let hosts = findItemsHosts(this.dom, refill.componentId, refill.dynamicParameters);
+
+        if (hosts.length === 0 && refill.items.length > 0)
+            hosts = this.mountSubmenuHosts(refill.componentId, refill.dynamicParameters);
 
         if (hosts.length === 0) {
             // A host inside an item template while no row wears it, or in a row's menu not drawn yet: held, and drawn from there.
+            // An empty refill for an unmounted menu entry's submenu is likewise a no-op.
             if (holds || holdsRow)
                 logDebug("a collection for a host inside an item template is held until a row draws it.", { componentId: refill.componentId });
-            else
+            else if (refill.items.length > 0 || !this.hasSubmenuParentRow(refill.componentId, refill.dynamicParameters))
                 logWarn("items host was not found for a collection refill.", refill.items);
 
             return;
@@ -578,13 +594,17 @@ export class UpdateProcessor {
             this.rowMenus.heldChanged();
         }
 
-        const hosts = findItemsHosts(this.dom, componentId, dynamicParameters);
+        const action = getCollectionUpdateAction(update.action);
+        let hosts = findItemsHosts(this.dom, componentId, dynamicParameters);
+
+        if (hosts.length === 0 && (action === "Insert" || action === "Replace") && (update.items ?? []).length > 0)
+            hosts = this.mountSubmenuHosts(componentId, dynamicParameters);
 
         if (hosts.length === 0) {
-            // A template's host holds what it is sent; an empty reset is no fault (a menu's sub-entries render only with entries); else a fault.
+            // A template's host holds what it is sent; an empty reset or a remove/move on an unmounted submenu is no fault; else a fault.
             if (holds || holdsRow)
                 logDebug("a collection change for a host inside an item template is held until a row draws it.", { componentId });
-            else if (getCollectionUpdateAction(update.action) !== "Reset" || (update.items ?? []).length > 0)
+            else if (!((action === "Reset" && (update.items ?? []).length === 0) || ((action === "Remove" || action === "Move") && this.hasSubmenuParentRow(componentId, dynamicParameters))))
                 logWarn("items host was not found for a collection change update.", update);
 
             return;
@@ -752,6 +772,61 @@ export class UpdateProcessor {
             default:
                 break;
         }
+    }
+
+    /** Mounts `.ui-menu__submenu` onto every live parent menu row addressed by `dynamicParameters` for `submenuComponentId`. */
+    private mountSubmenuHosts(submenuComponentId: number, dynamicParameters: readonly unknown[]): Element[] {
+        const parent = this.findSubmenuParentRows(submenuComponentId, dynamicParameters);
+
+        if (parent === null || parent.rows.length === 0)
+            return [];
+
+        for (const row of parent.rows)
+            this.mountRowSubmenu(row, parent.rowKey, parent.parentComponentId);
+
+        return findItemsHosts(this.dom, submenuComponentId, dynamicParameters);
+    }
+
+    private hasSubmenuParentRow(submenuComponentId: number, dynamicParameters: readonly unknown[]): boolean {
+        return (this.findSubmenuParentRows(submenuComponentId, dynamicParameters)?.rows.length ?? 0) > 0;
+    }
+
+    private findSubmenuParentRows(submenuComponentId: number, dynamicParameters: readonly unknown[]): { readonly parentComponentId: number; readonly rowKey: string; readonly rows: Element[] } | null {
+        if (dynamicParameters.length === 0)
+            return null;
+
+        const parentComponentId = this.itemsTemplates.getSubmenuParentComponentId?.(submenuComponentId);
+
+        if (parentComponentId === undefined)
+            return null;
+
+        const rowKey = String(dynamicParameters[dynamicParameters.length - 1] ?? "");
+
+        if (rowKey.length === 0)
+            return null;
+
+        const parentParameters = dynamicParameters.slice(0, -1);
+        const rows: Element[] = [];
+
+        for (const parentHost of findItemsHosts(this.dom, parentComponentId, parentParameters)) {
+            const row = findItemElement(getRealItemElements(parentHost), rowKey);
+
+            if (row !== null)
+                rows.push(row);
+        }
+
+        return { parentComponentId, rowKey, rows };
+    }
+
+    private mountRowSubmenu(row: Element, rowKey: string, parentComponentId: number): Element | null {
+        const submenu = mountMenuRowSubmenu(row, rowKey, this.readItemValue(row) ?? {}, parentComponentId, this.itemsRenderer.getAncestorStack(row), this.itemsTemplates, this.itemsRenderer);
+
+        if (submenu !== null) {
+            this.touched?.add(row);
+            this.dom.invalidate(row);
+        }
+
+        return submenu;
     }
 
     /** The item a rendered row stands for. */

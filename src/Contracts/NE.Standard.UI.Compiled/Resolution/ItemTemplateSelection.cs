@@ -41,7 +41,7 @@ public static class ItemTemplateSelection
     /// </summary>
     public static string? ReadKey(object? item, string keyProperty)
     {
-        if (!ItemContext.TryReadProperty(item, keyProperty, out var value))
+        if (!ItemContext.TryReadPath(item, keyProperty, out var value))
             return null;
 
         var text = value as string ?? Convert.ToString(value, CultureInfo.InvariantCulture);
@@ -75,7 +75,7 @@ public static class ItemTemplateSelection
         if (key is null || item is null || string.IsNullOrWhiteSpace(keyProperty))
             return true;
 
-        PropertyInfo? property = ItemContext.ResolveProperty(item.GetType(), keyProperty);
+        PropertyInfo? property = ResolvePropertyPath(item, keyProperty);
 
         if (property is null)
             return true;
@@ -83,5 +83,43 @@ public static class ItemTemplateSelection
         Type type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
 
         return !type.IsEnum || Enum.IsDefined(type, key);
+    }
+
+    private static PropertyInfo? ResolvePropertyPath(object item, string path)
+    {
+        var current = (object?)item;
+        Type currentType = item.GetType();
+        var start = 0;
+
+        while (true)
+        {
+            var dot = path.IndexOf('.', start);
+            var end = dot < 0 ? path.Length : dot;
+
+            if (path.AsSpan(start, end - start).IsWhiteSpace())
+                return null;
+
+            var segment = start == 0 && dot < 0 ? path : path[start..end];
+            PropertyInfo? property = ItemContext.ResolveProperty(currentType, segment);
+
+            if (dot < 0)
+                return property;
+
+            if (current is not null && ItemContext.TryReadProperty(current, segment, out current) && current is not null)
+            {
+                currentType = current.GetType();
+            }
+            else if (property is not null)
+            {
+                current = null;
+                currentType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+            }
+            else
+            {
+                return null;
+            }
+
+            start = dot + 1;
+        }
     }
 }

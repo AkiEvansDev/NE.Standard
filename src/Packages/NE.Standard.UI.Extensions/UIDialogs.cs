@@ -1,4 +1,5 @@
 using System;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Styling;
@@ -30,6 +31,10 @@ public static class UIDialogs
         => Dialog(key, Content(key, title, content, icon), width);
 
     /// <summary>The same with a title the controller holds at <paramref name="titlePath"/> — the thing's name, Add or Edit — as its own words.</summary>
+    public static UIDialog BoundCreate<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null)
+        => BoundCreate(key, PresetBindings.Path(titlePath), content, icon, width);
+
+    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/> — the thing's name, Add or Edit — as its own words.</summary>
     public static UIDialog BoundCreate(string key, string titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null)
         => Dialog(key, BoundContent(key, titlePath, content, icon), width);
 
@@ -43,17 +48,23 @@ public static class UIDialogs
         {
             Key = key,
             TitleId = TitleId(key),
-            // The column is the dialog's size, so it is held to the screen alone, not to the cap of a dialog sized to its content.
-            MaxWidth = UILayoutLength.Fill(),
-            Content = content.SetMinWidth(ColumnMinWidth(column))
+            // Filled below the tier the column fits at so the panel never shrinks between Sm and that tier, and sized to its column
+            // from it on; Width alone lifts the cap of an unsized dialog while leaving a sheet's guard intact.
+            Width = ColumnDialogWidth(column),
+            Content = content.SetWidth(ColumnContentWidth(column)).SetMaxWidth(UILayoutLength.Fill())
         };
     }
 
+    private static UIResponsive<UILayoutLength> ColumnDialogWidth(UIColumnWidth width)
+        => width == UIColumnWidth.Wide
+            ? UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), xl: UILayoutLength.Auto())
+            : UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), md: UILayoutLength.Auto());
+
     /// <summary>
-    /// The least width a dialog's content takes in a named column: the screen's below the tier the column fits at, the column from it —
+    /// The width a dialog's content holds in a named column: the screen's below the tier the column fits at, the column from it —
     /// a form's and a text's from the medium breakpoint, the wide one, more than a tablet holds, from the extra-large.
     /// </summary>
-    private static UIResponsive<UILayoutLength> ColumnMinWidth(UIColumnWidth width)
+    private static UIResponsive<UILayoutLength> ColumnContentWidth(UIColumnWidth width)
     {
         UILayoutLength column = UILayoutLength.Absolute(UIPage.Pixels(width));
 
@@ -68,6 +79,10 @@ public static class UIDialogs
     /// </summary>
     public static StackPanelComponent Content(string key, UIPhrase title, IVisualComponent content, string? icon = null)
         => Body(Header(key, title, icon), content);
+
+    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
+    public static StackPanelComponent BoundContent<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null)
+        => BoundContent(key, PresetBindings.Path(titlePath), content, icon);
 
     /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
     public static StackPanelComponent BoundContent(string key, string titlePath, IVisualComponent content, string? icon = null)
@@ -86,6 +101,10 @@ public static class UIDialogs
     /// </summary>
     public static ContainerComponent Header(string key, UIPhrase title, string? icon = null)
         => Header(key, Title(key, title, null), icon);
+
+    /// <summary>The header with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
+    public static ContainerComponent BoundHeader<TSource>(string key, Expression<Func<TSource, object?>> titlePath, string? icon = null)
+        => BoundHeader(key, PresetBindings.Path(titlePath), icon);
 
     /// <summary>The header with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
     public static ContainerComponent BoundHeader(string key, string titlePath, string? icon = null)
@@ -228,6 +247,14 @@ public static class UIDialogs
     /// <paramref name="descriptionPath"/> where there is one (the folder it imports into) — as its own words, drawn plain; a path to a
     /// key still translates. Dialogs stand at the view's root, so the paths are the controller's.
     /// </summary>
+    public static UIDialog BoundForm<TSource>(string key, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, IVisualComponent content, ButtonComponent primary)
+        => BoundForm(key, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), content, primary);
+
+    /// <summary>The bound form with a safe answer of the author's own in Cancel's place.</summary>
+    public static UIDialog BoundForm<TSource>(string key, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, IVisualComponent content, ButtonComponent safe, ButtonComponent primary)
+        => BoundForm(key, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), content, safe, primary);
+
+    /// <summary>A form dialog with a title and optional line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static UIDialog BoundForm(string key, string titlePath, string? descriptionPath, IVisualComponent content, ButtonComponent primary)
         => BoundForm(key, titlePath, descriptionPath, content, CloseButton(key), primary);
 
@@ -314,6 +341,10 @@ public static class UIDialogs
     /// words, drawn plain (a name in them is the thing's own, never a key that happens to match it, nor markup; a path to a key still
     /// translates); otherwise <see cref="Confirm(string, UIPhrase, UIPhrase, UIPhrase, string, UIButtonVariant, string?, ButtonComponent?)"/>.
     /// </summary>
+    public static UIDialog BoundConfirm<TSource>(string key, UIPhrase question, Expression<Func<TSource, object?>> descriptionPath, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
+        => BoundConfirm(key, question, PresetBindings.Path(descriptionPath), confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
+
+    /// <summary>A confirmation dialog whose detail words are bound at <paramref name="descriptionPath"/>.</summary>
     public static UIDialog BoundConfirm(string key, UIPhrase question, string descriptionPath, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(descriptionPath);

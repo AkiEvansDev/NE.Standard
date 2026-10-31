@@ -1,4 +1,5 @@
 using System;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
@@ -317,6 +318,12 @@ public static class UILayout
     /// <paramref name="statePath"/> and moves it by its <c>Show</c> calls; a <paramref name="placeholder"/> stands in the detail's
     /// place while nothing is chosen (<see cref="UIPage.Empty(string, UIPhrase, UIPhrase, IVisualComponent[])"/>) — without one, start the state with something chosen. The splitter
     /// writes the state's <see cref="UIPanesState.Share"/>. Give it the region's height where the panes scroll inside themselves.
+    /// </summary>
+    public static ContainerComponent Panes<TSource>(IVisualComponent list, IVisualComponent detail, Expression<Func<TSource, object?>> statePath, IVisualComponent? placeholder = null, bool splitter = false)
+        => Panes(list, detail, PresetBindings.Path(statePath), placeholder, splitter);
+
+    /// <summary>
+    /// A list and the thing chosen in it side by side from the medium breakpoint, driven by the <see cref="UIPanesState"/> at <paramref name="statePath"/>.
     /// </summary>
     public static ContainerComponent Panes(IVisualComponent list, IVisualComponent detail, string statePath, IVisualComponent? placeholder = null, bool splitter = false)
     {

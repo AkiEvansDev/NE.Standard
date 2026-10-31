@@ -1,4 +1,5 @@
 using System;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
@@ -50,6 +51,10 @@ public static class UIForm
     /// The same with the line the controller holds at <paramref name="hintPath"/> — how much is left, what the choice means — as content,
     /// drawn as written.
     /// </summary>
+    public static StackPanelComponent BoundField<TSource>(IVisualComponent input, Expression<Func<TSource, object?>> hintPath, UIBindingScope scope = UIBindingScope.Root)
+        => BoundField(input, PresetBindings.Path(hintPath), scope);
+
+    /// <summary>A field with a muted line bound at <paramref name="hintPath"/>, drawn as written.</summary>
     public static StackPanelComponent BoundField(IVisualComponent input, string hintPath, UIBindingScope scope = UIBindingScope.Root)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(hintPath);

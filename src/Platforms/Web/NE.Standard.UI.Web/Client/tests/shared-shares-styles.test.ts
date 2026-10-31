@@ -15,7 +15,7 @@ const source = resolve(styles, "ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
 /** The tokens' values as the stylesheet writes them, rendered from `core/tokens.less` itself. */
-const tokenNames = ["ui-scroll-ink", "ui-scroll-ink-hover", "ui-outline-edge", "ui-outline-edge-hover", "ui-own-tint-share", "ui-neutral-tint", "ui-track-ink", "ui-image-plate", "ui-accent-stroke", "ui-text-muted", "ui-text-muted-share", "ui-text-faint-share"];
+const tokenNames = ["ui-scroll-ink", "ui-scroll-ink-hover", "ui-outline-edge", "ui-outline-edge-hover", "ui-own-tint-share", "ui-neutral-tint", "ui-track-ink", "ui-image-plate", "ui-accent-stroke", "ui-text-ink", "ui-text-muted", "ui-text-muted-share", "ui-text-faint-share"];
 const tokenSheet = (await less.render(
     `@import (reference) "styles/core/tokens.less";\n.tokens {\n${tokenNames.map(name => `  --${name}: @${name};`).join("\n")}\n}`,
     { filename: resolve(styles, "tokens.less") }
@@ -88,9 +88,13 @@ test("a control with a fill of its own mixes the theme's wash shares into it; a 
 
     assert.ok(rule(`.ui-button--surface${live}:hover`).includes(`background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), ${surfaceButton});`));
     assert.ok(rule(`.ui-button--surface${live}:active`).includes(`background-color: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-active-share), ${surfaceButton});`));
-    assert.ok(rule(`.ui-surface--clickable${live}:hover:not([data-ui-inner-pointer~="hover"])`).includes("var(--ui-wash-hover-share), var(--ui-surface-fill));"));
-    assert.ok(rule(`.ui-surface--clickable.ui-surface--quiet-hover${live}:hover:not([data-ui-inner-pointer~="hover"])`).includes("calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));"));
-    assert.ok(rule(`.ui-surface--clickable${live}:active:not([data-ui-inner-pointer~="press"])`).includes("var(--ui-wash-active-share), var(--ui-surface-fill));"));
+    const ink = token("ui-text-ink");
+
+    assert.ok(rule(`.ui-surface--clickable${live}:hover:not([data-ui-inner-pointer~="hover"])`).includes(`color-mix(in srgb, ${ink} var(--ui-wash-hover-share), var(--ui-surface-fill));`));
+    assert.ok(rule(`.ui-surface--clickable.ui-surface--quiet-hover${live}:hover:not([data-ui-inner-pointer~="hover"])`).includes(`color-mix(in srgb, ${ink} calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));`));
+    assert.ok(rule(`.ui-surface--clickable${live}:active:not([data-ui-inner-pointer~="press"])`).includes(`color-mix(in srgb, ${ink} var(--ui-wash-active-share), var(--ui-surface-fill));`));
+    assert.ok(rule(".ui-file-tile").includes(`color: ${token("ui-text-muted")};`));
+    assert.ok(rule(".ui-file-tile__name").includes(`color: ${ink};`));
     assert.ok(rule(`.ui-button--outline${live}:active`).includes("background-color: color-mix(in srgb, currentColor var(--ui-wash-active-share), transparent);"));
 
     const link = rule(".ui-button--link");

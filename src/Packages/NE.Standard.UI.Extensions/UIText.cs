@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
@@ -167,6 +168,10 @@ public static class UIText
     /// A jump that names what it quotes takes its argument on the result: <c>.OnClick(command, arguments)</c>. The words are drawn as
     /// written, data rather than markup.
     /// </summary>
+    public static SurfaceComponent BoundQuote<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>> descriptionPath, UIBindingScope scope = UIBindingScope.Root, Expression<Func<TSource, object?>>? accentPath = null, string? clickCommand = null, string? closeCommand = null)
+        => BoundQuote(PresetBindings.Path(titlePath), PresetBindings.Path(descriptionPath), scope, PresetBindings.PathOrNull(accentPath), clickCommand, closeCommand);
+
+    /// <summary>The words quote bound to <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, with an optional colour at <paramref name="accentPath"/>.</summary>
     public static SurfaceComponent BoundQuote(string titlePath, string descriptionPath, UIBindingScope scope = UIBindingScope.Root, string? accentPath = null, string? clickCommand = null, string? closeCommand = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
@@ -273,6 +278,10 @@ public static class UIText
     /// The same bound to what the controller holds at <paramref name="avatarPath"/> (the person glyph where none is given or it holds
     /// nothing), <paramref name="namePath"/> and <paramref name="descriptionPath"/> — a chat's row, a conversation's person.
     /// </summary>
+    public static ContainerComponent BoundPerson<TSource>(Expression<Func<TSource, object?>>? avatarPath, Expression<Func<TSource, object?>> namePath, Expression<Func<TSource, object?>>? descriptionPath = null, UIBindingScope scope = UIBindingScope.Root, UISize size = UISize.Medium)
+        => BoundPerson(PresetBindings.PathOrNull(avatarPath), PresetBindings.Path(namePath), PresetBindings.PathOrNull(descriptionPath), scope, size);
+
+    /// <summary>A person bound to <paramref name="avatarPath"/>, <paramref name="namePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static ContainerComponent BoundPerson(string? avatarPath, string namePath, string? descriptionPath = null, UIBindingScope scope = UIBindingScope.Root, UISize size = UISize.Medium)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(namePath);
@@ -365,6 +374,10 @@ public static class UIText
     /// The same with the title the controller holds at <paramref name="titlePath"/>, as content — in a list's row — and the badges a
     /// collection of <see cref="BadgeItem"/> holds at <paramref name="badgesPath"/>, kept in step as it changes.
     /// </summary>
+    public static ContainerComponent BoundWithBadges<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>> badgesPath, UIBindingScope scope = UIBindingScope.Root, string? icon = null)
+        => BoundWithBadges(PresetBindings.Path(titlePath), PresetBindings.Path(badgesPath), scope, icon);
+
+    /// <summary>A title bound at <paramref name="titlePath"/> over a row of badges bound at <paramref name="badgesPath"/>.</summary>
     public static ContainerComponent BoundWithBadges(string titlePath, string badgesPath, UIBindingScope scope = UIBindingScope.Root, string? icon = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);

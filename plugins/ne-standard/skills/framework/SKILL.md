@@ -179,7 +179,7 @@ description line alone where it shows one).
 ## Presets (NE.Standard.UI.Extensions)
 
 [extensions.html](https://akievansdev.github.io/NE.Standard/extensions.html). A preset holds a look in one place - use it
-rather than rebuilding the arrangement with your own widths and spacings. Each returns an ordinary built-in component.
+rather than rebuilding the arrangement with your own widths and spacings. Each returns an ordinary built-in component; every preset taking a binding path (`Bound*`, `UILayout.Panes`) also takes a typed `<TSource>(Expression<Func<TSource, object?>>)` selector.
 
 - `UIPage` - `Header`, `BoundHeader` (the band's name and line bound to the controller), `Section`/`BoundSection`,
   `Heading`/`BoundHeading` (its far end on the title's line; `Heading(component, trailing)` for a heading of your own), `Fold`/`BoundFold`,
@@ -250,9 +250,9 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 [items.html](https://akievansdev.github.io/NE.Standard/items.html)
 
 - `SetItems` (static) or `BindItems(path)` over a `RecursiveCollection<T>`; every item is keyed. Templates through
-  `SetTemplate` with `Relative` bindings; built-in models (`TextItem`, `MenuItem`, `TreeNode`, `TabItem`, `BadgeItem`,
+  `SetTemplate` / `AddTemplateVariant` with `Relative` bindings and `SetTemplateKeyProperty` (dotted paths or typed `<TRow>(r => r.Meta.Kind)` selectors); built-in models (`TextItem`, `MenuItem`, `TreeNode`, `TabItem`, `BadgeItem`,
   `OptionItem`, `FileItem`...) and default templates.
-- Grouping, filtering and sorting rules, selection (`SelectedKey`, `SelectedKeys`), item abilities (`CanSelect`, `CanDrag`,
+- Grouping, filtering and sorting rules (`FilterBy`, `SortBy`, `AddItemReads`, each with typed `<TRow>` lambda overloads), selection (`SelectedKey`, `SelectedKeys`), item abilities (`CanSelect`, `CanDrag`,
   `Renamable`...), moving rows (`OnItemMoveWithItemKey`, which passes the new index too), the row events as blocks
   (`IItemClickComponent`, `IItemOpenComponent`, `IItemRemoveComponent`, `IItemMoveComponent`, `IItemRenameComponent`,
   `IItemUnfoldComponent`, in `NE.Standard.UI.Components.Foundation.Items`), each in five forms (`OnItemOpen`, `OnItemOpenLiteral`,
@@ -354,9 +354,9 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 
 [testing.html](https://akievansdev.github.io/NE.Standard/testing.html)
 
-- `await using UITestApp app = UITestApp.Create<AppStartup>(configureServices: ..., configureApplication: ...)`;
+- `await using UITestApp app = UITestApp.Create<AppStartup>(configureServices: ..., configureApplication: ...)` (registers a default `/_ne/content` `IUIContentAddressResolver` unless overridden);
   `UITestPage page = await app.OpenAsync("/route", session => session.SignIn("id", roles: ["admin"]))`.
-- Find with `page.Component(id)`, `ComponentBoundTo(path)`, `ComponentNamed(name)`, `Rows`, `Row(key)`, `ContextMenu`, a split
+- Find with `page.Component(id)`, `ComponentBoundTo(path)` or `ComponentBoundTo<TSource>(c => ...)` (value, items/source, or property; `row.ComponentBoundTo<TItem>(x => ...)` inside a row), `ComponentNamed(name)`, `Rows`, `Row(key)` (and `row.Rows` / `row.Row(key)` for menu sub-entries), `ContextMenu`, a split
   button's `Menu`; act with
   `SetValueAsync`, `ClickAsync` (`UITestCommandResult.Sent`); read `Value`, `Title`, `IsVisible`, `IsEnabled`,
   `ValidationMessage`, `page.Effects`, `EffectsOf<T>()`, `IsDialogOpen`, `Address`, `Downloads`, `Controller<T>()`;
@@ -376,14 +376,14 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
 - **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, Ctrl+S raises `code-save`:
   `OnSave`/`OnSaveLiteral`) and `MarkdownDisplayComponent`; host `services.AddCodeInput()`.
 - **DataGrid** - `DataGridComponent` (a `TableComponent` with `AddTextColumn`, `AddEnumColumn<T>`, `AddNumberColumn`,
-  `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, sorting, filters, editing, paging, totals, CSV export),
+  `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, `AddColumn<TRow>` / `AddEditableColumn<TRow, TInput>`, sorting, filters, editing, paging, totals, CSV export),
   `DataGridCellComponent`, `DataGridFilterComponent`; host `services.AddDataGrid()`.
 - **Charts** - `LineChartComponent`, `AreaChartComponent`, `BarChartComponent`, `PieChartComponent`, `ShareBarComponent`,
   `ScatterChartComponent`, `RadarChartComponent`, `SparklineComponent`, `GaugeComponent` over keyed collections (`BindItems`,
-  `SetX`, `SetXAxis(UIChartAxis.Time(...))`, `AddSeries`, `OnPointClick`, `OnWindowChange`, each with a `…Literal` form); host
+  `SetX`, `SetXAxis(UIChartAxis.Time(...))`, `SetSeriesPath(path, translate)`, `SetValuePath`, `AddSeries`, `SetHideEmptySeries`, typed `<TRow>` path selectors, `OnPointClick`, `OnWindowChange`, each with a `…Literal` form); host
   `services.AddCharts()`.
 - **Graph** - `NodesComponent` (a node network whose kinds are C# classes, `SetCatalog`, `UINodeCatalog.FromTypes`,
-  `UINodeKinds.Common`; `OnSave`, `OnMenuEntry`, `OnNodeClick`, `OnStop`, each with a `…Literal` form),
+  `UINodeKinds.Common`, `SetPinChoices`/`BindPinChoices` for `[GraphInput(ChoicesKey = ...)]` dropdown pins; `OnSave`, `OnMenuEntry`, `OnNodeClick`, `OnStop`, each with a `…Literal` form),
   `NodesParametersComponent`, `LayeredGraphComponent`, `ProductionGraphComponent`; host `services.AddGraph()`;
   `NE.Standard.UI.Graph.Calculator` (`CalculatorNodes.Kinds`) and `NE.Standard.UI.Graph.Image` (`ImageNodes.Kinds`,
   `AddGraphImages()`, `IUINodeImageStore`). Its own site: https://akievansdev.github.io/NE.Standard.UI.Graph.

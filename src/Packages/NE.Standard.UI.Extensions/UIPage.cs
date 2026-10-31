@@ -1,4 +1,5 @@
 using System;
+using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
@@ -180,6 +181,14 @@ public static class UIPage
     /// <paramref name="descriptionPath"/> as the thing's own words, drawn as written, led by <paramref name="leading"/> where one is
     /// given.
     /// </summary>
+    public static ContainerComponent BoundHeader<TSource>(IVisualComponent? leading, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath = null, params IVisualComponent[] trailing)
+        => BoundHeader(leading, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, trailing);
+
+    /// <summary>The band with a name and a line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> in <paramref name="scope"/>.</summary>
+    public static ContainerComponent BoundHeader<TSource>(IVisualComponent? leading, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] trailing)
+        => BoundHeader(leading, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, trailing);
+
+    /// <summary>The band with a name and a line the controller holds, bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static ContainerComponent BoundHeader(IVisualComponent? leading, string titlePath, string? descriptionPath = null, params IVisualComponent[] trailing)
         => BoundHeader(leading, titlePath, descriptionPath, UIBindingScope.Root, trailing);
 
@@ -353,6 +362,14 @@ public static class UIPage
     /// <paramref name="descriptionPath"/>: on a pane or a strip, the name bound as the thing's own words and the line as a caption
     /// beside it.
     /// </summary>
+    public static ContainerComponent BoundHeader<TSource>(UIHeaderSize size, IVisualComponent? leading, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath = null, params IVisualComponent[] trailing)
+        => BoundHeader(size, leading, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, trailing);
+
+    /// <summary>The band at <paramref name="size"/>, its paths read in <paramref name="scope"/>.</summary>
+    public static ContainerComponent BoundHeader<TSource>(UIHeaderSize size, IVisualComponent? leading, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] trailing)
+        => BoundHeader(size, leading, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, trailing);
+
+    /// <summary>The band at <paramref name="size"/>, its name and line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static ContainerComponent BoundHeader(UIHeaderSize size, IVisualComponent? leading, string titlePath, string? descriptionPath = null, params IVisualComponent[] trailing)
         => BoundHeader(size, leading, titlePath, descriptionPath, UIBindingScope.Root, trailing);
 
@@ -401,6 +418,14 @@ public static class UIPage
 
         return UILayout.Stack(16).AddChild(heading).AddChildren(content);
     }
+
+    /// <summary>The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    public static StackPanelComponent BoundSection<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, params IVisualComponent[] content)
+        => BoundSection(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, content);
+
+    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static StackPanelComponent BoundSection<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] content)
+        => BoundSection(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, content);
 
     /// <summary>The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
     public static StackPanelComponent BoundSection(string titlePath, string? descriptionPath, params IVisualComponent[] content)
@@ -468,6 +493,14 @@ public static class UIPage
     }
 
     /// <summary>The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    public static ContainerComponent BoundHeading<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath = null, params IVisualComponent[] trailing)
+        => BoundHeading(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, trailing);
+
+    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static ContainerComponent BoundHeading<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] trailing)
+        => BoundHeading(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, trailing);
+
+    /// <summary>The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
     public static ContainerComponent BoundHeading(string titlePath, string? descriptionPath = null, params IVisualComponent[] trailing)
         => BoundHeading(titlePath, descriptionPath, UIBindingScope.Root, trailing);
 
@@ -506,6 +539,14 @@ public static class UIPage
                 _ = header.SetTitle(title);
         }, expanded, content);
     }
+
+    /// <summary>The same named by words the controller holds at <paramref name="titlePath"/>, as content.</summary>
+    public static ExpanderComponent BoundFold<TSource>(Expression<Func<TSource, object?>> titlePath, bool expanded, params IVisualComponent[] content)
+        => BoundFold(PresetBindings.Path(titlePath), UIBindingScope.Root, expanded, content);
+
+    /// <summary>The same, its path read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static ExpanderComponent BoundFold<TSource>(Expression<Func<TSource, object?>> titlePath, UIBindingScope scope, bool expanded, params IVisualComponent[] content)
+        => BoundFold(PresetBindings.Path(titlePath), scope, expanded, content);
 
     /// <summary>The same named by words the controller holds at <paramref name="titlePath"/>, as content.</summary>
     public static ExpanderComponent BoundFold(string titlePath, bool expanded, params IVisualComponent[] content)
@@ -547,6 +588,14 @@ public static class UIPage
 
         return Labelled(UIText.Label(label), content, wrap);
     }
+
+    /// <summary>The same under a label the controller holds at <paramref name="labelPath"/>, as content.</summary>
+    public static StackPanelComponent BoundLabelled<TSource>(Expression<Func<TSource, object?>> labelPath, IVisualComponent content, bool wrap = false)
+        => BoundLabelled(PresetBindings.Path(labelPath), UIBindingScope.Root, content, wrap);
+
+    /// <summary>The same with its label bound in <paramref name="scope"/>, a row's own words in an item template.</summary>
+    public static StackPanelComponent BoundLabelled<TSource>(Expression<Func<TSource, object?>> labelPath, UIBindingScope scope, IVisualComponent content, bool wrap = false)
+        => BoundLabelled(PresetBindings.Path(labelPath), scope, content, wrap);
 
     /// <summary>The same under a label the controller holds at <paramref name="labelPath"/>, as content.</summary>
     public static StackPanelComponent BoundLabelled(string labelPath, IVisualComponent content, bool wrap = false)
@@ -610,6 +659,14 @@ public static class UIPage
     /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content
     /// — what a filter found nothing for, whose chat is empty.
     /// </summary>
+    public static ContainerComponent BoundEmpty<TSource>(string? icon, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath = null, params IVisualComponent[] actions)
+        => BoundEmpty(icon, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, actions);
+
+    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static ContainerComponent BoundEmpty<TSource>(string? icon, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
+        => BoundEmpty(icon, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, actions);
+
+    /// <summary>The empty state with a title and a line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static ContainerComponent BoundEmpty(string? icon, string titlePath, string? descriptionPath = null, params IVisualComponent[] actions)
         => BoundEmpty(icon, titlePath, descriptionPath, UIBindingScope.Root, actions);
 
@@ -707,6 +764,14 @@ public static class UIPage
     /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> — the
     /// address a mail went to — as content.
     /// </summary>
+    public static SurfaceComponent BoundOutcome<TSource>(string? icon, UIColorStyle tone, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, params IVisualComponent[] actions)
+        => BoundOutcome(icon, tone, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, actions);
+
+    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static SurfaceComponent BoundOutcome<TSource>(string? icon, UIColorStyle tone, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
+        => BoundOutcome(icon, tone, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, actions);
+
+    /// <summary>The outcome with a title and a line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static SurfaceComponent BoundOutcome(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, params IVisualComponent[] actions)
         => BoundOutcome(icon, tone, titlePath, descriptionPath, UIBindingScope.Root, actions);
 
@@ -784,6 +849,14 @@ public static class UIPage
     /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> — what
     /// was refused, why it failed — as content.
     /// </summary>
+    public static StatusComponent BoundStatus<TSource>(string? icon, UIColorStyle tone, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, params IVisualComponent[] actions)
+        => BoundStatus(icon, tone, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, actions);
+
+    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    public static StatusComponent BoundStatus<TSource>(string? icon, UIColorStyle tone, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
+        => BoundStatus(icon, tone, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, actions);
+
+    /// <summary>The status with a title and a line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static StatusComponent BoundStatus(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, params IVisualComponent[] actions)
         => BoundStatus(icon, tone, titlePath, descriptionPath, UIBindingScope.Root, actions);
 

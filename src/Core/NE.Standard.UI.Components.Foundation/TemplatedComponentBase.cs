@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 
@@ -56,6 +58,12 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
 
     /// <inheritdoc/>
     public bool HasTemplates => Templates.Count > 0;
+
+    /// <summary>
+    /// Sets the item property path used to select a named template variant.
+    /// </summary>
+    public TComponent SetTemplateKeyProperty<TRow>(Expression<Func<TRow, object?>> propertyPath)
+        => SetTemplateKeyProperty(RecursivePath.FromExpression(propertyPath).ToString());
 
     /// <summary>
     /// Declares a composite slot: the base variant key every row wears unless its <paramref name="keyPropertyName"/> names a
