@@ -7,7 +7,6 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Compiled.Models;
-using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -219,7 +218,7 @@ internal sealed partial class UIViewCompilationContext
                 ComponentId = GetComponentId(component.Id),
                 ParentId = parentAuthoringId is null ? null : GetComponentId(parentAuthoringId),
                 ContextId = context.Context.Id,
-                ContextParameterCount = CompiledUIBindingParameterResolver.CountDynamic(context.Path.Parameters),
+                ContextParameterCount = CountItemScopes(component, componentContexts),
                 DefinesContextParameter = context.DefinesParameter,
                 IsContentTree = component.IsContentTree,
                 Slots = BuildSlots(component.Id),

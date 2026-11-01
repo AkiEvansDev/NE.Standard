@@ -1,8 +1,8 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import type { AddressResolver, BoundElement, ResolvedPropertyAddress } from "../addressing/address-resolver.ts";
-import { resolveOperationElements } from "../addressing/operation-targets.ts";
+import { ownMarkedElements, resolveOperationElements } from "../addressing/operation-targets.ts";
 import { ComponentKeyAttribute, ComponentSelector, IntoAttributePrefix, ValueBindingAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
-import { readComponentId } from "../addressing/dom-registry.ts";
+import { readComponentId, resolveWritableBinding } from "../addressing/dom-registry.ts";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ConverterRegistry } from "../extensions/converters.ts";
@@ -256,7 +256,8 @@ export class PropertyPatchEngine {
 
     /** Puts an element's bound value back to what the server last pushed, or clears one it never pushed: a draft let go of. */
     public restoreBoundValue(element: Element, dynamicParameters: readonly unknown[]): void {
-        const binding = this.addressResolver.getBindingById(Number(element.getAttribute(ValueBindingAttribute)));
+        const binding = resolveWritableBinding(element, this.addressResolver)?.binding
+            ?? this.addressResolver.getBindingById(Number(element.getAttribute(ValueBindingAttribute)));
 
         if (binding === undefined)
             return;
@@ -290,19 +291,6 @@ export class PropertyPatchEngine {
             }
         }
     }
-}
-
-/** The elements of a component marked for a property — itself, or its own parts — or the component where none is. */
-function ownMarkedElements(component: Element, marked: string): Element[] {
-    if (component.matches(marked))
-        return [component];
-
-    for (const element of component.querySelectorAll(marked)) {
-        if (element.closest(ComponentSelector) === component)
-            return [element];
-    }
-
-    return [component];
 }
 
 /** The rows an element stands in, innermost first, each named as a collection update addresses it; none for a static element. */

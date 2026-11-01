@@ -108,10 +108,11 @@ internal static class RecursiveMemberModelFactory
             Name: property.Name,
             Type: property.Type.ToGlobalTypeDisplayString(),
             PatternType: property.Type.ToPatternTypeDisplayString(),
-            IsNullable: property.Type.IsNullable(),
+            NullAssignment: GetNullAssignment(property.Type),
             CanHoldRecursiveObservable: recursiveObservableType is not null && CanHoldRecursiveObservable(property.Type, recursiveObservableType),
             CanSet: property.SetMethod is not null && !property.SetMethod.IsInitOnly,
             Generate: values.Generate,
+            IsFieldBacked: IsFieldBacked(propertySyntax, property, values),
             PropertyAccessibility: GetAccessibility(property.DeclaredAccessibility),
             PropertyModifiers: GetCarriedModifiers(propertySyntax),
             GetterAccessibility: GetAccessorAccessibility(property.GetMethod?.DeclaredAccessibility, property.DeclaredAccessibility),
@@ -192,6 +193,36 @@ internal static class RecursiveMemberModelFactory
         return false;
     }
 
+    private static RecursiveNullAssignment GetNullAssignment(ITypeSymbol type)
+    {
+        if (type.IsNullable())
+            return RecursiveNullAssignment.AssignDefault;
+
+        if (type is not ITypeParameterSymbol parameter || !AllowsNullTypeArgument(parameter))
+            return RecursiveNullAssignment.Reject;
+
+        return parameter.IsReferenceType
+            ? RecursiveNullAssignment.AssignForgivenDefault
+            : RecursiveNullAssignment.GuardValueTypeDefault;
+    }
+
+    private static bool AllowsNullTypeArgument(ITypeParameterSymbol parameter)
+    {
+        if (parameter.HasValueTypeConstraint || parameter.HasUnmanagedTypeConstraint || parameter.HasNotNullConstraint)
+            return false;
+
+        if (parameter.HasReferenceTypeConstraint && parameter.ReferenceTypeConstraintNullableAnnotation != NullableAnnotation.Annotated)
+            return false;
+
+        foreach (NullableAnnotation annotation in parameter.ConstraintNullableAnnotations)
+        {
+            if (annotation != NullableAnnotation.Annotated)
+                return false;
+        }
+
+        return true;
+    }
+
     /// <summary>Whether a declared type can hold a <c>RecursiveObservable</c> and needs generated descent; not "any reference type" — emitting the pattern against an unrelated class fails to compile (CS8121).</summary>
     private static bool CanHoldRecursiveObservable(ITypeSymbol type, INamedTypeSymbol recursiveObservableType)
         => type is ITypeParameterSymbol parameter
@@ -214,6 +245,26 @@ internal static class RecursiveMemberModelFactory
         }
 
         return true;
+    }
+
+    private static bool IsFieldBacked(BasePropertyDeclarationSyntax propertySyntax, IPropertySymbol property, RecursiveMemberAttributeValues values)
+    {
+        if (property.IsVirtual || property.IsOverride || property.IsAbstract || property.IsExtern)
+            return false;
+
+        if (values.Generate)
+            return true;
+
+        if (propertySyntax is not PropertyDeclarationSyntax { ExpressionBody: null, AccessorList.Accessors: var accessors } || propertySyntax.Modifiers.Any(SyntaxKind.PartialKeyword))
+            return false;
+
+        foreach (AccessorDeclarationSyntax accessor in accessors)
+        {
+            if (accessor.IsKind(SyntaxKind.GetAccessorDeclaration))
+                return accessor.Body is null && accessor.ExpressionBody is null && !accessor.Modifiers.Any(SyntaxKind.PartialKeyword);
+        }
+
+        return false;
     }
 
     private static string GetAccessibility(Accessibility accessibility)

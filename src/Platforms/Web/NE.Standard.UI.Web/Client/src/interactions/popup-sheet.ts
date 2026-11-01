@@ -14,6 +14,7 @@ import { clientStrings } from "../rendering/client-strings.ts";
 import type { ClientStringKey } from "../rendering/client-strings.ts";
 import { applyIconValue } from "../rendering/icon-value.ts";
 import { finishTransitions } from "../rendering/motion.ts";
+import { withoutRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 
 // How long a press's click may trail its release before the veil stops waiting for it.
 const ClickWait = 400;
@@ -164,19 +165,21 @@ function listen(): void {
 
     listening = true;
 
-    window.addEventListener("pointerdown", () => {
-        pressing = true;
-    }, true);
-    window.addEventListener("pointerup", endPress, true);
-    window.addEventListener("pointercancel", endPress, true);
+    withoutRuntimeCleanup(() => {
+        window.addEventListener("pointerdown", () => {
+            pressing = true;
+        }, true);
+        window.addEventListener("pointerup", endPress, true);
+        window.addEventListener("pointercancel", endPress, true);
 
-    // A panel's alone: a list's Tab closes it (owned-popup.ts), choosing nothing.
-    window.addEventListener("keydown", domEvent => {
-        const top = sheets.at(-1);
+        // A panel's alone: a list's Tab closes it (owned-popup.ts), choosing nothing.
+        window.addEventListener("keydown", domEvent => {
+            const top = sheets.at(-1);
 
-        if (domEvent.key === "Tab" && !domEvent.defaultPrevented && top !== undefined && top.opening.trapsTab && domEvent.target instanceof Node && top.popup.contains(domEvent.target))
-            trapTab(top.popup, domEvent);
-    }, true);
+            if (domEvent.key === "Tab" && !domEvent.defaultPrevented && top !== undefined && top.opening.trapsTab && domEvent.target instanceof Node && top.popup.contains(domEvent.target))
+                trapTab(top.popup, domEvent);
+        }, true);
+    });
 }
 
 /** The press under a leaving veil is over: the veil goes with its click, or a little after its release where none follows. */

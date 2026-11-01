@@ -24,6 +24,7 @@ type PipelineInteractions = {
 
 type PipelineValidation = {
     runSubmitValidation(formId: string): boolean;
+    hasFormError?(formId: string): boolean;
     focusFirstInvalid(formId: string): void;
     focusField(component: Element): void;
     isRefused(component: Element): boolean;
@@ -378,6 +379,13 @@ export class EventPipeline {
         // A value of the form weighed after a drop may have met another writer's on its way: the command would run without it.
         if (form !== null && this.refusesConflicted(form.formId, context))
             return Refused;
+
+        // A submitted value the server's gate or coercion refused stops the submit command before it runs against rejected input.
+        if (form !== null && this.options.validationEngine?.hasFormError?.(form.formId) === true) {
+            context.domEvent.preventDefault();
+            this.options.validationEngine.focusFirstInvalid(form.formId);
+            return Refused;
+        }
 
         // Re-checked after the awaits: the identical request may have been dispatched while this one waited.
         if (this.options.dispatcher.isPending(request))

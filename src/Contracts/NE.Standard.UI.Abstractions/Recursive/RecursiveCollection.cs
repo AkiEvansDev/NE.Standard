@@ -769,6 +769,9 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveC
 
         lock (_sync)
         {
+            if (_items.Count == 0)
+                return;
+
             snapshot = [.. _items];
             forwarders = new ItemForwarder[snapshot.Length];
 

@@ -29,6 +29,9 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 
 public abstract class WebComponentRendererBase : IWebComponentRenderer
 {
+    /// <summary>The operation kind writing a property's text or attribute with a framework word key when the value is blank (<c>default-words.ts</c>).</summary>
+    public const string DefaultWordsOperationKind = "default-words";
+
     private const string VisualComponentPropertyOwnerTypeKey = "standard.visual";
 
     private const string FieldAlignedVariable = "--ui-field-aligned";
@@ -895,7 +898,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         {
             if (operation is { Kind: nameof(WebDomOperationKind.Markup) } or { Kind: nameof(WebDomOperationKind.Attribute), Name: WebAttributes.Tooltip } or { Converter: WebDomConverters.InlineMarkupPlainText })
                 markup ??= operation;
-            else if (operation.Kind is nameof(WebDomOperationKind.Text) or nameof(WebDomOperationKind.Attribute) or nameof(WebDomOperationKind.Property) or nameof(WebDomOperationKind.Data))
+            else if (operation.Kind is nameof(WebDomOperationKind.Text) or nameof(WebDomOperationKind.Attribute) or nameof(WebDomOperationKind.Property) or nameof(WebDomOperationKind.Data) or DefaultWordsOperationKind)
                 text ??= operation;
         }
 
@@ -948,11 +951,13 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
                         RenderPaintedValues(target, word);
                     }
 
+                    RenderIntoMark(context, target, address, recordedWord: false);
                     break;
                 }
 
                 _ = target.Attribute(CreateBindingAttributeName(property), binding!.Id.Value.ToString(CultureInfo.InvariantCulture));
                 context.Metadata.Bind(context, binding, propertyId, word.Content);
+                RenderIntoMark(context, target, address, recordedWord: false);
 
                 // Painting the first value as well, so the page arrives finished rather than filling itself in later.
                 if (context.Values is not null)
@@ -982,6 +987,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
         return source.Kind != CompiledUIBindingSourceKind.ComponentItems
             || source.ComponentId is not UIComponentId hostId
+            || context.Metadata.IsExposed(new UIPropertyAddress(hostId, IItemsComponent.ItemsProperty))
             || NeedsClientItemValues(view, hostId);
     }
 
@@ -1075,7 +1081,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
         if (context.IsPresentationCopy)
             return;
 
-        if (recordedWord || context.ViewResolution.View.Validations.IsMessageTarget(address) || context.Metadata.IsExposed(address))
+        if (recordedWord || context.ViewResolution.View.Validations.IsMessageTarget(address) || context.ViewResolution.View.Interactions.GetByTarget(address).Count > 0 || context.Metadata.IsExposed(address))
             _ = target.Attribute(IntoAttributeNames.GetOrAdd(address.Property.Name, static name => WebAttributes.IntoPrefix + WebNaming.ToKebabCase(name)));
     }
 

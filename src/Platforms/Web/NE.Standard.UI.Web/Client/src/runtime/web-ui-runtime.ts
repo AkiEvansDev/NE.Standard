@@ -134,6 +134,7 @@ export class WebUIRuntime {
     private readonly readUnsaved: () => UnsavedValue[];
     private readonly restoreUnsaved: (values: readonly UnsavedValue[]) => number;
     private readonly holdTypedDuring: (apply: () => void) => void;
+    private readonly discardDrafts: () => void;
     private current: Promise<void> = Promise.resolve();
     private currentPending = false;
     private markCurrent: () => void = () => { };
@@ -238,6 +239,12 @@ export class WebUIRuntime {
                 valueReaders: this.extensions.valueReaders,
                 readValue: element => this.readPluginValue(element)
             });
+            this.discardDrafts = () => {
+                for (const element of valueBinding?.releaseAll() ?? [])
+                    propertyPatchEngine.restoreBoundValue(element, this.dom.resolveNearestComponent(element, () => true)?.dynamicParameters ?? []);
+
+                validationEngine.discardAll();
+            };
 
             registerRuntimeEffects(this.effects, this.transport, propertyPatchEngine, valueBinding, validationEngine, this.sessionKey, this.leaveGuard, (language, href) => this.switchLanguageAsync(language, href));
 
@@ -688,6 +695,7 @@ export class WebUIRuntime {
 
             if (request.switchRuntime) {
                 this.pageId = null;
+                this.discardDrafts();
 
                 if (content !== null)
                     this.windows.forget(content);

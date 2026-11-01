@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Constants;
 
@@ -56,7 +56,7 @@ public sealed class UITestRow
 
     /// <summary>Gets the component with the authored id <paramref name="id"/> in this row.</summary>
     public UITestComponent Component(string id)
-        => _page.Find(id, Scope, RowKeys);
+        => _page.Find(id, Scope, RowKeys, _entry.Item);
 
     /// <summary>Gets the one component in this row bound to <paramref name="path"/> on the item.</summary>
     public UITestComponent ComponentBoundTo<TItem>(Expression<Func<TItem, object?>> path)
@@ -64,11 +64,11 @@ public sealed class UITestRow
 
     /// <summary>Gets the one component in this row bound to <paramref name="path"/> on the item.</summary>
     public UITestComponent ComponentBoundTo(string path)
-        => _page.FindBoundTo(path, Scope, RowKeys);
+        => _page.FindBoundTo(path, Scope, RowKeys, _entry.Item);
 
     /// <summary>Gets the one component in this row a reader knows by <paramref name="name"/>.</summary>
     public UITestComponent ComponentNamed(string name)
-        => _page.FindNamed(name, Scope, RowKeys);
+        => _page.FindNamed(name, Scope, RowKeys, _entry.Item);
 
     private UIComponentId Scope => _page.RowScope(_host.ComponentId, _hostKeys, _entry.Item);
 
@@ -79,16 +79,19 @@ public sealed class UITestRow
         => Root.ClickAsync(cancellationToken);
 
     /// <summary>
-    /// Chooses the row as a press does: the list's chosen key written where the list binds it to write back, then the row's click
-    /// command where it has one.
+    /// Chooses the row as a press does: the host's chosen key or option value written where the host binds it to write back, then the row's
+    /// click command where it has one and the write succeeded.
     /// </summary>
     public async Task<UITestCommandResult> ChooseAsync(CancellationToken cancellationToken = default)
     {
         UITestComponent root = Root;
         UITestCommandResult? chosen = null;
 
-        if (_page.WritesBack(_host.ComponentId, ISelectedKeyComponent.SelectedKeyProperty))
-            chosen = await _page.SetValueAsync(_host.ComponentId, _hostKeys, ISelectedKeyComponent.SelectedKeyProperty, Key, cancellationToken).ConfigureAwait(false);
+        if (_page.ChoiceWrite(_host, _hostKeys, Key) is (UIProperty property, object value))
+            chosen = await _page.SetValueAsync(_host.ComponentId, _hostKeys, property, value, cancellationToken).ConfigureAwait(false);
+
+        if (chosen is { Succeeded: false })
+            return chosen;
 
         if (_page.HasEvent(_page.RowTemplate(_host.ComponentId, _hostKeys, _entry.Item), EventNames.Click) || chosen is null)
             return await root.ClickAsync(cancellationToken).ConfigureAwait(false);

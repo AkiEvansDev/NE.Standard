@@ -18,7 +18,16 @@ public sealed class SpinnerComponentRenderer : WebComponentRendererBase
     private static readonly WebDomOperation[] TitleOperations =
     [
         WebDomOperation.Text(),
-        WebDomOperation.ToggleAttribute(TitleAttribute, target: "root", condition: WebValueCondition.HasText)
+        WebDomOperation.ToggleAttribute(TitleAttribute, target: "root", condition: WebValueCondition.HasText),
+        new WebDomOperation
+        {
+            Kind = DefaultWordsOperationKind,
+            Name = "aria-label",
+            Target = $":scope[{TextContentRendererBase.LabelledAttribute}]",
+            Condition = WebValueCondition.IsFalse,
+            Value = UIStrings.SpinnerLoading,
+            Optional = true
+        }
     ];
 
     public override string ComponentTypeKey => SpinnerComponent.ComponentTypeKey;
@@ -37,8 +46,14 @@ public sealed class SpinnerComponentRenderer : WebComponentRendererBase
         // called what it shows; its AccessibleName outranks both.
         _ = root.Attribute("role", "status");
 
-        if (!HasWords(context, SpinnerComponent.TitleProperty) && !HasWords(context, IAccessibleNameComponent.AccessibleNameProperty))
-            WebWords.Write(context, root, "aria-label", UIStrings.SpinnerLoading);
+        if (!HasWords(context, IAccessibleNameComponent.AccessibleNameProperty))
+        {
+            _ = root.Attribute(TextContentRendererBase.LabelledAttribute);
+            _ = ResolveRenderValue(context, SpinnerComponent.TitleProperty, out string? initialTitle, out _);
+
+            if (string.IsNullOrWhiteSpace(initialTitle))
+                WebWords.Write(context, root, "aria-label", UIStrings.SpinnerLoading);
+        }
 
         RenderAccessibleName(context, root);
 

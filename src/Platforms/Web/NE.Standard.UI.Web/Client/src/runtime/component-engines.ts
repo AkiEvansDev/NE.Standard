@@ -417,8 +417,12 @@ export function createPluginEngineContext(
                 // By markup, not the page's index: a part may be set before it is on the page, or drawn several times from one template.
                 const component = element.closest(ComponentSelector);
 
-                if (component !== null && propertyName === "Items" && Array.isArray(value) && setComponentItems(component, value, metadata, itemsTemplates, itemsRenderer))
+                if (component !== null && propertyName === "Items" && Array.isArray(value) && setComponentItems(component, value, metadata, itemsTemplates, itemsRenderer)) {
+                    if (component.isConnected)
+                        engineContext.dom.invalidate(component);
+
                     return true;
+                }
 
                 const reference = component === null ? undefined : metadata.getExposedProperty(readComponentId(component), propertyName);
 

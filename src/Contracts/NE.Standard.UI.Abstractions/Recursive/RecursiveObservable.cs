@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding;
 
 namespace NE.Standard.UI.Abstractions.Recursive;
@@ -41,6 +42,15 @@ public abstract class RecursiveObservable
 
     // Which place under the owner holds this node — a property's forwarder, or the collection itself for an item.
     private object? _ownerSlot;
+
+    /// <summary>
+    /// Attaches any recursive children that field or property initializers already hold.
+    /// </summary>
+    [SuppressMessage("Usage", "CA2214:Do not call overridable methods in constructors", Justification = "Generated overrides read only backing fields during base construction (visited is null); custom or virtual getters wait until post-construction.")]
+    protected RecursiveObservable()
+    {
+        PropagateNotifier(null!);
+    }
 
     /// <summary>
     /// Attempts to get a value by recursive path.
@@ -273,6 +283,9 @@ public abstract class RecursiveObservable
         ArgumentNullException.ThrowIfNull(child);
 
         PropertyForwarder forwarder = GetOrCreatePropertyForwarder(segment);
+
+        if (visited is null && ReferenceEquals(child._owner, this) && ReferenceEquals(child._ownerSlot, forwarder))
+            return;
 
         child.AttachOwner(this, forwarder);
         child.SetNotifier(forwarder.Notify, visited);

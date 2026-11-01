@@ -10,7 +10,7 @@ import type { ConverterRegistry } from "../extensions/converters.ts";
 import type { RowDecoratorRegistry } from "./row-decorators.ts";
 import { getIdValue } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, WebDomOperation, WebRenderBindingMetadata } from "../metadata/metadata-index.ts";
-import { shownValue } from "../rendering/client-strings.ts";
+import { forEachSubtree, shownValue } from "../rendering/client-strings.ts";
 import { logWarn } from "../metadata/logger.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
 import { markupWords, readsMarkup } from "../rendering/shown-words.ts";
@@ -46,6 +46,9 @@ export class ItemsTemplateRenderer {
 
     // Keyed by each rendered item's own root element, so a scope is found by walking the DOM upwards.
     private readonly itemStackByRoot = new WeakMap<Element, ItemStackEntry>();
+
+    // Keyed by component-items host id and item key, so template clones (`cloneNode`) hydrate their item scope on demand.
+    private readonly componentItemsByHost = new Map<number, ReadonlyMap<string, ItemStackEntry>>();
 
     // Warned once per binding, not per row: most items leave a row's abilities unset, and one line is what a typo needs.
     private readonly unresolved = new Set<number>();
@@ -124,12 +127,12 @@ export class ItemsTemplateRenderer {
     }
 
     public getItemValue(root: Element): unknown {
-        return this.itemStackByRoot.get(root)?.item;
+        return this.resolveScopeEntry(root)?.item;
     }
 
     /** The scope an element opens, if it is an item root at all. */
     public getItemScope(root: Element): ItemStackEntry | undefined {
-        return this.itemStackByRoot.get(root);
+        return this.resolveScopeEntry(root);
     }
 
     /** Registers a server-rendered item, which never passed through renderItem and so has no entry yet. */
@@ -137,17 +140,59 @@ export class ItemsTemplateRenderer {
         this.itemStackByRoot.set(root, { scopeComponentId, item });
     }
 
+    /** Remembers the item scopes written onto a component-items host so clones of an enclosing template resolve them too. */
+    public rememberComponentItems(componentId: number, itemsByKey: ReadonlyMap<string, ItemStackEntry>): void {
+        if (componentId > 0)
+            this.componentItemsByHost.set(componentId, itemsByKey);
+    }
+
+    private resolveScopeEntry(element: Element): ItemStackEntry | undefined {
+        const direct = this.itemStackByRoot.get(element);
+
+        if (direct !== undefined)
+            return direct;
+
+        if (element.parentElement?.hasAttribute(ItemsHostAttribute) !== true)
+            return undefined;
+
+        const key = element.getAttribute(ComponentKeyAttribute);
+
+        if (key === null || key.length === 0)
+            return undefined;
+
+        const owner = element.parentElement.closest<Element>(`[${ComponentIdAttribute}]`);
+        const hostId = owner === null ? 0 : readComponentId(owner);
+        const remembered = hostId > 0 ? this.componentItemsByHost.get(hostId)?.get(key) : undefined;
+
+        if (remembered !== undefined)
+            this.itemStackByRoot.set(element, remembered);
+
+        return remembered;
+    }
+
     /** Keeps the cached item in step with a live patch; an empty path means the binding addresses the item itself. */
     public updateItemValue(root: Element, path: readonly ItemValueStep[], value: unknown): void {
-        const entry = this.itemStackByRoot.get(root);
+        const entry = this.resolveScopeEntry(root);
 
         if (entry === undefined)
             return;
 
         const item = writeItemValuePath(entry.item, path, value);
 
-        if (item !== entry.item)
+        if (item !== entry.item) {
             this.itemStackByRoot.set(root, { scopeComponentId: entry.scopeComponentId, item });
+
+            for (const child of root.children) {
+                if (!child.hasAttribute(ComponentKeyAttribute))
+                    continue;
+
+                const slotRoot = child.firstElementChild;
+                const slotEntry = slotRoot === null ? undefined : this.itemStackByRoot.get(slotRoot);
+
+                if (slotRoot !== null && slotEntry !== undefined)
+                    this.itemStackByRoot.set(slotRoot, { scopeComponentId: slotEntry.scopeComponentId, item });
+            }
+        }
     }
 
     /** Clones one template and populates it; the composite renderer calls this once per content slot. */
@@ -206,17 +251,22 @@ export class ItemsTemplateRenderer {
      * names, where given.
      */
     public rewriteRowWords(root: ParentNode, only?: (value: unknown) => boolean): void {
-        this.translatableRowBindings ??= this.findTranslatableRowBindings();
+        const bindings = (this.translatableRowBindings ??= this.findTranslatableRowBindings());
 
-        for (const [binding, selector] of this.translatableRowBindings) {
-            for (const element of root.querySelectorAll(selector)) {
-                const stack = this.stackOf(element);
+        if (bindings.length === 0)
+            return;
 
-                // A row the server drew holds no scope for an item nested in it (a slot's value): the words it was drawn with stay.
-                if (holdsScopes(binding, stack))
-                    this.applyBoundAttribute(element, binding, stack, only);
+        forEachSubtree(root, subtree => {
+            for (const [binding, selector] of bindings) {
+                for (const element of subtree.querySelectorAll(selector)) {
+                    const stack = this.stackOf(element);
+
+                    // A row the server drew holds no scope for an item nested in it (a slot's value): the words it was drawn with stay.
+                    if (holdsScopes(binding, stack))
+                        this.applyBoundAttribute(element, binding, stack, only);
+                }
             }
-        }
+        });
     }
 
     /** The item-scoped bindings of a translatable property, by the attribute a row element carries for each. */
@@ -240,7 +290,7 @@ export class ItemsTemplateRenderer {
     /** The item scopes an element reads its bindings against, outermost first: those around it, and its own where it is a row's root. */
     private stackOf(element: Element): ItemStackEntry[] {
         const stack = this.getAncestorStack(element);
-        const own = this.itemStackByRoot.get(element);
+        const own = this.resolveScopeEntry(element);
 
         return own === undefined ? stack : [...stack, own];
     }
@@ -256,7 +306,7 @@ export class ItemsTemplateRenderer {
         let current: Element | null = host.parentElement;
 
         while (current !== null) {
-            const entry = this.itemStackByRoot.get(current);
+            const entry = this.resolveScopeEntry(current);
 
             if (entry !== undefined)
                 stack.push(entry);
@@ -427,8 +477,18 @@ export function writeItemValuePath(item: unknown, path: readonly ItemValueStep[]
             ? tryReadItemProperty(current, step.name)
             : tryReadCollectionItem(current, step.key);
 
-        if (!resolution.ok)
+        if (!resolution.ok || resolution.value === null || resolution.value === undefined) {
+            if (step.kind === "property" && path[i + 1].kind === "property" && current !== null && typeof current === "object" && !Array.isArray(current)) {
+                const record = current as Record<string, unknown>;
+                const created: Record<string, unknown> = {};
+
+                record[resolveItemPropertyKey(record, step.name)] = created;
+                current = created;
+                continue;
+            }
+
             return item;
+        }
 
         current = resolution.value;
     }

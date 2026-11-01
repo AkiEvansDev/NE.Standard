@@ -3,8 +3,10 @@ using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
@@ -17,6 +19,7 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
+using NE.Standard.UI.Primitives.Json;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Runtime;
@@ -37,6 +40,9 @@ internal enum UIComponentGateKind
     AllowDecimals,
     ShowOpacity,
     ShowPalette,
+    HostDraggable,
+    HostRenamable,
+    ShowClearButton,
 
     /// <summary>Not a closing value: one a check reads through the gate's binding — an input's bound, its marked days.</summary>
     Read
@@ -81,6 +87,13 @@ internal sealed record UIPeriodEnds(UIComponentGate? Start, UIComponentGate? End
 /// <summary>Where a host's rows are read by key: the controller's collection, or the rows the author declared on the host.</summary>
 internal sealed record UIRowItems(UIComponentGate? Bound, IEnumerable? Declared);
 
+/// <summary>
+/// What an items host itself switches off for every row (<c>Draggable</c>, <c>Removable</c>, <c>Renamable</c>), and what reopens a
+/// closed <c>Renamable</c> — a tab strip's bound <c>TabMenuEntries</c> offering <see cref="UITabMenuEntries.Rename"/>, or an interaction
+/// running <see cref="RenameItemEffect"/> on one of the host's items.
+/// </summary>
+internal sealed record UIHostRowGates(UIComponentId HostId, UIComponentGate? Draggable, UIComponentGate? Removable, UIComponentGate? Renamable, UIComponentGate? TabMenuEntries, FrozenSet<string>? InteractionKeys, FrozenSet<(UIComponentAddress Host, string Key)>? ScopedInteractionKeys);
+
 /// <summary>One ability a row may refuse: the kind its gate is, the template's key it reads and the item's own word for it.</summary>
 internal sealed record UIRowAbility(UIComponentGateKind Kind, UIProperty Property, Func<IItemAbilitiesModel, bool?> Read)
 {
@@ -107,11 +120,11 @@ internal sealed record UIRowAbility(UIComponentGateKind Kind, UIProperty Propert
 }
 
 /// <summary>
-/// What a row lets the reader do, as the server can read it: its template's gate for each of <see cref="UIRowAbility.All"/>, by place
-/// (none where the template closes nothing), and where its own item — an <c>IItemAbilitiesModel</c> — is read by the row's key, the
-/// last of <see cref="RowParameterCount"/> keys.
+/// What a row lets the reader do, as the server can read it: its host's switches, its template's gate for each of
+/// <see cref="UIRowAbility.All"/>, by place (none where the template closes nothing), and where its own item — an
+/// <c>IItemAbilitiesModel</c> — is read by the row's key, the last of <see cref="RowParameterCount"/> keys.
 /// </summary>
-internal sealed record UIRowAbilities(int RowParameterCount, UIComponentGate?[] Gates, UIRowItems? Items)
+internal sealed record UIRowAbilities(int RowParameterCount, UIComponentGate?[] Gates, UIRowItems? Items, UIHostRowGates? Host = null)
 {
     public UIComponentGate? For(UIComponentGateKind ability)
     {
@@ -130,17 +143,18 @@ internal sealed record UIRowAbilities(int RowParameterCount, UIComponentGate?[] 
 }
 
 /// <summary>
-/// A row template a host picks by the row's own item (<c>TemplateKeyProperty</c>): the variant it stands for, none for the default
-/// template, read off the row's item by its key where the host's rows are read. In a menu offering sub-entries, an entry opening others
-/// is no plain entry, nor is one disabled or hidden.
+/// A row template a host picks by the row's own item (<c>TemplateKeyProperty</c> or a composite slot's <c>KeyProperty</c>): the variant it
+/// stands for, none for the default template, read off the row's item by its key where the host's rows are read. In a menu, a disabled or
+/// hidden entry is closed, an entry opening sub-entries is no plain entry, and a submenu slot requires an open parent entry holding sub-entries.
 /// </summary>
-internal sealed record UIRowVariant(UIComponentId HostId, string KeyProperty, string? FallbackKey, string? VariantKey, int RowParameterCount, UIRowItems Items, bool OpensSubmenus);
+internal sealed record UIRowVariant(UIComponentId HostId, string KeyProperty, string? FallbackKey, string? VariantKey, int RowParameterCount, UIRowItems Items, bool OpensSubmenus, string? CompositeBaseKey = null, bool IsMenu = false, bool IsSubmenuSlot = false);
 
 /// <summary>
 /// An items host's rows: the template root every row is drawn from, where every row wears one, and what a row allows; for an input
-/// drawing its options, that its <c>Value</c> is a choice of rows, and whether the reader may type keys no option holds.
+/// drawing its options, that its <c>Value</c> is a choice of rows, whether it picks one option and offers a clear button, and whether the
+/// reader may type keys no option holds; for a selectable host, the <see cref="SelectionMode"/> that decides which selection property is open.
 /// </summary>
-internal readonly record struct UIRowGates(UIComponentId? TemplateRootId, UIRowAbilities Abilities, bool ChoosesByValue, bool TakesFreeText);
+internal readonly record struct UIRowGates(UIComponentId? TemplateRootId, UIRowAbilities Abilities, bool ChoosesByValue, bool TakesFreeText, bool IsSingleValueInput = false, UIComponentGate? ClearGate = null, UIGateValue? SelectionMode = null);
 
 /// <summary>
 /// The server's half of what closes a component — <c>Enabled</c>, <c>Loading</c> and <c>Visibility</c> up the ancestors,
@@ -268,7 +282,7 @@ internal sealed class UIComponentGateIndex
     /// Whether an interaction writes the property: the page may open what the author closed (a panel shown on hover, a field enabled by a
     /// switch), which the server never hears, so the authored value holds nothing it could refuse by.
     /// </summary>
-    private static bool IsInteractionTarget(CompiledView view, UIComponentId componentId, UIProperty property)
+    public static bool IsInteractionTarget(CompiledView view, UIComponentId componentId, UIProperty property)
         => view.Interactions.GetByTarget(new UIPropertyAddress(componentId, property)).Count > 0;
 
     /// <summary>
@@ -456,44 +470,39 @@ internal sealed class UIComponentGateIndex
             : variants ? null : roots[0];
 
         UIRowItems? items = CreateRowItems(view, host.ComponentId);
-        UIRowAbilities? fixedAbilities = fixedRoot is null ? null : CreateRowAbilities(view, fixedRoot, items);
+        UIHostRowGates? hostGates = CreateHostRowGates(view, host.ComponentId);
+        UIRowAbilities? fixedAbilities = fixedRoot is null ? null : CreateRowAbilities(view, fixedRoot, items, hostGates);
 
         foreach (UIComponentNode root in roots)
         {
             UIRowAbilities? abilities = fixedAbilities is null
-                ? CreateRowAbilities(view, root, items)
+                ? CreateRowAbilities(view, root, items, hostGates)
                 : fixedAbilities with { RowParameterCount = root.ContextParameterCount };
 
             if (abilities is not null)
                 rowRoots[root.ComponentId] = abilities;
         }
 
-        if (fixedRoot is null && items is not null)
-            AddRowVariants(view, host, items, rowVariants);
-
-        if (fixedRoot is null && items is null)
-            return null;
+        if (items is not null)
+            AddRowVariants(view, host, items, includeHostVariants: fixedRoot is null, rowVariants);
 
         // An input drawing rows draws its options: what it writes to its value is a choice of them.
         var choosesByValue = view.State.TryGetValue(host.ComponentId, IInputComponent.IsReadOnlyProperty, out _);
+        var choosesByKey = view.State.TryGetValue(host.ComponentId, ISelectedKeyComponent.SelectedKeyProperty, out _);
+        UIGateValue? selectionMode = CreateGateValue(view, host.ComponentId, ISelectableItemsComponent.SelectionModeProperty, typeof(UISelectionMode), unset: UISelectionMode.None);
+
+        if (fixedRoot is null && items is null && hostGates is null && !choosesByValue && !choosesByKey && selectionMode is null)
+            return null;
+
         var takesFreeText = view.State.TryGetValue(host.ComponentId, MultiSelectComponent.AllowFreeTextProperty, out CompiledUIPropertyValue? freeText) && freeText is { IsBind: false, Value: true };
+        var isSingleValueInput = choosesByValue && !view.State.TryGetValue(host.ComponentId, MultiSelectComponent.MaxSelectedProperty, out _);
+        UIComponentGate? clearGate = !isSingleValueInput
+            ? null
+            : view.State.TryGetValue(host.ComponentId, IClearableInputComponent.ShowClearButtonProperty, out _)
+                ? CreateGate(view, host.ComponentId, IClearableInputComponent.ShowClearButtonProperty, UIComponentGateKind.ShowClearButton)
+                : new UIComponentGate(UIComponentGateKind.ShowClearButton, Binding: null, FixedPath: null, DynamicCount: 0);
 
-        return new UIRowGates(fixedRoot?.ComponentId, fixedAbilities ?? new UIRowAbilities((fixedRoot ?? roots[0]).ContextParameterCount, [], items), choosesByValue, takesFreeText);
-    }
-
-    /// <summary>What a row drawn from <paramref name="root"/> allows; none where neither its template nor its item can refuse anything.</summary>
-    private static UIRowAbilities? CreateRowAbilities(CompiledView view, UIComponentNode root, UIRowItems? items)
-    {
-        UIComponentGate?[] gates = new UIComponentGate?[UIRowAbility.All.Length];
-        var closesAny = false;
-
-        for (var i = 0; i < gates.Length; i++)
-        {
-            gates[i] = CreateGate(view, root.ComponentId, UIRowAbility.All[i].Property, UIRowAbility.All[i].Kind);
-            closesAny |= gates[i] is not null;
-        }
-
-        return !closesAny && items is null ? null : new UIRowAbilities(root.ContextParameterCount, gates, items);
+        return new UIRowGates(fixedRoot?.ComponentId, fixedAbilities ?? new UIRowAbilities((fixedRoot ?? roots[0]).ContextParameterCount, [], items, hostGates), choosesByValue, takesFreeText, isSingleValueInput, clearGate, selectionMode);
     }
 
     /// <summary>
@@ -512,20 +521,100 @@ internal sealed class UIComponentGateIndex
     }
 
     /// <summary>
-    /// Enters the template roots of a host picking a row's template by its item, each by the variant it stands for; a menu's sub-entries,
-    /// drawn beside an entry rather than picked, stand for no variant and are left out.
+    /// What the host itself closes for every row (<c>Draggable</c>, <c>Removable</c>, <c>Renamable</c>); a tab menu offering
+    /// <see cref="UITabMenuEntries.Rename"/> or an interaction running <see cref="RenameItemEffect"/> lifts <c>Renamable</c> where
+    /// it reaches, while item-level <c>CanRename</c> still answers per row.
     /// </summary>
-    private static void AddRowVariants(CompiledView view, UIComponentNode host, UIRowItems items, Dictionary<UIComponentId, UIRowVariant> rowVariants)
+    private static UIHostRowGates? CreateHostRowGates(CompiledView view, UIComponentId hostId)
     {
-        if (StaticText(view, host.ComponentId, ITemplatedComponent.TemplateKeyPropertyProperty) is not { } keyProperty)
-            return;
+        UIComponentGate? draggable = CreateGate(view, hostId, IDraggableItemsComponent.DraggableProperty, UIComponentGateKind.HostDraggable);
+        UIComponentGate? removable = CreateGate(view, hostId, IItemsHostAbilitiesComponent.RemovableProperty, UIComponentGateKind.CanRemove);
+        UIComponentGate? renamable = CreateGate(view, hostId, IItemsHostAbilitiesComponent.RenamableProperty, UIComponentGateKind.HostRenamable);
+        UIComponentGate? tabMenuEntries = null;
 
-        var fallbackKey = StaticText(view, host.ComponentId, ITemplatedComponent.FallbackTemplateKeyProperty);
-        var opensSubmenus = view.Graph.TryGetSlot(host.ComponentId, UIComponentSlotKind.TemplateVariant, out _, MenuComponent.SubmenuTemplateKey);
+        if (renamable is not null && view.State.TryGetValue(hostId, TabsViewComponent.TabMenuEntriesProperty, out CompiledUIPropertyValue? entriesValue))
+        {
+            if (!entriesValue.IsBind)
+            {
+                if (IsInteractionTarget(view, hostId, TabsViewComponent.TabMenuEntriesProperty)
+                    || (entriesValue.Value is UITabMenuEntries staticEntries && staticEntries.HasFlag(UITabMenuEntries.Rename)))
+                {
+                    renamable = null;
+                }
+            }
+            else if (CreateBoundGate(view, hostId, TabsViewComponent.TabMenuEntriesProperty, UIComponentGateKind.Read) is UIComponentGate boundEntries)
+            {
+                tabMenuEntries = boundEntries;
+            }
+            else
+            {
+                renamable = null;
+            }
+        }
+
+        if (draggable is null && removable is null && renamable is null)
+            return null;
+
+        HashSet<string>? interactionKeys = null;
+        HashSet<(UIComponentAddress Host, string Key)>? scopedInteractionKeys = null;
+
+        if (renamable is not null)
+        {
+            IReadOnlyList<CompiledUIInteraction> interactions = view.Interactions.All;
+
+            for (var i = 0; i < interactions.Count; i++)
+            {
+                if (interactions[i].Effect is not CompiledTargetedClientEffect { Kind: ClientEffectKinds.RenameItem } rename
+                    || rename.Target.Id != hostId
+                    || ReadInteractionRenameKey(rename) is not { Length: > 0 } key)
+                {
+                    continue;
+                }
+
+                if (rename.Target.DynamicParameters.Length == 0)
+                    _ = (interactionKeys ??= new HashSet<string>(StringComparer.Ordinal)).Add(key);
+                else
+                    _ = (scopedInteractionKeys ??= []).Add((rename.Target, key));
+            }
+        }
+
+        return new UIHostRowGates(hostId, draggable, removable, renamable, tabMenuEntries, interactionKeys?.ToFrozenSet(StringComparer.Ordinal), scopedInteractionKeys?.ToFrozenSet());
+    }
+
+    private static string? ReadInteractionRenameKey(ClientEffect effect)
+        => JsonSerializer.SerializeToElement(effect).TryGetPropertyIgnoreCase("key", out JsonElement key) && key.ValueKind == JsonValueKind.String
+            ? key.GetString()
+            : null;
+
+    /// <summary>What a row drawn from <paramref name="root"/> allows; none where neither its host, its template nor its item can refuse anything.</summary>
+    private static UIRowAbilities? CreateRowAbilities(CompiledView view, UIComponentNode root, UIRowItems? items, UIHostRowGates? hostGates)
+    {
+        UIComponentGate?[] gates = new UIComponentGate?[UIRowAbility.All.Length];
+        var closesAny = false;
+
+        for (var i = 0; i < gates.Length; i++)
+        {
+            gates[i] = CreateGate(view, root.ComponentId, UIRowAbility.All[i].Property, UIRowAbility.All[i].Kind);
+            closesAny |= gates[i] is not null;
+        }
+
+        return !closesAny && items is null && hostGates is null ? null : new UIRowAbilities(root.ContextParameterCount, gates, items, hostGates);
+    }
+
+    /// <summary>
+    /// Enters the template roots of a host picking a row's template by its item — either a composite slot's typed variants or the host's own
+    /// <c>TemplateKeyProperty</c> variants — plus a menu's submenu slot so events inside nested submenus check their parent entry.
+    /// </summary>
+    private static void AddRowVariants(CompiledView view, UIComponentNode host, UIRowItems items, bool includeHostVariants, Dictionary<UIComponentId, UIRowVariant> rowVariants)
+    {
+        var keyProperty = includeHostVariants ? StaticText(view, host.ComponentId, ITemplatedComponent.TemplateKeyPropertyProperty) : null;
+        var fallbackKey = keyProperty is null ? null : StaticText(view, host.ComponentId, ITemplatedComponent.FallbackTemplateKeyProperty);
+        var isMenu = keyProperty is not null && view.State.TryGetValue(host.ComponentId, MenuComponent.NestedProperty, out _);
+        var opensSubmenus = keyProperty is not null && view.Graph.TryGetSlot(host.ComponentId, UIComponentSlotKind.TemplateVariant, out _, MenuComponent.SubmenuTemplateKey);
 
         foreach (UIComponentSlot slot in host.Slots)
         {
-            if (slot.Kind is not (UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant) || slot.Key == MenuComponent.SubmenuTemplateKey)
+            if (slot.Kind is not (UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant))
                 continue;
 
             UIComponentNode root = view.Graph.GetRequired(slot.RootComponentId);
@@ -533,9 +622,29 @@ internal sealed class UIComponentGateIndex
             if (root.ContextParameterCount <= host.ContextParameterCount)
                 continue;
 
+            if (slot.Kind == UIComponentSlotKind.TemplateVariant && slot.KeyProperty is { Length: > 0 } slotKeyProperty && slot.Key is { Length: > 0 } slotKey)
+            {
+                var colon = slotKey.IndexOf(':', StringComparison.Ordinal);
+                var baseKey = colon < 0 ? slotKey : slotKey[..colon];
+
+                rowVariants[root.ComponentId] = new UIRowVariant(host.ComponentId, slotKeyProperty, FallbackKey: null, slotKey, root.ContextParameterCount, items, OpensSubmenus: false, CompositeBaseKey: baseKey);
+                continue;
+            }
+
+            if (keyProperty is null)
+                continue;
+
+            if (slot.Key == MenuComponent.SubmenuTemplateKey)
+            {
+                if (isMenu)
+                    rowVariants[root.ComponentId] = new UIRowVariant(host.ComponentId, keyProperty, fallbackKey, MenuComponent.SubmenuTemplateKey, root.ContextParameterCount, items, OpensSubmenus: true, IsMenu: true, IsSubmenuSlot: true);
+
+                continue;
+            }
+
             var variantKey = slot.Kind == UIComponentSlotKind.TemplateVariant ? slot.Key : null;
 
-            rowVariants[root.ComponentId] = new UIRowVariant(host.ComponentId, keyProperty, fallbackKey, variantKey, root.ContextParameterCount, items, opensSubmenus);
+            rowVariants[root.ComponentId] = new UIRowVariant(host.ComponentId, keyProperty, fallbackKey, variantKey, root.ContextParameterCount, items, opensSubmenus, IsMenu: isMenu);
         }
     }
 
@@ -547,7 +656,7 @@ internal sealed class UIComponentGateIndex
 
     /// <summary>
     /// Whether a property's value closes the component: disabled, loading, hidden at every width, read-only, not to be chosen,
-    /// dragged, removed or renamed, offering only its marked days, or taking no negative or fractional number.
+    /// dragged, removed or renamed, offering only its marked days, taking no negative or fractional number, or offering no clear button.
     /// </summary>
     public static bool Closes(UIComponentGateKind kind, object? value)
         => kind switch
@@ -558,6 +667,7 @@ internal sealed class UIComponentGateIndex
             UIComponentGateKind.CanSelect or UIComponentGateKind.CanDrag or UIComponentGateKind.CanRemove or UIComponentGateKind.CanRename => value is false,
             UIComponentGateKind.MarkedDaysOnly => value is true,
             UIComponentGateKind.AllowNegative or UIComponentGateKind.AllowDecimals or UIComponentGateKind.ShowOpacity or UIComponentGateKind.ShowPalette => value is false,
+            UIComponentGateKind.HostDraggable or UIComponentGateKind.HostRenamable or UIComponentGateKind.ShowClearButton => value is not true,
             UIComponentGateKind.Visibility => IsHiddenEverywhere(value),
             _ => false
         };

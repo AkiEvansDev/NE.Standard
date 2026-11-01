@@ -224,7 +224,7 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
 
     state.version++;
 
-    if ((config !== undefined && config.filters.length > 0) || (query?.filters ?? []).length > 0)
+    if ((config !== undefined && config.filters.length > 0) || (query?.filters ?? []).length > 0 || (query?.search?.trim().length ?? 0) > 0)
         entries = entries.filter(entry => itemMatchesFilters(config, entry.item, options.state, query));
 
     const grouped = groupTemplate !== undefined && entries.some(entry => groupOf(entry) !== "");

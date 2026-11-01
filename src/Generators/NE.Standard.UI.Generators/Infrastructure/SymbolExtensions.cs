@@ -32,6 +32,17 @@ internal static class SymbolExtensions
 
     public static bool IsPartial(this INamedTypeSymbol type)
     {
+        for (INamedTypeSymbol? current = type; current is not null; current = current.ContainingType)
+        {
+            if (!IsDeclaredPartial(current))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsDeclaredPartial(INamedTypeSymbol type)
+    {
         foreach (SyntaxReference syntaxReference in type.DeclaringSyntaxReferences)
         {
             if (syntaxReference.GetSyntax() is TypeDeclarationSyntax declaration && declaration.Modifiers.Any(SyntaxKind.PartialKeyword))

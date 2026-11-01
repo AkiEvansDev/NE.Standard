@@ -275,7 +275,8 @@ public sealed partial class UITestPage
             if (!valid)
                 return UITestCommandResult.Refused($"The form '{formId}' has a field in error.");
 
-            await SubmitHeldValuesAsync(formId, cancellationToken).ConfigureAwait(false);
+            if (!await SubmitHeldValuesAsync(formId, cancellationToken).ConfigureAwait(false))
+                return UITestCommandResult.Refused($"The server refused a value submitted in form '{formId}'.");
         }
 
         UICommandRequest request = new() { EventId = compiled.Id, DynamicParameters = [.. rowKeys, .. eventKeys] };
@@ -335,8 +336,8 @@ public sealed partial class UITestPage
         return false;
     }
 
-    /// <summary>Sends what a form's fields held back for its submit.</summary>
-    private Task SubmitHeldValuesAsync(string formId, CancellationToken cancellationToken)
+    /// <summary>Sends what a form's fields held back for its submit; answers whether the server accepted every submitted value.</summary>
+    private async Task<bool> SubmitHeldValuesAsync(string formId, CancellationToken cancellationToken)
     {
         List<UITestWrite> writes = [];
 
@@ -355,7 +356,20 @@ public sealed partial class UITestPage
             }
         }
 
-        return SendValuesAsync(writes, cancellationToken);
+        await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
+
+        lock (_sync)
+        {
+            for (var i = 0; i < writes.Count; i++)
+            {
+                UITestField field = FieldNoLock(writes[i].Address.Component);
+
+                if (field.Refusal is not null || field.GateRefused)
+                    return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Sends a command and applies its answer, the event's before- and after- interactions around it.</summary>

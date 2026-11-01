@@ -1,3 +1,4 @@
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Primitives.Annotations;
 
 namespace NE.Standard.UI.Components.BuiltIns.Models;
@@ -20,6 +21,9 @@ public partial class UIOptionValue<T> : OptionItem
         Id = id;
         Title = id;
         Value = value;
+
+        if (value is RecursiveObservable)
+            ResetNotifier();
     }
 
     /// <summary>

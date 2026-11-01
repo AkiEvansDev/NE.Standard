@@ -2,7 +2,7 @@
 // package's mark — in the page's language: each kept as it came and written with its mark, so a language switch writes it again.
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
-import { cssAttributeValue, FormIdAttribute, InvalidClass as ErrorClass, PopupRoleSelector, ValidationMessageAttribute as MessageAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, cssAttributeValue, FormIdAttribute, InvalidClass as ErrorClass, PopupRoleSelector, ValidationMessageAttribute as MessageAttribute } from "../addressing/dom-attributes.ts";
 import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
 import { findOwningComponentAddress, readComponentId } from "../addressing/dom-registry.ts";
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
@@ -719,6 +719,39 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
             this.touchedElements.delete(element);
             this.applyCurrentState(componentId, element);
         }
+    }
+
+    /** Forgets every rule, bound, refusal and conflict judgement across the page when switching to another runtime. */
+    public discardAll(): void {
+        for (const [key, held] of [...this.messageLines]) {
+            held.lines.clear();
+            this.messageLines.delete(key);
+            this.writeLines(held);
+        }
+
+        const components = this.root instanceof Element && this.root.matches(ComponentSelector)
+            ? [this.root, ...this.root.querySelectorAll(ComponentSelector)]
+            : this.root.querySelectorAll(ComponentSelector);
+
+        for (const element of components) {
+            const said = this.forgetJudgement(element);
+            const conflicted = this.conflictMarkByElement.delete(element);
+
+            this.touchedElements.delete(element);
+
+            if (said || conflicted)
+                this.applyCurrentState(readComponentId(element), element);
+        }
+    }
+
+    /** Whether any field of the form currently holds an error — from client rules, bounds, or a server refusal. */
+    public hasFormError(formId: string): boolean {
+        for (const { component: resolved } of this.formFields(formId)) {
+            if (this.hasError(resolved.componentId, resolved.element))
+                return true;
+        }
+
+        return false;
     }
 
     /**

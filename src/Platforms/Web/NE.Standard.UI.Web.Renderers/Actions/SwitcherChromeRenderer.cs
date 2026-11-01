@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Styling;
@@ -26,8 +27,8 @@ internal static class SwitcherChromeRenderer
     /// <summary>The field shape's root.</summary>
     public const string FieldClassName = "ui-switcher-field";
 
-    // The caption's words, and the box's name with them: the box is the field's control, as a select's trigger is.
-    private static readonly WebDomOperation[] FieldTitleOperations = [WebDomOperation.Text(), WebDomOperation.Attribute("aria-label", $".{WebClassNames.SelectTrigger}")];
+    // The caption's words, and the box's name with them, falling back to the switcher's own translation key when pushed blank.
+    private static readonly ConcurrentDictionary<string, WebDomOperation[]> FieldTitleOperationsByDefault = new(StringComparer.Ordinal);
 
     private static readonly WebDomOperation[] GlyphOperations =
     [
@@ -122,8 +123,15 @@ internal static class SwitcherChromeRenderer
                 WebWords.Write(context, target, null, defaultTitleKey);
             else
                 _ = target.Text(value);
-        }, FieldTitleOperations);
+        }, GetFieldTitleOperations(defaultTitleKey));
     }
+
+    private static WebDomOperation[] GetFieldTitleOperations(string defaultTitleKey)
+        => FieldTitleOperationsByDefault.GetOrAdd(defaultTitleKey, static key =>
+        [
+            new WebDomOperation { Kind = WebComponentRendererBase.DefaultWordsOperationKind, Value = key },
+            new WebDomOperation { Kind = WebComponentRendererBase.DefaultWordsOperationKind, Name = "aria-label", Target = $".{WebClassNames.SelectTrigger}", Value = key }
+        ]);
 
     /// <summary>The tooltip, the button's look, the padding, the ground, its picture and the edge, on the root the pointer rests on.</summary>
     public static void RenderChrome(WebRenderContext context, IHtmlElementBuilder root)

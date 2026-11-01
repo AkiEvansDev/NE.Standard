@@ -1,7 +1,11 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Threading;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
@@ -29,12 +33,18 @@ internal sealed partial class UIRuntime
     private int _refusalWarnings;
     private long _refusalMinuteEnd;
 
+    // Items on which the server dispatched RenameItemEffect, reopening inline rename on a host whose Renamable is closed.
+    private ConcurrentDictionary<(UIComponentAddress Host, string Key), byte>? _openedRenames;
+
     private UIComponentGateIndex Gates => field ??= UIComponentGateIndex.For(View);
+
+    private void NoteOpenedRename(UIComponentAddress host, string key)
+        => LazyInitializer.EnsureInitialized(ref _openedRenames, static () => new())[(host, key)] = 0;
 
     /// <summary>
     /// Refuses a command raised on a component the server knows is disabled, loading or hidden — by a static value or the
     /// controller, itself or an ancestor; a host's row event answers to the row it names as well. A row's move, removal or rename
-    /// is refused where the row's template or its own item says it may not be dragged, removed or renamed.
+    /// is refused where the host, the row's template or its own item says it may not be dragged, removed or renamed.
     /// </summary>
     /// <remarks>
     /// Refused as an unauthorised command is, so the reader is told the same way; what only the client knows is not read. A drop
@@ -187,18 +197,25 @@ internal sealed partial class UIRuntime
 
     /// <summary>
     /// Whether a row's item is drawn by another of its host's templates than <paramref name="variant"/>'s, by its key property as the
-    /// renderer picks it; in a menu offering sub-entries, also an entry opening others, or one disabled or hidden, as a tab menu's entry
-    /// is judged. A row the server cannot read refuses nothing.
+    /// renderer picks it; in a menu, also a disabled or hidden entry, an entry opening sub-entries, or a submenu slot whose parent entry
+    /// is closed or holds no sub-entries. A row the server cannot read refuses nothing.
     /// </summary>
     private bool IsOtherTemplatesRow(UIRowVariant variant, object? item)
     {
         if (item is null)
             return false;
 
-        if (!string.Equals(ItemTemplateSelection.ResolveVariant(View.Graph, variant.HostId, variant.KeyProperty, variant.FallbackKey, item), variant.VariantKey, StringComparison.Ordinal))
+        if (variant.IsSubmenuSlot)
+            return item is IMenuItemModel submenuOwner && (IsEntryClosed(submenuOwner) || !HasEntries(submenuOwner) || submenuOwner.Kind is UIMenuItemKind.Header or UIMenuItemKind.Separator);
+
+        var resolved = variant.CompositeBaseKey is string baseKey
+            ? ItemTemplateSelection.ResolveCompositeVariant(View.Graph, variant.HostId, baseKey, variant.KeyProperty, item)
+            : ItemTemplateSelection.ResolveVariant(View.Graph, variant.HostId, variant.KeyProperty, variant.FallbackKey, item);
+
+        if (!string.Equals(resolved, variant.VariantKey, StringComparison.Ordinal))
             return true;
 
-        return variant.OpensSubmenus && item is IMenuItemModel entry && (HasEntries(entry) || IsEntryClosed(entry));
+        return variant.IsMenu && item is IMenuItemModel entry && (IsEntryClosed(entry) || entry.Kind is UIMenuItemKind.Header or UIMenuItemKind.Separator || (variant.OpensSubmenus && HasEntries(entry)));
     }
 
     /// <summary>
@@ -290,7 +307,7 @@ internal sealed partial class UIRuntime
         };
 
     /// <summary>
-    /// Whether the row the keys name may not do what <paramref name="ability"/> asks: its template's ability closes, or its own item
+    /// Whether the row the keys name may not do what <paramref name="ability"/> asks: its host, its template's ability, or its own item
     /// says false; or the row is not named by its key, a text — an index would reach a row by its place, past its item's word — or
     /// names a row its host's rows, read, do not hold. Rows the server cannot read refuse nothing, as a gate it cannot read closes nothing.
     /// </summary>
@@ -309,17 +326,74 @@ internal sealed partial class UIRuntime
 
     /// <summary>
     /// Whether the row <paramref name="lookup"/> found under <paramref name="rowParameters"/> — the row's own keys, its key last — may
-    /// not do what <paramref name="ability"/> asks: not held, its template's ability closed, or its own item saying false.
+    /// not do what <paramref name="ability"/> asks: not held, its host's switch closed, its template's ability closed, or its own item
+    /// saying false.
     /// </summary>
     private bool IsRowRefusedNoLock(UIRowAbilities row, UIComponentGateKind ability, object?[] rowParameters, RowLookup lookup)
     {
         if (lookup.Missing)
             return true;
 
+        if (row.Host is { } host && IsHostAbilityRefusedNoLock(host, ability, row.RowParameterCount, rowParameters))
+            return true;
+
         if (row.For(ability) is { } gate && IsClosedNoLock(gate, rowParameters))
             return true;
 
         return lookup.Item is IItemAbilitiesModel item && UIComponentGateIndex.Closes(ability, UIRowAbilities.Read(item, ability));
+    }
+
+    /// <summary>
+    /// Whether the host itself closes <paramref name="ability"/> for the row: <c>Draggable</c> off for a move, <c>Removable</c> off for a
+    /// removal, or <c>Renamable</c> off without the strip's tab menu or a <c>RenameItemEffect</c> opening rename on the item.
+    /// </summary>
+    private bool IsHostAbilityRefusedNoLock(UIHostRowGates host, UIComponentGateKind ability, int rowParameterCount, object?[] rowParameters)
+    {
+        if (ability == UIComponentGateKind.CanDrag)
+            return host.Draggable is { } draggable && IsClosedNoLock(draggable, rowParameters);
+
+        if (ability == UIComponentGateKind.CanRemove)
+            return host.Removable is { } removable && IsClosedNoLock(removable, rowParameters);
+
+        if (ability != UIComponentGateKind.CanRename || host.Renamable is not { } renamable || !IsClosedNoLock(renamable, rowParameters))
+            return false;
+
+        if (host.TabMenuEntries is { } tabMenuEntries
+            && (!TryReadGateNoLock(tabMenuEntries, rowParameters, out var entriesValue)
+                || (entriesValue is UITabMenuEntries entries && entries.HasFlag(UITabMenuEntries.Rename))))
+        {
+            return false;
+        }
+
+        if (rowParameterCount <= 0 || rowParameters[rowParameterCount - 1] is not string key)
+            return true;
+
+        if (host.InteractionKeys is not null && host.InteractionKeys.Contains(key))
+            return false;
+
+        if (host.ScopedInteractionKeys is null && _openedRenames is null)
+            return true;
+
+        var hostParameters = TakeDynamicParameters(rowParameters, rowParameterCount - 1);
+
+        return !TryCreateHostAddress(host.HostId, hostParameters, out UIComponentAddress hostAddress)
+            || ((host.ScopedInteractionKeys is null || !host.ScopedInteractionKeys.Contains((hostAddress, key)))
+                && (_openedRenames is null || !_openedRenames.ContainsKey((hostAddress, key))));
+    }
+
+    private static bool TryCreateHostAddress(UIComponentId hostId, object?[] hostParameters, out UIComponentAddress address)
+    {
+        for (var i = 0; i < hostParameters.Length; i++)
+        {
+            if (!UIRowKeys.IsKey(hostParameters[i]))
+            {
+                address = default;
+                return false;
+            }
+        }
+
+        address = new UIComponentAddress(hostId, hostParameters);
+        return true;
     }
 
     /// <summary>
@@ -373,8 +447,9 @@ internal sealed partial class UIRuntime
     /// <summary>
     /// Whether a client write lands on a component the server knows the reader may not write: closed by itself or an ancestor,
     /// read-only, a value outside its bounds, a day not on offer, a text past its length or one the component's own check refuses;
-    /// for a choice of rows, a newly chosen row that may not be chosen or is disabled; a viewer's query naming a term its host does not
-    /// offer; or a row's rename or tree move its abilities refuse.
+    /// in a row template another variant draws; for a choice of rows, a selection property closed by <c>SelectionMode</c>, a cleared
+    /// single choice offering no clear, or a newly chosen row that may not be chosen or is disabled; a viewer's query naming a term its
+    /// host does not offer; or a row's rename or tree move its abilities refuse.
     /// </summary>
     private bool IsWriteRefusedNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read)
     {
@@ -390,11 +465,22 @@ internal sealed partial class UIRuntime
 
         // Any component's IsOpen, a package's popup included, not the flyout's alone: a popup's close arrives from an outside click or
         // Escape, which nothing on the client refuses, so it is never answered with a reopening.
-        if (gates.IsEmpty || (property == IOpenableComponent.IsOpenProperty && update.Value is false))
+        if (property == IOpenableComponent.IsOpenProperty && update.Value is false)
             return false;
 
         UIComponentId componentId = update.Address.Component.Id;
         var dynamicParameters = update.Address.Component.DynamicParameters;
+
+        if (property == ISelectedKeyComponent.SelectedKeyProperty
+            && View.Graph.TryGet(componentId, out UIComponentNode? tabsNode)
+            && tabsNode.TypeKey == TabsComponent.ComponentTypeKey
+            && IsTabChoiceRefusedNoLock(gates, componentId, dynamicParameters, update.Value, resolution))
+        {
+            return true;
+        }
+
+        if (gates.IsEmpty)
+            return false;
 
         if (gates.TryGet(componentId, out UIComponentGates? target))
         {
@@ -416,10 +502,16 @@ internal sealed partial class UIRuntime
             }
         }
 
+        if (IsRowVariantWriteRefusedNoLock(gates, componentId, dynamicParameters))
+            return true;
+
         if (gates.TryGetRows(componentId, out UIRowGates rows) && IsChoice(property, rows))
             return IsChoiceRefusedNoLock(gates, rows, update, resolution);
 
-        return WriteAbility(property) is UIComponentGateKind ability && gates.TryGetRowRoot(componentId, out UIRowAbilities? row) && IsRowRefusedNoLock(row!, ability, dynamicParameters);
+        return WriteAbility(property) is UIComponentGateKind ability
+            && !UIComponentGateIndex.IsInteractionTarget(View, componentId, property)
+            && gates.TryGetRowRoot(componentId, out UIRowAbilities? row)
+            && IsRowRefusedNoLock(row!, ability, dynamicParameters);
     }
 
     /// <summary>
@@ -439,6 +531,44 @@ internal sealed partial class UIRuntime
         return RecursiveValueCoercion.TryCoerce(read.Value.Value, typeof(UIItemsQuery), out var coerced)
             && coerced is UIItemsQuery query
             && IsViewerQueryRefusedNoLock(update.Address.Component.Id, query);
+    }
+
+    /// <summary>
+    /// Whether a fixed tab strip's chosen key clears a non-empty choice without an interaction, names a tab the strip does not declare,
+    /// or names one whose caption is disabled, loading or hidden; a tab already chosen on the controller stays allowed.
+    /// </summary>
+    private bool IsTabChoiceRefusedNoLock(UIComponentGateIndex gates, UIComponentId componentId, object?[] dynamicParameters, object? value, CompiledUIBindingResolution resolution)
+    {
+        if (value is null or "")
+            return IsChoiceClearRefused(componentId, ISelectedKeyComponent.SelectedKeyProperty, resolution);
+
+        if (value is not string key)
+            return true;
+
+        var current = resolution.Source.Kind == CompiledUIBindingSourceKind.Controller ? TryGetControllerValue(resolution.Path) : null;
+
+        if (IsChosen(current, key))
+            return false;
+
+        if (!View.Graph.TryGetSlot(componentId, UIComponentSlotKind.Region, out UIComponentSlot? captionSlot, TabRegionNames.Caption(key)))
+            return true;
+
+        return gates.TryGet(captionSlot.RootComponentId, out UIComponentGates? captionGates) && IsClosedNoLock(captionGates!.Chain, dynamicParameters);
+    }
+
+    /// <summary>
+    /// Whether clearing a single-choice control (<c>null</c> or <c>""</c>) is refused: allowed only where an interaction writes the
+    /// property or the controller already holds an empty choice.
+    /// </summary>
+    private bool IsChoiceClearRefused(UIComponentId componentId, UIProperty property, CompiledUIBindingResolution resolution)
+    {
+        if (UIComponentGateIndex.IsInteractionTarget(View, componentId, property))
+            return false;
+
+        if (resolution.Source.Kind != CompiledUIBindingSourceKind.Controller)
+            return true;
+
+        return Controller.TryGetRecursiveValue(resolution.Path, out var held) && ToChoiceKey(held) is { Length: > 0 };
     }
 
     /// <summary>
@@ -733,6 +863,31 @@ internal sealed partial class UIRuntime
         return !check.Accepts(update.Address.Property, value);
     }
 
+    /// <summary>
+    /// Whether a write lands in a row template a host picks by the row's item, for a row another of its templates draws — or one named
+    /// by something other than its key; a missing row is left to the write to drop as stale or forged.
+    /// </summary>
+    private bool IsRowVariantWriteRefusedNoLock(UIComponentGateIndex gates, UIComponentId componentId, object?[] dynamicParameters)
+    {
+        IReadOnlyList<UIComponentId> scopes = View.Graph.GetItemScopes(componentId);
+
+        for (var i = 0; i < scopes.Count; i++)
+        {
+            if (!gates.TryGetRowVariant(scopes[i], out UIRowVariant? variant) || dynamicParameters.Length < variant!.RowParameterCount)
+                continue;
+
+            if (dynamicParameters[variant.RowParameterCount - 1] is not string key)
+                return true;
+
+            RowLookup lookup = LookUpRowNoLock(variant.Items, TakeDynamicParameters(dynamicParameters, variant.RowParameterCount), key);
+
+            if (!lookup.Missing && IsOtherTemplatesRow(variant, lookup.Item))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Whether a write chooses among a host's rows: its chosen key or keys, or the value of an input choosing among its options.</summary>
     private static bool IsChoice(UIProperty property, UIRowGates rows)
         => property == ISelectedKeyComponent.SelectedKeyProperty
@@ -740,17 +895,37 @@ internal sealed partial class UIRuntime
             || (rows.ChoosesByValue && property == IInputComponent.ValueProperty);
 
     /// <summary>
-    /// Whether a choice takes a row that may not be chosen, is disabled, or is not there on a host whose rows the server holds — but a
-    /// key typed as free text where the input takes it; only a row newly chosen counts, since one chosen before it closed stays chosen on the
-    /// client too. Each row is looked up by its key; a value that is neither a key nor a list of keys is refused.
+    /// Whether a choice writes a selection property <c>SelectionMode</c> closes, clears a single choice offering no clear, or takes a row
+    /// that may not be chosen, is disabled, or is not there on a host whose rows the server holds — but a key typed as free text where the
+    /// input takes it; only a row newly chosen counts, since one chosen before it closed stays chosen on the client too.
     /// </summary>
     private bool IsChoiceRefusedNoLock(UIComponentGateIndex gates, UIRowGates rows, ClientValueUIUpdate update, CompiledUIBindingResolution resolution)
     {
-        if (update.Address.Component.DynamicParameters.Length != rows.Abilities.RowParameterCount - 1)
-            return false;
+        UIComponentId componentId = update.Address.Component.Id;
+        UIProperty property = update.Address.Property;
+        var dynamicParameters = update.Address.Component.DynamicParameters;
+
+        if (rows.SelectionMode is { } selectionMode
+            && (property == ISelectedKeyComponent.SelectedKeyProperty || property == ISelectableItemsComponent.SelectedKeysProperty)
+            && IsSelectionModeRefusedNoLock(componentId, property, selectionMode, dynamicParameters))
+        {
+            return true;
+        }
+
+        var isSingleChoice = property == ISelectedKeyComponent.SelectedKeyProperty
+            || (rows.IsSingleValueInput && property == IInputComponent.ValueProperty);
+
+        if (isSingleChoice && update.Value is not (null or string))
+            return true;
 
         if (!TryReadChosenKeys(update.Value, out IReadOnlyList<string> keys))
             return true;
+
+        if (keys.Count == 0)
+            return isSingleChoice && IsSingleChoiceClearRefusedNoLock(componentId, property, rows.ClearGate, dynamicParameters, resolution);
+
+        if (dynamicParameters.Length != rows.Abilities.RowParameterCount - 1)
+            return false;
 
         // Rows wearing a template by the item's kind have no one template whose chain answers for every row.
         UIComponentGates? template = rows.TemplateRootId is UIComponentId rootId && gates.TryGet(rootId, out UIComponentGates? found) ? found : null;
@@ -766,7 +941,7 @@ internal sealed partial class UIRuntime
             if (chosen?.Contains(key) ?? IsChosen(current, key))
                 continue;
 
-            var rowParameters = AppendDynamicParameter(update.Address.Component.DynamicParameters, key);
+            var rowParameters = AppendDynamicParameter(dynamicParameters, key);
             RowLookup lookup = rows.Abilities.Items is { } items ? LookUpRowNoLock(items, rowParameters, key) : default;
 
             if (rows.TakesFreeText && lookup.Missing)
@@ -777,6 +952,32 @@ internal sealed partial class UIRuntime
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Whether <c>SelectionMode</c> closes the written selection property (<c>None</c> closes both, <c>One</c> closes <c>SelectedKeys</c>,
+    /// <c>Many</c> closes <c>SelectedKey</c>), unless an interaction writes the property.
+    /// </summary>
+    private bool IsSelectionModeRefusedNoLock(UIComponentId componentId, UIProperty property, UIGateValue selectionMode, object?[] dynamicParameters)
+    {
+        if (UIComponentGateIndex.IsInteractionTarget(View, componentId, property)
+            || !TryReadGateValueNoLock(selectionMode, dynamicParameters, out var read))
+        {
+            return false;
+        }
+
+        UISelectionMode mode = read is null
+            ? UISelectionMode.None
+            : RecursiveValueCoercion.TryCoerce(read, typeof(UISelectionMode), out var coerced) && coerced is UISelectionMode typed
+                ? typed
+                : UISelectionMode.None;
+
+        return mode switch
+        {
+            UISelectionMode.One => property != ISelectedKeyComponent.SelectedKeyProperty,
+            UISelectionMode.Many => property != ISelectableItemsComponent.SelectedKeysProperty,
+            _ => true
+        };
     }
 
     /// <summary>
@@ -799,6 +1000,15 @@ internal sealed partial class UIRuntime
 
         if (value is IReadOnlyList<string> stringList)
         {
+            for (var i = 0; i < stringList.Count; i++)
+            {
+                if (string.IsNullOrEmpty(stringList[i]))
+                {
+                    keys = [];
+                    return false;
+                }
+            }
+
             keys = stringList;
             return true;
         }
@@ -809,14 +1019,13 @@ internal sealed partial class UIRuntime
 
             foreach (var item in items)
             {
-                if (item is not string itemKey)
+                if (item is not string { Length: > 0 } itemKey)
                 {
                     keys = [];
                     return false;
                 }
 
-                if (itemKey.Length > 0)
-                    list.Add(itemKey);
+                list.Add(itemKey);
             }
 
             keys = list;
@@ -825,6 +1034,14 @@ internal sealed partial class UIRuntime
 
         keys = [];
         return false;
+    }
+
+    private bool IsSingleChoiceClearRefusedNoLock(UIComponentId componentId, UIProperty property, UIComponentGate? clearGate, object?[] dynamicParameters, CompiledUIBindingResolution resolution)
+    {
+        var clearClosed = property == ISelectedKeyComponent.SelectedKeyProperty
+            || (clearGate is not null && IsClosedNoLock(clearGate, dynamicParameters));
+
+        return clearClosed && IsChoiceClearRefused(componentId, property, resolution);
     }
 
     /// <summary>The keys chosen now — one key, or a list of them — as a set; empty where nothing is chosen.</summary>
@@ -866,13 +1083,15 @@ internal sealed partial class UIRuntime
         return false;
     }
 
-    /// <summary>A chosen value as the row key it names: a text, or an enum value's name.</summary>
+    /// <summary>A chosen value as the row key it names: a text, an enum value's name, or a scalar formatted invariantly.</summary>
     private static string? ToChoiceKey(object? value)
         => value switch
         {
+            null => null,
             string text => text,
             Enum enumValue => enumValue.ToString(),
-            _ => null
+            IEnumerable => null,
+            _ => Convert.ToString(value, CultureInfo.InvariantCulture)
         };
 
     /// <summary>The ability a row's own write needs: a rename's title its <c>CanRename</c>, a tree node's new folder its <c>CanDrag</c>.</summary>

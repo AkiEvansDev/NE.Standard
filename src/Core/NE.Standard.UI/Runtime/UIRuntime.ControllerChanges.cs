@@ -13,6 +13,7 @@ using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -295,6 +296,9 @@ internal sealed partial class UIRuntime
     /// </summary>
     private bool WearsSlot(UIComponentNode host, UIComponentSlot slot, object? item)
     {
+        if (slot.Kind == UIComponentSlotKind.TemplateVariant && slot.Key == MenuComponent.SubmenuTemplateKey)
+            return true;
+
         // A composite's slot is worn by the item's kind: "node:folder" by a folder, "node" by any row naming no typed variant;
         // TemplateKeyProperty says nothing about these.
         if (slot.Kind == UIComponentSlotKind.TemplateVariant && slot.KeyProperty is not null && slot.Key is not null)

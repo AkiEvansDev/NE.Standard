@@ -241,6 +241,9 @@ public static class WebDomConverters
     /// <summary>A container's track list per tier (<c>ContainerComponentRenderer.TrackCss</c>): each wider tier only where it differs from the one below.</summary>
     public static readonly WebResponsiveConverters ResponsiveGridTemplateCss = new("responsiveGridTemplate", "Css");
 
+    /// <summary>A container's fixed column room per tier (<c>ContainerComponentRenderer.RenderSpacing</c>): written only where it differs from the tier below.</summary>
+    public static readonly WebResponsiveConverters ResponsiveFixedColumnsCss = new("responsiveFixedColumns", "Css");
+
     /// <summary>A length tier (<c>WebCssValues.ResponsiveLayoutLength</c>): nothing for <c>Auto</c>, so the stylesheet's default applies.</summary>
     public static readonly WebResponsiveConverters ResponsiveLayoutLengthCss = new("responsiveLayoutLength", "Css");
 

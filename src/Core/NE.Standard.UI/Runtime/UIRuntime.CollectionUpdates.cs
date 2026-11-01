@@ -196,6 +196,9 @@ internal sealed partial class UIRuntime
     /// </summary>
     private static bool RuleReadsPath(string rule, RecursivePath path, int start)
     {
+        if (string.Equals(rule, ".", StringComparison.Ordinal))
+            return true;
+
         var at = 0;
 
         for (var s = start; s < path.Count; s++)

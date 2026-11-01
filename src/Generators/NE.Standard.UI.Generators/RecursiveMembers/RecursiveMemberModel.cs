@@ -4,6 +4,14 @@ using NE.Standard.UI.Generators.Infrastructure;
 
 namespace NE.Standard.UI.Generators.RecursiveMembers;
 
+internal enum RecursiveNullAssignment
+{
+    Reject = 0,
+    AssignDefault = 1,
+    AssignForgivenDefault = 2,
+    GuardValueTypeDefault = 3
+}
+
 /// <summary>
 /// A type the recursive-member generator writes into; <paramref name="ConstructorAccessibility"/> is <see langword="null"/> when
 /// the type declares a constructor of its own and none is generated.
@@ -13,7 +21,7 @@ internal sealed record RecursiveOwnerModel(GeneratedTypeModel Declaration, strin
 /// <summary>
 /// One <c>[RecursiveMember]</c> property, with every string the emitter writes and the diagnostics its validation reported.
 /// </summary>
-internal sealed record RecursiveMemberModel(RecursiveOwnerModel Owner, string Name, string Type, string PatternType, bool IsNullable, bool CanHoldRecursiveObservable, bool CanSet, bool Generate, string PropertyAccessibility, string PropertyModifiers, string GetterAccessibility, string SetterAccessibility, EquatableArray<DiagnosticInfo> Diagnostics)
+internal sealed record RecursiveMemberModel(RecursiveOwnerModel Owner, string Name, string Type, string PatternType, RecursiveNullAssignment NullAssignment, bool CanHoldRecursiveObservable, bool CanSet, bool Generate, bool IsFieldBacked, string PropertyAccessibility, string PropertyModifiers, string GetterAccessibility, string SetterAccessibility, EquatableArray<DiagnosticInfo> Diagnostics)
 {
     /// <summary>Whether validation refused the member; every diagnostic it reports is an error.</summary>
     public bool HasErrors

@@ -96,7 +96,7 @@ internal sealed partial class UIViewCompilationContext
             return false;
 
         // An unset two-state value is off: the page reads the box's `checked`, never nothing (value-readers.ts).
-        value = definition.Getter(component) ?? definition.DefaultValue ?? (HoldsTwoStates(component) ? false : null);
+        value = definition.Getter(component) ?? ImpliedValue(component, property) ?? definition.DefaultValue ?? (HoldsTwoStates(component) ? false : null);
         return true;
     }
 
@@ -157,7 +157,7 @@ internal sealed partial class UIViewCompilationContext
         if (!AcceptsCopy(from, to))
             throw new InvalidOperationException($"Component '{targetComponent.Id}' copies '{interaction.ComponentId}.{sourceProperty.Name}' ({from.Name}) into '{targetProperty.Name}' ({to.Name}), which cannot take it.");
 
-        return UIPhrase.AsValue(target.Getter(targetComponent) ?? target.DefaultValue);
+        return UIPhrase.AsValue(target.Getter(targetComponent) ?? ImpliedValue(targetComponent, targetProperty) ?? target.DefaultValue);
     }
 
     /// <summary>Whether a target property's type takes a source's value as the page holds it; both without their nullability.</summary>

@@ -519,6 +519,7 @@ public sealed partial class UITestPage
             field.Value.Failing.Clear();
             field.Value.Refusal = null;
             field.Value.BoundRefusal = null;
+            field.Value.GateRefused = false;
         }
     }
 
@@ -537,8 +538,29 @@ public sealed partial class UITestPage
             // A held field keeps the reader's edit through the rebuild, as the page's input does; the snapshot's value waits aside.
             foreach (KeyValuePair<UIPropertyAddress, object?> held in _held)
                 _values[held.Key] = held.Value;
+
+            foreach (KeyValuePair<UIComponentAddress, UITestField> field in _fields)
+            {
+                if (!HasHeldPropertyNoLock(field.Key))
+                {
+                    field.Value.Refusal = null;
+                    field.Value.BoundRefusal = null;
+                    field.Value.GateRefused = false;
+                }
+            }
         }
 
         await StartAsync(_resolution, cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool HasHeldPropertyNoLock(UIComponentAddress component)
+    {
+        foreach (UIPropertyAddress held in _held.Keys)
+        {
+            if (held.Component == component)
+                return true;
+        }
+
+        return false;
     }
 }

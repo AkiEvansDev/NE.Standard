@@ -24,6 +24,7 @@ import { writeItemValuePath } from "./items-template-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer.ts";
 import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "../addressing/items-viewport.ts";
 import { logWarn } from "../metadata/logger.ts";
+import { registerRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 
 // How many rows beyond the visible ones are kept drawn on each side, so a short scroll has nothing to do.
 const Overscan = 6;
@@ -56,6 +57,7 @@ export class ItemsVirtualizationEngine {
 
     // Rows kept as drawn through a change of their item for the focus they hold, drawn anew from it once the focus has left them.
     private readonly keptAsDrawn = new WeakSet<Element>();
+    private disposed = false;
 
     public constructor(options: ItemsVirtualizationEngineOptions) {
         this.options = options;
@@ -63,6 +65,26 @@ export class ItemsVirtualizationEngine {
 
         this.root.addEventListener("scroll", domEvent => this.handleScroll(domEvent), true);
         this.root.addEventListener("focusout", domEvent => this.handleFocusOut(domEvent), true);
+        registerRuntimeCleanup(() => this.dispose());
+    }
+
+    public dispose(): void {
+        if (this.disposed)
+            return;
+
+        this.disposed = true;
+        this.resizes?.disconnect();
+
+        for (const host of this.held) {
+            const state = this.states.get(host);
+
+            if (state !== undefined && state.scheduled !== 0) {
+                window.clearTimeout(state.scheduled);
+                state.scheduled = 0;
+            }
+        }
+
+        this.held.clear();
     }
 
     /** The items the host would show, top to bottom, once its rules have run — the rows themselves, not the group headers. */
@@ -444,25 +466,36 @@ export class ItemsVirtualizationEngine {
                 continue;
 
             window.setTimeout(() => {
-                if (host.isConnected)
+                if (!this.disposed && host.isConnected)
                     this.layout(host, state);
             });
         }
     }
 
     private handleResize(entries: readonly ResizeObserverEntry[]): void {
+        if (this.disposed)
+            return;
+
         for (const entry of entries) {
             const host = entry.target;
 
             // The next frame, not here: rows drawn inside the observer's callback grow a host it watches, which the browser reports as a loop.
-            if (host.isConnected && resolveHostMode(host) === "virtualized")
-                window.requestAnimationFrame(() => this.relayout(host));
-            else
+            if (host.isConnected && resolveHostMode(host) === "virtualized") {
+                window.requestAnimationFrame(() => {
+                    if (!this.disposed && host.isConnected)
+                        this.relayout(host);
+                });
+            }
+            else {
                 this.resizes?.unobserve(host);
+            }
         }
     }
 
     private relayout(host: Element): void {
+        if (this.disposed)
+            return;
+
         const state = this.getState(host);
 
         if (state === null || state.scheduled !== 0)
@@ -473,7 +506,9 @@ export class ItemsVirtualizationEngine {
 
         state.scheduled = window.setTimeout(() => {
             state.scheduled = 0;
-            this.layout(host, state);
+
+            if (!this.disposed && host.isConnected)
+                this.layout(host, state);
         }, PassInterval);
     }
 

@@ -4,6 +4,7 @@ import { ownDescendants, readComponentId } from "../addressing/dom-registry.ts";
 import { ensureEmptyState } from "../addressing/items-empty-renderer.ts";
 import { resetSourceOrder } from "../addressing/items-source-order.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
+import type { ItemStackEntry } from "./binding-template-evaluator.ts";
 import { tryReadItemProperty } from "./binding-template-evaluator.ts";
 import { renderItemRow } from "./items-row-renderer.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
@@ -35,6 +36,7 @@ export function setComponentItems(
     const renderers = { metadata, templates, renderer };
     const isOption = templateMetadata.itemWrapperRole === "option";
     const rows: Element[] = [];
+    const remembered = new Map<string, ItemStackEntry>();
 
     for (const item of items) {
         const key = readItemKey(item);
@@ -50,9 +52,15 @@ export function setComponentItems(
         if (isOption && !row.hasAttribute("tabindex"))
             row.setAttribute("tabindex", "-1");
 
+        const scope = renderer.getItemScope?.(row);
+
+        if (scope !== undefined)
+            remembered.set(key, scope);
+
         rows.push(row);
     }
 
+    renderer.rememberComponentItems?.(componentId, remembered);
     resetSourceOrder(host);
     host.replaceChildren(...rows);
     ensureEmptyState(host, componentId, templates, renderer);

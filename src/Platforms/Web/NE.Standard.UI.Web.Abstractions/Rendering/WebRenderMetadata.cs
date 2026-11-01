@@ -460,8 +460,8 @@ public sealed class WebRenderMetadata
         if (address.Component.Id.IsEmpty)
             return;
 
-        _pendingExposedProperties.Add(address);
-        _ = _exposedPropertyNames.Add((address.Component.Id, address.Property.Name));
+        if (_exposedPropertyNames.Add((address.Component.Id, address.Property.Name)))
+            _pendingExposedProperties.Add(new UIPropertyAddress(address.Component.Id, address.Property));
     }
 
     /// <summary>Whether a package's client may set the property, which a render marks the element of.</summary>
@@ -625,11 +625,17 @@ public sealed class WebRenderMetadata
     {
         foreach (UIPropertyAddress address in _pendingExposedProperties)
         {
-            // Refused rather than left out: a package that exposes a property its component never renders would set nothing, silently.
-            if (!TryCreatePropertyMetadata(address, out WebRenderPropertyMetadata? metadata))
-                throw new InvalidOperationException($"Exposed property '{address.Component.Id.Value}.{address.Property.Name}' is not rendered by its component.");
+            if (TryCreatePropertyMetadata(address, out WebRenderPropertyMetadata? metadata))
+            {
+                _exposedProperties.Add(metadata!);
+                continue;
+            }
 
-            _exposedProperties.Add(metadata!);
+            if (string.Equals(address.Property.Name, "Items", StringComparison.Ordinal) && _itemsTemplateComponents.Contains(address.Component.Id))
+                continue;
+
+            // Refused rather than left out: a package that exposes a property its component never renders would set nothing, silently.
+            throw new InvalidOperationException($"Exposed property '{address.Component.Id.Value}.{address.Property.Name}' is not rendered by its component.");
         }
     }
 

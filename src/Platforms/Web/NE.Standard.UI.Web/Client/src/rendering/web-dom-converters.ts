@@ -7,7 +7,7 @@ import {
     enumNames, isBackgroundImageBlurred, isTiered, toBackgroundImageCss, toBackgroundImageDimCss, toBadgeTitleFit, toBorderEdge,
     toCount, toDayTokens, toFiniteNumber, toGridPlacementPart, toGridTemplate, toGridTrackLimits, toGridUnit,
     toItemsQueryAttribute, toLayoutLength, toOptionalPixels, toPadding, toPixels, toPositiveCount, toProgressValue,
-    toRadius, toResponsiveGridTemplate, toResponsiveSize, toSelectedKeysAttribute, toSelectionFontWeight, toSelectionMark,
+    toRadius, toResponsiveFixedColumns, toResponsiveGridTemplate, toResponsiveSize, toSelectedKeysAttribute, toSelectionFontWeight, toSelectionMark,
     toSelectionStylePart, toSize, toTabMenuTokens, toTextAppearanceClass, toTextAppearanceField, toThickness,
     toThicknessSum, toUniqueSelectedKeysAttribute, toWindowAggregatesAttribute
 } from "./converter-values.ts";
@@ -333,6 +333,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ...tierConverters("gridPlacement", "ColumnSpanCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "columnSpan")),
     ...tierConverters("gridPlacement", "RowSpanCss", (value, tier) => toGridPlacementPart(toResponsiveTier(value, tier), "rowSpan")),
     ...tierConverters("responsiveGridTemplate", "Css", (value, tier) => toResponsiveGridTemplate(value, tier)),
+    ...tierConverters("responsiveFixedColumns", "Css", (value, tier) => toResponsiveFixedColumns(value, tier)),
     ["gridTrackLimitsAttribute", value => toGridTrackLimits(value)],
     tokenClass("imageFitClass", "ui-image-fit--", imageFitTokens),
     familyClass("expanderVariantClass", toClassFamily([ExpanderQuietClass]), value => toToken(value, expanderVariantTokens) === "quiet" ? ExpanderQuietClass : ""),

@@ -1,7 +1,7 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import { BindingAttributePrefix, IntoAttributePrefix, cssAttributeValue, toKebabCase } from "./dom-attributes.ts";
 import type { DomRegistry } from "./dom-registry.ts";
-import { resolveOperationElements } from "./operation-targets.ts";
+import { ownMarkedElements, resolveOperationElements } from "./operation-targets.ts";
 import { getIdValue } from "../metadata/metadata-index.ts";
 import type {
     MetadataIndex,
@@ -119,6 +119,8 @@ export class AddressResolver {
         if (componentId <= 0 || definition === undefined)
             return null;
 
+        const bindingId = bound?.bindingId ?? getIdValue(this.metadata.getBindingByComponentAndPropertyId(componentId, reference.propertyId)?.bindingId);
+
         return {
             componentId,
             propertyId: reference.propertyId,
@@ -126,8 +128,8 @@ export class AddressResolver {
             dynamicParameters: [],
             component,
             definition,
-            bindingId: bound?.bindingId ?? 0,
-            bindingSelector: bound === undefined ? null : this.bindingSelector(bound.bindingId, definition.propertyName),
+            bindingId,
+            bindingSelector: bindingId > 0 ? this.bindingSelector(bindingId, definition.propertyName) : null,
             boundElement: bound?.element,
             address: { component: { id: componentId, dynamicParameters: [] }, property: definition.propertyName }
         };
@@ -136,23 +138,17 @@ export class AddressResolver {
     /** Every element the operation lands on, not the first: one property may be rendered onto several elements. */
     public resolveOperationTargets(resolved: ResolvedPropertyAddress, operation: WebDomOperation): Element[] {
         return resolveOperationElements(resolved.component, operation, () => {
-            // An unbound property is patched only as a validation target, whose element the renderer marked; with neither mark, the root's.
-            if (resolved.bindingSelector === null) {
-                const into = resolved.component.querySelector<Element>(this.intoSelector(resolved.propertyName));
+            // An unbound property is patched as an interaction or validation target, whose element the renderer marked; with neither mark, the root's.
+            if (resolved.bindingSelector === null)
+                return ownMarkedElements(resolved.component, this.intoSelector(resolved.propertyName));
 
-                return [into ?? resolved.component];
-            }
-
-            const elements = Array.from(resolved.component.querySelectorAll<Element>(resolved.bindingSelector));
-
-            if (resolved.component.matches(resolved.bindingSelector))
-                elements.unshift(resolved.component);
+            const elements = ownMarkedElements(resolved.component, resolved.bindingSelector, false);
 
             // An element marked `data-ui-bind-value` for a property of another name carries no attribute of that name.
             if (resolved.boundElement !== undefined && !elements.includes(resolved.boundElement))
                 elements.unshift(resolved.boundElement);
 
-            return elements;
+            return elements.length > 0 ? elements : ownMarkedElements(resolved.component, this.intoSelector(resolved.propertyName));
         });
     }
 

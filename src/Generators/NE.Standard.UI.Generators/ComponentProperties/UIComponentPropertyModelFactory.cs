@@ -165,7 +165,7 @@ internal static class UIComponentPropertyModelFactory
         ValidateGeneratedPropertyMember(model, UIComponentPropertyNames.GetUIPropertyName(model.Property.Name), diagnostics);
 
         if (values.GenerateSetter)
-            ValidateGeneratedSetterMember(model, diagnostics);
+            ValidateGeneratedSetterMember(compilation, symbols: model, diagnostics);
 
         if (values.GenerateBinder && values.IsBindable)
             ValidateGeneratedBinderMembers(compilation, model, diagnostics);
@@ -245,24 +245,55 @@ internal static class UIComponentPropertyModelFactory
             diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, GetDiagnosticLocation(model), memberName, model.ContainingType.ToDisplayString()));
     }
 
-    private static void ValidateGeneratedSetterMember(PropertySymbols model, List<DiagnosticInfo> diagnostics)
+    private static void ValidateGeneratedSetterMember(Compilation compilation, PropertySymbols symbols, List<DiagnosticInfo> diagnostics)
     {
-        var memberName = UIComponentPropertyNames.GetSetterName(model.Property.Name);
+        var memberName = UIComponentPropertyNames.GetSetterName(symbols.Property.Name);
+        ITypeSymbol? responsiveElement = TryGetResponsiveElementType(symbols.Property.Type, compilation.GetTypeByMetadataName(ResponsiveMetadataName));
 
-        foreach (ISymbol member in model.ContainingType.GetMembers(memberName))
+        foreach (ISymbol member in symbols.ContainingType.GetMembers(memberName))
         {
             if (member is not IMethodSymbol method)
                 continue;
 
-            if (method.Parameters.Length != 1)
+            var conflictsWithPlain = method.Parameters.Length == 1
+                && SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated), symbols.Property.Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated));
+
+            var conflictsWithResponsive = responsiveElement is not null && ConflictsWithResponsiveSetter(method, responsiveElement);
+
+            if (!conflictsWithPlain && !conflictsWithResponsive)
                 continue;
 
-            if (!SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated), model.Property.Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated)))
-                continue;
-
-            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, GetDiagnosticLocation(model), memberName, model.ContainingType.ToDisplayString()));
+            diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.GeneratedMemberConflict, GetDiagnosticLocation(symbols), memberName, symbols.ContainingType.ToDisplayString()));
             return;
         }
+    }
+
+    private static ITypeSymbol? TryGetResponsiveElementType(ITypeSymbol propertyType, INamedTypeSymbol? responsiveTypeDefinition)
+    {
+        if (responsiveTypeDefinition is null)
+            return null;
+
+        ITypeSymbol unwrapped = propertyType is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
+            ? nullable.TypeArguments[0]
+            : propertyType;
+
+        return unwrapped is INamedTypeSymbol { IsGenericType: true } named && SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, responsiveTypeDefinition)
+            ? named.TypeArguments[0]
+            : null;
+    }
+
+    private static bool ConflictsWithResponsiveSetter(IMethodSymbol method, ITypeSymbol elementType)
+    {
+        if (method.Parameters.Length != 5 || !SymbolEqualityComparer.Default.Equals(method.Parameters[0].Type, elementType))
+            return false;
+
+        for (var i = 1; i < 5; i++)
+        {
+            if (method.Parameters[i].Type is not INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } tier || !SymbolEqualityComparer.Default.Equals(tier.TypeArguments[0], elementType))
+                return false;
+        }
+
+        return true;
     }
 
     private static void ValidateGeneratedBinderMembers(Compilation compilation, PropertySymbols model, List<DiagnosticInfo> diagnostics)
@@ -424,19 +455,7 @@ internal static class UIComponentPropertyModelFactory
     /// The <c>T</c> of a (nullable-)<c>UIResponsive&lt;T&gt;</c> property type, which earns the property a responsive setter overload.
     /// </summary>
     private static string? GetResponsiveElementType(ITypeSymbol propertyType, INamedTypeSymbol? responsiveTypeDefinition)
-    {
-        if (responsiveTypeDefinition is null)
-            return null;
-
-        ITypeSymbol unwrapped = propertyType is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable
-            ? nullable.TypeArguments[0]
-            : propertyType;
-
-        if (unwrapped is not INamedTypeSymbol { IsGenericType: true } named || !SymbolEqualityComparer.Default.Equals(named.OriginalDefinition, responsiveTypeDefinition))
-            return null;
-
-        return named.TypeArguments[0].ToGlobalNonNullableTypeDisplayString();
-    }
+        => TryGetResponsiveElementType(propertyType, responsiveTypeDefinition)?.ToGlobalNonNullableTypeDisplayString();
 
     public static UIComponentPropertyBlockModel? CreateBlockModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {

@@ -127,6 +127,10 @@ public static class ResponsiveRenderer
     public static WebDomOperation[] TierOperations(string cssVariableName, WebResponsiveConverters converters)
         => TierOperations(cssVariableName, converters, static (name, target, converter) => WebDomOperation.Style(name, target, converter));
 
+    /// <summary>As <see cref="TierOperations(string, WebResponsiveConverters)"/>, targeting <paramref name="target"/> and marked <paramref name="optional"/> when needed.</summary>
+    public static WebDomOperation[] TierOperations(string cssVariableName, WebResponsiveConverters converters, string? target, bool optional)
+        => TierOperations(cssVariableName, converters, (name, _, converter) => WebDomOperation.Style(name, target, converter, optional));
+
     /// <summary>As <see cref="TierOperations(string, WebResponsiveConverters)"/>, but each tier through <paramref name="operation"/>: an attribute per tier.</summary>
     internal static WebDomOperation[] TierOperations(string name, WebResponsiveConverters converters, Func<string, string?, string?, WebDomOperation> operation)
     {

@@ -11,6 +11,7 @@ import { forgetWords } from "../rendering/client-strings.ts";
 import { logError, logWarn } from "../metadata/logger.ts";
 import { CardHeaderShownOperationKind, writeCardHeaderShown } from "./card-header.ts";
 import { ContentFillsOperationKind, writeContentFills } from "./content-fills.ts";
+import { DefaultWordsOperationKind, writeDefaultWords } from "./default-words.ts";
 import { FormOwnerOperationKind, writeFormOwner } from "./form-owner.ts";
 import { IconStandInOperationKind, writeIconStandIn } from "../rendering/icon-stand-in.ts";
 import { MenuCurrentOperationKind, writeMenuCurrent } from "../rendering/menu-current.ts";
@@ -164,6 +165,8 @@ export class DomOperationRegistry {
         this.register("Data", () => { });
 
         this.register(TooltipNameOperationKind, context => writeTooltipName(context.resolved.component, context.target, requireOperationName(context.operation)));
+
+        this.register(DefaultWordsOperationKind, context => writeDefaultWords(context.target, context.operation, context.convertedValue));
 
         this.register(FormOwnerOperationKind, context => writeFormOwner(context.target, context.value));
 

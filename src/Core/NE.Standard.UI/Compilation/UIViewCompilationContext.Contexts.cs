@@ -6,6 +6,7 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Resolution;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -58,7 +59,7 @@ internal sealed partial class UIViewCompilationContext
 
         // The same path the owner's Items binding compiles to, window property included — stopping at the
         // source would address every row one property too high.
-        CompiledPath itemsPath = BuildItemsBindingPath(owner, itemsBinding, componentContexts, rootPath);
+        CompiledPath itemsPath = PreserveEnclosingScopes(owner, BuildItemsBindingPath(owner, itemsBinding, componentContexts, rootPath), componentContexts);
         CompiledPath itemPath = AppendDynamicParameter(itemsPath, GetComponentId(component.Id));
         CompiledUIBindingTemplate compiledTemplate = GetOrAddTemplate(templatesByKey, itemPath.Source, itemPath.Template);
         CompiledUIContext context = GetOrAddContext(contextsByTemplateId, compiledTemplate);
@@ -90,6 +91,45 @@ internal sealed partial class UIViewCompilationContext
         return _authoringIdByComponentId.TryGetValue(componentId, out var authoringId)
             ? authoringId
             : throw new InvalidOperationException($"Component '{componentId}' was not found.");
+    }
+
+    /// <summary>
+    /// Keeps every item scope <paramref name="owner"/> sits in as a parameter slot when the bound items path skipped an outer row
+    /// (through a <c>Root</c> or <c>Parent</c> scope), so the inner row's own key is not read from an outer row's key position.
+    /// </summary>
+    private CompiledPath PreserveEnclosingScopes(IVisualComponent owner, CompiledPath itemsPath, Dictionary<string, ResolvedComponentContext> componentContexts)
+    {
+        List<string> scopes = ItemScopesOf(owner.Id, componentContexts);
+
+        if (scopes.Count == 0 || CompiledUIBindingParameterResolver.CountDynamic(itemsPath.Parameters) == scopes.Count)
+            return itemsPath;
+
+        List<CompiledUIBindingParameter> merged = new(itemsPath.Parameters.Length + scopes.Count);
+        var scopeIndex = scopes.Count - 1;
+
+        for (var i = 0; i < itemsPath.Parameters.Length; i++)
+        {
+            CompiledUIBindingParameter parameter = itemsPath.Parameters[i];
+
+            if (parameter.Kind == CompiledUIBindingParameterKind.Fixed)
+            {
+                merged.Add(parameter);
+                continue;
+            }
+
+            while (scopeIndex >= 0 && GetComponentId(scopes[scopeIndex]) != parameter.ComponentId!.Value)
+                merged.Add(CompiledUIBindingParameter.Scope(GetComponentId(scopes[scopeIndex--])));
+
+            merged.Add(parameter);
+
+            if (scopeIndex >= 0)
+                scopeIndex--;
+        }
+
+        while (scopeIndex >= 0)
+            merged.Add(CompiledUIBindingParameter.Scope(GetComponentId(scopes[scopeIndex--])));
+
+        return new CompiledPath(itemsPath.Source, itemsPath.Template, [.. merged]);
     }
 
     private bool TryResolveComponentItemsTemplateRootContext(IVisualComponent component, Dictionary<string, CompiledUIBindingSource> sourcesByKey, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<UIBindingTemplateId, CompiledUIContext> contextsByTemplateId, Dictionary<string, ResolvedComponentContext> componentContexts, out ResolvedComponentContext resolved)
@@ -128,21 +168,19 @@ internal sealed partial class UIViewCompilationContext
     /// The keys of the item scopes <paramref name="owner"/> already sits in, carried forward so that a
     /// collection starting a source of its own still addresses like the row it is rendered in.
     /// </summary>
-    private static CompiledUIBindingParameter[] GetEnclosingScopeParameters(IVisualComponent owner, Dictionary<string, ResolvedComponentContext> componentContexts)
+    private CompiledUIBindingParameter[] GetEnclosingScopeParameters(IVisualComponent owner, Dictionary<string, ResolvedComponentContext> componentContexts)
     {
-        if (!componentContexts.TryGetValue(owner.Id, out ResolvedComponentContext ownerContext))
+        List<string> scopes = ItemScopesOf(owner.Id, componentContexts);
+
+        if (scopes.Count == 0)
             return [];
 
-        List<CompiledUIBindingParameter> parameters = [];
+        CompiledUIBindingParameter[] parameters = new CompiledUIBindingParameter[scopes.Count];
 
-        foreach (CompiledUIBindingParameter parameter in ownerContext.Path.Parameters)
-        {
-            // Fixed parameters are literal indices the author wrote, not something the client supplies, so they play no part in an address.
-            if (parameter.Kind is CompiledUIBindingParameterKind.Dynamic or CompiledUIBindingParameterKind.Scope)
-                parameters.Add(CompiledUIBindingParameter.Scope(parameter.ComponentId!.Value));
-        }
+        for (var i = 0; i < scopes.Count; i++)
+            parameters[i] = CompiledUIBindingParameter.Scope(GetComponentId(scopes[scopes.Count - 1 - i]));
 
-        return [.. parameters];
+        return parameters;
     }
 
     private ResolvedComponentContext ResolveInheritedComponentContext(IVisualComponent component, Dictionary<string, ResolvedComponentContext> componentContexts, CompiledUIContext rootContext, CompiledPath rootPath)

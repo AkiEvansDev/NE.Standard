@@ -430,6 +430,37 @@ export function toResponsiveGridTemplate(value: unknown, tier: ResponsiveTier): 
     return own === below ? "" : own;
 }
 
+function fixedColumnsRoom(tracks: readonly unknown[], tier: ResponsiveTier): number {
+    let room = 0;
+
+    for (const track of tracks) {
+        const resolved = resolveResponsiveTier(track, tier);
+
+        if (resolved === null || resolved === undefined || typeof resolved !== "object")
+            continue;
+
+        const model = resolved as { unit?: string | number; value?: number; minValue?: number | null };
+
+        if (model.unit === "Absolute" || model.unit === 1)
+            room += model.value ?? 0;
+        else
+            room += Math.max(model.minValue ?? 0, 0);
+    }
+
+    return room;
+}
+
+// Mirrors ContainerComponentRenderer.RenderSpacing: fixed column room per tier, written only where it differs from the tier below.
+export function toResponsiveFixedColumns(value: unknown, tier: ResponsiveTier): string {
+    if (!Array.isArray(value) || value.length === 0)
+        return "";
+
+    const room = fixedColumnsRoom(value, tier);
+    const below = tier === "base" ? 0 : fixedColumnsRoom(value, responsiveTiers[responsiveTiers.indexOf(tier) - 1]);
+
+    return room === below ? "" : toPixels(room);
+}
+
 export function toGridTrackLimits(value: unknown): string | undefined {
     if (!Array.isArray(value) || value.length === 0)
         return undefined;

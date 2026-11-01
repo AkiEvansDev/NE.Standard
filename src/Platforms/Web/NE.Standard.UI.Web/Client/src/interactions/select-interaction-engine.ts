@@ -27,6 +27,7 @@ import {
 } from "./select-dom.ts";
 import { TypeAhead, typeAheadCharacter } from "./type-ahead.ts";
 import type { EntryValidation, FieldMarkWords, FieldValidation } from "./validation-engine.ts";
+import { registerRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 
 // The keys that move an open list's current option.
 const ListKeys = new Set(["ArrowDown", "ArrowUp", "Home", "End", "PageDown", "PageUp"]);
@@ -80,6 +81,7 @@ export class SelectInteractionEngine {
         };
 
         this.optionWatch = this.root instanceof Node ? new MutationObserver(answer) : null;
+        registerRuntimeCleanup(() => this.optionWatch?.disconnect());
 
         if (this.root instanceof Node)
             new MutationObserver(answer).observe(this.root, { attributes: true, attributeFilter: ObservedAttributes, childList: true, subtree: true });

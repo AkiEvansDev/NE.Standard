@@ -3,7 +3,7 @@
 import { ComponentKeyAttribute, ComponentSelector, ItemsHostAttribute, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentAddress, readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
-import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
+import { startsWithDynamicParameters } from "../addressing/dynamic-parameters.ts";
 import { itemsHostOf } from "../addressing/item-reveal.ts";
 import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import { resolveHostMode } from "../addressing/items-host-mode.ts";
@@ -325,7 +325,7 @@ export function changesListOf(update: ServerUIUpdate, host: Element): boolean {
     const component = (update as ServerCollectionChangeUIUpdate).component;
     const owner = host.closest(ComponentSelector);
 
-    return owner !== null && readComponentId(owner) === getIdValue(component?.id) && matchesDynamicParameters(owner, component?.dynamicParameters ?? []);
+    return owner !== null && readComponentId(owner) === getIdValue(component?.id) && startsWithDynamicParameters(owner, component?.dynamicParameters ?? []);
 }
 
 // The rows gathered first and taken out together: a list read once, the order filtered once, and the cursor's next row decided past

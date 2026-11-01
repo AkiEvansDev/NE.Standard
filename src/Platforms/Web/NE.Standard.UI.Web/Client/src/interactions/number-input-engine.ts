@@ -9,6 +9,7 @@ import type { NumberCulturePack } from "../rendering/number-format.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
 import type { Phrase } from "../rendering/words.ts";
 import type { PropertyPatchTarget } from "../state/property-state-store.ts";
+import { observeComponents } from "./dom-mutations.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { displayNumberText, editNumberText, parseNumberText, sanitizeNumberText, trimTrailingZeros } from "./number-text.ts";
@@ -51,6 +52,12 @@ export class NumberInputEngine {
 
         // Formatting runs at attach and after every server-pushed value, not only on blur.
         this.showAtRest(this.root.querySelectorAll<HTMLInputElement>(`.${NumberInputFieldClass}`));
+
+        observeComponents(this.root, `.${NumberInputFieldClass}`, {
+            childList: true,
+            addedOnly: true,
+            relevant: mutation => mutation.addedNodes.length > 0
+        }, inputs => this.showAtRest(inputs as Iterable<HTMLInputElement>));
 
         // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {

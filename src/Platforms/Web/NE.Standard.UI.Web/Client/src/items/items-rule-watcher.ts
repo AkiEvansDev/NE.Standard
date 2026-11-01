@@ -5,7 +5,7 @@ import {
 } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId, readComponentId } from "../addressing/dom-registry.ts";
 import { observeComponents } from "../interactions/dom-mutations.ts";
-import { collectDynamicParameters, matchesDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
+import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
 import { getIdValue, getPropertyKeyName, getUpdateKind } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, ServerChangeSet, ServerUIUpdate, ServerValidationUIUpdate, ServerValueUIUpdate, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
 import type { PropertyPatchTarget, PropertyStateStore, PropertyValueChange } from "../state/property-state-store.ts";
@@ -46,7 +46,7 @@ export class ItemsRuleWatcher {
     private readonly readerHeld = new Map<Element, { readonly componentId: number; readonly row: Element }>();
 
     // The reader's edits of rows' fields recorded as their answer arrived, followed once it is applied.
-    private readonly answering: PropertyValueChange[] = [];
+    private readonly answering: { readonly change: PropertyValueChange; readonly rawValue: unknown }[] = [];
 
     // Whether a host's own templates draw a patched component, by host, scope and component: templates never change.
     private readonly drawnByHost = new Map<string, boolean>();
@@ -150,7 +150,7 @@ export class ItemsRuleWatcher {
     public awaitAnswer(change: PropertyValueChange): void {
         // No dynamic parameters: no row's field.
         if (change.dynamicParameters.length > 0)
-            this.answering.push(change);
+            this.answering.push({ change, rawValue: this.rawValueOf(change) });
     }
 
     /**
@@ -171,10 +171,16 @@ export class ItemsRuleWatcher {
 
         const updates = answer?.updates ?? [];
 
-        for (const edit of edits) {
-            if (!updates.some(update => answersEdit(update, edit)) && !this.readElsewhere(edit))
-                this.handleItemValueChange(edit);
+        for (const { change, rawValue } of edits) {
+            if (!updates.some(update => answersEdit(update, change, rawValue)) && !this.readElsewhere(change))
+                this.handleItemValueChange(change, rawValue);
         }
+    }
+
+    private rawValueOf(change: PropertyValueChange): unknown {
+        return typeof this.options.state.has === "function" && this.options.state.has(change.reference, change.dynamicParameters)
+            ? this.options.state.get(change.reference, change.dynamicParameters)
+            : change.value;
     }
 
     /**
@@ -196,7 +202,7 @@ export class ItemsRuleWatcher {
         // node, which the row's own scope does not answer to — and the one holding the edited field, not another list's of that key.
         const row = path === null
             ? undefined
-            : this.findItemRootsAbove(edit, path)[0] ?? this.findAddressedItemRoots(edit.dynamicParameters).find(candidate => edit.components.some(component => candidate.contains(component)));
+            : this.findItemRootsAbove(edit, path)[0] ?? this.findAddressedItemRoots(componentId, path, edit.dynamicParameters).find(candidate => edit.components.some(component => candidate.contains(component)));
 
         if (path === null || row === undefined)
             return false;
@@ -221,10 +227,8 @@ export class ItemsRuleWatcher {
                 if (other === undefined || otherPath === null || (getIdValue(other.componentId) === componentId && other.propertyId === propertyId))
                     continue;
 
-                // The row's own item: named by the edit's scope, or the innermost one, with no row of a list inside it between.
-                const ownItem = otherPath.scopeComponentId <= 0 || otherPath.scopeComponentId === path.scopeComponentId;
-
-                if (ownItem && overlaps(otherPath.steps, path.steps) && this.findItemRoot(element, 0) === row)
+                // The row's own item: named by the row or one of its composite cells, with no row of a list inside it between.
+                if (overlaps(otherPath.steps, path.steps) && this.findItemRoot(element, 0) === row && (otherPath.scopeComponentId <= 0 || otherPath.scopeComponentId === path.scopeComponentId || this.findItemRoot(element, otherPath.scopeComponentId) === row))
                     return true;
             }
         }
@@ -232,16 +236,13 @@ export class ItemsRuleWatcher {
         return false;
     }
 
-    private handleItemValueChange(change: PropertyValueChange): void {
+    private handleItemValueChange(change: PropertyValueChange, rawValue: unknown = this.rawValueOf(change)): void {
         // No dynamic parameters means the patch is not addressed at an item at all: the cheap way out.
         if (change.dynamicParameters.length === 0)
             return;
 
-        const binding = this.options.metadata.getBindingByComponentAndPropertyId(
-            getIdValue(change.reference.componentId),
-            change.reference.propertyId
-        );
-
+        const componentId = getIdValue(change.reference.componentId);
+        const binding = this.options.metadata.getBindingByComponentAndPropertyId(componentId, change.reference.propertyId);
         const path = binding === undefined ? null : readItemValuePath(binding);
 
         if (path === null)
@@ -251,11 +252,11 @@ export class ItemsRuleWatcher {
 
         // No row holds the patched component: a virtualized host's value, drawn or not, else a row drawn without it (another variant),
         // found by the address's own keys.
-        if (roots.length === 0 && this.applyVirtualizedItemValue(change, path))
+        if (roots.length === 0 && this.applyVirtualizedItemValue(change, path, rawValue))
             return;
 
-        for (const item of roots.length > 0 ? roots : this.findAddressedItemRoots(change.dynamicParameters))
-            this.applyItemValue(item, path, change.value);
+        for (const item of roots.length > 0 ? roots : this.findAddressedItemRoots(componentId, path, change.dynamicParameters))
+            this.applyItemValue(item, path, rawValue);
     }
 
     /** The items a patch changed, found above the patched component. */
@@ -273,10 +274,10 @@ export class ItemsRuleWatcher {
     }
 
     /** A patch to the value a virtualized host holds for the row the address names; false where no host it is addressed to holds one. */
-    private applyVirtualizedItemValue(change: PropertyValueChange, path: ItemValuePath): boolean {
-        const key = change.dynamicParameters[change.dynamicParameters.length - 1];
+    private applyVirtualizedItemValue(change: PropertyValueChange, path: ItemValuePath, rawValue: unknown): boolean {
+        const key = rowKeyText(change.dynamicParameters[change.dynamicParameters.length - 1]);
 
-        if (typeof key !== "string")
+        if (key === null)
             return false;
 
         let taken = false;
@@ -289,7 +290,7 @@ export class ItemsRuleWatcher {
             if (owner === null || !this.drawsPatchedComponent(owner, getIdValue(change.reference.componentId), path) || !isAddressedTo(owner, change.dynamicParameters))
                 continue;
 
-            taken = this.applyVirtualizedValue(host, readComponentId(owner), key, path, change.value) || taken;
+            taken = this.applyVirtualizedValue(host, readComponentId(owner), key, path, rawValue) || taken;
         }
 
         return taken;
@@ -305,8 +306,11 @@ export class ItemsRuleWatcher {
 
         let draws = false;
 
-        for (const template of owner.querySelectorAll<HTMLTemplateElement>(":scope > template")) {
-            const root = template.content.firstElementChild;
+        for (const child of owner.children) {
+            if (child.localName !== "template")
+                continue;
+
+            const root = (child as HTMLTemplateElement).content.firstElementChild;
 
             if (root === null)
                 continue;
@@ -369,14 +373,21 @@ export class ItemsRuleWatcher {
         syncItemsHost(host, componentId, this.options);
     }
 
-    private findAddressedItemRoots(dynamicParameters: readonly unknown[]): Element[] {
-        const key = dynamicParameters[dynamicParameters.length - 1];
+    private findAddressedItemRoots(componentId: number, path: ItemValuePath, dynamicParameters: readonly unknown[]): Element[] {
+        const key = rowKeyText(dynamicParameters[dynamicParameters.length - 1]);
 
-        if (typeof key !== "string")
+        if (key === null)
             return [];
 
         return [...this.options.root.querySelectorAll<Element>(`[${ComponentKeyAttribute}="${cssAttributeValue(key)}"]`)]
-            .filter(element => this.isItemRoot(element) && matchesDynamicParameters(element, dynamicParameters));
+            .filter(element => {
+                if (!this.isItemRoot(element))
+                    return false;
+
+                const owner = element.parentElement?.closest(ComponentSelector) ?? null;
+
+                return owner !== null && this.drawsPatchedComponent(owner, componentId, path) && isAddressedTo(owner, dynamicParameters);
+            });
     }
 
     private applyItemValue(item: Element, path: ItemValuePath, value: unknown): void {
@@ -426,8 +437,19 @@ export class ItemsRuleWatcher {
         while (current !== null) {
             const scope = this.options.renderer.getItemScope(current);
 
-            if (scope !== undefined && (scopeComponentId <= 0 || scope.scopeComponentId === scopeComponentId) && this.isItemRoot(current))
-                return current;
+            if (scope !== undefined && (scopeComponentId <= 0 || scope.scopeComponentId === scopeComponentId)) {
+                if (this.isItemRoot(current))
+                    return current;
+
+                // A composite table cell's template root stands inside `<td data-ui-key>` under the row's `<tr data-ui-key>`.
+                if (scopeComponentId > 0) {
+                    const cell = current.parentElement;
+                    const slotRow = cell?.hasAttribute(ComponentKeyAttribute) === true ? cell.parentElement : null;
+
+                    if (slotRow !== null && this.isItemRoot(slotRow))
+                        return slotRow;
+                }
+            }
 
             current = current.parentElement;
         }
@@ -476,17 +498,26 @@ function holdsFocus(row: Element): boolean {
     return focused !== null && row.contains(focused);
 }
 
+function rowKeyText(rawKey: unknown): string | null {
+    if (rawKey === null || rawKey === undefined)
+        return null;
+
+    const text = String(rawKey);
+
+    return text.length > 0 ? text : null;
+}
+
 /**
  * Whether an update of the answer speaks for the edit's address itself: a refusal of it, or another value of the server's own there,
  * which reached the item as a push. Its keys may be fewer than the edit's: the server answers by the keys the field's component
  * stands under.
  */
-function answersEdit(update: ServerUIUpdate, edit: PropertyValueChange): boolean {
+function answersEdit(update: ServerUIUpdate, edit: PropertyValueChange, rawValue: unknown): boolean {
     const kind = getUpdateKind(update);
     // The value sent, sent back all the same (an object the controller holds is never equal to its JSON), reads as no change and
     // reaches no item; a Validation with no message clears an earlier refusal. Both are the value taken.
     const speaks = kind === "Value"
-        ? !areValuesEqual((update as ServerValueUIUpdate).value ?? null, edit.value)
+        ? !areValuesEqual((update as ServerValueUIUpdate).value ?? null, rawValue)
         : kind === "Validation" && ((update as ServerValidationUIUpdate).message ?? null) !== null;
     const address = (update as ServerValueUIUpdate | ServerValidationUIUpdate).address;
     const keys = address?.component?.dynamicParameters ?? [];
@@ -506,7 +537,7 @@ function overlaps(first: readonly ItemValueStep[], second: readonly ItemValueSte
         const a = first[index];
         const b = second[index];
 
-        if (a.kind === "property" ? b.kind !== "property" || a.name !== b.name : b.kind !== "element" || !areValuesEqual(a.key, b.key))
+        if (a.kind === "property" ? b.kind !== "property" || a.name.toLowerCase() !== b.name.toLowerCase() : b.kind !== "element" || !areValuesEqual(a.key, b.key))
             return false;
     }
 
@@ -525,10 +556,12 @@ function isAddressedTo(owner: Element, dynamicParameters: readonly unknown[]): b
 
 /** Whether a rule reading `rulePath` reads at or below what the patch changed. */
 function affectsRule(rulePath: string, path: ItemValuePath): boolean {
-    const changed = path.ruleSegments.join(".");
+    const changed = path.ruleSegments.join(".").toLowerCase();
 
     if (changed.length === 0)
         return true;
 
-    return rulePath === changed || rulePath.startsWith(`${changed}.`);
+    const lowerRule = rulePath.toLowerCase();
+
+    return lowerRule === changed || lowerRule.startsWith(`${changed}.`);
 }

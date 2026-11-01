@@ -3,6 +3,7 @@
 import { BottomBarAttribute, PopupCappedAttribute, PopupLiftedAttribute, PopupPlacementAttribute, PopupStoodInAttribute, SheetAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
 import { afterTransitions, motion } from "../rendering/motion.ts";
 import { reachesTier } from "../rendering/responsive-tier.ts";
+import { withoutRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 import { isInNativeModal } from "./open-dialogs.ts";
 
 export type AnchoredPopupPlacement =
@@ -254,25 +255,27 @@ function attachListeners(): void {
 
     listening = true;
 
-    // Capture phase: a popup can sit inside any scrollable ancestor, and scroll does not bubble.
-    document.addEventListener("scroll", domEvent => repositionAll(domEvent.target), true);
-    window.addEventListener("resize", () => repositionAll(null));
-    // A phone's on-screen keyboard shrinks the visual viewport alone, and the window's size says nothing of it.
-    window.visualViewport?.addEventListener("resize", () => repositionAll(null));
-    window.visualViewport?.addEventListener("scroll", () => repositionAll(null));
+    withoutRuntimeCleanup(() => {
+        // Capture phase: a popup can sit inside any scrollable ancestor, and scroll does not bubble.
+        document.addEventListener("scroll", domEvent => repositionAll(domEvent.target), true);
+        window.addEventListener("resize", () => repositionAll(null));
+        // A phone's on-screen keyboard shrinks the visual viewport alone, and the window's size says nothing of it.
+        window.visualViewport?.addEventListener("resize", () => repositionAll(null));
+        window.visualViewport?.addEventListener("scroll", () => repositionAll(null));
 
-    // A fixed popup does not re-lay-out for free when its own contents change size.
-    resizeObserver = new ResizeObserver(entries => {
-        for (const entry of entries) {
-            if (!(entry.target instanceof HTMLElement))
-                continue;
+        // A fixed popup does not re-lay-out for free when its own contents change size.
+        resizeObserver = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                if (!(entry.target instanceof HTMLElement))
+                    continue;
 
-            const tracking = tracked.get(entry.target);
+                const tracking = tracked.get(entry.target);
 
-            // Its own size changed, not where its anchor stands: it keeps its side while that fits.
-            if (tracking !== undefined)
-                position(tracking.anchor, entry.target, tracking.options, true);
-        }
+                // Its own size changed, not where its anchor stands: it keeps its side while that fits.
+                if (tracking !== undefined)
+                    position(tracking.anchor, entry.target, tracking.options, true);
+            }
+        });
     });
 }
 

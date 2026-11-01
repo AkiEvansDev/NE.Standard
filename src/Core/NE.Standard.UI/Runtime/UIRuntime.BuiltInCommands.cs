@@ -73,6 +73,8 @@ internal sealed partial class UIRuntime
         {
             int index => index,
             long index => checked((int)index),
+            ulong index => checked((int)index),
+            decimal index when index == decimal.Truncate(index) => checked((int)index),
             double index when index == Math.Floor(index) => checked((int)index),
             string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index) => index,
             _ => throw new InvalidOperationException("A tab's move names no place.")

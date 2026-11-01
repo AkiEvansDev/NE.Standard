@@ -23,7 +23,17 @@ public static class RecursiveValueCoercion
     private static readonly string[] WrittenClockFormats = ["H:mm", "H:mm:ss", "H:mm:ss.FFFFFFF"];
 
     // The wire's own conventions read back: a property camel-cased either way, an enum by its name, an `object` as the value it holds.
-    private static readonly JsonSerializerOptions ModelOptions = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter(), new ObjectToInferredTypesConverter() } };
+    private static readonly JsonSerializerOptions ModelOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters =
+        {
+            new DefinedEnumConverterFactory(),
+            new ThemeColorJsonConverter(),
+            new PhraseJsonConverter(),
+            new WrittenMomentConverterFactory(),
+            new ObjectToInferredTypesConverter()
+        }
+    };
 
     /// <summary>
     /// Attempts to coerce a boxed value into the target type <typeparamref name="T"/>.
@@ -62,15 +72,18 @@ public static class RecursiveValueCoercion
 
         Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
-        if (value is JsonElement jsonElement && underlyingType != typeof(JsonElement))
-            value = ObjectToInferredTypesConverter.ToInferredValue(jsonElement);
-
         if (value is null)
             return false;
 
-        if (underlyingType.IsInstanceOfType(value))
+        if (value is not JsonElement && underlyingType.IsInstanceOfType(value))
         {
             result = value;
+            return true;
+        }
+
+        if (underlyingType == typeof(JsonElement) && value is JsonElement rawElement)
+        {
+            result = rawElement;
             return true;
         }
 
@@ -89,11 +102,41 @@ public static class RecursiveValueCoercion
             return false;
         }
 
+        if (value is JsonElement jsonElement)
+        {
+            if (jsonElement.ValueKind == JsonValueKind.Number)
+            {
+                if (underlyingType == typeof(decimal) && jsonElement.TryGetDecimal(out var decimalNumber))
+                {
+                    result = decimalNumber;
+                    return true;
+                }
+
+                if (underlyingType == typeof(ulong) && jsonElement.TryGetUInt64(out var unsignedNumber))
+                {
+                    result = unsignedNumber;
+                    return true;
+                }
+            }
+
+            value = ObjectToInferredTypesConverter.ToInferredValue(jsonElement);
+
+            if (value is null)
+                return false;
+
+            if (underlyingType.IsInstanceOfType(value))
+            {
+                result = value;
+                return true;
+            }
+        }
+
         try
         {
             var converted = underlyingType switch
             {
                 _ when IsMoment(underlyingType) && value is string momentText => ReadWrittenMoment(momentText, underlyingType),
+                _ when underlyingType == typeof(TimeSpan) && value is string spanText => TimeSpan.TryParse(spanText.Trim(), CultureInfo.InvariantCulture, out TimeSpan span) ? span : null,
                 _ when underlyingType == typeof(Guid) && value is string guidText => Guid.Parse(guidText),
                 // A text property takes a plain string (a rename's) as the author's text, and gives back its text or its key (a
                 // command's text argument read off an item) — the one rule for a phrase read as a string.
@@ -110,7 +153,7 @@ public static class RecursiveValueCoercion
                 _ when underlyingType == typeof(string) && value.GetType().IsEnum => value.ToString(),
                 // A document the client sent, as the inferred dictionary or array it arrives as, against the model that declares its
                 // shape — a graph's nodes, a grid's sort terms.
-                _ when value is IDictionary<string, object?> or object?[] && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),
+                _ when (value is IDictionary<string, object?> or object?[] || (value is System.Collections.IEnumerable && value is not string && typeof(System.Collections.IEnumerable).IsAssignableFrom(underlyingType))) && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),
                 // Invariant text carries no group separator: "1,5" is a decimal comma typed in another culture, never fifteen.
                 _ when value is string fractionalText && IsFractional(underlyingType) => ParseFractional(fractionalText, underlyingType),
                 // A whole-number property takes a whole number, from a number or from text alike: a fraction is refused, never rounded.
@@ -249,8 +292,10 @@ public static class RecursiveValueCoercion
 
         foreach (var item in items)
         {
-            if (item is not null)
-                result.Add(item as string ?? Convert.ToString(item, CultureInfo.InvariantCulture) ?? string.Empty);
+            var unwrapped = item is JsonElement element ? ObjectToInferredTypesConverter.ToInferredValue(element) : item;
+
+            if (unwrapped is not null)
+                result.Add(unwrapped as string ?? Convert.ToString(unwrapped, CultureInfo.InvariantCulture) ?? string.Empty);
         }
 
         return [.. result];
@@ -307,4 +352,103 @@ public static class RecursiveValueCoercion
         => Type.GetTypeCode(value.GetType().IsEnum ? Enum.GetUnderlyingType(value.GetType()) : value.GetType()) is TypeCode.SByte or TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64
             ? unchecked((ulong)Convert.ToInt64(value, CultureInfo.InvariantCulture))
             : Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+
+    private sealed class DefinedEnumConverterFactory : JsonConverterFactory
+    {
+        public override bool CanConvert(Type typeToConvert)
+            => typeToConvert.IsEnum;
+
+        public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
+            => (JsonConverter)Activator.CreateInstance(typeof(DefinedEnumConverter<>).MakeGenericType(typeToConvert))!;
+    }
+
+    private sealed class DefinedEnumConverter<TEnum> : JsonConverter<TEnum>
+        where TEnum : struct, Enum
+    {
+        public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                return reader.GetString() is string text && Enum.TryParse(text, ignoreCase: false, out TEnum parsed) && IsDefinedEnumValue(typeof(TEnum), parsed)
+                    ? parsed
+                    : throw new JsonException();
+            }
+
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                var raw = Type.GetTypeCode(Enum.GetUnderlyingType(typeof(TEnum))) == TypeCode.UInt64
+                    ? (object)(reader.TryGetUInt64(out var unsigned) ? unsigned : throw new JsonException())
+                    : (reader.TryGetInt64(out var signed) ? signed : throw new JsonException());
+                var boxed = Enum.ToObject(typeof(TEnum), raw);
+
+                return boxed is TEnum value && IsDefinedEnumValue(typeof(TEnum), value) ? value : throw new JsonException();
+            }
+
+            throw new JsonException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value.ToString());
+    }
+
+    private sealed class ThemeColorJsonConverter : JsonConverter<UIThemeColor>
+    {
+        public override UIThemeColor Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.TokenType == JsonTokenType.String && reader.GetString() is string text && UIThemeColor.TryParse(text, out UIThemeColor color)
+                ? color
+                : throw new JsonException();
+
+        public override void Write(Utf8JsonWriter writer, UIThemeColor value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value.ToString());
+    }
+
+    private sealed class PhraseJsonConverter : JsonConverter<UIPhrase>
+    {
+        public override UIPhrase Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.TokenType == JsonTokenType.String && reader.GetString() is string text
+                ? UIPhrase.Text(text)
+                : throw new JsonException();
+
+        public override void Write(Utf8JsonWriter writer, UIPhrase value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value.Key);
+    }
+
+    private sealed class WrittenMomentConverterFactory : JsonConverterFactory
+    {
+        public override bool CanConvert(Type typeToConvert)
+            => IsMoment(typeToConvert);
+
+        public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
+            => (JsonConverter)Activator.CreateInstance(typeof(WrittenMomentConverter<>).MakeGenericType(typeToConvert))!;
+    }
+
+    private sealed class WrittenMomentConverter<TMoment> : JsonConverter<TMoment>
+        where TMoment : struct
+    {
+        public override TMoment Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => reader.TokenType == JsonTokenType.String && reader.GetString() is string text && ReadWrittenMoment(text, typeof(TMoment)) is TMoment moment
+                ? moment
+                : throw new JsonException();
+
+        public override void Write(Utf8JsonWriter writer, TMoment value, JsonSerializerOptions options)
+        {
+            switch (value)
+            {
+                case DateOnly date:
+                    writer.WriteStringValue(date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+                    break;
+                case TimeOnly clock:
+                    writer.WriteStringValue(clock.ToString("HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture));
+                    break;
+                case DateTimeOffset offset:
+                    writer.WriteStringValue(offset.ToString("O", CultureInfo.InvariantCulture));
+                    break;
+                case DateTime moment:
+                    writer.WriteStringValue(moment.ToString("O", CultureInfo.InvariantCulture));
+                    break;
+                default:
+                    throw new JsonException();
+            }
+        }
+    }
 }

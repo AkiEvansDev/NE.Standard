@@ -40,7 +40,7 @@ internal sealed partial class UIRuntime
     /// A windowed host whose rules read controller state, with the paths a change to which invalidates the
     /// window it is holding.
     /// </summary>
-    private sealed record WindowedRuleHost(UIComponentId ComponentId, int WindowSize, RecursivePath[] RulePaths);
+    private sealed record WindowedRuleHost(UIComponentId ComponentId, int WindowSize, RecursivePath[] RulePaths, RecursivePath? ItemsViewPath = null);
 
     // Resolved once: the compiled view is immutable, so which hosts have rules cannot change under a running runtime.
     private List<WindowedRuleHost>? _windowedRuleHosts;
@@ -172,7 +172,7 @@ internal sealed partial class UIRuntime
         // The viewer's terms first: a sort chosen by a header outranks the authored one.
         UIItemsQuery query = ReadItemsQueryNoLock(componentId) ?? UIItemsQuery.Empty;
 
-        CompiledUIItemsView? itemsView = ReadItemsView(componentId);
+        CompiledUIItemsView? itemsView = ReadItemsViewNoLock(componentId);
 
         if (itemsView is null)
             return query.IsEmpty ? UIItemsQuery.Empty : query;
@@ -213,13 +213,18 @@ internal sealed partial class UIRuntime
             : new UIItemsQuery([.. filters], [.. sorts], query.Search);
     }
 
-    /// <summary>The host's authored <c>ItemsView</c> as compiled; none where it has no rules.</summary>
-    private CompiledUIItemsView? ReadItemsView(UIComponentId componentId)
-        => View.State.TryGetValue(componentId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? propertyValue)
-            && propertyValue is { IsBind: false, Value: CompiledUIItemsView itemsView }
-            && !itemsView.IsEmpty
-                ? itemsView
-                : null;
+    /// <summary>The host's <c>ItemsView</c> — bound and resolved against the view, or authored as compiled; none where it has no rules.</summary>
+    private CompiledUIItemsView? ReadItemsViewNoLock(UIComponentId componentId)
+    {
+        if (!View.State.TryGetValue(componentId, IItemsComponent.ItemsViewProperty, out CompiledUIPropertyValue? propertyValue))
+            return null;
+
+        CompiledUIItemsView? itemsView = propertyValue.IsBind
+            ? ResolveRuntimeValue(TryGetRuleSourceValueNoLock(new UIPropertyAddress(componentId, IItemsComponent.ItemsViewProperty))) as CompiledUIItemsView
+            : propertyValue.Value as CompiledUIItemsView;
+
+        return itemsView is { IsEmpty: false } ? itemsView : null;
+    }
 
     /// <summary>
     /// Whether a viewer's query the page writes names a term its host does not offer: a filter on a property with an operator neither
@@ -237,7 +242,7 @@ internal sealed partial class UIRuntime
         if (query.IsEmpty && (current is null || current.IsEmpty))
             return false;
 
-        CompiledUIItemsView? itemsView = ReadItemsView(componentId);
+        CompiledUIItemsView? itemsView = ReadItemsViewNoLock(componentId);
         UIItemsQueryTerms? offered = View.State.TryGetValue(componentId, IItemsQueryTermsComponent.QueryTermsProperty, out CompiledUIPropertyValue? terms) && terms.Value is UIItemsQueryTerms declared
             ? declared
             : null;
@@ -344,7 +349,7 @@ internal sealed partial class UIRuntime
                 JsonValueKind.True => true,
                 JsonValueKind.False => false,
                 JsonValueKind.String => element.GetString(),
-                JsonValueKind.Number => element.TryGetDecimal(out var number) ? number : element.GetDouble(),
+                JsonValueKind.Number => element.TryGetInt64(out var signed) ? signed : element.TryGetUInt64(out var unsigned) ? unsigned : element.TryGetDecimal(out var number) ? number : element.GetDouble(),
                 _ => element.GetRawText()
             }
             : value;
@@ -449,10 +454,14 @@ internal sealed partial class UIRuntime
     private void MarkChangedItemWindowRulesNoLock(RecursivePath path)
     {
         List<WindowedRuleHost> hosts = GetWindowedRuleHostsNoLock();
+        var invalidateHosts = false;
 
         for (var i = 0; i < hosts.Count; i++)
         {
             WindowedRuleHost host = hosts[i];
+
+            if (host.ItemsViewPath is not null && IsSameOrDescendantPath(path, host.ItemsViewPath))
+                invalidateHosts = true;
 
             for (var j = 0; j < host.RulePaths.Length; j++)
             {
@@ -464,6 +473,9 @@ internal sealed partial class UIRuntime
                 break;
             }
         }
+
+        if (invalidateHosts)
+            _windowedRuleHosts = null;
     }
 
     private List<WindowedRuleHost> GetWindowedRuleHostsNoLock()
@@ -484,10 +496,10 @@ internal sealed partial class UIRuntime
 
             UIComponentId componentId = binding.Address.Component.Id;
 
-            if (!IsWindowedSourceBindingNoLock(binding) || TryGetRulePathsNoLock(componentId) is not RecursivePath[] rulePaths)
+            if (!IsWindowedSourceBindingNoLock(binding) || TryGetRulePathsNoLock(componentId, out RecursivePath? itemsViewPath) is not RecursivePath[] rulePaths)
                 continue;
 
-            _windowedRuleHosts.Add(new WindowedRuleHost(componentId, ReadWindowSizeNoLock(componentId), rulePaths));
+            _windowedRuleHosts.Add(new WindowedRuleHost(componentId, ReadWindowSizeNoLock(componentId), rulePaths, itemsViewPath));
         }
 
         return _windowedRuleHosts;
@@ -502,7 +514,7 @@ internal sealed partial class UIRuntime
             && IsWindowSegment(resolution.Path[^1]);
     }
 
-    private RecursivePath[]? TryGetRulePathsNoLock(UIComponentId componentId)
+    private RecursivePath[]? TryGetRulePathsNoLock(UIComponentId componentId, out RecursivePath? itemsViewPath)
     {
         List<RecursivePath> paths = [];
 
@@ -510,7 +522,10 @@ internal sealed partial class UIRuntime
         if (TryGetRuleSourcePathNoLock(new UIPropertyAddress(componentId, IItemsComponent.QueryProperty), out RecursivePath? queryPath))
             paths.Add(queryPath);
 
-        if (ReadItemsView(componentId) is { } itemsView)
+        if (TryGetRuleSourcePathNoLock(new UIPropertyAddress(componentId, IItemsComponent.ItemsViewProperty), out itemsViewPath))
+            paths.Add(itemsViewPath);
+
+        if (ReadItemsViewNoLock(componentId) is { } itemsView)
         {
             for (var i = 0; i < itemsView.Filters.Length; i++)
                 AppendRulePathNoLock(paths, itemsView.Filters[i].Source);

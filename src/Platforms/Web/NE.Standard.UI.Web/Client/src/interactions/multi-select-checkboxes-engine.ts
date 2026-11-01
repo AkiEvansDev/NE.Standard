@@ -11,6 +11,7 @@ import { isChoiceFull, parseChosenKeys, parseMaxChosen, toggleChosenKey } from "
 import { ownDescendants } from "./own-descendants.ts";
 import { isPressWaveRecord } from "./press-wave.ts";
 import { applyRovingTabIndex, resolveRovingTarget } from "./roving-focus.ts";
+import { registerRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 
 export type MultiSelectCheckboxesEngineOptions = {
     readonly root?: ParentNode;
@@ -31,6 +32,7 @@ export class MultiSelectCheckboxesEngine {
         this.optionWatch = this.root instanceof Node
             ? new MutationObserver(mutations => this.syncAll(collectComponents(this.root, mutations.filter(mutation => !isPressWaveRecord(mutation)), `.${MultiSelectCheckboxesClass}`) ?? []))
             : null;
+        registerRuntimeCleanup(() => this.optionWatch?.disconnect());
 
         this.syncAll(this.root.querySelectorAll<HTMLElement>(`.${MultiSelectCheckboxesClass}`));
 

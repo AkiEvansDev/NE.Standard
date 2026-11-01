@@ -79,7 +79,7 @@ internal sealed partial class UIViewCompilationContext
                     sourceBinding.Value.Mode,
                     fullPath,
                     definition.ValueType,
-                    UIPhrase.AsValue(definition.Getter(component) ?? definition.DefaultValue),
+                    UIPhrase.AsValue(definition.Getter(component) ?? ImpliedValue(component, definition.Property) ?? definition.DefaultValue),
                     sourceBinding.Value.Optional,
                     isTranslatable
                 );

@@ -159,6 +159,35 @@ export class ValueBindingEngine {
         return released;
     }
 
+    /** Lets go of every edit, draft and conflict held across the page, and answers the connected fields to restore. */
+    public releaseAll(): Element[] {
+        const released = new Set<Element>();
+
+        for (const element of [...this.bufferedElements]) {
+            this.bufferedElements.delete(element);
+            this.endConflict(element);
+
+            if (element.isConnected)
+                released.add(element);
+        }
+
+        for (const element of [...this.conflicted.keys()]) {
+            this.endConflict(element);
+
+            if (element.isConnected)
+                released.add(element);
+        }
+
+        for (const element of [...this.typed]) {
+            this.typed.delete(element);
+
+            if (element.isConnected)
+                released.add(element);
+        }
+
+        return [...released];
+    }
+
     /** Holds an element's value as the reader's until it is sent, whatever its binding mode: a package's editor with unsaved work. */
     public hold(element: Element): void {
         this.pruneDetached();

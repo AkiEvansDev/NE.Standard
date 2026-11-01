@@ -26,3 +26,18 @@ export function resolveOperationElements(component: Element, operation: WebDomOp
 
     return bound();
 }
+
+/** The elements of a component marked by `marked` — itself and its own parts, never a nested component's — or the root where none is. */
+export function ownMarkedElements(component: Element, marked: string, fallbackToRoot = true): Element[] {
+    const elements: Element[] = [];
+
+    if (component.matches(marked))
+        elements.push(component);
+
+    for (const element of component.querySelectorAll<Element>(marked)) {
+        if (element.closest(ComponentSelector) === component)
+            elements.push(element);
+    }
+
+    return elements.length > 0 || !fallbackToRoot ? elements : [component];
+}

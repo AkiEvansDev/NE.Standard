@@ -1,14 +1,18 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Data;
 using NE.Standard.UI.Primitives.Binding;
@@ -198,7 +202,7 @@ public sealed partial class UITestPage
 
             foreach (UIDynamicParameterScope scope in ScopesNoLock(componentId, rowKeys))
             {
-                if (scope.Item is IMenuItemModel entry && Widest<bool>(entry.Enabled) is false)
+                if (scope.Item is IMenuItemModel entry && (Widest<bool>(entry.Enabled) is false || entry.Kind is UIMenuItemKind.Header or UIMenuItemKind.Separator))
                     return false;
             }
 
@@ -323,16 +327,45 @@ public sealed partial class UITestPage
     internal bool WritesBack(UIComponentId componentId, UIProperty property)
         => BindingOf(componentId, property) is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource };
 
+    /// <summary>The property and value choosing an option row writes back on <paramref name="host"/>, or null where it writes none.</summary>
+    internal (UIProperty Property, object Value)? ChoiceWrite(UIComponentNode host, object?[] hostKeys, string key)
+    {
+        if (WritesBack(host.ComponentId, ISelectedKeyComponent.SelectedKeyProperty))
+            return (ISelectedKeyComponent.SelectedKeyProperty, key);
+
+        if (!View.State.TryGetValue(host.ComponentId, IInputComponent.IsReadOnlyProperty, out _) || !WritesBack(host.ComponentId, IInputComponent.ValueProperty))
+            return null;
+
+        if (!View.State.TryGetValue(host.ComponentId, MultiSelectComponent.MaxSelectedProperty, out _))
+            return (IInputComponent.ValueProperty, key);
+
+        List<string> chosen = [];
+
+        if (Read(host.ComponentId, hostKeys, IInputComponent.ValueProperty) is IEnumerable current and not string)
+        {
+            foreach (var item in current)
+            {
+                if (item is string { Length: > 0 } existing)
+                    chosen.Add(existing);
+            }
+        }
+
+        if (!chosen.Contains(key))
+            chosen.Add(key);
+
+        return (IInputComponent.ValueProperty, chosen.ToArray());
+    }
+
     /// <summary>Whether the component raises a command on the event.</summary>
     internal bool HasEvent(UIComponentId componentId, string eventName)
         => View.Events.TryGet(new CompiledUIEventAddress(componentId, eventName), out _);
 
     /// <summary>The component with the authored id, in the rows the caller stands in.</summary>
-    internal UITestComponent Find(string id, UIComponentId? scope, object?[] rowKeys)
+    internal UITestComponent Find(string id, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
-        if (!View.Graph.TryGetComponentId(id, out UIComponentId componentId) || (scope is UIComponentId root && !IsWithin(componentId, root)))
+        if (!View.Graph.TryGetComponentId(id, out UIComponentId componentId) || (scope is UIComponentId root && !IsWithin(componentId, root, rowKeys, rowItem)))
             throw new InvalidOperationException($"The page at '{Route}' has no component '{id}'{(scope is null ? string.Empty : " there")}.");
 
         return At(componentId, rowKeys);
@@ -354,32 +387,65 @@ public sealed partial class UITestPage
         return new UITestComponent(this, node, rowKeys[..roots.Count]);
     }
 
-    private bool IsWithin(UIComponentId componentId, UIComponentId root)
+    private bool IsWithin(UIComponentId componentId, UIComponentId root, object?[] rowKeys, object? rowItem)
     {
+        UIComponentId? directChild = null;
+
         for (UIComponentId? at = componentId; at is UIComponentId id; at = View.Graph.GetRequired(id).ParentId)
         {
             if (id.Equals(root))
+                return directChild is null || IsWornByCompositeRow(root, directChild.Value, rowKeys, rowItem);
+
+            directChild = id;
+        }
+
+        return false;
+    }
+
+    private bool IsWornByCompositeRow(UIComponentId root, UIComponentId directChild, object?[] rowKeys, object? rowItem)
+    {
+        if (rowKeys.Length != View.Graph.GetItemScopes(root).Count + 1 || !View.Graph.TryGetSlot(root, UIComponentSlotKind.TemplateVariant, out _, TemplateNames.Row))
+            return true;
+
+        foreach (UIComponentSlot slot in View.Graph.GetRequired(root).Slots)
+        {
+            if (slot.RootComponentId != directChild)
+                continue;
+
+            if (slot.Kind is not (UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant))
+                return false;
+
+            if (slot.KeyProperty is not { Length: > 0 } keyProperty || slot.Key is not { Length: > 0 } slotKey)
                 return true;
+
+            var colon = slotKey.IndexOf(':', StringComparison.Ordinal);
+            var baseKey = colon < 0 ? slotKey : slotKey[..colon];
+
+            return string.Equals(ItemTemplateSelection.ResolveCompositeVariant(View.Graph, root, baseKey, keyProperty, rowItem), slotKey, StringComparison.Ordinal);
         }
 
         return false;
     }
 
     /// <summary>The one component bound to the path: a binding of its own on the root, or a row's binding relative to its item.</summary>
-    internal UITestComponent FindBoundTo(string path, UIComponentId? scope, object?[] rowKeys)
+    internal UITestComponent FindBoundTo(string path, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
+        var inRow = rowKeys.Length > 0;
         List<(UIComponentId Component, bool Value)> found = [];
 
         foreach (CompiledUIBinding binding in View.Bindings.All)
         {
             UIComponentId componentId = binding.Address.Component.Id;
 
-            if (!NamesPath(AuthoredTemplate(binding, componentId), path))
+            if ((scope is UIComponentId root && !IsWithin(componentId, root, rowKeys, rowItem)) || View.Graph.GetItemScopes(componentId).Count > rowKeys.Length)
                 continue;
 
-            if ((scope is UIComponentId root && !IsWithin(componentId, root)) || View.Graph.GetItemScopes(componentId).Count > rowKeys.Length)
+            if (inRow && (!ReadsItem(binding) || CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters) != rowKeys.Length))
+                continue;
+
+            if (!string.Equals(AuthoredPath(binding, componentId, inRow), path, StringComparison.Ordinal))
                 continue;
 
             found.Add((componentId, binding.Kind == CompiledUIBindingKind.ComponentCollection || binding.Address.Property == IInputComponent.ValueProperty));
@@ -388,26 +454,79 @@ public sealed partial class UITestPage
         return At(SingleFound(found, path, "bound to"), rowKeys);
     }
 
-    /// <summary>The path the view bound: a windowed source's collection binding drops the window step the compiler appended.</summary>
-    private string AuthoredTemplate(CompiledUIBinding binding, UIComponentId componentId)
+    /// <summary>The path the view bound: fixed indices materialized, a row's outer segments dropped, and a windowed source's window suffix stripped.</summary>
+    private string AuthoredPath(CompiledUIBinding binding, UIComponentId componentId, bool inRow)
     {
-        var template = View.Templates.GetRequired(binding.TemplateId).Template;
+        ReadOnlySpan<RecursivePathTemplatePart> parts = View.Templates.GetRequired(binding.TemplateId).Parsed.Parts;
+        CompiledUIBindingParameter[] parameters = binding.Parameters;
+        List<CompiledUIBindingParameter> slotParameters = new(parameters.Length);
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (parameters[i].Kind != CompiledUIBindingParameterKind.Scope)
+                slotParameters.Add(parameters[i]);
+        }
+
+        var startPart = 0;
+
+        if (inRow)
+        {
+            var lastDynamicSlot = -1;
+
+            for (var i = 0; i < slotParameters.Count; i++)
+            {
+                if (slotParameters[i].Kind == CompiledUIBindingParameterKind.Dynamic)
+                    lastDynamicSlot = i;
+            }
+
+            if (lastDynamicSlot >= 0)
+            {
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    if (parts[i].ParameterIndex == lastDynamicSlot)
+                    {
+                        startPart = i + 1;
+                        break;
+                    }
+                }
+            }
+
+            if (startPart >= parts.Length)
+                return ".";
+        }
+
+        StringBuilder builder = new();
+
+        for (var i = startPart; i < parts.Length; i++)
+        {
+            RecursivePathTemplatePart part = parts[i];
+
+            if (!part.IsParameter)
+            {
+                if (builder.Length > 0)
+                    _ = builder.Append('.');
+
+                _ = builder.Append(part.Segment.Property);
+                continue;
+            }
+
+            CompiledUIBindingParameter parameter = slotParameters[part.ParameterIndex];
+            _ = builder.Append(parameter.Kind == CompiledUIBindingParameterKind.Fixed && UIRowKeys.IsPathParameter(parameter.Value) ? PathSegment.ForParameter(parameter.Value).ToString() : "[]");
+        }
+
+        var formatted = builder.ToString();
         const string windowSuffix = "." + UIItemSourceBase.WindowProperty;
 
         return binding.Kind == CompiledUIBindingKind.ComponentCollection
             && View.State.TryGetValue(componentId, IItemsHostComponent.HostModeProperty, out CompiledUIPropertyValue? mode)
             && mode.Value is UIItemsHostMode.Windowed
-            && template.EndsWith(windowSuffix, StringComparison.Ordinal)
-            ? template[..^windowSuffix.Length]
-            : template;
+            && formatted.EndsWith(windowSuffix, StringComparison.Ordinal)
+            ? formatted[..^windowSuffix.Length]
+            : formatted;
     }
 
-    /// <summary>Whether a binding's template names the path: itself, or the part after its last row.</summary>
-    private static bool NamesPath(string template, string path)
-        => string.Equals(template, path, StringComparison.Ordinal) || template.EndsWith("[]." + path, StringComparison.Ordinal);
-
     /// <summary>The one component a reader knows by the name: its title, accessible name or tooltip, as written or as shown.</summary>
-    internal UITestComponent FindNamed(string name, UIComponentId? scope, object?[] rowKeys)
+    internal UITestComponent FindNamed(string name, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -415,7 +534,7 @@ public sealed partial class UITestPage
 
         foreach (UIComponentNode node in View.Graph.All)
         {
-            if ((scope is UIComponentId root && !IsWithin(node.ComponentId, root)) || View.Graph.GetItemScopes(node.ComponentId).Count > rowKeys.Length)
+            if ((scope is UIComponentId root && !IsWithin(node.ComponentId, root, rowKeys, rowItem)) || View.Graph.GetItemScopes(node.ComponentId).Count > rowKeys.Length)
                 continue;
 
             foreach (UIProperty property in NameProperties)

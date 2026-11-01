@@ -4,6 +4,7 @@
 
 // `node --test` loads this module as it is (the image input's test): `.ts` on the value imports.
 import { ComponentIdAttribute, cssAttributeValue, FileDropOverAttribute, FileDropTargetIdAttribute } from "../addressing/dom-attributes.ts";
+import { registerRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 import { markDropBoxed } from "./drag-marks.ts";
 
 type FileDropTarget = {
@@ -185,6 +186,9 @@ function refuseStrayFileDrops(): void {
         return;
 
     straysRefused = true;
+    registerRuntimeCleanup(() => {
+        straysRefused = false;
+    });
 
     for (const type of ["dragover", "drop"]) {
         window.addEventListener(type, domEvent => {

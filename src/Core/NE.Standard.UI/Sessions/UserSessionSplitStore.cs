@@ -59,8 +59,16 @@ public sealed class UserSessionSplitStore : IUserSessionStore, IDisposable
             return;
         }
 
-        await _signedIn.SaveAsync(session, cancellationToken).ConfigureAwait(false);
-        await Anonymous.RemoveAsync(session.SessionId, cancellationToken).ConfigureAwait(false);
+        await _moves.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _signedIn.SaveAsync(session, cancellationToken).ConfigureAwait(false);
+            await Anonymous.RemoveAsync(session.SessionId, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _moves.Release();
+        }
     }
 
     /// <inheritdoc />
@@ -123,6 +131,7 @@ public sealed class UserSessionSplitStore : IUserSessionStore, IDisposable
     private async ValueTask<bool> TryUpdateSignedInAsync(string sessionId, Func<UserSessionState, UserSessionState> update, CancellationToken cancellationToken)
     {
         UserSessionState? leaving = null;
+        UserSessionState? storedWhenLeaving = null;
 
         var existed = await _signedIn.TryUpdateAsync(sessionId, stored =>
         {
@@ -130,26 +139,31 @@ public sealed class UserSessionSplitStore : IUserSessionStore, IDisposable
 
             // Left as it is there: it goes to memory, and then out of the signed-in store.
             leaving = updated.IsAuthenticated ? null : updated;
+            storedWhenLeaving = leaving is null ? null : stored;
             return leaving is null ? updated : stored;
         }, cancellationToken).ConfigureAwait(false);
 
         if (existed && leaving is not null)
-            await MoveToAnonymousAsync(leaving).ConfigureAwait(false);
+            await MoveToAnonymousAsync(leaving, storedWhenLeaving!).ConfigureAwait(false);
 
         return existed;
     }
 
     /// <summary>Moves a session an update signed out, into memory before out of the signed-in store, so a reader never finds it in neither.</summary>
-    private async Task MoveToAnonymousAsync(UserSessionState leaving)
+    private async Task MoveToAnonymousAsync(UserSessionState leaving, UserSessionState storedWhenLeaving)
     {
         await _moves.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            // Removed meanwhile — a session end between the sign-out's write and this move — stays removed, as on the way in.
-            if (await _signedIn.TryGetAsync(leaving.SessionId, CancellationToken.None).ConfigureAwait(false) is null)
+            // Removed or updated meanwhile — a session end or a fresh sign-in between the sign-out's read and this move — keeps the newer write.
+            if (await _signedIn.TryGetAsync(leaving.SessionId, CancellationToken.None).ConfigureAwait(false) is not UserSessionState current || !SameStoredStateIgnoringTouch(current, storedWhenLeaving))
                 return;
 
-            _ = Anonymous.TryAdd(leaving);
+            UserSessionState moved = current.LastSeenAtUtc > leaving.LastSeenAtUtc
+                ? leaving with { LastSeenAtUtc = current.LastSeenAtUtc }
+                : leaving;
+
+            _ = Anonymous.TryAdd(moved);
             await _signedIn.RemoveAsync(leaving.SessionId, CancellationToken.None).ConfigureAwait(false);
         }
         finally
@@ -157,6 +171,20 @@ public sealed class UserSessionSplitStore : IUserSessionStore, IDisposable
             _ = _moves.Release();
         }
     }
+
+    private static bool SameStoredStateIgnoringTouch(UserSessionState current, UserSessionState expected)
+        => string.Equals(current.SessionId, expected.SessionId, StringComparison.Ordinal)
+            && string.Equals(current.Language, expected.Language, StringComparison.Ordinal)
+            && current.ThemeMode == expected.ThemeMode
+            && Equals(current.ThemeColors, expected.ThemeColors)
+            && string.Equals(current.TimeZone, expected.TimeZone, StringComparison.Ordinal)
+            && current.IsAuthenticated == expected.IsAuthenticated
+            && string.Equals(current.UserId, expected.UserId, StringComparison.Ordinal)
+            && current.PendingIdRotation == expected.PendingIdRotation
+            && current.IsUnclaimed == expected.IsUnclaimed
+            && current.CreatedAtUtc == expected.CreatedAtUtc
+            && current.Roles.SetEquals(expected.Roles)
+            && current.Permissions.SetEquals(expected.Permissions);
 
     /// <inheritdoc />
     public async ValueTask<bool> TouchAsync(string sessionId, DateTime utcNow, CancellationToken cancellationToken = default)

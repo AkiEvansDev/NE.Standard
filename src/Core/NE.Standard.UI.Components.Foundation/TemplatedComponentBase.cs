@@ -4,6 +4,7 @@ using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Recursive;
 
 namespace NE.Standard.UI.Components.Foundation;
 
@@ -47,7 +48,45 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
     /// <inheritdoc/>
     /// <remarks>Render-time only: the renderer and the runtime read it off the compiled state to pick a variant, so a binding would change nothing.</remarks>
     [UIComponentProperty(Contract = typeof(ITemplatedComponent), IsBindable = false, DefaultValue = null)]
-    public string? TemplateKeyProperty { get; set; }
+    public string? TemplateKeyProperty
+    {
+        get;
+        set
+        {
+            if (value is { Length: > 0 } && !string.IsNullOrWhiteSpace(value))
+                EnsureDottedPropertyPath(value, nameof(value));
+
+            field = value;
+        }
+    }
+
+    private static void EnsureDottedPropertyPath(string path, string paramName)
+    {
+        if (string.Equals(path, ".", StringComparison.Ordinal))
+            return;
+
+        RecursivePath parsed;
+
+        try
+        {
+            parsed = RecursivePath.Parse(path);
+        }
+        catch (FormatException exception)
+        {
+            throw new ArgumentException($"TemplateKeyProperty '{path}' is not a valid dotted property path.", paramName, exception);
+        }
+
+        EnsurePropertySegmentsOnly(parsed, paramName);
+    }
+
+    private static void EnsurePropertySegmentsOnly(RecursivePath path, string paramName)
+    {
+        for (var i = 0; i < path.Count; i++)
+        {
+            if (path[i].Kind != PathSegmentKind.Property)
+                throw new ArgumentException("TemplateKeyProperty must name a dotted property path without indexers or keys.", paramName);
+        }
+    }
 
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(ITemplatedComponent), IsBindable = false, DefaultValue = null)]
@@ -63,7 +102,12 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
     /// Sets the item property path used to select a named template variant.
     /// </summary>
     public TComponent SetTemplateKeyProperty<TRow>(Expression<Func<TRow, object?>> propertyPath)
-        => SetTemplateKeyProperty(RecursivePath.FromExpression(propertyPath).ToString());
+    {
+        RecursivePath path = RecursivePath.FromExpression(propertyPath);
+        EnsurePropertySegmentsOnly(path, nameof(propertyPath));
+
+        return SetTemplateKeyProperty(path.ToString());
+    }
 
     /// <summary>
     /// Declares a composite slot: the base variant key every row wears unless its <paramref name="keyPropertyName"/> names a

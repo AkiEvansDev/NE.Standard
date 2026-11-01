@@ -8,6 +8,7 @@ import { addedAmong, isClippedOut, isInSight, isLaidOut, observeLine, SightAttri
 import { escapeIsClaimed } from "./field-escape.ts";
 import { LongPress } from "./long-press.ts";
 import { onTierChange } from "../rendering/responsive-tier.ts";
+import { registerRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 
 // The library's own tooltip, in place of the browser's `title`: one floating element shared by the whole page.
 // A control speaking through a mark inside it (a validation dot, `data-ui-tooltip-mark`) shows the mark's tooltip, drawn against the mark.
@@ -67,6 +68,7 @@ const providers = new Set<TooltipWordsProvider>();
 /** Registers words for elements that write no tooltip; registering one provider twice keeps it once. */
 export function registerTooltipWords(provider: TooltipWordsProvider): void {
     providers.add(provider);
+    registerRuntimeCleanup(() => providers.delete(provider));
 }
 
 export function startTooltips(root: ParentNode = document): void {
@@ -74,6 +76,10 @@ export function startTooltips(root: ParentNode = document): void {
         return;
 
     started = true;
+    registerRuntimeCleanup(() => {
+        started = false;
+        dismiss();
+    });
 
     const host = root instanceof Document ? root : document;
 

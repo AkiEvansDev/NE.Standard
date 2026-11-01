@@ -48,7 +48,7 @@ internal static class UIViewCompiler
             Validations = new UIValidationIndex(result.Validations, result.ValidationMessageTargets),
             ItemProjections = UIItemProjectionBuilder.Build(graph, state, bindings, templates),
             Warnings = result.Warnings,
-            Fingerprint = UIViewFingerprint.Compute(result.Nodes, result.Bindings, result.Events, result.Interactions)
+            Fingerprint = UIViewFingerprint.Compute(view, result)
         };
     }
 }

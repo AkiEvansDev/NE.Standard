@@ -64,6 +64,29 @@ export function matchesDynamicParameters(element: Element, expectedParameters: r
     return true;
 }
 
+/** Whether the element's row keys begin with `expectedParameters`, outermost first, so an outer row addresses copies inside nested lists. */
+export function startsWithDynamicParameters(element: Element, expectedParameters: readonly unknown[]): boolean {
+    if (expectedParameters.length === 0)
+        return true;
+
+    const actualCount = readParameterCount(element);
+
+    if (actualCount < expectedParameters.length)
+        return false;
+
+    const actualParameters = collectDynamicParameters(element, actualCount);
+
+    if (actualParameters.length < expectedParameters.length)
+        return false;
+
+    for (let i = 0; i < expectedParameters.length; i++) {
+        if (String(actualParameters[i] ?? "") !== String(expectedParameters[i] ?? ""))
+            return false;
+    }
+
+    return true;
+}
+
 /** Whether the element's row keys end with `keys`, innermost last, so one in a template matches its inner part; no keys match all. */
 export function endsWithDynamicParameters(element: Element, keys: readonly unknown[]): boolean {
     let index = keys.length - 1;

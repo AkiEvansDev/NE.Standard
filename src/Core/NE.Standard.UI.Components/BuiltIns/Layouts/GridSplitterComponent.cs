@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
@@ -19,7 +20,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// stars re-weight; a neighboring fixed or content track is written in pixels, and a double-click restores the authored layout — an
 /// unbound <see cref="Position"/> included.
 /// </remarks>
-public abstract partial class GridSplitterComponent<T>(string? id = null) : VisualComponentBase<T>(id), IGridSplitterComponent, IOrientationComponent
+public abstract partial class GridSplitterComponent<T>(string? id = null) : VisualComponentBase<T>(id), IGridSplitterComponent, IOrientationComponent, IClientWriteCheckComponent
     where T : GridSplitterComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Vertical;
@@ -55,6 +56,10 @@ public abstract partial class GridSplitterComponent<T>(string? id = null) : Visu
     [UIComponentProperty(DefaultValue = null, GenerateSetter = false, BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.TwoWay)]
     public double? Position { get; set; }
 
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(IClientWriteCheckComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
+    public UIClientWriteCheck? ClientWriteCheck => GridSplitterWriteCheck.Instance;
+
     /// <summary>
     /// Sets how far an arrow key moves the boundary, a finite distance greater than zero; unset, the default step.
     /// </summary>
@@ -87,4 +92,16 @@ public sealed class GridSplitterComponent(string? id = null) : GridSplitterCompo
 {
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.grid-splitter";
+}
+
+/// <summary>Refuses a splitter share outside <c>[0..1]</c> or non-finite, while letting <see langword="null"/> reset the division.</summary>
+internal sealed class GridSplitterWriteCheck : UIClientWriteCheck
+{
+    public static GridSplitterWriteCheck Instance { get; } = new();
+
+    /// <inheritdoc/>
+    public override bool Accepts(UIProperty property, object? value)
+        => property != GridSplitterComponent.PositionProperty
+            || value is null
+            || (value is double share && double.IsFinite(share) && share is >= 0 and <= 1);
 }

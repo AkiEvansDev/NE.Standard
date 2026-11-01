@@ -26,11 +26,30 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
         public Task? Running { get; set; }
     }
 
+    /// <summary>
+    /// Holds the cancellation source alive until the scheduler itself, its loop and every started task pass have exited.
+    /// </summary>
+    private sealed class RunState : IDisposable
+    {
+        private int _activePasses = 1;
+
+        public CancellationTokenSource Stop { get; } = new();
+
+        public void EnterPass()
+            => _ = Interlocked.Increment(ref _activePasses);
+
+        public void Dispose()
+        {
+            if (Interlocked.Decrement(ref _activePasses) == 0)
+                Stop.Dispose();
+        }
+    }
+
     private readonly Lock _sync = new();
     private readonly List<Entry> _entries = [];
     private readonly ILogger _logger;
 
-    private CancellationTokenSource? _stop;
+    private RunState? _state;
     private Task? _loop;
     private bool _disposed;
 
@@ -67,29 +86,32 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
             if (_loop is not null)
                 throw new InvalidOperationException("Runtime scheduler is already started.");
 
-            _stop = new CancellationTokenSource();
-            _loop = RunAsync(_stop.Token);
+            RunState state = new();
+            state.EnterPass();
+
+            _state = state;
+            _loop = RunAsync(state);
         }
     }
 
     public async ValueTask StopAsync()
     {
-        CancellationTokenSource? stop;
+        RunState? state;
         Task? loop;
 
         lock (_sync)
         {
-            stop = _stop;
+            state = _state;
             loop = _loop;
 
-            _stop = null;
+            _state = null;
             _loop = null;
         }
 
-        if (stop is null || loop is null)
+        if (state is null || loop is null)
             return;
 
-        await stop.CancelAsync().ConfigureAwait(false);
+        await state.Stop.CancelAsync().ConfigureAwait(false);
 
         try
         {
@@ -102,31 +124,40 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
         catch (OperationCanceledException) { }
         finally
         {
-            stop.Dispose();
+            state.Dispose();
         }
     }
 
-    private async Task RunAsync(CancellationToken cancellationToken)
+    private async Task RunAsync(RunState state)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        try
         {
-            try
-            {
-                DateTime utcNow = DateTime.UtcNow;
-                TimeSpan delay = GetDelay(utcNow);
+            CancellationToken cancellationToken = state.Stop.Token;
 
-                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    DateTime utcNow = DateTime.UtcNow;
+                    TimeSpan delay = GetDelay(utcNow);
 
-                ExecuteDue(DateTime.UtcNow, cancellationToken);
+                    await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+
+                    ExecuteDue(DateTime.UtcNow, state);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception exception)
+                {
+                    Log.RuntimeSchedulerLoopFailed(_logger, exception);
+                }
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (Exception exception)
-            {
-                Log.RuntimeSchedulerLoopFailed(_logger, exception);
-            }
+        }
+        finally
+        {
+            state.Dispose();
         }
     }
 
@@ -159,7 +190,7 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
     /// serial waiting would let a slow sweep delay every session's flush. A task still running at its next turn is skipped
     /// instead, so it never overlaps itself.
     /// </remarks>
-    private void ExecuteDue(DateTime utcNow, CancellationToken cancellationToken)
+    private void ExecuteDue(DateTime utcNow, RunState state)
     {
         List<Entry>? due = null;
 
@@ -188,17 +219,21 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
         // Started outside the lock: a task's first stretch runs synchronously and takes locks of its own.
         for (var i = 0; i < due.Count; i++)
         {
-            Task running = RunTaskAsync(due[i].Task, utcNow, cancellationToken);
+            state.EnterPass();
+            Task running = RunTaskAsync(due[i].Task, utcNow, state);
 
             lock (_sync)
                 due[i].Running = running;
         }
     }
 
-    private async Task RunTaskAsync(RuntimeScheduledTask task, DateTime utcNow, CancellationToken cancellationToken)
+    private async Task RunTaskAsync(RuntimeScheduledTask task, DateTime utcNow, RunState state)
     {
+        CancellationToken cancellationToken = default;
+
         try
         {
+            cancellationToken = state.Stop.Token;
             await task.ExecuteAsync(utcNow, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -207,6 +242,10 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
         catch (Exception exception)
         {
             Log.RuntimeScheduledTaskFailed(_logger, exception, task.GetType().Name);
+        }
+        finally
+        {
+            state.Dispose();
         }
     }
 
@@ -247,14 +286,20 @@ internal sealed partial class RuntimeScheduler : IAsyncDisposable, IDisposable
 
         _disposed = true;
 
+        RunState? state;
+
         lock (_sync)
         {
-            _stop?.Cancel();
-            _stop?.Dispose();
-
-            _stop = null;
+            state = _state;
+            _state = null;
             _loop = null;
             _entries.Clear();
         }
+
+        if (state is null)
+            return;
+
+        state.Stop.Cancel();
+        state.Dispose();
     }
 }

@@ -99,7 +99,10 @@ internal static class UIItemProjectionBuilder
             }
 
             foreach (var path in declared.Paths)
-                reads.Root.Add(path.Split('.'), Fallback.Raw);
+            {
+                if (AddDottedRead(reads, path))
+                    return reads;
+            }
         }
 
         reads.Root.Add([nameof(IBindableItem.Id)], Fallback.Raw);
@@ -119,14 +122,14 @@ internal static class UIItemProjectionBuilder
                 return reads;
             }
 
-            if (templateKey.Value is string { Length: > 0 } keyProperty)
-                reads.Root.Add(keyProperty.Split('.'), Fallback.Raw);
+            if (templateKey.Value is string { Length: > 0 } keyProperty && AddDottedRead(reads, keyProperty))
+                return reads;
         }
 
         foreach (UIComponentSlot slot in graph.GetRequired(host).Slots)
         {
-            if (slot.KeyProperty is { Length: > 0 } slotKey)
-                reads.Root.Add(slotKey.Split('.'), Fallback.Raw);
+            if (slot.KeyProperty is { Length: > 0 } slotKey && AddDottedRead(reads, slotKey))
+                return reads;
         }
 
         List<string> rules = [];
@@ -134,9 +137,24 @@ internal static class UIItemProjectionBuilder
         AppendStaticRuleReads(state, host, rules);
 
         foreach (var rule in rules)
-            reads.Root.Add(rule.Split('.'), Fallback.Raw);
+        {
+            if (AddDottedRead(reads, rule))
+                return reads;
+        }
 
         return reads;
+    }
+
+    private static bool AddDottedRead(Reads reads, string path)
+    {
+        if (string.Equals(path, ".", StringComparison.Ordinal))
+        {
+            reads.Whole = true;
+            return true;
+        }
+
+        reads.Root.Add(path.Split('.'), Fallback.Raw);
+        return false;
     }
 
     private static bool IsTrue(UIComponentStateIndex state, UIComponentId componentId, UIProperty property)

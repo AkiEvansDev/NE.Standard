@@ -129,5 +129,5 @@ public sealed class ObjectToInferredTypesConverter : JsonConverter<object?>
         };
 
     private static object ToInferredNumber(JsonElement element)
-        => element.TryGetInt64(out var longValue) ? longValue : element.GetDouble();
+        => element.TryGetInt64(out var signed) ? signed : element.TryGetUInt64(out var unsigned) ? unsigned : element.TryGetDecimal(out var number) ? number : element.GetDouble();
 }

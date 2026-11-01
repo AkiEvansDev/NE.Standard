@@ -129,7 +129,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
 
         var hasContent = false;
 
-        GenerateInitializationConstructor(builder, owner, ref hasContent);
+        GenerateInitializationConstructor(builder, owner, members, ref hasContent);
 
         foreach (RecursiveMemberModel member in members)
             GenerateSegmentField(builder, member, ref hasContent);
@@ -149,9 +149,9 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         return builder.ToString();
     }
 
-    private static void GenerateInitializationConstructor(StringBuilder builder, RecursiveOwnerModel owner, ref bool hasContent)
+    private static void GenerateInitializationConstructor(StringBuilder builder, RecursiveOwnerModel owner, List<RecursiveMemberModel> members, ref bool hasContent)
     {
-        if (owner.ConstructorAccessibility is null)
+        if (owner.ConstructorAccessibility is null || !HasDeferredRecursiveMember(members))
             return;
 
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
@@ -167,6 +167,17 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
             .AppendLine("    {")
             .AppendLine("        ResetNotifier();")
             .AppendLine("    }");
+    }
+
+    private static bool HasDeferredRecursiveMember(List<RecursiveMemberModel> members)
+    {
+        foreach (RecursiveMemberModel member in members)
+        {
+            if (member.CanHoldRecursiveObservable && !member.IsFieldBacked)
+                return true;
+        }
+
+        return false;
     }
 
     private static void GenerateSegmentField(StringBuilder builder, RecursiveMemberModel model, ref bool hasContent)
@@ -259,6 +270,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
 
             _ = builder
                 .Append("        if (")
+                .Append(member.IsFieldBacked ? string.Empty : "visited is not null && ")
                 .Append(propertyName)
                 .Append(" is ")
                 .Append(RecursiveMemberNames.RecursiveObservableTypeName)
@@ -319,7 +331,9 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
     private static void GenerateTryGetBranch(StringBuilder builder, RecursiveMemberModel member)
     {
         var propertyName = member.Name;
+        var segmentFieldName = RecursiveMemberNames.GetSegmentFieldName(propertyName);
         var recursive = member.CanHoldRecursiveObservable;
+        var attachOnAccess = recursive && (!member.Generate || !member.IsFieldBacked);
 
         _ = builder.AppendLine();
 
@@ -331,10 +345,35 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         _ = builder
             .AppendLine("        {")
             .AppendLine("            if (offset == segments.Length - 1)")
-            .AppendLine("            {")
-            .Append("                value = ")
-            .Append(propertyName)
-            .AppendLine(";")
+            .AppendLine("            {");
+
+        if (attachOnAccess)
+        {
+            _ = builder
+                .Append("                ")
+                .Append(member.Type)
+                .Append(" current = ")
+                .Append(propertyName)
+                .AppendLine(";")
+                .AppendLine()
+                .Append("                if (current is ")
+                .Append(RecursiveMemberNames.RecursiveObservableTypeName)
+                .AppendLine(" leaf)")
+                .Append("                    AttachChild(")
+                .Append(segmentFieldName)
+                .AppendLine(", leaf, null);")
+                .AppendLine()
+                .AppendLine("                value = current;");
+        }
+        else
+        {
+            _ = builder
+                .Append("                value = ")
+                .Append(propertyName)
+                .AppendLine(";");
+        }
+
+        _ = builder
             .AppendLine("                return true;")
             .AppendLine("            }");
 
@@ -349,7 +388,20 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
                 .Append(RecursiveMemberNames.RecursiveObservableTypeName)
                 .AppendLine(" recursive)");
 
-            _ = builder.AppendLine("                return TryGetNestedValue(recursive, segments, offset + 1, out value);");
+            if (attachOnAccess)
+            {
+                _ = builder
+                    .AppendLine("            {")
+                    .Append("                AttachChild(")
+                    .Append(segmentFieldName)
+                    .AppendLine(", recursive, null);")
+                    .AppendLine("                return TryGetNestedValue(recursive, segments, offset + 1, out value);")
+                    .AppendLine("            }");
+            }
+            else
+            {
+                _ = builder.AppendLine("                return TryGetNestedValue(recursive, segments, offset + 1, out value);");
+            }
         }
 
         _ = builder
@@ -401,11 +453,12 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
     private static void GenerateTrySetBranch(StringBuilder builder, RecursiveMemberModel member)
     {
         var propertyName = member.Name;
+        var segmentFieldName = RecursiveMemberNames.GetSegmentFieldName(propertyName);
         var patternType = member.PatternType;
-
         var recursive = member.CanHoldRecursiveObservable;
+        var attachOnAccess = recursive && (!member.Generate || !member.IsFieldBacked);
         var canSet = member.CanSet;
-        var isNullable = member.IsNullable;
+        RecursiveNullAssignment nullAssignment = member.NullAssignment;
 
         _ = builder.AppendLine();
 
@@ -428,9 +481,23 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
                 .Append(RecursiveMemberNames.RecursiveObservableTypeName)
                 .AppendLine(" recursive)");
 
-            _ = builder
-                .AppendLine("                    return TrySetNestedValue(recursive, segments, offset + 1, value);")
-                .AppendLine();
+            if (attachOnAccess)
+            {
+                _ = builder
+                    .AppendLine("                {")
+                    .Append("                    AttachChild(")
+                    .Append(segmentFieldName)
+                    .AppendLine(", recursive, null);")
+                    .AppendLine("                    return TrySetNestedValue(recursive, segments, offset + 1, value);")
+                    .AppendLine("                }")
+                    .AppendLine();
+            }
+            else
+            {
+                _ = builder
+                    .AppendLine("                    return TrySetNestedValue(recursive, segments, offset + 1, value);")
+                    .AppendLine();
+            }
         }
 
         _ = builder
@@ -448,7 +515,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
 
         _ = builder.AppendLine();
 
-        if (isNullable)
+        if (nullAssignment == RecursiveNullAssignment.AssignDefault)
         {
             _ = builder
                 .AppendLine("            if (value is null)")
@@ -456,6 +523,35 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
                 .Append("                ")
                 .Append(propertyName)
                 .AppendLine(" = default;")
+                .AppendLine("                return true;")
+                .AppendLine("            }")
+                .AppendLine();
+        }
+        else if (nullAssignment == RecursiveNullAssignment.AssignForgivenDefault)
+        {
+            _ = builder
+                .AppendLine("            if (value is null)")
+                .AppendLine("            {")
+                .Append("                ")
+                .Append(propertyName)
+                .AppendLine(" = default!;")
+                .AppendLine("                return true;")
+                .AppendLine("            }")
+                .AppendLine();
+        }
+        else if (nullAssignment == RecursiveNullAssignment.GuardValueTypeDefault)
+        {
+            _ = builder
+                .AppendLine("            if (value is null)")
+                .AppendLine("            {")
+                .Append("                if (default(")
+                .Append(patternType)
+                .AppendLine(") is not null)")
+                .AppendLine("                    return false;")
+                .AppendLine()
+                .Append("                ")
+                .Append(propertyName)
+                .AppendLine(" = default!;")
                 .AppendLine("                return true;")
                 .AppendLine("            }")
                 .AppendLine();

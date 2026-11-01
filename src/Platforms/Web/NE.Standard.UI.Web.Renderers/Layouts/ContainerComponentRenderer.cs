@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
+using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
@@ -30,6 +31,8 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
 
     /// <summary>The free air after the container's end, which the scroller along that end takes for its overlay bar (core/scrollbar.less).</summary>
     public const string ScrollbarAirVariable = "--ui-scrollbar-air";
+
+    private const string SpacedTarget = $":scope[style*='{SpacingVariable}'], :scope[{WebAttributes.BindingPrefix}spacing], :scope[{WebAttributes.IntoPrefix}spacing]";
 
     // A track list's first paint and its one operation per variable, built once rather than per container (a row template's too).
     private static readonly ConcurrentDictionary<(string Variable, string LimitsAttribute), TrackRender> TrackRenders = new();
@@ -63,10 +66,12 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
     {
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, SpacingVariable);
 
-        // A bound spacing counts as set, since its value may arrive after the page; an unspaced container writes nothing more.
+        // A bound or targeted spacing counts as set, since its value may arrive after the page; an unspaced container writes nothing more.
         WebRenderValueKind kind = ResolveRenderValue(context, ISpacingComponent.SpacingProperty, out UIResponsive<double>? spacing, out _);
+        UIPropertyAddress spacingAddress = new(context.Node.ComponentId, ISpacingComponent.SpacingProperty);
+        var targeted = context.ViewResolution.View.Interactions.GetByTarget(spacingAddress).Count > 0 || context.Metadata.IsExposed(spacingAddress);
 
-        if (kind == WebRenderValueKind.Missing || (kind == WebRenderValueKind.Static && spacing is null))
+        if (!targeted && (kind == WebRenderValueKind.Missing || (kind == WebRenderValueKind.Static && spacing is null)))
             return;
 
         _ = ResolveRenderValue(context, ContainerComponent.ColumnsProperty, out IReadOnlyList<UIResponsive<UIGridUnit>>? columns, out _);
@@ -115,7 +120,12 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
                 if (css.Tiers[(int)tier] is string own)
                     _ = target.Style(WebResponsiveCss.TierName(key.Variable, tier), own);
             }
-        }, [.. ResponsiveRenderer.TierOperations(key.Variable, WebDomConverters.ResponsiveGridTemplateCss), WebDomOperation.Attribute(key.LimitsAttribute, converter: WebDomConverters.GridTrackLimitsAttribute)]));
+        },
+        [
+            .. ResponsiveRenderer.TierOperations(key.Variable, WebDomConverters.ResponsiveGridTemplateCss),
+            WebDomOperation.Attribute(key.LimitsAttribute, converter: WebDomConverters.GridTrackLimitsAttribute),
+            .. key.Variable == ColumnsVariable ? ResponsiveRenderer.TierOperations(FixedColumnsVariable, WebDomConverters.ResponsiveFixedColumnsCss, SpacedTarget, optional: true) : []
+        ]));
 
         _ = RenderProperty<IReadOnlyList<UIResponsive<UIGridUnit>>?>(context, root, property, tracks.Render, tracks.Operations);
     }

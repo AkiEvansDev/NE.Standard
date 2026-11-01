@@ -1,6 +1,6 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
 import { BindingAttributePrefix, ComponentIdAttribute, ComponentSelector, DisabledClass, GroupHeaderAttribute, LoadingClass, ReadOnlyClass, ValueBindingAttribute, ensureElementId } from "./dom-attributes.ts";
-import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount } from "./dynamic-parameters.ts";
+import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount, startsWithDynamicParameters } from "./dynamic-parameters.ts";
 import { getBindingMode, rowKeysText } from "../metadata/metadata-index.ts";
 import type { ClientEffect, MetadataIndex, WebBindingMode, WebRenderBindingMetadata } from "../metadata/metadata-index.ts";
 
@@ -185,10 +185,10 @@ export class DomRegistry {
         if (indexed.length > 0 && indexed.every(candidate => this.holds(candidate) && matchesDynamicParameters(candidate, dynamicParameters)))
             return [...indexed];
 
-        const found = this.liveComponents(componentId).filter(candidate => matchesDynamicParameters(candidate, dynamicParameters));
+        const found = this.liveComponents(componentId).filter(candidate => startsWithDynamicParameters(candidate, dynamicParameters));
 
-        // A stale hit, or instances the map does not know (a row that took another key): it is built again at the next keyed lookup.
-        if (indexed.length > 0 || found.length > 0)
+        // A stale hit, or exact instances the map does not know (a row that took another key): it is built again at the next keyed lookup.
+        if (indexed.length > 0 || found.some(candidate => readParameterCount(candidate) === dynamicParameters.length))
             this.keyedComponentsById.delete(componentId);
 
         return found;
@@ -489,6 +489,9 @@ export function resolveWritableBinding(element: Element, metadata: Pick<Metadata
 
     if (value !== null) {
         const bound = metadata.getBindingById(Number(value));
+
+        if (bound !== undefined && !isWritableMode(bound.mode))
+            return null;
 
         return { bindingId: value, binding: bound, buffered: bound !== undefined && isBufferedMode(bound.mode) };
     }

@@ -20,7 +20,7 @@ export type SubtreeObserverInit = {
 const SweepThreshold = 32;
 
 export function observeComponents(root: ParentNode, selector: string, init: SubtreeObserverInit, handler: (components: Iterable<HTMLElement>) => void): MutationObserver | null {
-    if (!(root instanceof Node))
+    if (!(root instanceof Node) || typeof MutationObserver !== "function")
         return null;
 
     const observer = new MutationObserver(mutations => {
