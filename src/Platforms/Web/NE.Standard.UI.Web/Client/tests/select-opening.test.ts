@@ -32,7 +32,7 @@ new SelectInteractionEngine({ root: real<ParentNode>(fakeDocument.body) });
 type Scene = { readonly select: FakeElement; readonly trigger: FakeElement; readonly options: readonly FakeElement[] };
 
 function scene(options: { readonly value?: string } = {}): Scene {
-    const trigger = FakeElement.of("ui-select__trigger", { type: "button", role: "combobox", "aria-haspopup": "listbox", "aria-expanded": "false" }, "button");
+    const trigger = FakeElement.of("ui-select__trigger", { tabindex: "0", role: "combobox", "aria-haspopup": "listbox", "aria-expanded": "false" });
     const list = ["amsterdam", "ashburn", "singapore"].map(key => FakeElement.of("ui-select__option", { "data-ui-key": key, role: "option", tabindex: "0", "aria-selected": key === options.value ? "true" : "false" }));
     const popup = FakeElement.of("ui-select__popup ui-select__list", { role: "listbox" }).append(...list);
     const select = FakeElement.of("ui-select", { "data-ui-id": "3" }).append(trigger, popup);
@@ -51,9 +51,11 @@ function press(at: Scene): void {
 }
 
 function openByKey(at: Scene): void {
-    noteKey(real<Event>(new FakeKeyboardEvent("Enter")));
+    const event = new FakeKeyboardEvent("Enter", at.trigger);
+
+    noteKey(real<Event>(event));
     at.trigger.focus();
-    at.trigger.dispatchEvent(new FakeEvent("click"));
+    at.trigger.dispatchEvent(event);
 }
 
 function arrow(name: string): void {
@@ -230,4 +232,37 @@ test("an open select's list is called what its trigger's caption says, never by 
     assert.equal(caption?.textContent, "City");
     assert.equal(caption?.hidden, true);
     close(at);
+});
+
+test("a button in a select's action group neither opens nor closes the list, and keeps its own press and keys", () => {
+    const at = scene();
+    const actionButton = FakeElement.of("ui-button", { type: "button" }, "button");
+    const actionGroup = FakeElement.of("ui-select__action").append(actionButton);
+
+    at.trigger.append(actionGroup);
+    actionButton.dispatchEvent(new FakeEvent("click"));
+    assert.equal(at.select.classes.has("ui-select--open"), false);
+
+    actionButton.focus();
+    actionButton.dispatchEvent(new FakeKeyboardEvent("Enter", actionButton));
+    actionButton.dispatchEvent(new FakeKeyboardEvent(" ", actionButton));
+    actionButton.dispatchEvent(new FakeKeyboardEvent("ArrowDown", actionButton));
+    assert.equal(at.select.classes.has("ui-select--open"), false);
+
+    const multi = scene();
+    const entry = FakeElement.of("ui-multi-select__entry", {}, "input");
+    const multiButton = FakeElement.of("ui-button", { type: "button" }, "button");
+    const multiGroup = FakeElement.of("ui-select__action").append(multiButton);
+
+    multi.select.classes.add("ui-multi-select");
+    multi.select.setAttribute("data-ui-select-free-text", "");
+    multi.trigger.append(entry, multiGroup);
+
+    const downOnTrigger = new FakeEvent("mousedown");
+    const downOnAction = new FakeEvent("mousedown");
+
+    multi.trigger.dispatchEvent(downOnTrigger);
+    multiButton.dispatchEvent(downOnAction);
+    assert.equal(downOnTrigger.defaultPrevented, true);
+    assert.equal(downOnAction.defaultPrevented, false);
 });

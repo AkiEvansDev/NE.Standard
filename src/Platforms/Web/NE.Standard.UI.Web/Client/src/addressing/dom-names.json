@@ -2774,6 +2774,10 @@
         "value":  "data-ui-search-answered"
     },
     {
+        "constant":  "SelectActionClass",
+        "value":  "ui-select__action"
+    },
+    {
         "constant":  "SelectListClass",
         "value":  "ui-select__list"
     },

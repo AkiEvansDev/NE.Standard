@@ -40,6 +40,9 @@ test("both shapes align, gap and fade their label by the same rules", () => {
         assert.match(declarations(`.ui-button${content}.ui-text--align-justify`), /justify-content: stretch;/, path);
         assert.match(declarations(`.ui-button[data-ui-text-description]${path} > .ui-text--align-center`), /text-align: start;/, path);
         assert.match(declarations(`.ui-button[data-ui-text-icon]:not([data-ui-text-title])${content}`), /gap: 0;/, path);
+        assert.match(declarations(`.ui-button:is(.ui-button--ghost, .ui-button--link):not([data-ui-text-title], .ui-menu-item, .ui-action)${content} > .ui-text__body > .ui-text__header > .ui-text__badge`), /position: absolute;[\s\S]*inset-block-start: 0;[\s\S]*inset-inline-end: 0;/, path);
         assert.match(declarations(`.ui-button.ui-loading:not([data-ui-text-icon])${content},\n.ui-button[data-ui-pending]:not([data-ui-text-icon])${content}`), /opacity: 0;/, path);
     }
+
+    assert.match(declarations(".ui-button[data-ui-text-icon]:not([data-ui-text-title])"), /aspect-ratio: 1;/);
 });

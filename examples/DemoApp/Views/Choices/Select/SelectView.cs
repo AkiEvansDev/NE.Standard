@@ -19,6 +19,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     private const string ContentGroup = nameof(SelectController.ContentGroup);
     private const string BadgeGroup = nameof(SelectController.BadgeGroup);
     private const string BorderGroup = nameof(SelectController.BorderGroup);
+    private const string ActionRegionId = "demo-select-action-region";
 
     public static string ViewKey => "demo.choices.select";
 
@@ -115,8 +116,8 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        // Paired by height: the plain lists beside the placements, the crowded row beside the two rich fields.
-        => DemoUI.CreateColumns([CreatePlainGroup(), CreateNarrowGroup()], [CreatePlacementGroup(), CreateRichGroup()]);
+        // Paired by height: the plain lists and field actions beside the placements and rich fields, the crowded row below.
+        => DemoUI.CreateColumns([CreatePlainGroup(), CreateActionsGroup(), CreateNarrowGroup()], [CreatePlacementGroup(), CreateRichGroup()]);
 
     /// <summary>The ordinary case: a name per option, headed by the group each belongs to.</summary>
     private static ContainerComponent CreatePlainGroup()
@@ -135,6 +136,55 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                     .SetPlaceholder("Pick a region")
                     .SetOptions(RegionOptions())
                 )
+        );
+    }
+
+    /// <summary>
+    /// In-field leading and trailing action buttons and button-anchored flyouts inside the select trigger, behind a divider after the chevron.
+    /// </summary>
+    private static ContainerComponent CreateActionsGroup()
+    {
+        return DemoUI.CreateExample("Leading & trailing actions",
+            UILayout.Stack(12)
+                .AddChild(new SelectComponent(ActionRegionId)
+                    .SetTitle("Primary region")
+                    .SetPlaceholder("Pick a region")
+                    .SetOptions(RegionOptions())
+                    .SetValue("eu-west")
+                    .SetShowClearButton()
+                    .AddLeadingAction(new ButtonComponent()
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
+                        .SetTooltip("Refresh regions")
+                    )
+                    .AddTrailingAction(new ButtonComponent()
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
+                        .SetTooltip("Copy region ID")
+                        .InteractOn(EventNames.Click, CopyToClipboardEffect.ValueOf(ActionRegionId))
+                    )
+                )
+                .AddChild(new SelectComponent()
+                    .SetTitle("Environment with details flyout")
+                    .SetPlaceholder("Pick an environment")
+                    .SetOptions(DemoSamples.Environments())
+                    .SetValue("prod")
+                    .SetTrailingAction(new FlyoutComponent()
+                        .SetPopupPlacement(UIPopupPlacement.BottomEnd)
+                        .SetAnchor(new ButtonComponent()
+                            .SetVariant(UIButtonVariant.Ghost)
+                            .SetIcon(DemoIcons.Outline(DemoIcons.Shield))
+                            .SetTooltip("Environment details")
+                        )
+                        .SetContent(new ParagraphComponent()
+                            .SetWidth(UILayoutLength.Absolute(240))
+                            .SetTitle("Production")
+                            .SetTitleType(UITextAppearance.Subtitle)
+                            .SetDescription("Deploys require two approvals and run a 10-minute canary before full rollout.")
+                        )
+                    )
+                ),
+            note: "`AddLeadingAction`, `AddTrailingAction` and `SetTrailingAction` place buttons or button-anchored `FlyoutComponent`s inside the trigger, with trailing actions separated from the clear and chevron by a divider, without toggling the dropdown when clicked."
         );
     }
 
@@ -210,10 +260,12 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                         .BindText()
                         .SetIconSize(UISize.Large)
                         .SetIconColor(UIThemeColor.FromStyle(UIColorStyle.Accent))
+                        .SetIconAlignment(UITextIconAlignment.Content)
                         .SetTitleType(UITextAppearance.Body)
                         .SetDescriptionType(UITextAppearance.Caption)
                         .SetDescriptionColor(UIThemeColor.Muted)
                         .SetBadgePlacement(UITextBadgePlacement.Trailing)
+                        .SetBadgeAlignment(UITextBadgeAlignment.Content)
                     )
                     .SetOptions(DemoSamples.Environments())
                     .SetValue("prod")

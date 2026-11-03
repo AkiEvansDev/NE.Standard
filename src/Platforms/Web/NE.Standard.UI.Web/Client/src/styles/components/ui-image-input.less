@@ -197,7 +197,6 @@
 .ui-image-input--inline > .ui-image-input__surface {
     .ui-input-field();
     justify-content: flex-start;
-    gap: @ui-space-2;
     overflow: hidden;
     text-align: start;
 }
@@ -268,9 +267,9 @@
     padding-right: @ui-space-2;
 }
 
-    // The pick gives back most of the side padding, as a stepper does under Ghost (ui-input.less).
+    // The pick gives back the field's side padding, as a divided end does under Ghost (ui-input.less).
     .ui-input--ghost.ui-image-input--inline .ui-image-input__pick {
-        margin-right: -@ui-space-1;
+        margin-right: -@ui-space-2;
     }
 
     .ui-image-input--inline:is(.ui-input--ghost, .ui-input--underline) .ui-image-input__picture {
@@ -338,6 +337,18 @@
         .ui-image-input--inline.ui-input--small:not(.ui-input--underline) > .ui-image-input__surface {
             padding-left: @ui-field-padding-sm;
             padding-right: @ui-field-padding-sm;
+        }
+
+        .ui-image-input--inline.ui-input--underline.ui-input--small > .ui-image-input__surface {
+            min-height: 1.375rem;
+        }
+
+        .ui-image-input--inline.ui-input--small .ui-image-input__pick {
+            margin-left: 0;
+        }
+
+        .ui-image-input--inline.ui-input--small:not(.ui-input--underline) .ui-image-input__pick {
+            margin-right: -@ui-field-padding-sm;
         }
 
         .ui-image-input--inline.ui-input--small .ui-image-input__picture {

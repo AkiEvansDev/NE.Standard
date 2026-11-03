@@ -47,6 +47,8 @@
 
 .ui-badge__title {
     display: none;
+    // Inherits the badge's own font-size where a host shrinks it (a corner badge, a compact filter count), over .ui-text-type--*.
+    font-size: inherit;
     // line-height: 1 keeps the text tight to its glyphs so the badge's flex centring splits the leading evenly around it.
     line-height: 1;
     // Trimmed to the capitals and baseline so the figures centre: Chrome rounds a face's ascent and descent, setting them low.

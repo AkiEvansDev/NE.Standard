@@ -147,12 +147,14 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
 
             BorderStyleRenderer.RenderBorderStyle(context, trigger);
 
-            // A focusable box rather than the select's button: the chips' remove buttons stand inside it, and a button holds no control.
+            // A focusable box rather than a button: the chips' remove buttons and the field's actions stand inside it, and a button holds no control.
             if (!freeText)
             {
                 _ = trigger.Attribute("tabindex", "0");
                 RenderCombobox(context, root, trigger);
             }
+
+            FieldActionsRenderer.RenderLeadingGroups(context, trigger, WebClassNames.SelectAction, $"{WebClassNames.Select}__below");
 
             TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
 
@@ -195,6 +197,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
 
             SelectComponentRenderer.RenderClear(context, trigger);
             SelectComponentRenderer.RenderChevron(trigger);
+            FieldActionsRenderer.RenderTrailingGroups(context, trigger, WebClassNames.SelectAction, $"{WebClassNames.Select}__below");
         });
     }
 

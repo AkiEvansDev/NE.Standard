@@ -36,7 +36,7 @@ const Cities = ["Amsterdam", "Ashburn", "Ålesund", "Berlin", "Bern", "Singapore
 type Scene = { readonly select: FakeElement; readonly trigger: FakeElement; readonly options: readonly FakeElement[] };
 
 function scene(options: { readonly multiple?: boolean; readonly value?: string; readonly disabled?: string } = {}): Scene {
-    const trigger = FakeElement.of("ui-select__trigger", { tabindex: "0" }, options.multiple === true ? "div" : "button");
+    const trigger = FakeElement.of("ui-select__trigger", { tabindex: "0" });
     const list = Cities.map(city => {
         const key = city.toLowerCase();
         const option = FakeElement.of(`ui-select__option${key === options.disabled ? " ui-disabled" : ""}`, { "data-ui-key": key, role: "option", tabindex: "0", "aria-selected": key === options.value ? "true" : "false" });
@@ -209,11 +209,15 @@ test("a chord, a composing key, a space and a named key are no prefix", () => {
     type("b", { altKey: true });
     type("b", { metaKey: true });
     type("b", { isComposing: true });
-    type(" ");
     const [process] = type("x", { key: "Process" });
 
     assert.equal(isOpen(at), false);
     assert.equal(process.defaultPrevented, false);
+
+    // Passed by type-ahead to the trigger, which opens on Space instead of staying shut on an unmatched prefix.
+    type(" ");
+    assert.equal(isOpen(at), true);
+    close(at);
 });
 
 test("AltGr, which arrives as Ctrl and Alt, types its letter", () => {

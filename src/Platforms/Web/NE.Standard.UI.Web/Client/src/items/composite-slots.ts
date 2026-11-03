@@ -3,8 +3,8 @@ import { ComponentKeyAttribute } from "../addressing/dom-attributes.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
 
 /**
- * The roots of a composite row's slots (a table's cells), each a template of its own whose bindings name it as their item's scope:
- * the element under each key-carrying slot wrapper, as the server draws a row and `renderCompositeItem` builds one.
+ * The roots of a row's named slots (a table's cells, a menu item's submenu), each a template of its own whose bindings name it as
+ * their item's scope: the element under each key-carrying slot wrapper, as the server draws a row and the client builds one.
  */
 export function findSlotRoots(row: Element): (readonly [root: Element, scopeComponentId: number])[] {
     const roots: (readonly [Element, number])[] = [];

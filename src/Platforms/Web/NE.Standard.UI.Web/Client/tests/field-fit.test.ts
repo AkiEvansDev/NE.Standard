@@ -11,6 +11,28 @@ import less from "less";
 const source = resolve(dirname(fileURLToPath(import.meta.url)), "../src/ui.less");
 const css = (await less.render(readFileSync(source, "utf8"), { filename: source })).css;
 
+/** A selector list's entries, split at its own commas, not those inside a pseudo-class. */
+function entries(list: string): string[] {
+    const parts: string[] = [];
+    let depth = 0;
+    let start = 0;
+
+    for (let i = 0; i < list.length; i++) {
+        if (list[i] === "(")
+            depth++;
+        else if (list[i] === ")")
+            depth--;
+        else if (list[i] === "," && depth === 0) {
+            parts.push(list.slice(start, i).trim());
+            start = i + 1;
+        }
+    }
+
+    parts.push(list.slice(start).trim());
+
+    return parts;
+}
+
 /** The declarations of every rule whose selector list holds `selector` as one of its entries, joined. */
 function declarationsOf(selector: string): string {
     const found: string[] = [];
@@ -18,7 +40,7 @@ function declarationsOf(selector: string): string {
     for (const rule of css.split("}")) {
         const open = rule.indexOf("{");
 
-        if (open >= 0 && rule.slice(0, open).split(",").map(entry => entry.trim()).includes(selector))
+        if (open >= 0 && entries(rule.slice(0, open)).includes(selector))
             found.push(rule.slice(open + 1));
     }
 
@@ -31,7 +53,7 @@ test("a select's and a slider's floor yields to the room they stand in, as to an
 });
 
 test("a split button among a field's actions keeps no padding of its own; its parts take the compact one", () => {
-    for (const host of [".ui-text-input__action", ".ui-text-area__action"]) {
+    for (const host of [".ui-text-input__action", ".ui-text-area__action", ".ui-select__action"]) {
         assert.match(declarationsOf(`${host} > .ui-button`), /min-height: [^;]*1\.75rem/);
         // Padded here too, a split button stood 36px tall to the others' 28 and lifted the whole group off the text's line.
         assert.doesNotMatch(declarationsOf(`${host} > .ui-button`), /padding/);
@@ -43,7 +65,7 @@ test("a split button among a field's actions keeps no padding of its own; its pa
 });
 
 test("a small field's icon-only action fits its line: a small glyph and a hair of padding", () => {
-    for (const host of [".ui-text-input__action", ".ui-text-area__action"]) {
+    for (const host of [".ui-text-input__action", ".ui-text-area__action", ".ui-select__action"]) {
         const iconOnly = `.ui-input--small ${host} > .ui-button:not(.ui-split-button)[data-ui-text-icon]:not([data-ui-text-title])`;
 
         // At the medium's 18 px glyph and 4 px round it stood 28 px tall and stretched the 24 px line.
@@ -56,7 +78,7 @@ test("a small field's icon-only action fits its line: a small glyph and a hair o
 });
 
 test("a flyout among a field's actions has its anchor compacted as the field's other buttons are", () => {
-    for (const host of [".ui-text-input__action", ".ui-text-area__action"]) {
+    for (const host of [".ui-text-input__action", ".ui-text-area__action", ".ui-select__action"]) {
         const anchor = `${host} > .ui-flyout > .ui-flyout__anchor > .ui-button`;
 
         assert.match(declarationsOf(anchor), /min-height: [^;]*1\.75rem/);

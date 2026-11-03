@@ -8,7 +8,7 @@ import {
     IconClass, InputAffixIconPrefixClass, ListKeyboardAttribute, ListTriggerClass as TriggerClass,
     MultiSelectChipClass, MultiSelectChipLabelClass, MultiSelectChipRemoveClass, MultiSelectChipsClass,
     MultiSelectClass, MultiSelectEntryClass, PointerFocusAttribute, PopupPlacementAttribute, SearchClass,
-    SearchInputClass, SelectChipAttribute, SelectChipsAttribute, SelectClass, SelectContentAttribute,
+    SearchInputClass, SelectActionClass, SelectChipAttribute, SelectChipsAttribute, SelectClass, SelectContentAttribute,
     SelectedKeysAttribute, SelectFreeTextAttribute, SelectListClass, SelectMaxAttribute, SelectOpenClass, SelectOptionClass,
     SelectOptionIdPrefix, SelectPlaceholderClass, SelectPopupClass, SelectTriggerContentClass, SelectValueAttribute,
     SelectValueInputClass, TextBadgeClass, TextTypeOverlineClass, ValueBindingAttribute
@@ -521,6 +521,9 @@ export function focusChip(domEvent: KeyboardEvent, select: HTMLElement, step: -1
 }
 
 export function isBoxAroundEntry(target: Element): boolean {
+    if (target.closest(`.${SelectActionClass}`) !== null)
+        return false;
+
     const select = target.closest(`.${TriggerClass}`)?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
 
     return select !== null && entryOf(select) !== null && !target.classList.contains(MultiSelectEntryClass);

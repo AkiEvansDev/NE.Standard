@@ -1,6 +1,6 @@
 import {
     ActiveAttribute, BadgeSelectClass, ComponentKeyAttribute, ensureElementId, ListTriggerClass as TriggerClass,
-    MultiSelectChipClass, MultiSelectChipRemoveClass, MultiSelectChipsClass, SearchInputClass, SelectChipAttribute,
+    MultiSelectChipClass, MultiSelectChipRemoveClass, MultiSelectChipsClass, SearchInputClass, SelectActionClass, SelectChipAttribute,
     SelectClass, SelectClearAttribute, SelectedKeysAttribute, SelectFreeTextAttribute, SelectListClass,
     SelectListIdPrefix, SelectMaxAttribute, SelectOpenClass, SelectOptionClass, SelectPlacementAttribute,
     SelectPopupClass, SelectTagEntryAttribute, SelectValueAttribute, SelectValueInputClass
@@ -326,6 +326,9 @@ export class SelectInteractionEngine {
             return;
         }
 
+        if (domEvent.target.closest(`.${SelectActionClass}`) !== null)
+            return;
+
         const trigger = domEvent.target.closest<HTMLElement>(`.${TriggerClass}`);
 
         if (trigger !== null) {
@@ -371,6 +374,9 @@ export class SelectInteractionEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || isComposing(domEvent))
             return;
 
+        if (domEvent.target instanceof Element && domEvent.target.closest(`.${SelectActionClass}`) !== null)
+            return;
+
         if (domEvent.key === "Escape") {
             this.handleEntryEscape(domEvent);
 
@@ -408,7 +414,7 @@ export class SelectInteractionEngine {
         if (this.handleTypeAhead(domEvent))
             return;
 
-        if (this.handleMultipleTriggerKey(domEvent) || (domEvent.key !== "Enter" && domEvent.key !== " "))
+        if (this.handleTriggerKey(domEvent) || (domEvent.key !== "Enter" && domEvent.key !== " "))
             return;
 
         if (!(domEvent.target instanceof Element))
@@ -611,19 +617,23 @@ export class SelectInteractionEngine {
         field.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
-    private handleMultipleTriggerKey(domEvent: KeyboardEvent): boolean {
+    private handleTriggerKey(domEvent: KeyboardEvent): boolean {
         const trigger = domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TriggerClass) ? domEvent.target : null;
         const select = trigger?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
 
-        if (select === null || !isMultiple(select) || isFixed(select))
+        if (select === null || isFixed(select))
+            return false;
+
+        if (domEvent.key === "Enter" || domEvent.key === " ") {
+            domEvent.preventDefault();
+            this.toggle(select);
+            return true;
+        }
+
+        if (!isMultiple(select))
             return false;
 
         switch (domEvent.key) {
-            case "Enter":
-            case " ":
-                domEvent.preventDefault();
-                this.toggle(select);
-                return true;
             case "ArrowLeft":
                 return focusChip(domEvent, select, -1);
             case "Backspace": {

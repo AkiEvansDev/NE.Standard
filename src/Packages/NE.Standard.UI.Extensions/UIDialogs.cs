@@ -24,19 +24,19 @@ public static class UIDialogs
 {
     /// <summary>
     /// A dialog with its header over <paramref name="content"/>, named by its title; a <paramref name="width"/> keeps its content to a
-    /// column — the screen's width on a phone — and the rest of the dialog keeps its defaults, changed with
-    /// <c>with { CloseOnBackdrop = false }</c>.
+    /// column — the screen's width on a phone — <paramref name="trailing"/> stands in the header before the ×, and the rest of the
+    /// dialog keeps its defaults, changed with <c>with { CloseOnBackdrop = false }</c>.
     /// </summary>
-    public static UIDialog Create(string key, UIPhrase title, IVisualComponent content, string? icon = null, UIColumnWidth? width = null)
-        => Dialog(key, Content(key, title, content, icon), width);
+    public static UIDialog Create(string key, UIPhrase title, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
+        => Dialog(key, Content(key, title, content, icon, trailing), width);
 
     /// <summary>The same with a title the controller holds at <paramref name="titlePath"/> — the thing's name, Add or Edit — as its own words.</summary>
-    public static UIDialog BoundCreate<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null)
-        => BoundCreate(key, PresetBindings.Path(titlePath), content, icon, width);
+    public static UIDialog BoundCreate<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
+        => BoundCreate(key, PresetBindings.Path(titlePath), content, icon, width, trailing);
 
     /// <summary>The same with a title the controller holds at <paramref name="titlePath"/> — the thing's name, Add or Edit — as its own words.</summary>
-    public static UIDialog BoundCreate(string key, string titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null)
-        => Dialog(key, BoundContent(key, titlePath, content, icon), width);
+    public static UIDialog BoundCreate(string key, string titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
+        => Dialog(key, BoundContent(key, titlePath, content, icon, trailing), width);
 
     /// <summary>The dialog around its content, named by its header's title, its content in a column where one is named.</summary>
     private static UIDialog Dialog(string key, StackPanelComponent content, UIColumnWidth? width)
@@ -77,16 +77,16 @@ public static class UIDialogs
     /// The header over <paramref name="content"/>, for a dialog laid out or set otherwise — a sheet, a height:
     /// <c>new UIDialog { Key = key, TitleId = UIDialogs.TitleId(key), Content = UIDialogs.Content(key, title, body), … }</c>.
     /// </summary>
-    public static StackPanelComponent Content(string key, UIPhrase title, IVisualComponent content, string? icon = null)
-        => Body(Header(key, title, icon), content);
+    public static StackPanelComponent Content(string key, UIPhrase title, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
+        => Body(Header(key, title, icon, trailing), content);
 
     /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
-    public static StackPanelComponent BoundContent<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null)
-        => BoundContent(key, PresetBindings.Path(titlePath), content, icon);
+    public static StackPanelComponent BoundContent<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
+        => BoundContent(key, PresetBindings.Path(titlePath), content, icon, trailing);
 
     /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
-    public static StackPanelComponent BoundContent(string key, string titlePath, IVisualComponent content, string? icon = null)
-        => Body(BoundHeader(key, titlePath, icon), content);
+    public static StackPanelComponent BoundContent(string key, string titlePath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
+        => Body(BoundHeader(key, titlePath, icon, trailing), content);
 
     private static StackPanelComponent Body(ContainerComponent header, IVisualComponent content)
     {
@@ -96,22 +96,25 @@ public static class UIDialogs
     }
 
     /// <summary>
-    /// The header alone: the mark where one is given, the title, and the × at the far end, on one line, the ×'s glyph on the content's
-    /// edge. The title carries <see cref="TitleId"/>, so a dialog built around the header is named by it.
+    /// The header alone: the mark where one is given, the title, <paramref name="trailing"/> before the ×, and the × at the far end, on
+    /// one line, the ×'s glyph on the content's edge. The title carries <see cref="TitleId"/>, so a dialog built around the header is
+    /// named by it.
     /// </summary>
-    public static ContainerComponent Header(string key, UIPhrase title, string? icon = null)
-        => Header(key, Title(key, title, null), icon);
+    public static ContainerComponent Header(string key, UIPhrase title, string? icon = null, params IVisualComponent[] trailing)
+        => Header(key, Title(key, title, null), icon, trailing);
 
     /// <summary>The header with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
-    public static ContainerComponent BoundHeader<TSource>(string key, Expression<Func<TSource, object?>> titlePath, string? icon = null)
-        => BoundHeader(key, PresetBindings.Path(titlePath), icon);
+    public static ContainerComponent BoundHeader<TSource>(string key, Expression<Func<TSource, object?>> titlePath, string? icon = null, params IVisualComponent[] trailing)
+        => BoundHeader(key, PresetBindings.Path(titlePath), icon, trailing);
 
     /// <summary>The header with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
-    public static ContainerComponent BoundHeader(string key, string titlePath, string? icon = null)
-        => Header(key, Title(key, null, titlePath), icon);
+    public static ContainerComponent BoundHeader(string key, string titlePath, string? icon = null, params IVisualComponent[] trailing)
+        => Header(key, Title(key, null, titlePath), icon, trailing);
 
-    private static ContainerComponent Header(string key, TextComponent title, string? icon)
+    private static ContainerComponent Header(string key, TextComponent title, string? icon, IVisualComponent[] trailing)
     {
+        ArgumentNullException.ThrowIfNull(trailing);
+
         if (icon is not null)
             ArgumentException.ThrowIfNullOrWhiteSpace(icon);
 
@@ -123,8 +126,10 @@ public static class UIDialogs
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetGlyphEdge(UIAlignment.End)
+                .SetSpacing(4)
                 .SetMargin(UIThickness.All(8, 0, 0, 0))
                 .SetVerticalAlignment(UIAlignment.Center)
+                .AddChildren(trailing)
                 .AddChild(ClosesAsViewer(UIIconButtons.Close().SetSize(UISize.Small), key))
                 .SetPlacement(24, 1, 1, 1)
             );

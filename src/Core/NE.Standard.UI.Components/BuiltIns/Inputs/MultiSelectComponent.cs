@@ -95,6 +95,9 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         if (AllowFreeText == true)
             ThrowIfFreeTextRefused(variant, nameof(variant));
 
+        if (HasRegions)
+            ThrowIfActionsRefused(variant, nameof(variant));
+
         Variant = variant;
 
         return Self;
@@ -106,6 +109,17 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         if (variant == UIMultiSelectVariant.Checkboxes)
             throw new ArgumentException("A multi-select drawn as checkboxes takes no free text: it has no field to type a tag in. Leave AllowFreeText off, or draw it as Chips or Badges.", parameterName);
     }
+
+    /// <summary>Refuses field actions under <see cref="UIMultiSelectVariant.Checkboxes"/>, which has no field box to place them in.</summary>
+    private static void ThrowIfActionsRefused(UIMultiSelectVariant? variant, string parameterName)
+    {
+        if (variant == UIMultiSelectVariant.Checkboxes)
+            throw new ArgumentException("A multi-select drawn as checkboxes takes no field actions: it has no field box to place them in. Remove the actions, or draw it as Chips or Badges.", parameterName);
+    }
+
+    /// <inheritdoc/>
+    protected override void ValidateActionSupported(string parameterName)
+        => ThrowIfActionsRefused(Variant, parameterName);
 
     private static DefaultTextTemplate CreateVariantTemplate(UIMultiSelectVariant variant) => variant switch
     {
@@ -176,7 +190,7 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
     }
 
     /// <summary>
-    /// Checks <see cref="MaxSelected"/> and the chosen keys, and free text against the variant, as they stand, by the setters' own rules.
+    /// Checks <see cref="MaxSelected"/> and the chosen keys, and free text and field actions against the variant, as they stand, by the setters' own rules.
     /// </summary>
     public void ValidateConfiguration()
     {
@@ -184,6 +198,9 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
 
         if (AllowFreeText == true)
             ThrowIfFreeTextRefused(Variant, nameof(AllowFreeText));
+
+        if (HasRegions)
+            ThrowIfActionsRefused(Variant, nameof(Variant));
     }
 
     /// <summary>The checkboxes keep their caption on top whatever <c>TitlePlacement</c> asks, as their renderer draws it; the field honours it.</summary>

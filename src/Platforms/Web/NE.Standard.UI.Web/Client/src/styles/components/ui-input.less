@@ -246,14 +246,14 @@
     min-height: @ui-button-height-sm;
 }
 
-// Underline has no side padding for a stepper to give back (mixins/field.less), so it stays flush; Ghost gives back a step below.
-.ui-input--underline > :is(@{ui-input-field}) > :is(.ui-number-input__stepper, .ui-temporal-input__stepper, .ui-file-input__pick, .ui-text-input__action),
+// Underline has no side padding for a divided end to give back (mixins/field.less), so it stays flush; Ghost and Small give back their own padding.
+.ui-input--underline > :is(@{ui-input-field}) > :is(@{ui-field-divided-end}, .ui-text-input__action),
 .ui-input--underline > .ui-text-input__row > .ui-text-input__below > .ui-text-input__action {
     margin-right: 0;
 }
 
-.ui-input--ghost > :is(@{ui-input-field}) > :is(.ui-number-input__stepper, .ui-temporal-input__stepper, .ui-file-input__pick) {
-    margin-right: -@ui-space-1;
+.ui-input--ghost > :is(@{ui-input-field}) > :is(@{ui-field-divided-end}) {
+    margin-right: -@ui-space-2;
 }
 
 // No ring on focus either (below): the variable is zeroed for the box's outline and the row's inset shadow alike.
@@ -282,6 +282,14 @@
     padding-left: @ui-field-padding-sm;
     padding-right: @ui-field-padding-sm;
     gap: @ui-field-padding-sm;
+}
+
+.ui-input--small:not(.ui-input--underline) > :is(@{ui-input-field}) > :is(@{ui-field-divided-end}) {
+    margin-right: -@ui-field-padding-sm;
+}
+
+.ui-input--small > :is(@{ui-input-field}) > :is(@{ui-field-divided-end}) {
+    margin-left: 0;
 }
 
 .ui-input--underline.ui-input--small > :is(@{ui-input-field}) {

@@ -121,8 +121,8 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     }
 
     /// <summary>
-    /// The field closed: a button showing the chosen option as the list draws it — or the reader's own text where the field takes free
-    /// text — else the placeholder, between the affix icons, with the clear and the chevron.
+    /// The field closed: a focusable box showing the chosen option as the list draws it — or the reader's own text where the field takes free
+    /// text — else the placeholder, between the affix icons and the field's actions, with the clear and the chevron.
     /// </summary>
     public static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, string? currentValue, bool freeText = false)
     {
@@ -150,10 +150,11 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
     private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, object? selectedItem, string? freeTextValue)
     {
-        _ = root.Element("button", trigger =>
+        _ = root.Element("div", trigger =>
         {
             _ = trigger.Class(WebClassNames.SelectTrigger);
-            _ = trigger.Attribute("type", "button");
+            // A focusable box rather than a <button>: field actions (buttons, split buttons, flyouts) stand inside it, and a button holds no control.
+            _ = trigger.Attribute("tabindex", "0");
 
             // On the trigger, not the root: the trigger is this control's field, as on every other input.
             BorderStyleRenderer.RenderBorderStyle(context, trigger);
@@ -167,6 +168,9 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             _ = trigger.Attribute("role", "combobox");
             TextContentRendererBase.RenderFieldLabel(context, trigger);
             RenderClearKey(context, trigger);
+
+            // Before a caption inside too, as they stand.
+            FieldActionsRenderer.RenderLeadingGroups(context, trigger, WebClassNames.SelectAction, $"{WebClassNames.Select}__below");
 
             TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
 
@@ -203,6 +207,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
             RenderClear(context, trigger);
             RenderChevron(trigger);
+            FieldActionsRenderer.RenderTrailingGroups(context, trigger, WebClassNames.SelectAction, $"{WebClassNames.Select}__below");
         });
     }
 

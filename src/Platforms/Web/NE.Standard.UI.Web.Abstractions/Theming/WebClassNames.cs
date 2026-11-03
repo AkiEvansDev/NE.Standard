@@ -373,6 +373,8 @@ public static class WebClassNames
     public const string SearchField = "ui-search__field";
 
     /// <summary>The select classes the client finds elements by too.</summary>
+    public const string SelectAction = "ui-select__action";
+
     public const string SelectList = "ui-select__list";
 
     public const string SelectOption = "ui-select__option";

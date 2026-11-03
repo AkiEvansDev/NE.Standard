@@ -42,6 +42,39 @@
     // The button's body in the main part, which wears its padding and label: the root's classes reach it through one rule.
     .ui-pressable-body(~".ui-split-button__main"; ~".ui-split-button > .ui-split-button__main");
 
+    // An icon alone in the main part pads as an icon button does, and without an inline badge keeps a square of its own.
+    .ui-split-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2);
+    }
+
+    .ui-button--small.ui-split-button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+    .ui-split-button@{ui-button-inline-badge} > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2 0.625rem);
+    }
+
+    .ui-button--small.ui-split-button@{ui-button-inline-badge} > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+    .ui-button--large.ui-split-button@{ui-button-inline-badge} > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-3);
+    }
+
+    @{ui-split-parts}[data-ui-text-icon]:not([data-ui-text-title]):is(:not([data-ui-text-badge-icon], [data-ui-text-badge-title]), .ui-button--ghost, .ui-button--link) > .ui-split-button__main {
+        min-width: calc(@ui-control-height - 2 * var(--ui-border-width, 1px));
+    }
+
+    .ui-button--small@{ui-split-parts}[data-ui-text-icon]:not([data-ui-text-title]):is(:not([data-ui-text-badge-icon], [data-ui-text-badge-title]), .ui-button--ghost, .ui-button--link) > .ui-split-button__main {
+        min-width: calc(@ui-button-height-sm - 2 * var(--ui-border-width, 1px));
+    }
+
+    .ui-button--large@{ui-split-parts}[data-ui-text-icon]:not([data-ui-text-title]):is(:not([data-ui-text-badge-icon], [data-ui-text-badge-title]), .ui-button--ghost, .ui-button--link) > .ui-split-button__main {
+        min-width: calc(@ui-button-height-lg - 2 * var(--ui-border-width, 1px));
+    }
+
     .ui-split-button__toggle {
         flex: 0 0 auto;
         padding: 0 @ui-space-2;

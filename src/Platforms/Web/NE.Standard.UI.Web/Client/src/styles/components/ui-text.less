@@ -184,9 +184,11 @@
     max-width: 100%;
 }
 
-// A badge never wraps to its own line: a title's max-content width would claim the row first and only then ellipsise, wasting a second row.
+// A badge never wraps to its own line: a title's max-content width would claim the row first and only then ellipsise, wasting a second row;
+// at least the title role's line tall, so a badge with no title beside it still centres on the icon's 1lh line.
 @{ui-text-with-badge} > .ui-text__body > .ui-text__header {
     flex-wrap: nowrap;
+    min-height: 1lh;
 }
 
 .ui-text__title {

@@ -1343,6 +1343,8 @@ export const TriggerLayerClass = "ui-text-trigger__layer";
 
 export const TriggerTokenClass = "ui-text-trigger__token";
 
+export const SelectActionClass = "ui-select__action";
+
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {
     componentId: ComponentIdAttribute,

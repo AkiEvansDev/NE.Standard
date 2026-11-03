@@ -101,9 +101,11 @@ internal abstract class PresetsViewBase : DemoView
                 Key = PresetsController.HeaderKey,
                 TitleId = UIDialogs.TitleId(PresetsController.HeaderKey),
                 Content = UILayout.Stack(16,
-                    UIDialogs.BoundHeader(PresetsController.HeaderKey, nameof(PresetsController.CertificateDomain), DemoIcons.Outline(DemoIcons.Shield)),
+                    UIDialogs.BoundHeader(PresetsController.HeaderKey, nameof(PresetsController.CertificateDomain), DemoIcons.Outline(DemoIcons.Shield),
+                        UIIconButtons.Copy().SetSize(UISize.Small).OnClickLiteral(nameof(PresetsController.RunAction), new KeyValuePair<string, object?>("entry", "copy-certificate"))
+                    ),
                     UIDetails.List(("Issuer", "Orvane Trust CA"), ("Expires", "14 March 2027"), ("Status", "Valid")),
-                    UIText.Note("The header alone, its name the controller's, over content laid out by the dialog itself.")
+                    UIText.Note("The header alone, its name the controller's and an action before the ×, over content laid out by the dialog itself.")
                 )
             }.OnClose(nameof(PresetsController.DialogClosed)),
             UIDialogs.Confirm(PresetsController.ConfirmKey, "Delete db-us-east-2?", "Its snapshots go with it; the nightly backups stay in object-storage for 30 days.", "Delete", nameof(PresetsController.DeleteServer), cancelCommand: nameof(PresetsController.DialogClosed)),

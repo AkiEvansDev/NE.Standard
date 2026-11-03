@@ -67,7 +67,8 @@
         --ui-text-glyph: @ui-glyph-md-lg;
     }
 
-    // An icon with no title is a square: equal padding and aspect-ratio 1 keep the button's own radius and height, not a circle.
+    // An icon with no title is a square: equal padding and aspect-ratio 1 keep the button's own radius and height, not a circle; a
+    // bordered or filled one with a badge keeps its badge inline and pads its ends to match the glyph's block inset.
     .ui-button[data-ui-text-icon]:not([data-ui-text-title]) {
         .ui-responsive-property(padding, --ui-padding, @ui-space-2);
         aspect-ratio: 1;
@@ -75,6 +76,19 @@
 
     .ui-button--small[data-ui-text-icon]:not([data-ui-text-title]) {
         .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+    .ui-button@{ui-button-inline-badge} {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2 0.625rem);
+        aspect-ratio: auto;
+    }
+
+    .ui-button--small@{ui-button-inline-badge} {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+    .ui-button--large@{ui-button-inline-badge} {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-3);
     }
 
         // A step of the icon scale by the button's size, where 1.25em of the label's type stood on half pixels (15, 17.5, 22.5);
@@ -344,16 +358,16 @@
 }
 
 // A trailing badge sits at the far edge: a two-column grid so the title keeps the leftover space rather than the badge taking it.
-.ui-button__content.ui-text--badge-trailing@{ui-text-with-badge} {
+.ui-button__content.ui-text--badge-trailing@{ui-text-with-title}@{ui-text-with-badge} {
     width: 100%;
     justify-content: stretch;
 }
 
-    .ui-button__content.ui-text--badge-trailing@{ui-text-with-badge} > .ui-text__body {
+    .ui-button__content.ui-text--badge-trailing@{ui-text-with-title}@{ui-text-with-badge} > .ui-text__body {
         width: 100%;
     }
 
-        .ui-button__content.ui-text--badge-trailing@{ui-text-with-badge} > .ui-text__body > .ui-text__header {
+        .ui-button__content.ui-text--badge-trailing@{ui-text-with-title}@{ui-text-with-badge} > .ui-text__body > .ui-text__header {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
             column-gap: 0.5em;
@@ -361,7 +375,7 @@
             min-width: 0;
         }
 
-            .ui-button__content.ui-text--badge-trailing@{ui-text-with-badge} > .ui-text__body > .ui-text__header > .ui-text__badge {
+            .ui-button__content.ui-text--badge-trailing@{ui-text-with-title}@{ui-text-with-badge} > .ui-text__body > .ui-text__header > .ui-text__badge {
                 justify-self: end;
                 margin-left: 0;
             }

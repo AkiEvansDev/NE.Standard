@@ -19,7 +19,7 @@ with the item models and the enums on their own pages beside it.
   never a card or a list, never beside a column of fields, never in a wrapping panel of your own - `UILayout.Row` does it itself
   (`AlignWithFieldBoxes`; `None` or an authored `Margin` opts out).
 - `WrapPanelComponent` - children flowing onto further lines; `ItemMinWidth` keeps them in even columns.
-- `ScrollContainerComponent` - scrolls its content either way; `SetScrollGroup` to scroll with another.
+- `ScrollContainerComponent` - scrolls its content either way; `SetScrollGroup` to scroll with another. Because a scroll container is a scrollport (`overflow: hidden/auto` ignores `overflow-clip-margin`), pad it horizontally when a `GlyphEdge` band inside it hangs a button past the edge.
 - `SurfaceComponent` - one framed region (fill, edge, radius; `OnClick`/`OnClickWithItemKey` makes it pressable, `OnClickShowImage`,
   `SetUrl` makes it a link; `SetClickable(false)` turns a click off).
 - `CardComponent` - a surface with a header and footer band; `CardHeaderRegion` draws its header.
@@ -68,10 +68,10 @@ arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a b
 - `TextInputComponent`, `TextAreaComponent` (inline `@`/`/` trigger suggestions and pill tokens via `AddTrigger`, `SetTriggerItems`/`BindTriggerItems` of `UITextTriggerItem`, `OnTriggerSearch`, `OnTriggerSelect` and `OnTriggerClick`), `NumberInputComponent`, `SliderComponent` (one value or a range; its value on `Step` from `Min`, 1 unless set).
 - `CheckboxComponent`, `SwitchComponent`, `RadioGroupComponent` (`ItemMinWidth` stands its radios in even columns, as a wrap
   panel's children).
-- `SelectComponent`, `MultiSelectComponent`, `SearchComponent` (a select with a popup search field; `OnSearch` asks the server, and `SetAllowFreeText()` lets `Enter` in the popup search field commit a typed value not in `Options`). A
+- `SelectComponent`, `MultiSelectComponent`, `SearchComponent` (a select with a popup search field; `OnSearch` asks the server, and `SetAllowFreeText()` lets `Enter` in the popup search field commit a typed value not in `Options`; all three take in-field `AddLeadingAction`, `AddTrailingAction` and `SetTrailingAction` buttons or button-anchored `FlyoutComponent`s). A
   multi-select's `SetVariant(UIMultiSelectVariant…)` draws it as `Chips` (the default), `Badges` (each option its badge, chosen
   into the field as the badge) or `Checkboxes` (a box per option in place, no list; `Orientation`/`Spacing`/`ItemMinWidth` as a radio group's;
-  no free text). `SetVariant` installs the variant's option template unless one of your own is set.
+  no free text or field actions). `SetVariant` installs the variant's option template unless one of your own is set.
 - `DateInputComponent`, `TimeInputComponent`, `DateTimeInputComponent`, `CalendarComponent` (a month in place, a day or a period).
   A period (`SetIsRange()`) keeps its ends `SetMinDistance(TimeSpan)` apart, as a range slider keeps its handles; a date's in whole days, a time's under a day.
 - `ColorInputComponent` - a colour picked freely in an always-available picker, with `ShowPalette` optionally adding a palette tab and `Picker | Palette` switcher.

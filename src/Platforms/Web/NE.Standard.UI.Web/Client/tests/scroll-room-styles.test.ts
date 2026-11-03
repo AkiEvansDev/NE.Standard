@@ -176,6 +176,7 @@ test("a container's free air after it (ScrollbarAir) is lent, up to the room, to
     assert.ok(rules.some(rule => rule.selector.includes("--ui-scrollbar-air") && rule.selector.endsWith("> *") && rule.body.includes("--ui-scroll-hang: 0px;")));
     assert.ok(rules.some(rule => rule.selector.includes("[style*=\"--ui-scrollbar-air\"] :is(.ui-container, .ui-stack-panel)") && rule.body.includes("overflow-clip-margin: var(--ui-scroll-hang);")));
     assert.ok(rules.some(rule => rule.selector.includes("[style*=\"--ui-scrollbar-air\"] :is(.ui-container, .ui-stack-panel)[style*=\"overflow: clip\"]") && rule.body.includes("--ui-scroll-clip-reach: max(8px, var(--ui-scroll-hang));") && rule.body.includes("overflow-clip-margin: var(--ui-scroll-clip-reach);")));
+    assert.ok(rules.some(rule => rule.selector.includes("[style*=\"--ui-scrollbar-air\"] :is(.ui-container, .ui-stack-panel):not([style*=\"--ui-border-thickness\"], [style*=\"--ui-surface-color\"])[style*=\"overflow: clip\"]") && rule.selector.includes("[style*=\"--ui-scrollbar-air\"] :is(.ui-container, .ui-stack-panel).ui-stack-panel:is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end)") && rule.body.includes("--ui-scroll-clip-reach: max(32px, var(--ui-scroll-hang));") && rule.body.includes("overflow-clip-margin: var(--ui-scroll-clip-reach);")));
 
     // Chrome takes no math function in overflow-clip-margin: a calc() or a max() there clips at 0.
     for (const rule of rules.filter(rule => rule.body.includes("overflow-clip-margin:")))

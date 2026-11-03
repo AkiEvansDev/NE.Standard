@@ -1,6 +1,9 @@
 @import "../core/tokens.less";
 @import "./responsive.less";
 
+// A bordered or filled icon-only button with a badge keeps the badge inline beside the glyph rather than in the corner.
+@ui-button-inline-badge: ~"[data-ui-text-icon]:not([data-ui-text-title], .ui-button--ghost, .ui-button--link):is([data-ui-text-badge-icon], [data-ui-text-badge-title])";
+
 // The body of a press shaped as a button, by its size and what it holds, one rule for both shapes: a button, whose root is its body,
 // and a split button, whose root wears the button's classes while the padding and the label live in its main part. @body is the
 // padded element's own rule, at a class's weight so a field's padding of its buttons still wins (mixins/field.less); @path follows a
@@ -42,9 +45,37 @@
         text-align: start;
     }
 
-    // An icon alone keeps no gap after it: the empty body stood a gap past the glyph and pushed it off the press's centre.
+    // An icon alone keeps no gap after it: the empty body stood a gap past the glyph and pushed it off the press's centre; a badge on
+    // a quiet (ghost or link) icon button stands on the corner of the press, while a bordered or filled one keeps its badge inline.
     .ui-button[data-ui-text-icon]:not([data-ui-text-title])@{path} > .ui-button__content {
         gap: 0;
+    }
+
+    .ui-button@{ui-button-inline-badge}@{path} > .ui-button__content {
+        gap: 0.375em;
+    }
+
+    .ui-button:is(.ui-button--ghost, .ui-button--link):not([data-ui-text-title], .ui-menu-item, .ui-action)@{path} > .ui-button__content > .ui-text__body > .ui-text__header {
+        min-height: 0;
+    }
+
+    .ui-button:is(.ui-button--ghost, .ui-button--link):not([data-ui-text-title], .ui-menu-item, .ui-action)@{path} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge {
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-end: 0;
+        max-width: none;
+        margin: 0;
+        font-size: 0.625rem;
+    }
+
+    .ui-button:is(.ui-button--ghost, .ui-button--link):not([data-ui-text-title], .ui-menu-item, .ui-action)@{path} > .ui-button__content > .ui-text__body > .ui-text__header > .ui-text__badge[data-ui-badge-set]:not([data-ui-badge-title], [data-ui-badge-icon]) {
+        display: inline-flex;
+        inset-block-start: 0.125rem;
+        inset-inline-end: 0.25rem;
+        width: 0.5rem;
+        min-height: 0;
+        height: 0.5rem;
+        padding: 0;
     }
 
     // No veil on a button (runtime.less says why): a label with no icon to turn into the ring hides in place so the ring stands

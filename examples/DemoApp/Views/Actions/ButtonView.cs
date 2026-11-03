@@ -120,6 +120,32 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
                     .SetBadgeTitle("Talk to us")
                     .SetBadgeVariant(UIBadgeVariant.Info)
                 )
+                .AddChild(DemoUI.CreateLabelled("Icon-only buttons with a count badge", UILayout.Row(8,
+                            new ButtonComponent()
+                                .SetVariant(UIButtonVariant.Outline)
+                                .SetIcon(DemoIcons.Outline(DemoIcons.Mail))
+                                .SetTooltip("Unread messages")
+                                .SetBadgeTitle("4")
+                                .SetBadgeVariant(UIBadgeVariant.Primary),
+                            new ButtonComponent()
+                                .SetVariant(UIButtonVariant.Ghost)
+                                .SetIcon(DemoIcons.Outline(DemoIcons.Bell))
+                                .SetTooltip("Active alerts")
+                                .SetBadgeTitle("12")
+                                .SetBadgeVariant(UIBadgeVariant.Danger),
+                            new SplitButtonComponent()
+                                .SetVariant(UIButtonVariant.Outline)
+                                .SetIcon(DemoIcons.Outline(DemoIcons.Filter))
+                                .SetTooltip("Saved filters")
+                                .SetBadgeTitle("2")
+                                .SetBadgeVariant(UIBadgeVariant.Surface)
+                                .SetItems([
+                                    new MenuItem { Id = "open", Title = "Open incidents", IsContent = true },
+                                    new MenuItem { Id = "mine", Title = "Assigned to me", IsContent = true }
+                                ])
+                        )
+                    )
+                )
         );
     }
 

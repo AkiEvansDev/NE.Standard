@@ -37,7 +37,7 @@ function pixels(sheet: string, token: string): number {
 
 test("a number's and a clock's stepper step in from the box's outer edge, the border counted in the step", () => {
     for (const stepper of [".ui-number-input__stepper", ".ui-temporal-input__stepper"])
-        assert.match(declarations(stepper), /margin: calc\(0\.25rem - var\(--ui-field-top-edge, var\(--ui-border-width, 1px\)\)\) -0\.5em calc\(0\.25rem - var\(--ui-border-width, 1px\)\) 0;/);
+        assert.match(declarations(stepper), /margin: calc\(0\.25rem - var\(--ui-field-top-edge, var\(--ui-border-width, 1px\)\)\) -0\.75rem calc\(0\.25rem - var\(--ui-border-width, 1px\)\) 0\.125rem;/);
 });
 
 test("an underlined field has no top edge to count, so its stepper stands on the box's middle", () => {

@@ -68,7 +68,7 @@ export function registerServerRenderedItems(dom: DomRegistry, metadata: Metadata
             const rows = rowsOf(host);
 
             for (const change of insert.items ?? [])
-                registerItemValue(metadata, itemsRenderer, componentId, rows, change.key, change.item);
+                registerItemValue(itemsRenderer, rows, change.key, change.item);
         }
     }
 }
@@ -88,11 +88,11 @@ export function registerRenderedRows(root: ParentNode, metadata: MetadataIndex, 
             projections.mark(owner.componentId, values);
 
         for (const value of values)
-            registerItemValue(metadata, itemsRenderer, owner.componentId, rowsOf(host), value.key, value.item);
+            registerItemValue(itemsRenderer, rowsOf(host), value.key, value.item);
     }
 }
 
-function registerItemValue(metadata: MetadataIndex, itemsRenderer: ItemsTemplateRenderer, componentId: number, rows: ReadonlyMap<string, Element>, key: string | null | undefined, item: unknown): void {
+function registerItemValue(itemsRenderer: ItemsTemplateRenderer, rows: ReadonlyMap<string, Element>, key: string | null | undefined, item: unknown): void {
     if (key === null || key === undefined)
         return;
 
@@ -104,12 +104,7 @@ function registerItemValue(metadata: MetadataIndex, itemsRenderer: ItemsTemplate
 
     itemsRenderer.registerItemScope(element, resolveScopeComponentId(element), item);
 
-    const composite = metadata.getItemsTemplateMetadata(componentId)?.composite;
-
-    if (composite === null || composite === undefined)
-        return;
-
-    // A drawn row's cells are scopes of their own, as a built row's are, or a language switch finds no item to word a cell from.
+    // A drawn row's named slots (a table row's cells, a menu item's submenu) are scopes of their own, as a built row's are.
     for (const [root, scopeComponentId] of findSlotRoots(element))
         itemsRenderer.registerItemScope(root, scopeComponentId, item);
 }

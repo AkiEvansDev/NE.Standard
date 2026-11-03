@@ -66,14 +66,14 @@
 // The calendar's toggle stands out of the wrap at the row's end, the room for it kept: as the row's last item it was what wrapped
 // first, alone onto a second line, while the period itself still fitted on the first. The row holding it is marked by the render.
 .ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row.ui-temporal-input__row--picker {
-    padding-inline-end: calc(@ui-space-3 + @ui-glyph-sm + 0.4em);
+    padding-inline-end: calc(1.5rem + 1px + 0.4em);
 }
 
     .ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row > .ui-temporal-input__toggle {
         position: absolute;
-        inset-block: 0;
-        inset-inline-end: @ui-space-3;
-        margin-block: auto;
+        inset-block: calc(@ui-space-1 - var(--ui-field-top-edge, var(--ui-border-width, 1px))) calc(@ui-space-1 - var(--ui-border-width, 1px));
+        inset-inline-end: 0;
+        margin: 0;
     }
 
     // With the caption inside the box, the period reads from the trailing edge, as a single value does: the spare width goes
@@ -94,6 +94,11 @@
 
 .ui-temporal-input__toggle {
     .ui-field-adornment();
+    box-sizing: content-box;
+    width: 1.25rem;
+    height: auto;
+    border-radius: 0;
+    .ui-field-divided-end();
 }
 
 // The text input's clear, under the same rule; the field's placeholder is its format, so its showing means empty.

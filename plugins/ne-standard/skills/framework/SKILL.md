@@ -225,7 +225,7 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   its glyph or words on the edge, an icon by its own `IconSize`. `UIMessage` - `Create`, `BoundCreate` (words at paths),
   `Info`, `Success`, `Warning`, `Danger` (`UIColorStyle`): a message that stays while true; `dismissCommand` runs as its ×
   hides it, for one gone for good.
-- `UIDialogs` - `Create`/`BoundCreate` (a `UIColumnWidth` keeps its content to a column; `with { ... }` for the rest, `UIDialog`
+- `UIDialogs` - `Create`/`BoundCreate` (a `UIColumnWidth` keeps its content to a column, optional `trailing` stands in the header before the ×; `with { ... }` for the rest, `UIDialog`
   being a record), `Header`/`BoundHeader`, `Content`/`BoundContent`, `Form`/`BoundForm` (a real form: the key is its fields' form
   id and the primary its submit; the standard Cancel), `Confirm`, `BoundConfirm` (a written question, its words at a path), `CloseButton(key, action)` - the dialog's own
   Cancel, Close or Done, never written by hand. A dialog is named by the title it shows (`UIDialog.TitleId`; a hand-built one
