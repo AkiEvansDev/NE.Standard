@@ -9,6 +9,7 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Items;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Recursive;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -256,7 +257,7 @@ internal sealed partial class UIRuntime
                 continue;
             }
 
-            CompiledUIBindingParameter parameter = parameters[part.ParameterIndex];
+            CompiledUIBindingParameter parameter = CompiledUIBindingParameterResolver.GetSlot(parameters, part.ParameterIndex);
 
             if (parameter.Kind != CompiledUIBindingParameterKind.Dynamic)
             {
@@ -290,8 +291,8 @@ internal sealed partial class UIRuntime
     /// <summary>A controller binding fills each of its template's slots with one parameter, in order.</summary>
     private static void EnsureParametersMatch(RecursivePathTemplate template, CompiledUIBindingParameter[] parameters)
     {
-        if (template.ParameterCount != parameters.Length)
-            throw new InvalidOperationException($"Path template '{template}' has {template.ParameterCount} parameters, but binding has {parameters.Length}.");
+        if (template.ParameterCount != CompiledUIBindingParameterResolver.CountSlots(parameters))
+            throw new InvalidOperationException($"Path template '{template}' has {template.ParameterCount} parameters, but binding has {CompiledUIBindingParameterResolver.CountSlots(parameters)}.");
     }
 
     private RecursivePath? TryGetInitialControllerPath(CompiledUIBinding binding)
@@ -335,7 +336,7 @@ internal sealed partial class UIRuntime
                 continue;
             }
 
-            CompiledUIBindingParameter parameter = parameters[part.ParameterIndex];
+            CompiledUIBindingParameter parameter = CompiledUIBindingParameterResolver.GetSlot(parameters, part.ParameterIndex);
 
             if (parameter.Kind == CompiledUIBindingParameterKind.Dynamic)
                 break;

@@ -119,3 +119,49 @@ test("a feed anchored to its end that a change set emptied is read from its end,
 
     assert.deepEqual(asked, ["End"]);
 });
+
+test("an end-anchored feed invalidated during a command reveals the end window when it arrives instead of re-reading from offset 0", async () => {
+    const { component, host } = windowed("9");
+    const asked: string[] = [];
+    const answers: (() => void)[] = [];
+
+    host.setAttribute("data-ui-scroll-anchor", "End");
+    Object.assign(host, { scrollHeight: 3000 });
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(component);
+
+    const engine = new ItemsWindowEngine({
+        root: real<ParentNode>(fakeDocument.body),
+        requestWindow: request => {
+            asked.push(request.anchor);
+
+            return new Promise<void>(resolve => {
+                answers.push(resolve);
+            });
+        }
+    });
+
+    // Invalidate() empties the host and starts the End read; the command's own reconsider() runs right after while it is empty.
+    host.children.length = 0;
+    host.removeAttribute("data-ui-window-offset");
+    host.scrollTop = 0;
+    engine.sync([real<Element>(host)]);
+    engine.reconsider();
+
+    // The End window arrives with offset 50 of 100 and no more after.
+    const row0 = FakeElement.of("ui-items-view__item", { "data-ui-key": "9-50" });
+    const row1 = FakeElement.of("ui-items-view__item", { "data-ui-key": "9-51" });
+    row0.rect = { left: 0, top: 0, width: 400, height: 30 };
+    row1.rect = { left: 0, top: 30, width: 400, height: 30 };
+    host.append(row0, row1);
+    host.setAttribute("data-ui-window-offset", "50");
+    host.setAttribute("data-ui-window-total", "52");
+    host.setAttribute("data-ui-window-more-before", "true");
+    engine.sync([real<Element>(host)]);
+
+    answers[0]();
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    assert.deepEqual(asked, ["End"]);
+    assert.equal(host.scrollTop, 3000);
+});

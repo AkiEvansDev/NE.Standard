@@ -50,7 +50,8 @@ internal sealed partial class UIRuntime : IUIReferenceResolver
         {
             Address = update.Address,
             Value = value,
-            Content = update.Content
+            Content = update.Content,
+            ExceptInstanceId = update.ExceptInstanceId
         };
     }
 

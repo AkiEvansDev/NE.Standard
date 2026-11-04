@@ -20,7 +20,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 /// stars re-weight; a neighboring fixed or content track is written in pixels, and a double-click restores the authored layout — an
 /// unbound <see cref="Position"/> included.
 /// </remarks>
-public abstract partial class GridSplitterComponent<T>(string? id = null) : VisualComponentBase<T>(id), IGridSplitterComponent, IOrientationComponent, IClientWriteCheckComponent
+public abstract partial class GridSplitterComponent<T>(string? id = null) : VisualComponentBase<T>(id), IGridSplitterComponent, IOrientationComponent, IClientWriteCheckComponent, IConfigurationValidatedComponent
     where T : GridSplitterComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Vertical;
@@ -82,6 +82,16 @@ public abstract partial class GridSplitterComponent<T>(string? id = null) : Visu
 
         Position = position;
         return Self;
+    }
+
+    /// <inheritdoc/>
+    public void ValidateConfiguration()
+    {
+        if (Step is double step && (step <= 0 || !double.IsFinite(step)))
+            throw new ArgumentOutOfRangeException(nameof(Step), Step, "Step must be a finite number greater than zero.");
+
+        if (Position is double position && (position is < 0 or > 1 || !double.IsFinite(position)))
+            throw new ArgumentOutOfRangeException(nameof(Position), Position, "Position must be a share from 0 to 1.");
     }
 }
 

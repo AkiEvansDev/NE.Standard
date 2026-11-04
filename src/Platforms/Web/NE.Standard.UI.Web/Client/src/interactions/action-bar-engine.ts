@@ -647,7 +647,7 @@ function isWholeOf(control: Element, host: Element): boolean {
 
 /** How many letters an element holds, its spacing aside. */
 function wordsOf(element: Element): number {
-    return (element.textContent ?? "").replace(/s+/g, "").length;
+    return (element.textContent ?? "").replace(/\s+/g, "").length;
 }
 
 /**

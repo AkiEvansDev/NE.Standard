@@ -34,6 +34,10 @@ public static class UIIconButtons
     public static ButtonComponent Copy()
         => Create(UIStandardAction.Copy);
 
+    /// <summary>Make a copy of it beside it.</summary>
+    public static ButtonComponent Duplicate()
+        => Create(UIStandardAction.Duplicate);
+
     /// <summary>Save it.</summary>
     public static ButtonComponent Save()
         => Create(UIStandardAction.Save);

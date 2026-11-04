@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -63,6 +64,13 @@ internal sealed class UIQueuedChangesJoin
             {
                 if (_latestValues.TryGetValue(value.Address, out var earlier) && earlier > _lastBarrier)
                 {
+                    if (_updates[earlier] is ServerValueUIUpdate earlierValue
+                        && !string.Equals(earlierValue.ExceptInstanceId, value.ExceptInstanceId, StringComparison.Ordinal))
+                    {
+                        value = new ServerValueUIUpdate { Address = value.Address, Value = value.Value, Content = value.Content };
+                        update = value;
+                    }
+
                     Bytes -= EstimateBytes(_updates[earlier]!);
                     _updates[earlier] = null;
                     _replaced++;

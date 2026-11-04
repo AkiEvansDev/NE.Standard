@@ -26,6 +26,7 @@ import {
     typedFieldOf
 } from "./select-dom.ts";
 import { TypeAhead, typeAheadCharacter } from "./type-ahead.ts";
+import { trackInnerPointer } from "./surface-press-engine.ts";
 import type { EntryValidation, FieldMarkWords, FieldValidation } from "./validation-engine.ts";
 import { registerRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 
@@ -98,6 +99,14 @@ export class SelectInteractionEngine {
             if (domEvent.target instanceof Element && (domEvent.target.closest(`[${SelectClearAttribute}], .${MultiSelectChipRemoveClass}`) !== null || isBoxAroundEntry(domEvent.target)))
                 domEvent.preventDefault();
         }, true);
+
+        // Hovering an action, a clear or a chip's remove inside the trigger is that control's hover, not the chevron's.
+        trackInnerPointer(this.root, ["hover"], target => {
+            const inner = target.closest(`.${SelectActionClass}, [${SelectClearAttribute}], .${MultiSelectChipRemoveClass}`);
+            const trigger = inner?.closest(`.${TriggerClass}`) ?? null;
+
+            return trigger === null ? [] : [trigger];
+        });
 
         window.addEventListener("input", domEvent => this.handleEntryEdit(domEvent), true);
         window.addEventListener("compositionend", domEvent => this.handleEntryEdit(domEvent), true);

@@ -122,4 +122,39 @@ public static class StatePresetExtensions
     public static T EnabledWhen<T>(this T component, string sourceComponentId, UIProperty source, UIComparisonOperator @operator, object? value)
         where T : VisualComponentBase<T>, IUIComponentDefinition
         => component.Interact(sourceComponentId, source, IVisualComponent.EnabledProperty, @operator, value, true, false);
+
+    /// <summary>Disabled while the source has a value, and enabled otherwise.</summary>
+    public static T DisabledWhen<T>(this T component, IVisualComponent sourceComponent) where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.DisabledWhen(sourceComponent.Id);
+    }
+
+    /// <summary>Disabled while the source has a value, and enabled otherwise.</summary>
+    public static T DisabledWhen<T>(this T component, string sourceComponentId) where T : VisualComponentBase<T>, IUIComponentDefinition
+        => component.DisabledWhen(sourceComponentId, IInputComponent.ValueProperty, UIComparisonOperator.Required, null);
+
+    /// <summary>Disabled while the source's value equals <paramref name="value"/>, and enabled otherwise.</summary>
+    public static T DisabledWhen<T>(this T component, IVisualComponent sourceComponent, object? value) where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.DisabledWhen(sourceComponent.Id, value);
+    }
+
+    /// <summary>Disabled while the source's value equals <paramref name="value"/>, and enabled otherwise.</summary>
+    public static T DisabledWhen<T>(this T component, string sourceComponentId, object? value) where T : VisualComponentBase<T>, IUIComponentDefinition
+        => component.DisabledWhen(sourceComponentId, IInputComponent.ValueProperty, UIComparisonOperator.Equal, value);
+
+    /// <summary>Disabled while the source's property satisfies the comparison, and enabled otherwise.</summary>
+    public static T DisabledWhen<T>(this T component, IVisualComponent sourceComponent, UIProperty source, UIComparisonOperator @operator, object? value)
+        where T : VisualComponentBase<T>, IUIComponentDefinition
+    {
+        ArgumentNullException.ThrowIfNull(sourceComponent);
+        return component.DisabledWhen(sourceComponent.Id, source, @operator, value);
+    }
+
+    /// <summary>Disabled while the source's property satisfies the comparison, and enabled otherwise.</summary>
+    public static T DisabledWhen<T>(this T component, string sourceComponentId, UIProperty source, UIComparisonOperator @operator, object? value)
+        where T : VisualComponentBase<T>, IUIComponentDefinition
+        => component.Interact(sourceComponentId, source, IVisualComponent.EnabledProperty, @operator, value, false, true);
 }

@@ -8,6 +8,7 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Data;
 using NE.Standard.UI.Primitives.Annotations;
@@ -123,7 +124,7 @@ internal sealed partial class UIViewCompilationContext
     private static void EnsureNoFixedControllerSegment(IVisualComponent component, string reads, CompiledPath path)
     {
         // A row reached first: a fixed segment after it is read off the row's own item, which the row carries.
-        if (path.Source.Kind != CompiledUIBindingSourceKind.Controller || path.Parameters.Length == 0 || path.Parameters[0].Kind != CompiledUIBindingParameterKind.Fixed)
+        if (path.Source.Kind != CompiledUIBindingSourceKind.Controller || CompiledUIBindingParameterResolver.CountSlots(path.Parameters) == 0 || CompiledUIBindingParameterResolver.GetSlot(path.Parameters, 0).Kind != CompiledUIBindingParameterKind.Fixed)
             return;
 
         throw new InvalidOperationException(
@@ -147,7 +148,7 @@ internal sealed partial class UIViewCompilationContext
                 continue;
             }
 
-            var value = path.Parameters[part.ParameterIndex].Value;
+            var value = CompiledUIBindingParameterResolver.GetSlot(path.Parameters, part.ParameterIndex).Value;
 
             _ = builder.Append(UIRowKeys.IsPathParameter(value) ? PathSegment.ForParameter(value).ToString() : "[]");
         }

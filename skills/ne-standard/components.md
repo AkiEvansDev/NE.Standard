@@ -81,7 +81,7 @@ arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a b
 
 - `ItemsViewComponent` - a collection held whole, virtualized or windowed from a source (`BindSource`), grouped, scrolled,
   laid out any way; `SetTemplate`, `AnchorToEnd`, `SetLoadingLook`.
-- `TableComponent` - rows under a header, a template per column, filters and sorts by rule, selection (`SelectionMode = Many` adds a leading checkbox column with `Shift+Click` range selection and a three-state select-all header box); each row named by its
+- `TableComponent` - rows under a header, a template per column (`AddTextColumn<TRow>(caption, r => r.Prop)` or custom template), filters and sorts by rule, selection (`SelectionMode = Many` adds a leading checkbox column with `Shift+Click` range selection and a three-state select-all header box); each row named by its
   header cell, the first captioned column or `SetRowHeaderColumn(key)`.
 - `TreeComponent` with `TreeNodeComponent` - thin rows with a glyph and a title over `TreeNode` items; inline rename
   (`RenameItemEffect`), moves; for a small set or folders loaded as they open (`HasChildren` + `OnItemUnfold`), never virtualized.
@@ -113,13 +113,13 @@ Each add-on's README (on its repository, and in the NuGet cache next to the pack
 - CodeInput (https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput): `CodeInputComponent` - a code editor field with
   highlighting, completions, find and replace; `MarkdownDisplayComponent` - a Markdown document as formatted text.
 - DataGrid (https://github.com/AkiEvansDev/NE.Standard.UI.DataGrid): `DataGridComponent` - a table with typed columns, sorting,
-  filters, editing, paging, totals and export; `DataGridCellComponent` - a typed column's cell; `DataGridFilterComponent` - one
+  filters (`AddFilter<TRow>`), editing, paging, totals and export; `DataGridCellComponent` - a typed column's cell; `DataGridFilterComponent` - one
   filter of a grid.
 - Charts (https://github.com/AkiEvansDev/NE.Standard.UI.Charts): `LineChartComponent`, `AreaChartComponent`, `BarChartComponent`,
-  `PieChartComponent`, `ShareBarComponent` (parts of one bar against a total), `ScatterChartComponent`, `RadarChartComponent`,
+  `PieChartComponent`, `ShareBarComponent` (parts of one bar against a total, with multi-column legend grid via `SetLegendColumns`), `ScatterChartComponent`, `RadarChartComponent`,
   `SparklineComponent` (a line the height of text), `GaugeComponent` (one value on an arc).
 - Graph (https://akievansdev.github.io/NE.Standard.UI.Graph, components at `.../NE.Standard.UI.Graph/components/<kebab-name>.html`):
   `NodesComponent` - a canvas of typed nodes the viewer wires; `NodesParametersComponent` - a sheet's parameters beside its
-  canvas; `LayeredGraphComponent` - the application's nodes and links laid out in layers; `ProductionGraphComponent` - resources
+  canvas (`SetCanvas(canvas)`); `LayeredGraphComponent` - the application's nodes and links laid out in layers; `ProductionGraphComponent` - resources
   and the crafts between them, planned.
 - Icons (https://github.com/AkiEvansDev/NE.Standard.UI.Icons): no component - names (`MaterialIcons`) for every icon property.

@@ -56,6 +56,7 @@ public static partial class UIStrings
     public const string ActionOpen = "ui.action.open";
     public const string ActionEdit = "ui.action.edit";
     public const string ActionCopy = "ui.action.copy";
+    public const string ActionDuplicate = "ui.action.duplicate";
     public const string ActionSave = "ui.action.save";
     public const string ActionDone = "ui.action.done";
     public const string ActionCancel = "ui.action.cancel";
@@ -311,6 +312,7 @@ public static partial class UIStrings
         [ActionOpen] = "Open",
         [ActionEdit] = "Edit",
         [ActionCopy] = "Copy",
+        [ActionDuplicate] = "Duplicate",
         [ActionSave] = "Save",
         [ActionDone] = "Done",
         [ActionCancel] = "Cancel",

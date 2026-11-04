@@ -35,7 +35,10 @@ internal sealed class WorkspaceSettingsView : DemoScreenView, IUIViewDefinition
                 .SetTitle("Picture")
                 .SetVariant(UIImageInputVariant.Avatar)
                 .SetPlaceholderIcon(DemoIcons.Outline(DemoIcons.UserRound))
-                .SetFormId(ProfileFormId),
+                .SetFormId(ProfileFormId)
+                .BindValue<WorkspaceSettingsController>(static x => x.Avatar)
+                .BindSelectionId<WorkspaceSettingsController>(static x => x.AvatarSelectionId)
+                .OnChange(nameof(WorkspaceSettingsController.SaveProfile)),
             new TextInputComponent()
                 .SetTitle("Display name")
                 .SetFormId(ProfileFormId)

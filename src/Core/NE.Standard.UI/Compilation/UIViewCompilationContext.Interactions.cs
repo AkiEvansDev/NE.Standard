@@ -61,8 +61,10 @@ internal sealed partial class UIViewCompilationContext
             {
                 UIInteraction interaction = target.Interactions[j];
 
-                if (interaction.SourceKind != UIInteractionSourceKind.Property || interaction.ActionKind != UIInteractionActionKind.SetProperty
-                    || interaction.SourceProperty is not UIProperty sourceProperty || interaction.TargetProperty is not UIProperty targetProperty)
+                if (interaction.SourceKind != UIInteractionSourceKind.Property
+                    || interaction.ActionKind is not (UIInteractionActionKind.SetProperty or UIInteractionActionKind.CopyValue)
+                    || interaction.SourceProperty is not UIProperty sourceProperty
+                    || interaction.TargetProperty is not UIProperty targetProperty)
                 {
                     continue;
                 }
@@ -72,10 +74,19 @@ internal sealed partial class UIViewCompilationContext
                 if (leftToPage.Contains(address))
                     continue;
 
-                if (FindBinding(target, targetProperty) is not null || !TryReadOwnValue(GetComponent(interaction.ComponentId), sourceProperty, out var source))
+                if (FindBinding(target, targetProperty) is not null || !TryReadFirstPaintSource(interaction, sourceProperty, values, leftToPage, out var source))
                 {
                     _ = leftToPage.Add(address);
                     _ = values.Remove(address);
+                    continue;
+                }
+
+                if (interaction.ActionKind == UIInteractionActionKind.CopyValue)
+                {
+                    var fallback = EnsureCopyable(target, interaction);
+                    var blank = source is null || (source is string text && string.IsNullOrWhiteSpace(text));
+
+                    values[address] = blank ? fallback : source;
                     continue;
                 }
 
@@ -85,6 +96,22 @@ internal sealed partial class UIViewCompilationContext
         }
 
         return values;
+    }
+
+    private bool TryReadFirstPaintSource(UIInteraction interaction, UIProperty sourceProperty, Dictionary<UIPropertyAddress, object?> values, HashSet<UIPropertyAddress> leftToPage, out object? value)
+    {
+        UIPropertyAddress sourceAddress = new(GetComponentId(interaction.ComponentId), sourceProperty);
+
+        if (leftToPage.Contains(sourceAddress))
+        {
+            value = null;
+            return false;
+        }
+
+        if (values.TryGetValue(sourceAddress, out value))
+            return true;
+
+        return TryReadOwnValue(GetComponent(interaction.ComponentId), sourceProperty, out value);
     }
 
     /// <summary>The value a component holds of its own — set, else the property's default — and none where the property is bound.</summary>

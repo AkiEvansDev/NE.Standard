@@ -50,6 +50,8 @@ type WindowState = {
     pending: boolean;
     // A read of the rows before the window in flight, till the layout after it: the row it pushes down is kept even at the source's top.
     readingBefore: boolean;
+    // A window the server sent whole without this engine asking: the next sync places the viewport on it.
+    refilled: boolean;
     // A scroll that arrived while a read was in flight; dropping it lets a fast drag outrun the window.
     restless: boolean;
     // The mean of every row measured so far, each counted once (`shares` holds what each row last added): one measured again from
@@ -181,8 +183,9 @@ export class ItemsWindowEngine {
             return Math.max(0, this.windowBottom(host, offset) - readHostScroll(host).height);
 
         // Already in view at the source's start; scrolling to its first row would hide what stands above it (a wide table's header).
+        // An end-anchored host whose window ends the source stands at its bottom even when that window starts at 0 or has no offset.
         if (offset === null || offset === 0)
-            return null;
+            return isEndAnchored(host) && !readWindowFlag(host, WindowMoreAfterAttribute) ? host.scrollHeight : null;
 
         // At the end of the source there is nothing below to scroll into, so the last row goes to the bottom edge.
         return readWindowFlag(host, WindowMoreAfterAttribute) ? offset * this.getState(host).itemSize : host.scrollHeight;
@@ -236,8 +239,14 @@ export class ItemsWindowEngine {
 
             // Emptied by a set no command answered (the source let its window go from a job's write): only a command's answer decides
             // again after it, so nothing else would ask for the window the viewer stands at. The read's own answer lands while pending.
-            if (countItems(host) === 0 && changed.some(element => host.contains(element)))
+            if (countItems(host) === 0 && changed.some(element => host.contains(element))) {
+                this.getState(host).refilled = false;
                 void this.requestAsync(host, emptyAnchor(host), 0, null, false);
+            }
+            else if (this.getState(host).refilled) {
+                this.getState(host).refilled = false;
+                this.revealWindow(host);
+            }
             else
                 this.realign(host);
         }
@@ -269,8 +278,10 @@ export class ItemsWindowEngine {
     public refilled(host: Element): void {
         const state = this.states.get(host);
 
-        if (state !== undefined && !state.pending)
+        if (state !== undefined && !state.pending) {
             forgetSizes(state);
+            state.refilled = true;
+        }
     }
 
     /** Decides again for every host, after something other than the viewer moved a viewport with no scroll event to hear. */
@@ -322,7 +333,9 @@ export class ItemsWindowEngine {
         const state = this.getState(host);
 
         if (state.pending) {
-            state.restless = true;
+            if (countItems(host) > 0)
+                state.restless = true;
+
             return;
         }
 
@@ -464,9 +477,12 @@ export class ItemsWindowEngine {
             state.restless = false;
 
             // The viewer kept scrolling during the read, so decide again from where they are now; not over a window the read left
-            // empty, an empty source, which deciding again would only read again.
+            // empty, an empty source, which deciding again would only read again. A read from an edge places the viewport on that
+            // edge's window even when the old scroll already overlapped its indices.
             if ((restless || (cursor && edgeMoved(host, anchor, key))) && countItems(host) > 0)
                 this.considerRequest(host);
+            else if ((anchor === "Start" || anchor === "End") && countItems(host) > 0)
+                this.revealWindow(host);
             else
                 this.realign(host);
         }
@@ -550,6 +566,7 @@ export class ItemsWindowEngine {
             state = {
                 pending: false,
                 readingBefore: false,
+                refilled: false,
                 restless: false,
                 itemSize: DefaultItemSize,
                 shares: new WeakMap(),

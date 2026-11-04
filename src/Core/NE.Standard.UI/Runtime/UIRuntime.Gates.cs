@@ -451,7 +451,7 @@ internal sealed partial class UIRuntime
     /// single choice offering no clear, or a newly chosen row that may not be chosen or is disabled; a viewer's query naming a term its
     /// host does not offer; or a row's rename or tree move its abilities refuse.
     /// </summary>
-    private bool IsWriteRefusedNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read)
+    private bool IsWriteRefusedNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read, ClientChangeSet? changeSet = null)
     {
         UIComponentGateIndex gates = Gates;
         UIProperty property = update.Address.Property;
@@ -495,7 +495,7 @@ internal sealed partial class UIRuntime
             }
 
             if ((target.ReadOnly is { } readOnly && IsClosedNoLock(readOnly, dynamicParameters))
-                || (target.Values is { } checks && IsValueRefusedNoLock(checks, update, resolution, ref read))
+                || (target.Values is { } checks && IsValueRefusedNoLock(checks, update, resolution, ref read, changeSet))
                 || (target.WriteCheck is { } writeCheck && IsCheckRefusedNoLock(writeCheck, update, resolution, ref read)))
             {
                 return true;
@@ -604,7 +604,7 @@ internal sealed partial class UIRuntime
     /// The text is read as the write itself reads it — by the input's own format and culture — and the read handed on to the write, so
     /// it is read once; the value is then boxed once in the property's own type, which the bounds already hold.
     /// </remarks>
-    private bool IsValueRefusedNoLock(UIValueChecks checks, ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read)
+    private bool IsValueRefusedNoLock(UIValueChecks checks, ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read, ClientChangeSet? changeSet = null)
     {
         UIProperty property = update.Address.Property;
 
@@ -629,7 +629,7 @@ internal sealed partial class UIRuntime
                 && DayOf(value) is DateOnly day
                 && IsClosedNoLock(only, dynamicParameters)
                 && !IsMarkedNoLock(days, day, dynamicParameters))
-            || (checks.Ends is { } ends && IsPastOtherEndNoLock(ends, checks.ValueType, property == IPeriodInputComponent.EndValueProperty, value, dynamicParameters))
+            || (checks.Ends is { } ends && IsPastOtherEndNoLock(checks, ends, update.Address.Component, property == IPeriodInputComponent.EndValueProperty, value, changeSet))
             || (checks.Step is { } step && IsOffStepNoLock(step, checks.Min, value, dynamicParameters))
             || (checks.MaxLength is { } maxLength && value is string text && IsTooLongNoLock(maxLength, text, resolution, dynamicParameters))
             || (checks.MaxSelected is { } maxSelected && value is IReadOnlyList<string> keys && IsPastMaxSelectedNoLock(maxSelected, keys, resolution, dynamicParameters))
@@ -701,15 +701,16 @@ internal sealed partial class UIRuntime
     }
 
     /// <summary>
-    /// Whether a period's end written lies past the other as the controller holds it — a start above the end, an end below the start —
-    /// or nearer to it than the least distance; another end unset, or one the server cannot read, holds nothing, and an unset or unread
-    /// distance lets the ends meet.
+    /// Whether a period's end written lies past the other as the controller holds it — or as the same change set writes it beside this
+    /// one — a start above the end, an end below the start, or nearer to it than the least distance; another end unset, or one the server
+    /// cannot read, holds nothing, and an unset or unread distance lets the ends meet.
     /// </summary>
-    private bool IsPastOtherEndNoLock(UIPeriodEnds ends, Type valueType, bool isEnd, object value, object?[] dynamicParameters)
+    private bool IsPastOtherEndNoLock(UIValueChecks checks, UIPeriodEnds ends, UIComponentAddress component, bool isEnd, object value, ClientChangeSet? changeSet)
     {
+        var dynamicParameters = component.DynamicParameters;
+
         if ((isEnd ? ends.Start : ends.End) is not { } other
-            || !TryReadGateNoLock(other, dynamicParameters, out var read)
-            || !RecursiveValueCoercion.TryCoerce(read, valueType, out var held)
+            || !TryReadOtherEndNoLock(checks, other, component, isEnd ? IInputComponent.ValueProperty : IPeriodInputComponent.EndValueProperty, changeSet, out var held)
             || held is null)
         {
             return false;
@@ -718,11 +719,59 @@ internal sealed partial class UIRuntime
         // The distance in the type its ends measure it in: a number for a slider, a span of time for a temporal period.
         var least = ends.MinDistance is { } distance
             && TryReadGateValueNoLock(distance, dynamicParameters, out var set)
-            && RecursiveValueCoercion.TryCoerce(set, valueType == typeof(decimal) ? typeof(decimal) : typeof(TimeSpan), out var typed)
+            && RecursiveValueCoercion.TryCoerce(set, checks.ValueType == typeof(decimal) ? typeof(decimal) : typeof(TimeSpan), out var typed)
                 ? typed
                 : null;
 
         return isEnd ? IsNearer(held, value, least) : IsNearer(value, held, least);
+    }
+
+    private bool TryReadOtherEndNoLock(UIValueChecks checks, UIComponentGate other, UIComponentAddress component, UIProperty otherProperty, ClientChangeSet? changeSet, out object? held)
+    {
+        var dynamicParameters = component.DynamicParameters;
+
+        if (changeSet is not null && other.Binding is CompiledUIBinding otherBinding)
+        {
+            for (var i = changeSet.Updates.Length - 1; i >= 0; i--)
+            {
+                if (changeSet.Updates[i] is not ClientValueUIUpdate sibling
+                    || sibling.Address.Component.Id != component.Id
+                    || sibling.Address.Property != otherProperty
+                    || sibling.Address.Component.DynamicParameters.Length < dynamicParameters.Length
+                    || !TakeDynamicParameters(sibling.Address.Component.DynamicParameters, dynamicParameters.Length).AsSpan().SequenceEqual(dynamicParameters))
+                {
+                    continue;
+                }
+
+                ClientValueRead siblingRead = ReadClientValue(otherBinding, sibling.Value);
+
+                if (siblingRead.Normalization != UIFormattedValueNormalization.Rejected && siblingRead.Value is null)
+                {
+                    held = null;
+                    return false;
+                }
+
+                if (siblingRead.Normalization != UIFormattedValueNormalization.Rejected
+                    && RecursiveValueCoercion.TryCoerce(siblingRead.Value, checks.ValueType, out var companion)
+                    && companion is not null
+                    && !IsBeyondNoLock(checks.Min, checks.ValueType, companion, dynamicParameters, below: true)
+                    && !IsBeyondNoLock(checks.Max, checks.ValueType, companion, dynamicParameters, below: false)
+                    && (checks.MarkedOnly is not { } only || checks.MarkedDays is not { } days || DayOf(companion) is not DateOnly day || !IsClosedNoLock(only, dynamicParameters) || IsMarkedNoLock(days, day, dynamicParameters))
+                    && (checks.Step is not { } step || !IsOffStepNoLock(step, checks.Min, companion, dynamicParameters)))
+                {
+                    held = companion;
+                    return true;
+                }
+
+                break;
+            }
+        }
+
+        if (TryReadGateNoLock(other, dynamicParameters, out var read) && RecursiveValueCoercion.TryCoerce(read, checks.ValueType, out held))
+            return held is not null;
+
+        held = null;
+        return false;
     }
 
     /// <summary>

@@ -330,6 +330,20 @@ public sealed partial class UITestPage
     /// <summary>The property and value choosing an option row writes back on <paramref name="host"/>, or null where it writes none.</summary>
     internal (UIProperty Property, object Value)? ChoiceWrite(UIComponentNode host, object?[] hostKeys, string key)
     {
+        if (View.State.TryGetValue(host.ComponentId, ISelectableItemsComponent.SelectionModeProperty, out _))
+        {
+            UISelectionMode mode = Read(host.ComponentId, hostKeys, ISelectableItemsComponent.SelectionModeProperty) is UISelectionMode chosenMode
+                ? chosenMode
+                : UISelectionMode.None;
+
+            return mode switch
+            {
+                UISelectionMode.One when WritesBack(host.ComponentId, ISelectedKeyComponent.SelectedKeyProperty) => (ISelectedKeyComponent.SelectedKeyProperty, key),
+                UISelectionMode.Many when WritesBack(host.ComponentId, ISelectableItemsComponent.SelectedKeysProperty) => (ISelectableItemsComponent.SelectedKeysProperty, ToggleChosenKey(host.ComponentId, hostKeys, ISelectableItemsComponent.SelectedKeysProperty, key)),
+                _ => null
+            };
+        }
+
         if (WritesBack(host.ComponentId, ISelectedKeyComponent.SelectedKeyProperty))
             return (ISelectedKeyComponent.SelectedKeyProperty, key);
 
@@ -339,9 +353,14 @@ public sealed partial class UITestPage
         if (!View.State.TryGetValue(host.ComponentId, MultiSelectComponent.MaxSelectedProperty, out _))
             return (IInputComponent.ValueProperty, key);
 
+        return (IInputComponent.ValueProperty, ToggleChosenKey(host.ComponentId, hostKeys, IInputComponent.ValueProperty, key));
+    }
+
+    private string[] ToggleChosenKey(UIComponentId hostId, object?[] hostKeys, UIProperty property, string key)
+    {
         List<string> chosen = [];
 
-        if (Read(host.ComponentId, hostKeys, IInputComponent.ValueProperty) is IEnumerable current and not string)
+        if (Read(hostId, hostKeys, property) is IEnumerable current and not string)
         {
             foreach (var item in current)
             {
@@ -350,10 +369,10 @@ public sealed partial class UITestPage
             }
         }
 
-        if (!chosen.Contains(key))
+        if (!chosen.Remove(key))
             chosen.Add(key);
 
-        return (IInputComponent.ValueProperty, chosen.ToArray());
+        return [.. chosen];
     }
 
     /// <summary>Whether the component raises a command on the event.</summary>

@@ -18,6 +18,7 @@ using NE.Standard.UI.Data;
 using NE.Standard.UI.Items;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Recursive;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Client;
@@ -599,6 +600,7 @@ internal sealed partial class UIRuntime
             UIComponentId componentId = components[i];
             UIItemSourceBase source;
             UIItemsQuery query;
+            UIItemAnchor anchor;
             int count;
 
             await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -614,6 +616,7 @@ internal sealed partial class UIRuntime
                 }
 
                 query = BuildItemsQueryNoLock(componentId);
+                anchor = ReadWindowReloadAnchorNoLock(componentId);
                 // The size the page last asked for — a page size the viewer chose — else the host's own.
                 count = source.ReplacingCount ?? ReadWindowSizeNoLock(componentId);
             }
@@ -630,7 +633,7 @@ internal sealed partial class UIRuntime
             try
             {
                 await source
-                    .LoadWindowAsync(new UIItemWindowRequest(UIItemAnchor.Start, count, UIItemWindowMode.Replace, query), cancellationToken)
+                    .LoadWindowAsync(new UIItemWindowRequest(anchor, count, UIItemWindowMode.Replace, query), cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -652,6 +655,14 @@ internal sealed partial class UIRuntime
         else
             await ReportFailureAsync(reportTo, exception, "ReloadItemWindow", changeSet: null, cancellationToken).ConfigureAwait(false);
     }
+
+    private UIItemAnchor ReadWindowReloadAnchorNoLock(UIComponentId componentId)
+        => View.State.TryGetValue(componentId, IScrollableComponent.ScrollAnchorProperty, out CompiledUIPropertyValue? value)
+            && (value.IsBind
+                ? ResolveRuntimeValue(TryGetRuleSourceValueNoLock(new UIPropertyAddress(componentId, IScrollableComponent.ScrollAnchorProperty)))
+                : value.Value) is UIScrollAnchor.End
+            ? UIItemAnchor.End
+            : UIItemAnchor.Start;
 
     /// <summary>
     /// Takes what the re-reads queued, for the same caller the drain that found the windows stale was for; a window a re-read left

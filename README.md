@@ -80,17 +80,10 @@ If you installed the package `NE.Standard` — the general-purpose helpers that 
 [`NE.Common`](https://www.nuget.org/packages/NE.Common) now, MIT and in its own repository. It was never part
 of the framework, and nothing here depends on it.
 
-An application's Claude Code agents can learn the framework from a plugin this repository ships — what it already has, with
-a link per guide. Register it in the application's `.claude/settings.json`:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "ne-standard": { "source": { "source": "github", "repo": "AkiEvansDev/NE.Standard" } }
-  },
-  "enabledPlugins": { "ne-standard@ne-standard": true }
-}
-```
+Coding agents can learn the framework from the [`skills/ne-standard`](skills/ne-standard/SKILL.md) skill shipped in this repository —
+what the framework already has, modular references (`skills/ne-standard/references/`), the full component catalogue (`components.md`),
+and links to the live documentation at https://akievansdev.github.io/NE.Standard/. Copy or symlink `skills/ne-standard` into your
+workspace's agent skills directory (for example `.agents/skills/ne-standard`, `.gemini/skills/ne-standard`, or `.claude/skills/ne-standard`).
 
 ## A first look
 

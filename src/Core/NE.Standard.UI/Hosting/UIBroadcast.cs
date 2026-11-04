@@ -239,8 +239,10 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
                 {
-                    // A page whose connection is gone, or a runtime ending, must not keep it from the user's other pages.
-                    failure ??= ExceptionDispatchInfo.Capture(exception);
+                    // A page whose connection is gone, or a runtime ending, must not keep it from the user's other pages; one whose
+                    // send was cancelled without the caller asking is gone on its own and not a failure to throw after the others heard.
+                    if (exception is not OperationCanceledException)
+                        failure ??= ExceptionDispatchInfo.Capture(exception);
                 }
             }
         }

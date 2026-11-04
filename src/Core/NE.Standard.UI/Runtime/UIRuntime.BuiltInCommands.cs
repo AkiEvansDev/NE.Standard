@@ -138,7 +138,7 @@ internal sealed partial class UIRuntime
 
             var parameters = AppendDynamicParameter(outer, item.Id);
 
-            strip.Add(new StripTab(item.Id, parameters, strip.Count, ReadTabValueNoLock(tabId, TabItemComponent.OrderProperty, parameters) is { } order ? Convert.ToDouble(order, CultureInfo.InvariantCulture) : null, ReadTabValueNoLock(tabId, TabItemComponent.PinnedProperty, parameters) is true));
+            strip.Add(new StripTab(item.Id, parameters, strip.Count, ReadTabOrderNoLock(tabId, parameters), ReadTabValueNoLock(tabId, TabItemComponent.PinnedProperty, parameters) is true));
         }
 
         // A tab with no order sorts ahead of any number; ties keep the collection's order, as the page's stable sort does, which
@@ -152,6 +152,15 @@ internal sealed partial class UIRuntime
 
         return strip;
     }
+
+    /// <summary>A tab's bound order as a finite number, or null where it is unset or no number.</summary>
+    private double? ReadTabOrderNoLock(UIComponentId tabId, object?[] parameters)
+        => ReadTabValueNoLock(tabId, TabItemComponent.OrderProperty, parameters) is { } order
+            && RecursiveValueCoercion.TryCoerce(order, typeof(double), out var coerced)
+            && coerced is double number
+            && double.IsFinite(number)
+                ? number
+                : null;
 
     /// <summary>A tab's bound value, read where its binding points; null where the template does not bind it.</summary>
     private object? ReadTabValueNoLock(UIComponentId tabId, UIProperty property, object?[] parameters)

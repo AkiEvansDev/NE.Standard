@@ -75,6 +75,10 @@ export class ScrollAnchorEngine {
         this.followContent();
     }
 
+    public dispose(): void {
+        this.resizes?.disconnect();
+    }
+
     private handleScroll(domEvent: Event): void {
         const container = domEvent.target;
 
@@ -139,6 +143,10 @@ export class ScrollAnchorEngine {
             if (!current.has(child))
                 this.forget(child);
         }
+
+        // An emptied container (Invalidate, Clear) has no row left for the reader to stand on: its next rows open at its end again.
+        if (current.size === 0 && (previous?.size ?? 0) > 0)
+            this.pinned.set(container, true);
 
         this.watched.set(container, current);
     }

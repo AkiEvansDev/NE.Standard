@@ -24,7 +24,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(IFilePickerInputComponent))]
 [UIComponentPropertyDefault(nameof(IFileAcceptComponent.Accept), nameof(DefaultAccept))]
-public abstract partial class ImageInputComponent<T>(string? id = null) : InputComponentBase<T, string?>(id), IBorderedComponent, IFieldInputComponent, IPlaceholderInputComponent, IFilePickerInputComponent
+public abstract partial class ImageInputComponent<T>(string? id = null) : InputComponentBase<T, string?>(id), IBorderedComponent, IFieldInputComponent, IPlaceholderInputComponent, IFilePickerInputComponent, IConfigurationValidatedComponent
     where T : ImageInputComponent<T>, IUIComponentDefinition
 {
     // Pictures unless the author widens it.
@@ -95,6 +95,13 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : InputC
     /// </summary>
     public override UISize? CaptionRowBox(UIResponsiveTier tier)
         => InputCaptionRow.Box(this, tier, honoursInside: Variant == UIImageInputVariant.Inline);
+
+    /// <inheritdoc/>
+    public void ValidateConfiguration()
+    {
+        if (CropSize is int cropSize)
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cropSize);
+    }
 }
 
 /// <summary>

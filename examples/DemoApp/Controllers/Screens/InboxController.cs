@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using DemoApp.Views.Screens;
 
 namespace DemoApp.Controllers.Screens;
 
@@ -200,6 +201,22 @@ internal sealed partial class InboxController : UIControllerBase
 
         return UICommandResult.Ok([new ReplaceAddressEffect(null)]);
     }
+
+    [UICommand]
+    public UICommandResult StartForward()
+    {
+        if (_open is null)
+            return UICommandResult.Ok();
+
+        if (string.IsNullOrWhiteSpace(Reply))
+            Reply = $"Fwd: {_open.Description}\n\n";
+
+        return UICommandResult.Ok([new FocusEffect(InboxView.ReplyId)]);
+    }
+
+    [UICommand]
+    public void DiscardReply()
+        => Reply = null;
 
     [UICommand]
     public UICommandResult Send()

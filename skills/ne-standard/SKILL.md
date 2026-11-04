@@ -1,19 +1,27 @@
 ---
-name: framework
-description: The map of NE.Standard, the server-driven UI framework for .NET (packages NE.Standard.UI*), with the API that carries each capability and the guide that explains it. Use it whenever you write or change an application on NE.Standard - a view (UIViewBase), a controller (UIControllerBase, [RecursiveMember], [UICommand]), a binding, a component, a preset (UIPage, UILayout, UIButtons, UIForm, UIDialogs...), an interaction or a client effect, a dialog or a toast, a list or a windowed item source, a route or a navigation, sign-in and [UIAuthorize], uploads and downloads, words and languages, the theme, the web host, an add-on (icons, CodeInput, DataGrid, Charts, Graph), or a test with NE.Standard.UI.Testing. Read it before writing a helper, a component, a layout or a workaround of your own - the framework very likely has it already.
+name: ne-standard
+description: The map of NE.Standard, the server-driven UI framework for .NET (packages NE.Standard.UI*), with the API that carries each capability, agent-optimized modular references, and links to the live documentation. Use it whenever you write or change an application on NE.Standard - a view (UIViewBase), a controller (UIControllerBase, [RecursiveMember], [UICommand]), a binding, a component, a preset (UIPage, UILayout, UIButtons, UIForm, UIDialogs...), an interaction or a client effect, a dialog or a toast, a list or a windowed item source, a route or a navigation, sign-in and [UIAuthorize], uploads and downloads, words and languages, the theme, the web host, an add-on (icons, CodeInput, DataGrid, Charts, Graph), or a test with NE.Standard.UI.Testing. Read it before writing a helper, a component, a layout or a workaround of your own - the framework very likely has it already.
 ---
 
 # NE.Standard: what the framework already has
 
 A second way to do something the framework does is a defect: before writing a helper, a layout, a busy flag, a dialog or a
-JavaScript snippet of your own, find it here. Every line names the real API and the guide page that explains it.
+JavaScript snippet of your own, find it here. Every line names the real API and the reference or guide page that explains it.
 
 **Where the details are**
 
-- The guides: https://akievansdev.github.io/NE.Standard (each page below is linked as `guide.html`).
-- One page per component, with every property, its `Set*`/`Bind*`, its events and methods:
-  `https://akievansdev.github.io/NE.Standard/components/<kebab-name>.html` (`TextInputComponent` is `text-input`). The full
-  catalogue, add-ons included, is [components.md](components.md) beside this file.
+- **Modular references in this skill** — focused, agent-optimized references beside this file (read only the module for your task):
+  - [references/views-and-layout.md](references/views-and-layout.md) — `UIViewBase`, regions, 24-column responsive grid, dialogs, shortcuts, links, and surface/card rules.
+  - [references/controllers-and-binding.md](references/controllers-and-binding.md) — `UIControllerBase`, `[RecursiveMember]`, `RecursiveCollection<T>`, `[UICommand]` arguments, bindings, validation, and forms.
+  - [references/items-and-windowing.md](references/items-and-windowing.md) — `ItemsViewComponent`, `TableComponent`, `TreeComponent`, item templates, filtering/sorting, and `UIItemSourceBase<TItem>` windowing.
+  - [references/presets-and-interactions.md](references/presets-and-interactions.md) — `NE.Standard.UI.Extensions` (`UIPage`, `UILayout`, `UIButtons`, `UIIconButtons`, `UIMenuItems`, `UIText`, `UIForm`, `UIDetails`, `UICard`, `UIMessage`, `UIDialogs`), browser-side `Interact*` rules, and `ClientEffect`s.
+  - [references/hosting-security-and-testing.md](references/hosting-security-and-testing.md) — `UIStartupBase`, `WebStartupBase`, routing, `[UIAuthorize]`, sessions, uploads/downloads, localization (`UIPhrase`), theming, and `UITestApp` / `UITestPage`.
+  - [components.md](components.md) — the full catalogue of built-in and add-on components (`CodeInput`, `DataGrid`, `Charts`, `Graph`, `Icons`).
+- **Live documentation site (GitHub Pages)** — fetch with your web/URL reader tool when you need the full prose guide or a component's complete property/event table:
+  - Guides index: `https://akievansdev.github.io/NE.Standard/` (`getting-started.html`, `packages.html`, `views.html`, `controllers.html`, `binding.html`, `interactions-and-effects.html`, `extensions.html`, `items.html`, `dialogs-and-notifications.html`, `routing.html`, `security.html`, `files.html`, `localization.html`, `theming.html`, `design.html`, `web-hosting.html`, `testing.html`, `addons.html`).
+  - One page per built-in component, item model, value type, and enum:
+    `https://akievansdev.github.io/NE.Standard/components/<kebab-name>.html` (`TextInputComponent` is `text-input`; index at `https://akievansdev.github.io/NE.Standard/components/index.html`).
+  - Graph add-on site: `https://akievansdev.github.io/NE.Standard.UI.Graph/` (components at `https://akievansdev.github.io/NE.Standard.UI.Graph/components/<kebab-name>.html`).
 - **Exact signatures of the version you build against** are in the packages themselves: every package ships its XML docs and
   README in the NuGet cache, `~/.nuget/packages/<package id, lower case>/<version>/lib/net10.0/<Package.Id>.xml` and
   `.../<version>/README.md` (the version is the one in the project's `Directory.Packages.props`). Grep the XML for a member
@@ -52,7 +60,7 @@ holds no application state and decides nothing; state survives a reload exactly 
 
 ## Views
 
-[views.html](https://akievansdev.github.io/NE.Standard/views.html)
+[views.html](https://akievansdev.github.io/NE.Standard/views.html) | [references/views-and-layout.md](references/views-and-layout.md)
 
 - `sealed class XView : UIViewBase, IUIViewDefinition` with `static string ViewKey`; regions `CreateContent()` (required),
   `CreateHeader()`, `CreateFooter()`, `CreateLeftSide()`, `CreateRightSide()`; `Title`; `Options` (`UIViewOptions`:
@@ -76,7 +84,7 @@ holds no application state and decides nothing; state survives a reload exactly 
 
 ## Controllers and state
 
-[controllers.html](https://akievansdev.github.io/NE.Standard/controllers.html)
+[controllers.html](https://akievansdev.github.io/NE.Standard/controllers.html) | [references/controllers-and-binding.md](references/controllers-and-binding.md)
 
 - `sealed partial class XController : UIControllerBase`. `[RecursiveMember] public partial T Name { get; set; }` generates the
   notifying setter and the binding segment; a nested `RecursiveObservable` property makes a path (`"Group.Striped"`).
@@ -107,7 +115,7 @@ holds no application state and decides nothing; state survives a reload exactly 
 
 ## Binding, validation and forms
 
-[binding.html](https://akievansdev.github.io/NE.Standard/binding.html)
+[binding.html](https://akievansdev.github.io/NE.Standard/binding.html) | [references/controllers-and-binding.md](references/controllers-and-binding.md)
 
 - Paths are `RecursivePath` (`Lines[0].Price`); write `Bind*<TSource>(c => c.Lines[0].Price)` or `nameof(...)` for a property. Scopes `UIBindingScope.Root` (the default of
   every `Bind*` but a row's own - an item's `CanSelect`/`CanDrag`/`CanRemove`/`CanRename`/`CanShowContextMenu`, a tree node's
@@ -121,13 +129,13 @@ holds no application state and decides nothing; state survives a reload exactly 
   again"), the same row's or one in no row, judged in the browser as either changes, and `ValidationInto(targetOrId)` routes messages into another component. The server's verdict is `BindValidation` to
   a `UIValidationMessage`. Keep submit enabled.
 - The server refuses a value outside an input's `Min`/`Max`/`Step`, a write to a read-only or hidden input and a command from a
-  disabled, loading or hidden component - by a static value or a controller binding. What an interaction opens (`EnabledWhen`,
+  disabled, loading or hidden component - by a static value or a controller binding. What an interaction opens (`EnabledWhen`, `DisabledWhen`,
   `ShownWhen`, a hover reveal) it does not refuse; a command reveals one by writing its bound visibility: what the rule guards, and
   permissions, belong in the command, or in a gate bound to the controller.
 
 ## Interactions: one component reacting to another, on the page
 
-[interactions-and-effects.html](https://akievansdev.github.io/NE.Standard/interactions-and-effects.html). These run in the
+[interactions-and-effects.html](https://akievansdev.github.io/NE.Standard/interactions-and-effects.html) | [references/presets-and-interactions.md](references/presets-and-interactions.md). These run in the
 browser with no round trip; reach for them before a command that only flips a flag.
 
 - **The call is made on the target; the source argument (a component instance via `UIComponentReference` or a string id) names the source.** Written the other way round it compiles and does
@@ -156,7 +164,7 @@ browser with no round trip; reach for them before a command that only flips a fl
   press path (click, keyboard, shortcut, long press, action bar); the other keys keep the command. On a row's own template the same
   is `InteractOnRow(eventName, rowKey, effect)`. A Copy entry is
   `.OnItemClick("copy", CopyToClipboardEffect.ValueOf(textId))`, never a command answering with the text.
-- Presets over them: `ShownWhen`, `HiddenWhen`, `EnabledWhen` (another component instance or string id), `ShownFrom`/`ShownBelow` (a breakpoint).
+- Presets over them: `ShownWhen`, `HiddenWhen`, `EnabledWhen`, `DisabledWhen` (another component instance or string id), `ShownFrom`/`ShownBelow` (a breakpoint).
 - Components that scroll together share `SetScrollGroup("name")`.
 
 ## Client effects: what a command asks the page to do
@@ -178,7 +186,7 @@ description line alone where it shows one).
 
 ## Presets (NE.Standard.UI.Extensions)
 
-[extensions.html](https://akievansdev.github.io/NE.Standard/extensions.html). A preset holds a look in one place - use it
+[extensions.html](https://akievansdev.github.io/NE.Standard/extensions.html) | [references/presets-and-interactions.md](references/presets-and-interactions.md). A preset holds a look in one place - use it
 rather than rebuilding the arrangement with your own widths and spacings. Each returns an ordinary built-in component; every preset taking a binding path (`Bound*`, `UILayout.Panes`) also takes a typed `<TSource>(Expression<Func<TSource, object?>>)` selector.
 
 - `UIPage` - `Header`, `BoundHeader` (the band's name and line bound to the controller), `Section`/`BoundSection`,
@@ -187,7 +195,7 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   `centered: true` in the middle) with `header.InColumn(width)` for the band over it, `Banner`, `Empty`/`BoundEmpty` (nothing chosen
   or made yet; the icon optional, the ways on in a row), `Outcome`/`BoundOutcome` (what a submit came to), `Status`/`BoundStatus` (not found,
   refused, failed). `UIHeaderSize` sizes a header. Words are `UIPhrase`; words the controller holds go through the `Bound*` twin.
-- `UILayout` - `Stack`, `Row`, `Columns`, `Split`, `Sidebar`, `Board`, `Ends`, and `Panes` - a list beside the thing chosen in
+- `UILayout` - `Stack`, `Row`, `Columns`, `Split`, `Sidebar`, `Board`, `Ends` (trailing icon-only buttons stand 4 px apart, 8 px when any carries words — same in `UIPage.Header`), and `Panes` - a list beside the thing chosen in
   it (chats and a conversation, a tree and a note), one at a time on a phone:
   `UILayout.Panes(list, detail, nameof(Controller.Panes), placeholder: UIPage.Empty(...), splitter: true)` over a controller
   property `[RecursiveMember] public partial UIPanesState Panes { get; set; } = new();`. The page calls `Panes.ShowDetail()`
@@ -208,7 +216,7 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   a link, an emphasis - goes through a component overload (`UIMessage.Create(…, ParagraphComponent description)`,
   `UIDialogs.Confirm(…, ParagraphComponent description, …)`).
 - `UIIconButtons` / `UIMenuItems` - the standard actions with their glyph and words: `Add`, `Attach`, `Back`, `Cancel`, `Close`,
-  `Copy`, `Delete`, `Done`, `Download`, `Edit`, `Filter`, `Menu`, `More`, `New`, `Open`, `Pin`, `Redo`, `Refresh`, `Remove`,
+  `Copy`, `Delete`, `Done`, `Download`, `Duplicate`, `Edit`, `Filter`, `Menu`, `More`, `New`, `Open`, `Pin`, `Redo`, `Refresh`, `Remove`,
   `Rename`, `Save`, `Search`, `Send`, `Settings`, `Share`, `SignOut`, `Stop`, `Undo`, `Unpin`, `Upload`. A `UIStandardAction` is a
   menu's entry by `ToMenuItem(id)` and a command bar's or button group's item by `ToButtonItem(id, variant, iconOnly)`, its danger by the
   one rule `ButtonVariant(variant)`/`ButtonInk(variant)` say (a filled button's fill, a bare one's ink); a button in a row's template sends
@@ -230,7 +238,7 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   id and the primary its submit; the standard Cancel), `Confirm`, `BoundConfirm` (a written question, its words at a path), `CloseButton(key, action)` - the dialog's own
   Cancel, Close or Done, never written by hand. A dialog is named by the title it shows (`UIDialog.TitleId`; a hand-built one
   over a preset's header passes `UIDialogs.TitleId(key)`).
-- `StatePresetExtensions` (`ShownWhen`, `HiddenWhen`, `EnabledWhen`) and `ResponsivePresetExtensions` (`ShownFrom`, `ShownBelow`).
+- `StatePresetExtensions` (`ShownWhen`, `HiddenWhen`, `EnabledWhen`, `DisabledWhen`) and `ResponsivePresetExtensions` (`ShownFrom`, `ShownBelow`).
 
 ## Built-in components
 
@@ -247,7 +255,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 
 ## Items, lists and windowed sources
 
-[items.html](https://akievansdev.github.io/NE.Standard/items.html)
+[items.html](https://akievansdev.github.io/NE.Standard/items.html) | [references/items-and-windowing.md](references/items-and-windowing.md)
 
 - `SetItems` (static) or `BindItems(path)` over a `RecursiveCollection<T>`; every item is keyed. Templates through
   `SetTemplate` / `AddTemplateVariant` with `Relative` bindings and `SetTemplateKeyProperty` (dotted paths or typed `<TRow>(r => r.Meta.Kind)` selectors); built-in models (`TextItem`, `MenuItem`, `TreeNode`, `TabItem`, `BadgeItem`,
@@ -285,7 +293,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 
 ## Routing and navigation
 
-[routing.html](https://akievansdev.github.io/NE.Standard/routing.html)
+[routing.html](https://akievansdev.github.io/NE.Standard/routing.html) | [references/hosting-security-and-testing.md](references/hosting-security-and-testing.md)
 
 - `application.Route<TView>(path)`, `Route<TView, TController>(path, route => route.Require(rule).AllowAnonymous().Identity("id")
   .CompilationMode(UIViewCompilationMode.Lazy).FlushInterval(interval))`.
@@ -296,7 +304,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 
 ## Authorization and sessions
 
-[security.html](https://akievansdev.github.io/NE.Standard/security.html)
+[security.html](https://akievansdev.github.io/NE.Standard/security.html) | [references/hosting-security-and-testing.md](references/hosting-security-and-testing.md)
 
 - The framework keeps its own session (`UserSessionState`: `UserId`, `Roles`, `Permissions`, `Language`, `ThemeMode`,
   `TimeZone`) in `IUserSessionStore`; the default is in memory - `services.AddSignedInUserSessionStore<TStore>()` keeps signed-in
@@ -352,7 +360,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 
 ## Tests without a browser
 
-[testing.html](https://akievansdev.github.io/NE.Standard/testing.html)
+[testing.html](https://akievansdev.github.io/NE.Standard/testing.html) | [references/hosting-security-and-testing.md](references/hosting-security-and-testing.md)
 
 - `await using UITestApp app = UITestApp.Create<AppStartup>(configureServices: ..., configureApplication: ...)` (registers a default `/_ne/content` `IUIContentAddressResolver` unless overridden);
   `UITestPage page = await app.OpenAsync("/route", session => session.SignIn("id", roles: ["admin"]))`.
@@ -371,20 +379,20 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 web startup next to `AddStandardRenderers()`; each README in the NuGet cache is its full reference.
 
 - **Icons** - `NE.Standard.UI.Icons.Material` / `.Web.Icons.Material`: `MaterialIcons.Save`, `MaterialIcons.Outlined(...)`;
-  host `services.AddMaterialWebIcons(MaterialIconStyle.Fill | MaterialIconStyle.Outlined, names...)` - only registered names
+  host `services.AddMaterialWebIcons(names...)` (or with an explicit `MaterialIconStyle` mask) - only registered names
   draw, a misspelt one fails at startup; `MapUIGlyph` draws the framework's own glyphs from the set.
 - **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, Ctrl+S raises `code-save`:
   `OnSave`/`OnSaveLiteral`) and `MarkdownDisplayComponent`; host `services.AddCodeInput()`.
 - **DataGrid** - `DataGridComponent` (a `TableComponent` with `AddTextColumn`, `AddEnumColumn<T>`, `AddNumberColumn`,
-  `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, `AddColumn<TRow>` / `AddEditableColumn<TRow, TInput>`, sorting, filters, editing, paging, totals, CSV export),
+  `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, `AddColumn<TRow>` / `AddEditableColumn<TRow, TInput>`, `AddFilter<TRow>`, sorting, filters, editing, paging, totals, CSV export),
   `DataGridCellComponent`, `DataGridFilterComponent`; host `services.AddDataGrid()`.
 - **Charts** - `LineChartComponent`, `AreaChartComponent`, `BarChartComponent`, `PieChartComponent`, `ShareBarComponent`,
   `ScatterChartComponent`, `RadarChartComponent`, `SparklineComponent`, `GaugeComponent` over keyed collections (`BindItems`,
-  `SetX`, `SetXAxis(UIChartAxis.Time(...))`, `SetSeriesPath(path, translate)`, `SetValuePath`, `AddSeries`, `SetHideEmptySeries`, typed `<TRow>` path selectors, `OnPointClick`, `OnWindowChange`, each with a `…Literal` form); host
+  `SetX`, `SetXAxis(UIChartAxis.Time(...))`, `SetSeriesPath(path, translate)`, `SetValuePath`, `AddSeries`, `SetHideEmptySeries`, `SetLegendColumns`, typed `<TRow>` path selectors, `OnPointClick`, `OnWindowChange`, each with a `…Literal` form); host
   `services.AddCharts()`.
 - **Graph** - `NodesComponent` (a node network whose kinds are C# classes, `SetCatalog`, `UINodeCatalog.FromTypes`,
   `UINodeKinds.Common`, `SetPinChoices`/`BindPinChoices` for `[GraphInput(ChoicesKey = ...)]` dropdown pins; `OnSave`, `OnMenuEntry`, `OnNodeClick`, `OnStop`, each with a `…Literal` form),
-  `NodesParametersComponent`, `LayeredGraphComponent`, `ProductionGraphComponent`; host `services.AddGraph()`;
+  `NodesParametersComponent` (`SetCanvas(canvas)`), `LayeredGraphComponent`, `ProductionGraphComponent`; host `services.AddGraph()`;
   `NE.Standard.UI.Graph.Calculator` (`CalculatorNodes.Kinds`) and `NE.Standard.UI.Graph.Image` (`ImageNodes.Kinds`,
   `AddGraphImages()`, `IUINodeImageStore`). Its own site: https://akievansdev.github.io/NE.Standard.UI.Graph.
 

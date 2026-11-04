@@ -336,6 +336,9 @@ internal static partial class WebFileEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
+        if (WebRequestGuards.IsCrossSiteRequest(http))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+
         var sessionId = await ResolveSessionAsync(http, cancellationToken).ConfigureAwait(false);
 
         if (sessionId is null)

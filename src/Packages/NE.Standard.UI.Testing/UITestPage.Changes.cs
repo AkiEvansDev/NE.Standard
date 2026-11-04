@@ -28,11 +28,13 @@ public sealed partial class UITestPage
     private static readonly JsonSerializerOptions ItemJsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>Takes the attached runtime and applies the snapshot a connecting page starts from: every binding's value and every list.</summary>
-    internal async Task StartAsync(RuntimeResolution resolution, CancellationToken cancellationToken)
+    internal async Task StartAsync(RuntimeResolution resolution, CancellationToken cancellationToken, bool keepNavigation = false)
     {
         _resolution = resolution;
         View = resolution.CompiledView;
-        _navigation = resolution.Navigation;
+
+        if (!keepNavigation)
+            _navigation = resolution.Navigation;
 
         if (resolution.Runtime is not { } runtime)
             return;
@@ -550,7 +552,7 @@ public sealed partial class UITestPage
             }
         }
 
-        await StartAsync(_resolution, cancellationToken).ConfigureAwait(false);
+        await StartAsync(_resolution, cancellationToken, keepNavigation: true).ConfigureAwait(false);
     }
 
     private bool HasHeldPropertyNoLock(UIComponentAddress component)

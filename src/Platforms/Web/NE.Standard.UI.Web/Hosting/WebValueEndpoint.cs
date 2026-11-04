@@ -157,6 +157,9 @@ internal static partial class WebValueEndpoint
     /// <summary>Serves a staged server value; <paramref name="instance"/> names the tab reading it, so its read is its own.</summary>
     private static async Task<IResult> ReadAsync(HttpContext http, string token, [FromQuery] string? instance, [FromServices] WebValueStagingStore store, CancellationToken cancellationToken)
     {
+        if (WebRequestGuards.IsCrossSiteRequest(http))
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+
         UserSessionState? session = await http.GetAuthorizedUISessionAsync(cancellationToken).ConfigureAwait(false);
 
         if (session is null)

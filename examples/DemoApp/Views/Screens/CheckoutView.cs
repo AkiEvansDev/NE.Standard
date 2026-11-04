@@ -84,7 +84,7 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
                     .OnChange(nameof(CheckoutController.UpdateSummary))
             ),
             UIButtons.Pair(
-                UIButtons.Ghost("Back to plans"),
+                UIButtons.Ghost("Back to plans").SetUrl("/screens/catalogue"),
                 UIButtons.Primary("Continue to address").OnClick(nameof(CheckoutController.NextStep))
             )
         )
@@ -232,6 +232,6 @@ internal sealed class CheckoutView : DemoScreenView, IUIViewDefinition
             UIColorStyle.Success,
             nameof(CheckoutController.PlacedTitle),
             nameof(CheckoutController.PlacedLine),
-            UIButtons.Ghost("Back to the catalogue")
+            UIButtons.Ghost("Back to the catalogue").SetUrl("/screens/catalogue")
         );
 }

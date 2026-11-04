@@ -20,6 +20,7 @@ public readonly record struct UIStandardAction(string Title, string Icon, bool I
     public static readonly UIStandardAction Open = new("ui.action.open", UIGlyphs.OpenInNew);
     public static readonly UIStandardAction Edit = new("ui.action.edit", UIGlyphs.Edit);
     public static readonly UIStandardAction Copy = new("ui.action.copy", UIGlyphs.Copy);
+    public static readonly UIStandardAction Duplicate = new("ui.action.duplicate", UIGlyphs.Copy);
     public static readonly UIStandardAction Save = new("ui.action.save", UIGlyphs.Save);
     public static readonly UIStandardAction Done = new("ui.action.done", UIGlyphs.Check);
     public static readonly UIStandardAction Cancel = new("ui.action.cancel", UIGlyphs.Close);

@@ -178,4 +178,28 @@ public static class CompiledUIBindingParameterResolver
 
         return count;
     }
+
+    /// <summary>
+    /// Gets the parameter that fills the given 0-based template slot, skipping scope parameters.
+    /// </summary>
+    public static CompiledUIBindingParameter GetSlot(CompiledUIBindingParameter[] parameters, int slotIndex)
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+        ArgumentOutOfRangeException.ThrowIfNegative(slotIndex);
+
+        var currentSlot = 0;
+
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (parameters[i].Kind == CompiledUIBindingParameterKind.Scope)
+                continue;
+
+            if (currentSlot == slotIndex)
+                return parameters[i];
+
+            currentSlot++;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(slotIndex));
+    }
 }

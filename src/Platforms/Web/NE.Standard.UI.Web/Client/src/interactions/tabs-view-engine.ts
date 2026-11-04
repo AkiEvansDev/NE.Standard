@@ -120,9 +120,9 @@ export class TabsViewEngine {
         this.root.addEventListener("dragend", domEvent => this.handleDragEnd(domEvent), true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
 
-        // A press on a tab's close is the close's: `:active` holds on the caption around it, which takes no pressed wash under it — through
-        // a drag of the tab too, whose start cancels the pointer while `:active` holds until the drag ends.
-        trackInnerPointer(this.root, ["press"], target => {
+        // A pointer on a tab's close is the close's: `:hover` and `:active` hold on the caption around it, which takes neither hover nor pressed
+        // wash under it — through a drag of the tab too, whose start cancels the pointer while `:active` holds until the drag ends.
+        trackInnerPointer(this.root, ["hover", "press"], target => {
             const caption = target.closest(`.${TabItemCloseClass}`)?.closest<HTMLElement>(`.${TabItemCaptionClass}`) ?? null;
 
             return caption === null ? [] : [caption];

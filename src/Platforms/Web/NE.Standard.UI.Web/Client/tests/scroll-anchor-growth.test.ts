@@ -204,3 +204,45 @@ test("without the observer the engine still follows what is added", () => {
         globalThis.ResizeObserver = saved;
     }
 });
+
+test("an end-anchored list the reader scrolled up re-pins to its end when emptied and refilled", () => {
+    let followMutated = null as ((containers: Iterable<FakeElement>) => void) | null;
+    const saved = globalThis.MutationObserver;
+
+    globalThis.MutationObserver = class {
+        public constructor(callback: (records: readonly { readonly type: string; readonly target: FakeElement; readonly addedNodes: readonly FakeElement[]; readonly removedNodes: readonly FakeElement[] }[]) => void) {
+            followMutated = containers => {
+                callback([...containers].map(target => ({ type: "childList", target, addedNodes: [], removedNodes: [] })));
+            };
+        }
+
+        public observe(): void {
+        }
+
+        public disconnect(): void {
+        }
+    } as unknown as typeof MutationObserver;
+
+    try {
+        const host = feed(100, rowAt("m1", 0, 100), rowAt("m2", 100, 100));
+
+        new ScrollAnchorEngine({ root: real<ParentNode>(fakeDocument.body) });
+
+        // Reader scrolled up from the end.
+        host.scrollTop = 100;
+        host.dispatchEvent(new FakeEvent("scroll"));
+
+        // Invalidate() empties the rows, then new rows arrive.
+        host.replaceChildren(FakeElement.of("", { "data-ui-window-spacer": "top" }));
+        followMutated?.([host]);
+
+        host.append(rowAt("m3", 0, 100), rowAt("m4", 100, 100));
+        Object.assign(host, { scrollHeight: 1200 });
+        followMutated?.([host]);
+
+        assert.equal(host.scrollTop, 1200);
+    }
+    finally {
+        globalThis.MutationObserver = saved;
+    }
+});

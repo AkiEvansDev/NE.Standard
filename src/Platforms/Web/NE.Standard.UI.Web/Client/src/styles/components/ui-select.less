@@ -96,7 +96,7 @@
 }
 
     @media @{ui-can-hover} {
-        .ui-select:not(.ui-disabled):not(.ui-readonly) > .ui-select__trigger:hover .ui-select__chevron {
+        .ui-select:not(.ui-disabled):not(.ui-readonly) > .ui-select__trigger:not([data-ui-inner-pointer~="hover"]):hover .ui-select__chevron {
             color: var(--ui-color-on-surface);
         }
     }

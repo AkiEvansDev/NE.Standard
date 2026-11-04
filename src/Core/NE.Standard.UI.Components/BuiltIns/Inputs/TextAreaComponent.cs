@@ -22,7 +22,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
 [UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextLengthComponent))]
-public abstract partial class TextAreaComponent<T>(string? id = null) : InputComponentBase<T, string?>(id), IBorderedComponent, IFieldInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent
+public abstract partial class TextAreaComponent<T>(string? id = null) : InputComponentBase<T, string?>(id), IBorderedComponent, IFieldInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent, IConfigurationValidatedComponent
     where T : TextAreaComponent<T>, IUIComponentDefinition
 {
     // Stretched, unlike the one-line fields it shares a base with: a box for longer text takes the height its track gives it.
@@ -267,6 +267,16 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
     /// <summary>A multi-line field keeps its caption on top whatever <c>TitlePlacement</c> asks, as its renderer draws it.</summary>
     public override UISize? CaptionRowBox(UIResponsiveTier tier)
         => InputCaptionRow.Box(this, tier, honoursInside: false);
+
+    /// <inheritdoc/>
+    public void ValidateConfiguration()
+    {
+        if (Rows is int rows)
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(rows);
+
+        if (MaxRows is int maxRows)
+            ArgumentOutOfRangeException.ThrowIfLessThan(maxRows, Rows ?? DefaultRows);
+    }
 }
 
 /// <summary>

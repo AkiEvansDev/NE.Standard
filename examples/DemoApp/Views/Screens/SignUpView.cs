@@ -95,7 +95,7 @@ internal sealed class SignUpView : DemoScreenView, IUIViewDefinition
                     "The [terms of service](https://orvane.example/terms) and the [privacy policy](https://orvane.example/privacy), a page each."
                 ),
                 UIButtons.Pair(
-                    UIButtons.Link("I already have an account"),
+                    UIButtons.Link("I already have an account").SetUrl("/screens/sign-in"),
                     UIButtons.Primary("Create account")
                         .OnSubmitShowingLoading(FormId, nameof(SignUpController.CreateAccountAsync))
                 )

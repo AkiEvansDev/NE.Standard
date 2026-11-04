@@ -14,6 +14,7 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
     private const string SearchId = "inbox-search";
     private const string UnreadId = "inbox-unread";
     private const string LabelId = "inbox-label";
+    internal const string ReplyId = "inbox-reply";
 
     public static string ViewKey => "demo.screens.inbox";
 
@@ -56,7 +57,7 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
                 .SetDebounceMilliseconds(150)
                 .SetPlacement(1, 1, 24, 1)
             )
-            .AddChild(UILayout.Columns(12,
+            .AddChild(UILayout.Ends(
                     new SelectComponent(LabelId)
                         .SetAppearance(UIInputAppearance.Filled)
                         .SetPlaceholder("Every label")
@@ -136,8 +137,8 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
             UIIconButtons.Back().InteractOn(EventNames.Click, new NavigateBackEffect("/screens/inbox")).ShownBelow(UIResponsiveTier.Md),
             nameof(InboxController.Subject),
             null,
-            UIButtons.Icon(DemoIcons.Outline(DemoIcons.Undo), "Reply"),
-            UIButtons.Icon(DemoIcons.Outline(DemoIcons.ArrowRight), "Forward"),
+            UIButtons.Icon(DemoIcons.Outline(DemoIcons.Undo), "Reply").InteractOn(EventNames.Click, new FocusEffect(ReplyId)),
+            UIButtons.Icon(DemoIcons.Outline(DemoIcons.ArrowRight), "Forward").OnClick(nameof(InboxController.StartForward)),
             UIButtons.Icon(DemoIcons.Outline(DemoIcons.Mail), "Mark as unread").OnClick(nameof(InboxController.MarkUnread)),
             UIButtons.Icon(DemoIcons.Outline(DemoIcons.Folder), "Archive").OnClick(nameof(InboxController.Archive))
         );
@@ -167,14 +168,14 @@ internal sealed class InboxView : DemoScreenView, IUIViewDefinition
                     ),
                 new SeparatorComponent(),
                 // Filled: the reading pane already frames the reply, and Send is its own button.
-                new TextAreaComponent()
+                new TextAreaComponent(ReplyId)
                     .SetAppearance(UIInputAppearance.Filled)
                     .BindPlaceholder<InboxController>(static x => x.ReplyPlaceholder)
                     .SetAccessibleName("Reply")
                     .SetRows(3)
                     .BindValue<InboxController>(static x => x.Reply),
                 UIButtons.Pair(
-                    UIButtons.Ghost("Discard"),
+                    UIButtons.Ghost("Discard").OnClick(nameof(InboxController.DiscardReply)),
                     UIButtons.Primary("Send", DemoIcons.Outline(DemoIcons.Send)).OnClick(nameof(InboxController.Send))
                 )
             )

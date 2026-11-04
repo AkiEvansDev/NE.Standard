@@ -283,7 +283,7 @@ public static class UILayout
         StackPanelComponent far = new StackPanelComponent()
             .SetOrientation(UIOrientation.Horizontal)
             .SetGlyphEdge(UIAlignment.End)
-            .SetSpacing(8)
+            .SetSpacing(under ? 8 : 4)
             .SetWrap(under)
             .SetHorizontalAlignment(UIAlignment.End)
             .SetVerticalAlignment(across)

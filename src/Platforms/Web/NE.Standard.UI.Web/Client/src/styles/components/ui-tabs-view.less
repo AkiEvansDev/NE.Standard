@@ -111,13 +111,13 @@
 }
 
     @media @{ui-can-hover} {
-        .ui-tab-item__caption:hover .ui-tab-item__label {
+        .ui-tab-item:not(.ui-disabled):not(.ui-loading) > .ui-tab-item__caption:not([data-ui-inner-pointer~="hover"]):hover .ui-tab-item__label {
             .ui-tab-caption-hover-ink();
         }
     }
 
     @media @{ui-can-hover} {
-        .ui-tab-item__caption:hover::after {
+        .ui-tab-item:not(.ui-disabled):not(.ui-loading) > .ui-tab-item__caption:not([data-ui-inner-pointer~="hover"]):hover::after {
             .ui-tab-caption-hover-mark();
         }
     }
@@ -204,7 +204,7 @@
 }
 
     @media @{ui-can-hover} {
-        .ui-tab-item__caption:hover .ui-tab-item__close {
+        .ui-tab-item:not(.ui-disabled):not(.ui-loading) > .ui-tab-item__caption:hover .ui-tab-item__close {
             opacity: 1;
             pointer-events: auto;
         }
@@ -230,6 +230,12 @@
     // A tab that cannot be removed keeps the close's slot but not the control, so it aligns with neighbours that can.
     [data-ui-unremovable] .ui-tab-item__close {
         visibility: hidden;
+        pointer-events: none;
+    }
+
+    .ui-tab-item:is(.ui-disabled, .ui-loading) .ui-tab-item__close,
+    .ui-tabs-view:is(.ui-disabled, .ui-loading) .ui-tab-item__close {
+        opacity: 0;
         pointer-events: none;
     }
 

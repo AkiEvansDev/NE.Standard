@@ -30,6 +30,9 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
 
         [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "A client fell {QueuedCount} change set(s), about {QueuedBytes} bytes, behind; its queue was dropped and the runtime asked for a full resync.")]
         public static partial void QueueOverflowed(ILogger logger, int queuedCount, long queuedBytes);
+
+        [LoggerMessage(EventId = 3, Level = LogLevel.Debug, Message = "Sending UI changes was cancelled for '{InstanceId}'.")]
+        public static partial void SendCancelled(ILogger logger, Exception exception, string instanceId);
     }
 
     private readonly Dictionary<IUIRuntime, RuntimeQueue> _queues = [];
@@ -365,6 +368,16 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
                 Release(given);
 
                 return;
+            }
+            catch (OperationCanceledException exception)
+            {
+                // A send cancelled while the dispatcher is not stopping — a page leaving mid-write or a send past its timeout — is not an
+                // error to alarm the host with; the delivery asked for the resync that brings any remaining page back, and a push's caller
+                // is still told its send did not complete.
+                Log.SendCancelled(_logger, exception, next.Handle.Instance.Id);
+
+                if (next.Result is not null)
+                    next.Answer!.Fail(exception);
             }
             catch (Exception exception)
             {

@@ -21,6 +21,12 @@ internal sealed partial class WorkspaceSettingsController : UIControllerBase
     private readonly KeyValueActionItem _twoFactor = Row(TwoFactorRowId, "Two-factor authentication", "On", "two-factor");
 
     [RecursiveMember]
+    public partial string? Avatar { get; set; }
+
+    [RecursiveMember]
+    public partial string? AvatarSelectionId { get; set; }
+
+    [RecursiveMember]
     public partial string? DisplayName { get; set; } = "Robin Hale";
 
     [RecursiveMember]

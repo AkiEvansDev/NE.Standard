@@ -137,7 +137,7 @@ public static class UIPage
             .AddChild(new StackPanelComponent()
                 .SetOrientation(UIOrientation.Horizontal)
                 .SetGlyphEdge(UIAlignment.End)
-                .SetSpacing(UIResponsive<double>.Create(8, md: 12))
+                .SetSpacing(actionsUnder ? UIResponsive<double>.Create(8, md: 12) : UIResponsive<double>.FromValue(4))
                 .SetWrap(actionsUnder)
                 .SetMargin(UIResponsive<UIThickness>.Create(actionsUnder ? UIThickness.All(0, 12, 0, 0) : UIThickness.All(8, 0, 0, 0), md: beside))
                 .SetHorizontalAlignment(UIAlignment.End)

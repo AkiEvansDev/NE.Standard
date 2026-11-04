@@ -163,7 +163,7 @@ internal sealed partial class UIRuntime
                 ClientValueRead? read = null;
 
                 // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
-                if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read))
+                if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read, changeSet))
                 {
                     _host.Metrics.ValueRefused("refused");
                     (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate, resolution));
@@ -369,7 +369,7 @@ internal sealed partial class UIRuntime
 
         if (set)
         {
-            applied = update;
+            applied = ReferenceEquals(value.Value, update.Value) ? update : new ClientValueUIUpdate { Address = update.Address, Value = value.Value };
             return ClearRejectionNoLock(update);
         }
 
@@ -499,7 +499,7 @@ internal sealed partial class UIRuntime
             {
                 ClientValueUIUpdate update = held.Update;
 
-                if (!pending.Address.Equals(update.Address) || !Equals(pending.Value, update.Value))
+                if (!pending.Address.Equals(update.Address) || !SameHeldValue(pending.Value, update.Value))
                     continue;
 
                 _pendingUpdates[i] = _pendingUpdates[i] with { Update = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, Content = pending.Content, ExceptInstanceId = held.InstanceId } };
@@ -509,6 +509,10 @@ internal sealed partial class UIRuntime
 
         _heldValues.Clear();
     }
+
+    private static bool SameHeldValue(object? pending, object? written)
+        => Equals(pending, written)
+            || (pending is not null && written is not null && RecursiveValueCoercion.TryCoerce(written, pending.GetType(), out var coerced) && Equals(pending, coerced));
 
     private readonly record struct HeldValue(ClientValueUIUpdate Update, string InstanceId);
 }

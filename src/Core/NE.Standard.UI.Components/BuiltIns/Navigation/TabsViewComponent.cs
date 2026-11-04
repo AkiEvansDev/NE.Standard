@@ -27,7 +27,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Navigation;
 [UIComponentPropertyBlock(typeof(ISelectedKeyComponent))]
 [UIComponentPropertyBlock(typeof(IItemsHostAbilitiesComponent))]
 [UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
-public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent, IEmptyStateComponent, IPressablePartsComponent, ISelectedKeyComponent, IItemsHostAbilitiesComponent, IItemRemoveComponent, IItemRenameComponent, IAccessibleNameComponent
+public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabItemModel, ITabItemComponent>, ISelectionStyleComponent, IRegionContainerComponent, IEmptyStateComponent, IPressablePartsComponent, ISelectedKeyComponent, IItemsHostAbilitiesComponent, IItemRemoveComponent, IItemRenameComponent, IAccessibleNameComponent, IConfigurationValidatedComponent
     where T : TabsViewComponent<T>, IUIComponentDefinition
 {
     private readonly Dictionary<string, IVisualComponent> _regions;
@@ -186,6 +186,13 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// </summary>
     public void OnRenamableItemTemplates(Action<IVisualComponent> register)
         => _ = OnItemTemplate(template => register(template));
+
+    /// <inheritdoc/>
+    public void ValidateConfiguration()
+    {
+        if (TabMenuEntries is UITabMenuEntries entries && entries.HasFlag(UITabMenuEntries.Close | UITabMenuEntries.Delete))
+            throw new ArgumentException("Close and Delete are the two forms of the tab menu's one remove entry; choose one.", nameof(TabMenuEntries));
+    }
 }
 
 /// <summary>

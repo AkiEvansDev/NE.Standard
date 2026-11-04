@@ -32,6 +32,10 @@ public static class UIMenuItems
     public static MenuItem Copy(string id = "copy")
         => Create(UIStandardAction.Copy, id);
 
+    /// <summary>Make a copy of it beside it.</summary>
+    public static MenuItem Duplicate(string id = "duplicate")
+        => Create(UIStandardAction.Duplicate, id);
+
     /// <summary>Save it.</summary>
     public static MenuItem Save(string id = "save")
         => Create(UIStandardAction.Save, id);
