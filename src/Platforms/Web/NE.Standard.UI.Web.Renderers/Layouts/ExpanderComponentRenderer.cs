@@ -35,6 +35,11 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
         // The compiled default is true, so a plain expander opens; a bound null is closed both here and on the client's toggle.
         RenderFlagAttribute(context, root, ExpanderComponent.ExpandedProperty, "open");
 
+        var hasAction = HasRegion(context, RegionNames.HeaderAction);
+
+        if (hasAction)
+            _ = root.Class("ui-expander--has-action");
+
         _ = root.Element("summary", header =>
         {
             _ = header.Class(WebClassNames.ExpanderHeader);
@@ -54,6 +59,16 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
                 RenderFlagClass(context, chevron, ExpanderComponent.ShowChevronProperty, WebClassNames.Hidden, WebValueCondition.IsFalse);
             });
         });
+
+        if (hasAction)
+        {
+            _ = root.Element("div", action =>
+            {
+                _ = action.Class("ui-expander__header-action");
+
+                RenderRegion(context, action, RegionNames.HeaderAction);
+            });
+        }
 
         if (HasRegion(context, RegionNames.Content))
         {

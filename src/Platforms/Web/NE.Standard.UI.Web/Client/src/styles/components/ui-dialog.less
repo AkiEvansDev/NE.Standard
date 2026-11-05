@@ -178,8 +178,8 @@
     }
 }
 
-.ui-dialog[hidden][data-ui-dialog-placement="bottom"]:is([data-ui-dialog-close-backdrop], [data-ui-dialog-close-escape]) > .ui-dialog__surface {
-    transform: translateY(100%);
+.ui-dialog[hidden][data-ui-dialog-placement] > .ui-dialog__surface {
+    transform: var(--ui-dialog-sheet-from);
     transition: transform @ui-motion-fast @ui-motion-exit;
 }
 

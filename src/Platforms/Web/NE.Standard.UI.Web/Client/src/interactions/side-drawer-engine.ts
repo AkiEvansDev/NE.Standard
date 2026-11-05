@@ -15,7 +15,6 @@ import { isComposing } from "./keyboard-shortcut.ts";
 import { choosesMenuEntry } from "./menu-group-engine.ts";
 import { isBehindModal } from "./open-dialogs.ts";
 import { hasOpenPopups } from "./popup-dismissal.ts";
-import { motion } from "../rendering/motion.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
 import { onTierChange } from "../rendering/responsive-tier.ts";
 import { DrawerBreakpointTiers, isBottomBarSide, sideIsDrawer } from "../rendering/side-drawer-width.ts";
@@ -203,9 +202,9 @@ export class SideDrawerEngine {
         this.hold(drawer, side, isModal(shell, side));
         this.placeSwitch(drawer, opener);
 
-        // Into the drawer, not behind the backdrop; retried each frame while its fade-in still hides the controls, unless the reader moved.
+        // Into the drawer, not behind the backdrop; a single next-frame fallback covers a drawer whose visibility transitions in.
         // A press gives it to the drawer itself: a field of it focused at once would raise a phone's on-screen keyboard unasked.
-        this.focusInto(shell, side, drawer, document.activeElement, isPointerLast(), performance.now() + motion.normal);
+        this.focusInto(shell, side, drawer, document.activeElement, isPointerLast());
     }
 
     /**
@@ -281,14 +280,14 @@ export class SideDrawerEngine {
         row.style.setProperty("--ui-drawer-switch-y", `${top - (box.top - frame.top)}px`);
     }
 
-    private focusInto(shell: HTMLElement, side: string, drawer: HTMLElement, from: Element | null, pressed: boolean, until: number): void {
+    private focusInto(shell: HTMLElement, side: string, drawer: HTMLElement, from: Element | null, pressed: boolean, retried = false): void {
         if (shell.getAttribute(DrawerOpenAttribute) !== side || document.activeElement !== from || drawer.contains(from))
             return;
 
         moveFocusInto(drawer, pressed ? drawer : null);
 
-        if (performance.now() < until && document.activeElement === from)
-            requestAnimationFrame(() => this.focusInto(shell, side, drawer, from, pressed, until));
+        if (!retried && document.activeElement === from)
+            requestAnimationFrame(() => this.focusInto(shell, side, drawer, from, pressed, true));
     }
 
     /**

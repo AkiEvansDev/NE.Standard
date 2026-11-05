@@ -164,3 +164,20 @@ test("Enter under the least length commits the term and asks nothing", () => {
 
     assert.deepEqual(heard, []);
 });
+
+test("a badge-only option with an empty .ui-text__title falls back to the option's textContent when narrowing", () => {
+    const at = scene();
+    const emptyTitle = FakeElement.of("ui-text__title");
+    const badge = FakeElement.of("ui-badge ui-text__badge");
+    badge.textContent = "Critical";
+    const badgeOnlyOption = FakeElement.of("ui-select__option", { "data-ui-key": "critical" }).append(emptyTitle, badge);
+    at.select.querySelector(".ui-select__list")?.append(badgeOnlyOption);
+
+    type(at, "crit");
+
+    assert.equal(badgeOnlyOption.style.display, "");
+
+    type(at, "zurich");
+
+    assert.equal(badgeOnlyOption.style.display, "none");
+});

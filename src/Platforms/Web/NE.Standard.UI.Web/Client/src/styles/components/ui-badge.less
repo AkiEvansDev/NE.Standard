@@ -168,11 +168,11 @@
     box-shadow: none;
 }
 
-// The one style that can sit on a surface ground, so it draws its own edge, from --ui-color-border.
+// The one style that can sit on a surface ground, so it steps off the ground with the neutral tint and a visible mark edge.
 .ui-badge-variant--surface {
-    background: var(--ui-color-surface);
+    background: @ui-neutral-tint;
     color: var(--ui-color-on-surface);
-    box-shadow: inset 0 0 0 1px var(--ui-color-border);
+    box-shadow: inset 0 0 0 1px var(--ui-color-mark);
 }
 
 // Tinted: the ground mixed from the colour, with a subtle 1px inset border and the words in its ink.
@@ -196,12 +196,12 @@
     .ui-badge-lifted-inks();
 }
 
-// Surface names no colour: tinted or outlined it takes the words around it, its edge drawn in --ui-color-border / --ui-color-mark.
+// Surface names no colour: tinted or outlined it takes the words around it, its edge drawn in --ui-color-mark.
 .ui-badge-variant--surface:not(.ui-badge--colored) {
     &.ui-badge-fill--tinted {
         background: @ui-neutral-tint;
         color: inherit;
-        box-shadow: inset 0 0 0 1px var(--ui-color-border);
+        box-shadow: inset 0 0 0 1px var(--ui-color-mark);
     }
 
     &.ui-badge-fill--outline {

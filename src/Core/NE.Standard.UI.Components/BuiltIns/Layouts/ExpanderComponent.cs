@@ -37,8 +37,13 @@ public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase
     /// <summary>
     /// Gets the header region — any visual component, not only the built-in text one.
     /// </summary>
-    /// <remarks>The header renders into a native <c>summary</c>, which swallows clicks: nothing interactive works there.</remarks>
+    /// <remarks>The header renders into a native <c>summary</c>, which swallows clicks: interactive controls belong in <see cref="HeaderAction"/>.</remarks>
     public virtual IVisualComponent? Header => GetRegionOrDefault(RegionNames.Header);
+
+    /// <summary>
+    /// Gets the control the header row carries at its far edge while expanded; with none, nothing reserves room for one.
+    /// </summary>
+    public virtual IVisualComponent? HeaderAction => GetRegionOrDefault(RegionNames.HeaderAction);
 
     /// <summary>
     /// Initializes a new expander with the built-in header region.
@@ -53,6 +58,38 @@ public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase
     /// </summary>
     public T ConfigureDefaultHeader(Action<ExpanderHeaderRegion> configure)
         => Self.ConfigureTemplate(Header as ExpanderHeaderRegion, configure, "header");
+
+    /// <summary>
+    /// Sets the control the header row carries at its far edge while expanded, outside the <c>summary</c> so interactive controls do not toggle the fold.
+    /// </summary>
+    public virtual T SetHeaderAction(IVisualComponent action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        SetRegion(RegionNames.HeaderAction, action);
+        return Self;
+    }
+
+    /// <summary>
+    /// Sets the controls the header row carries at its far edge while expanded (one as it is, more in a horizontal row 4 px apart).
+    /// </summary>
+    public virtual T SetHeaderActions(params IVisualComponent[] actions)
+    {
+        ArgumentNullException.ThrowIfNull(actions);
+
+        if (actions.Length == 0)
+            return Self;
+
+        foreach (IVisualComponent action in actions)
+            ArgumentNullException.ThrowIfNull(action);
+
+        return SetHeaderAction(actions.Length == 1 ? actions[0] : new StackPanelComponent()
+            .SetOrientation(UIOrientation.Horizontal)
+            .SetSpacing(4)
+            .SetVerticalAlignment(UIAlignment.Center)
+            .AddChildren(actions)
+        );
+    }
 }
 
 /// <summary>

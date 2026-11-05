@@ -128,6 +128,7 @@ export class SignalRTransport {
         const back = await loop.runAsync();
 
         this.reconnect = null;
+        this.reconnectSince = loop.startedAt;
         this.reconnectAttempt = loop.nextAttempt;
 
         if (back) {

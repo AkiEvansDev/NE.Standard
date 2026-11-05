@@ -103,3 +103,26 @@ test("a toast raised into a package's native dialog keeps its keys and presses f
 
     assert.deepEqual(heard, ["page"]);
 });
+
+test("a sticky connection notification renders no close button and ignores Escape", () => {
+    const { engine } = page();
+    const reload = FakeElement.of("", {}, "button");
+    const toast = engine.show({
+        message: "Connection lost.",
+        tone: "danger",
+        sticky: true,
+        connection: true,
+        action: { title: "Reload", run: () => undefined }
+    });
+
+    assert.equal(toast.querySelector(".ui-notification__close"), null);
+
+    const action = real<FakeElement>(toast.querySelector(".ui-notification__action"));
+    fakeDocument.activeElement = action;
+    const escape = new FakeKeyboardEvent("Escape", action);
+    action.dispatchEvent(escape);
+
+    assert.equal(escape.defaultPrevented, false);
+    assert.equal(real<FakeElement>(toast).isConnected, true);
+    void reload;
+});

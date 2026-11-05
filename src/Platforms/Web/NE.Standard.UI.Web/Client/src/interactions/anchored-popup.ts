@@ -73,6 +73,8 @@ const ArrowInset = 12;
 const tracked = new Map<HTMLElement, TrackedPopup>();
 let listening = false;
 let resizeObserver: ResizeObserver | null = null;
+let pendingFrame: number | null = null;
+let pendingTarget: EventTarget | null | undefined;
 
 // The elements that stand for a part put out of sight: a popup anchored inside it is placed against the stand-in meanwhile.
 const standIns = new WeakMap<Element, Element>();
@@ -246,7 +248,33 @@ export function releaseAnchoredPopup(popup: HTMLElement | null | undefined): voi
 
     tracked.delete(popup);
     resizeObserver?.unobserve(popup);
+
+    if (tracked.size === 0 && pendingFrame !== null && typeof cancelAnimationFrame === "function") {
+        cancelAnimationFrame(pendingFrame);
+        pendingFrame = null;
+        pendingTarget = undefined;
+    }
+
     lowerIntoPlace(popup);
+}
+
+function scheduleReposition(scrolled: EventTarget | null): void {
+    if (typeof requestAnimationFrame !== "function") {
+        repositionAll(scrolled);
+        return;
+    }
+
+    pendingTarget = pendingTarget === undefined || pendingTarget === scrolled ? scrolled : null;
+
+    if (pendingFrame !== null)
+        return;
+
+    pendingFrame = requestAnimationFrame(() => {
+        const target = pendingTarget ?? null;
+        pendingFrame = null;
+        pendingTarget = undefined;
+        repositionAll(target);
+    });
 }
 
 function attachListeners(): void {
@@ -257,11 +285,11 @@ function attachListeners(): void {
 
     withoutRuntimeCleanup(() => {
         // Capture phase: a popup can sit inside any scrollable ancestor, and scroll does not bubble.
-        document.addEventListener("scroll", domEvent => repositionAll(domEvent.target), true);
-        window.addEventListener("resize", () => repositionAll(null));
+        document.addEventListener("scroll", domEvent => scheduleReposition(domEvent.target), true);
+        window.addEventListener("resize", () => scheduleReposition(null));
         // A phone's on-screen keyboard shrinks the visual viewport alone, and the window's size says nothing of it.
-        window.visualViewport?.addEventListener("resize", () => repositionAll(null));
-        window.visualViewport?.addEventListener("scroll", () => repositionAll(null));
+        window.visualViewport?.addEventListener("resize", () => scheduleReposition(null));
+        window.visualViewport?.addEventListener("scroll", () => scheduleReposition(null));
 
         // A fixed popup does not re-lay-out for free when its own contents change size.
         resizeObserver = new ResizeObserver(entries => {
@@ -308,8 +336,10 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
     if (popup.hasAttribute(PopupStoodInAttribute) !== stoodIn)
         popup.toggleAttribute(PopupStoodInAttribute, stoodIn);
 
+    const anchorRect = anchor.getBoundingClientRect();
+
     if (options.minAnchorWidth === true)
-        popup.style.minWidth = `${anchor.getBoundingClientRect().width}px`;
+        popup.style.minWidth = `${anchorRect.width}px`;
 
     // Its own size, not the one a cap gave it the last time round: room that came back lets it stand whole again. Read first: the
     // uncapped list scrolls no more, and capped again it would stand at its top.
@@ -317,13 +347,12 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
 
     uncap(popup);
 
-    // Measured after the width is applied, or an anchor-wide popup is placed against its old size.
-    const anchorRect = anchor.getBoundingClientRect();
-    const crossRect = (anchor === placed ? options.crossAnchor ?? anchor : anchor).getBoundingClientRect();
+    const crossElement = anchor === placed ? options.crossAnchor ?? anchor : anchor;
+    const crossRect = crossElement === anchor ? anchorRect : crossElement.getBoundingClientRect();
     // The edge the gap is kept from: the surface the anchor stands in, unless a stand-in has taken the anchor's place. A submenu
     // docked to a popup menu shares that menu's border along the seam between them.
     const surface = anchor === placed ? options.surface : undefined;
-    const edgeRect = surface !== undefined ? surface.getBoundingClientRect() : anchorRect;
+    const edgeRect = surface !== undefined && surface !== anchor ? surface.getBoundingClientRect() : anchorRect;
     const docked = surface !== undefined && (options.docked ?? options.alignEntries === true);
     const gapFor = (placement: AnchoredPopupPlacement): number => {
         if (options.gap !== undefined)

@@ -218,17 +218,27 @@ export class FieldKeysEngine {
     }
 }
 
-/** Enter alone, in a field with `OnEnter`: Shift+Enter is a text area's line break, and a chord keeps a field's ordinary rule. */
+/** Enter alone, in a field with `OnEnter`: Shift+Enter is a text area's line break, and on a touch keyboard Enter in a text area inserts a newline. */
 function runsOnEnter(field: HTMLInputElement | HTMLTextAreaElement, domEvent: KeyboardEvent): boolean {
+    if (field instanceof HTMLTextAreaElement && isTouchTextArea())
+        return false;
+
     return isPlainEnter(domEvent) && field.hasAttribute(RunsOnEnterAttribute);
 }
 
-/** Enter alone, in an area that submits on it and could take the typing: Shift+Enter is the line break, other chords the browser's. */
+/** Enter alone, in an area that submits on it and could take the typing: Shift+Enter (or Enter on a touch keyboard) is the line break. */
 function submitsOnEnter(area: HTMLTextAreaElement, domEvent: KeyboardEvent): boolean {
-    return isPlainEnter(domEvent)
+    return !isTouchTextArea()
+        && isPlainEnter(domEvent)
         && area.hasAttribute(SubmitOnEnterAttribute)
         && !area.readOnly
         && !isInert(area);
+}
+
+function isTouchTextArea(): boolean {
+    return typeof window !== "undefined"
+        && typeof window.matchMedia === "function"
+        && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 }
 
 /** Enter with no modifier: a chord keeps the field's ordinary rule. */

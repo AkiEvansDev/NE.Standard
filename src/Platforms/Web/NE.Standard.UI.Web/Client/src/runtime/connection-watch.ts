@@ -5,7 +5,6 @@
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { ConnectionAttribute } from "../addressing/dom-attributes.ts";
 import type { NotificationEngine } from "../interactions/notification-engine.ts";
-import type { SignalRTransport } from "../transport/signalr-transport.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
 
 /** How long a dropped connection may be away unseen. */
@@ -14,7 +13,10 @@ const ReconnectGraceMilliseconds = 2000;
 export type ConnectionWatchOptions = {
     // The document element: the state is the page's, for a stylesheet or a test to read.
     readonly root: Element;
-    readonly connection: Pick<SignalRTransport, "onReconnecting" | "onReconnected">;
+    readonly connection: {
+        onReconnecting(handler: () => void): void;
+        onReconnected?(handler: () => void): void;
+    };
     readonly notifications: Pick<NotificationEngine, "show" | "dismiss">;
     readonly graceMilliseconds?: number;
 };
@@ -23,6 +25,8 @@ export class ConnectionWatch {
     private readonly root: Element;
     private readonly notifications: Pick<NotificationEngine, "show" | "dismiss">;
     private readonly graceMilliseconds: number;
+    private readonly onVisibilityChange = (): void => this.syncGraceTimer();
+    private dropping = false;
     private grace: number | null = null;
     private notice: HTMLElement | null = null;
     private given = false;
@@ -33,14 +37,35 @@ export class ConnectionWatch {
         this.graceMilliseconds = options.graceMilliseconds ?? ReconnectGraceMilliseconds;
 
         options.connection.onReconnecting(() => this.reconnecting());
-        options.connection.onReconnected(() => this.reconnected());
+        options.connection.onReconnected?.(() => this.reconnected());
+
+        if (typeof document !== "undefined" && typeof document.addEventListener === "function")
+            document.addEventListener("visibilitychange", this.onVisibilityChange);
     }
 
     private reconnecting(): void {
-        if (this.given || this.grace !== null || this.notice !== null)
+        if (this.given || this.dropping || this.notice !== null)
             return;
 
-        this.grace = window.setTimeout(() => this.showReconnecting(), this.graceMilliseconds);
+        this.dropping = true;
+        this.syncGraceTimer();
+    }
+
+    private syncGraceTimer(): void {
+        if (!this.dropping || this.given || this.notice !== null)
+            return;
+
+        if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+            if (this.grace !== null) {
+                window.clearTimeout(this.grace);
+                this.grace = null;
+            }
+
+            return;
+        }
+
+        if (this.grace === null)
+            this.grace = window.setTimeout(() => this.showReconnecting(), this.graceMilliseconds);
     }
 
     private showReconnecting(): void {
@@ -51,10 +76,11 @@ export class ConnectionWatch {
         this.notice = this.notifications.show({ message: clientStrings.text("ui.connection.reconnecting"), sticky: true, connection: true });
     }
 
-    private reconnected(): void {
+    public reconnected(): void {
         if (this.given)
             return;
 
+        this.dropping = false;
         this.clear();
         this.root.removeAttribute(ConnectionAttribute);
     }
@@ -74,13 +100,18 @@ export class ConnectionWatch {
     /** The connection is given up for good: the page's own notice offers the reload, so this one goes. */
     public lost(): void {
         this.given = true;
+        this.dropping = false;
         this.clear();
         this.root.setAttribute(ConnectionAttribute, "lost");
     }
 
     public dispose(): void {
         this.given = true;
+        this.dropping = false;
         this.clear();
+
+        if (typeof document !== "undefined" && typeof document.removeEventListener === "function")
+            document.removeEventListener("visibilitychange", this.onVisibilityChange);
 
         if (this.root.getAttribute(ConnectionAttribute) === "reconnecting")
             this.root.removeAttribute(ConnectionAttribute);

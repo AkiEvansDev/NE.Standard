@@ -296,6 +296,11 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 _ = input.Attribute("value", value.ToString(CultureInfo.InvariantCulture));
                 _ = input.Attribute(attribute);
             });
+
+            _ = row.Element("span", readout => readout
+                .Class("ui-color-input__slider-value")
+                .Text(value.ToString(CultureInfo.InvariantCulture))
+            );
         });
     }
 

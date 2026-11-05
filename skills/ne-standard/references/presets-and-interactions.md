@@ -15,7 +15,7 @@ Always use a preset before assembling raw containers, margins, or font sizes by 
 | `UIButtons` | `Primary`, `Accent`, `Danger`, `Ghost`, `Outline`, `Link`, `Icon`, `Pair` (primary + cancel), `Toolbar` |
 | `UIIconButtons` / `UIMenuItems` | `Add`, `Attach`, `Back`, `Cancel`, `Close`, `Copy`, `Delete`, `Done`, `Download`, `Duplicate`, `Edit`, `Filter`, `Menu`, `More`, `New`, `Open`, `Pin`, `Redo`, `Refresh`, `Remove`, `Rename`, `Save`, `Search`, `Send`, `Settings`, `Share`, `SignOut`, `Stop`, `Undo`, `Unpin`, `Upload` |
 | `UIText` | `Display`, `Title`, `Subtitle`, `Body`, `Caption`, `Label`, `Note`, `Paragraph`, `Quote`/`BoundQuote`, `Person`/`BoundPerson`, `WithBadges`/`BoundWithBadges`, plus `AsDisplay`/`AsTitle`/`AsSubtitle`/`AsBody`/`AsCaption`/`AsOverline`/`Muted` |
-| `UIForm` | `Field(input, hint?)`, `BoundField`, `Row(fields...)`, `Composer(textArea, attachments?, banners)` |
+| `UIForm` | `Field(input, hint?)`, `BoundField`, `Row(fields...)`, `Composer(textArea, attachments?, banners)` (keeps actions on one row beside the text by default; on a phone with many tools, fold secondary tools into `UIIconButtons.More()` or call `SetActionsBelow(UIResponsiveTier.Md)` without `inField` to place all buttons including Send on a hairline-free row below the text) |
 | `UIDetails` | `List`, `Row`, `Amount`/`BoundAmount`, `Total`/`BoundTotal` |
 | `UICard` | `Create`/`BoundCreate`, `Centered` |
 | `UIMessage` | `Create`/`BoundCreate`, `Info`, `Success`, `Warning`, `Danger` |

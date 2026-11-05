@@ -119,11 +119,9 @@
 }
 
 // Quiet: a line of muted words with the chevron right after them, standing on the ground of what holds it — no edge (unless authored),
-// fill or rule, and the content flush under it. Its header spans the row and answers hover and keyboard focus with `--ui-wash-hover` and 2nd-degree ink; no wave as no expander has
-// (press-ripple-engine.ts). Its header is padded for the keyboard's frame and pulled back out by as much, so the words stand on the
-// content's edge at rest and the frame, inside the padding as a ghost button's, clears them; a clip leaves it its reach (runtime.less),
-// square unless authored: a clip margin keeps the box's curve, which cut the frame's corners where the header stands out past it.
-// Whatever its Surface: an authored Surface or Tinted ground and ink, written `!important`, give way here too.
+// fill or rule, and the content flush under it. Its header fits its words and answers hover and keyboard focus with `--ui-wash-hover`
+// and 2nd-degree ink; no wave as no expander has (press-ripple-engine.ts). Whatever its Surface: an authored Surface or Tinted ground
+// and ink, written `!important`, give way here too.
 .ui-expander.ui-expander--quiet {
     --ui-surface-fill: inherit;
     --ui-faint-base: inherit !important;
@@ -135,8 +133,6 @@
     box-shadow: none;
 }
 
-    // A quiet expander's header hangs out by its own inline padding so its words align with surrounding content at rest; when
-    // runtime.less clips the root, give the clip that same margin so the protruding hover pill is not cut off.
     .ui-expander--quiet[data-ui-id][style*="overflow: clip"] {
         overflow-clip-margin: @ui-space-2;
     }
@@ -145,18 +141,46 @@
         grid-template-columns: minmax(0, auto) auto;
         justify-content: start;
         width: fit-content;
-        max-width: calc(100% + 2 * @ui-space-2);
-        margin: -@ui-space-1 -@ui-space-2;
-        padding: @ui-space-1 @ui-space-2;
+        max-width: 100%;
+        margin: 0;
+        padding: 0 2px 0 6px;
         border-radius: @ui-list-entry-radius;
         color: @ui-text-muted;
         transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
     }
 
         .ui-expander--quiet > .ui-expander__header > .ui-expander__chevron {
-            margin-left: @ui-space-1;
+            margin-left: 2px;
             color: inherit;
         }
+
+    .ui-expander--has-action {
+        position: relative;
+    }
+
+    .ui-expander:not([open]) > .ui-expander__header-action {
+        display: none;
+    }
+
+    .ui-expander__header-action {
+        position: absolute;
+        top: calc(@ui-space-3 + (var(--ui-text-subtitle-line-height, 1.5rem) - @ui-button-height-sm) / 2);
+        right: calc(@ui-space-4 + @ui-glyph-md + @ui-space-2);
+        min-height: @ui-button-height-sm;
+        display: flex;
+        align-items: center;
+        gap: @ui-space-1;
+        z-index: 1;
+    }
+
+    .ui-expander--quiet.ui-expander--has-action[open] > .ui-expander__header {
+        min-height: @ui-button-height-sm;
+    }
+
+    .ui-expander--quiet > .ui-expander__header-action {
+        top: 0;
+        right: 0;
+    }
 
     @media @{ui-can-hover} {
         .ui-expander--quiet@{ui-button-live} > .ui-expander__header:hover {

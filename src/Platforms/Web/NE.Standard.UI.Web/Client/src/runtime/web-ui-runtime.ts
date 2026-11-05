@@ -180,7 +180,7 @@ export class WebUIRuntime {
             });
             setPopupComponents(this.dom);
             this.notifications = new NotificationEngine({ root: this.root, dom: this.dom });
-            this.failures = createFailureNotice(this.notifications, () => this.connectionLost || this.transport.isReconnecting);
+            this.failures = createFailureNotice(this.notifications, () => this.connectionLost || this.transport.isReconnecting || this.transport.isReattaching);
             this.address = new AddressHistory({
                 window,
                 revisit: parameters => void this.navigateInPlaceAsync(parameters),
@@ -259,7 +259,7 @@ export class WebUIRuntime {
             this.pluginContext = createPluginEngineContext(this.engineContext, this.metadata, propertyPatchEngine, valueBinding, validationEngine, itemsTemplates, itemsRenderer, this.virtualization, this.windows, this.tables, element => this.readPluginValue(element));
 
             wireTransportCallbacks(this.transport, this.sessionKey, this.dispatcher, this.effects, this.dom, this.windows, this.updateProcessor, this.notifications, (changes, before, runtime) => this.applyChanges(changes, before, runtime), runtime => this.holdsRuntime(runtime), () => this.attachAsync(), () => this.awaitSnapshot(), reason => this.loseConnection(reason));
-            this.connection = new ConnectionWatch({ root: document.documentElement, connection: this.transport, notifications: this.notifications });
+            this.connection = new ConnectionWatch({ root: document.documentElement, connection: { onReconnecting: handler => this.transport.onReconnecting(handler) }, notifications: this.notifications });
         }
         finally {
             leaveCleanupScope();
@@ -435,11 +435,13 @@ export class WebUIRuntime {
             logWarn(`the view compiled with a warning: ${warning}`);
 
         ensureFormOwners(this.root);
-        await documentParsedAsync();
+
+        if (document.readyState === "loading")
+            await documentParsedAsync();
 
         const connected = this.connectAsync();
 
-        await this.hydrateAsync();
+        this.hydrate();
         this.startEnginesAwaitingHydration();
         releaseRegions(this.root);
         this.clientState.start();
@@ -478,7 +480,7 @@ export class WebUIRuntime {
         }
     }
 
-    private async hydrateAsync(): Promise<void> {
+    private hydrate(): void {
         if (this.hydration === null)
             return;
 
@@ -487,7 +489,7 @@ export class WebUIRuntime {
 
         this.dom.rebuild();
         this.updateProcessor.registerServerRenderedItems(changes);
-        await this.applyChanges(changes);
+        void this.applyChanges(changes);
         this.updateProcessor.initializeItemsHosts();
 
         if (holdsPaintedPageWritten(this.root, this.hydration, this.metadata))
@@ -712,6 +714,7 @@ export class WebUIRuntime {
 
             this.releaseInertContent();
             this.windows.start();
+            this.connection.reconnected();
 
             logElapsed("runtime attached", started, {
                 windowId: this.windowId,

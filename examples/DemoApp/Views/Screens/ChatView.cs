@@ -429,9 +429,8 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
 
     /// <summary>
     /// The composer: the files waiting on a shelf above the text — not on the page until one is attached — and a text area that grows
-    /// to six rows, sends on Enter and breaks the line on Shift+Enter, with the emoji, the clip and the quick replies before the text
-    /// and Send after it — below the medium width the clip and the quick replies in a row under the text, at its start and its end, the
-    /// emoji and Send beside it.
+    /// to six rows, sends on Enter and breaks the line on Shift+Enter, with the clip, the emoji and the quick replies before the text
+    /// and Send after it, dropping all buttons (including Send) into a second row under the text below medium width.
     /// </summary>
     private static SurfaceComponent CreateComposer()
         => UIForm.Composer(
@@ -439,17 +438,16 @@ internal sealed class ChatView : DemoScreenView, IUIViewDefinition
                 .SetFormId(ComposerFormId)
                 .SetPlaceholder("Write a message, or @ to mention")
                 .SetSubmitOnEnter()
+                .SetActionsBelow(UIResponsiveTier.Md)
                 .BindValue<ChatController>(static x => x.Draft)
                 .AddTrigger("@")
                 .BindTriggerItems<ChatController>(static x => x.MentionItems)
                 .OnTriggerSearch(nameof(ChatController.SearchMentions))
                 // In the press itself, not from a command: a browser opens a chooser only inside the reader's own gesture.
                 .AddLeadingAction(UIIconButtons.Attach().InteractOn(EventNames.Click, new OpenPickerEffect(AttachmentsId)))
-                // In the field, as a messenger's: it stays beside the words on a phone.
-                .AddLeadingAction(CreateEmojiPanel(), inField: true)
-                // On a phone at the end of the row under the text, under Send, where the thumb is; beside the text at its start.
-                .AddLeadingAction(CreateQuickReplies(), belowAt: UIAlignment.End)
-                .AddTrailingAction(UIIconButtons.Send().OnSubmitShowingLoading(ComposerFormId, nameof(ChatController.SendAsync)), inField: true),
+                .AddLeadingAction(CreateEmojiPanel())
+                .AddLeadingAction(CreateQuickReplies())
+                .AddTrailingAction(UIIconButtons.Send().OnSubmitShowingLoading(ComposerFormId, nameof(ChatController.SendAsync))),
             new FileInputComponent(AttachmentsId)
                 .SetMaxFileSize(5 * 1024 * 1024)
                 .BindSelectionIds<ChatController>(static x => x.AttachmentIds),

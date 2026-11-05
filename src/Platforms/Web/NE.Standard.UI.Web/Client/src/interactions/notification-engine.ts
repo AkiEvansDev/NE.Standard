@@ -96,6 +96,14 @@ export class NotificationEngine {
                     this.raiseHost();
             }, true);
         }
+
+        const refreshLift = (): void => {
+            if (this.host !== null && this.host.children.length > 0)
+                liftAboveBottomBar(this.host);
+        };
+
+        window.addEventListener("resize", refreshLift);
+        window.visualViewport?.addEventListener("resize", refreshLift);
     }
 
     /** Speaks words to a screen reader and shows nothing (AnnounceEffect), through the hidden live regions beside the host. */
@@ -135,32 +143,38 @@ export class NotificationEngine {
 
         element.append(message);
 
-        const close = document.createElement("button");
+        const dismissible = !(request.connection === true && request.sticky === true);
 
-        close.type = "button";
-        // The dialog's ×: a small ghost button, its wash, its press and its tooltip, named by the same word.
-        close.className = `${NotificationCloseClass} ${SmallGhostButtonClasses}`;
-        // Marked, so a language switched while the toast stays says the close in the new one; named by the toast, as toasts stand
-        // several at once and each has its own ×.
-        clientStrings.write(close, "aria-label", "ui.notification.close", { title: request.title ?? request.message });
-        clientStrings.write(close, TooltipAttribute, "ui.action.close");
-        close.addEventListener("click", () => this.dismiss(element));
+        if (dismissible) {
+            const close = document.createElement("button");
 
-        element.append(close);
+            close.type = "button";
+            // The dialog's ×: a small ghost button, its wash, its press and its tooltip, named by the same word.
+            close.className = `${NotificationCloseClass} ${SmallGhostButtonClasses}`;
+            // Marked, so a language switched while the toast stays says the close in the new one; named by the toast, as toasts stand
+            // several at once and each has its own ×.
+            clientStrings.write(close, "aria-label", "ui.notification.close", { title: request.title ?? request.message });
+            clientStrings.write(close, TooltipAttribute, "ui.action.close");
+            close.addEventListener("click", () => this.dismiss(element));
+
+            element.append(close);
+        }
 
         // After the cross: the action is drawn on a line of its own under the message, and Tab reads the toast as it is drawn.
         // A passing toast is done once its action went through; a sticky one is a state still true, and stays.
         if (request.action !== undefined)
             element.append(createAction(request.action, request.sticky === true ? null : () => this.dismiss(element)));
 
-        // Escape on a toast holding the keyboard closes it, as its cross does, the keyboard going back where it came from.
-        element.addEventListener("keydown", domEvent => {
-            if (domEvent.key !== "Escape" || domEvent.defaultPrevented || isComposing(domEvent))
-                return;
+        if (dismissible) {
+            // Escape on a toast holding the keyboard closes it, as its cross does, the keyboard going back where it came from.
+            element.addEventListener("keydown", domEvent => {
+                if (domEvent.key !== "Escape" || domEvent.defaultPrevented || isComposing(domEvent))
+                    return;
 
-            domEvent.preventDefault();
-            this.dismiss(element);
-        });
+                domEvent.preventDefault();
+                this.dismiss(element);
+            });
+        }
 
         element.addEventListener("focusin", domEvent => {
             const from = domEvent.relatedTarget;

@@ -39,7 +39,9 @@ function fold(text: string, language: string | undefined): string {
     }
 }
 
-/** The words a list's entry shows: its title, else all its text — a menu's entry, a select's option, a search's suggestion alike. */
+/** The words a list's entry shows: its title when non-empty, else all its text — a badge-only entry has an empty `.ui-text__title`. */
 export function entryWords(entry: Element): string {
-    return entry.querySelector(EntryTitleSelector)?.textContent ?? entry.textContent ?? "";
+    const title = entry.querySelector(EntryTitleSelector)?.textContent ?? "";
+
+    return title.length > 0 ? title : (entry.textContent ?? "");
 }

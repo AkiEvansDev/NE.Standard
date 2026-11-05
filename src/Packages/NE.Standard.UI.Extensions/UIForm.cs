@@ -91,8 +91,10 @@ public static class UIForm
     /// A composer panel — a chat's or a comment box's — holding a <paramref name="textArea"/> and optional upper
     /// <paramref name="banners"/> (a reply or an edit quote from <see cref="UIText.Quote(UIPhrase, UIPhrase, UIThemeColor?, string?, string?)"/> or
     /// <see cref="UIText.BoundQuote"/>) inside a calm borderless surface that acts as the window's foot: the field grows up to six lines
-    /// from a single line unless given its own rows, drops its own focus ring and border so the panel stays quiet, and moves its actions
-    /// onto a bar below the words on a phone unless given its own <see cref="TextAreaComponent{T}.ActionsBelow"/>.
+    /// from a single line unless given its own rows, drops its own focus ring and border so the panel stays quiet, and keeps its actions
+    /// on one row beside the words by default (where a composer carries many tools on a phone, either fold the secondary ones into a
+    /// <see cref="UIIconButtons.More()"/> menu button or call <c>SetActionsBelow</c> without
+    /// <c>inField</c> so the text takes the upper row and all buttons including Send stand on a row below it without a dividing rule).
     /// </summary>
     public static SurfaceComponent Composer(TextAreaComponent textArea, params IVisualComponent[] banners)
         => Composer(textArea, attachments: null, banners);
@@ -143,9 +145,6 @@ public static class UIForm
 
         if (textArea.MaxRows is null)
             _ = textArea.SetAutoGrow(Math.Max(ComposerDefaultMaxRows, textArea.Rows ?? 1));
-
-        if (textArea.ActionsBelow is null)
-            _ = textArea.SetActionsBelow(UIResponsiveTier.Md);
 
         _ = stack.AddChild(textArea
             .SetShowFocusEdge(false)

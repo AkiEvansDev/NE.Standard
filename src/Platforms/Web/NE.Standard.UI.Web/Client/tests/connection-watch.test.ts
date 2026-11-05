@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import test, { mock } from "node:test";
-import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 // Before the page's window takes the timers, so it takes the mocked ones.
 mock.timers.enable({ apis: ["setTimeout"] });
@@ -134,4 +134,27 @@ test("a second drop after the connection came back is said again", () => {
 
     assert.equal(html.getAttribute("data-ui-connection"), "reconnecting");
     assert.equal(notices().filter(notice => !notice.classList.contains("ui-notification--leaving")).length, 1);
+});
+
+test("a drop while the document is hidden starts its grace only once the document becomes visible", () => {
+    const { html, connection } = page();
+
+    Object.assign(fakeDocument, { visibilityState: "hidden" });
+    connection.drop();
+    mock.timers.tick(60_000);
+
+    assert.equal(html.getAttribute("data-ui-connection"), null);
+    assert.equal(notices().length, 0);
+
+    Object.assign(fakeDocument, { visibilityState: "visible" });
+    fakeDocument.documentElement.dispatchEvent(new FakeEvent("visibilitychange"));
+    mock.timers.tick(1900);
+
+    assert.equal(html.getAttribute("data-ui-connection"), null);
+
+    connection.back();
+    mock.timers.tick(5000);
+
+    assert.equal(html.getAttribute("data-ui-connection"), null);
+    assert.equal(notices().length, 0);
 });

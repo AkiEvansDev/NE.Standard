@@ -8,6 +8,8 @@ import { isInert, isReadOnly } from "./interactive-state.ts";
 import { PointerDrag } from "./pointer-drag.ts";
 import { clampByte, toHexByte } from "../rendering/color-bytes.ts";
 
+const PaletteColumns = 8;
+
 /** What one colour input is currently showing; both the picked and the palette colour are kept. */
 type ColorState = {
     pane: "picker" | "palette";
@@ -47,6 +49,7 @@ export class ColorInputEngine {
     private readonly root: ParentNode;
     private readonly states = new WeakMap<HTMLElement, ColorState>();
     private readonly clickListener: (domEvent: Event) => void;
+    private readonly keyDownListener: (domEvent: Event) => void;
     private readonly inputListener: (domEvent: Event) => void;
     private readonly changeListener: (domEvent: Event) => void;
     private readonly observer: MutationObserver | null;
@@ -61,6 +64,7 @@ export class ColorInputEngine {
         this.options = options;
         this.root = options.root ?? document;
         this.clickListener = domEvent => this.handleClick(domEvent);
+        this.keyDownListener = domEvent => this.handleKeyDown(domEvent as KeyboardEvent);
         this.inputListener = domEvent => this.handleInput(domEvent);
         this.changeListener = domEvent => this.handleFieldChange(domEvent);
 
@@ -81,6 +85,7 @@ export class ColorInputEngine {
         );
 
         this.root.addEventListener("click", this.clickListener, true);
+        this.root.addEventListener("keydown", this.keyDownListener, true);
         this.root.addEventListener("input", this.inputListener, true);
         this.root.addEventListener("change", this.changeListener, true);
 
@@ -115,6 +120,7 @@ export class ColorInputEngine {
 
     public dispose(): void {
         this.root.removeEventListener("click", this.clickListener, true);
+        this.root.removeEventListener("keydown", this.keyDownListener, true);
         this.root.removeEventListener("input", this.inputListener, true);
         this.root.removeEventListener("change", this.changeListener, true);
         this.observer?.disconnect();
@@ -181,8 +187,8 @@ export class ColorInputEngine {
 
         this.applyPicker(input, state, red, green, blue);
 
-        // Only on a change of name or pane: a drag across the square changes neither, and runs on every pointer move.
-        if (previous === undefined || previous.name !== state.name || previous.pane !== state.pane || previous.held !== state.held) {
+        // Only on a change of name, factor or pane: a drag across the square changes none of them, and runs on every pointer move.
+        if (previous === undefined || previous.name !== state.name || previous.factor !== state.factor || previous.pane !== state.pane || previous.held !== state.held) {
             this.applyPalette(input, state);
             this.applyPanes(input, state);
         }
@@ -226,11 +232,18 @@ export class ColorInputEngine {
     }
 
     private applyPalette(input: HTMLElement, state: ColorState): void {
-        for (const chip of input.querySelectorAll<HTMLElement>(`[${ColorNameAttribute}]`)) {
-            const selected = state.held && chip.getAttribute(ColorNameAttribute) === state.name;
+        const chips = [...input.querySelectorAll<HTMLElement>(`[${ColorNameAttribute}]`)];
+        const activeName = state.held && chips.some(chip => chip.getAttribute(ColorNameAttribute) === state.name)
+            ? state.name
+            : chips[0]?.getAttribute(ColorNameAttribute) ?? null;
+
+        for (const chip of chips) {
+            const name = chip.getAttribute(ColorNameAttribute);
+            const selected = state.held && name === state.name;
 
             chip.toggleAttribute(ColorNameSelectedAttribute, selected);
             writeAttribute(chip, "aria-pressed", selected ? "true" : "false");
+            writeAttribute(chip, "tabindex", name === activeName ? "0" : "-1");
         }
 
         // The palette entry before any shade or tint: what the factor slider's track runs through.
@@ -302,8 +315,10 @@ export class ColorInputEngine {
         if (chip !== null) {
             domEvent.preventDefault();
 
-            if (!input.hasAttribute(ColorNoPaletteAttribute))
+            if (!input.hasAttribute(ColorNoPaletteAttribute)) {
                 this.commit(input, state => ({ ...state, name: chip.getAttribute(ColorNameAttribute) }));
+                chip.focus({ preventScroll: true });
+            }
 
             return;
         }
@@ -315,6 +330,54 @@ export class ColorInputEngine {
             domEvent.preventDefault();
             this.toggle(input);
         }
+    }
+
+    /** Walks the 8-column palette chart with arrow keys (`ArrowLeft`, `ArrowRight`, `ArrowUp`, `ArrowDown`, `Home`, `End`). */
+    private handleKeyDown(domEvent: KeyboardEvent): void {
+        if (domEvent.altKey || domEvent.ctrlKey || domEvent.metaKey || domEvent.shiftKey)
+            return;
+
+        if (!(domEvent.target instanceof HTMLElement) || domEvent.target instanceof HTMLInputElement)
+            return;
+
+        const popup = domEvent.target.closest<HTMLElement>(`.${ColorInputPopupClass}`);
+
+        if (popup === null)
+            return;
+
+        const input = popup.closest<HTMLElement>(`.${ColorInputClass}`);
+
+        if (input === null || isInert(input) || isReadOnly(input) || input.hasAttribute(ColorNoPaletteAttribute))
+            return;
+
+        const state = this.states.get(input);
+
+        if (state?.pane !== "palette")
+            return;
+
+        const chips = [...input.querySelectorAll<HTMLElement>(`[${ColorNameAttribute}]`)];
+
+        if (chips.length === 0)
+            return;
+
+        const focusedChip = domEvent.target.closest<HTMLElement>(`[${ColorNameAttribute}]`);
+        const currentIndex = focusedChip !== null
+            ? chips.indexOf(focusedChip)
+            : chips.findIndex(chip => chip.hasAttribute(ColorNameSelectedAttribute));
+
+        const nextIndex = stepPaletteIndex(domEvent.key, currentIndex, chips.length);
+
+        if (nextIndex === null)
+            return;
+
+        const nextChip = chips[nextIndex];
+
+        if (nextChip === undefined)
+            return;
+
+        domEvent.preventDefault();
+        this.commit(input, current => ({ ...current, name: nextChip.getAttribute(ColorNameAttribute) }));
+        nextChip.focus({ preventScroll: true });
     }
 
     /** Drawn live while a slider moves, since a colour that only appears on release cannot be judged; sent on its `change`. */
@@ -509,6 +572,42 @@ function offeredPane(input: HTMLElement, preferred: "picker" | "palette"): "pick
     return preferred === "palette" && !input.hasAttribute(ColorNoPaletteAttribute) ? "palette" : "picker";
 }
 
+function stepPaletteIndex(key: string, currentIndex: number, count: number): number | null {
+    if (currentIndex < 0) {
+        switch (key) {
+            case "ArrowRight":
+            case "ArrowDown":
+            case "Home":
+                return 0;
+            case "ArrowLeft":
+            case "ArrowUp":
+            case "End":
+                return count - 1;
+            default:
+                return null;
+        }
+    }
+
+    const column = currentIndex % PaletteColumns;
+
+    switch (key) {
+        case "ArrowLeft":
+            return currentIndex > 0 ? currentIndex - 1 : null;
+        case "ArrowRight":
+            return currentIndex + 1 < count ? currentIndex + 1 : null;
+        case "ArrowUp":
+            return currentIndex >= PaletteColumns ? currentIndex - PaletteColumns : null;
+        case "ArrowDown":
+            return currentIndex + PaletteColumns < count ? currentIndex + PaletteColumns : null;
+        case "Home":
+            return currentIndex - column;
+        case "End":
+            return Math.min(count - 1, currentIndex + (PaletteColumns - 1 - column));
+        default:
+            return null;
+    }
+}
+
 function emptyState(pane: "picker" | "palette"): ColorState {
     return { pane, hue: 0, saturation: 1, value: 1, opacity: 255, name: null, factor: 0, held: false, paneChosen: false };
 }
@@ -569,9 +668,16 @@ function writeField(input: HTMLElement, selector: string, value: string): void {
 
 // Every match, not the first: each pane draws its own opacity slider.
 function writeSlider(input: HTMLElement, selector: string, value: number): void {
+    const text = String(value);
+
     for (const slider of input.querySelectorAll<HTMLInputElement>(selector)) {
-        if (slider !== document.activeElement && slider.value !== String(value))
-            slider.value = String(value);
+        if (slider !== document.activeElement && slider.value !== text)
+            slider.value = text;
+
+        const readout = slider.nextElementSibling;
+
+        if (readout !== null && readout.textContent !== text)
+            readout.textContent = text;
     }
 }
 

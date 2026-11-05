@@ -7,6 +7,7 @@ export const DefaultReconnectWindowMilliseconds = 10 * 60_000;
 
 const BaseDelayMilliseconds = 1000;
 const MaxDelayMilliseconds = 30_000;
+const WakeAllowanceMilliseconds = 30_000;
 
 export type ReconnectBackoffOptions = {
     // How long after the drop a try may still start; none past it.
@@ -39,6 +40,7 @@ export type ReconnectLoopOptions = ReconnectBackoffOptions & {
     readonly startedAt?: number;
     readonly firstAttempt?: number;
     readonly now?: () => number;
+    readonly isHidden?: () => boolean;
     readonly setTimer?: (callback: () => void, milliseconds: number) => unknown;
     readonly clearTimer?: (handle: unknown) => void;
 };
@@ -46,6 +48,10 @@ export type ReconnectLoopOptions = ReconnectBackoffOptions & {
 /** One reconnect: tries in turn until one opens the connection or the window is spent; `wake` starts the next try now. */
 export class ReconnectLoop {
     private readonly options: ReconnectLoopOptions;
+    private readonly now: () => number;
+    private readonly isHidden: () => boolean;
+    private started: number;
+    private hiddenSince: number | null = null;
     private timer: unknown = null;
     private resume: (() => void) | null = null;
     private stopped = false;
@@ -53,6 +59,13 @@ export class ReconnectLoop {
 
     public constructor(options: ReconnectLoopOptions) {
         this.options = options;
+        this.now = options.now ?? Date.now;
+        this.isHidden = options.isHidden ?? (() => typeof document !== "undefined" && document.visibilityState === "hidden");
+        const current = this.now();
+        this.started = options.startedAt ?? current;
+
+        if (this.isHidden())
+            this.hiddenSince = current;
     }
 
     /** The try a reconnect following this one starts from: one past the last this one made. */
@@ -60,13 +73,16 @@ export class ReconnectLoop {
         return this.attempts;
     }
 
+    /** The effective start timestamp after accounting for hidden duration and wake allowance. */
+    public get startedAt(): number {
+        return this.started;
+    }
+
     /** True once a try opened the connection; false once the window is spent or the loop was stopped. */
     public async runAsync(): Promise<boolean> {
-        const now = this.options.now ?? Date.now;
-        const started = this.options.startedAt ?? now();
-
         for (let attempt = this.options.firstAttempt ?? 0; ; attempt++) {
-            const delay = nextReconnectDelay(attempt, now() - started, this.options);
+            const elapsed = this.elapsedNow();
+            const delay = nextReconnectDelay(attempt, elapsed, this.options);
 
             if (delay === null || this.stopped)
                 return false;
@@ -76,6 +92,7 @@ export class ReconnectLoop {
             if (this.stopped)
                 return false;
 
+            this.elapsedNow();
             this.attempts = attempt + 1;
 
             try {
@@ -86,6 +103,20 @@ export class ReconnectLoop {
                 // The next try's wait says it; the caller logs the drop once rather than every failed try.
             }
         }
+    }
+
+    private elapsedNow(): number {
+        const current = this.now();
+
+        if (this.hiddenSince !== null) {
+            this.started += Math.max(0, current - this.hiddenSince);
+            this.hiddenSince = this.isHidden() ? current : null;
+        }
+        else if (this.isHidden()) {
+            this.hiddenSince = current;
+        }
+
+        return Math.max(0, current - this.started);
     }
 
     private waitAsync(milliseconds: number): Promise<void> {
@@ -112,6 +143,17 @@ export class ReconnectLoop {
 
     /** Ends the wait under way: the network is back or the page is on screen, and a try now is likelier to work than the timer's. */
     public wake(): void {
+        const current = this.now();
+
+        if (this.hiddenSince !== null) {
+            this.started += Math.max(0, current - this.hiddenSince);
+            this.hiddenSince = this.isHidden() ? current : null;
+        }
+
+        const windowMilliseconds = this.options.windowMilliseconds ?? DefaultReconnectWindowMilliseconds;
+        const allowance = Math.min(windowMilliseconds, WakeAllowanceMilliseconds);
+
+        this.started = Math.max(this.started, current - (windowMilliseconds - allowance));
         this.finishWait();
     }
 

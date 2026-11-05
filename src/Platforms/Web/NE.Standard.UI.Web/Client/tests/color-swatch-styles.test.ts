@@ -51,9 +51,14 @@ test("without the palette, the switcher and palette pane hide cleanly and the pi
     assert.equal(css.includes("data-ui-color-no-picker"), false);
 });
 
-test("a focused selected palette chip keeps its 2px selected mark outline", () => {
+test("a focused selected palette chip keeps its 2px inset white outline and 4px grid gap", () => {
+    const grid = declarations(".ui-color-input__grid") ?? "";
+    const selected = declarations(".ui-color-input__chip[data-ui-color-name-selected]") ?? "";
     const focusedSelected = declarations(".ui-color-input__chip[data-ui-color-name-selected]:focus-visible:not([data-ui-pointer-focus])") ?? "";
 
-    assert.match(focusedSelected, /outline: 2px solid var\(--ui-mark-selected\);/);
-    assert.match(focusedSelected, /outline-offset: 1px;/);
+    assert.match(grid, /gap: 4px;/);
+    assert.match(selected, /outline: 2px solid #fff;/);
+    assert.match(selected, /outline-offset: -2px;/);
+    assert.match(focusedSelected, /outline: 2px solid #fff;/);
+    assert.match(focusedSelected, /outline-offset: -2px;/);
 });

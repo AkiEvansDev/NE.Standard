@@ -241,7 +241,7 @@
 .ui-color-input__grid {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    gap: 3px;
+    gap: 4px;
 }
 
 .ui-color-input__chip {
@@ -262,8 +262,8 @@
 }
 
 .ui-color-input__chip[data-ui-color-name-selected] {
-    outline: 2px solid var(--ui-mark-selected);
-    outline-offset: 1px;
+    outline: 2px solid #fff;
+    outline-offset: -2px;
 }
 
 .ui-color-input__chip@{ui-keyboard-focus} {
@@ -272,14 +272,23 @@
 }
 
 .ui-color-input__chip[data-ui-color-name-selected]@{ui-keyboard-focus} {
-    outline: 2px solid var(--ui-mark-selected);
-    outline-offset: 1px;
+    outline: 2px solid #fff;
+    outline-offset: -2px;
 }
 
 .ui-color-input__slider {
     display: flex;
     align-items: center;
     gap: @ui-space-2;
+}
+
+.ui-color-input__slider-value {
+    min-width: 3ch;
+    text-align: right;
+    color: var(--ui-text-muted);
+    font-size: var(--ui-text-caption-font-size);
+    line-height: var(--ui-text-caption-line-height);
+    font-variant-numeric: tabular-nums;
 }
 
 // A mixin: -webkit- and -moz- pseudo-elements cannot share a selector, or the browser drops the rule.

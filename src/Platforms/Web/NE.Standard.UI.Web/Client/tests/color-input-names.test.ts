@@ -129,3 +129,127 @@ test("without opacity, an 8-digit hex is refused and picking clamps opacity to 2
         engine.dispose();
     }
 });
+
+test("factor and opacity sliders and their sibling readouts update live and on patch", () => {
+    const chip = FakeElement.of("ui-color-input__chip", { "data-ui-color-name": "Teal" }, "button");
+    (chip.style.setProperty as (property: string, text: string) => void)("--ui-color-input-chip", "#006E64");
+
+    const valueInput = Object.assign(new FakeInput("hidden"), { value: "Teal/None/0/255" });
+    valueInput.classes.add("ui-color-input__value-input");
+
+    const factorSlider = Object.assign(new FakeInput("range"), { value: "0" });
+    factorSlider.setAttribute("data-ui-color-factor", "");
+
+    const factorReadout = FakeElement.of("ui-color-input__slider-value", {}, "span");
+    factorReadout.textContent = "0";
+
+    const opacitySlider = Object.assign(new FakeInput("range"), { value: "255" });
+    opacitySlider.setAttribute("data-ui-color-opacity", "");
+
+    const opacityReadout = FakeElement.of("ui-color-input__slider-value", {}, "span");
+    opacityReadout.textContent = "255";
+
+    const sliderRow = FakeElement.of("ui-color-input__slider", {}, "label").append(factorSlider, factorReadout);
+    const opacityRow = FakeElement.of("ui-color-input__slider ui-color-input__slider--opacity", {}, "label").append(opacitySlider, opacityReadout);
+    const input = FakeElement.of("ui-color-input", { "data-ui-id": "14" }).append(valueInput, chip, sliderRow, opacityRow);
+
+    fakeDocument.body.replaceChildren(FakeElement.of("page").append(input));
+
+    let notifyPatch: ((change: { readonly components: readonly HTMLElement[] }) => void) = () => undefined;
+    const engine = new ColorInputEngine({
+        root: real<ParentNode>(fakeDocument.body),
+        propertyPatchEngine: real({
+            addValueChangeHandler: (handler: (change: { readonly components: readonly HTMLElement[] }) => void) => {
+                notifyPatch = handler;
+
+                return () => undefined;
+            }
+        })
+    });
+
+    try {
+        assert.equal(factorSlider.value, "0");
+        assert.equal(factorReadout.textContent, "0");
+        assert.equal(opacitySlider.value, "255");
+        assert.equal(opacityReadout.textContent, "255");
+
+        factorSlider.value = "-4";
+        factorSlider.dispatchEvent(new FakeEvent("input"));
+
+        assert.equal(factorReadout.textContent, "-4");
+        assert.equal(valueInput.value, "Teal/Shade/4/255");
+
+        opacitySlider.value = "180";
+        opacitySlider.dispatchEvent(new FakeEvent("input"));
+
+        assert.equal(opacityReadout.textContent, "180");
+        assert.equal(valueInput.value, "Teal/Shade/4/180");
+
+        valueInput.value = "Teal/Tint/6/128";
+        notifyPatch({ components: [real<HTMLElement>(input)] });
+
+        assert.equal(factorSlider.value, "6");
+        assert.equal(factorReadout.textContent, "6");
+        assert.equal(opacitySlider.value, "128");
+        assert.equal(opacityReadout.textContent, "128");
+    }
+    finally {
+        engine.dispose();
+    }
+});
+
+test("arrow keys walk the 8-column palette grid horizontally and vertically and update roving tabindex", () => {
+    const names = [
+        "StellarRed", "SolarAmber", "EclipseOlive", "AuroraGreen", "AstralTeal", "QuantumBlue", "NovaPurple", "IronFog",
+        "NebulaRose", "NebulaLemon", "NebulaLime", "NebulaMint", "NebulaCyan", "NebulaAqua", "NebulaViolet", "SilverNight"
+    ];
+    const chips = names.map(name => {
+        const chip = FakeElement.of("ui-color-input__chip", { "data-ui-color-name": name }, "button");
+        (chip.style.setProperty as (property: string, text: string) => void)("--ui-color-input-chip", "#006E64");
+        return chip;
+    });
+
+    const valueInput = Object.assign(new FakeInput("hidden"), { value: "StellarRed/None/0/255" });
+    valueInput.classes.add("ui-color-input__value-input");
+
+    const paletteTab = FakeElement.of("ui-color-input__tab", { "data-ui-color-tab": "palette", role: "tab" }, "button");
+    const grid = FakeElement.of("ui-color-input__grid").append(...chips);
+    const palettePane = FakeElement.of("ui-color-input__pane", { "data-ui-color-pane": "palette" }).append(grid);
+    const popup = FakeElement.of("ui-color-input__popup", { role: "dialog" }).append(paletteTab, palettePane);
+    const input = FakeElement.of("ui-color-input", { "data-ui-id": "16" }).append(valueInput, popup);
+
+    fakeDocument.body.replaceChildren(FakeElement.of("page").append(input));
+    const engine = new ColorInputEngine({ root: real<ParentNode>(fakeDocument.body) });
+
+    try {
+        paletteTab.dispatchEvent(new FakeEvent("click"));
+        assert.equal(chips[0].getAttribute("tabindex"), "0");
+        assert.equal(chips[1].getAttribute("tabindex"), "-1");
+
+        chips[0].focus();
+        chips[0].dispatchEvent(Object.assign(new FakeEvent("keydown"), { key: "ArrowRight" }));
+
+        assert.equal(fakeDocument.activeElement, chips[1]);
+        assert.equal(valueInput.value, "SolarAmber/None/0/255");
+        assert.equal(chips[1].getAttribute("tabindex"), "0");
+        assert.equal(chips[0].getAttribute("tabindex"), "-1");
+
+        chips[1].dispatchEvent(Object.assign(new FakeEvent("keydown"), { key: "ArrowDown" }));
+
+        assert.equal(fakeDocument.activeElement, chips[9]);
+        assert.equal(valueInput.value, "NebulaLemon/None/0/255");
+
+        chips[9].dispatchEvent(Object.assign(new FakeEvent("keydown"), { key: "ArrowLeft" }));
+
+        assert.equal(fakeDocument.activeElement, chips[8]);
+        assert.equal(valueInput.value, "NebulaRose/None/0/255");
+
+        chips[8].dispatchEvent(Object.assign(new FakeEvent("keydown"), { key: "ArrowUp" }));
+
+        assert.equal(fakeDocument.activeElement, chips[0]);
+        assert.equal(valueInput.value, "StellarRed/None/0/255");
+    }
+    finally {
+        engine.dispose();
+    }
+});

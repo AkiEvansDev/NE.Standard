@@ -233,19 +233,19 @@
     }
 }
 
-// A trailing badge reaches the far edge only in a block that fills its row; centred or end-aligned, it simply follows the title.
-.ui-text.ui-text--badge-trailing:not(.ui-text--align-center, .ui-text--align-end) > .ui-text__body > .ui-text__header > .ui-text__badge {
+// A trailing badge reaches the far edge only when there is a title to trail and the block fills its row; centred or end-aligned, it simply follows the title.
+.ui-text.ui-text--badge-trailing@{ui-text-with-title}:not(.ui-text--align-center, .ui-text--align-end) > .ui-text__body > .ui-text__header > .ui-text__badge {
     margin-left: auto;
 }
 
 // A trailing badge is only at the far edge if the row it sits in fills the body.
-.ui-text.ui-text--badge-trailing@{ui-text-with-badge}:not(.ui-text--align-center, .ui-text--align-end) > .ui-text__body > .ui-text__header {
+.ui-text.ui-text--badge-trailing@{ui-text-with-title}@{ui-text-with-badge}:not(.ui-text--align-center, .ui-text--align-end) > .ui-text__body > .ui-text__header {
     width: 100%;
     min-width: 0;
 }
 
 // BadgeAlignment.Content centres the trailing badge across the block via display: contents on the header, so it can span the body's grid.
-.ui-text--badge-content.ui-text--badge-trailing@{ui-text-with-badge}@{ui-text-with-description} {
+.ui-text--badge-content.ui-text--badge-trailing@{ui-text-with-title}@{ui-text-with-badge}@{ui-text-with-description} {
     > .ui-text__body {
         grid-template-columns: minmax(0, 1fr) auto;
         // Rows are named explicitly: `-1` counts explicit grid lines, and left implicit it resolved back to the first row.

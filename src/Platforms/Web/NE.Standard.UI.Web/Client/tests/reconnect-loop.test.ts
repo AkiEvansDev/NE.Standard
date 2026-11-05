@@ -151,3 +151,53 @@ test("a reconnect after one whose connection closed again before the page attach
     assert.equal(await third.runAsync(), false);
     assert.equal(tries, 2);
 });
+
+test("time spent while the document is hidden does not spend the reconnect window, and wake guarantees a 30s recovery window", async () => {
+    let time = 0;
+    let hidden = true;
+    let tries = 0;
+    const timers: { readonly ms: number; fire(): void }[] = [];
+
+    const loop = new ReconnectLoop({
+        windowMilliseconds: 600_000,
+        random: () => 0.5,
+        now: () => time,
+        isHidden: () => hidden,
+        start: async () => {
+            tries++;
+
+            if (tries < 3)
+                throw new Error("offline");
+        },
+        setTimer: (callback, ms) => {
+            const timer = { ms, fire: callback };
+            timers.push(timer);
+            return timer;
+        },
+        clearTimer: handle => {
+            const index = timers.indexOf(handle as { readonly ms: number; fire(): void });
+
+            if (index >= 0)
+                timers.splice(index, 1);
+        }
+    });
+
+    const run = loop.runAsync();
+    await turn();
+    assert.equal(tries, 1);
+
+    // 15 minutes pass while the phone is locked / tab is hidden.
+    time = 900_000;
+    hidden = false;
+    loop.wake();
+    await turn();
+    assert.equal(tries, 2);
+    assert.equal(timers.length, 1);
+
+    // Even if wall-clock jumped while visible before wake, wake guarantees at least 30s left.
+    time = 1_600_000;
+    loop.wake();
+
+    assert.equal(await run, true);
+    assert.equal(tries, 3);
+});

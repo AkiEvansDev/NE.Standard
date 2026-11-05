@@ -420,11 +420,11 @@ internal abstract class PresetsViewBase : DemoView
                 new TextAreaComponent()
                     .SetPlaceholder("Write a message")
                     .AddLeadingAction(UIIconButtons.Attach().InteractOn(EventNames.Click, new OpenPickerEffect("presets-composer-files")))
-                    .AddTrailingAction(UIIconButtons.Send(), inField: true),
+                    .AddTrailingAction(UIIconButtons.Send()),
                 new FileInputComponent("presets-composer-files").SetMaxFileSize(5 * 1024 * 1024),
                 UIText.Quote("Robin Hale", "Can you take the Friday slot too?", closeCommand: nameof(PresetsController.DropQuote))
             ),
-            note: "A messenger's composer panel: a calm surface that shows no focus ring of its own, a shelf above the text that appears once a file is chosen or dropped anywhere on the panel, any reply or edit quote banners above the field, and a ghost text area that grows to six rows and moves its outer actions into a bar under the text below md.",
+            note: "A messenger's composer panel: a calm surface that shows no focus ring of its own, a shelf above the text that appears once a file is chosen or dropped anywhere on the panel, any reply or edit quote banners above the field, and a ghost text area that grows to six rows with its actions on one row beside the words by default (on a phone, either fold extra tools into a More ⋯ menu or call SetActionsBelow(UIResponsiveTier.Md) without inField to place all buttons including Send on a row below the text).",
             columns: 24,
             context: nameof(PresetsController.QuoteGroup)
         );

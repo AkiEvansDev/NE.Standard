@@ -86,8 +86,8 @@ test("the field's row keeps the box's height with a hairline at its foot across 
     assert.match(after, /min-height: inherit;/);
     assert.match(after, /border-bottom: 1px solid var\(--ui-color-border\);/);
     assert.match(after, /pointer-events: none;/);
-    // One hairline on every appearance: an edged field's bottom edge now runs under the tools.
-    assert.doesNotMatch(css, /\.ui-input--[a-z]+\)?[^{}]*\[data-ui-actions-below\] > [^{}]*::after \{/);
+    // Ghost draws no box or rule at rest, so its tools' row under the text stands without a hairline between them.
+    assert.match(rule(outside, `.ui-input--ghost[data-ui-actions-below] > ${box}::after`), /^\s*border-bottom: 0;\s*$/);
 
     // Top and bottom alone: the sides keep the groups' own half step, as in the field's row.
     for (const band of laidOut)

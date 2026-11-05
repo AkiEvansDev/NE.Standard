@@ -9,8 +9,11 @@ import { AwaitsDrawAttribute, RegionAttribute } from "../addressing/dom-attribut
 /** What the boot script looks for as the parser hands the body over. */
 export const AwaitsDrawSelector = `[${AwaitsDrawAttribute}]`;
 
-/** Holds the region a part awaiting its draw stands in; a part outside any region holds nothing. */
+/** Holds the region a part awaiting its draw stands in; a part outside any region or inside a closed dialog holds nothing. */
 export function holdRegionOf(part: Element): void {
+    if (part.closest("dialog:not([open])") !== null)
+        return;
+
     const region = part.closest(`[${RegionAttribute}]`);
 
     if (region !== null && !region.hasAttribute(AwaitsDrawAttribute))

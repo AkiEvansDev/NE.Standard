@@ -60,13 +60,14 @@
     margin: auto 0;
     border-radius: 999px;
     background: var(--ui-color-mark);
-    transition: left @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
+    transform: translateX(0);
+    transition: transform @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
 }
 
-// A percentage of the padding box, not a flat rem, which overshoots the travel whatever the browser rounds the borders to.
+// Composited thumb travel across the padding box (`track - 2 * border - 2 * inset - knob`).
 .ui-switch__input:checked ~ .ui-switch__box::after {
     background: var(--ui-color-on-primary);
-    left: calc(100% - 0.1875rem - 0.75rem);
+    transform: translateX(calc(@ui-switch-track - 2 * var(--ui-border-width, 1px) - 2 * 0.1875rem - 0.75rem));
 }
 
 // A size steps the track and the knob with the text ui-input.less sizes; the knob's travel is written again for its own width.
@@ -82,7 +83,7 @@
     }
 
     .ui-switch.ui-input--small > .ui-switch__input:checked ~ .ui-switch__box::after {
-        left: calc(100% - 0.125rem - 0.625rem);
+        transform: translateX(calc(@ui-switch-track-small - 2 * var(--ui-border-width, 1px) - 2 * 0.125rem - 0.625rem));
     }
 
 .ui-switch.ui-input--large > .ui-switch__box {
@@ -97,7 +98,7 @@
     }
 
     .ui-switch.ui-input--large > .ui-switch__input:checked ~ .ui-switch__box::after {
-        left: calc(100% - 0.1875rem - 1rem);
+        transform: translateX(calc(@ui-switch-track-large - 2 * var(--ui-border-width, 1px) - 2 * 0.1875rem - 1rem));
     }
 
 .ui-toggle-note-inset(~".ui-switch"; @ui-switch-track);

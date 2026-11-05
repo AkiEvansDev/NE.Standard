@@ -23,7 +23,7 @@ with the item models and the enums on their own pages beside it.
 - `SurfaceComponent` - one framed region (fill, edge, radius; `OnClick`/`OnClickWithItemKey` makes it pressable, `OnClickShowImage`,
   `SetUrl` makes it a link; `SetClickable(false)` turns a click off).
 - `CardComponent` - a surface with a header and footer band; `CardHeaderRegion` draws its header.
-- `ExpanderComponent` - a header that folds its content; `ExpanderHeaderRegion` draws the header. `OnExpand`/`OnCollapse` (with
+- `ExpanderComponent` - a header that folds its content; `ExpanderHeaderRegion` draws the header, and `SetHeaderAction`/`SetHeaderActions` places interactive controls outside `<summary>` at the far edge while expanded. `OnExpand`/`OnCollapse` (with
   bound or literal arguments: `OnExpandLiteral`/`OnCollapseLiteral`) on a person's fold, as on every `IExpandableComponent`.
 - `AccordionComponent` - expanders of which one is open at a time.
 - `CollapsiblePanelComponent` - a panel folding to an edge (a sidebar, a properties pane, a log) with its own switch; a press on

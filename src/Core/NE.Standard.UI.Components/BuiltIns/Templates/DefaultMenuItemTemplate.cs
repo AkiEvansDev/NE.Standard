@@ -44,7 +44,7 @@ public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTe
 
         if (kind == UIMenuItemKind.Check)
         {
-            BindEntryLabel(description: true);
+            _ = this.BindText();
             _ = BindShortcut(nameof(IMenuItemModel.Shortcut), UIBindingScope.Relative, optional: true);
             _ = BindInActionBar(nameof(IMenuItemModel.InActionBar), UIBindingScope.Relative, optional: true);
             _ = BindChecked(nameof(IMenuItemModel.Checked), UIBindingScope.Relative, optional: true);

@@ -318,3 +318,37 @@ test("Shift+Enter in a text area with OnEnter breaks the line; a composing Enter
     assert.deepEqual(heard, []);
     assert.equal(fakeDocument.activeElement, area);
 });
+
+test("on a touch device (hover: none and pointer: coarse), Enter in a text area with SubmitOnEnter or OnEnter inserts a line break instead of submitting", () => {
+    const globals = globalThis as unknown as { window?: { matchMedia?: (query: string) => { matches: boolean } } };
+    const previousWindow = globals.window;
+
+    try {
+        globals.window = { matchMedia: (query: string) => ({ matches: query === "(hover: none) and (pointer: coarse)" }) };
+
+        const { area: submitArea, heard: submitHeard } = submittingArea();
+        submitArea.focus();
+        submitArea.value = "Line 1";
+
+        assert.equal(press(submitArea, "Enter").defaultPrevented, false);
+        assert.deepEqual(submitHeard, []);
+
+        const { area: runArea, heard: runHeard } = entryArea();
+        runArea.focus();
+        runArea.value = "Line 1";
+
+        assert.equal(press(runArea, "Enter").defaultPrevented, false);
+        assert.deepEqual(runHeard, []);
+
+        // On desktop (`hover: hover`), Enter submits again as usual.
+        globals.window = { matchMedia: () => ({ matches: false }) };
+        const { area: desktopArea, heard: desktopHeard } = submittingArea();
+        desktopArea.focus();
+        desktopArea.value = "Line 1";
+        assert.equal(press(desktopArea, "Enter").defaultPrevented, true);
+        assert.deepEqual(desktopHeard, ["change Line 1", "click"]);
+    }
+    finally {
+        globals.window = previousWindow;
+    }
+});

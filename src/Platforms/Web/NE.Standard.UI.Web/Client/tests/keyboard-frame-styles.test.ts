@@ -75,13 +75,13 @@ test("a pinned table's focused row keeps its layer above its pinned cells", () =
     assert.match(rules(`${row}::after`), /outline: inherit;/);
 });
 
-test("a quiet expander's header aligns its words flush at rest while its hover/focus pill protrudes by its padding", () => {
+test("a quiet expander's header keeps zero margin and balanced inline padding with hover/focus wash", () => {
     const header = rules(".ui-expander--quiet > .ui-expander__header");
 
     assert.match(header, /width: fit-content;/);
-    assert.match(header, /max-width: calc\(100% \+ 2 \* 0\.5rem\);/);
-    assert.match(header, /margin: -0\.25rem -0\.5rem;/);
-    assert.match(header, /padding: 0\.25rem 0\.5rem;/);
+    assert.match(header, /max-width: 100%;/);
+    assert.match(header, /margin: 0;/);
+    assert.match(header, /padding: 0 2px 0 6px;/);
     assert.match(header, /border-radius: var\(--ui-radius-button\);/);
     assert.match(css, /\.ui-expander--quiet:not\(\.ui-disabled\):not\(\.ui-loading\):not\(:disabled\):where\(:not\(\[data-ui-popup-hover\]\)\) > \.ui-expander__header:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*background-color: var\(--ui-wash-hover\);\s*color: var\(--ui-faint-base, var\(--ui-color-on-surface\)\);/);
 });

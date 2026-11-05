@@ -16,10 +16,12 @@ import { AwaitsDrawSelector, holdRegionOf, releaseRegions } from "../src/renderi
 class FakeElement {
     public readonly children: FakeElement[] = [];
     public readonly parent: FakeElement | null;
+    public readonly tagName: string;
     private readonly attributes = new Map<string, string>();
 
-    public constructor(parent: FakeElement | null, attributes: readonly string[] = []) {
+    public constructor(parent: FakeElement | null, attributes: readonly string[] = [], tagName = "div") {
         this.parent = parent;
+        this.tagName = tagName;
 
         for (const name of attributes)
             this.attributes.set(name, "");
@@ -40,6 +42,9 @@ class FakeElement {
     }
 
     public closest(selector: string): FakeElement | null {
+        if (selector === "dialog:not([open])")
+            return this.tagName === "dialog" && !this.hasAttribute("open") ? this : this.parent?.closest(selector) ?? null;
+
         return this.hasAttribute(attributeOf(selector)) ? this : this.parent?.closest(selector) ?? null;
     }
 
@@ -84,6 +89,24 @@ test("a part outside any region holds nothing", () => {
     holdRegionOf(display as unknown as Element);
 
     assert.equal(root.hasAttribute(AwaitsDrawAttribute), false);
+});
+
+test("a part inside a closed dialog does not hold the enclosing region, while one inside an open dialog does", () => {
+    const root = new FakeElement(null);
+    const content = new FakeElement(root, [RegionAttribute]);
+    const closedDialog = new FakeElement(content, [], "dialog");
+    const closedDisplay = new FakeElement(closedDialog, [AwaitsDrawAttribute]);
+
+    holdRegionOf(closedDisplay as unknown as Element);
+
+    assert.equal(content.hasAttribute(AwaitsDrawAttribute), false);
+
+    const openDialog = new FakeElement(content, ["open"], "dialog");
+    const openDisplay = new FakeElement(openDialog, [AwaitsDrawAttribute]);
+
+    holdRegionOf(openDisplay as unknown as Element);
+
+    assert.equal(content.hasAttribute(AwaitsDrawAttribute), true);
 });
 
 test("once the engines have started every mark comes off, the regions' and the parts' own", () => {

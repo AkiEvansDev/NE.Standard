@@ -546,6 +546,11 @@ input.ui-field {
     }
 }
 
+// Ghost draws no box or rule at rest, so its tools' row under the text stands without a hairline between them.
+.ui-input--ghost[data-ui-actions-below] > @{ui-below-box}::after {
+    border-bottom: 0;
+}
+
 // The text and the in-field actions end on the text's last line, as in the box; the box's insets at the row's two ends.
 .ui-text-area[data-ui-actions-below] {
     grid-template-columns: var(--ui-text-area-inset) auto minmax(0, 1fr) auto var(--ui-text-area-inset);
