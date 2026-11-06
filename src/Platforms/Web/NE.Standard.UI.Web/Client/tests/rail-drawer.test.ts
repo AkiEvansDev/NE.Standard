@@ -130,10 +130,10 @@ function markRoot(name: string, on: boolean): void {
 }
 
 test("a pin stands the drawer's rail in its column, the rail again, and unpinned it is the list again", () => {
-    root.setAttribute("data-ui-side-drawers", "xl");
-    resize(900);
+    root.setAttribute("data-ui-side-drawers", "xxl");
+    resize(1300);
 
-    assert.equal(rail.classList.contains(RailClass), false, "a tablet's side is a drawer below the extra-large breakpoint");
+    assert.equal(rail.classList.contains(RailClass), false, "a side is a drawer below the extra-extra-large breakpoint");
 
     markRoot("data-ui-pinned-left-side", true);
     assert.equal(rail.classList.contains(RailClass), true);

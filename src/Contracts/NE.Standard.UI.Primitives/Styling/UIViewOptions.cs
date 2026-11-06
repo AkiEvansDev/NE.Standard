@@ -34,7 +34,7 @@ public sealed record UIViewOptions
     /// There the sides leave the page's columns and slide over the content, each opened by a button the header carries, so the content
     /// takes the page's whole width; a left side that is a rail alone is a bar along the page's bottom instead
     /// (<see cref="UIMenuDisplay.Rail"/>), unless <see cref="RailBottomBar"/> is off. An open drawer covers its button, so a sidebar
-    /// menu's fold switch lying there puts the drawer away rather than fold the menu. From the medium breakpoint up the reader may pin a
+    /// menu's fold switch lying there puts the drawer away rather than fold the menu. From the extra-large breakpoint up the reader may pin a
     /// drawer, which then stands in its column until unpinned — by a sidebar menu's pin (<c>MenuComponent.DrawerPin</c>) or the page's
     /// own button (<c>ButtonComponent.PinsDrawer</c>). <see cref="UISideDrawers.Never"/> keeps the sides in their columns at every width.
     /// </remarks>

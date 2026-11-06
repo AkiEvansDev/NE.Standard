@@ -60,10 +60,13 @@ const openDrawers = [
     `${shell}[data-ui-drawer-open="right-side"] > [data-ui-region="right-side"]`
 ];
 
-// A tablet's band, between the medium and the extra-large breakpoints: the roots naming a wider width, a side there unpinned.
+// A tablet's band, between the medium and the extra-large breakpoints, and the extra-large band above it where pins hold.
 const tablet = mediaBlocks("@media (min-width: 768px) and (max-width: 1279.98px) {");
+const desktop = mediaBlocks("@media (min-width: 1280px) and (max-width: 1535.98px) {");
 const wider = '[data-ui-root]:is([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
 const columns = '[data-ui-root]:not([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+const xlWider = '[data-ui-root]:is([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
+const xlColumns = '[data-ui-root]:not([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"])';
 
 /**
  * A selector's weight in attributes and classes — all these selectors carry — so two rules can be weighed: `:where` weighs nothing,
@@ -193,31 +196,34 @@ test("a page's own drawer button shows only where its side is a drawer: not wher
     ];
 
     const pinned = [
-        `${wider}[data-ui-pinned-left-side] [data-ui-id][data-ui-drawer-toggle="left-side"]`,
-        `${wider}[data-ui-pinned-right-side] [data-ui-id][data-ui-drawer-toggle="right-side"]`
+        `${xlWider}[data-ui-pinned-left-side] [data-ui-id][data-ui-drawer-toggle="left-side"]`,
+        `${xlWider}[data-ui-pinned-right-side] [data-ui-id][data-ui-drawer-toggle="right-side"]`
     ];
 
     assert.match(declarations(tablet, hidden.join(",\n  ")) ?? "", /display: none !important;/);
-    assert.match(declarations(tablet, pinned.join(",\n  ")) ?? "", /display: none !important;/);
+    assert.match(declarations(desktop, pinned.join(",\n  ")) ?? "", /display: none !important;/);
     assert.match(phone, /\[data-ui-root\]\[data-ui-side-drawers\]\[data-ui-left-bar\] \[data-ui-id\]\[data-ui-drawer-toggle="left-side"\] \{\s*display: none !important;/);
-    assert.match(declarations(phone, "[data-ui-drawer-pin]") ?? "", /display: none !important;/, "a phone's sides are drawers whatever is pinned");
+    assert.match(declarations(mediaBlocks("@media (max-width: 1279.98px) {"), "[data-ui-drawer-pin]") ?? "", /display: none !important;/, "below the extra-large breakpoint sides are drawers whatever is pinned");
     assert.doesNotMatch(phone, /\[data-ui-pinned-(left|right)-side\] \[data-ui-id\]\[data-ui-drawer-toggle/, "on a phone a pinned side is a drawer, opened by the page's own button");
+    assert.doesNotMatch(tablet, /\[data-ui-pinned-(left|right)-side\] \[data-ui-id\]\[data-ui-drawer-toggle/, "on a tablet a pinned side is a drawer, opened by the page's own button");
     assert.match(declarations(css, '[data-ui-root][data-ui-left-bar] [data-ui-drawer-pin="left-side"]') ?? "", /display: none !important;/, "the bottom bar stands as a bar whatever is pinned");
 });
 
-test("on a tablet the sides are drawers where the view names a wider width, and a pinned side keeps its column", () => {
-    assert.match(declarations(tablet, `${wider}:not([data-ui-pinned-left-side]) > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`) ?? "", /transform: translateX\(-100%\);/);
-    assert.match(tablet, /:not\(\[data-ui-pinned-right-side\]\) > \[data-ui-region="right-side"\] \{\s*right: 0;\s*padding-right: env\(safe-area-inset-right, 0px\);\s*padding-bottom: env\(safe-area-inset-bottom, 0px\);\s*transform: translateX\(100%\);/);
-    assert.match(declarations(tablet, `${wider}:not([data-ui-pinned-left-side])[data-ui-drawer-open="left-side"] > [data-ui-region="left-side"],\n  ${wider}:not([data-ui-pinned-right-side])[data-ui-drawer-open="right-side"] > [data-ui-region="right-side"]`) ?? "", /visibility: visible;\s*transform: none;/);
+test("on a tablet the sides are drawers where the view names a wider width, and from the extra-large breakpoint a pinned side keeps its column", () => {
+    assert.match(declarations(tablet, `${wider} > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`) ?? "", /transform: translateX\(-100%\);/);
+    assert.match(declarations(desktop, `${xlWider}:not([data-ui-pinned-left-side]) > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`) ?? "", /transform: translateX\(-100%\);/);
+    assert.match(desktop, /:not\(\[data-ui-pinned-right-side\]\) > \[data-ui-region="right-side"\] \{\s*right: 0;\s*padding-right: env\(safe-area-inset-right, 0px\);\s*padding-bottom: env\(safe-area-inset-bottom, 0px\);\s*transform: translateX\(100%\);/);
+    assert.match(declarations(desktop, `${xlWider}:not([data-ui-pinned-left-side])[data-ui-drawer-open="left-side"] > [data-ui-region="left-side"],\n  ${xlWider}:not([data-ui-pinned-right-side])[data-ui-drawer-open="right-side"] > [data-ui-region="right-side"]`) ?? "", /visibility: visible;\s*transform: none;/);
     assert.match(mediaBlocks("@media (min-width: 1536px) {"), /\[data-ui-root\]\[data-ui-side-drawers="always"\]:not\(\[data-ui-pinned-left-side\]\) > \[data-ui-region="left-side"\]/, "always is a drawer on the widest screen too");
 });
 
 test("a pinned side keeps the drawer's fill and draws a hairline toward the page; a column by width stays the author's", () => {
-    assert.match(declarations(tablet, `${wider}[data-ui-pinned-left-side] > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`) ?? "", /^\s*background: var\(--ui-color-surface\);\s*border-right: 1px solid var\(--ui-color-border\);\s*$/);
-    assert.match(declarations(tablet, `${wider}[data-ui-pinned-right-side] > [data-ui-region="right-side"]`) ?? "", /^\s*background: var\(--ui-color-surface\);\s*border-left: 1px solid var\(--ui-color-border\);\s*$/);
+    assert.match(declarations(desktop, `${xlWider}[data-ui-pinned-left-side] > [data-ui-region="left-side"]:where(:not([data-ui-bottom-bar]))`) ?? "", /^\s*background: var\(--ui-color-surface\);\s*border-right: 1px solid var\(--ui-color-border\);\s*$/);
+    assert.match(declarations(desktop, `${xlWider}[data-ui-pinned-right-side] > [data-ui-region="right-side"]`) ?? "", /^\s*background: var\(--ui-color-surface\);\s*border-left: 1px solid var\(--ui-color-border\);\s*$/);
     assert.match(mediaBlocks("@media (min-width: 1536px) {"), /\[data-ui-side-drawers="always"\]\[data-ui-pinned-left-side\] > \[data-ui-region="left-side"\]:where\(:not\(\[data-ui-bottom-bar\]\)\) \{\s*background/, "a pin holds on the widest screen too");
     assert.doesNotMatch(phoneBlocks(), /\[data-ui-pinned-(left|right)-side\] > \[data-ui-region/, "on a phone a pinned side is a drawer, its shadow its edge");
-    assert.doesNotMatch(css, new RegExp(`${columns.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^{]*> \\[data-ui-region="(left|right)-side"\\][^{]*\\{[^}]*(background|border)`), "a column by width draws no fill or edge of the framework's");
+    assert.doesNotMatch(tablet, /\[data-ui-pinned-(left|right)-side\] > \[data-ui-region/, "on a tablet a pinned side is a drawer, its shadow its edge");
+    assert.doesNotMatch(css, new RegExp(`${xlColumns.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^{]*> \\[data-ui-region="(left|right)-side"\\][^{]*\\{[^}]*(background|border)`), "a column by width draws no fill or edge of the framework's");
 });
 
 test("a modeless side's open drawer leaves the page unveiled", () => {

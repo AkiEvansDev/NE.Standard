@@ -86,11 +86,11 @@ public abstract partial class ButtonComponent<T>(string? id = null) : VisualComp
 
     /// <summary>
     /// Gets or sets the side whose drawer the button pins and unpins (<see cref="UIViewOptions.SideDrawers"/>), left or right: pinned,
-    /// the side stands in its column from the medium breakpoint up, as if the screen were wide.
+    /// the side stands in its column from the extra-large breakpoint up, as if the screen were wide.
     /// </summary>
     /// <remarks>
     /// Render-time only. A side with no sidebar menu to carry a pin (<c>MenuComponent.DrawerPin</c>) is pinned by a button of the page's
-    /// own, standing wherever the side's heading is. Shown only where pinning means something — from the medium breakpoint up, where the
+    /// own, standing wherever the side's heading is. Shown only where pinning means something — from the extra-large breakpoint up, where the
     /// side is a drawer or pinned, and never for a left side that is the bottom bar — it is as pressed as the side is pinned. The pin is
     /// kept in the browser under the first authored id in the side, so the side's root wants an id of its own. The button is a toggle
     /// whose <see cref="Pressed"/> is the pin, which an interaction may read for an icon of its own for pinned.

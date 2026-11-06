@@ -333,6 +333,10 @@ public sealed partial class UIClientPage
     public UIClientComponent Component(string id)
         => Find(id, scope: null, rowKeys: []);
 
+    /// <summary>Gets the component with the compiled <paramref name="componentId"/> in the given <paramref name="rowKeys"/> scope.</summary>
+    public UIClientComponent Component(UIComponentId componentId, object?[]? rowKeys = null)
+        => At(componentId, rowKeys ?? []);
+
     /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
     public UIClientComponent ComponentBoundTo<TSource>(Expression<Func<TSource, object?>> path)
         => ComponentBoundTo(RecursivePath.FromExpression(path).ToString());

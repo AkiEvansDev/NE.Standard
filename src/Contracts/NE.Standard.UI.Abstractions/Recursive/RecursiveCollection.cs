@@ -12,7 +12,7 @@ namespace NE.Standard.UI.Abstractions.Recursive;
 /// <summary>
 /// Represents an observable recursive collection whose item changes are forwarded as collection path changes.
 /// </summary>
-public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IRecursiveCollection
+public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IReadOnlyList<T>, IRecursiveCollection
     where T : RecursiveObservable
 {
     private sealed class ItemForwarder

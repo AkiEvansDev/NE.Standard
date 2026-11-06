@@ -5,7 +5,7 @@
 // in it too, once no popup is open.
 // A side the view leaves modeless (UIViewOptions.LeftDrawerModal) opens over the page as it is, which keeps working beside it, and
 // Escape puts it away only from inside it. A pin (MenuComponent.DrawerPin, ButtonComponent.PinsDrawer) stands a side in its column
-// from the medium breakpoint up, kept in the browser under the first authored id in the side and written on the root as the parser
+// from the extra-large breakpoint up, kept in the browser under the first authored id in the side and written on the root as the parser
 // reaches that id (boot.ts): before the content after it paints, a right side's not before the content ahead of it.
 
 import { BottomBarAttribute, CollapsedAttribute, CollapseToggleAttribute, CollapsibleBarClass, CollapsibleClass, ComponentNameAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerModelessAttribute, DrawerOpenAttribute, DrawerPinAttribute, DrawerSwitchAttribute, DrawerSwitchRowAttribute, DrawerToggleAttribute, FocusHolderAttribute, MenuItemClass, MenuPopupSelector, pinnedAttribute, RegionAttribute, RootAttribute, SideLeftClass, SideRightClass, ValueKindAttribute } from "../addressing/dom-attributes.ts";
@@ -291,7 +291,7 @@ export class SideDrawerEngine {
     }
 
     /**
-     * Pins a side or unpins it: pinned, it stands in its column from the medium breakpoint up — put away first, as a drawer, if open —
+     * Pins a side or unpins it: pinned, it stands in its column from the extra-large breakpoint up — put away first, as a drawer, if open —
      * and the pin is kept under the first authored id in the side (its root, or a menu in plain boxes), written on the next page's root
      * as the parser reaches that id. A pin pressed inside the side keeps the keyboard there as it stands in its column; unpinned, the side is
      * a drawer put away, and the keyboard goes to the button that opens it. A bottom bar takes no pin: it stands as a bar whatever is

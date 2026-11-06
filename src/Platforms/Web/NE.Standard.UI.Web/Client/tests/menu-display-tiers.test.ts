@@ -92,6 +92,7 @@ const wideRailRoot = FakeElement.of("", { "data-ui-root": "", "data-ui-side-draw
 
 // The same in a right side whose view keeps its sides drawers at every width.
 const alwaysRail = tieredMenu("list", "md xl xxl");
+const alwaysRailRoot = FakeElement.of("", { "data-ui-root": "", "data-ui-side-drawers": "always" }).append(FakeElement.of("", { "data-ui-region": "right-side" }).append(alwaysRail.menu));
 
 fakeDocument.body.append(
     FakeElement.of("", { "data-ui-root": "", "data-ui-side-drawers": "md" }).append(drawerSide),
@@ -99,7 +100,7 @@ fakeDocument.body.append(
     FakeElement.of("", { "data-ui-root": "" }).append(folded.menu),
     FakeElement.of("", { "data-ui-root": "", "data-ui-side-drawers": "md" }).append(smallRailSide),
     wideRailRoot,
-    FakeElement.of("", { "data-ui-root": "", "data-ui-side-drawers": "always" }).append(FakeElement.of("", { "data-ui-region": "right-side" }).append(alwaysRail.menu))
+    alwaysRailRoot
 );
 
 startTooltips();
@@ -242,17 +243,21 @@ test("a view keeping its sides drawers to a wider width keeps the base tier's li
     assert.equal(wideRail.menu.classList.contains(RailClass), false);
 });
 
-test("a pinned side stands in its column from the medium breakpoint up, where the tier decides again", () => {
+test("a pinned side stands in its column from the extra-large breakpoint up, where the tier decides again", () => {
     resize(900);
-    wideRailRoot.setAttribute("data-ui-pinned-left-side", "");
+    alwaysRailRoot.setAttribute("data-ui-pinned-right-side", "");
 
-    assert.equal(fitMenuShape(real(wideRail.menu)), true);
-    assert.equal(wideRail.menu.classList.contains(RailClass), true);
+    assert.equal(fitMenuShape(real(alwaysRail.menu)), false, "below the extra-large breakpoint a pin is ignored");
+    assert.equal(alwaysRail.menu.classList.contains(RailClass), false);
 
-    wideRailRoot.removeAttribute("data-ui-pinned-left-side");
+    resize(1280);
 
-    assert.equal(fitMenuShape(real(wideRail.menu)), true);
-    assert.equal(wideRail.menu.classList.contains(RailClass), false);
+    assert.equal(alwaysRail.menu.classList.contains(RailClass), true);
+
+    alwaysRailRoot.removeAttribute("data-ui-pinned-right-side");
+
+    assert.equal(fitMenuShape(real(alwaysRail.menu)), true);
+    assert.equal(alwaysRail.menu.classList.contains(RailClass), false);
 });
 
 test("a side that is a drawer at every width keeps the base tier's list at every width", () => {

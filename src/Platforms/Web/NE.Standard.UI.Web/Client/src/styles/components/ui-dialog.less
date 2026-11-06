@@ -81,6 +81,9 @@
     > .ui-scroll {
         flex: 0 1 auto;
         .ui-responsive-property(min-height, --ui-min-height, 0);
+        .ui-responsive-property(--ui-fill-margin-x, --ui-margin-x, -(@ui-keyboard-frame-reach * 2));
+        .ui-responsive-property(margin, --ui-margin, 0 -@ui-keyboard-frame-reach);
+        .ui-responsive-property(padding, --ui-padding, ~"0 max(var(--ui-scroll-room-right), @{ui-keyboard-frame-reach}) var(--ui-scroll-room-x) @{ui-keyboard-frame-reach}");
     }
 
     > :not(.ui-scroll) {

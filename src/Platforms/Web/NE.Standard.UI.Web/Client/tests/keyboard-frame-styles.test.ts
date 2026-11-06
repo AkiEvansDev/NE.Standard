@@ -90,6 +90,8 @@ test("a component that clips its children leaves an outside focus ring its reach
     assert.match(rules("[data-ui-id][style*=\"overflow: clip\"]"), /overflow-clip-margin: 8px;/);
     assert.match(rules(".ui-expander:not(.ui-expander--quiet)[data-ui-id][style*=\"overflow: clip\"]"), /overflow-clip-margin: 0px;/);
     assert.match(rules(".ui-expander.ui-expander--quiet"), /border-radius: var\(--ui-border-radius-xxl, .*, 0\)+;/);
+    assert.match(rules(".ui-items-view__host.ui-scroll-x--disabled.ui-scroll-y--disabled"), /overflow: clip;\s*overflow-clip-margin: 8px;/);
+    assert.match(rules(".ui-dialog__surface > .ui-stack-panel > .ui-scroll"), /--ui-fill-margin-x: var\(--ui-margin-x-xxl, .*, -16px\)+;\s*margin: var\(--ui-margin-xxl, .*, 0 -8px\)+;\s*padding: var\(--ui-padding-xxl, .*, 0 max\(var\(--ui-scroll-room-right\), 8px\) var\(--ui-scroll-room-x\) 8px\)+;/);
 });
 
 test("a tab's caption and a panel's pin answer keyboard focus with the same wash and ink as pointer hover", () => {

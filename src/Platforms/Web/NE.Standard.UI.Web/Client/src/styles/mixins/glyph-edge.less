@@ -37,7 +37,7 @@
     margin-inline-end: calc(-1 * var(--ui-glyph-inset) * var(--ui-glyph-hang-end, 1));
 }
 
-// What core/side-drawers.less hides of the drawers' own buttons in a band: a pin below the medium breakpoint and beside the bottom
+// What core/side-drawers.less hides of the drawers' own buttons in a band: a pin below the extra-large breakpoint and beside the bottom
 // bar; a page's drawer button where the sides are columns, beside the bottom bar, and for a pinned side where a pin holds.
 .ui-glyph-drawer-buttons-hidden(@hold; @drawers; @columns) when (@hold) {
     @ui-glyph-hidden: ~"[data-ui-left-bar] [data-ui-drawer-pin='left-side'], @{columns} :is([data-ui-drawer-toggle], [data-ui-drawer-pin]), @{drawers}[data-ui-left-bar] [data-ui-drawer-toggle='left-side'], @{drawers}[data-ui-pinned-left-side] [data-ui-drawer-toggle='left-side'], @{drawers}[data-ui-pinned-right-side] [data-ui-drawer-toggle='right-side']";

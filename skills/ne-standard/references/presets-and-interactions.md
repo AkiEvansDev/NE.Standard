@@ -19,7 +19,7 @@ Always use a preset before assembling raw containers, margins, or font sizes by 
 | `UIDetails` | `List`, `Row`, `Amount`/`BoundAmount`, `Total`/`BoundTotal` |
 | `UICard` | `Create`/`BoundCreate`, `Centered` |
 | `UIMessage` | `Create`/`BoundCreate`, `Info`, `Success`, `Warning`, `Danger` |
-| `UIDialogs` | `Create`/`BoundCreate`, `Header`/`BoundHeader`, `Content`/`BoundContent`, `Form`/`BoundForm`, `Confirm`/`BoundConfirm`, `CloseButton(key, action)` |
+| `UIDialogs` | `Create`/`BoundCreate` (`width: UIColumnWidth.Form \| Reading \| Wide` caps wide editor forms; automatically wraps `content` in a `ScrollContainerComponent` with `ScrollFade = true` and `8px` horizontal bleed room — do **not** wrap normal scrolling forms in an extra `ScrollContainerComponent`; for a full-height `Height = UILayoutLength.Fill()` dialog whose child fills and scrolls itself such as `CodeInputComponent`, build `new UIDialog` with `TitleId = UIDialogs.TitleId(key)` and a grid placing `UIDialogs.Header` in an `Auto` row and the self-scrolling child in a `Star(1)` row), `Header`/`BoundHeader`, `Content`/`BoundContent`, `Form`/`BoundForm`, `Confirm`/`BoundConfirm`, `CloseButton(key, action)` |
 | `StatePresetExtensions` | `ShownWhen`, `HiddenWhen`, `EnabledWhen`, `DisabledWhen` (target reacts to source component value in browser) |
 | `ResponsivePresetExtensions` | `ShownFrom(breakpoint)`, `ShownBelow(breakpoint)` |
 

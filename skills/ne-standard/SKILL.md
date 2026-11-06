@@ -43,13 +43,14 @@ holds no application state and decides nothing; state survives a reload exactly 
   `NE.Standard.UI.Testing` in the test project. Host: `NE.Standard.UI.Web` + `NE.Standard.UI.Web.Renderers`. An add-on is the
   same two halves. `dotnet list App package --include-transitive` must show no `NE.Standard.UI.Web*` in the library.
 
-## Startup and the web host
+## Startup and the hosts (Web, Server)
 
 - `AppStartup : UIStartupBase` - `ConfigureServices(services)` for the application's services, `ConfigureApplication(application)`
-  for routes and options. `AppWebStartup : WebStartupBase<AppStartup>` - `services.AddStandardRenderers()` and each add-on's
-  `Add*()`.
-- `Program.cs`: `WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services)`, then `app.UseStaticFiles()`,
+  for routes and options.
+- **Web host (`NE.Standard.UI.Web` + `NE.Standard.UI.Web.Renderers`)**: `AppWebStartup : WebStartupBase<AppStartup>` - `services.AddStandardRenderers()` and each add-on's
+  `Add*()`. `Program.cs`: `WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services)`, then `app.UseStaticFiles()`,
   `app.UseRouting()`, `await app.MapStandardUIWebAsync()` - in that order, never `MapStaticAssets()`.
+- **API-only Server host (`NE.Standard.UI.Server`)**: `AppServerStartup : UIServerStartupBase<AppStartup>` with `UIServerStartupBuilder.Configure<AppServerStartup, AppStartup>(builder.Services)` and `await app.MapStandardUIServerAsync()` — exposes `/_ne/view`, `/_ne/hub`, `/_ne/files`, `/_ne/content`, `/_ne/values`, `/_ne/words` and `/_ne/session/key` for remote C# clients without HTML rendering or Web assets.
 - `UIApplicationBuilder`: `Route`, `SignInView`, `ForbiddenView`, `NotFoundView`, `ErrorView`, `ConfigureSecurity`,
   `ConfigureSessions`, `ConfigurePersistence`, `ConfigureErrorHandling`, `ConfigureLocalization`, `AddLocalizationSource`,
   `AddFrameworkWords`, `ConfigureTemporal`, `ConfigureTheme`, `ConfigureFiles`, `AddViewFilter`, `AddCommandFilter`.
@@ -233,7 +234,7 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   its glyph or words on the edge, an icon by its own `IconSize`. `UIMessage` - `Create`, `BoundCreate` (words at paths),
   `Info`, `Success`, `Warning`, `Danger` (`UIColorStyle`): a message that stays while true; `dismissCommand` runs as its ×
   hides it, for one gone for good.
-- `UIDialogs` - `Create`/`BoundCreate` (a `UIColumnWidth` keeps its content to a column, optional `trailing` stands in the header before the ×; `with { ... }` for the rest, `UIDialog`
+- `UIDialogs` - `Create`/`BoundCreate` (a `UIColumnWidth` keeps its content to a column, optional `trailing` stands in the header before the ×, and `content` is wrapped in a `ScrollContainerComponent` with `ScrollFade = true` and `8px` horizontal bleed room automatically — do not wrap normal scrolling content in an extra `ScrollContainerComponent`, and for a `Height = UILayoutLength.Fill()` dialog whose child fills and scrolls itself use `new UIDialog` with `TitleId = UIDialogs.TitleId(key)` and a grid placing `UIDialogs.Header` in an `Auto` row and the self-scrolling child in a `Star(1)` row; `with { ... }` for the rest, `UIDialog`
   being a record), `Header`/`BoundHeader`, `Content`/`BoundContent`, `Form`/`BoundForm` (a real form: the key is its fields' form
   id and the primary its submit; the standard Cancel), `Confirm`, `BoundConfirm` (a written question, its words at a path), `CloseButton(key, action)` - the dialog's own
   Cancel, Close or Done, never written by hand. A dialog is named by the title it shows (`UIDialog.TitleId`; a hand-built one

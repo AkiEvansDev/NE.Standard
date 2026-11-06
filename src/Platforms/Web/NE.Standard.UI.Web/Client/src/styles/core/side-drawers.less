@@ -8,7 +8,7 @@
 
 // UIViewOptions.SideDrawers: below the width the view names the sides slide over the content from their edges, opened by header
 // buttons; a left side that is a rail alone (WebViewRenderer marks it) is a bar along the page's bottom instead, unless the view keeps
-// it a drawer (UIViewOptions.RailBottomBar), where its rail is drawn as a list (menu-group-engine.ts). From the medium breakpoint up a
+// it a drawer (UIViewOptions.RailBottomBar), where its rail is drawn as a list (menu-group-engine.ts). From the extra-large breakpoint up a
 // pinned side stands in its column (side-drawer-engine.ts); the bands are mixins/side-drawers.less's.
 
 @ui-drawer-width: 20rem;
@@ -51,10 +51,10 @@
     }
 }
 
-// A pin shows only where pinning means something: from the medium breakpoint up, where its side is a drawer or pinned, and never for
+// A pin shows only where pinning means something: from the extra-large breakpoint up, where its side is a drawer or pinned, and never for
 // a left side that is the bottom bar, which stands as a bar whatever is pinned. Over the author's Visibility, as a page's own drawer
 // button is hidden where its side is none.
-@media (max-width: (@ui-breakpoint-md - 0.02px)) {
+@media (max-width: (@ui-breakpoint-xl - 0.02px)) {
     [data-ui-drawer-pin] {
         display: none !important;
     }
@@ -84,7 +84,7 @@
         display: none !important;
     }
 
-    // Nor beside a pinned side, where a pin holds: below the medium breakpoint a pinned side is a drawer still, opened by that button.
+    // Nor beside a pinned side, where a pin holds: below the extra-large breakpoint a pinned side is a drawer still, opened by that button.
     & when (@ui-pins-hold) {
         @{ui-drawers}[data-ui-pinned-left-side] [data-ui-id][data-ui-drawer-toggle="left-side"],
         @{ui-drawers}[data-ui-pinned-right-side] [data-ui-id][data-ui-drawer-toggle="right-side"] {

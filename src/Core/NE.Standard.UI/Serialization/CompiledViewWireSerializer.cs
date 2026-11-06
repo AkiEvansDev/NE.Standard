@@ -167,6 +167,7 @@ public static class CompiledViewWireSerializer
         options.Converters.Add(new CompiledUIItemsViewWireJsonConverter());
         options.Converters.Add(new TextModelWireJsonConverter());
         options.Converters.Add(new ButtonModelWireJsonConverter());
+        options.Converters.Add(new MenuItemModelWireJsonConverter());
         options.Converters.Add(new ObjectToInferredTypesConverter());
         return options;
     }
@@ -1984,6 +1985,15 @@ public static class CompiledViewWireSerializer
             => JsonSerializer.Deserialize<ButtonItem>(ref reader, options);
 
         public override void Write(Utf8JsonWriter writer, IButtonModel value, JsonSerializerOptions options)
+            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
+    }
+
+    private sealed class MenuItemModelWireJsonConverter : JsonConverter<IMenuItemModel>
+    {
+        public override IMenuItemModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => JsonSerializer.Deserialize<MenuItem>(ref reader, options);
+
+        public override void Write(Utf8JsonWriter writer, IMenuItemModel value, JsonSerializerOptions options)
             => JsonSerializer.Serialize(writer, value, value.GetType(), options);
     }
 

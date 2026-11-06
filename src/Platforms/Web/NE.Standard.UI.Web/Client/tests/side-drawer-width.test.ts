@@ -1,6 +1,6 @@
 // A view's sides are drawers below the width it names (UIViewOptions.SideDrawers): a tablet's for `xl`, a phone's alone for `md`. From
-// the medium breakpoint up a pin stands a side in its column — its button pressed, the drawer put away, the pin kept under the side's
-// authored id and written on the next page's root, the keyboard kept on a pin pressed inside — while a phone's sides stay drawers
+// the extra-large breakpoint up a pin stands a side in its column — its button pressed, the drawer put away, the pin kept under the side's
+// authored id and written on the next page's root, the keyboard kept on a pin pressed inside — while below it the sides stay drawers
 // whatever is pinned, and a bottom bar takes no pin. A modeless side's drawer holds nothing but the tab index it gives back: the page
 // beside it keeps its keys, and Escape puts it away only from inside it. A breakpoint puts away only a drawer whose side it ends.
 
@@ -69,9 +69,9 @@ test("a tablet's sides are drawers for a view naming the extra-large breakpoint,
 });
 
 test("a pin stands the side in its column, put away first, and is kept under the side's id for the root of the next page", () => {
-    width = 800;
+    width = 1300;
 
-    const { root, toggle, pin } = shell("xl");
+    const { root, toggle, pin } = shell("xxl");
 
     toggle.dispatchEvent(new FakeEvent("click"));
     pin.dispatchEvent(new FakeEvent("click"));
@@ -93,15 +93,17 @@ test("a pin stands the side in its column, put away first, and is kept under the
     assert.equal(stored.has("ne.ui:settings:boot"), false);
 });
 
-test("a phone's sides are drawers whatever is pinned", () => {
-    width = 700;
+test("below the extra-large breakpoint, sides are drawers whatever is pinned", () => {
+    for (const narrowWidth of [700, 800]) {
+        width = narrowWidth;
 
-    const { root, toggle } = shell("xl");
+        const { root, toggle } = shell("always");
 
-    root.setAttribute("data-ui-pinned-left-side", "");
-    toggle.dispatchEvent(new FakeEvent("click"));
+        root.setAttribute("data-ui-pinned-left-side", "");
+        toggle.dispatchEvent(new FakeEvent("click"));
 
-    assert.equal(root.getAttribute("data-ui-drawer-open"), "left-side");
+        assert.equal(root.getAttribute("data-ui-drawer-open"), "left-side");
+    }
 });
 
 test("a modeless drawer holds nothing: the page keeps its keys beside it, and Escape puts it away only from inside", () => {
@@ -124,9 +126,9 @@ test("a modeless drawer holds nothing: the page keeps its keys beside it, and Es
 });
 
 test("a pin pressed inside the open drawer keeps the keyboard as the side stands in its column; unpinned, it goes to the side's button", () => {
-    width = 800;
+    width = 1300;
 
-    const { root, toggle, pin } = shell("xl");
+    const { root, toggle, pin } = shell("xxl");
 
     toggle.dispatchEvent(new FakeEvent("click"));
     pin.focus();
@@ -154,9 +156,9 @@ test("a modeless drawer gives back the tab index it took as it is put away", () 
 });
 
 test("a bottom bar takes no pin: it is the bar whatever is pinned", () => {
-    width = 800;
+    width = 1300;
 
-    const { root, drawer, pin } = shell("xl");
+    const { root, drawer, pin } = shell("xxl");
 
     drawer.setAttribute("data-ui-bottom-bar", "");
     pin.dispatchEvent(new FakeEvent("click"));

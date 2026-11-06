@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
+using NE.Standard.UI.Application;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Controllers;
@@ -171,7 +173,8 @@ public sealed class UIRouteDefinitionBuilder
 
         ArgumentNullException.ThrowIfNull(security);
 
-        RouteAttributeDefaults defaults = ReadAttributeDefaults(_viewType, _controllerType, security);
+        UIViewCompilationMode defaultCompilationMode = services.GetService<UIPlatformDefaults>()?.DefaultViewCompilationMode ?? UIViewCompilationMode.Startup;
+        RouteAttributeDefaults defaults = ReadAttributeDefaults(_viewType, _controllerType, security, defaultCompilationMode);
 
         UIViewCompilationMode viewMode = _viewCompilationMode ?? defaults.ViewCompilationMode;
 
@@ -205,7 +208,7 @@ public sealed class UIRouteDefinitionBuilder
         };
     }
 
-    private static RouteAttributeDefaults ReadAttributeDefaults(Type viewType, Type? controllerType, UISecurityOptions security)
+    private static RouteAttributeDefaults ReadAttributeDefaults(Type viewType, Type? controllerType, UISecurityOptions security, UIViewCompilationMode defaultCompilationMode)
     {
         ArgumentNullException.ThrowIfNull(viewType);
 
@@ -233,7 +236,7 @@ public sealed class UIRouteDefinitionBuilder
 
             ViewFilters = ReadViewFilters(viewType, controllerType),
 
-            ViewCompilationMode = viewRuntime?.CompilationMode ?? UIViewCompilationMode.Startup,
+            ViewCompilationMode = viewRuntime?.CompilationMode ?? defaultCompilationMode,
             FlushIntervalMilliseconds = controllerRuntime?.FlushIntervalMilliseconds ?? -1
         };
     }

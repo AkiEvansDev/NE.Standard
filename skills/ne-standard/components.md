@@ -19,9 +19,9 @@ with the item models and the enums on their own pages beside it.
   never a card or a list, never beside a column of fields, never in a wrapping panel of your own - `UILayout.Row` does it itself
   (`AlignWithFieldBoxes`; `None` or an authored `Margin` opts out).
 - `WrapPanelComponent` - children flowing onto further lines; `ItemMinWidth` keeps them in even columns.
-- `ScrollContainerComponent` - scrolls its content either way; `SetScrollGroup` to scroll with another, `SetScrollFade(true)` for top/bottom edge fade masks while scrolled (shared by `ItemsViewComponent` and `TreeComponent`). Because a scroll container is a scrollport (`overflow: hidden/auto` ignores `overflow-clip-margin`), pad it horizontally when a `GlyphEdge` band inside it hangs a button past the edge.
+- `ScrollContainerComponent` - scrolls its content either way; `SetScrollGroup` to scroll with another, `SetScrollFade(true)` for top/bottom edge fade masks while scrolled (shared by `ItemsViewComponent` and `TreeComponent`). Because a scrolling host is a scrollport (`overflow: hidden/auto` ignores `overflow-clip-margin`), pad inside (or on) a custom `ScrollContainerComponent` horizontally when a `GlyphEdge` band hangs a button past the edge or when `SwitchComponent` / `CheckboxComponent` (`::before` `inset: -2px -6px`) or a quiet `ExpanderComponent` (`UIPage.Fold`, `margin-left: -6px`) stands at `x = 0` (`UIDialogs.Create` / `Form` scroll bodies and unscrolled `ItemsViewComponent` hosts with both scrollbars disabled grant the `8px` reach automatically).
 - `SurfaceComponent` - one framed region (fill, edge, radius; `OnClick`/`OnClickWithItemKey` makes it pressable, `OnClickShowImage`,
-  `SetUrl` makes it a link; `SetClickable(false)` turns a click off).
+  `SetUrl` makes it a link; `SetClickable(false)` turns a click off; `BackgroundImage`, `BackgroundImageBlur`, `BackgroundImageDim` — `BackgroundImageDim` mixes `--ui-color-background` over the image so it adapts automatically to both Light and Dark themes; for a translucent reading column over a background-image surface in both themes, use a child `SurfaceComponent` with `SetVariant(UISurfaceVariant.Background)` and `SetColor(UIThemeColor.Create(light, dark).WithOpacity(factor))`).
 - `CardComponent` - a surface with a header and footer band; `CardHeaderRegion` draws its header.
 - `ExpanderComponent` - a header that folds its content; `ExpanderHeaderRegion` draws the header, and `SetHeaderAction`/`SetHeaderActions` places interactive controls outside `<summary>` at the far edge while expanded. `OnExpand`/`OnCollapse` (with
   bound or literal arguments: `OnExpandLiteral`/`OnCollapseLiteral`) on a person's fold, as on every `IExpandableComponent`.
@@ -74,7 +74,7 @@ arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a b
   no free text or field actions). `SetVariant` installs the variant's option template unless one of your own is set.
 - `DateInputComponent`, `TimeInputComponent`, `DateTimeInputComponent`, `CalendarComponent` (a month in place, a day or a period).
   A period (`SetIsRange()`) keeps its ends `SetMinDistance(TimeSpan)` apart, as a range slider keeps its handles; a date's in whole days, a time's under a day.
-- `ColorInputComponent` - a colour picked freely in an always-available picker, with `ShowPalette` optionally adding a palette tab and `Picker | Palette` switcher.
+- `ColorInputComponent` - a colour picked freely in an always-available picker (`#RRGGBB`, or `#RRGGBBAA` with `SetAllowOpacity(true)` to expose the alpha channel slider), with `ShowPalette` optionally adding a palette tab and `Picker | Palette` switcher.
 - `FileInputComponent` (`UIFileInputVariant`: `Row`, `Tiles` or `Shelf`, binding `SelectionId` or `SelectionIds`), `ImageInputComponent` (`UIImageInputVariant`: `Picture`, `Avatar` or `Inline`, plus `SetMultiple(true)` for a multi-picture shelf) - upload on pick.
 
 ## Items

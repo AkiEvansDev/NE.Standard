@@ -1,5 +1,5 @@
 // Whether a view's side is a drawer at the width the window has now: below the width its root names (UIViewOptions.SideDrawers),
-// and not pinned from the medium breakpoint up — the one reading of what the stylesheet's drawer bands (core/side-drawers.less) draw.
+// and not pinned from the extra-large breakpoint up — the one reading of what the stylesheet's drawer bands (core/side-drawers.less) draw.
 
 import { BottomBarAttribute, cssAttributeValue, pinnedAttribute, RegionAttribute, SideDrawersAttribute } from "../addressing/dom-attributes.ts";
 import { reachesTier } from "./responsive-tier.ts";
@@ -12,7 +12,7 @@ export const DrawerBreakpointTiers: readonly BreakpointTier[] = ["md", "xl", "xx
 const ColumnsFrom: Readonly<Record<string, BreakpointTier>> = { md: "md", xl: "xl", xxl: "xxl" };
 
 // From here a pin holds: below it every side is a drawer, pinned or not, and no pin shows.
-const PinsFrom: BreakpointTier = "md";
+const PinsFrom: BreakpointTier = "xl";
 
 /**
  * Whether one side of a shell is a drawer at this width: its sides are, and the reader has not pinned it where a pin holds. A left

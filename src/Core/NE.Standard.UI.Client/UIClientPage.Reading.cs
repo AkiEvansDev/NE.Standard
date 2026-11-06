@@ -404,6 +404,17 @@ public sealed partial class UIClientPage
     internal UIComponentId RowScopeNoLock(UIComponentId hostId, object?[] hostKeys, object? item)
         => View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, TemplateNames.Row) ? hostId : RowTemplateNoLock(hostId, hostKeys, item);
 
+    /// <summary>Resolves a named composite template variant slot on <paramref name="hostId"/> for a row holding <paramref name="item"/>.</summary>
+    internal UIClientComponent? RowCompositeSlot(UIComponentId hostId, object?[] rowKeys, object? item, string variantKey, string? variantKeyPropertyName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(variantKey);
+
+        var resolvedKey = ItemTemplateSelection.ResolveCompositeVariant(View.Graph, hostId, variantKey, variantKeyPropertyName, item);
+        return View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out UIComponentSlot? slot, resolvedKey)
+            ? At(slot.RootComponentId, rowKeys)
+            : null;
+    }
+
     /// <summary>Whether the property is bound to write back what the reader changes.</summary>
     internal bool WritesBack(UIComponentId componentId, UIProperty property)
         => BindingOf(componentId, property) is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource };

@@ -41,6 +41,10 @@ public sealed class UIClientRow
     public UIClientComponent Root
         => Page.At(Page.RowTemplate(Host.ComponentId, HostKeys, Entry.Item), RowKeys);
 
+    /// <summary>Gets the component in the composite variant slot <paramref name="variantKey"/> for this row, or <see langword="null"/> where the host defines none.</summary>
+    public UIClientComponent? Slot(string variantKey, string? variantKeyPropertyName = null)
+        => Page.RowCompositeSlot(Host.ComponentId, RowKeys, Entry.Item, variantKey, variantKeyPropertyName);
+
     /// <summary>Gets the component shown on a right click or a long press on the row.</summary>
     public UIClientComponent ContextMenu => Root.ContextMenu;
 

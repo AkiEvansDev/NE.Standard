@@ -32,7 +32,7 @@ public sealed class OrdersView : UIViewBase, IUIViewDefinition
 - Every `ContainerComponent` is a 24-column CSS grid:
   - `SetPlacement(column, row, columnSpan = 1, rowSpan = 1)` (1-based column and row indices; responsive overloads take `sm:`, `md:`, `xl:`, `xxl:`).
   - `SetColumn(index, UIGridUnit.Star(1))` / `SetRow(index, UIGridUnit.Auto)` / `AddRow(UIGridUnit.Star(1))`.
-- Responsive values are phone-first (`base`, then `sm` ≥ 600 px, `md` ≥ 960 px, `xl` ≥ 1280 px, `xxl` ≥ 1920 px):
+- Responsive values are phone-first (`base`, then `sm` ≥ 640 px, `md` ≥ 768 px, `xl` ≥ 1280 px, `xxl` ≥ 1536 px):
   `UIResponsive<T>.Create(baseValue, sm: ..., md: ..., xl: ..., xxl: ...)`.
 - `StackPanelComponent`: `SetOrientation(UIOrientation.Vertical, md: UIOrientation.Horizontal)`, `SetSpacing(12)`.
 - `GridSplitterComponent`: `BindPosition(c => c.SplitShare)` divides adjacent grid tracks and persists the reader's drag.

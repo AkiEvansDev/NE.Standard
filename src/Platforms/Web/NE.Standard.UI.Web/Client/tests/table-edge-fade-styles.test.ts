@@ -102,7 +102,7 @@ test("a vertical scroller with ScrollFade masks its top and bottom edges along i
 test("a dialog preset's stack fits the dialog's max-height and lets its scroll container take the remaining height", () => {
     const minHeightZero = "min-height: var\\(--ui-min-height-xxl, var\\(--ui-min-height-xl, var\\(--ui-min-height-md, var\\(--ui-min-height-sm, var\\(--ui-min-height, 0\\)\\)\\)\\)\\);";
     assert.match(css, new RegExp(`\\.ui-dialog__surface > \\.ui-stack-panel \\{\\s*${minHeightZero}\\s*\\}`));
-    assert.match(css, new RegExp(`\\.ui-dialog__surface > \\.ui-stack-panel > \\.ui-scroll \\{\\s*flex: 0 1 auto;\\s*${minHeightZero}\\s*\\}`));
+    assert.match(css, new RegExp(`\\.ui-dialog__surface > \\.ui-stack-panel > \\.ui-scroll \\{\\s*flex: 0 1 auto;\\s*${minHeightZero}[\\s\\S]*?\\}`));
 });
 
 test("an expander's header action is positioned out of the header's height flow so opening the expander does not jump", () => {

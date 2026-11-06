@@ -303,7 +303,24 @@ public static class RecursiveValueCoercion
 
     /// <summary>A type the serializer builds rather than a value it parses: not a primitive, a text or a name.</summary>
     private static bool IsModelType(Type type)
-        => type != typeof(object) && type != typeof(string) && !type.IsPrimitive && !type.IsEnum && !typeof(IConvertible).IsAssignableFrom(type);
+    {
+        if (type == typeof(object) || type == typeof(string) || type.IsPrimitive || type.IsEnum || typeof(IConvertible).IsAssignableFrom(type))
+            return false;
+
+        if (type.IsArray)
+        {
+            Type? arrayElement = type.GetElementType();
+            return arrayElement is not null && !arrayElement.IsInterface && !arrayElement.IsAbstract;
+        }
+
+        if (type.IsGenericType && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
+        {
+            Type[] arguments = type.GetGenericArguments();
+            return arguments.Length == 1 && !arguments[0].IsInterface && !arguments[0].IsAbstract;
+        }
+
+        return !type.IsInterface && !type.IsAbstract;
+    }
 
     private static bool IsFractional(Type type)
         => type == typeof(double) || type == typeof(float) || type == typeof(decimal);

@@ -81,15 +81,18 @@ test("a hidden child, as a tab's actions behind another tab, is not the one show
         assert.match(rule.selector, /:not\(\.ui-hidden, \[hidden\], /);
 });
 
-test("a pinned side's own drawer button is not shown where a pin holds, and no pin is below the medium breakpoint", () => {
+test("a pinned side's own drawer button is not shown where a pin holds, and no pin is below the extra-large breakpoint", () => {
     const narrow = endRules.find(rule => rule.selector.includes("data-ui-visibility='collapsed'"));
     const medium = endRules.find(rule => rule.selector.includes("data-ui-visibility-md='collapsed'"));
+    const extraLarge = endRules.find(rule => rule.selector.includes("data-ui-visibility-xl='collapsed'"));
 
-    assert.ok(narrow !== undefined && medium !== undefined);
-    assert.match(medium.selector, /\[data-ui-pinned-left-side\] \[data-ui-drawer-toggle='left-side'\]/);
-    assert.match(medium.selector, /\[data-ui-pinned-right-side\] \[data-ui-drawer-toggle='right-side'\]/);
-    assert.doesNotMatch(narrow.selector, /data-ui-pinned/, "below the medium breakpoint a pinned side is a drawer still");
+    assert.ok(narrow !== undefined && medium !== undefined && extraLarge !== undefined);
+    assert.match(extraLarge.selector, /\[data-ui-pinned-left-side\] \[data-ui-drawer-toggle='left-side'\]/);
+    assert.match(extraLarge.selector, /\[data-ui-pinned-right-side\] \[data-ui-drawer-toggle='right-side'\]/);
+    assert.doesNotMatch(narrow.selector, /data-ui-pinned/, "below the extra-large breakpoint a pinned side is a drawer still");
+    assert.doesNotMatch(medium.selector, /data-ui-pinned/, "below the extra-large breakpoint a pinned side is a drawer still");
     assert.match(narrow.selector, /\[data-ui-drawer-pin\][,)]/, "a pin means nothing there");
+    assert.match(medium.selector, /\[data-ui-drawer-pin\][,)]/, "a pin means nothing there");
 });
 
 test("a language switcher with one language, which draws nothing, is not the one shown", () => {
