@@ -18,13 +18,14 @@ function declarations(selector: string): string | null {
     return start < 0 ? null : css.slice(start + selector.length + 3, css.indexOf("}", start));
 }
 
-test("a menu's inline group folds from a zero minimum, on one curve both ways", () => {
-    const fold = ".ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu__submenu:not([data-ui-menu-flyout])";
+test("a menu's inline group folds from a zero minimum, on one curve both ways, and a popup's group never folds inline", () => {
+    const inlineGroup = ".ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select], :is(.ui-context-menu, .ui-split-button__menu, .ui-flyout__content, .ui-menu__submenu[data-ui-menu-flyout]) *)";
+    const fold = `${inlineGroup} > .ui-menu__submenu:not([data-ui-menu-flyout])`;
 
     assert.match(declarations(".ui-menu__submenu") ?? "", /min-block-size: 0;/, "a flex item's automatic minimum holds the fold open");
     assert.match(declarations(fold) ?? "", /block-size 200ms cubic-bezier\(0\.4, 0, 0\.2, 1\)/, "the fold is not on @ui-motion-ease");
-    assert.equal(declarations(".ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group][data-ui-menu-open]:not([data-ui-menu-select]) > .ui-menu__submenu:not([data-ui-menu-flyout])"), null, "an opening group has a curve of its own");
-    assert.match(declarations(".ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu-item::after") ?? "", /transition-duration: 200ms;/, "the chevron does not turn at the fold's tempo");
+    assert.equal(declarations(`${inlineGroup}[data-ui-menu-open] > .ui-menu__submenu:not([data-ui-menu-flyout])`), null, "an opening group has a curve of its own");
+    assert.match(declarations(`${inlineGroup} > .ui-menu-item::after`) ?? "", /transition-duration: 200ms;/, "the chevron does not turn at the fold's tempo");
 });
 
 test("an expander's air above its content is inside the fold", () => {

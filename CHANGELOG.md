@@ -5,12 +5,9 @@ holds only what is not released yet, under `## X.Y.Z`: the release workflow cuts
 (a tag with no section fails the release), and the notes of every released version live there —
 https://github.com/AkiEvansDev/NE.Standard/releases. Other slices keep their own beside their sources (`addons/<Name>/CHANGELOG.md`).
 
-## 2.4.1
+## 2.4.2
 
-- Fixed `-6px` leading hover pills and focus frames on `SwitchComponent`, `CheckboxComponent`, `RadioGroupComponent` items, and quiet `ExpanderComponent` (`UIPage.Fold` / `UIPage.BoundFold`) being clipped inside `UIDialogs.Create` / `UIDialogs.Form` scroll bodies (`.ui-dialog__surface > .ui-stack-panel > .ui-scroll` now compensates with `-8px` inline bleed and `+8px` inline padding inside the dialog surface's `16px` padding) and inside unscrolled `ItemsViewComponent` hosts (`.ui-scroll-x--disabled.ui-scroll-y--disabled` now uses `overflow: clip` with `overflow-clip-margin: 8px`) (#293).
-- Raised the side-drawer pin viewport threshold (`PinsFrom`) from `md` (`768px`) to `xl` (`1280px`) in `side-drawer-width.ts`, `mixins/side-drawers.less`, and `core/side-drawers.less` so a desktop drawer pin stored in `localStorage` no longer holds side drawers in grid columns on tablet viewports (`768px–1279.98px`) (#294).
-- Updated `skills/ne-standard` with exact breakpoint pixel values (`sm = 576px`, `md = 768px`, `lg = 992px`, `xl = 1280px`, `xxl = 1600px`), `xl` drawer pin behaviour, `UIDialogs.ScrollBody` / `IScrollableComponent.ScrollFade` dialog scrolling, `ColorInputComponent.AllowOpacity`, and scrollport hover reach rules (#295).
-- Implemented `IReadOnlyList<T>` on `RecursiveCollection<T>`, excluded interface and abstract element types from model-collection coercion in `RecursiveValueCoercion`, registered `IMenuItemModel` wire JSON serialization in `CompiledViewWireSerializer`, and added `UIPlatformDefaults.DefaultViewCompilationMode`.
+- Excluded popup menus (`.ui-context-menu`, `.ui-split-button__menu`, `.ui-flyout__content` and `[data-ui-menu-flyout]`) from the inline-accordion `block-size` / `padding-top` / `display allow-discrete` transition and slow chevron transition in `ui-menu.less`, so switching hover between submenu groups inside a popup menu never triggers a `200ms` in-flow collapse jump when `dropClosedFlyouts` strips `data-ui-menu-flyout` synchronously (#296).
 
 ## 2.5.0
 

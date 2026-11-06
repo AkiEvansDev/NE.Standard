@@ -32,6 +32,8 @@
 @ui-menu-passive-kinds: ~'[data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]';
 // The popups a menu fills on its own, a right-click menu's host and a split button's list: `MenuHostPopupSelector` (dom-attributes.ts).
 @ui-menu-host-popups: ~".ui-context-menu, .ui-split-button__menu";
+// Every popup a menu's entry can stand in (`PopupMenuSelector`, menu-group-engine.ts): those, a flyout's content, and a submenu flyout.
+@ui-menu-popups: ~"@{ui-menu-host-popups}, .ui-flyout__content, .ui-menu__submenu[data-ui-menu-flyout]";
 
 // The column, switch and fold come from ui-collapsible.less; what is here is the list, and what a collapsed list keeps.
 .ui-menu {
@@ -230,10 +232,10 @@
 }
 
 // A section unfolds in place as an expander does (interpolate-size is on in reset.less), `display` held until the fold is over.
-// Not a select's choices or a folded menu's or rail's groups: they fly out, and one closing must not play a fold in the rail. A
+// Not a select's choices or a folded menu's, rail's or popup's groups: they fly out, and one closing must not play a fold in the list. A
 // menu mid-fold is still open, so the section its fold closes slides shut under the slide rather than drop the list below it. One
 // curve both ways, as an accordion's: the section opening and the one closing with it cancel frame by frame.
-.ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu__submenu:not([data-ui-menu-flyout]) {
+.ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select], :is(@{ui-menu-popups}) *) > .ui-menu__submenu:not([data-ui-menu-flyout]) {
     transition:
         block-size @ui-motion-normal @ui-motion-ease,
         padding-top @ui-motion-normal @ui-motion-ease,
@@ -262,7 +264,7 @@
 }
 
 // In step with the section folding under it, as an expander's chevron, not at the fast tempo of a chevron with nothing to follow.
-.ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select]) > .ui-menu-item::after {
+.ui-menu:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) [data-ui-menu-group]:not([data-ui-menu-select], :is(@{ui-menu-popups}) *) > .ui-menu-item::after {
     transition-duration: @ui-motion-normal;
 }
 
@@ -274,7 +276,7 @@
 }
 
 // Docked to another popup's edge, a submenu casts its shadow away from the seam they share so none of the blur falls over the parent.
-:is(@{ui-menu-host-popups}, .ui-flyout__content, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
+:is(@{ui-menu-popups}) .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
     &[data-ui-placement^="right"] {
         .ui-elevation-2-docked(right);
     }
@@ -567,14 +569,14 @@
 }
 
 [data-ui-menu-select][data-ui-menu-open] > .ui-menu-item::after,
-:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) [data-ui-menu-group][data-ui-menu-open] > .ui-menu-item::after {
+:is(@{ui-menu-popups}) [data-ui-menu-group][data-ui-menu-open] > .ui-menu-item::after {
     .ui-chevron-right();
 }
 
 // The choices are a popup beside the entry in an unfolded menu too; a collapsed menu's flyout rules above already say the rest. Not as
 // a phone's sheet, which stands its lists in its own padding, both sides alike (here and above).
 [data-ui-menu-select] > .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])),
-:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) [data-ui-menu-group] > .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
+:is(@{ui-menu-popups}) [data-ui-menu-group] > .ui-menu__submenu[data-ui-menu-flyout]:where(:not([data-ui-sheet])) {
     padding-left: @ui-space-1;
 }
 
