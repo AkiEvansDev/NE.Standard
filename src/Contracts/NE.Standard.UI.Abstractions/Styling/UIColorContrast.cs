@@ -7,6 +7,7 @@ namespace NE.Standard.UI.Abstractions.Styling;
 public static class UIColorContrast
 {
     private static readonly ColorVariant White = ColorVariant.FromRgb(byte.MaxValue, byte.MaxValue, byte.MaxValue);
+    private static readonly ColorVariant Black = ColorVariant.FromRgb(byte.MinValue, byte.MinValue, byte.MinValue);
 
     /// <summary>
     /// Whether dark text reads better on a colour drawn over a pale ground (e.g. a transparency checkerboard), whose opacity alone can
@@ -17,6 +18,17 @@ public static class UIColorContrast
         System.Drawing.Color color = variant.ToColor();
 
         return Composite(color, color.A / 255d, White).IsLight();
+    }
+
+    /// <summary>
+    /// Whether dark text reads better on a colour drawn over a dark ground (the dark theme), whose opacity alone can flip the answer
+    /// <c>ColorVariant.IsLight()</c> gives, since that one weighs no opacity.
+    /// </summary>
+    public static bool IsLightOverBlack(this ColorVariant variant)
+    {
+        System.Drawing.Color color = variant.ToColor();
+
+        return Composite(color, color.A / 255d, Black).IsLight();
     }
 
     /// <summary>A colour laid at a share over an opaque ground, channel by channel as the browser composites it, in whole levels.</summary>

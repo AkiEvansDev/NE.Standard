@@ -29,12 +29,7 @@ public abstract class WebStartupBase<TStartup>
         ArgumentNullException.ThrowIfNull(services);
 
         _ = services.AddOptions<WebViewRenderCacheOptions>();
-        _ = services.AddOptions<WebEndpointOptions>();
-        _ = services.AddOptions<WebValueOptions>();
-        // Ahead of the application's own Configure, which so has the last word; a host with no configuration reads none.
-        _ = services.AddOptions<WebHubOptions>()
-            .Configure<IServiceProvider>(static (options, provider) => options.ReadConfiguration(provider.GetService<IConfiguration>()));
-        _ = services.AddOptions<WebResponseCompressionOptions>();
+        WebServerRegistration.ConfigureOptions(services);
 
         ConfigureServices(services);
         ConfigureDefaults(services);
@@ -46,6 +41,36 @@ public abstract class WebStartupBase<TStartup>
         => ArgumentNullException.ThrowIfNull(services);
 
     private static void ConfigureDefaults(IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        WebServerRegistration.ConfigureDefaults(services);
+
+        services.TryAddSingleton<IWebAssetRegistry, WebAssetRegistry>();
+        services.TryAddSingleton<IWebRendererRegistry, WebRendererRegistry>();
+        services.TryAddSingleton<IWebViewRenderer, WebViewRenderer>();
+
+        services.TryAddSingleton<IWebViewRenderCache, FileSystemWebViewRenderCache>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebViewRenderCacheStartupTask>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebAssetCompressionStartupTask>());
+    }
+}
+
+internal static class WebServerRegistration
+{
+    public static void ConfigureOptions(IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        _ = services.AddOptions<WebEndpointOptions>();
+        _ = services.AddOptions<WebValueOptions>();
+        // Ahead of the application's own Configure, which so has the last word; a host with no configuration reads none.
+        _ = services.AddOptions<WebHubOptions>()
+            .Configure<IServiceProvider>(static (options, provider) => options.ReadConfiguration(provider.GetService<IConfiguration>()));
+        _ = services.AddOptions<WebResponseCompressionOptions>();
+    }
+
+    public static void ConfigureDefaults(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -70,15 +95,7 @@ public abstract class WebStartupBase<TStartup>
             options.StatefulReconnectBufferSize = 1024 * 1024;
         }).AddJsonProtocol(WebHubProtocol.Configure);
 
-        services.TryAddSingleton<IWebAssetRegistry, WebAssetRegistry>();
-        services.TryAddSingleton<IWebRendererRegistry, WebRendererRegistry>();
-        services.TryAddSingleton<IWebViewRenderer, WebViewRenderer>();
-
-        services.TryAddSingleton<IWebViewRenderCache, FileSystemWebViewRenderCache>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebViewRenderCacheStartupTask>());
         services.TryAddSingleton<WebAssetCompression>();
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebAssetCompressionStartupTask>());
-
         services.TryAddSingleton(TimeProvider.System);
         // The upload endpoint's count of bytes in flight per session; the value store keeps an allowance of its own.
         services.TryAddSingleton<WebSessionAllowance>();

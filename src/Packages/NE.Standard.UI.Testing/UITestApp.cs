@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Client;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Files;
@@ -143,15 +144,16 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
 
         EnsureCompiledClean(view);
 
-        UITestPage page = new(this, instanceId, session);
+        InProcessUIClientTransport transport = new(Host, Services, Application, instanceId, view, Client.Remove);
+        UIClientPage clientPage = new(transport);
+        UITestPage page = new(this, clientPage, transport, session);
 
         // Before the attach: a controller's OnAttachedAsync may already push to the page.
         Client.Add(instanceId, page);
 
         try
         {
-            RuntimeResolution runtime = await Host.AttachRuntimeAsync(
-                view,
+            _ = await transport.AttachRuntimeAsync(
                 new UIInstance
                 {
                     Id = instanceId,
@@ -163,7 +165,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
                 cancellationToken
             ).ConfigureAwait(false);
 
-            await page.StartAsync(runtime, cancellationToken).ConfigureAwait(false);
+            await clientPage.StartAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {

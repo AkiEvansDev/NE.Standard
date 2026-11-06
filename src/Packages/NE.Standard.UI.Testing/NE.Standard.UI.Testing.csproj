@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" />
+    <ProjectReference Include="..\..\Core\NE.Standard.UI.Client\NE.Standard.UI.Client.csproj" />
   </ItemGroup>
 
 </Project>

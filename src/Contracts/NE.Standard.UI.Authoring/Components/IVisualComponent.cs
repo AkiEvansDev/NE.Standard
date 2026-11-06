@@ -100,6 +100,11 @@ public interface IVisualComponent : IBindableComponent
     static UIProperty LoadingProperty { get; } = new(nameof(Loading));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="LoadingStyle"/>.
+    /// </summary>
+    static UIProperty LoadingStyleProperty { get; } = new(nameof(LoadingStyle));
+
+    /// <summary>
     /// Gets what the component does with the room it was given, optionally overridden per breakpoint (e.g.
     /// collapsed from a given width up).
     /// </summary>
@@ -200,6 +205,12 @@ public interface IVisualComponent : IBindableComponent
     /// inside it sends — as the page does.
     /// </remarks>
     bool? Loading { get; }
+
+    /// <summary>
+    /// Gets the visual indicator shown while this component or spinner is loading, or <see langword="null"/> to inherit the ambient
+    /// or theme loading style.
+    /// </summary>
+    UILoadingStyle? LoadingStyle { get; }
 
     /// <summary>
     /// Gets the property bindings declared on the component.

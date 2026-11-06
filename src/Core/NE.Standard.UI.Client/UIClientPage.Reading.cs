@@ -1,6 +1,9 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Reflection;
 using System.Text;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
@@ -19,12 +22,14 @@ using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Serialization;
 
-namespace NE.Standard.UI.Testing;
+namespace NE.Standard.UI.Client;
 
-public sealed partial class UITestPage
+public sealed partial class UIClientPage
 {
     private static readonly UIProperty[] NameProperties = [ITextBaseComponent.TitleProperty, IAccessibleNameComponent.AccessibleNameProperty, ITooltipComponent.TooltipProperty];
+    private static readonly ConcurrentDictionary<Type, MethodInfo?> CustomResponsiveResolvers = [];
 
     /// <summary>A property's value as the page holds it at a component in the rows <paramref name="rowKeys"/> name.</summary>
     internal object? Read(UIComponentId componentId, object?[] rowKeys, UIProperty property)
@@ -45,7 +50,6 @@ public sealed partial class UITestPage
         if (_values.TryGetValue(new UIPropertyAddress(new UIComponentAddress(componentId, rowKeys), property), out var held))
             return held ?? binding?.TargetFallbackValue;
 
-
         if (rowKeys.Length > 0 && binding is not null)
         {
             var boundDepth = CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters);
@@ -54,12 +58,11 @@ public sealed partial class UITestPage
                 return held ?? binding.TargetFallbackValue;
         }
 
-
         if (binding is null)
             return compiled?.Value;
 
         if (ReadsItem(binding) && TryReadItemValueNoLock(binding, componentId, rowKeys, out var value))
-            return value ?? binding.TargetFallbackValue;
+            return CompiledViewWireSerializer.CoerceWireValue(binding.TargetValueType, value) ?? binding.TargetFallbackValue;
 
         return binding.TargetFallbackValue;
     }
@@ -112,11 +115,11 @@ public sealed partial class UITestPage
 
         for (var i = 0; i < roots.Count && i < rowKeys.Length; i++)
         {
-            var key = rowKeys[i] as string ?? Convert.ToString(rowKeys[i], System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+            var key = rowKeys[i] as string ?? Convert.ToString(rowKeys[i], CultureInfo.InvariantCulture) ?? string.Empty;
             UIComponentId host = HostOf(roots[i]);
             object? item = null;
 
-            foreach (UITestRowEntry row in ReadRowsNoLock(new UIComponentAddress(host, rowKeys[..i])))
+            foreach (UIClientRowEntry row in ReadSourceRowsNoLock(new UIComponentAddress(host, rowKeys[..i])))
             {
                 if (string.Equals(row.Key, key, StringComparison.Ordinal))
                 {
@@ -139,29 +142,50 @@ public sealed partial class UITestPage
     internal bool IsShown(UIComponentId componentId, object?[] rowKeys)
     {
         lock (_sync)
+            return IsShownNoLock(componentId, rowKeys);
+    }
+
+    private bool IsShownNoLock(UIComponentId componentId, object?[] rowKeys)
+    {
+        for (UIComponentNode? node = View.Graph.GetRequired(componentId); node is not null; node = node.ParentId is UIComponentId parent ? View.Graph.GetRequired(parent) : null)
         {
-            for (UIComponentNode? node = View.Graph.GetRequired(componentId); node is not null; node = node.ParentId is UIComponentId parent ? View.Graph.GetRequired(parent) : null)
-            {
-                var keys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(node.ComponentId).Count)];
+            var keys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(node.ComponentId).Count)];
 
-                if (Widest<UIVisibility>(ReadNoLock(node.ComponentId, keys, IVisualComponent.VisibilityProperty)) is UIVisibility.Collapsed or UIVisibility.Hidden)
-                    return false;
+            if (ResolveAtTierNoLock<UIVisibility>(ReadNoLock(node.ComponentId, keys, IVisualComponent.VisibilityProperty)) is UIVisibility.Collapsed or UIVisibility.Hidden)
+                return false;
 
-                if (DialogKeyOf(node.ComponentId) is { } dialog && !_openDialogs.Contains(dialog))
-                    return false;
-            }
-
-            foreach (UIDynamicParameterScope scope in ScopesNoLock(componentId, rowKeys))
-            {
-                if (scope.Item is null)
-                    return false;
-
-                if (scope.Item is IMenuItemModel entry && Widest<UIVisibility>(entry.Visibility) is UIVisibility.Collapsed or UIVisibility.Hidden)
-                    return false;
-            }
-
-            return true;
+            if (DialogKeyOf(node.ComponentId) is { } dialog && !_openDialogs.Contains(dialog))
+                return false;
         }
+
+        foreach (UIDynamicParameterScope scope in ScopesNoLock(componentId, rowKeys))
+        {
+            if (scope.Item is null)
+                return false;
+
+            if (scope.Item is IMenuItemModel entry && ResolveAtTierNoLock<UIVisibility>(entry.Visibility) is UIVisibility.Collapsed or UIVisibility.Hidden)
+                return false;
+
+            if (scope.Item is IReadOnlyDictionary<string, object?> && ItemContext.TryReadProperty(scope.Item, nameof(IMenuItemModel.Visibility), out var visibility) && ResolveAtTierNoLock<UIVisibility>(visibility) is UIVisibility.Collapsed or UIVisibility.Hidden)
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>A plain or responsive value resolved at the page's current <see cref="ResponsiveTier"/>.</summary>
+    private T? ResolveAtTierNoLock<T>(object? value) where T : struct
+    {
+        if (value is T plain)
+            return plain;
+
+        if (value is UIResponsive<T> responsive)
+            return responsive.Resolve(_responsiveTier);
+
+        if (value is IReadOnlyDictionary<string, object?> && CompiledViewWireSerializer.CoerceWireValue(typeof(UIResponsive<T>), value) is UIResponsive<T> coercedResponsive)
+            return coercedResponsive.Resolve(_responsiveTier);
+
+        return value is not null && RecursiveValueCoercion.TryCoerce(value, out T coercedPlain) ? coercedPlain : null;
     }
 
     private string? DialogKeyOf(UIComponentId componentId)
@@ -175,43 +199,88 @@ public sealed partial class UITestPage
         return null;
     }
 
-    /// <summary>A plain or responsive value as the widest screen reads it.</summary>
-    private static T? Widest<T>(object? value) where T : struct
-        => value switch
-        {
-            T plain => plain,
-            UIResponsive<T> responsive => responsive.Resolve(UIResponsiveTier.Xxl),
-            _ => null
-        };
-
     /// <summary>Whether a reader can act on the component: neither it nor an ancestor is disabled or loading.</summary>
     internal bool IsEnabled(UIComponentId componentId, object?[] rowKeys)
     {
         lock (_sync)
+            return IsEnabledNoLock(componentId, rowKeys);
+    }
+
+    private bool IsEnabledNoLock(UIComponentId componentId, object?[] rowKeys)
+    {
+        for (UIComponentNode? node = View.Graph.GetRequired(componentId); node is not null; node = node.ParentId is UIComponentId parent ? View.Graph.GetRequired(parent) : null)
         {
-            for (UIComponentNode? node = View.Graph.GetRequired(componentId); node is not null; node = node.ParentId is UIComponentId parent ? View.Graph.GetRequired(parent) : null)
+            var keys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(node.ComponentId).Count)];
+
+            if (ResolveAtTierNoLock<bool>(ReadNoLock(node.ComponentId, keys, IVisualComponent.EnabledProperty)) is false)
+                return false;
+
+            if (ResolveAtTierNoLock<bool>(ReadNoLock(node.ComponentId, keys, IVisualComponent.LoadingProperty)) is true)
+                return false;
+        }
+
+        foreach (UIDynamicParameterScope scope in ScopesNoLock(componentId, rowKeys))
+        {
+            if (scope.Item is IMenuItemModel entry && (ResolveAtTierNoLock<bool>(entry.Enabled) is false || entry.Kind is UIMenuItemKind.Header or UIMenuItemKind.Separator))
+                return false;
+
+            if (scope.Item is IReadOnlyDictionary<string, object?>
+                && ((ItemContext.TryReadProperty(scope.Item, nameof(IMenuItemModel.Enabled), out var enabled) && ResolveAtTierNoLock<bool>(enabled) is false)
+                    || (ItemContext.TryReadProperty(scope.Item, nameof(IMenuItemModel.Kind), out var kind) && ResolveAtTierNoLock<UIMenuItemKind>(kind) is UIMenuItemKind.Header or UIMenuItemKind.Separator)))
             {
-                var keys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(node.ComponentId).Count)];
-
-                if (Widest<bool>(ReadNoLock(node.ComponentId, keys, IVisualComponent.EnabledProperty)) is false)
-                    return false;
-
-                if (Widest<bool>(ReadNoLock(node.ComponentId, keys, IVisualComponent.LoadingProperty)) is true)
-                    return false;
+                return false;
             }
+        }
 
-            foreach (UIDynamicParameterScope scope in ScopesNoLock(componentId, rowKeys))
-            {
-                if (scope.Item is IMenuItemModel entry && (Widest<bool>(entry.Enabled) is false || entry.Kind is UIMenuItemKind.Header or UIMenuItemKind.Separator))
-                    return false;
-            }
+        return true;
+    }
 
+    /// <summary>Resolves a <see cref="UIResponsive{T}"/> value at the page's current <see cref="ResponsiveTier"/> when <typeparamref name="T"/> matches the inner value type.</summary>
+    internal bool TryResolveResponsive<T>(object raw, out T? resolved)
+    {
+        UIResponsiveTier tier = ResponsiveTier;
+        var unwrapped = raw switch
+        {
+            UIResponsive<bool> value => value.Resolve(tier),
+            UIResponsive<int> value => value.Resolve(tier),
+            UIResponsive<double> value => value.Resolve(tier),
+            UIResponsive<UIVisibility> value => value.Resolve(tier),
+            UIResponsive<UIOrientation> value => value.Resolve(tier),
+            UIResponsive<UISize> value => value.Resolve(tier),
+            UIResponsive<UIAlignment> value => value.Resolve(tier),
+            UIResponsive<UIThickness> value => value.Resolve(tier),
+            UIResponsive<UICornerRadius> value => value.Resolve(tier),
+            UIResponsive<UILayoutLength> value => value.Resolve(tier),
+            UIResponsive<UIGridPlacement> value => value.Resolve(tier),
+            UIResponsive<UIGridUnit> value => value.Resolve(tier),
+            UIResponsive<UIItemsLayoutType> value => value.Resolve(tier),
+            UIResponsive<UIMenuDisplay> value => value.Resolve(tier),
+            _ => TryResolveCustomResponsive(raw, tier)
+        };
+
+        if (unwrapped is T typed)
+        {
+            resolved = typed;
             return true;
         }
+
+        resolved = default;
+        return false;
+    }
+
+    private static object? TryResolveCustomResponsive(object raw, UIResponsiveTier tier)
+    {
+        Type type = raw.GetType();
+
+        if (!type.IsValueType || !type.IsGenericType || type.GetGenericTypeDefinition() != typeof(UIResponsive<>))
+            return null;
+
+        MethodInfo? method = CustomResponsiveResolvers.GetOrAdd(type, static responsiveType => responsiveType.GetMethod(nameof(UIResponsive<>.Resolve), [typeof(UIResponsiveTier)]));
+        return method?.Invoke(raw, [tier]);
     }
 
     /// <summary>The sub-entries a menu row shows now; empty where its host opens no submenus.</summary>
-    internal IReadOnlyList<UITestRow> SubmenuRows(UIComponentId hostId, object?[] rowKeys)
+    internal IReadOnlyList<UIClientRow> SubmenuRows(UIComponentId hostId, object?[] rowKeys)
         => SubmenuOf(hostId) is UIComponentNode submenu ? RowList(submenu, rowKeys) : [];
 
     private UIComponentNode? SubmenuOf(UIComponentId hostId)
@@ -220,26 +289,26 @@ public sealed partial class UITestPage
             : null;
 
     /// <summary>The rows a host shows now, wrapped as handles.</summary>
-    internal IReadOnlyList<UITestRow> RowList(UIComponentNode host, object?[] rowKeys)
+    internal IReadOnlyList<UIClientRow> RowList(UIComponentNode host, object?[] rowKeys)
     {
-        IReadOnlyList<UITestRowEntry> entries = Rows(host.ComponentId, rowKeys);
-        UITestRow[] rows = new UITestRow[entries.Count];
+        IReadOnlyList<UIClientRowEntry> entries = Rows(host.ComponentId, rowKeys);
+        UIClientRow[] rows = new UIClientRow[entries.Count];
 
         for (var i = 0; i < rows.Length; i++)
-            rows[i] = new UITestRow(this, host, rowKeys, entries[i]);
+            rows[i] = new UIClientRow(this, host, rowKeys, entries[i]);
 
         return rows;
     }
 
-    /// <summary>The rows a host shows now.</summary>
-    internal IReadOnlyList<UITestRowEntry> Rows(UIComponentId hostId, object?[] rowKeys)
+    /// <summary>The rows a host shows now, after client-side filtering and sorting.</summary>
+    internal IReadOnlyList<UIClientRowEntry> Rows(UIComponentId hostId, object?[] rowKeys)
     {
         lock (_sync)
-            return [.. ReadRowsNoLock(new UIComponentAddress(hostId, rowKeys))];
+            return [.. ReadVisibleRowsNoLock(new UIComponentAddress(hostId, rowKeys))];
     }
 
     /// <summary>The sub-entry under a menu row with <paramref name="key"/>: a direct child first, else the one deeper sub-entry under it.</summary>
-    internal UITestRow FindSubmenuRow(UIComponentNode host, object?[] rowKeys, string parentKey, string key)
+    internal UIClientRow FindSubmenuRow(UIComponentNode host, object?[] rowKeys, string parentKey, string key)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
@@ -252,17 +321,17 @@ public sealed partial class UITestPage
     }
 
     /// <summary>The row of <paramref name="host"/> with <paramref name="key"/>: a direct row first, else the one sub-entry with that key.</summary>
-    internal UITestRow FindRow(UIComponentNode host, object?[] rowKeys, string owner, string key)
+    internal UIClientRow FindRow(UIComponentNode host, object?[] rowKeys, string owner, string key)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        foreach (UITestRowEntry entry in Rows(host.ComponentId, rowKeys))
+        foreach (UIClientRowEntry entry in Rows(host.ComponentId, rowKeys))
         {
             if (string.Equals(entry.Key, key, StringComparison.Ordinal))
-                return new UITestRow(this, host, rowKeys, entry);
+                return new UIClientRow(this, host, rowKeys, entry);
         }
 
-        List<UITestRow> descendants = [];
+        List<UIClientRow> descendants = [];
 
         CollectSubmenuRows(host.ComponentId, rowKeys, key, descendants);
 
@@ -275,19 +344,19 @@ public sealed partial class UITestPage
         throw new InvalidOperationException($"{owner} shows no row '{key}'.");
     }
 
-    private void CollectSubmenuRows(UIComponentId hostId, object?[] hostKeys, string key, List<UITestRow> matches)
+    private void CollectSubmenuRows(UIComponentId hostId, object?[] hostKeys, string key, List<UIClientRow> matches)
     {
         if (SubmenuOf(hostId) is not UIComponentNode submenu)
             return;
 
-        foreach (UITestRowEntry parent in Rows(hostId, hostKeys))
+        foreach (UIClientRowEntry parent in Rows(hostId, hostKeys))
         {
             object?[] parentKeys = [.. hostKeys, parent.Key];
 
-            foreach (UITestRowEntry entry in Rows(submenu.ComponentId, parentKeys))
+            foreach (UIClientRowEntry entry in Rows(submenu.ComponentId, parentKeys))
             {
                 if (string.Equals(entry.Key, key, StringComparison.Ordinal))
-                    matches.Add(new UITestRow(this, submenu, parentKeys, entry));
+                    matches.Add(new UIClientRow(this, submenu, parentKeys, entry));
             }
 
             CollectSubmenuRows(submenu.ComponentId, parentKeys, key, matches);
@@ -300,8 +369,14 @@ public sealed partial class UITestPage
     /// </summary>
     internal UIComponentId RowTemplate(UIComponentId hostId, object?[] hostKeys, object? item)
     {
-        var keyProperty = Read(hostId, hostKeys, ITemplatedComponent.TemplateKeyPropertyProperty) as string;
-        var fallbackKey = Read(hostId, hostKeys, ITemplatedComponent.FallbackTemplateKeyProperty) as string;
+        lock (_sync)
+            return RowTemplateNoLock(hostId, hostKeys, item);
+    }
+
+    private UIComponentId RowTemplateNoLock(UIComponentId hostId, object?[] hostKeys, object? item)
+    {
+        var keyProperty = ReadNoLock(hostId, hostKeys, ITemplatedComponent.TemplateKeyPropertyProperty) as string;
+        var fallbackKey = ReadNoLock(hostId, hostKeys, ITemplatedComponent.FallbackTemplateKeyProperty) as string;
         UIComponentSlot? slot = null;
 
         if (ItemTemplateSelection.ResolveVariant(View.Graph, hostId, keyProperty, fallbackKey, item) is { } variant)
@@ -321,7 +396,13 @@ public sealed partial class UITestPage
     /// root the row is drawn with.
     /// </summary>
     internal UIComponentId RowScope(UIComponentId hostId, object?[] hostKeys, object? item)
-        => View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, TemplateNames.Row) ? hostId : RowTemplate(hostId, hostKeys, item);
+    {
+        lock (_sync)
+            return RowScopeNoLock(hostId, hostKeys, item);
+    }
+
+    internal UIComponentId RowScopeNoLock(UIComponentId hostId, object?[] hostKeys, object? item)
+        => View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out _, TemplateNames.Row) ? hostId : RowTemplateNoLock(hostId, hostKeys, item);
 
     /// <summary>Whether the property is bound to write back what the reader changes.</summary>
     internal bool WritesBack(UIComponentId componentId, UIProperty property)
@@ -380,7 +461,7 @@ public sealed partial class UITestPage
         => View.Events.TryGet(new CompiledUIEventAddress(componentId, eventName), out _);
 
     /// <summary>The component with the authored id, in the rows the caller stands in.</summary>
-    internal UITestComponent Find(string id, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
+    internal UIClientComponent Find(string id, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
@@ -388,22 +469,6 @@ public sealed partial class UITestPage
             throw new InvalidOperationException($"The page at '{Route}' has no component '{id}'{(scope is null ? string.Empty : " there")}.");
 
         return At(componentId, rowKeys);
-    }
-
-    /// <summary>A handle to the component in as many of the caller's rows as it stands in; one deeper in a list is reached through its row.</summary>
-    internal UITestComponent At(UIComponentId componentId, object?[] rowKeys)
-    {
-        IReadOnlyList<UIComponentId> roots = View.Graph.GetItemScopes(componentId);
-        UIComponentNode node = View.Graph.GetRequired(componentId);
-
-        if (roots.Count > rowKeys.Length)
-        {
-            var host = View.Graph.GetRequired(HostOf(roots[rowKeys.Length])).AuthoringId;
-
-            throw new InvalidOperationException($"'{node.AuthoringId}' stands in the rows of '{host}': reach it through that list's Row(key).");
-        }
-
-        return new UITestComponent(this, node, rowKeys[..roots.Count]);
     }
 
     private bool IsWithin(UIComponentId componentId, UIComponentId root, object?[] rowKeys, object? rowItem)
@@ -446,8 +511,24 @@ public sealed partial class UITestPage
         return false;
     }
 
+    /// <summary>A handle to the component in as many of the caller's rows as it stands in; one deeper in a list is reached through its row.</summary>
+    internal UIClientComponent At(UIComponentId componentId, object?[] rowKeys)
+    {
+        IReadOnlyList<UIComponentId> roots = View.Graph.GetItemScopes(componentId);
+        UIComponentNode node = View.Graph.GetRequired(componentId);
+
+        if (roots.Count > rowKeys.Length)
+        {
+            var host = View.Graph.GetRequired(HostOf(roots[rowKeys.Length])).AuthoringId;
+
+            throw new InvalidOperationException($"'{node.AuthoringId}' stands in the rows of '{host}': reach it through that list's Row(key).");
+        }
+
+        return new UIClientComponent(this, node, rowKeys[..roots.Count]);
+    }
+
     /// <summary>The one component bound to the path: a binding of its own on the root, or a row's binding relative to its item.</summary>
-    internal UITestComponent FindBoundTo(string path, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
+    internal UIClientComponent FindBoundTo(string path, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
@@ -544,8 +625,27 @@ public sealed partial class UITestPage
             : formatted;
     }
 
+    /// <summary>The one candidate, or the one whose value it is; none, or several alike, is the test's mistake to hear about.</summary>
+    private UIComponentId SingleFound(List<(UIComponentId Component, bool Value)> found, string what, string how)
+    {
+        if (found.Count == 1)
+            return found[0].Component;
+
+        List<(UIComponentId Component, bool Value)> values = found.FindAll(static candidate => candidate.Value);
+
+        if (values.Count == 1)
+            return values[0].Component;
+
+        if (found.Count == 0)
+            throw new InvalidOperationException($"The page at '{Route}' has no component {how} '{what}'.");
+
+        List<string> ids = found.ConvertAll(candidate => View.Graph.GetRequired(candidate.Component).AuthoringId);
+
+        throw new InvalidOperationException($"The page at '{Route}' has {found.Count} components {how} '{what}' ({string.Join(", ", ids)}): find one by its id.");
+    }
+
     /// <summary>The one component a reader knows by the name: its title, accessible name or tooltip, as written or as shown.</summary>
-    internal UITestComponent FindNamed(string name, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
+    internal UIClientComponent FindNamed(string name, UIComponentId? scope, object?[] rowKeys, object? rowItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -569,24 +669,5 @@ public sealed partial class UITestPage
         }
 
         return At(SingleFound(found, name, "named"), rowKeys);
-    }
-
-    /// <summary>The one candidate, or the one whose value it is; none, or several alike, is the test's mistake to hear about.</summary>
-    private UIComponentId SingleFound(List<(UIComponentId Component, bool Value)> found, string what, string how)
-    {
-        if (found.Count == 1)
-            return found[0].Component;
-
-        List<(UIComponentId Component, bool Value)> values = found.FindAll(static candidate => candidate.Value);
-
-        if (values.Count == 1)
-            return values[0].Component;
-
-        if (found.Count == 0)
-            throw new InvalidOperationException($"The page at '{Route}' has no component {how} '{what}'.");
-
-        List<string> ids = found.ConvertAll(candidate => View.Graph.GetRequired(candidate.Component).AuthoringId);
-
-        throw new InvalidOperationException($"The page at '{Route}' has {found.Count} components {how} '{what}' ({string.Join(", ", ids)}): find one by its id.");
     }
 }

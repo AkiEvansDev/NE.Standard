@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling.Theme;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Localization;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Commands;
@@ -132,4 +133,10 @@ public sealed class UIApplication
     /// Gets command filters that run for every command, already ordered.
     /// </summary>
     public IUICommandFilter[] CommandFilters { get; }
+
+    /// <summary>
+    /// Gets the compiled view for the specified route.
+    /// </summary>
+    public CompiledView GetCompiledView(string route)
+        => Routes.GetRequiredEntry(route).GetView();
 }

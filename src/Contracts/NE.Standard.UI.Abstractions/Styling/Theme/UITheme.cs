@@ -1,3 +1,5 @@
+using NE.Standard.UI.Primitives.Styling;
+
 namespace NE.Standard.UI.Abstractions.Styling.Theme;
 
 /// <summary>
@@ -51,6 +53,11 @@ public sealed record UITheme
     /// edge that says where a dragged thing would land; the brand's by default.
     /// </summary>
     public UIMarkTone SelectionMark { get; init; }
+
+    /// <summary>
+    /// The default indicator shown by spinners and loading components across the application; the turning ring by default.
+    /// </summary>
+    public UILoadingStyle LoadingStyle { get; init; }
 
     /// <summary>
     /// Validates all theme token groups.

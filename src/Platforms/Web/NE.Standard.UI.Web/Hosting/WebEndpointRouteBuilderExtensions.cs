@@ -79,16 +79,42 @@ public static partial class WebEndpointRouteBuilderExtensions
         MapAssets(group);
         MapThemeStylesheet(group);
 
+        WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
+
+        MapServerCoreEndpoints(endpoints, group, options);
+        WebManifestEndpoint.Map(group);
+        RequireAuthorization(group.MapGet("/{**route}", RenderAsync), options);
+
+        return Task.FromResult(endpoints);
+    }
+
+    internal static Task<IEndpointRouteBuilder> MapStandardUIServerCoreAsync(IEndpointRouteBuilder endpoints, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        _ = endpoints.ServiceProvider.GetRequiredService<UIApplication>();
+        _ = endpoints.ServiceProvider.GetRequiredService<WebSessionCookie>();
+
+        RouteGroupBuilder group = endpoints.MapGroup(string.Empty).AddEndpointFilter(AddNoSniffHeaderAsync);
+        WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
+
+        MapServerCoreEndpoints(endpoints, group, options);
+
+        return Task.FromResult(endpoints);
+    }
+
+    private static void MapServerCoreEndpoints(IEndpointRouteBuilder endpoints, RouteGroupBuilder group, WebEndpointOptions options)
+    {
+        WebViewEndpoint.Map(group, options);
         WebFileEndpoints.Map(group);
         WebValueEndpoint.Map(group);
         WebSessionKeyEndpoint.Map(group);
-        WebManifestEndpoint.Map(group);
         WebContentEndpoint.Map(group);
         WebWordsEndpoint.Map(group);
 
         UseResponseCompression(endpoints);
-
-        WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
 
         // A socket that drops and comes straight back keeps its connection, its calls and what was sent meanwhile: a background
         // command is not cancelled and an awaited one is not failed by a blip (the client's `withStatefulReconnect`).
@@ -96,9 +122,6 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         hub.Add(RefuseCrossSiteRequests);
         RequireAuthorization(hub, options);
-        RequireAuthorization(group.MapGet("/{**route}", RenderAsync), options);
-
-        return Task.FromResult(endpoints);
     }
 
     /// <summary>
@@ -181,7 +204,7 @@ public static partial class WebEndpointRouteBuilderExtensions
     /// <summary>
     /// The outer gate, opt-in per <see cref="WebEndpointOptions.RequireAuthorization"/>; assets and file endpoints are left alone.
     /// </summary>
-    private static void RequireAuthorization(IEndpointConventionBuilder endpoint, WebEndpointOptions options)
+    internal static void RequireAuthorization(IEndpointConventionBuilder endpoint, WebEndpointOptions options)
     {
         if (!options.RequireAuthorization)
             return;
@@ -502,7 +525,7 @@ public static partial class WebEndpointRouteBuilderExtensions
     }
 
     // All of the framework's prefix, not a list of what is mapped there: an address under it that nothing answers is a 404, not a page.
-    private static bool IsSystemRoute(string route)
+    internal static bool IsSystemRoute(string route)
         => route.StartsWith("/.well-known/", StringComparison.Ordinal)
         || route.StartsWith(FrameworkPrefix, StringComparison.Ordinal)
         || route.Equals(FrameworkPrefix[..^1], StringComparison.Ordinal)
@@ -568,7 +591,7 @@ public static partial class WebEndpointRouteBuilderExtensions
     /// id pending: a load that overlapped another's sign-in rotation holds the old id, and its key written after the other's would put
     /// back a key whose session has ended. That load is never handed the new key either — the fixation defence.
     /// </remarks>
-    private static void AppendSessionCookie(HttpContext http, UISessionOptions options, WebSessionCookie cookie, UIViewResolution resolution)
+    internal static void AppendSessionCookie(HttpContext http, UISessionOptions options, WebSessionCookie cookie, UIViewResolution resolution)
     {
         if (resolution.IssuedSecret is { } issued)
         {

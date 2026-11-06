@@ -352,7 +352,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 [design.html](https://akievansdev.github.io/NE.Standard/design.html)
 
 - `application.ConfigureTheme(theme => theme.ConfigureLightPalette(p => p with { Primary = new ColorVariant(ColorName.X) }) ...)`:
-  `UITheme`, `UIColorPalette`, `UITypography`, `UIThemeShape`; colours by role (`UIThemeColor.Primary`, `Accent`, `Success`,
+  `UITheme`, `UIColorPalette`, `UITypography`, `UIThemeShape`, `UseLoadingStyle(UILoadingStyle.Ring | UILoadingStyle.Dots)`; colours by role (`UIThemeColor.Primary`, `Accent`, `Success`,
   `Warning`, `Danger`, `Info`, `Muted`), never a raw colour for chrome. Reader's mode and colours: `SetThemeEffect`,
   `SetThemeColorsEffect`, `ThemeSwitcherComponent`.
 - The design rules in short: start from the phone; one primary action per area; text by role (`TitleType`), not size; the
@@ -368,7 +368,9 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
   button's `Menu`; act with
   `SetValueAsync`, `ClickAsync` (`UITestCommandResult.Sent`); read `Value`, `Title`, `IsVisible`, `IsEnabled`,
   `ValidationMessage`, `page.Effects`, `EffectsOf<T>()`, `IsDialogOpen`, `Address`, `Downloads`, `Controller<T>()`;
-  `page.FlushAsync()` delivers what the runtime holds; `page.CloseAsync()` closes the page as a closed tab does; `page.DismissDialogAsync(key)` closes a dialog as Escape does.
+  `page.FlushAsync()` delivers what the runtime holds; `page.CloseAsync()` closes the page as a closed tab does; `page.DismissDialogAsync(key)` closes a dialog as Escape does;
+  `page.SetResponsiveTier(tier)` / `page.SetViewportWidth(px)` resolve `UIResponsive<T>` properties; `page.GoBackAsync()` / `page.GoForwardAsync()` step through in-place address history (`CanGoBack`, `CanGoForward`);
+  `component.RequestItemWindowAsync(anchor, count, mode)` loads windows on a `UIItemSourceBase` host; `page.Store` reads and writes `UIClientStore` preferences; plain hosts evaluate `FilterBy`, `SortBy` and `Query`, and row fields validate and submit `OnSubmit` values with their form.
 - `OpenAsync` refuses a view whose binding or path names nothing (`page.CompileWarnings` lists every warning); an advisory one - an
   argument no parameter takes, a Root binding a row's item shadows - is logged only. `app.AllowsCompileWarnings = true` opts out.
   An argument a component of your own adds for its command, which the command may leave untaken, is `UIAction.Offered(arg)`.

@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Client;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Runtime;
@@ -40,7 +41,7 @@ internal sealed class UITestClient : IUIUpdateSink, IUIDownloadStager, IUIUpload
         foreach (var instanceId in instanceIds)
         {
             if (_pages.TryGetValue(instanceId, out UITestPage? page))
-                page.Receive(changes);
+                page.ClientPage.Receive(changes);
         }
 
         return Task.CompletedTask;
@@ -54,7 +55,7 @@ internal sealed class UITestClient : IUIUpdateSink, IUIDownloadStager, IUIUpload
         result.Validate();
 
         if (_pages.TryGetValue(handle.Instance.Id, out UITestPage? page))
-            page.Receive(result);
+            page.ClientPage.Receive(result);
 
         return Task.CompletedTask;
     }
@@ -72,7 +73,7 @@ internal sealed class UITestClient : IUIUpdateSink, IUIDownloadStager, IUIUpload
         await content.CopyToAsync(copy, cancellationToken).ConfigureAwait(false);
 
         if (_pages.TryGetValue(handle.Instance.Id, out UITestPage? page))
-            page.Receive(new UITestDownload(fileName, contentType, copy.ToArray()));
+            page.ClientPage.Receive(new UIClientDownload(fileName, contentType, copy.ToArray()));
 
         return null;
     }

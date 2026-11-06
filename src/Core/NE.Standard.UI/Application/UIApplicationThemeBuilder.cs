@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Styling.Theme;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Application;
 
@@ -133,5 +134,15 @@ public sealed class UIApplicationThemeBuilder
         ArgumentNullException.ThrowIfNull(shape);
 
         return UseShape(shape);
+    }
+
+    /// <summary>
+    /// Sets the default loading indicator style across the application.
+    /// </summary>
+    public UIApplicationThemeBuilder UseLoadingStyle(UILoadingStyle style)
+    {
+        _theme = _theme with { LoadingStyle = style };
+
+        return this;
     }
 }

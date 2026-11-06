@@ -92,8 +92,14 @@ public static class UIDialogs
     {
         ArgumentNullException.ThrowIfNull(content);
 
-        return UILayout.Stack(16, header, content);
+        return UILayout.Stack(16, header, ScrollBody(content));
     }
+
+    /// <summary>The dialog's scrollable body with top and bottom edge fade, reusing <paramref name="content"/> when it is already a scroll container.</summary>
+    private static ScrollContainerComponent ScrollBody(IVisualComponent content)
+        => content is ScrollContainerComponent scroll
+            ? scroll.SetScrollFade(scroll.ScrollFade ?? true)
+            : new ScrollContainerComponent().SetScrollFade(true).AddChild(content);
 
     /// <summary>
     /// The header alone: the mark where one is given, the title, <paramref name="trailing"/> before the ×, and the × at the far end, on
@@ -228,7 +234,7 @@ public static class UIDialogs
         // The primary's own command, given with OnClick, becomes the form's submit; one already submitting another form keeps it.
         primary.SubmitFormId ??= key;
 
-        return Dialog(key, UILayout.Stack(16, heading, content, UIButtons.Pair(safe, primary)), UIColumnWidth.Form) with { CloseOnBackdrop = false };
+        return Dialog(key, UILayout.Stack(16, heading, ScrollBody(content), UIButtons.Pair(safe, primary)), UIColumnWidth.Form) with { CloseOnBackdrop = false };
     }
 
     /// <summary>

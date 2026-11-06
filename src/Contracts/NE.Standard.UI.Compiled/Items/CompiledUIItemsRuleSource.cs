@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Primitives.Interaction;
 
@@ -11,6 +12,7 @@ public readonly record struct CompiledUIItemsRuleSource
     /// <summary>
     /// Creates a compiled rule source from its resolved property address and activation settings.
     /// </summary>
+    [JsonConstructor]
     public CompiledUIItemsRuleSource(UIPropertyAddress? source, UIComparisonOperator activeOperator = UIComparisonOperator.Required, object? activeValue = null)
     {
         Source = source;

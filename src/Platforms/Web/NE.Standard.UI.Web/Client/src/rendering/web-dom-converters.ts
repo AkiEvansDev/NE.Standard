@@ -124,6 +124,7 @@ export function toButtonVariantClass(value: unknown): string {
 const badgeVariantTokens = ["primary", "accent", "info", "warning", "success", "danger", "surface", "plain"];
 const badgeFillTokens = ["filled", "tinted", "outline"];
 const themeTokens = ["light", "dark"];
+const loadingStyleTokens = ["ring", "dots"];
 const alignmentTokens = ["start", "center", "end", "stretch"];
 const overflowTokens = ["clip", "visible"];
 const visibilityTokens = ["visible", "hidden", "collapsed"];
@@ -289,6 +290,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["inputModeAttribute", value => toToken(value, inputModeTokens)],
     ["colorTextFormatAttribute", value => toToken(value, colorTextFormatTokens)],
     ["themeNameCss", value => toToken(value, themeTokens)],
+    ["loadingStyleAttribute", value => toToken(value, loadingStyleTokens)],
     ["alignmentCss", value => toToken(value, alignmentTokens)],
     ["overflowCss", value => toToken(value, overflowTokens)],
     ["layoutLengthCss", value => toLayoutLength(value)],
@@ -528,12 +530,18 @@ function toThemeOnColor(value: unknown): string {
     }
 
     if (isColorVariantModel(value)) {
-        return isClear(value) ? "initial" : toVariantOnColor(value);
+        if (isClear(value)) {
+            return "initial";
+        }
+
+        const light = toVariantOnColor(value, 255);
+        const dark = toVariantOnColor(value, 0);
+        return light === dark ? light : `light-dark(${light}, ${dark})`;
     }
 
     const model = value as { style?: unknown; light?: unknown; dark?: unknown };
-    const light = toVariantOnColor(model.light ?? model.dark);
-    const dark = toVariantOnColor(model.dark ?? model.light);
+    const light = toVariantOnColor(model.light ?? model.dark, 255);
+    const dark = toVariantOnColor(model.dark ?? model.light, 0);
 
     // A colour of no opacity is no ground at all (`UIThemeColor.Transparent`): it takes back the page's ink, as the page's grounds do.
     if (light.length > 0 && dark.length > 0 && isClear(model.light ?? model.dark) && isClear(model.dark ?? model.light)) {
@@ -577,9 +585,9 @@ function isClear(value: unknown): boolean {
     return toColorVariantBytes(value)?.[3] === 0;
 }
 
-function toVariantOnColor(value: unknown): string {
+function toVariantOnColor(value: unknown, ground = 255): string {
     const bytes = toColorVariantBytes(value);
-    return bytes === undefined ? "" : onColorToken(bytes[0], bytes[1], bytes[2], bytes[3]);
+    return bytes === undefined ? "" : onColorToken(bytes[0], bytes[1], bytes[2], bytes[3], ground);
 }
 
 function toThemeColorClass(value: unknown): string {

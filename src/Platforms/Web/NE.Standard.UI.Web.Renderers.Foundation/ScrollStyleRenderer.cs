@@ -13,17 +13,21 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 /// </summary>
 public static class ScrollStyleRenderer
 {
+    /// <summary>On a scrolling viewport: its top and bottom edges softly fade while content is scrolled beneath them (<c>scrollbar.less</c>).</summary>
+    public const string ScrollFadeAttribute = "data-ui-scroll-fade";
+
     private static readonly WebDomOperation[] XOperations = [WebDomOperation.Class(converter: WebDomConverters.ScrollXClass)];
     private static readonly WebDomOperation[] YOperations = [WebDomOperation.Class(converter: WebDomConverters.ScrollYClass)];
     private static readonly WebDomOperation[] SnapOperations = [WebDomOperation.Class(converter: WebDomConverters.ScrollSnapClass)];
     private static readonly WebDomOperation[] AnchorOperations = [WebDomOperation.Attribute(WebAttributes.ScrollAnchor)];
+    private static readonly WebDomOperation[] FadeOperations = [WebDomOperation.ToggleAttribute(ScrollFadeAttribute, condition: WebValueCondition.IsTrue)];
 
     /// <summary>Onto the component's root, which scrolls itself.</summary>
     public static void RenderScroll(WebRenderContext context, IHtmlElementBuilder root)
-        => RenderScroll(context, root, XOperations, YOperations, SnapOperations, AnchorOperations);
+        => RenderScroll(context, root, XOperations, YOperations, SnapOperations, AnchorOperations, FadeOperations);
 
     /// <summary>Onto an element inside the root, each property's patch aimed by its own operations.</summary>
-    public static void RenderScroll(WebRenderContext context, IHtmlElementBuilder target, WebDomOperation[] horizontal, WebDomOperation[] vertical, WebDomOperation[] snap, WebDomOperation[] anchor)
+    public static void RenderScroll(WebRenderContext context, IHtmlElementBuilder target, WebDomOperation[] horizontal, WebDomOperation[] vertical, WebDomOperation[] snap, WebDomOperation[] anchor, WebDomOperation[]? fade = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
@@ -52,5 +56,11 @@ public static class ScrollStyleRenderer
             if (value is UIScrollAnchor anchor)
                 _ = element.Attribute(WebAttributes.ScrollAnchor, anchor.ToString());
         }, anchor);
+
+        _ = WebComponentRendererBase.RenderProperty<bool?>(context, target, IScrollableComponent.ScrollFadeProperty, static (element, value) =>
+        {
+            if (value == true)
+                _ = element.Attribute(ScrollFadeAttribute);
+        }, fade ?? FadeOperations);
     }
 }

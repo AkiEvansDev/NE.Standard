@@ -98,5 +98,5 @@
     }
 }
 
-// Black at the dim's share; a reference to a dim that is not set leaves the veil unset.
-@ui-surface-image-veil: color-mix(in srgb, #000 calc(var(--ui-surface-image-dim) * 100%), transparent);
+// The surface's own ground at the dim's share; a reference to a dim that is not set leaves the veil unset.
+@ui-surface-image-veil: color-mix(in srgb, @ui-ground calc(var(--ui-surface-image-dim) * 100%), transparent);

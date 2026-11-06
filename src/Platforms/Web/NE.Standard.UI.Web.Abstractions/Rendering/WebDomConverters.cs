@@ -71,6 +71,9 @@ public static class WebDomConverters
     public const string ColorTextFormatAttribute = "colorTextFormatAttribute";
 
     public const string ThemeNameCss = "themeNameCss";
+
+    /// <summary>A loading indicator style as its <c>data-ui-loading-style</c> token (<c>WebCssValues.LoadingStyle</c>): <c>ring</c> or <c>dots</c>.</summary>
+    public const string LoadingStyleAttribute = "loadingStyleAttribute";
     public const string AlignmentCss = "alignmentCss";
     public const string OverflowCss = "overflowCss";
     public const string LayoutLengthCss = "layoutLengthCss";

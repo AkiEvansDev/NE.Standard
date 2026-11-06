@@ -302,8 +302,8 @@ internal sealed partial class WebUIHub : Hub
     private const int MaxTranslateKeyLength = 512;
 
     private readonly IUIHost _host;
-    private readonly IWebViewRenderCache _renderCache;
-    private readonly IWebViewRenderer _renderer;
+    private readonly IWebViewRenderCache? _renderCache;
+    private readonly IWebViewRenderer? _renderer;
     private readonly UIApplication _application;
     private readonly WebSessionCookie _sessionCookie;
     private readonly IUserSessionStore _sessions;
@@ -314,11 +314,9 @@ internal sealed partial class WebUIHub : Hub
     private readonly IEnumerable<IUIStringsSource> _packageStrings;
     private readonly ILogger<WebUIHub> _logger;
 
-    public WebUIHub(IUIHost host, IWebViewRenderCache renderCache, IWebViewRenderer renderer, UIApplication application, WebSessionCookie sessionCookie, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebRuntimeStamps stamps, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger)
+    public WebUIHub(IUIHost host, UIApplication application, WebSessionCookie sessionCookie, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebRuntimeStamps stamps, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger, IWebViewRenderCache? renderCache = null, IWebViewRenderer? renderer = null)
     {
         ArgumentNullException.ThrowIfNull(host);
-        ArgumentNullException.ThrowIfNull(renderCache);
-        ArgumentNullException.ThrowIfNull(renderer);
         ArgumentNullException.ThrowIfNull(application);
         ArgumentNullException.ThrowIfNull(sessionCookie);
         ArgumentNullException.ThrowIfNull(sessions);
@@ -483,10 +481,10 @@ internal sealed partial class WebUIHub : Hub
         }
 
         // Gone after a restart cleared the cache while this page stayed open: rendered again, so its values are re-sent as on a load.
-        IReadOnlyList<int> initBindingIds = await _renderCache.GetInitBindingIdsAsync(
-            WebViewCacheKeys.Create(view),
-            Context.ConnectionAborted
-        ).ConfigureAwait(false) ?? await RenderInitBindingIdsAsync(view).ConfigureAwait(false);
+        IReadOnlyList<int> initBindingIds = _renderCache is null || _renderer is null
+            ? WebInitialChanges.FromView(view.View)
+            : await _renderCache.GetInitBindingIdsAsync(WebViewCacheKeys.Create(view), Context.ConnectionAborted).ConfigureAwait(false)
+                ?? await RenderInitBindingIdsAsync(view).ConfigureAwait(false);
 
         // The snapshot also marks this connection's starting point: nothing queued before it is pushed to it, everything after it is.
         ServerChangeSet initialChanges = runtime.Runtime is null
@@ -580,7 +578,7 @@ internal sealed partial class WebUIHub : Hub
 
     private async ValueTask<IReadOnlyList<int>> RenderInitBindingIdsAsync(UIViewResolution view)
     {
-        WebCachedViewRender render = await WebEndpointRouteBuilderExtensions.GetOrRenderViewAsync(view, _renderer, _renderCache, Context.ConnectionAborted).ConfigureAwait(false);
+        WebCachedViewRender render = await WebEndpointRouteBuilderExtensions.GetOrRenderViewAsync(view, _renderer!, _renderCache!, Context.ConnectionAborted).ConfigureAwait(false);
 
         return render.InitBindingIds ?? [];
     }

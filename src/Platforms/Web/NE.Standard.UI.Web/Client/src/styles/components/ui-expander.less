@@ -141,8 +141,8 @@
         grid-template-columns: minmax(0, auto) auto;
         justify-content: start;
         width: fit-content;
-        max-width: 100%;
-        margin: 0;
+        max-width: calc(100% + 8px);
+        margin: 0 -2px 0 -6px;
         padding: 0 2px 0 6px;
         border-radius: @ui-list-entry-radius;
         color: @ui-text-muted;
@@ -173,12 +173,8 @@
         z-index: 1;
     }
 
-    .ui-expander--quiet.ui-expander--has-action[open] > .ui-expander__header {
-        min-height: @ui-button-height-sm;
-    }
-
     .ui-expander--quiet > .ui-expander__header-action {
-        top: 0;
+        top: calc((var(--ui-text-caption-line-height, 1rem) - @ui-button-height-sm) / 2);
         right: 0;
     }
 

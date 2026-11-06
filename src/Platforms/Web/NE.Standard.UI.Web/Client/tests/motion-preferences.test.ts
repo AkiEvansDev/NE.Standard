@@ -84,6 +84,26 @@ test("every loading ring shows its turn in forced colours", () => {
         assert.ok(drawn.selectors.includes(selector), `${selector} wears the ring but turns unseen in forced colours`);
 });
 
+test("every three-dot loading wave keeps moving under reduced motion and shows in forced colours", () => {
+    const dotSelectors = allRules.filter(rule => /animation: ui-loading-dots\b/.test(rule.body)).flatMap(rule => selectorsOf(rule.selectors.join(", ")));
+
+    assert.ok(dotSelectors.length >= 6, "the three-dot loading selectors were not found in the compiled stylesheet");
+
+    const waving = rulesOf(reducedMotion[0]).find(rule => rule.body.includes("animation-duration: 1000ms !important"));
+    const forced = forcedColors.flatMap(rulesOf).find(rule => rule.body.includes("forced-color-adjust: none") && /(?:^|;)\s*color: Highlight;/.test(rule.body));
+
+    assert.ok(waving !== undefined, "no rule keeps the three-dot wave moving under reduced motion");
+    assert.ok(forced !== undefined, "no forced-colours rule draws the three-dot wave");
+
+    const wavingList = selectorsOf(waving.selectors.join(", "));
+    const forcedList = selectorsOf(forced.selectors.join(", "));
+
+    for (const selector of dotSelectors) {
+        assert.ok(wavingList.includes(selector), `${selector} wears the three-dot wave but stops under reduced motion`);
+        assert.ok(forcedList.includes(selector), `${selector} wears the three-dot wave but is not drawn in forced colours`);
+    }
+});
+
 test("a drop line, a marked day's dot and an upload's bar are redrawn in system colours in forced colours", () => {
     const forcedRules = forcedColors.flatMap(rulesOf);
     // By the selector list's text: a selector with `:is()` holds commas of its own.

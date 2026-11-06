@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -37,6 +39,22 @@ internal static class WebInitialChanges
         {
             Changes = collectionChanges.Count == 0 ? valueChanges : new ServerChangeSet { Updates = [.. valueChanges.Updates, .. collectionChanges] }
         };
+    }
+
+    /// <summary>The component property binding ids of <paramref name="view"/>, read straight off its compiled bindings.</summary>
+    public static int[] FromView(CompiledView view)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+
+        List<int> ids = [];
+
+        foreach (CompiledUIBinding binding in view.Bindings.All)
+        {
+            if (binding.Kind == CompiledUIBindingKind.ComponentProperty)
+                ids.Add(binding.Id.Value);
+        }
+
+        return [.. ids];
     }
 
     /// <summary>The init bindings as the runtime takes them, from the numbers the render cache keeps.</summary>

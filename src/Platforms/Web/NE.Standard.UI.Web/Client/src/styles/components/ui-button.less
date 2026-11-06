@@ -203,6 +203,11 @@
             .ui-glyph-loading-ring();
         }
 
+        .ui-button.ui-loading[data-ui-text-icon]@{ui-dots-wearer} .ui-text__icon::before,
+        .ui-button[data-ui-pending][data-ui-text-icon]@{ui-dots-wearer} .ui-text__icon::before {
+            .ui-loading-dots();
+        }
+
 // No elevation on filled variants: a control sitting on a surface does not cast a shadow here; cards, dialogs and popups still do.
 .ui-button--primary {
     .ui-filled-ground(var(--ui-surface-color, var(--ui-color-primary)); var(--ui-color-on-primary); background-color);

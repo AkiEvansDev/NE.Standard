@@ -150,7 +150,7 @@ export type Urls = {
 
 /** What a package's engine starts from: a built-in engine's services, plus what it cannot import from its own bundle. */
 export type PluginEngineContext = EngineContext & {
-    readonly strings: ClientWords;
+    readonly strings: Pick<ClientWords, "text" | "format" | "resolveText" | "resolve" | "write" | "onChange">;
     readonly observeComponents: typeof observeComponents;
     readonly observeSize: typeof observeSize;
     readonly ownDescendants: typeof ownDescendants;
@@ -386,7 +386,32 @@ export function createPluginEngineContext(
 ): PluginEngineContext {
     return {
         ...engineContext,
-        strings: clientStrings,
+        strings: {
+            text: clientStrings.text.bind(clientStrings),
+            format: clientStrings.format.bind(clientStrings),
+            resolveText: clientStrings.resolveText.bind(clientStrings),
+            resolve: clientStrings.resolve.bind(clientStrings),
+            write: clientStrings.write.bind(clientStrings),
+            onChange: handler => {
+                let heard = false;
+                const stopChange = clientStrings.onChange(() => {
+                    heard = true;
+                    handler();
+                });
+                // A package engine adopts its roots while the boot table is still on its way; once that table arrives, any caption it
+                // read into its own model before the table landed is read again.
+                const stopTable = clientStrings.onTable(() => {
+                    if (!heard) {
+                        heard = true;
+                        handler();
+                    }
+                });
+                return () => {
+                    stopChange();
+                    stopTable();
+                };
+            }
+        },
         observeComponents,
         observeSize,
         ownDescendants,

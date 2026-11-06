@@ -92,6 +92,11 @@ public sealed class UIItemsQueryTerms
     public bool AllowSearch { get; }
 
     /// <summary>
+    /// Gets the operators allowed per filter property when constrained per property, or <see langword="null"/> when all filter properties share <see cref="Operators"/>.
+    /// </summary>
+    public IReadOnlyDictionary<string, FrozenSet<UIComparisonOperator>>? OperatorsByProperty => _operatorsByProperty;
+
+    /// <summary>
     /// Whether a viewer may send the filter term: a property and an operator offered for it, and no regular expression.
     /// </summary>
     public bool Allows(UIItemFilterTerm term)

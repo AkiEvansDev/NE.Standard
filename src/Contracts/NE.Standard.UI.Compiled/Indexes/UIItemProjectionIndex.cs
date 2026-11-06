@@ -35,6 +35,21 @@ public sealed class UIItemProjectionIndex
     public static UIItemProjectionIndex Empty { get; } = new(new Dictionary<UIComponentId, UIItemProjection>());
 
     /// <summary>
+    /// Gets the host projections keyed by component id.
+    /// </summary>
+    public IReadOnlyDictionary<UIComponentId, UIItemProjection> Projections => _projections;
+
+    /// <summary>
+    /// Gets the dotted item property paths read by each host's static rules.
+    /// </summary>
+    public IReadOnlyDictionary<UIComponentId, string[]> RuleReads => _ruleReads;
+
+    /// <summary>
+    /// Gets the hosts whose items view or query is bound.
+    /// </summary>
+    public IReadOnlySet<UIComponentId> BoundRules => _boundRules;
+
+    /// <summary>
     /// Gets whether any host reads its rows by rules of its own, static or bound.
     /// </summary>
     public bool HasRules => _ruleReads.Count > 0 || _boundRules.Count > 0;

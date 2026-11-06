@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 
@@ -26,6 +27,7 @@ public readonly record struct UIPropertyAddress
     /// <summary>
     /// Creates an address from an already-resolved component address and property key.
     /// </summary>
+    [JsonConstructor]
     public UIPropertyAddress(UIComponentAddress component, UIProperty property)
     {
         if (component.Id.IsEmpty)

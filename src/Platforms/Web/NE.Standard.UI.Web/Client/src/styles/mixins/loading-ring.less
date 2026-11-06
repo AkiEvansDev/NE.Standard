@@ -1,6 +1,12 @@
 // One turn of the ring; preferences.less restores it under reduced motion, which stops every other animation.
 @ui-loading-ring-turn: 800ms;
 
+// One wave across the three dots, with a short pause before the next.
+@ui-loading-dots-wave: 1000ms;
+
+// Any element that wears `data-ui-loading-style="dots"`, or inherits it from the document or an ancestor without opting back into `ring`.
+@ui-dots-wearer: ~":is([data-ui-loading-style='dots'], [data-ui-loading-style='dots'] :not([data-ui-loading-style='ring']))";
+
 // The one turning ring (spinner, loading controls): a border, not a glyph. Its wearers are listed in @ui-loading-rings, which keeps
 // it turning under reduced motion.
 .ui-loading-ring() {
@@ -29,5 +35,41 @@
 
     to {
         transform: rotate(360deg);
+    }
+}
+
+// Three dots animated by a periodic vertical wave, in the same 1em square as the ring so a control's box and a centred veil
+// place both the same way.
+.ui-loading-dots() {
+    @dot: radial-gradient(circle closest-side, currentColor 88%, transparent 100%);
+
+    width: 1em;
+    height: 1em;
+    border: 0;
+    border-radius: 0;
+    background-image: @dot, @dot, @dot;
+    background-size: 0.24em 0.24em;
+    background-position: 0% 58%, 50% 58%, 100% 58%;
+    background-repeat: no-repeat;
+    animation: ui-loading-dots @ui-loading-dots-wave ease-in-out infinite;
+}
+
+@keyframes ui-loading-dots {
+    0%,
+    80%,
+    100% {
+        background-position: 0% 58%, 50% 58%, 100% 58%;
+    }
+
+    20% {
+        background-position: 0% 22%, 50% 58%, 100% 58%;
+    }
+
+    40% {
+        background-position: 0% 58%, 50% 22%, 100% 58%;
+    }
+
+    60% {
+        background-position: 0% 58%, 50% 58%, 100% 22%;
     }
 }

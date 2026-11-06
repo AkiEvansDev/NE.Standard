@@ -9,13 +9,13 @@ export function toHexByte(value: number): string {
 }
 
 /**
- * The theme's text colour that reads on this colour, judged composited over white as `UIColorContrast.IsLightOverWhite` judges it
- * (WCAG relative luminance): opacity alone can flip the answer.
+ * The theme's text colour that reads on this colour, judged composited over `ground` (`255` in the light theme, `0` in the dark one) as
+ * `UIColorContrast.IsLightOverWhite`/`IsLightOverBlack` judge it (WCAG relative luminance): opacity alone can flip the answer.
  */
-export function onColorToken(red: number, green: number, blue: number, opacity: number): string {
+export function onColorToken(red: number, green: number, blue: number, opacity: number, ground = 255): string {
     const alpha = opacity / 255;
     // Whole levels, as UIColorContrast.Composite lays a colour over its ground.
-    const over = (channel: number) => Math.round((channel * alpha) + (255 * (1 - alpha)));
+    const over = (channel: number) => Math.round((channel * alpha) + (ground * (1 - alpha)));
     const luminance = relativeLuminance(over(red), over(green), over(blue));
 
     // NE.Colors' IsLight: the contrast against black beats the one against white.

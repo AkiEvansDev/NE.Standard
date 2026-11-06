@@ -22,6 +22,7 @@ public static class WebShellRenderer
 {
     // Read by the stylesheet alone, so a named constant here rather than one in WebAttributes, which holds what the client script reads.
     private const string NotificationsAttribute = "data-ui-notifications";
+    private const string LoadingStyleAttribute = "data-ui-loading-style";
     private const string ScrollContentAttribute = "data-ui-scroll-content";
     private const string FullHeightSidesAttribute = "data-ui-full-height-sides";
     private const string LeftBarAttribute = "data-ui-left-bar";
@@ -65,6 +66,9 @@ public static class WebShellRenderer
 
         if (context.Theme.OverlayScrollbars)
             _ = document.Attribute(WebAttributes.OverlayScrollbars);
+
+        if (context.Theme.LoadingStyle == UILoadingStyle.Dots)
+            _ = document.Attribute(LoadingStyleAttribute, WebCssValues.LoadingStyle(UILoadingStyle.Dots));
 
         // On the document as on the root: the document's own gutter goes with it.
         if (context.ScrollContentOnly)

@@ -10,6 +10,9 @@
 // Every loading ring on the page, by its wearer: the one thing both answers below keep.
 @ui-loading-rings: ~".ui-spinner__ring, .ui-tree__loading-ring, .ui-progress--circular:not([aria-valuenow]) .ui-progress__ring, @{ui-loading-ringed}::before, @{ui-pending-ringed}::before, @{ui-pending-veiled}::before, .ui-tab-item.ui-loading > .ui-tab-item__caption::before, .ui-tab-item[data-ui-pending] > .ui-tab-item__caption::before, .ui-button.ui-loading[data-ui-text-icon] .ui-text__icon::before, .ui-button[data-ui-pending][data-ui-text-icon] .ui-text__icon::before, .ui-loading[data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, [data-ui-triggers][data-ui-search-waiting][data-ui-input-prefix-icon] .ui-input__affix-icon--prefix::before, [data-ui-triggers][data-ui-search-waiting]:not([data-ui-input-prefix-icon]) > .ui-select__popup::after, .ui-search__field[data-ui-search-waiting] > .ui-search__glyph::before, .ui-file-tile.ui-loading > .ui-file-tile__glyph::after, @{ui-window-indicator}";
 
+// Every loading indicator wearing the three-dot wave (`UILoadingStyle.Dots`).
+@ui-loading-dots: ~".ui-spinner@{ui-dots-wearer} > .ui-spinner__ring, @{ui-loading-ringed}@{ui-dots-wearer}::before, @{ui-pending-ringed}@{ui-dots-wearer}::before, @{ui-pending-veiled}@{ui-dots-wearer}::before, .ui-button.ui-loading[data-ui-text-icon]@{ui-dots-wearer} .ui-text__icon::before, .ui-button[data-ui-pending][data-ui-text-icon]@{ui-dots-wearer} .ui-text__icon::before";
+
 // The rows an action bar stands over, as each host's `.ui-row-bar()` call names them.
 @ui-bar-rows: ~".ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-bar], .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-bar], .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-bar]";
 
@@ -39,10 +42,16 @@
         animation-iteration-count: infinite !important;
     }
 
+    @{ui-loading-dots} {
+        animation-duration: @ui-loading-dots-wave !important;
+        animation-iteration-count: infinite !important;
+    }
+
     // A strip's end fade and a table's edge shades follow the scroll's own timeline, no movement of their own; a zero duration would
     // pin them at their end state. A popup's room for the overlay bar needs no exception: one value from end to end
     // (mixins/scroll-room.less).
     .ui-button-group,
+    [data-ui-scroll-fade],
     .ui-table > .ui-table__scroll::before,
     .ui-table > .ui-table__scroll::after {
         animation-duration: auto !important;
@@ -420,6 +429,11 @@
         forced-color-adjust: none;
         border-color: CanvasText;
         border-top-color: Highlight;
+    }
+
+    @{ui-loading-dots} {
+        forced-color-adjust: none;
+        color: Highlight;
     }
 
     // The quote line is a pseudo-element's ground, which the mode forces to Canvas and so hides.

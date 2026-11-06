@@ -2,6 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Compiled.Items;
+using NE.Standard.UI.Primitives.Json;
 
 namespace NE.Standard.UI.Shell.Updates.Server;
 
@@ -58,13 +59,44 @@ public sealed class ServerCollectionItemChange
 }
 
 /// <summary>
-/// Writes a collection item change: what it carries, and its item kept to the host's projection.
+/// Writes and reads a collection item change: what it carries, and its item kept to the host's projection.
 /// </summary>
 public sealed class ServerCollectionItemChangeJsonConverter : JsonConverter<ServerCollectionItemChange>
 {
     /// <inheritdoc />
     public override ServerCollectionItemChange? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => throw new NotSupportedException("A collection item change is written to the page, never read back.");
+    {
+        ArgumentNullException.ThrowIfNull(options);
+
+        if (reader.TokenType == JsonTokenType.Null)
+            return null;
+
+        using JsonDocument document = JsonDocument.ParseValue(ref reader);
+        JsonElement root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+            throw new JsonException("Collection item change must be a JSON object.");
+
+        int? index = root.TryGetPropertyIgnoreCase(nameof(ServerCollectionItemChange.Index), out JsonElement indexElement) && indexElement.ValueKind == JsonValueKind.Number && indexElement.TryGetInt32(out var parsedIndex)
+            ? parsedIndex
+            : null;
+        var key = root.TryGetPropertyIgnoreCase(nameof(ServerCollectionItemChange.Key), out JsonElement keyElement) && keyElement.ValueKind == JsonValueKind.String
+            ? keyElement.GetString()
+            : null;
+        var oldKey = root.TryGetPropertyIgnoreCase(nameof(ServerCollectionItemChange.OldKey), out JsonElement oldKeyElement) && oldKeyElement.ValueKind == JsonValueKind.String
+            ? oldKeyElement.GetString()
+            : null;
+        var item = root.TryGetPropertyIgnoreCase(nameof(ServerCollectionItemChange.Item), out JsonElement itemElement) && itemElement.ValueKind != JsonValueKind.Null
+            ? JsonSerializer.Deserialize<object?>(itemElement.GetRawText(), options)
+            : null;
+
+        return new ServerCollectionItemChange
+        {
+            Index = index,
+            Key = key,
+            OldKey = oldKey,
+            Item = item,
+        };
+    }
 
     /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, ServerCollectionItemChange value, JsonSerializerOptions options)

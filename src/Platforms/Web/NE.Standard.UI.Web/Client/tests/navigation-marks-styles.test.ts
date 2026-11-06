@@ -55,7 +55,7 @@ test("a folded group holding the current page wears its mark by the group's own 
 });
 
 test("a check or a chevron keeps beside a word at the entry's end by the entry's own mark", () => {
-    assert.match(declarations(".ui-menu-item:is([data-ui-menu-item-shortcut], [data-ui-menu-item-value])::after") ?? "", /margin-left: 0\.5rem;/);
+    assert.match(declarations(".ui-menu-item:is([data-ui-menu-item-shortcut], [data-ui-menu-item-value])::after") ?? "", /margin-left: 0;/);
 });
 
 test("a menu's Surface names the ground of the popup it fills by the popup's mark", () => {

@@ -28,6 +28,10 @@ public static class WebCssValues
     public static string RootThemeName(UIThemeMode? mode)
         => mode is UIThemeMode value ? ThemeName(value) : "auto";
 
+    /// <summary>The <c>data-ui-loading-style</c> attribute token for <paramref name="style"/>.</summary>
+    public static string LoadingStyle(UILoadingStyle style)
+        => style == UILoadingStyle.Dots ? "dots" : "ring";
+
     /// <summary>
     /// Reads back what <see cref="RootThemeName"/> writes; false for <c>auto</c> and for anything unknown.
     /// </summary>
@@ -356,7 +360,7 @@ public static class WebCssValues
                 return PageGroundOnColor;
 
             var lightCss = OnColorToken(light.Value.IsLightOverWhite());
-            var darkCss = OnColorToken(dark.Value.IsLightOverWhite());
+            var darkCss = OnColorToken(dark.Value.IsLightOverBlack());
 
             return lightCss == darkCss
                 ? lightCss

@@ -262,6 +262,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     private static readonly WebDomOperation[] HostScrollYOperations = [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollYClass)];
     private static readonly WebDomOperation[] HostScrollSnapOperations = [WebDomOperation.Class($"[{WebAttributes.ItemsHost}]", WebDomConverters.ScrollSnapClass)];
     private static readonly WebDomOperation[] HostScrollAnchorOperations = [WebDomOperation.Attribute(WebAttributes.ScrollAnchor, $"[{WebAttributes.ItemsHost}]")];
+    private static readonly WebDomOperation[] HostScrollFadeOperations = [WebDomOperation.ToggleAttribute(ScrollStyleRenderer.ScrollFadeAttribute, target: $"[{WebAttributes.ItemsHost}]", condition: WebValueCondition.IsTrue)];
 
     /// <summary>
     /// The <see cref="IScrollableComponent"/> block as classes and the anchor attribute on the scrolling host. A table whose root
@@ -272,7 +273,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
 
-        ScrollStyleRenderer.RenderScroll(context, host, horizontalOperations ?? HostScrollXOperations, HostScrollYOperations, HostScrollSnapOperations, HostScrollAnchorOperations);
+        ScrollStyleRenderer.RenderScroll(context, host, horizontalOperations ?? HostScrollXOperations, HostScrollYOperations, HostScrollSnapOperations, HostScrollAnchorOperations, HostScrollFadeOperations);
     }
 
     private static readonly WebDomOperation[] WindowPagedOperations = [WebDomOperation.ToggleAttribute(WebAttributes.WindowPaged, target: $"[{WebAttributes.ItemsHost}]", condition: WebValueCondition.IsTrue)];

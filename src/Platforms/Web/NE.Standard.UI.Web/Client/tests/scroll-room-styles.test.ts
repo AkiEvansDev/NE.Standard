@@ -139,7 +139,7 @@ test("a blurred button group that scrolls keeps its layer over what is in view: 
 test("less motion spares only the strip's fade and a table's edge shades: the room kept by a timeline is one value end to end", () => {
     const exempt = rules.filter(rule => rule.body.includes("animation-duration: auto !important;")).map(rule => rule.selector);
 
-    assert.deepEqual(exempt, [".ui-button-group,\n  .ui-table > .ui-table__scroll::before,\n  .ui-table > .ui-table__scroll::after"]);
+    assert.deepEqual(exempt, [".ui-button-group,\n  [data-ui-scroll-fade],\n  .ui-table > .ui-table__scroll::before,\n  .ui-table > .ui-table__scroll::after"]);
 
     const room = /@keyframes ui-scroll-room-overflowing\s*\{([^}]*)\}/.exec(css);
 

@@ -57,6 +57,11 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     /// </summary>
     public const string TextSelectAttribute = "data-ui-text-select";
 
+    /// <summary>
+    /// On a component root or the document: the loading indicator style (<c>ring</c> or <c>dots</c>). Read by the stylesheet alone.
+    /// </summary>
+    public const string LoadingStyleAttribute = "data-ui-loading-style";
+
     // Every rendered component registers these same lists, so they are built once rather than per component.
     private static readonly WebDomOperation[] ThemeOperations = [WebDomOperation.Attribute(WebAttributes.Theme, converter: WebDomConverters.ThemeNameCss)];
 
@@ -95,6 +100,7 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
     private static readonly WebDomOperation[] ShowContextMenuOperations = [WebDomOperation.ToggleAttribute(WebAttributes.NoContextMenu, condition: WebValueCondition.IsFalse)];
     private static readonly WebDomOperation[] ScrollGroupOperations = [WebDomOperation.Attribute(WebAttributes.ScrollGroup, converter: WebDomConverters.TrimmedText)];
     private static readonly WebDomOperation[] TextSelectOperations = [WebDomOperation.Attribute(TextSelectAttribute)];
+    private static readonly WebDomOperation[] LoadingStyleOperations = [WebDomOperation.Attribute(LoadingStyleAttribute, converter: WebDomConverters.LoadingStyleAttribute)];
     private const string HorizontalAlignmentVariable = "--ui-align-h";
     private const string VerticalAlignmentVariable = "--ui-align-v";
     private static readonly WebDomOperation[] HorizontalAlignmentOperations = ResponsiveRenderer.TierOperations(HorizontalAlignmentVariable, WebDomConverters.ResponsiveAlignmentCss);
@@ -206,6 +212,12 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
             if (value == true)
                 _ = target.Class(WebClassNames.Loading).Attribute("aria-busy", "true");
         }, LoadingOperations);
+
+        _ = RenderProperty<UILoadingStyle?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.LoadingStyleProperty, static (target, value) =>
+        {
+            if (value is UILoadingStyle style)
+                _ = target.Attribute(LoadingStyleAttribute, WebCssValues.LoadingStyle(style));
+        }, LoadingStyleOperations);
 
         // Off, the menu stays in the tree and the engine refuses the right-click; on a host with rows, every row's.
         _ = RenderProperty<bool?>(context, html, VisualComponentPropertyOwnerTypeKey, IVisualComponent.ShowContextMenuProperty, static (target, value) =>

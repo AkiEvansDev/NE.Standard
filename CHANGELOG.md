@@ -5,23 +5,10 @@ holds only what is not released yet, under `## X.Y.Z`: the release workflow cuts
 (a tag with no section fails the release), and the notes of every released version live there —
 https://github.com/AkiEvansDev/NE.Standard/releases. Other slices keep their own beside their sources (`addons/<Name>/CHANGELOG.md`).
 
-## 2.3.0
+## 2.4.0
 
-- `ExpanderComponent` adds `HeaderAction`, `SetHeaderAction` and `SetHeaderActions` (`RegionNames.HeaderAction`), rendering a trailing
-  action slot outside `<summary>` in the header row while expanded so interactive controls do not toggle the fold, and removes the
-  negative margin bleed on `UIExpanderVariant.Quiet` headers to prevent left/top clipping and 4 px vertical scroll overflow inside
-  `ItemsViewComponent` (#284).
-- `DefaultMenuItemTemplate` binds all `ITextModel` and `IBadgeModel` properties (`BadgeTitle`, `BadgeColor`, `BadgeVariant`, etc.) on
-  `UIMenuItemKind.Check` entries, and `ui-text.less` / `search-terms.ts` support badge-only menu and select items without `Title` (#282).
-- `UIForm.Composer` keeps its leading and trailing actions on a single row beside the text by default on phones while omitting the
-  dividing hairline on `.ui-input--ghost[data-ui-actions-below]` when `SetActionsBelow` places all buttons (including Send) on a second
-  row below the text, and `FieldKeysEngine` lets the mobile virtual keyboard's Return key insert a newline in `<textarea>` controls with
-  `SubmitOnEnter` / `OnEnter`.
-- Web: `ColorInputComponent` renders a live numeric readout (`.ui-color-input__slider-value`) beside both the palette `Factor`
-  (`-10`..`10`) and `Opacity` (`0`..`255`) sliders, uses a non-overlapping inset `2px solid #fff` (`outline-offset: -2px`) selection
-  outline with `4px` grid gap on the active palette swatch, and supports arrow-key navigation (`ArrowLeft`, `ArrowRight`, `ArrowUp`,
-  `ArrowDown`, `Home`, `End`) with roving `tabindex` across the 8-column palette (#280); uncolored
-  `UIBadgeVariant.Surface` badges use `@ui-neutral-tint` fill and `var(--ui-color-mark)` inset border so they stay distinct inside filled
-  inputs and beside colored badges (#281); `holdRegionOf` ignores `[data-ui-awaits-draw]` inside closed `<dialog>` elements and
-  `WebUIRuntime` hydrates and releases regions synchronously before cross-document `@view-transition` capture (#283); `ReconnectLoop`,
-  `ConnectionWatch` and `NotificationEngine` handle background tab sleep, wake grace and non-dismissible connection-lost banners cleanly.
+- **`NE.Standard.UI.Client`**: new platform-neutral C# client runtime (`UIClientPage`, `UIClientComponent`, `UIClientRow`, `UIClientPageChange`, `UIClientStore`, `IUIClientStorageProvider`, `IUIClientTransport`, `InProcessUIClientTransport`, `RemoteUIClientSession`, `RemoteUIClientTransport`) holding a page's materialized state, responsive tier resolution (`ResponsiveTier`, `SetResponsiveTier`, `SetViewportWidth`), client-side interactions, validation rules, plain-host `FilterBy`/`SortBy`/`UIItemsQuery` evaluation, windowed-host `RequestItemWindowAsync`, row-field `OnSubmit` values and validation, back/forward history navigation (`CanGoBack`, `CanGoForward`, `GoBackAsync`, `GoForwardAsync`), batched `Changed` notifications, and remote execution over `GET /_ne/view`, SignalR `/_ne/hub`, `/_ne/values`, `/_ne/words`, `/_ne/session/key`, and `/_ne/files`.
+- **`NE.Standard.UI.Server` & `CompiledViewWireSerializer`**: new API-only ASP.NET Core server platform (`UIServerStartupBase<TStartup>`, `UIServerStartupBuilder`, `MapStandardUIServerAsync`), `GET /_ne/view` (`WebViewEndpoint`), `UIWireJson`, and `CompiledViewWireSerializer` (closed-discriminator `Utf8JsonWriter`/`Utf8JsonReader` wire serialization for `CompiledView`).
+- **`NE.Standard.UI.Testing`**: rebased onto `NE.Standard.UI.Client` (`UITestPage.ClientPage`), exposing responsive tier switching (`ResponsiveTier`, `SetResponsiveTier`, `SetViewportWidth`), in-place back/forward history (`CanGoBack`, `CanGoForward`, `GoBackAsync`, `GoForwardAsync`), `Store` (`UIClientStore`), `UITestComponent.RequestItemWindowAsync`, plain-host `FilterBy`/`SortBy`/`UIItemsQuery` evaluation on `Rows`/`Row`, and row-field `OnSubmit` validation and submission.
+- **Scrolling, loading & contrast**: `IScrollableComponent.ScrollFade` (`SetScrollFade`, `BindScrollFade`; enabled by default in `UIDialogs.Create` and `UIDialogs.Form`), `IVisualComponent.LoadingStyle` (`SetLoadingStyle`, `BindLoadingStyle`, `UITheme.LoadingStyle` / `UseLoadingStyle`, `UILoadingStyle.Ring` and `UILoadingStyle.Dots`), `UIColorContrast` dual-pole `light-dark(...)` `--ui-faint-base` and `--ui-surface-contrast-ink` on `UIThemeColor.Create(light, dark)` (#289), and vertically centered `*` glyph in `GeistVariable.woff2`.
+- **Web rendering & component fixes (#285–#292)**: `UIDialogs.Create` scrollable body beneath sticky header (#286), `ExpanderComponent` out-of-flow `HeaderAction` positioning (#287) and quiet header padding alignment (#292), `SurfaceComponent.BackgroundImageDim` ground-tinted `--ui-ground` veil (#288), `PluginEngineContext.strings.onChange` notification after boot word-table load (#290), and `MenuComponent` `UIMenuItemKind.Select` value-to-chevron gap (#291).

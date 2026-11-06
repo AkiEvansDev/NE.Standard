@@ -282,6 +282,57 @@ html {
     }
 }
 
+// How far a vertical scroller with ScrollFade (`data-ui-scroll-fade`) fades at its top and bottom edges while content is scrolled
+// beneath them, registered so its scroll timeline can carry the two.
+@property --ui-scroll-fade-start {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --ui-scroll-fade-end {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
+@ui-scroll-fade: 1rem;
+@ui-scroll-faded: ~"[data-ui-scroll-fade]:is(.ui-scroll-y--auto, .ui-scroll-y--always)";
+
+@supports (animation-timeline: scroll()) {
+    @{ui-scroll-faded} {
+        mask-image: linear-gradient(to bottom, transparent, #000 var(--ui-scroll-fade-start), #000 calc(100% - var(--ui-scroll-fade-end)), transparent);
+        animation: ui-scroll-fade linear both;
+        animation-timeline: scroll(self block);
+    }
+
+    @media @{ui-can-hover} and (forced-colors: none) {
+        html[data-ui-overlay-scrollbars] @{ui-scrollers-y-unbounded}[data-ui-scroll-fade] {
+            animation-name: ui-scroll-room-overflowing, ui-scroll-fade;
+        }
+    }
+}
+
+@keyframes ui-scroll-fade {
+    0% {
+        --ui-scroll-fade-start: 0px;
+        --ui-scroll-fade-end: @ui-scroll-fade;
+    }
+
+    8% {
+        --ui-scroll-fade-start: @ui-scroll-fade;
+    }
+
+    92% {
+        --ui-scroll-fade-end: @ui-scroll-fade;
+    }
+
+    100% {
+        --ui-scroll-fade-start: @ui-scroll-fade;
+        --ui-scroll-fade-end: 0px;
+    }
+}
+
 // A scroller that draws no bar on purpose — a strip whose faded ends say it scrolls, a wheel's column — gets no overlay thumb either:
 // `--ui-overlay-thumb: none`, read by the engine on the scroller itself, so a scroller inside it is not refused with it.
 @property --ui-overlay-thumb {

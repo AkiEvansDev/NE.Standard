@@ -3,20 +3,12 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Effects;
-using NE.Standard.UI.Abstractions.Identity;
-using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Navigation;
-using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Client;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
-using NE.Standard.UI.Primitives.Constants;
-using NE.Standard.UI.Primitives.Localization;
-using NE.Standard.UI.Primitives.Text;
-using NE.Standard.UI.Shell.Commands;
-using NE.Standard.UI.Shell.Hosting;
-using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
 
 namespace NE.Standard.UI.Testing;
@@ -25,273 +17,169 @@ namespace NE.Standard.UI.Testing;
 /// One open page: its components as the page holds them — every change set it received applied the way the client applies it — and
 /// the ways a reader acts on them, each sent through the host's own entry points.
 /// </summary>
-/// <remarks>
-/// Modelled: values and collections from the change sets — a refill keeping the rows it resends unchanged — a binding read off its
-/// row's item, visibility and enabled state with their ancestors', the field rules (change, blur, submit), a value past its bounds
-/// refused on the page, a bound message and the server's refusal, a form's held values and its discard, the client interactions a
-/// view declares, dialogs — the viewer's close (an ×, Escape, a press beside it) raising <c>OnClose</c> — a language or theme the
-/// page switched to told to its session, the address an effect writes, and a submit refused while its form has an error. Not modelled: layout,
-/// a responsive value at any width but the widest, a plain host's own filter and sort rules (rows stand as the server sent them),
-/// item windows read on scroll, popups other than dialogs (a context menu and a flyout stand open), the validation message sent
-/// into another component, trimming and debouncing a field does in the browser, and fields in rows on a submit.
-/// </remarks>
-public sealed partial class UITestPage
+public sealed class UITestPage
 {
-    private readonly Lock _sync = new();
     private readonly UITestApp _app;
-    private readonly string _instanceId;
+    private readonly InProcessUIClientTransport _transport;
 
-    private RuntimeResolution _resolution = null!;
-    private UINavigationRequest _navigation = null!;
-
-    private readonly Dictionary<UIPropertyAddress, object?> _values = [];
-    private readonly Dictionary<UIComponentAddress, List<UITestRowEntry>> _rows = [];
-    private readonly Dictionary<UIComponentAddress, UITestField> _fields = [];
-    private readonly Dictionary<UIPropertyAddress, object?> _held = [];
-    // The server's latest value of a held address, which a discard puts back.
-    private readonly Dictionary<UIPropertyAddress, object?> _serverValues = [];
-    private readonly List<ClientEffect> _effects = [];
-    private readonly List<UITestDownload> _downloads = [];
-    private readonly HashSet<string> _openDialogs = new(StringComparer.Ordinal);
-    // What effects left for after the act, run once the lock is let go (RunReactionsAsync).
-    private readonly List<UITestReaction> _reactions = [];
-    private bool _resync;
-
-    internal UITestPage(UITestApp app, string instanceId, UITestSession session)
+    internal UITestPage(UITestApp app, UIClientPage clientPage, InProcessUIClientTransport transport, UITestSession session)
     {
         _app = app;
-        _instanceId = instanceId;
+        ClientPage = clientPage;
+        _transport = transport;
         Session = session;
     }
 
+    /// <summary>Gets the underlying platform-neutral client page.</summary>
+    public UIClientPage ClientPage { get; }
+
+    /// <summary>Gets the component-local UI preference store (<c>ne.ui:&lt;id&gt;:&lt;slot&gt;</c>).</summary>
+    public UIClientStore Store => ClientPage.Store;
+
     /// <summary>Gets the route that answered: the one asked for, or where a refusal or a filter sent the page.</summary>
-    public string Route => _resolution.Route.Route;
+    public string Route => ClientPage.Route;
 
     /// <summary>Gets the address the page shows, as a browser's address bar would after every address effect it received.</summary>
-    public string Address
-    {
-        get
-        {
-            lock (_sync)
-                return UINavigationAddress.Format(_navigation);
-        }
-    }
+    public string Address => ClientPage.Address;
 
     /// <summary>Gets the navigation the page stands at: its route and the parameters its address carries.</summary>
-    public UINavigationRequest Navigation
-    {
-        get
-        {
-            lock (_sync)
-                return _navigation;
-        }
-    }
+    public UINavigationRequest Navigation => ClientPage.Navigation;
+
+    /// <summary>Gets whether the page has an earlier address history entry to step back to.</summary>
+    public bool CanGoBack => ClientPage.CanGoBack;
+
+    /// <summary>Gets whether the page has a later address history entry to step forward to.</summary>
+    public bool CanGoForward => ClientPage.CanGoForward;
+
+    /// <summary>Gets the active responsive breakpoint tier of the page (defaults to <see cref="UIResponsiveTier.Xxl"/>).</summary>
+    public UIResponsiveTier ResponsiveTier => ClientPage.ResponsiveTier;
 
     /// <summary>Gets the language the page shows its words in: its session's.</summary>
-    public string Language => _resolution.Handle.Session.Language;
+    public string Language => ClientPage.Language;
 
     /// <summary>Gets the session the page was opened in, as the test described it.</summary>
     public UITestSession Session { get; }
 
     /// <summary>The page's compiled view, for the component and row handles.</summary>
-    internal CompiledView View { get; private set; } = null!;
+    internal CompiledView View => ClientPage.View;
 
     /// <summary>Gets every effect the page received, in order: from command answers, pushes and the view's own interactions.</summary>
-    public IReadOnlyList<ClientEffect> Effects
-    {
-        get
-        {
-            lock (_sync)
-                return [.. _effects];
-        }
-    }
+    public IReadOnlyList<ClientEffect> Effects => ClientPage.Effects;
 
     /// <summary>Gets every file the application sent the page to save, in order.</summary>
     public IReadOnlyList<UITestDownload> Downloads
     {
         get
         {
-            lock (_sync)
-                return [.. _downloads];
+            IReadOnlyList<UIClientDownload> downloads = ClientPage.Downloads;
+            UITestDownload[] mapped = new UITestDownload[downloads.Count];
+
+            for (var i = 0; i < mapped.Length; i++)
+                mapped[i] = UITestDownload.From(downloads[i]);
+
+            return mapped;
         }
     }
 
     /// <summary>Gets the dialogs open on the page, by key.</summary>
-    public IReadOnlyCollection<string> OpenDialogs
-    {
-        get
-        {
-            lock (_sync)
-                return [.. _openDialogs];
-        }
-    }
+    public IReadOnlyCollection<string> OpenDialogs => ClientPage.OpenDialogs;
 
     /// <summary>Gets what the page's view compile warned of, each of its kind: a binding naming nothing, or advice.</summary>
-    public IReadOnlyList<UICompileWarning> CompileWarnings => View.Warnings;
+    public IReadOnlyList<UICompileWarning> CompileWarnings => ClientPage.CompileWarnings;
 
     /// <summary>Gets whether the page holds work its reader has not saved, as the controller last said.</summary>
-    public bool HoldsUnsavedWork { get; private set; }
+    public bool HoldsUnsavedWork => ClientPage.HoldsUnsavedWork;
+
+    /// <summary>Sets the active responsive breakpoint tier of the page.</summary>
+    public void SetResponsiveTier(UIResponsiveTier tier)
+        => ClientPage.SetResponsiveTier(tier);
+
+    /// <summary>Sets the active responsive breakpoint tier from a viewport width in pixels (<c>640 / 768 / 1280 / 1536</c>).</summary>
+    public void SetViewportWidth(double width)
+        => ClientPage.SetViewportWidth(width);
+
+    /// <summary>Steps back to the previous address history entry of this page and notifies the controller in place.</summary>
+    public async Task<UITestCommandResult> GoBackAsync(CancellationToken cancellationToken = default)
+        => UITestCommandResult.From(await ClientPage.GoBackAsync(cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Steps forward to the next address history entry of this page and notifies the controller in place.</summary>
+    public async Task<UITestCommandResult> GoForwardAsync(CancellationToken cancellationToken = default)
+        => UITestCommandResult.From(await ClientPage.GoForwardAsync(cancellationToken).ConfigureAwait(false));
 
     /// <summary>Gets the effects of one type the page received, in order.</summary>
     public IReadOnlyList<TEffect> EffectsOf<TEffect>() where TEffect : ClientEffect
-    {
-        List<TEffect> found = [];
-
-        lock (_sync)
-        {
-            foreach (ClientEffect effect in _effects)
-            {
-                if (effect is TEffect typed)
-                    found.Add(typed);
-            }
-        }
-
-        return found;
-    }
+        => ClientPage.EffectsOf<TEffect>();
 
     /// <summary>Gets whether the dialog <paramref name="key"/> is open.</summary>
     public bool IsDialogOpen(string key)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
-
-        lock (_sync)
-            return _openDialogs.Contains(key);
-    }
+        => ClientPage.IsDialogOpen(key);
 
     /// <summary>
     /// Closes the dialog <paramref name="key"/> as its viewer does — Escape, or a press beside it — letting the edit of a form under its
     /// key go and raising its <c>OnClose</c>, whose command's answer this is.
     /// </summary>
     /// <exception cref="InvalidOperationException">The dialog is not open, or takes neither Escape nor a press beside it.</exception>
-    public Task<UITestCommandResult> DismissDialogAsync(string key, CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(key);
-
-        UIComponentId root;
-
-        lock (_sync)
-        {
-            CompiledDialog dialog = View.FindDialog(key) ?? throw new InvalidOperationException($"The page at '{Route}' declares no dialog '{key}'.");
-
-            if (!_openDialogs.Contains(key))
-                throw new InvalidOperationException($"Dialog '{key}' is not open: a reader cannot dismiss it.");
-
-            if (!dialog.CloseOnEscape && !dialog.CloseOnBackdrop)
-                throw new InvalidOperationException($"Dialog '{key}' takes neither Escape nor a press beside it: only its own buttons close it.");
-
-            DiscardDialogFormNoLock(dialog);
-            _ = _openDialogs.Remove(key);
-            root = dialog.RootComponentId;
-        }
-
-        return DispatchCoreAsync(root, [], EventNames.Close, [], cancellationToken);
-    }
+    public async Task<UITestCommandResult> DismissDialogAsync(string key, CancellationToken cancellationToken = default)
+        => UITestCommandResult.From(await ClientPage.DismissDialogAsync(key, cancellationToken).ConfigureAwait(false));
 
     /// <summary>Gets the page's controller as <typeparamref name="TController"/>.</summary>
     /// <exception cref="InvalidOperationException">The page has no controller, or one of another type.</exception>
     public TController Controller<TController>() where TController : class
-    {
-        IUIRuntime runtime = RequireRuntime();
-
-        return runtime.Controller as TController
-            ?? throw new InvalidOperationException($"The page at '{Route}' runs '{runtime.Controller.GetType().Name}', not '{typeof(TController).Name}'.");
-    }
-
-    private IUIRuntime RequireRuntime()
-        => _resolution.Runtime ?? throw new InvalidOperationException($"The page at '{Route}' has no controller.");
+        => ClientPage.Controller<TController>();
 
     /// <summary>Gets the component with the authored id <paramref name="id"/>.</summary>
     /// <exception cref="InvalidOperationException">The view has no such component, or it stands in a list's rows.</exception>
     public UITestComponent Component(string id)
-        => Find(id, scope: null, rowKeys: []);
+        => new(this, ClientPage.Component(id));
 
     /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
     public UITestComponent ComponentBoundTo<TSource>(Expression<Func<TSource, object?>> path)
-        => ComponentBoundTo(RecursivePath.FromExpression(path).ToString());
+        => new(this, ClientPage.ComponentBoundTo(path));
 
     /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
     public UITestComponent ComponentBoundTo(string path)
-        => FindBoundTo(path, scope: null, rowKeys: []);
+        => new(this, ClientPage.ComponentBoundTo(path));
 
     /// <summary>Gets the one component a reader knows by <paramref name="name"/>: its title, accessible name or tooltip, as written or as shown.</summary>
     public UITestComponent ComponentNamed(string name)
-        => FindNamed(name, scope: null, rowKeys: []);
+        => new(this, ClientPage.ComponentNamed(name));
 
     /// <summary>
     /// Gets <paramref name="value"/> as the page shows it in its language: a key or a phrase translated, a validation message's words;
     /// null for none, a NaN or an infinity among them.
     /// </summary>
     public string? Words(object? value)
-    {
-        var language = Language;
-        ITranslator translator = _app.Application.Translator;
-
-        return value switch
-        {
-            // A NaN or an infinity is the null the page holds it as.
-            _ when UIScriptNumber.ReadsAsNull(value) => null,
-            UIValidationMessage message => Words(message.Message),
-            UIPhrase { IsText: true } text => translator.Translate(language, text.Key),
-            UIPhrase phrase => translator.Translate(language, phrase.Key, phrase.Arguments),
-            string text => translator.Translate(language, text),
-            // As the page writes them: a number by its shortest digits (1.5, not 1.50), a flag in the wire's words.
-            _ => UIScriptText.Of(value)
-        };
-    }
+        => ClientPage.Words(value);
 
     /// <summary>Delivers what the runtime holds for its pages, as the scheduled flush does.</summary>
-    public async Task FlushAsync(CancellationToken cancellationToken = default)
-    {
-        _ = RequireRuntime();
-        _ = await _app.Host.FlushAsync(_resolution.Handle, cancellationToken).ConfigureAwait(false);
-
-        await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
-        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task FlushAsync(CancellationToken cancellationToken = default)
+        => ClientPage.FlushAsync(cancellationToken);
 
     /// <summary>Presses the action a notification offered — its Undo — through the command path, once, as a press on the toast does.</summary>
     /// <exception cref="InvalidOperationException">The notification offers no action.</exception>
     public async Task<UITestCommandResult> PressNotificationActionAsync(ShowNotificationEffect notification, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(notification);
-
-        var action = notification.Action?.Id ?? throw new InvalidOperationException("The notification offers no action the page could press.");
-
-        return await SendCommandAsync(new UICommandRequest { Action = action }, source: null, eventName: null, cancellationToken).ConfigureAwait(false);
-    }
+        => UITestCommandResult.From(await ClientPage.PressNotificationActionAsync(notification, cancellationToken).ConfigureAwait(false));
 
     /// <summary>Gets what the page last reported of itself: whether it is on screen, and its notification permission.</summary>
-    public UIClientState ClientState => _resolution.Handle.ClientState;
+    public UIClientState ClientState => ClientPage.ClientState;
 
     /// <summary>
     /// Takes the page off screen — another tab chosen, the window minimised — as the page reports it; returns once the controller's
     /// <c>OnVisibilityChangedAsync</c>, where the runtime went off screen, has run.
     /// </summary>
     public Task HideAsync(CancellationToken cancellationToken = default)
-        => ReportAsync(ClientState with { IsVisible = false }, cancellationToken);
+        => ClientPage.HideAsync(cancellationToken);
 
     /// <summary>Brings the page back on screen, as the page reports it; returns once the controller heard it, as <see cref="HideAsync"/> does.</summary>
     public Task ShowAsync(CancellationToken cancellationToken = default)
-        => ReportAsync(ClientState with { IsVisible = true }, cancellationToken);
+        => ClientPage.ShowAsync(cancellationToken);
 
     /// <summary>
     /// Reports the browser's answer to a notification permission prompt, or a change made in its settings; returns once the
     /// controller's <c>OnNotificationPermissionChangedAsync</c> has run.
     /// </summary>
     public Task ReportNotificationPermissionAsync(UINotificationPermission permission, CancellationToken cancellationToken = default)
-        => ReportAsync(ClientState with { NotificationPermission = permission }, cancellationToken);
-
-    private async Task ReportAsync(UIClientState state, CancellationToken cancellationToken)
-    {
-        _app.Host.ReportClientState(_resolution.Handle, state);
-
-        // The hooks a report raises are posted, so the page's report does not wait for a turn; the test waits for them instead.
-        if (_resolution.Runtime is { } runtime)
-            await runtime.WhenPostedRanAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
-
-        await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
-        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
-    }
+        => ClientPage.ReportNotificationPermissionAsync(permission, cancellationToken);
 
     /// <summary>Opens <paramref name="address"/> in another page of this page's session, as following a link to it would.</summary>
     public Task<UITestPage> OpenAsync(string address, CancellationToken cancellationToken = default)
@@ -306,7 +194,7 @@ public sealed partial class UITestPage
     {
         ArgumentNullException.ThrowIfNull(navigation);
 
-        return _app.OpenAsync(navigation, _resolution.Handle.Session.SessionId, Session, cancellationToken);
+        return _app.OpenAsync(navigation, _transport.SessionId, Session, cancellationToken);
     }
 
     /// <summary>
@@ -317,12 +205,6 @@ public sealed partial class UITestPage
     /// The runtime stays as a closed tab's does, for its retention, and a background command the page raised runs on until its tab's
     /// stay ends; a page closed takes no further act.
     /// </remarks>
-    public async Task CloseAsync(CancellationToken cancellationToken = default)
-    {
-        _ = _app.Host.DetachRuntime(_resolution.Handle);
-        _app.Client.Remove(_instanceId);
-
-        if (_resolution.Runtime is { } runtime)
-            await runtime.WhenPostedRanAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task CloseAsync(CancellationToken cancellationToken = default)
+        => ClientPage.CloseAsync(cancellationToken);
 }

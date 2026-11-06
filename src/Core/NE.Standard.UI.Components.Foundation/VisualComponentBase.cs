@@ -136,6 +136,10 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     [UIComponentProperty(Contract = typeof(IVisualComponent), DefaultValue = false)]
     public bool? Loading { get; set; }
 
+    /// <inheritdoc />
+    [UIComponentProperty(Contract = typeof(IVisualComponent))]
+    public UILoadingStyle? LoadingStyle { get; set; }
+
     /// <inheritdoc/>
     public IReadOnlyList<UIBinding> Bindings => _bindings;
 

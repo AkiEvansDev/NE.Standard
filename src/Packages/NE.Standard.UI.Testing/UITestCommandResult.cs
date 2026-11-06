@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Client;
 
 namespace NE.Standard.UI.Testing;
 
@@ -26,12 +27,6 @@ public sealed class UITestCommandResult
     /// <summary>Gets the effects the page received while it ran, pushed ones included.</summary>
     public IReadOnlyList<ClientEffect> Effects { get; }
 
-    internal static UITestCommandResult Answered(bool succeeded, string? error, IReadOnlyList<ClientEffect> effects)
-        => new(sent: true, succeeded, error, effects);
-
-    internal static UITestCommandResult RanOnPage(IReadOnlyList<ClientEffect> effects)
-        => new(sent: false, succeeded: true, error: null, effects);
-
-    internal static UITestCommandResult Refused(string reason)
-        => new(sent: false, succeeded: false, reason, []);
+    internal static UITestCommandResult From(UIClientCommandResult result)
+        => new(result.Sent, result.Succeeded, result.Error, result.Effects);
 }

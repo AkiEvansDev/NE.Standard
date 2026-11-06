@@ -33,7 +33,7 @@ Full guides:
    ```
 3. **`Program.cs` pipeline order**:
    `WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services);`
-   then `app.UseStaticFiles();`, `app.UseRouting();`, `await app.MapStandardUIWebAsync();` (never `MapStaticAssets()`).
+   then `app.UseStaticFiles();`, `app.UseRouting();`, `await app.MapStandardUIWebAsync();` (never `MapStaticAssets()`). For an API-only remote server without HTML/Web assets (`NE.Standard.UI.Server`), use `UIServerStartupBase<AppStartup>`, `UIServerStartupBuilder.Configure<AppServerStartup, AppStartup>(builder.Services)`, and `await app.MapStandardUIServerAsync();`.
 
 ## Routing & Authorization
 
@@ -71,4 +71,5 @@ Assert.Equal("Priority", page.Controller<OrderController>().Notes);
 ```
 
 - Lookup methods: `page.Component(id)`, `page.ComponentBoundTo(c => c.Prop)`, `page.ComponentNamed(accessibleNameOrTitle)`, `list.Rows`, `list.Row(key)`, `row.ComponentBoundTo<TRow>(x => x.Prop)`.
+- Client capabilities (`NE.Standard.UI.Client`): `page.SetResponsiveTier(tier)` / `page.SetViewportWidth(px)`, `page.GoBackAsync()` / `page.GoForwardAsync()` (`CanGoBack`, `CanGoForward`), `list.RequestItemWindowAsync(anchor, count, mode)`, `page.Store` (`UIClientStore`), plain-host `FilterBy`/`SortBy`/`UIItemsQuery` evaluation on `list.Rows`, and row-field `OnSubmit` validation and submission.
 - `OpenAsync` automatically verifies view compilation and fails on any binding/command compile warning unless `app.AllowsCompileWarnings = true`.

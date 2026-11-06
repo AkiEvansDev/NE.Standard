@@ -561,9 +561,9 @@
 
 // A select entry's value stands at the row's end as a shortcut does (above); its chevron stays right while open, as the choices fly out.
 // A word and a mark (shortcut+check, value+chevron) would split the free space between two `margin-left: auto`, stranding the word:
-// the entry says it shows one (a value's operation, shortcut-engine.ts).
+// the entry says it shows one (a value's operation, shortcut-engine.ts), and the flex container's own `gap` spaces them.
 .ui-menu-item:is([data-ui-menu-item-shortcut], [data-ui-menu-item-value])::after {
-    margin-left: @ui-space-2;
+    margin-left: 0;
 }
 
 [data-ui-menu-select][data-ui-menu-open] > .ui-menu-item::after,

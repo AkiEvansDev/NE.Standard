@@ -31,6 +31,11 @@ public interface IScrollableComponent : IVisualComponent
     static UIProperty ScrollAnchorProperty { get; } = new UIProperty(nameof(ScrollAnchor));
 
     /// <summary>
+    /// Gets the registered property key for <see cref="ScrollFade"/>.
+    /// </summary>
+    static UIProperty ScrollFadeProperty { get; } = new UIProperty(nameof(ScrollFade));
+
+    /// <summary>
     /// Gets or sets whether the viewport scrolls horizontally — Disabled, Auto, or Always; default Disabled.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIScrollMode.Disabled)]
@@ -54,4 +59,10 @@ public interface IScrollableComponent : IVisualComponent
     /// </remarks>
     [UIComponentProperty(DefaultValue = UIScrollAnchor.None)]
     UIScrollAnchor? ScrollAnchor { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the viewport softly fades its top and bottom edges while content is scrolled beneath them; default false.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    bool? ScrollFade { get; set; }
 }

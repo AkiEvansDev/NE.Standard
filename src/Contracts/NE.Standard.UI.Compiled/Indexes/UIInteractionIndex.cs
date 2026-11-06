@@ -81,6 +81,11 @@ public sealed class UIInteractionIndex
     public IReadOnlyList<CompiledUIInteraction> All => _all;
 
     /// <summary>
+    /// Gets the first-paint values computed from static interaction sources.
+    /// </summary>
+    public IReadOnlyDictionary<UIPropertyAddress, object?> FirstPaint => _firstPaint;
+
+    /// <summary>
     /// Gets interactions triggered by a property source.
     /// </summary>
     public IReadOnlyList<CompiledUIInteraction> GetBySource(UIPropertyAddress source)

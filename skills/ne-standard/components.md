@@ -19,7 +19,7 @@ with the item models and the enums on their own pages beside it.
   never a card or a list, never beside a column of fields, never in a wrapping panel of your own - `UILayout.Row` does it itself
   (`AlignWithFieldBoxes`; `None` or an authored `Margin` opts out).
 - `WrapPanelComponent` - children flowing onto further lines; `ItemMinWidth` keeps them in even columns.
-- `ScrollContainerComponent` - scrolls its content either way; `SetScrollGroup` to scroll with another. Because a scroll container is a scrollport (`overflow: hidden/auto` ignores `overflow-clip-margin`), pad it horizontally when a `GlyphEdge` band inside it hangs a button past the edge.
+- `ScrollContainerComponent` - scrolls its content either way; `SetScrollGroup` to scroll with another, `SetScrollFade(true)` for top/bottom edge fade masks while scrolled (shared by `ItemsViewComponent` and `TreeComponent`). Because a scroll container is a scrollport (`overflow: hidden/auto` ignores `overflow-clip-margin`), pad it horizontally when a `GlyphEdge` band inside it hangs a button past the edge.
 - `SurfaceComponent` - one framed region (fill, edge, radius; `OnClick`/`OnClickWithItemKey` makes it pressable, `OnClickShowImage`,
   `SetUrl` makes it a link; `SetClickable(false)` turns a click off).
 - `CardComponent` - a surface with a header and footer band; `CardHeaderRegion` draws its header.
@@ -104,7 +104,7 @@ Built-in item models: `TextItem`, `TextBaseItem`, `ButtonItem`, `MenuItem`, `Tab
 
 ## Indicators
 
-- `ProgressComponent` (linear or circular), `SpinnerComponent` (with no title or `AccessibleName`, it says "Loading").
+- `ProgressComponent` (linear or circular), `SpinnerComponent` (with no title or `AccessibleName`, it says "Loading"; `SetLoadingStyle(UILoadingStyle.Ring | UILoadingStyle.Dots)` on a spinner or any visual component, or globally via `theme.UseLoadingStyle(...)`).
 
 ## Add-on components
 

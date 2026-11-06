@@ -73,6 +73,21 @@
     .ui-dialog-enter();
 }
 
+// A preset's stack (UIDialogs.Create, UIDialogs.Form) holds its header and any button pair fixed while the scroll body between them
+// shrinks to the panel's guard and scrolls with a faded edge.
+.ui-dialog__surface > .ui-stack-panel {
+    .ui-responsive-property(min-height, --ui-min-height, 0);
+
+    > .ui-scroll {
+        flex: 0 1 auto;
+        .ui-responsive-property(min-height, --ui-min-height, 0);
+    }
+
+    > :not(.ui-scroll) {
+        flex-shrink: 0;
+    }
+}
+
 // The other two surfaces, as the card's: "background" flat with a border, "tinted" mixed like a tinted surface.
 .ui-dialog__surface[data-ui-dialog-surface="background"] {
     border: var(--ui-border-width, 1px) solid var(--ui-color-border);

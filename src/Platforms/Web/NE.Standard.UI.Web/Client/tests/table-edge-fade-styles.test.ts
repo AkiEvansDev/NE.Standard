@@ -87,5 +87,25 @@ test("the edge's shade is the one a pinned column casts over what scrolled under
 });
 
 test("less motion leaves the shades on the scroll's own length, as a strip's fade", () => {
-    assert.match(css, /\.ui-button-group,\s*\.ui-table > \.ui-table__scroll::before,\s*\.ui-table > \.ui-table__scroll::after \{\s*animation-duration: auto !important;/);
+    assert.match(css, /\.ui-button-group,\s*\[data-ui-scroll-fade\],\s*\.ui-table > \.ui-table__scroll::before,\s*\.ui-table > \.ui-table__scroll::after \{\s*animation-duration: auto !important;/);
+});
+
+test("a vertical scroller with ScrollFade masks its top and bottom edges along its own block scroll timeline", () => {
+    const block = timelineBlock();
+    const faded = declarations(block, "[data-ui-scroll-fade]:is(.ui-scroll-y--auto, .ui-scroll-y--always)");
+
+    assert.match(faded, /mask-image: linear-gradient\(to bottom, transparent, #000 var\(--ui-scroll-fade-start\), #000 calc\(100% - var\(--ui-scroll-fade-end\)\), transparent\);/);
+    assert.match(faded, /animation: ui-scroll-fade linear both;/);
+    assert.match(faded, /animation-timeline: scroll\(self block\);/);
+});
+
+test("a dialog preset's stack fits the dialog's max-height and lets its scroll container take the remaining height", () => {
+    const minHeightZero = "min-height: var\\(--ui-min-height-xxl, var\\(--ui-min-height-xl, var\\(--ui-min-height-md, var\\(--ui-min-height-sm, var\\(--ui-min-height, 0\\)\\)\\)\\)\\);";
+    assert.match(css, new RegExp(`\\.ui-dialog__surface > \\.ui-stack-panel \\{\\s*${minHeightZero}\\s*\\}`));
+    assert.match(css, new RegExp(`\\.ui-dialog__surface > \\.ui-stack-panel > \\.ui-scroll \\{\\s*flex: 0 1 auto;\\s*${minHeightZero}\\s*\\}`));
+});
+
+test("an expander's header action is positioned out of the header's height flow so opening the expander does not jump", () => {
+    assert.match(css, /\.ui-expander__header-action \{\s*position: absolute;/);
+    assert.match(css, /\.ui-expander--quiet > \.ui-expander__header-action \{\s*top: calc\(\(var\(--ui-text-caption-line-height, 1rem\) - 1\.75rem\) \/ 2\);\s*right: 0;\s*\}/);
 });
