@@ -98,5 +98,5 @@ test("a rail hides the switch and toggle row it keeps for its drawer, and a side
     assert.match(declarations(".ui-side--left > .ui-collapsible__toggle") ?? "", /align-self: flex-start;/, "a switch alone stands on the edge it leads a row from");
     assert.match(declarations(".ui-side--right > .ui-collapsible__toggle") ?? "", /align-self: flex-end;/);
     assert.doesNotMatch(css, /\[data-ui-region="left-side"\] \.ui-collapsible\.ui-side--left > \.ui-collapsible__toggle/, "a drawer needs no rule of its own for it");
-    assert.match(declarations(".ui-menu[data-ui-menu-search] > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input__row") ?? "", /padding-inline-start/, "only a search's glyph is inset to the glyph column");
+    assert.match(declarations(".ui-menu[data-ui-menu-search] > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input__row") ?? "", /padding-inline/, "only a search's glyph is inset to the glyph column");
 });

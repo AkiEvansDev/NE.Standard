@@ -52,6 +52,7 @@
 .ui-input--title-inside > :is(@{ui-input-field}) > .ui-input__header {
     flex: 0 0 auto;
     max-width: 65%;
+    margin-inline-end: auto;
     pointer-events: none;
 }
 
@@ -363,6 +364,7 @@
 // stands taller than a small field's line, setting its text a pixel lower than a filled field's.
 input.ui-field {
     height: 1lh;
+    text-overflow: ellipsis;
 }
 
 // A field that takes no typing offers no caret's place; a box only where it is a real field (`:read-only` holds for any element).

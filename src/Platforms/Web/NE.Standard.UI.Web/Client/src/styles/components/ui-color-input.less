@@ -21,7 +21,7 @@
 }
 
 .ui-color-input:not(.ui-input--underline, .ui-input--ghost, .ui-input--small, .ui-input--title-inside):not([data-ui-input-prefix-icon]) > .ui-color-input__row {
-    padding-left: @ui-space-2;
+    padding-inline: @ui-space-2;
 }
 
 // Without the palette, only the free picker stands in the popup, so the segmented switcher and palette pane hide together.
@@ -84,6 +84,15 @@
     .ui-text-nowrap();
     font-variant-numeric: tabular-nums;
 }
+
+    .ui-color-input__text:empty {
+        display: none;
+    }
+
+    // With the caption inside the box, the swatch and its string read from the trailing edge, as every other field's value does.
+    .ui-input--title-inside > .ui-color-input__row > .ui-color-input__swatch {
+        margin-inline-start: auto;
+    }
 
 .ui-color-input__popup {
     .ui-popup-surface();

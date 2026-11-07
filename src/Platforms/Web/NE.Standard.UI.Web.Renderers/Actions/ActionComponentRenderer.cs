@@ -49,6 +49,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
             RenderLinkAddress(context, root, ILinkableComponent.UrlProperty);
 
         RenderButtonLabel(context, root);
+        RenderFlagClass(context, root, ActionComponent.ShowChevronProperty, "ui-action--no-chevron", WebValueCondition.IsFalse);
 
         _ = root.Element("span", trailing =>
         {
@@ -58,12 +59,7 @@ public sealed class ActionComponentRenderer : ButtonRendererBase
             _ = trailing.Element("span", icon => RenderTrailingIcon(context, root, icon));
 
             // Drawn from borders rather than a glyph, so a row points somewhere with no icon package registered.
-            _ = trailing.Element("span", chevron =>
-            {
-                _ = chevron.Class("ui-action__chevron");
-
-                RenderFlagClass(context, chevron, ActionComponent.ShowChevronProperty, WebClassNames.Hidden, WebValueCondition.IsFalse);
-            });
+            _ = trailing.Element("span", static chevron => chevron.Class("ui-action__chevron"));
         });
     }
 

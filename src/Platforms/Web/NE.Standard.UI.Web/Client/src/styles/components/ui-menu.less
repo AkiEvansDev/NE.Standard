@@ -293,6 +293,7 @@
 // A glyph-only entry is still a row: a button turns square there, and a square as wide as the rail would be as tall.
 .ui-menu-item[data-ui-text-icon]:not([data-ui-text-title]) {
     aspect-ratio: auto;
+    .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
 }
 
 // A caption is not a control: it neither reacts nor takes focus, it just names the entries under it.
@@ -616,7 +617,7 @@
 // The search's box is an entry's (Filled, MenuComponent.SetSearch), its glyph in the entries' glyph column past the same 1px border and
 // padding; the author's own content stands at the bar's start too, where a button of the page's lines up with the header's.
 .ui-menu[data-ui-menu-search] > .ui-collapsible__bar > .ui-collapsible__bar-content .ui-text-input__row {
-    padding-inline-start: @ui-space-2;
+    padding-inline: @ui-space-2;
 }
 
     // A small field's glyph, centred in a box an entry's glyph wide, lines up with the glyphs below and its text with their titles.

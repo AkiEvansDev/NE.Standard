@@ -18,15 +18,18 @@
 // As a menu entry: an action whose label is only a glyph stays a row, not a square.
 .ui-action[data-ui-text-icon]:not([data-ui-text-title]) {
     aspect-ratio: auto;
+    .ui-responsive-property(padding, --ui-padding, @ui-space-2 @ui-space-3);
 }
 
 // Requires both `.ui-action` and `.ui-button--small`: a single shared class ties in specificity, leaving Size unable to move the height.
-.ui-action.ui-button--small {
+.ui-action.ui-button--small,
+.ui-action.ui-button--small[data-ui-text-icon]:not([data-ui-text-title]) {
     .ui-responsive-property(min-height, --ui-min-height, @ui-row-height-sm);
     .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
 }
 
-.ui-action.ui-button--large {
+.ui-action.ui-button--large,
+.ui-action.ui-button--large[data-ui-text-icon]:not([data-ui-text-title]) {
     .ui-responsive-property(min-height, --ui-min-height, @ui-row-height-lg);
     .ui-responsive-property(padding, --ui-padding, @ui-space-3 @ui-space-4);
 }
@@ -82,6 +85,7 @@
         .ui-chevron-right();
     }
 
-.ui-action[data-ui-action-icon] > .ui-action__trailing > .ui-action__chevron {
+.ui-action:is([data-ui-action-icon], .ui-action--no-chevron) > .ui-action__trailing > .ui-action__chevron,
+.ui-action.ui-action--no-chevron:not([data-ui-action-text], [data-ui-action-icon]) > .ui-action__trailing {
     display: none;
 }

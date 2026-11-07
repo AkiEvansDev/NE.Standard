@@ -65,7 +65,6 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                         .SetTitle("Account")
                         .SetTitleType(UITextAppearance.Overline)
                         .SetTitleColor(UIThemeColor.Muted)
-                        .SetMargin(UIThickness.All(0, 0, 0, 4))
                     )
                     .AddChild(new ActionComponent()
                         // The same Icon property carrying a picture instead of a glyph name, drawn round: a person.
@@ -98,7 +97,6 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                         .SetTitle("Notifications")
                         .SetTitleType(UITextAppearance.Overline)
                         .SetTitleColor(UIThemeColor.Muted)
-                        .SetMargin(UIThickness.All(0, 0, 0, 4))
                     )
                     .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Bell)
@@ -127,7 +125,6 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                         .SetTitle("Danger zone")
                         .SetTitleType(UITextAppearance.Overline)
                         .SetTitleColor(UIThemeColor.Muted)
-                        .SetMargin(UIThickness.All(0, 0, 0, 4))
                     )
                     .AddChild(new ActionComponent()
                         .SetIcon(DemoIcons.Alert)

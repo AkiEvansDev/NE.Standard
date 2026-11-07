@@ -69,6 +69,10 @@
     padding-inline-end: calc(1.5rem + 1px + 0.4em);
 }
 
+    .ui-input--small.ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row.ui-temporal-input__row--picker {
+        padding-inline-end: calc(1.5rem + 1px + @ui-field-padding-sm);
+    }
+
     .ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row > .ui-temporal-input__toggle {
         position: absolute;
         inset-block: calc(@ui-space-1 - var(--ui-field-top-edge, var(--ui-border-width, 1px))) calc(@ui-space-1 - var(--ui-border-width, 1px));
