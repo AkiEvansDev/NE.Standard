@@ -39,11 +39,6 @@ export function findNativeModalDialog(root: ParentNode): HTMLElement | null {
     return native.length > 0 ? native[native.length - 1] : null;
 }
 
-/** Whether an element stands in a native `<dialog>` shown modally. */
-export function isInNativeModal(element: Element): boolean {
-    return element.closest(NativeModalSelector) !== null;
-}
-
 /** Whether an open modal dialog stands over an element it does not contain, such as the popup it was opened from. */
 export function isBehindModal(element: Element): boolean {
     const modal = typeof document === "undefined" ? null : findOpenModalDialog(document);

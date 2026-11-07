@@ -1,10 +1,10 @@
 // Placement for every popup engine: a popup is `position: fixed`, stays in the DOM, and needs no ancestor with a fixed containing block.
 
-import { BottomBarAttribute, PopupCappedAttribute, PopupLiftedAttribute, PopupPlacementAttribute, PopupStoodInAttribute, SheetAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, DialogAttribute, DrawerOpenAttribute, PopupCappedAttribute, PopupLiftedAttribute, PopupPlacementAttribute, PopupStoodInAttribute, RegionAttribute, SheetAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
 import { afterTransitions, motion } from "../rendering/motion.ts";
 import { reachesTier } from "../rendering/responsive-tier.ts";
 import { withoutRuntimeCleanup } from "../runtime/cleanup-scope.ts";
-import { isInNativeModal } from "./open-dialogs.ts";
+import { isBehindModal } from "./open-dialogs.ts";
 
 export type AnchoredPopupPlacement =
     | "top-start" | "top" | "top-end"
@@ -140,22 +140,55 @@ export function liftIntoTopLayer(popup: HTMLElement): void {
     showInTopLayerAtOnce(popup);
 }
 
+const RaisedLayerSelector = `dialog:modal, [${DialogAttribute}]:not([hidden]), [${DrawerOpenAttribute}="left-side"] > [${RegionAttribute}="left-side"], [${DrawerOpenAttribute}="right-side"] > [${RegionAttribute}="right-side"]`;
+
 /**
- * Lifts a popup out from under a transformed ancestor, which fixes and scales it to itself, into the top layer — and one under a
- * surface blurring its picture, whose isolated stacking would paint it under a later sibling, and one opened from inside a popup
- * lifted there, or from inside a native modal `<dialog>` it stands outside of (the tooltip, under the body), which would otherwise be
- * painted under it whatever its stacking.
+ * Lowers any tracked popup that an open modal dialog now stands over out of the top layer so the dialog paints above it, and lifts
+ * it back once that dialog closes.
+ */
+export function syncLiftedPopups(): void {
+    for (const [popup, { anchor }] of tracked) {
+        if (!popup.isConnected)
+            continue;
+
+        if (isBehindModal(anchor)) {
+            if (popup.hasAttribute(PopupLiftedAttribute)) {
+                if (popup.matches(":popover-open"))
+                    popup.hidePopover();
+
+                popup.removeAttribute("popover");
+                popup.removeAttribute(PopupLiftedAttribute);
+            }
+        }
+        else {
+            liftOutOfTransform(anchor, popup);
+        }
+    }
+}
+
+/**
+ * Lifts a popup out from under a confining ancestor — one that fixes and scales `position: fixed` descendants to itself (`transform`,
+ * `filter`, `backdrop-filter`, `perspective`, layout/paint containment) or clips/masks them to its box (`mask-image` on a faded scroll
+ * box in a dialog or button group, `clip-path`, `content-visibility: auto`) — into the top layer, and one under a surface blurring its
+ * picture, whose isolated stacking would paint it under a later sibling, and one opened from inside a popup lifted there, or from inside
+ * a modal `<dialog>`, open dialog or open drawer it stands outside of (the tooltip or a strip's "…" list, under the body), which that
+ * layer would otherwise paint over.
  */
 function liftOutOfTransform(anchor: Element, popup: HTMLElement): void {
+    if (isBehindModal(anchor))
+        return;
+
     // Still lifted from the last opening, its fade out not over yet, it is shown again where it stands (`liftIntoTopLayer`). A manual
     // popover rather than a move in the document: its engine still finds its options under it.
     if (popup.hasAttribute(PopupLiftedAttribute) || hasConfiningAncestor(popup) || anchor.closest(`[${PopupLiftedAttribute}]`) !== null || isOutsideAnchorsModal(anchor, popup))
         liftIntoTopLayer(popup);
 }
 
-/** Whether the anchor stands in a native modal `<dialog>` the popup is not inside, which the dialog's top layer would paint over. */
+/** Whether the anchor stands in a modal `<dialog>`, open dialog or open drawer that the popup is not inside, which would paint over it. */
 function isOutsideAnchorsModal(anchor: Element, popup: HTMLElement): boolean {
-    return isInNativeModal(anchor) && !isInNativeModal(popup);
+    const layer = anchor.closest(RaisedLayerSelector);
+
+    return layer !== null && !layer.contains(popup);
 }
 
 /**
@@ -165,7 +198,7 @@ function isOutsideAnchorsModal(anchor: Element, popup: HTMLElement): boolean {
  */
 function showInTopLayerAtOnce(popup: HTMLElement): void {
     const style = getComputedStyle(popup);
-    const properties = style.transitionProperty.split(",").map(property => property.trim());
+    const properties = (style.transitionProperty ?? "").split(",").map(property => property.trim());
     const overlay = properties.indexOf("overlay");
 
     if (overlay === -1) {
@@ -174,7 +207,7 @@ function showInTopLayerAtOnce(popup: HTMLElement): void {
     }
 
     // The durations repeat over the properties when the list is shorter.
-    const durations = style.transitionDuration.split(",").map(duration => duration.trim());
+    const durations = (style.transitionDuration ?? "").split(",").map(duration => duration.trim());
 
     popup.style.setProperty("transition-duration", properties.map((_, index) => index === overlay ? "0s" : durations[index % durations.length]).join(", "));
     popup.showPopover();
@@ -187,12 +220,20 @@ function hasConfiningAncestor(element: Element): boolean {
     for (let current = element.parentElement; current !== null; current = current.parentElement) {
         const style = getComputedStyle(current);
 
-        if (style.transform !== "none" || style.filter !== "none" || style.perspective !== "none")
+        if (isSet(style.transform) || isSet(style.filter) || isSet(style.perspective))
             return true;
 
         // The individual transforms confine as `transform` does, which still reads none under them alone: a thing standing level with
         // field boxes is set onto them by `translate` (core/runtime.less), even at 0.
-        if (isTransformed(style.translate) || isTransformed(style.scale) || isTransformed(style.rotate))
+        if (isSet(style.translate) || isSet(style.scale) || isSet(style.rotate))
+            return true;
+
+        // A mask or clip-path on an ancestor (a faded scroll box in a dialog, a button group) cuts its fixed descendants to its box;
+        // a backdrop filter or layout/paint containment makes the ancestor their fixed containing block.
+        if (isSet(style.maskImage) || isSet(style.clipPath) || isSet(style.backdropFilter))
+            return true;
+
+        if (confinesFixed(style.contain) || isContentContained(style.contentVisibility))
             return true;
 
         // Only while its blur layer is drawn (mixins/surface-image.less), which a loading surface does not.
@@ -203,9 +244,16 @@ function hasConfiningAncestor(element: Element): boolean {
     return false;
 }
 
-// An engine without the individual transforms has no such property to read.
-function isTransformed(value: string | undefined): boolean {
+function isSet(value: string | undefined): boolean {
     return value !== undefined && value !== "" && value !== "none";
+}
+
+function confinesFixed(contain: string | undefined): boolean {
+    return contain !== undefined && /\b(?:paint|layout|content|strict)\b/.test(contain);
+}
+
+function isContentContained(visibility: string | undefined): boolean {
+    return visibility !== undefined && visibility !== "" && visibility !== "visible";
 }
 
 // The longest a lowering waits for a popup's exit to end: well past any popup's motion, for a page that stopped drawing meanwhile.
@@ -258,6 +306,18 @@ export function releaseAnchoredPopup(popup: HTMLElement | null | undefined): voi
     lowerIntoPlace(popup);
 }
 
+function scheduleMotionReposition(target: EventTarget | null): void {
+    if (tracked.size === 0 || !(target instanceof Node))
+        return;
+
+    for (const [popup, { anchor }] of tracked) {
+        if (!popup.contains(target) && target.contains(resolveStandIn(anchor))) {
+            scheduleReposition(null);
+            return;
+        }
+    }
+}
+
 function scheduleReposition(scrolled: EventTarget | null): void {
     if (typeof requestAnimationFrame !== "function") {
         repositionAll(scrolled);
@@ -286,6 +346,9 @@ function attachListeners(): void {
     withoutRuntimeCleanup(() => {
         // Capture phase: a popup can sit inside any scrollable ancestor, and scroll does not bubble.
         document.addEventListener("scroll", domEvent => scheduleReposition(domEvent.target), true);
+        // A dialog surface or drawer finishing its entrance motion settles its anchor with no scroll or resize.
+        document.addEventListener("animationend", domEvent => scheduleMotionReposition(domEvent.target), true);
+        document.addEventListener("transitionend", domEvent => scheduleMotionReposition(domEvent.target), true);
         window.addEventListener("resize", () => scheduleReposition(null));
         // A phone's on-screen keyboard shrinks the visual viewport alone, and the window's size says nothing of it.
         window.visualViewport?.addEventListener("resize", () => scheduleReposition(null));
@@ -676,6 +739,8 @@ export function bottomBarTop(fallback: number): number {
 export function placeAtPoint(popup: HTMLElement, x: number, y: number): void {
     if (isSheet(popup))
         return;
+
+    liftOutOfTransform(popup, popup);
 
     // Measured once shown, or a display:none popup measures as zero and never turns.
     const rect = popup.getBoundingClientRect();

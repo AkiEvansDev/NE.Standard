@@ -1,6 +1,7 @@
 // `.ts` on the value imports: `node --test` loads this module as it is (the lightbox's test).
 import { ComponentSelector, cssAttributeValue, DialogAttribute, DialogBackdropAttribute, DialogCloseBackdropAttribute, DialogCloseEscapeAttribute, DialogModalAttribute, DialogPlacementAttribute, DialogSurfaceClass, FormIdAttribute } from "../addressing/dom-attributes.ts";
 import { logWarn } from "../metadata/logger.ts";
+import { syncLiftedPopups } from "./anchored-popup.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
@@ -50,6 +51,7 @@ export class DialogEngine {
 
         standOnTop(dialog);
         dialog.removeAttribute("hidden");
+        syncLiftedPopups();
 
         // A dialog with nothing focusable in it still takes the focus on its surface, or Tab escapes back to the page behind. Its body
         // starts at the top, not where the last opening was scrolled to: the dialog is one per page, reused for every item it shows.
@@ -101,6 +103,7 @@ export class DialogEngine {
         if (closing !== null)
             restoreFocusTo(liveFocusReturn(returnFocus, this.components), closing);
         dialog.setAttribute("hidden", "");
+        syncLiftedPopups();
 
         return true;
     }
