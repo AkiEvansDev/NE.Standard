@@ -826,6 +826,12 @@ public static class WebAttributes
     /// <summary>On a text area that grows with its text up to its most rows; the stylesheet's, and the engine's where the browser cannot size a field to its content.</summary>
     public const string TextAreaGrow = "data-ui-text-area-grow";
 
+    /// <summary>On a text component's root: the title an inline rename wrote (<c>IRenamableComponent.RenamedTitle</c>).</summary>
+    public const string TextRenamedTitle = "data-ui-text-renamed-title";
+
+    /// <summary>On a text component's root while its title may be renamed in place (<c>TextComponent.Renamable</c>).</summary>
+    public const string TextRenamable = "data-ui-text-renamable";
+
     public const string TrimInput = "data-ui-trim-input";
 
     public const string Triggers = "data-ui-triggers";

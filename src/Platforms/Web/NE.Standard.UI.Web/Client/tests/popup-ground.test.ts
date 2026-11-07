@@ -52,12 +52,13 @@ test("a field in a dialog mixes its ground from the dialog's own fill, whatever 
 test("a surface panel lifts the popups opened from it one step above the surface ground, and the page's grounds take the step back", () => {
     // Not its own fill: a colour of the panel's own would be the ground of entries written in the page's ink.
     assert.ok(declarations(".ui-surface--surface")?.includes(Step("var(--ui-color-surface)")), "a surface panel leaves its popups at the page's level");
+    assert.ok(declarations(".ui-surface--surface")?.includes("--ui-field-ground-share: 12%;"), "a surface panel leaves its fields at the page's share");
     assert.ok(declarations(".ui-dialog__surface")?.includes(Step("var(--ui-color-surface)")), "the dialog leaves its popups at the page's level");
     assert.ok(declarations(".ui-notification")?.includes(Step("var(--ui-color-surface)")), "a notification leaves a surface button at the toast's own level");
     assert.ok(declarations(".ui-button--surface")?.includes(`background-color: var(--ui-surface-color, ${Ground});`), "a surface button does not take the lifted popup ground");
 
     for (const ground of [".ui-surface--background", ".ui-surface--tinted", ".ui-dialog__surface[data-ui-dialog-surface=\"background\"]", ".ui-dialog__surface[data-ui-dialog-surface=\"tinted\"]"])
-        assert.ok(declarations(ground)?.includes("--ui-popup-ground: initial;"), `${ground} keeps a surface ancestor's step`);
+        assert.ok(declarations(ground)?.includes("--ui-popup-ground: initial;") && declarations(ground)?.includes("--ui-field-ground-share: initial;"), `${ground} keeps a surface ancestor's step`);
 });
 
 let computedGround = "";

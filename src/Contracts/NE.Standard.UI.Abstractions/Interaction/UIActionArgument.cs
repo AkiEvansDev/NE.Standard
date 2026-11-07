@@ -61,7 +61,7 @@ public readonly record struct UIActionArgument
     public UIActionArgumentKind Kind { get; }
 
     /// <summary>
-    /// Gets the literal value for literal arguments, and the place in the event's key chain for an event key.
+    /// Gets the literal value for literal arguments, the place in the event's key chain for an event key, or the tuple index for an event value.
     /// </summary>
     public object? Value { get; }
 

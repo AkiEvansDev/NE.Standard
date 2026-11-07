@@ -71,6 +71,7 @@ type Session = {
     readonly imaging: CropImaging;
     readonly finish: (outcome: CropOutcome) => void;
     view: CropView;
+    applying: boolean;
 };
 
 /**
@@ -136,6 +137,7 @@ export async function cropPictureAsync(dialogs: DialogEngine, file: File, reques
             request,
             imaging,
             view: centredView(decoded),
+            applying: false,
             finish: outcome => {
                 session = null;
                 dialogs.close(CropDialogKey);
@@ -253,15 +255,15 @@ function buildDialog(): CropParts {
 async function applyAsync(): Promise<void> {
     const current = session;
 
-    if (current === null)
+    if (current === null || current.applying)
         return;
+
+    current.applying = true;
 
     const { file, source, request, imaging, view } = current;
     const rect = cropRect(source, view);
     const type = cropOutputType(file.type);
     const written = imaging.encodeAsync(source, rect, cropOutputSide(rect, request.size), type);
-
-    session = null;
 
     let blob: Blob | null;
 
@@ -272,7 +274,8 @@ async function applyAsync(): Promise<void> {
         blob = null;
     }
 
-    current.finish(blob === null ? "unreadable" : new File([blob], cropFileName(file.name, file.type, blob.type), { type: blob.type, lastModified: file.lastModified }));
+    if (session === current)
+        current.finish(blob === null ? "unreadable" : new File([blob], cropFileName(file.name, file.type, blob.type), { type: blob.type, lastModified: file.lastModified }));
 }
 
 function handleKeyDown(crop: CropParts, domEvent: KeyboardEvent): void {

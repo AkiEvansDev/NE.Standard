@@ -26,6 +26,7 @@ public sealed class DefaultRowTemplateRenderer : WebComponentRendererBase
         ContainerComponentRenderer.RenderTracks(context, root, ContainerComponent.ColumnsProperty, ContainerComponentRenderer.ColumnsVariable, WebAttributes.ColumnLimits);
         ContainerComponentRenderer.RenderTracks(context, root, ContainerComponent.RowsProperty, ContainerComponentRenderer.RowsVariable, WebAttributes.RowLimits);
         ContainerComponentRenderer.RenderSpacing(context, root);
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ContainerComponent.ScrollbarAirProperty, ContainerComponentRenderer.ScrollbarAirVariable);
         RenderEditing(context, root);
         ItemAbilitiesRenderer.RenderItemAbilities(context, root);
         RenderChildren(context, root);

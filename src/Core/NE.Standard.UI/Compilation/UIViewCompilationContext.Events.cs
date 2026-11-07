@@ -16,6 +16,7 @@ using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Controllers;
 using NE.Standard.UI.Primitives.Binding;
@@ -138,7 +139,7 @@ internal sealed partial class UIViewCompilationContext
             EventNames.Enter or EventNames.Escape or EventNames.TriggerSearch or EventNames.TriggerSelect or EventNames.TriggerClick when component is not ITextEntryInputComponent => "a text input or a text area (ITextEntryInputComponent)",
             EventNames.TabPin or EventNames.ItemMenuEntry when component is not ITabItemComponent => "a tab item template (ITabItemComponent)",
             EventNames.Unfold when !IsItemsTemplateRootOf<IItemUnfoldComponent>(component) => "an item template of a host that unfolds its items (IItemUnfoldComponent: a tree)",
-            EventNames.Rename when component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemRenameComponent>(component) => "a tab item or an item template of a host that renames its items (IItemRenameComponent: a tree, a tabs view)",
+            EventNames.Rename when component.TypeKey != TextComponent.ComponentTypeKey && component.TypeKey != DefaultTextTemplate.ComponentTypeKey && component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemRenameComponent>(component) => "a text component (TextComponent), a tab item, or an item template of a host that renames its items (IItemRenameComponent: a tree, a tabs view)",
             EventNames.Move when component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemMoveComponent>(component) => "a tab item or an item template of a host that moves its items (IItemMoveComponent)",
             EventNames.Remove when component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemRemoveComponent>(component) => "a tab item or an item template of a host that removes its items (IItemRemoveComponent)",
             EventNames.Open when component.TypeKey != FlyoutComponent.ComponentTypeKey && !IsItemsTemplateRootOf<IItemOpenComponent>(component) => "a flyout or an item template of a host that opens its items (IItemOpenComponent)",
@@ -149,8 +150,12 @@ internal sealed partial class UIViewCompilationContext
         if (needs is not null)
             throw new InvalidOperationException($"Component '{component.Id}' ({component.TypeKey}) cannot raise '{eventName}'; '{eventName}' is raised on {needs}.");
 
-        if (eventName is EventNames.TriggerSearch or EventNames.TriggerSelect or EventNames.TriggerClick && component is ITextEntryInputComponent { Triggers: not { Count: > 0 } })
+        if (eventName is EventNames.TriggerSearch or EventNames.TriggerSelect or EventNames.TriggerClick
+            && component is ITextEntryInputComponent { Triggers: not { Count: > 0 } }
+            && FindBinding(component, ITextEntryInputComponent.TriggersProperty) is null)
+        {
             throw new InvalidOperationException($"Component '{component.Id}' ({component.TypeKey}) registers '{eventName}' without any character triggers; add at least one trigger with AddTrigger or SetTriggers.");
+        }
     }
 
     private bool IsItemsTemplateRootOf<THost>(IVisualComponent component)

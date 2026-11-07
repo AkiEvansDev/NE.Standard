@@ -70,14 +70,15 @@ public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTe
         _ = BindTitleColor(nameof(ITextBaseModel.TitleColor), UIBindingScope.Relative, optional: true);
         _ = BindTextAlignment(nameof(ITextModel.TextAlignment), UIBindingScope.Relative, optional: true);
 
+        _ = BindTooltip(nameof(ITooltipModel.Tooltip), UIBindingScope.Relative, optional: true);
+        _ = BindTooltipPlacement(nameof(ITooltipModel.TooltipPlacement), UIBindingScope.Relative, optional: true);
+
         if (!description)
             return;
 
         _ = BindDescription(nameof(ITextModel.Description), UIBindingScope.Relative, optional: true);
         _ = BindDescriptionType(nameof(ITextModel.DescriptionType), UIBindingScope.Relative, optional: true);
         _ = BindDescriptionColor(nameof(ITextModel.DescriptionColor), UIBindingScope.Relative, optional: true);
-        _ = BindTooltip(nameof(ITooltipModel.Tooltip), UIBindingScope.Relative, optional: true);
-        _ = BindTooltipPlacement(nameof(ITooltipModel.TooltipPlacement), UIBindingScope.Relative, optional: true);
     }
 }
 

@@ -53,46 +53,65 @@ internal sealed partial class UIViewCompilationContext
         Dictionary<UIPropertyAddress, object?> values = [];
         HashSet<UIPropertyAddress> leftToPage = [];
 
-        for (var i = 0; i < _componentOrder.Count; i++)
+        for (var pass = 0; pass <= _componentOrder.Count; pass++)
         {
-            IVisualComponent target = _componentOrder[i];
+            var changed = false;
 
-            for (var j = 0; j < target.Interactions.Count; j++)
+            for (var i = 0; i < _componentOrder.Count; i++)
             {
-                UIInteraction interaction = target.Interactions[j];
+                IVisualComponent target = _componentOrder[i];
+                HashSet<UIPropertyAddress>? clearedInPass = null;
 
-                if (interaction.SourceKind != UIInteractionSourceKind.Property
-                    || interaction.ActionKind is not (UIInteractionActionKind.SetProperty or UIInteractionActionKind.CopyValue)
-                    || interaction.SourceProperty is not UIProperty sourceProperty
-                    || interaction.TargetProperty is not UIProperty targetProperty)
+                for (var j = 0; j < target.Interactions.Count; j++)
                 {
-                    continue;
+                    UIInteraction interaction = target.Interactions[j];
+
+                    if (interaction.SourceKind != UIInteractionSourceKind.Property
+                        || interaction.ActionKind is not (UIInteractionActionKind.SetProperty or UIInteractionActionKind.CopyValue)
+                        || interaction.SourceProperty is not UIProperty sourceProperty
+                        || interaction.TargetProperty is not UIProperty targetProperty)
+                    {
+                        continue;
+                    }
+
+                    UIPropertyAddress address = new(GetComponentId(target.Id), targetProperty);
+
+                    if (clearedInPass?.Contains(address) == true)
+                        continue;
+
+                    if (FindBinding(target, targetProperty) is not null || !TryReadFirstPaintSource(interaction, sourceProperty, values, leftToPage, out var source))
+                    {
+                        clearedInPass ??= [];
+                        _ = clearedInPass.Add(address);
+                        if (leftToPage.Add(address) | values.Remove(address))
+                            changed = true;
+                        continue;
+                    }
+
+                    object? nextValue;
+                    if (interaction.ActionKind == UIInteractionActionKind.CopyValue)
+                    {
+                        var fallback = EnsureCopyable(target, interaction);
+                        var blank = source is null || (source is string text && string.IsNullOrWhiteSpace(text));
+
+                        nextValue = blank ? fallback : source;
+                    }
+                    else
+                    {
+                        // Later rules on one target win, as they do when the page runs them in order.
+                        nextValue = UIComparisonEvaluator.Evaluate(Comparable(source), interaction.Operator, Comparable(interaction.Value)) ? interaction.TrueValue : interaction.FalseValue;
+                    }
+
+                    if (leftToPage.Remove(address) || !values.TryGetValue(address, out var previousValue) || !Equals(previousValue, nextValue))
+                    {
+                        values[address] = nextValue;
+                        changed = true;
+                    }
                 }
-
-                UIPropertyAddress address = new(GetComponentId(target.Id), targetProperty);
-
-                if (leftToPage.Contains(address))
-                    continue;
-
-                if (FindBinding(target, targetProperty) is not null || !TryReadFirstPaintSource(interaction, sourceProperty, values, leftToPage, out var source))
-                {
-                    _ = leftToPage.Add(address);
-                    _ = values.Remove(address);
-                    continue;
-                }
-
-                if (interaction.ActionKind == UIInteractionActionKind.CopyValue)
-                {
-                    var fallback = EnsureCopyable(target, interaction);
-                    var blank = source is null || (source is string text && string.IsNullOrWhiteSpace(text));
-
-                    values[address] = blank ? fallback : source;
-                    continue;
-                }
-
-                // Later rules on one target win, as they do when the page runs them in order.
-                values[address] = UIComparisonEvaluator.Evaluate(Comparable(source), interaction.Operator, Comparable(interaction.Value)) ? interaction.TrueValue : interaction.FalseValue;
             }
+
+            if (!changed)
+                break;
         }
 
         return values;

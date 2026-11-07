@@ -214,12 +214,28 @@ public sealed class RecursivePath : IReadOnlyList<PathSegment>
         // An index is digits only, read invariantly: " 1 " or "+1" is a key, not row 1, and "-1" is no index at all.
         if (int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
             segments.Add(PathSegment.AtIndex(index));
-        else if (token[0] == '-' && int.TryParse(token[1..], NumberStyles.None, CultureInfo.InvariantCulture, out _))
+        else if (IsIntegerLiteral(token))
             throw new FormatException($"Invalid index segment in path '{path}'.");
         else
             segments.Add(PathSegment.WithKey(token.ToString()));
 
         return start + closingOffset + 1;
+    }
+
+    private static bool IsIntegerLiteral(ReadOnlySpan<char> token)
+    {
+        ReadOnlySpan<char> digits = token[0] == '-' ? token[1..] : token;
+
+        if (digits.IsEmpty)
+            return false;
+
+        for (var i = 0; i < digits.Length; i++)
+        {
+            if (!char.IsAsciiDigit(digits[i]))
+                return false;
+        }
+
+        return true;
     }
 
     private static int ParseQuotedKeySegment(string path, ReadOnlySpan<char> span, int start, List<PathSegment> segments)

@@ -42,7 +42,7 @@ public readonly record struct UILayoutLength(UILayoutLengthKind Kind, double Val
                 ArgumentOutOfRangeException.ThrowIfNotEqual(Value, -1);
                 break;
             case UILayoutLengthKind.Absolute:
-                ArgumentOutOfRangeException.ThrowIfNegative(Value);
+                UICornerRadius.ValidateNonNegativeFinite(Value, nameof(Value));
                 break;
             case UILayoutLengthKind.Fill:
                 ArgumentOutOfRangeException.ThrowIfNotEqual(Value, -1);

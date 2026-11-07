@@ -471,7 +471,7 @@ export class TemporalPickerEngine {
     }
 
     private chooseTime(picker: HTMLElement, unit: TimeUnit, cellValue: number): void {
-        if (!Number.isFinite(cellValue))
+        if (!Number.isFinite(cellValue) || isReadOnly(picker) || isInert(picker))
             return;
 
         const end = isRange(picker) && this.getState(picker).activeEnd === "end";
@@ -502,7 +502,7 @@ export class TemporalPickerEngine {
 
         // ArrowDown in the field opens the popup, matching what a native date input does, Alt+Down as a combobox's; a period's end
         // field opens it on the end.
-        if (domEvent.key === "ArrowDown" && isPlainKey(domEvent, { alt: true }) && domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TemporalInputFieldClass)) {
+        if (domEvent.key === "ArrowDown" && isPlainKey(domEvent, { alt: true }) && domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TemporalInputFieldClass) && !isReadOnly(domEvent.target) && !isInert(domEvent.target)) {
             domEvent.preventDefault();
             this.toggle(domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}`), isEndPart(domEvent.target) ? "end" : "start");
             return;

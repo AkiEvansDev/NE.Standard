@@ -1,7 +1,8 @@
 // A popup opened on a surface ground — a surface panel, a dialog, a node — stands one step off it: 8 % more of the text, and a
-// border and a control's mark step off that ground too so they keep their contrast over it.
+// field, a border and a control's mark step off that ground too so they keep their contrast over it.
 .ui-popup-ground-lifted(@ground) {
     --ui-popup-ground: color-mix(in srgb, @ground 92%, var(--ui-color-on-surface) 8%);
-    --ui-color-border: color-mix(in srgb, var(--ui-surface-fill, @ground) 88%, var(--ui-color-on-surface) 12%);
-    --ui-color-mark: color-mix(in srgb, var(--ui-surface-fill, @ground) 82%, var(--ui-color-on-surface) 18%);
+    --ui-field-ground-share: 12%;
+    --ui-color-border: color-mix(in srgb, var(--ui-surface-fill, @ground) 82%, var(--ui-color-on-surface) 18%);
+    --ui-color-mark: color-mix(in srgb, var(--ui-surface-fill, @ground) 76%, var(--ui-color-on-surface) 24%);
 }

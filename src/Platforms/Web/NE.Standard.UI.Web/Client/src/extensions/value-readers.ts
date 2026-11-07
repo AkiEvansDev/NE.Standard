@@ -13,6 +13,7 @@ import {
     TabCaptionAttribute,
     TabPinnedAttribute,
     TabsSelectedAttribute,
+    TextRenamedTitleAttribute,
     TreeDropTargetAttribute,
     TreeTitleAttribute,
     TrimInputAttribute,
@@ -176,6 +177,8 @@ const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
     { kind: "tab-caption", read: element => element.getAttribute(TabCaptionAttribute) },
     // tabs-view-engine.ts: the tab menu's pin, on the tab's pin
     { kind: "tab-pinned", read: element => element.hasAttribute(TabPinnedAttribute) },
+    // text-rename-engine.ts: the title an inline rename wrote, on the text component's root
+    { kind: "text-title", read: element => element.getAttribute(TextRenamedTitleAttribute) },
     // tree-engine.ts: the title a rename wrote, on the node's root
     { kind: "tree-title", read: element => element.getAttribute(TreeTitleAttribute) },
     { kind: "tree-drop-target", read: element => element.getAttribute(TreeDropTargetAttribute) ?? "" },

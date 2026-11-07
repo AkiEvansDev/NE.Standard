@@ -24,6 +24,9 @@ public static class WebValueKinds
     /// <summary>Whether a tab is pinned, read off its pin.</summary>
     public const string TabPinned = "tab-pinned";
 
+    /// <summary>A text component's title as an inline rename wrote it, on the component's root.</summary>
+    public const string TextTitle = "text-title";
+
     /// <summary>A tree node's title as a rename wrote it, on the node's root.</summary>
     public const string TreeTitle = "tree-title";
 

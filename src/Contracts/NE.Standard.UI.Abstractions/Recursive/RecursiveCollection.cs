@@ -424,6 +424,9 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IReadOnlyLi
     /// <inheritdoc />
     public bool Contains(T item)
     {
+        if (item is null)
+            return false;
+
         lock (_sync)
             return _indicesByItem.ContainsKey(item);
     }
@@ -438,6 +441,9 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IReadOnlyLi
     /// <inheritdoc />
     public int IndexOf(T item)
     {
+        if (item is null)
+            return -1;
+
         lock (_sync)
             return _indicesByItem.TryGetValue(item, out var index) ? index : -1;
     }

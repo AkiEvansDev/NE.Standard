@@ -7,6 +7,7 @@ import { OnceWarner } from "../metadata/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { observeSize } from "./element-size.ts";
+import { isInert } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { announceMoved } from "./live-announcer.ts";
 import { applyGridTrackLimits, bigStep, formatGridTracks, moveSplit, parseGridTrackLimits, parseGridTracks, zeroTracks } from "./grid-tracks.ts";
@@ -118,7 +119,8 @@ export class TableColumnsEngine {
             begin: (handle, point) => this.beginReorder(handle, point.x),
             coordinate: () => "clientX",
             move: (context, delta) => this.aimDrop(context, delta),
-            end: (handle, context) => this.endReorder(handle, context)
+            end: (handle, context) => this.endReorder(handle, context),
+            cancel: (handle, context) => this.cancelReorder(handle, context)
         });
 
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent), true);
@@ -503,7 +505,7 @@ export class TableColumnsEngine {
         const cell = domEvent.target instanceof Element ? this.resolveCaption(domEvent.target) : null;
         const table = cell?.closest<HTMLElement>(`.${TableClass}`) ?? null;
 
-        if (cell === null || table === null || this.reorder.active)
+        if (cell === null || table === null || isInert(table) || this.reorder.active)
             return;
 
         const movable = this.movableColumns(table);
@@ -544,7 +546,7 @@ export class TableColumnsEngine {
     private reset(handle: HTMLElement): void {
         const table = handle.closest<HTMLElement>(`.${TableClass}`);
 
-        if (table === null)
+        if (table === null || isInert(table))
             return;
 
         this.widths.set(table, null);
@@ -613,7 +615,7 @@ export class TableColumnsEngine {
     private resolveContext(handle: HTMLElement): ResizeContext | null {
         const table = handle.closest<HTMLElement>(`.${TableClass}`);
 
-        if (table === null)
+        if (table === null || isInert(table))
             return null;
 
         const before = this.widths.get(table) ?? null;
@@ -658,7 +660,7 @@ export class TableColumnsEngine {
         const cell = target.closest<HTMLElement>(`.${TableHeaderCellClass}`);
         const table = cell?.closest<HTMLElement>(`.${TableClass}`) ?? null;
 
-        if (cell === null || table === null || !table.classList.contains(TableReorderableClass) || target.closest(ResizerSelector) !== null)
+        if (cell === null || table === null || isInert(table) || !table.classList.contains(TableReorderableClass) || target.closest(ResizerSelector) !== null)
             return null;
 
         return cell.classList.contains(TableHeaderCellPinnedClass) || cell.hasAttribute(TableFixedAttribute) ? null : cell;
@@ -736,9 +738,7 @@ export class TableColumnsEngine {
     }
 
     private endReorder(cell: HTMLElement, context: ReorderContext): void {
-        cell.removeAttribute(TableDraggingAttribute);
-        context.table.removeAttribute(TableReorderingAttribute);
-        clearDropMarks(context.table);
+        this.cancelReorder(cell, context);
 
         if (context.target === context.from)
             return;
@@ -748,6 +748,12 @@ export class TableColumnsEngine {
         // A drag that moved a column is no press of the caption it was dropped on, which a grid would sort by.
         swallowReleaseClick();
         this.moveColumn(context.table, context.index, rest[context.target]?.index ?? null);
+    }
+
+    private cancelReorder(cell: HTMLElement, context: ReorderContext): void {
+        cell.removeAttribute(TableDraggingAttribute);
+        context.table.removeAttribute(TableReorderingAttribute);
+        clearDropMarks(context.table);
     }
 
     /** Puts the column before the one at `before`, or at the row's end, and keeps the whole order by key. */

@@ -96,6 +96,9 @@ internal sealed partial class UIRuntime
 
             if (target.ReadOnly is { } readOnly && ClosesOnReadOnly(compiledEvent.Address.EventName) && IsClosedNoLock(readOnly, dynamicParameters))
                 throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a component that is read-only.");
+
+            if (target.TextRename is { } textRename && compiledEvent.Address.EventName == EventNames.Rename && IsTextRenameRefusedNoLock(textRename, dynamicParameters))
+                throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a text component whose Renamable is false.");
         }
 
         if (!gates.TryGetRowRoot(compiledEvent.Address.ComponentId, out UIRowAbilities? row) || !IsRowsOwnEvent(compiledEvent.Address.EventName))
@@ -154,6 +157,30 @@ internal sealed partial class UIRuntime
     /// </summary>
     private static bool ClosesOnReadOnly(string eventName)
         => eventName is not (EventNames.Focus or EventNames.Blur or EventNames.HoverStart or EventNames.HoverEnd or "graph-node-click" or "graph-run-stop");
+
+    /// <summary>
+    /// Whether a standalone text component refuses a rename: closed unless <c>Renamable</c> is true or an interaction or
+    /// <see cref="Abstractions.Effects.RenameItemEffect"/> opened inline rename on it.
+    /// </summary>
+    private bool IsTextRenameRefusedNoLock(UITextRenameGate textRename, object?[] dynamicParameters)
+    {
+        if (textRename.Renamable is not { } renamable || !IsClosedNoLock(renamable, dynamicParameters))
+            return false;
+
+        if (textRename.HasUnscopedInteraction)
+            return false;
+
+        if (textRename.ScopedInteractions is null && _openedRenames is null)
+            return true;
+
+        var parameters = View.Graph.TryGet(textRename.ComponentId, out UIComponentNode? node)
+            ? TakeDynamicParameters(dynamicParameters, node.ContextParameterCount)
+            : [];
+
+        return !TryCreateHostAddress(textRename.ComponentId, parameters, out UIComponentAddress address)
+            || ((textRename.ScopedInteractions is null || !textRename.ScopedInteractions.Contains(address))
+                && (_openedRenames is null || !_openedRenames.ContainsKey((address, string.Empty))));
+    }
 
     /// <summary>
     /// Refuses an event raised in a row a host no longer holds, or never held: each row the component stands in is looked up by its key
@@ -495,6 +522,7 @@ internal sealed partial class UIRuntime
             }
 
             if ((target.ReadOnly is { } readOnly && IsClosedNoLock(readOnly, dynamicParameters))
+                || (target.TextRename is { } textRename && property == IRenamableComponent.RenamedTitleProperty && !UIComponentGateIndex.IsInteractionTarget(View, componentId, property) && IsTextRenameRefusedNoLock(textRename, dynamicParameters))
                 || (target.Values is { } checks && IsValueRefusedNoLock(checks, update, resolution, ref read, changeSet))
                 || (target.WriteCheck is { } writeCheck && IsCheckRefusedNoLock(writeCheck, update, resolution, ref read)))
             {

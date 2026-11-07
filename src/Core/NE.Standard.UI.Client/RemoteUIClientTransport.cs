@@ -291,15 +291,18 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                 cancellationToken
             ).ConfigureAwait(false);
 
-            _runtimeStamp = firstAttach.Runtime;
-            ServerChangeSet hydrated = await ResolveStagedUpdatesAsync(_initialChanges, cancellationToken).ConfigureAwait(false);
-            ServerChangeSet delta = await ResolveStagedUpdatesAsync(firstAttach.InitialChanges, cancellationToken).ConfigureAwait(false);
+            if (!firstAttach.Fresh && !firstAttach.Reload)
+            {
+                _runtimeStamp = firstAttach.Runtime;
+                ServerChangeSet hydrated = await ResolveStagedUpdatesAsync(_initialChanges, cancellationToken).ConfigureAwait(false);
+                ServerChangeSet delta = await ResolveStagedUpdatesAsync(firstAttach.InitialChanges, cancellationToken).ConfigureAwait(false);
 
-            return delta.Updates.Length == 0
-                ? hydrated
-                : hydrated.Updates.Length == 0
-                    ? delta
-                    : new ServerChangeSet { Updates = [.. hydrated.Updates, .. delta.Updates] };
+                return delta.Updates.Length == 0
+                    ? hydrated
+                    : hydrated.Updates.Length == 0
+                        ? delta
+                        : new ServerChangeSet { Updates = [.. hydrated.Updates, .. delta.Updates] };
+            }
         }
 
         UINavigationRequest currentNav = _page?.Navigation ?? InitialNavigation;

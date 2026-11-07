@@ -77,8 +77,8 @@ public interface ITextBaseModel : IBadgeModel, ITooltipModel
     UITextAppearance? TitleType { get; }
 
     /// <summary>
-    /// Gets the primary text colour, which also colours the icon and the description unless either is
-    /// overridden by <see cref="ITextModel.DescriptionColor"/> or <c>IconColor</c>.
+    /// Gets the primary text colour, which also colours the icon unless <c>IconColor</c> is set, and the description when
+    /// <see cref="ITextModel.DescriptionColor"/> is set to <c>UIColorStyle.Default</c>.
     /// </summary>
     [UIComponentProperty(Contract = typeof(ITextBaseComponent), DefaultValueMember = nameof(DefaultTitleColor))]
     UIThemeColor? TitleColor { get; }

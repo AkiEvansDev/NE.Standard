@@ -65,16 +65,16 @@ public readonly record struct UITextAppearance(UITextType? Role, double? Size, i
     public void Validate()
     {
         if (Size is double size)
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+            UICornerRadius.ValidatePositiveFinite(size, nameof(Size));
 
         if (Weight is int weight)
             ArgumentOutOfRangeException.ThrowIfNegative(weight);
 
         if (LineHeight is double lineHeight)
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(lineHeight);
+            UICornerRadius.ValidatePositiveFinite(lineHeight, nameof(LineHeight));
 
         if (LetterSpacing is double letterSpacing)
-            ArgumentOutOfRangeException.ThrowIfNegative(letterSpacing);
+            UICornerRadius.ValidateNonNegativeFinite(letterSpacing, nameof(LetterSpacing));
     }
 
     public override string ToString()

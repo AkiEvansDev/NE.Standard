@@ -46,10 +46,10 @@ public readonly record struct UIGridUnit(UIGridUnitType Unit, double Value, doub
         switch (Unit)
         {
             case UIGridUnitType.Star:
-                ArgumentOutOfRangeException.ThrowIfNegativeOrZero(Value);
+                UICornerRadius.ValidatePositiveFinite(Value, nameof(Value));
                 break;
             case UIGridUnitType.Absolute:
-                ArgumentOutOfRangeException.ThrowIfNegative(Value);
+                UICornerRadius.ValidateNonNegativeFinite(Value, nameof(Value));
                 break;
             case UIGridUnitType.Auto:
                 break;
@@ -67,9 +67,9 @@ public readonly record struct UIGridUnit(UIGridUnitType Unit, double Value, doub
     private void ValidateBounds()
     {
         if (MinValue is double min)
-            ArgumentOutOfRangeException.ThrowIfNegative(min);
+            UICornerRadius.ValidateNonNegativeFinite(min, nameof(MinValue));
         if (MaxValue is double max)
-            ArgumentOutOfRangeException.ThrowIfNegative(max);
+            UICornerRadius.ValidateNonNegativeFinite(max, nameof(MaxValue));
         if (MinValue is double minValue && MaxValue is double maxValue && minValue > maxValue)
             throw new ArgumentOutOfRangeException(nameof(MinValue), "MinValue must not exceed MaxValue.");
     }

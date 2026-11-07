@@ -82,22 +82,26 @@ internal sealed partial class UIRuntime
 
             if (!asked)
             {
-                if (View.Bindings.GetControllerDescendantCollections(itemPath, out _).Count == 0)
+                if (!AppendDescendantCollectionUpdatesNoLock(itemPath))
                     return;
 
                 asked = true;
+                continue;
             }
 
-            AppendDescendantCollectionUpdatesNoLock(itemPath);
+            _ = AppendDescendantCollectionUpdatesNoLock(itemPath);
         }
     }
 
     /// <summary>
     /// Every bound collection under an item's path, sent whole; a collection under one of those rows is reached the same way.
     /// </summary>
-    private void AppendDescendantCollectionUpdatesNoLock(RecursivePath path)
+    private bool AppendDescendantCollectionUpdatesNoLock(RecursivePath path)
     {
         IReadOnlyList<CompiledUIBinding> bindings = View.Bindings.GetControllerDescendantCollections(path, out var baseParameters);
+
+        if (bindings.Count == 0)
+            return false;
 
         for (var i = 0; i < bindings.Count; i++)
         {
@@ -109,6 +113,8 @@ internal sealed partial class UIRuntime
 
             AppendWholeCollectionNoLock(binding, View.Bindings.MaterializePath(binding, baseParameters), dynamicParameters);
         }
+
+        return true;
     }
 
     /// <summary>
@@ -145,7 +151,7 @@ internal sealed partial class UIRuntime
         for (var i = 0; i < items.Length; i++)
         {
             if (items[i].Key is string key)
-                AppendDescendantCollectionUpdatesNoLock(path.AppendKey(key));
+                _ = AppendDescendantCollectionUpdatesNoLock(path.AppendKey(key));
         }
     }
 
@@ -351,7 +357,7 @@ internal sealed partial class UIRuntime
             AppendWholeCollectionNoLock(binding, path, dynamicParameters);
         }
 
-        AppendDescendantCollectionUpdatesNoLock(path);
+        _ = AppendDescendantCollectionUpdatesNoLock(path);
     }
 
     private void DrainControllerChangesNoLock()

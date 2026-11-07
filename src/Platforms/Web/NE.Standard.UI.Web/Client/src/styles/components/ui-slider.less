@@ -281,22 +281,29 @@
         min-height: @ui-control-height-sm;
     }
 
-    .ui-slider.ui-input--small .ui-slider__input {
+    .ui-slider.ui-input--small:not(.ui-orientation--vertical) .ui-slider__input {
         height: 1rem;
     }
 
-    .ui-slider.ui-input--small .ui-slider__input::-webkit-slider-runnable-track {
+    .ui-slider.ui-input--small:not(.ui-orientation--vertical) .ui-slider__input::-webkit-slider-runnable-track {
         height: 0.25rem;
     }
 
-    .ui-slider.ui-input--small .ui-slider__input::-moz-range-track {
+    .ui-slider.ui-input--small:not(.ui-orientation--vertical) .ui-slider__input::-moz-range-track {
         height: 0.25rem;
     }
 
     .ui-slider.ui-input--small .ui-slider__input::-webkit-slider-thumb {
         width: 0.875rem;
         height: 0.875rem;
+    }
+
+    .ui-slider.ui-input--small:not(.ui-orientation--vertical) .ui-slider__input::-webkit-slider-thumb {
         margin-top: -0.3125rem;
+    }
+
+    .ui-slider.ui-input--small.ui-orientation--vertical .ui-slider__input::-webkit-slider-thumb {
+        margin-left: -0.2625rem;
     }
 
     .ui-slider.ui-input--small .ui-slider__input::-moz-range-thumb {
@@ -312,22 +319,29 @@
         min-height: @ui-control-height-lg;
     }
 
-    .ui-slider.ui-input--large .ui-slider__input {
+    .ui-slider.ui-input--large:not(.ui-orientation--vertical) .ui-slider__input {
         height: 1.5rem;
     }
 
-    .ui-slider.ui-input--large .ui-slider__input::-webkit-slider-runnable-track {
+    .ui-slider.ui-input--large:not(.ui-orientation--vertical) .ui-slider__input::-webkit-slider-runnable-track {
         height: 0.5rem;
     }
 
-    .ui-slider.ui-input--large .ui-slider__input::-moz-range-track {
+    .ui-slider.ui-input--large:not(.ui-orientation--vertical) .ui-slider__input::-moz-range-track {
         height: 0.5rem;
     }
 
     .ui-slider.ui-input--large .ui-slider__input::-webkit-slider-thumb {
         width: 1.375rem;
         height: 1.375rem;
+    }
+
+    .ui-slider.ui-input--large:not(.ui-orientation--vertical) .ui-slider__input::-webkit-slider-thumb {
         margin-top: -0.4375rem;
+    }
+
+    .ui-slider.ui-input--large.ui-orientation--vertical .ui-slider__input::-webkit-slider-thumb {
+        margin-left: -0.5125rem;
     }
 
     .ui-slider.ui-input--large .ui-slider__input::-moz-range-thumb {

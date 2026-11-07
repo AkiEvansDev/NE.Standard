@@ -24,8 +24,7 @@ html {
     // touched before the control's own pressed and hover states, which answer the press. Keyboard focus rings are untouched.
     -webkit-tap-highlight-color: transparent;
 
-    // A phone's browser paints its system bar under the page in the document's background, not the body's: the window's foot's
-    // colour while one stands on the window's bottom edge (window-foot.ts); none, and the body's ground stands for the page as before.
+    // A phone's browser paints its system bar under the page in the document's background, not the body's (window-foot.ts).
     background-color: var(--ui-window-foot, transparent);
 }
 
@@ -56,8 +55,7 @@ body {
     font-weight: var(--ui-text-body-font-weight);
 }
 
-// Where the page runs under a phone's system bar, a foot on the window's bottom edge keeps clear of it by an edge in its own colour
-// (window-foot.ts): a border, not padding, so the component's own padding stands as authored.
+// On a phone, a foot touching the window's bottom edge keeps its content above the system bar while its background runs under it.
 [data-ui-window-foot][data-ui-window-foot-edge] {
     border-bottom: env(safe-area-inset-bottom, 0px) solid var(--ui-window-foot-ink, transparent);
 }

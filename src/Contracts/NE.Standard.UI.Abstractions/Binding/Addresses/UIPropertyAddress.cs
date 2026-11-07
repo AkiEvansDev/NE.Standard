@@ -33,6 +33,8 @@ public readonly record struct UIPropertyAddress
         if (component.Id.IsEmpty)
             throw new ArgumentException("Component id must not be empty.", nameof(component));
 
+        ArgumentException.ThrowIfNullOrWhiteSpace(property.Name, nameof(property));
+
         Component = component;
         Property = property;
     }

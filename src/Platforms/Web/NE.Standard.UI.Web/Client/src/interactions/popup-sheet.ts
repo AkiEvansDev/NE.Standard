@@ -42,6 +42,7 @@ type OpenSheet = {
 
 // In the order they opened: a nested sheet after the one it stands over.
 const sheets: OpenSheet[] = [];
+const sheetListeners = new Set<() => void>();
 let scrim: HTMLElement | null = null;
 let listening = false;
 let pressing = false;
@@ -94,6 +95,7 @@ export function presentSheet(popup: HTMLElement, opening: SheetOpening): void {
 
     sheets.push(sheet);
     listen();
+    notifySheetsChanged();
 
     // After its engine has put the keyboard where it wants it: a sheet is modal, so the keyboard is inside it before the page is hidden.
     queueMicrotask(() => settle(sheet));
@@ -291,6 +293,21 @@ export function releaseSheet(popup: HTMLElement): void {
         if (sheetOf(popup) === null)
             unmarkSheet(popup);
     });
+    notifySheetsChanged();
+}
+
+/** Subscribes to sheets opening and closing; answers the cleanup that unsubscribes. */
+export function onSheetChange(listener: () => void): () => void {
+    sheetListeners.add(listener);
+
+    return () => {
+        sheetListeners.delete(listener);
+    };
+}
+
+function notifySheetsChanged(): void {
+    for (const listener of sheetListeners)
+        listener();
 }
 
 /**

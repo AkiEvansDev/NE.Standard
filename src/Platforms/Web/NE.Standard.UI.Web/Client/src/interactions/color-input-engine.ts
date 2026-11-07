@@ -284,19 +284,20 @@ export class ColorInputEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const toggle = domEvent.target.closest<HTMLElement>(`[${ColorToggleAttribute}]`);
-
-        if (toggle !== null) {
-            domEvent.preventDefault();
-            this.toggle(toggle.closest<HTMLElement>(`.${ColorInputClass}`));
-            return;
-        }
-
-        const tab = domEvent.target.closest<HTMLElement>(`[${ColorTabAttribute}]`);
         const input = domEvent.target.closest<HTMLElement>(`.${ColorInputClass}`);
 
         if (input === null || isInert(input))
             return;
+
+        const toggle = domEvent.target.closest<HTMLElement>(`[${ColorToggleAttribute}]`);
+
+        if (toggle !== null) {
+            domEvent.preventDefault();
+            this.toggle(input);
+            return;
+        }
+
+        const tab = domEvent.target.closest<HTMLElement>(`[${ColorTabAttribute}]`);
 
         if (tab !== null) {
             domEvent.preventDefault();

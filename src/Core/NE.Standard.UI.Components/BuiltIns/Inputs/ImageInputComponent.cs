@@ -94,7 +94,7 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : InputC
     /// <c>TitlePlacement</c> asks.
     /// </summary>
     public override UISize? CaptionRowBox(UIResponsiveTier tier)
-        => InputCaptionRow.Box(this, tier, honoursInside: Variant == UIImageInputVariant.Inline);
+        => InputCaptionRow.Box(this, tier, honoursInside: Variant == UIImageInputVariant.Inline && Multiple != true);
 
     /// <inheritdoc/>
     public void ValidateConfiguration()

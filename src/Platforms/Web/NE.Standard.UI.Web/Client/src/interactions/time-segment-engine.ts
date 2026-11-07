@@ -10,7 +10,7 @@ import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { PickerAttributes, clampToRange, defaultMoment, holdPeriodEnd, isEndPart, orderPeriod, readCulturePack, readFormat, readMode, readStep, readValueOf, stepFor, unitValue, withUnit, writeValueOf } from "./temporal-dom.ts";
 import type { TimeUnit } from "./temporal-dom.ts";
 import { observeComponents } from "./dom-mutations.ts";
-import { isReadOnly } from "./interactive-state.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { resolveRovingTarget } from "./roving-focus.ts";
 import { turnWheel, wheelPixels } from "./wheel-notches.ts";
@@ -110,7 +110,7 @@ export class TimeSegmentEngine {
             element.textContent = renderSegment(unit as SegmentUnit, width, value, culture);
             element.classList.toggle(TemporalInputSegmentEmptyClass, value === null);
             // A read-only clock stays in the tab order and readable, as a read-only field does; every key is refused.
-            element.tabIndex = 0;
+            element.tabIndex = isInert(root) ? -1 : 0;
             writeAria(element, unit as SegmentUnit, value, isReadOnly(root));
         }
     }
@@ -222,7 +222,7 @@ export class TimeSegmentEngine {
 
         const root = stepper.closest<HTMLElement>(`.${TemporalInputClass}`);
 
-        if (root === null || isReadOnly(root))
+        if (root === null || isReadOnly(root) || isInert(root))
             return;
 
         domEvent.preventDefault();
@@ -460,7 +460,7 @@ function editableSegment(target: EventTarget | null): HTMLElement | null {
 
     const root = segment.closest<HTMLElement>(`.${TemporalInputClass}`);
 
-    return root === null || isReadOnly(root) ? null : segment;
+    return root === null || isReadOnly(root) || isInert(root) ? null : segment;
 }
 
 function focusedSegment(root: HTMLElement): HTMLElement | null {

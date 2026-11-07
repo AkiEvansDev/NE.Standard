@@ -598,16 +598,17 @@ internal abstract class PresetsViewBase : DemoView
         );
 
     protected static ContainerComponent CreateRoleExtensionsGroup()
-        => DemoUI.CreateExample("AsDisplay … AsOverline, Muted",
+        => DemoUI.CreateExample("AsDisplay … AsOverline, Muted, Editable",
             UILayout.Stack(8,
                 new TextComponent().SetTitle("€68.9k").AsDisplay(),
                 new TextComponent().SetTitle("Revenue this month").AsTitle(),
                 new TextComponent().SetTitle("Standard plan").AsSubtitle(),
                 new TextComponent().SetTitle("26.4k from 1,466 seats").AsBody(),
                 new TextComponent().SetTitle("Up 8 % on September").AsCaption().Muted(),
-                new TextComponent().SetTitle("Plans' share").AsOverline()
+                new TextComponent().SetTitle("Plans' share").AsOverline(),
+                UIText.Editable<PresetsController>(static x => x.ReleaseTitle)
             ),
-            note: "The same roles on a text of your own — one bound rather than written. Muted puts both lines in the muted colour."
+            note: "The same roles on a text of your own — one bound rather than written. Muted puts both lines in the muted colour; Editable renames a bound title in place on double click or F2."
         );
 
     protected static ContainerComponent CreateQuoteGroup()

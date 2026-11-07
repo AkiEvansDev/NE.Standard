@@ -26,6 +26,20 @@
 // rule reads a part below the body.
 @ui-text-with-badge: ~":is([data-ui-text-badge-icon] > .ui-text, [data-ui-text-badge-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-icon].ui-text, [data-ui-text-badge-title] > .ui-text, [data-ui-text-badge-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-title].ui-text)";
 
+.ui-text.ui-content-text {
+    position: relative;
+}
+
+.ui-text.ui-content-text[data-ui-text-renamable] {
+    border-radius: @ui-space-1;
+}
+
+.ui-text__rename {
+    .ui-inline-rename-field();
+    color: inherit;
+    z-index: 1;
+}
+
 // A standalone Text or Paragraph that carries none of its five parts (such as a ValidationInto target before any message is written)
 // leaves the flow, so a stack's gap does not count an empty line.
 .ui-text.ui-content-text:not([data-ui-text-icon], [data-ui-text-title], [data-ui-text-description], [data-ui-text-badge-icon], [data-ui-text-badge-title]) {

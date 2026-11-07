@@ -168,6 +168,10 @@ public static class CompiledViewWireSerializer
         options.Converters.Add(new TextModelWireJsonConverter());
         options.Converters.Add(new ButtonModelWireJsonConverter());
         options.Converters.Add(new MenuItemModelWireJsonConverter());
+        options.Converters.Add(new OptionModelWireJsonConverter());
+        options.Converters.Add(new TreeNodeModelWireJsonConverter());
+        options.Converters.Add(new TabItemModelWireJsonConverter());
+        options.Converters.Add(new ItemAbilitiesModelWireJsonConverter());
         options.Converters.Add(new ObjectToInferredTypesConverter());
         return options;
     }
@@ -1994,6 +1998,42 @@ public static class CompiledViewWireSerializer
             => JsonSerializer.Deserialize<MenuItem>(ref reader, options);
 
         public override void Write(Utf8JsonWriter writer, IMenuItemModel value, JsonSerializerOptions options)
+            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
+    }
+
+    private sealed class OptionModelWireJsonConverter : JsonConverter<IOptionModel>
+    {
+        public override IOptionModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => JsonSerializer.Deserialize<OptionItem>(ref reader, options);
+
+        public override void Write(Utf8JsonWriter writer, IOptionModel value, JsonSerializerOptions options)
+            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
+    }
+
+    private sealed class TreeNodeModelWireJsonConverter : JsonConverter<ITreeNodeModel>
+    {
+        public override ITreeNodeModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => JsonSerializer.Deserialize<TreeNode>(ref reader, options);
+
+        public override void Write(Utf8JsonWriter writer, ITreeNodeModel value, JsonSerializerOptions options)
+            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
+    }
+
+    private sealed class TabItemModelWireJsonConverter : JsonConverter<ITabItemModel>
+    {
+        public override ITabItemModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => JsonSerializer.Deserialize<TabItem>(ref reader, options);
+
+        public override void Write(Utf8JsonWriter writer, ITabItemModel value, JsonSerializerOptions options)
+            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
+    }
+
+    private sealed class ItemAbilitiesModelWireJsonConverter : JsonConverter<IItemAbilitiesModel>
+    {
+        public override IItemAbilitiesModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => JsonSerializer.Deserialize<TabItem>(ref reader, options);
+
+        public override void Write(Utf8JsonWriter writer, IItemAbilitiesModel value, JsonSerializerOptions options)
             => JsonSerializer.Serialize(writer, value, value.GetType(), options);
     }
 

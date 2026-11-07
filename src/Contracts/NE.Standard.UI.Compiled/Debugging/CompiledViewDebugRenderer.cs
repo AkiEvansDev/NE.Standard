@@ -358,6 +358,9 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
                 .Append(" <= ")
                 .Append(interaction.SourceKind == UIInteractionSourceKind.Property ? interaction.Source : interaction.SourceEvent);
 
+            if (interaction.RowKey is { Length: > 0 } rowKey)
+                _ = builder.Append('[').Append(rowKey).Append(']');
+
             // A copy compares nothing: the target takes whatever the source holds.
             if (interaction.ActionKind == UIInteractionActionKind.CopyValue)
             {
@@ -584,7 +587,11 @@ public sealed class CompiledViewDebugRenderer(CompiledViewDebugOptions? options 
                 .Append(" rule=")
                 .Append(validation.Operator);
 
-            if (validation.Value is not null)
+            if (validation.ValueSource is UIPropertyAddress valueSource)
+            {
+                _ = builder.Append(" vs=").Append(valueSource);
+            }
+            else if (validation.Value is not null)
             {
                 _ = builder.Append(' ');
                 AppendObject(builder, validation.Value);

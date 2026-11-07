@@ -15,11 +15,7 @@ public readonly record struct UIComponentReference
         ArgumentException.ThrowIfNullOrWhiteSpace(componentId);
 
         Id = componentId;
-        DynamicParameters = dynamicParameters is null || dynamicParameters.Length == 0
-            ? []
-            : [.. dynamicParameters];
-
-        ValidateDynamicParameters(DynamicParameters);
+        DynamicParameters = CopyAndValidateDynamicParameters(dynamicParameters);
     }
 
     /// <summary>
@@ -52,11 +48,24 @@ public readonly record struct UIComponentReference
         => Id == other.Id && DynamicParameters.AsSpan().SequenceEqual(other.DynamicParameters);
 
     public override int GetHashCode()
+        => CombineDynamicParametersHash(Id, DynamicParameters);
+
+    internal static object?[] CopyAndValidateDynamicParameters(object?[]? dynamicParameters)
+    {
+        object?[] copy = dynamicParameters is null || dynamicParameters.Length == 0
+            ? []
+            : [.. dynamicParameters];
+
+        ValidateDynamicParameters(copy);
+        return copy;
+    }
+
+    internal static int CombineDynamicParametersHash<TId>(TId id, object?[] dynamicParameters)
     {
         HashCode hash = new();
-        hash.Add(Id);
+        hash.Add(id);
 
-        foreach (var parameter in DynamicParameters)
+        foreach (var parameter in dynamicParameters)
             hash.Add(parameter);
 
         return hash.ToHashCode();

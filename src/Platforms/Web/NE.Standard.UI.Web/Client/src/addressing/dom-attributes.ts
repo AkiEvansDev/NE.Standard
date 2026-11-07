@@ -370,7 +370,7 @@ export const MenuRailTiersAttribute = "data-ui-menu-rail-tiers";
 export const TierOrientationAttribute = "data-ui-tier-orientation";
 export const TierSizeAttribute = "data-ui-tier-size";
 export const TierLayoutAttribute = "data-ui-tier-layout";
-/** On a component that is the window's foot (WindowFoot): the phone's system bar under the page takes its colour (window-foot.ts). */
+/** On a component marked as the window's foot (WindowFoot). */
 export const WindowFootAttribute = "data-ui-window-foot";
 /** On the root where the content region's root fills the height (WebAttributes.ContentFills): content-fills.ts keeps it. */
 export const ContentFillsAttribute = "data-ui-content-fills";
@@ -535,8 +535,6 @@ export const LanguageAttribute = "data-ui-language";
 export const SplittingAttribute = "data-ui-splitting";
 /** Client-only: on the document element while a phone's on-screen keyboard is up, which the page's bottom bar steps aside for. */
 export const KeyboardUpAttribute = "data-ui-keyboard-up";
-/** Client-only: on a window's foot standing on the window's bottom edge where the page runs under the system bar, which it keeps clear of. */
-export const WindowFootEdgeAttribute = "data-ui-window-foot-edge";
 /** Client-only: on the document element, `reconnecting` once a dropped connection outlasts its grace, `lost` once it is given up. */
 export const ConnectionAttribute = "data-ui-connection";
 /** Client-only: on the element a press raised a command from while its answer is late (`pending-mark.ts`); never a server patch's. */
@@ -907,8 +905,13 @@ export const LongPressHoldEndEventName = "ui-long-press-hold-end";
 
 export const MenuHostClass = "ui-menu__host";
 export const MenuItemWrapperClass = "ui-menu__item";
+export const ContentTextClass = "ui-content-text";
 export const TextBodyClass = "ui-text__body";
 export const TextHeaderClass = "ui-text__header";
+/** Client-only: the inline rename field a text component opens over its title. */
+export const TextRenameClass = "ui-text__rename";
+export const TextRenamedTitleAttribute = "data-ui-text-renamed-title";
+export const TextRenamableAttribute = "data-ui-text-renamable";
 export const MenuSubmenuClass = "ui-menu__submenu";
 
 export const SideRightClass = "ui-side--right";
@@ -1344,6 +1347,8 @@ export const TriggerLayerClass = "ui-text-trigger__layer";
 export const TriggerTokenClass = "ui-text-trigger__token";
 
 export const SelectActionClass = "ui-select__action";
+
+export const WindowFootEdgeAttribute = "data-ui-window-foot-edge";
 
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {

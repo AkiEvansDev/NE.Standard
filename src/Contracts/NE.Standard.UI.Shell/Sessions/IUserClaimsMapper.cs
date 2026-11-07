@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Security.Claims;
@@ -35,6 +36,25 @@ public sealed record UserClaimsIdentity
     /// An identity carrying nothing, which is what an unauthenticated principal maps to.
     /// </summary>
     public static UserClaimsIdentity Anonymous { get; } = new() { IsAuthenticated = false };
+
+    /// <inheritdoc />
+    public bool Equals(UserClaimsIdentity? other)
+    {
+        if (other is null)
+            return false;
+
+        if (ReferenceEquals(this, other))
+            return true;
+
+        return IsAuthenticated == other.IsAuthenticated
+            && string.Equals(UserId, other.UserId, StringComparison.Ordinal)
+            && UserSessionState.SetsEqual(Roles, other.Roles)
+            && UserSessionState.SetsEqual(Permissions, other.Permissions);
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+        => HashCode.Combine(IsAuthenticated, UserId, Roles?.Count ?? 0, Permissions?.Count ?? 0);
 }
 
 /// <summary>Turns the host's <see cref="ClaimsPrincipal"/> into the roles and permissions the UI authorizes against.</summary>

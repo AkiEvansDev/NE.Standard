@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,9 +55,13 @@ public sealed class UIClientRow
     /// <summary>Gets the item as <typeparamref name="TItem"/>.</summary>
     /// <exception cref="InvalidOperationException">The item is of another type.</exception>
     public TItem ItemAs<TItem>()
-        => CompiledViewWireSerializer.TryMaterializeItem(Entry.Item, out TItem? item) && item is not null
+        => TryItemAs(out TItem? item)
             ? item
             : throw new InvalidOperationException($"Row '{Key}' holds a '{Entry.Item?.GetType().Name ?? "null"}', not a '{typeof(TItem).Name}'.");
+
+    /// <summary>Attempts to read or materialize the row item as <typeparamref name="TItem"/>.</summary>
+    public bool TryItemAs<TItem>([NotNullWhen(true)] out TItem? item)
+        => CompiledViewWireSerializer.TryMaterializeItem(Entry.Item, out item) && item is not null;
 
     /// <summary>Gets the sub-entry under this menu row with the key <paramref name="key"/>.</summary>
     /// <exception cref="InvalidOperationException">The row shows no such sub-entry, or several deeper sub-entries share that key.</exception>

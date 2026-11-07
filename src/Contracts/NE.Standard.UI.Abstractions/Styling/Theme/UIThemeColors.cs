@@ -57,11 +57,14 @@ public sealed record UIThemeColors
 
     private static UIColorPalette Apply(UIColorPalette palette, ColorVariant? primary, ColorVariant? accent)
     {
+        if (primary is ColorVariant bothPrimary && accent is ColorVariant bothAccent)
+            return palette.WithBrandColors(bothPrimary, bothAccent);
+
         if (primary is ColorVariant newPrimary)
-            palette = palette.WithPrimary(newPrimary);
+            return palette.WithPrimary(newPrimary);
 
         if (accent is ColorVariant newAccent)
-            palette = palette.WithAccent(newAccent);
+            return palette.WithAccent(newAccent);
 
         return palette;
     }

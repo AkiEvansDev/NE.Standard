@@ -113,7 +113,7 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
         if (named is null)
             return result;
 
-        return result with { Command = result.Command.Success ? UICommandResult.Ok(named) : UICommandResult.Fail(result.Command.Error!, named) };
+        return result with { Command = new UICommandResult(result.Command.Success, named, result.Command.Error) };
     }
 
     /// <summary>The effect marked stored where it switches to what the session holds and is not marked yet; otherwise none.</summary>

@@ -17,8 +17,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Items;
 [UIComponentPropertyDefault(nameof(ITextComponent.TitleType), nameof(DefaultTitleType))]
 [UIComponentPropertyDefault(nameof(ITextComponent.TitleColor), nameof(DefaultTitleColor))]
 [UIComponentPropertyDefault(nameof(ITextComponent.BadgePlacement), nameof(DefaultBadgePlacement))]
-[UIComponentPropertyBlock(typeof(IRenamableComponent))]
-public abstract partial class TreeNodeComponent<T> : TextComponent<T>, IRenamableComponent
+public abstract partial class TreeNodeComponent<T> : TextComponent<T>
     where T : TreeNodeComponent<T>, IUIComponentDefinition
 {
     private static readonly UIThemeColor DefaultIconColor = UIThemeColor.Default;

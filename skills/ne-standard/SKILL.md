@@ -81,7 +81,7 @@ holds no application state and decides nothing; state survives a reload exactly 
   `SetClickable`), `SetUrl`/`BindUrl` on a surface, a card, a file tile, a button or an action row (a link: no click command, no control inside — tabs, a pager, a switcher, an expander, a tree, chosen rows, steps, a data grid or a chart with a legend, zoom or point click count as one, a package's own component through `IPressablePartsComponent`; a description's link inside shows as its words), `SetVisibility`,
   `SetTheme`, `TextSelectable`, inline text markup in a text's words (`SetDescriptionAutolinks(true)` links bare http(s)
   addresses, for a chat's messages; `SetDescriptionPlain(true)` shows the words as written, `SetTooltipPlain(true)` a tooltip's).
-- `WindowFoot` (`SetWindowFoot(true)`) on the composer or the last row at a window's bottom edge colours the phone's system bar.
+- Safe-area insets (`env(safe-area-inset-*)`) keep the root shell, side drawers, bottom bar, toasts, and sheets clear of phone cut-outs and system gesture bars on the fixed theme background.
 
 ## Controllers and state
 
@@ -223,11 +223,11 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   one rule `ButtonVariant(variant)`/`ButtonInk(variant)` say (a filled button's fill, a bare one's ink); a button in a row's template sends
   the row's key with `OnClickWithItemKey(command)`.
 - `UIText` - `Display`, `Title`, `Subtitle`, `Body`, `Caption`, `Label`, `Note`, `Paragraph` (words left out to bind after:
-  `UIText.Note().BindDescription(path)`; never `string.Empty`), `Quote` (a title and a description line, or
+  `UIText.Note().BindDescription(path)`; never `string.Empty`), `Editable` (a text renamed in place by double click, F2 or `RenameItemEffect(target)` without changing its look or box while at rest), `Quote` (a title and a description line, or
   `Quote(content)` round anything, the neutral stroke), `BoundQuote`, `Person` (`UISize.Small`, `Medium` or `Large`; or beside words of your own),
   `BoundPerson` (the avatar path optional), `WithBadges`, `BoundWithBadges`; and on any text `AsDisplay`, `AsTitle`, `AsSubtitle`,
-  `AsBody`, `AsCaption`, `AsOverline`, `Muted` (`TextPresetExtensions`).
-- `UIForm` - `Field(input, hint?)` (or a `ParagraphComponent` hint), `BoundField(input, hintPath)`, `Row(fields)`, `Composer(textArea, attachments?, banners)` (a messenger's calm composer panel: optional shelf `FileInputComponent` wired to accept drops across the panel, optional quote banners above the field, and a ghost `TextAreaComponent` that grows to six rows, suppresses its focus halo and keeps its actions on one row beside the text by default — on a phone with many tools, either fold secondary tools into a `UIIconButtons.More()` `⋯` menu button or call `SetActionsBelow(UIResponsiveTier.Md)` without `inField` so the text takes the upper row and all buttons including Send stand on a row below it without a dividing hairline). `UIDetails` -
+  `AsBody`, `AsCaption`, `AsOverline`, `Muted`, `Editable` (`TextPresetExtensions`).
+- `UIForm` - `Field(input, hint?)` (or a `ParagraphComponent` hint), `BoundField(input, hintPath)`, `Row(fields)`, `Composer(textArea, attachments?, banners)` (a messenger's calm composer panel: `SetWindowFoot`, optional shelf `FileInputComponent` wired to accept drops across the panel, optional quote banners above the field, and a ghost `TextAreaComponent` that grows to six rows, suppresses its focus halo and keeps its actions on one row beside the text by default — on a phone with many tools, either fold secondary tools into a `UIIconButtons.More()` `⋯` menu button or call `SetActionsBelow(UIResponsiveTier.Md)` without `inField` so the text takes the upper row and all buttons including Send stand on a row below it without a dividing hairline). `UIDetails` -
   `List` (bound rows: `.BindItems(path)` of `Row`s), `Row`, `Amount`/`BoundAmount`, `Total`/`BoundTotal` (names and values to read).
 - `UICard` - `Create`/`BoundCreate` (a name and line the controller holds), `Centered` (one card alone: sign-in, refusal).
   Every end icon or quiet button of a band - a header, a card's header, `Ends`, a toolbar's start, a quote's or a message's × - stands

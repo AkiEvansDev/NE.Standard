@@ -19,11 +19,7 @@ public readonly record struct UIComponentAddress
             throw new ArgumentException("Component id must not be empty.", nameof(componentId));
 
         Id = componentId;
-        DynamicParameters = dynamicParameters is null || dynamicParameters.Length == 0
-            ? []
-            : [.. dynamicParameters];
-
-        UIComponentReference.ValidateDynamicParameters(DynamicParameters);
+        DynamicParameters = UIComponentReference.CopyAndValidateDynamicParameters(dynamicParameters);
     }
 
     /// <summary>
@@ -49,15 +45,7 @@ public readonly record struct UIComponentAddress
         => Id.Equals(other.Id) && DynamicParameters.AsSpan().SequenceEqual(other.DynamicParameters);
 
     public override int GetHashCode()
-    {
-        HashCode hash = new();
-        hash.Add(Id);
-
-        foreach (var parameter in DynamicParameters)
-            hash.Add(parameter);
-
-        return hash.ToHashCode();
-    }
+        => UIComponentReference.CombineDynamicParametersHash(Id, DynamicParameters);
 
     public override string ToString()
         => DynamicParameters.Length == 0

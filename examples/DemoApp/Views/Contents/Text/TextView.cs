@@ -15,6 +15,8 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     private const string ContentGroup = nameof(TextController.ContentGroup);
     private const string LayoutGroup = nameof(TextController.LayoutGroup);
     private const string BadgeGroup = nameof(TextController.BadgeGroup);
+    private const string RenameGroup = nameof(TextController.RenameGroup);
+    private const string RenameHeadingId = "text-rename-heading";
 
     // Short enough that a host at half the page (a row, with its badge and chevron) shows it whole.
     private const string Description = "Asked on a new device.";
@@ -55,6 +57,8 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
             .BindDescriptionColor<TextController>(static x => x.ContentGroup.DescriptionColor)
             .BindTextAlignment<TextController>(static x => x.LayoutGroup.TextAlignment)
             .BindTextSelectable<TextController>(static x => x.LayoutGroup.TextSelectable)
+            .BindRenamable<TextController>(static x => x.LayoutGroup.Renamable)
+            .BindRenamedTitle<TextController>(static x => x.ContentGroup.Title)
             .BindBadgePlacement<TextController>(static x => x.BadgeGroup.BadgePlacement)
             .BindBadgeVariant<TextController>(static x => x.BadgeGroup.BadgeVariant)
             .BindBadgeColor<TextController>(static x => x.BadgeGroup.BadgeColor)
@@ -78,7 +82,7 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
     // Every group across the page, its samples side by side inside it: no half-page column stands beside a taller one. A picture as the
     // icon is the Icon page's, which shows it on a text body too; a title over its badges is the Badge page's, a quote a preset's.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateHostsGroup(), CreatePartsGroup(), CreateLongTextGroup(), CreateFoldGroup()];
+        => [CreateHostsGroup(), CreatePartsGroup(), CreateLongTextGroup(), CreateRenameGroup(), CreateFoldGroup()];
 
     /// <summary>
     /// The same four properties set six times: on the text alone, and on five components that each own a text body inside.
@@ -281,6 +285,44 @@ internal sealed class TextView : DemoComponentView, IUIViewDefinition
             ),
             columns: 24,
             note: "A text's description is a label's second line, one line unless SetWrapMode(Wrap) lets it run on; its title runs on only with SetTitleWrap(true). A card's and an expander's header description is prose, and wraps with nothing set. Narrow the window to a phone's width to see the same at the page's own size."
+        );
+    }
+
+    /// <summary>
+    /// Inline rename on a standalone text block (<see cref="IRenamableComponent"/>): double-click, F2 when focused, or
+    /// <see cref="RenameItemEffect"/> opens an input over the title without moving the surrounding layout.
+    /// </summary>
+    private static ContainerComponent CreateRenameGroup()
+    {
+        return DemoUI.CreateExample("Inline rename (IRenamableComponent, UIText.Editable & RenameItemEffect)",
+            UILayout.Columns(24,
+                DemoUI.CreateLabelled("SetRenamable + BindRenamedTitle + RenameItemEffect", UILayout.Row(8,
+                        new TextComponent(RenameHeadingId)
+                            .SetIcon(DemoIcons.Outline(DemoIcons.FileText))
+                            .SetRenamable(true)
+                            .BindTitle<TextRenameGroupContext>(static x => x.Heading, UIBindingScope.Relative)
+                            .BindRenamedTitle<TextRenameGroupContext>(static x => x.Heading, UIBindingScope.Relative)
+                            .AsSubtitle()
+                            .SetVerticalAlignment(UIAlignment.Center),
+                        UIIconButtons.Edit()
+                            .SetTooltip("Rename heading")
+                            .InteractOn(EventNames.Click, new RenameItemEffect(RenameHeadingId))
+                            .SetVerticalAlignment(UIAlignment.Center)
+                    )
+                ),
+                DemoUI.CreateLabelled("UIText.Editable preset",
+                    UIText.Editable<TextRenameGroupContext>(static x => x.PresetTitle, UIBindingScope.Relative)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Server))
+                ),
+                DemoUI.CreateLabelled("OnRename validation — refuses 'production'",
+                    UIText.Editable<TextRenameGroupContext>(static x => x.Environment, UIBindingScope.Relative, nameof(TextController.ValidateEnvironment))
+                        .SetIcon(DemoIcons.Shield)
+                        .SetDescription("Try renaming to 'production' — the server refuses and restores the previous title.")
+                )
+            ),
+            columns: 24,
+            note: "Double-click any of the three titles, press F2 while one is focused, or press the pencil beside the first (`new RenameItemEffect(RenameHeadingId)`): the title turns into an inline field of the same font and height (`0 px` layout shift). Enter or blur commits; Escape cancels. The third runs a server command after the two-way bind and refuses `production`, restoring the previous title.",
+            context: RenameGroup
         );
     }
 

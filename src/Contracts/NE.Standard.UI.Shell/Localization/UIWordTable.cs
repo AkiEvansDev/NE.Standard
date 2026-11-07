@@ -41,4 +41,38 @@ public sealed record UIWordTable
     /// Gets the prefixes a plain string must start with to be looked up; empty when any string is a key.
     /// </summary>
     public IReadOnlyList<string> KeyPrefixes { get; }
+
+    /// <inheritdoc />
+    public bool Equals(UIWordTable? other)
+    {
+        if (other is null)
+            return false;
+
+        if (ReferenceEquals(this, other))
+            return true;
+
+        if (Complete != other.Complete || Words.Count != other.Words.Count || KeyPrefixes.Count != other.KeyPrefixes.Count)
+            return false;
+
+        for (var i = 0; i < KeyPrefixes.Count; i++)
+        {
+            if (!string.Equals(KeyPrefixes[i], other.KeyPrefixes[i], StringComparison.Ordinal))
+                return false;
+        }
+
+        if (!ReferenceEquals(Words, other.Words))
+        {
+            foreach (KeyValuePair<string, string> entry in Words)
+            {
+                if (!other.Words.TryGetValue(entry.Key, out var value) || !string.Equals(entry.Value, value, StringComparison.Ordinal))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+        => HashCode.Combine(Complete, Words.Count, KeyPrefixes.Count);
 }

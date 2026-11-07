@@ -72,6 +72,11 @@ function buildDialog(): HTMLElement {
             asked?.leave();
     });
 
+    new MutationObserver(() => {
+        if (pending !== null && dialog.hasAttribute("hidden"))
+            pending = null;
+    }).observe(dialog, { attributes: true, attributeFilter: ["hidden"] });
+
     return dialog;
 }
 

@@ -72,6 +72,7 @@ import { ItemMenuEntryEvent, tabPinEvent, TabsViewEngine } from "../interactions
 import { TemporalPickerEngine } from "../interactions/temporal-picker-engine";
 import { sizesFieldsToContent, TextAreaGrowEngine } from "../interactions/text-area-grow-engine";
 import { TextFoldEngine } from "../interactions/text-fold-engine";
+import { TextRenameEngine } from "../interactions/text-rename-engine";
 import { TextSelectionEngine } from "../interactions/text-selection-engine";
 import { TextTriggerEngine, TriggerClickEvent, TriggerSearchEvent, TriggerSelectEvent } from "../interactions/text-trigger-engine";
 import { ThemeSwitcherEngine } from "../interactions/theme-switcher-engine";
@@ -208,6 +209,8 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["debounced commit", ({ root }) => new DebouncedCommitEngine({ root })],
     // Only where the stylesheet cannot size a growing text area to its text on its own.
     ["text area grow", ({ root, propertyPatchEngine }) => sizesFieldsToContent() ? undefined : new TextAreaGrowEngine({ root, propertyPatchEngine })],
+    // Before items selection so F2 on a renamable text inside a row or cell opens its inline rename field first.
+    ["text rename", ({ root, effects, propertyPatchEngine }) => new TextRenameEngine({ root, effects, propertyPatchEngine })],
     ["items selection", ({ root, heldRows }) => new ItemsSelectionEngine({ root, rows: heldRows })],
     ["range value", ({ root, propertyPatchEngine }) => new RangeValueEngine({ root, propertyPatchEngine })],
     ["color input", ({ root, propertyPatchEngine }) => new ColorInputEngine({ root, propertyPatchEngine })],

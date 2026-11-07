@@ -148,4 +148,5 @@ test("toggle indicators step their fill, ring, switch mark and checked primary l
     assert.ok(css.includes("--ui-toggle-lean: 80%;"));
     assert.ok(bodiesOf(`.ui-switch${live}:hover > .ui-switch__input:not(:disabled):not(:checked) ~ .ui-switch__box::after`).includes("background: color-mix(in srgb, var(--ui-color-on-surface) 40%, var(--ui-color-mark));"));
     assert.ok(bodiesOf(`.ui-switch${live}:active > .ui-switch__input:not(:disabled):not(:checked) ~ .ui-switch__box::after`).includes("background: color-mix(in srgb, var(--ui-color-on-surface) 60%, var(--ui-color-mark));"));
+    assert.match(css, /@media \(hover: hover\) \{[\s\S]*?--ui-toggle-lean: 80%;\s*\}\s*\}/);
 });

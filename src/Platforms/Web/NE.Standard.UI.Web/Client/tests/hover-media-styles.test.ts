@@ -118,10 +118,14 @@ test("every add-on's text selection is the framework's mixin, prefixed for Safar
 });
 
 test("a press, the keyboard's marks and selection are drawn for every pointer", () => {
-    const pressedOrKeyed = rules.filter(rule => /:active|:focus-visible|\[data-ui-selected\]|--selected/.test(rule.selector) && !rule.selector.includes(":hover"));
+    const toggleBoxPress = (selector: string): boolean => selector.includes(":active") && /~ \.(ui-checkbox__box|ui-switch__box|ui-radio-group__dot)/.test(selector);
+    const pressedOrKeyed = rules.filter(rule => /:active|:focus-visible|\[data-ui-selected\]|--selected/.test(rule.selector) && !rule.selector.includes(":hover") && !toggleBoxPress(rule.selector));
+    const togglePressed = rules.filter(rule => toggleBoxPress(rule.selector));
 
     assert.ok(pressedOrKeyed.length > 0);
     assert.deepEqual(pressedOrKeyed.filter(underHover).map(rule => rule.selector), []);
+    assert.ok(togglePressed.length > 0);
+    assert.deepEqual(togglePressed.filter(rule => !underHover(rule)).map(rule => rule.selector), []);
 });
 
 test("a row's wash and a ghost button's wash wait for a hovering pointer, their press does not", () => {

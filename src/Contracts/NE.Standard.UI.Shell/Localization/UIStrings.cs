@@ -494,6 +494,7 @@ public static partial class UIStrings
     public static Dictionary<string, string> Resolve(ITranslator translator, string language, IEnumerable<IUIStringsSource>? packages = null)
     {
         ArgumentNullException.ThrowIfNull(translator);
+        ArgumentException.ThrowIfNullOrWhiteSpace(language);
 
         Dictionary<string, string> resolved = new(English.Count, StringComparer.Ordinal);
 
@@ -505,6 +506,8 @@ public static partial class UIStrings
 
         foreach (IUIStringsSource package in packages)
         {
+            ArgumentNullException.ThrowIfNull(package);
+
             foreach (KeyValuePair<string, string> word in package.English)
                 resolved[word.Key] = translator.Translate(language, word.Key) ?? word.Value;
         }

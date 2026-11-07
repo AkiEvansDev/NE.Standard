@@ -15,8 +15,10 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Json;
@@ -60,10 +62,16 @@ internal enum UIComponentGateKind
 internal sealed record UIComponentGate(UIComponentGateKind Kind, CompiledUIBinding? Binding, RecursivePath? FixedPath, int DynamicCount, IEnumerable? Declared = null);
 
 /// <summary>
-/// A component's gates: its own and its ancestors' that close it whole, its own for a write or the value written, and the check it
-/// holds the page's writes to its own properties to (<see cref="IClientWriteCheckComponent"/>).
+/// What a standalone text component's own inline rename answers to: its <c>Renamable</c> switch, and any interaction running
+/// <see cref="RenameItemEffect"/> directly on the text component.
 /// </summary>
-internal sealed record UIComponentGates(UIComponentGate[] Chain, UIComponentGate? ReadOnly, UIValueChecks? Values, UIClientWriteCheck? WriteCheck);
+internal sealed record UITextRenameGate(UIComponentId ComponentId, UIComponentGate? Renamable, bool HasUnscopedInteraction, FrozenSet<UIComponentAddress>? ScopedInteractions);
+
+/// <summary>
+/// A component's gates: its own and its ancestors' that close it whole, its own for a write or the value written, the check it
+/// holds the page's writes to its own properties to (<see cref="IClientWriteCheckComponent"/>), and a standalone text's own rename gate.
+/// </summary>
+internal sealed record UIComponentGates(UIComponentGate[] Chain, UIComponentGate? ReadOnly, UIValueChecks? Values, UIClientWriteCheck? WriteCheck, UITextRenameGate? TextRename = null);
 
 /// <summary>A value a check reads: the compiled static one, or the controller's through <see cref="Bound"/>.</summary>
 internal readonly record struct UIGateValue(object? Static, UIComponentGate? Bound);
@@ -193,19 +201,20 @@ internal sealed class UIComponentGateIndex
 
         foreach (UIComponentNode node in view.Graph.All)
         {
-            UIComponentGate[] chain = GetChain(view, node, chains);
-            UIComponentGate? readOnly = CreateGate(view, node.ComponentId, IInputComponent.IsReadOnlyProperty, UIComponentGateKind.ReadOnly);
-            UIValueChecks? values = CreateValueChecks(view, node.ComponentId);
-            UIClientWriteCheck? writeCheck = ReadWriteCheck(view, node.ComponentId);
-
-            if (chain.Length > 0 || readOnly is not null || values is not null || writeCheck is not null)
-                components.Add(node.ComponentId, new UIComponentGates(chain, readOnly, values, writeCheck));
+            if (CreateRowGates(view, node, rowRoots, rowVariants) is UIRowGates hostRows)
+                rows.Add(node.ComponentId, hostRows);
         }
 
         foreach (UIComponentNode node in view.Graph.All)
         {
-            if (CreateRowGates(view, node, rowRoots, rowVariants) is UIRowGates hostRows)
-                rows.Add(node.ComponentId, hostRows);
+            UIComponentGate[] chain = GetChain(view, node, chains);
+            UIComponentGate? readOnly = CreateGate(view, node.ComponentId, IInputComponent.IsReadOnlyProperty, UIComponentGateKind.ReadOnly);
+            UIValueChecks? values = CreateValueChecks(view, node.ComponentId);
+            UIClientWriteCheck? writeCheck = ReadWriteCheck(view, node.ComponentId);
+            UITextRenameGate? textRename = CreateTextRenameGate(view, node, rowRoots);
+
+            if (chain.Length > 0 || readOnly is not null || values is not null || writeCheck is not null || textRename is not null)
+                components.Add(node.ComponentId, new UIComponentGates(chain, readOnly, values, writeCheck, textRename));
         }
 
         _components = components.ToFrozenDictionary();
@@ -437,6 +446,52 @@ internal sealed class UIComponentGateIndex
         => view.State.TryGetValue(componentId, IClientWriteCheckComponent.ClientWriteCheckProperty, out CompiledUIPropertyValue? value) && value is { IsBind: false, Value: UIClientWriteCheck check }
             ? check
             : null;
+
+    /// <summary>
+    /// A standalone text component's own inline-rename gate; none when it neither binds <see cref="IRenamableComponent.RenamedTitle"/>
+    /// nor raises <c>rename</c>, when it is the template root of an <c>IItemRenameComponent</c> host (whose own <c>Renamable</c> gates
+    /// it), or when its <c>Renamable</c> is statically open.
+    /// </summary>
+    private static UITextRenameGate? CreateTextRenameGate(CompiledView view, UIComponentNode node, Dictionary<UIComponentId, UIRowAbilities> rowRoots)
+    {
+        if (node.TypeKey != TextComponent.ComponentTypeKey && node.TypeKey != DefaultTextTemplate.ComponentTypeKey)
+            return null;
+
+        if (rowRoots.ContainsKey(node.ComponentId) && node.ParentId is UIComponentId hostId && view.State.TryGetValue(hostId, IItemsHostAbilitiesComponent.RenamableProperty, out _))
+            return null;
+
+        if (!view.Bindings.TryGetProperty(new UIPropertyAddress(node.ComponentId, IRenamableComponent.RenamedTitleProperty), out _)
+            && !view.Events.TryGet(new CompiledUIEventAddress(node.ComponentId, EventNames.Rename), out _))
+        {
+            return null;
+        }
+
+        UIComponentGate? renamable = CreateGate(view, node.ComponentId, TextComponent.RenamableProperty, UIComponentGateKind.HostRenamable);
+
+        if (renamable is null)
+            return null;
+
+        var hasUnscopedInteraction = false;
+        HashSet<UIComponentAddress>? scopedInteractions = null;
+        IReadOnlyList<CompiledUIInteraction> interactions = view.Interactions.All;
+
+        for (var i = 0; i < interactions.Count; i++)
+        {
+            if (interactions[i].Effect is not CompiledTargetedClientEffect { Kind: ClientEffectKinds.RenameItem } rename
+                || rename.Target.Id != node.ComponentId
+                || ReadInteractionRenameKey(rename) is { Length: > 0 })
+            {
+                continue;
+            }
+
+            if (rename.Target.DynamicParameters.Length == 0)
+                hasUnscopedInteraction = true;
+            else
+                _ = (scopedInteractions ??= []).Add(rename.Target);
+        }
+
+        return new UITextRenameGate(node.ComponentId, renamable, hasUnscopedInteraction, scopedInteractions?.ToFrozenSet());
+    }
 
     /// <summary>
     /// An items host's rows, or none for a component drawing no rows; each template root a row stands in is entered in

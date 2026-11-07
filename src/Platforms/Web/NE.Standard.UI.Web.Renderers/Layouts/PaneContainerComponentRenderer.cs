@@ -48,6 +48,7 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
         ContainerComponentRenderer.RenderTracks(context, root, ContainerComponent.ColumnsProperty, ContainerComponentRenderer.ColumnsVariable, WebAttributes.ColumnLimits);
         ContainerComponentRenderer.RenderTracks(context, root, ContainerComponent.RowsProperty, ContainerComponentRenderer.RowsVariable, WebAttributes.RowLimits);
         ContainerComponentRenderer.RenderSpacing(context, root);
+        ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ContainerComponent.ScrollbarAirProperty, ContainerComponentRenderer.ScrollbarAirVariable);
 
         // Bound, the layout comes back through the value engine, which reads it off the root; the value as the controller wrote it,
         // since a push writes it so and the engine resolves it as the places below were.

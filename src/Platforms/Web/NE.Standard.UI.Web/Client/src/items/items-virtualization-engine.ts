@@ -329,6 +329,17 @@ export class ItemsVirtualizationEngine {
         if (state === null)
             return;
 
+        const existing = state.byKey.get(key);
+
+        if (existing !== undefined) {
+            const oldIndex = state.entries.indexOf(existing);
+
+            if (oldIndex >= 0)
+                state.entries.splice(oldIndex, 1);
+
+            this.dropRow(host, existing.element);
+        }
+
         const entry: VirtualEntry = { key, item, element: null, height: null };
         const at = index === null || index > state.entries.length ? state.entries.length : index;
 

@@ -10,7 +10,7 @@
 .ui-field-ground() {
     // One step off whatever it stands on, falling back to the page background; mixed from on-surface, so it steps up dark and down light.
     --ui-field-ground: var(--ui-surface-fill, var(--ui-color-background));
-    --ui-field-rest: color-mix(in srgb, var(--ui-color-on-surface) 10%, var(--ui-field-ground));
+    --ui-field-rest: color-mix(in srgb, var(--ui-color-on-surface) var(--ui-field-ground-share, var(--ui-field-rest-share, 8%)), var(--ui-field-ground));
     .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-input); var(--ui-field-rest));
     background: var(--ui-field-rest);
     transition: border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;

@@ -154,11 +154,84 @@ public sealed record UIPhrase
 
         foreach (KeyValuePair<string, object?> argument in Arguments)
         {
-            if (!other.Arguments.TryGetValue(argument.Key, out var value) || !Equals(argument.Value, value))
+            if (!other.Arguments.TryGetValue(argument.Key, out var value) || !AreArgumentValuesEqual(argument.Value, value))
                 return false;
         }
 
         return true;
+    }
+
+    private static bool AreArgumentValuesEqual(object? left, object? right)
+    {
+        if (ReferenceEquals(left, right))
+            return true;
+
+        if (left is null || right is null)
+            return false;
+
+        if (UIMoment.TryRead(left, out UIMoment leftMoment) && UIMoment.TryRead(right, out UIMoment rightMoment))
+            return leftMoment.Equals(rightMoment);
+
+        if (TryReadDecimal(left, out var leftDecimal) && TryReadDecimal(right, out var rightDecimal))
+            return leftDecimal == rightDecimal;
+
+        if (TryReadDouble(left, out var leftDouble) && TryReadDouble(right, out var rightDouble))
+            return leftDouble.Equals(rightDouble);
+
+        return left.Equals(right);
+    }
+
+    private static bool TryReadDecimal(object value, out decimal number)
+    {
+        switch (value)
+        {
+            case sbyte v:
+                number = v;
+                return true;
+            case byte v:
+                number = v;
+                return true;
+            case short v:
+                number = v;
+                return true;
+            case ushort v:
+                number = v;
+                return true;
+            case int v:
+                number = v;
+                return true;
+            case uint v:
+                number = v;
+                return true;
+            case long v:
+                number = v;
+                return true;
+            case ulong v:
+                number = v;
+                return true;
+            case decimal v:
+                number = v;
+                return true;
+            default:
+                number = default;
+                return false;
+        }
+    }
+
+    private static bool TryReadDouble(object value, out double number)
+    {
+        switch (value)
+        {
+            case float v:
+                number = v;
+                return true;
+            case double v:
+                number = v;
+                return true;
+            default:
+                number = default;
+                return false;
+        }
     }
 
     /// <inheritdoc />

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Primitives.Styling;
@@ -49,4 +50,15 @@ public interface IUserSessionContext
     /// Gets permissions assigned to the session.
     /// </summary>
     IReadOnlySet<string> Permissions { get; }
+
+    /// <summary>
+    /// Validates the session identifier, language, roles and permissions.
+    /// </summary>
+    internal void ValidateSessionFields()
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(SessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(Language);
+        ArgumentNullException.ThrowIfNull(Roles);
+        ArgumentNullException.ThrowIfNull(Permissions);
+    }
 }

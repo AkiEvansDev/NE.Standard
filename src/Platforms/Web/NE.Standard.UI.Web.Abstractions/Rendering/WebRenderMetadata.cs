@@ -534,6 +534,9 @@ public sealed class WebRenderMetadata
 
         for (var i = 0; i < _words.Count; i++)
             _words[i].Validate();
+
+        for (var i = 0; i < _exposedProperties.Count; i++)
+            _exposedProperties[i].Validate();
     }
 
     private bool TryCreatePropertyMetadata(UIPropertyAddress address, out WebRenderPropertyMetadata? metadata)
@@ -683,7 +686,8 @@ public sealed class WebRenderMetadata
            string.Equals(left.Converter, right.Converter, StringComparison.Ordinal) &&
            string.Equals(left.Value, right.Value, StringComparison.Ordinal) &&
            left.Condition == right.Condition &&
-           left.Optional == right.Optional;
+           left.Optional == right.Optional &&
+           left.ConvertsNull == right.ConvertsNull;
 
     private static UIComponentId[] GetDynamicParameterComponentIds(IReadOnlyList<CompiledUIActionArgument> arguments)
         => [.. arguments

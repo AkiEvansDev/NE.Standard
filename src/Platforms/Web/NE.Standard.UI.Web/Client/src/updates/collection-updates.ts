@@ -244,7 +244,9 @@ export function findItemsHosts(dom: DomRegistry, componentId: number, dynamicPar
 // Placed by source index, not child index: a sorted or grouped host's children are in another order, and the sync after restores it.
 export function applyCollectionInsert(host: Element, componentId: number, items: readonly ServerCollectionItemChange[], context: RowRenderContext): void {
     const ancestors = context.renderer.getAncestorStack(host);
-    const order = getSourceOrder(host, getRealItemElements(host));
+    const present = getRealItemElements(host);
+    const order = getSourceOrder(host, present);
+    const rows = indexItemElements(host, present);
 
     for (const change of items) {
         const key = change.key ?? null;
@@ -254,14 +256,26 @@ export function applyCollectionInsert(host: Element, componentId: number, items:
             continue;
         }
 
+        const existing = rows.get(key) ?? null;
         const element = renderItemElement(componentId, change.item, key, ancestors, context);
 
         if (element === null)
             continue;
 
-        placeSourceRow(host, order, element, insertSourceItem(order, element, change.index ?? null));
-        // A window growing toward the row the cursor waits for draws it here.
-        restoreWaitingCursor(host, element);
+        rows.set(key, element);
+
+        if (existing !== null) {
+            const held = takeRowCursor(existing);
+
+            removeSourceItems(order, new Set([existing]));
+            existing.remove();
+            placeSourceRow(host, order, element, insertSourceItem(order, element, change.index ?? null));
+            giveRowCursor(host, element, held);
+        } else {
+            placeSourceRow(host, order, element, insertSourceItem(order, element, change.index ?? null));
+            // A window growing toward the row the cursor waits for draws it here.
+            restoreWaitingCursor(host, element);
+        }
     }
 }
 

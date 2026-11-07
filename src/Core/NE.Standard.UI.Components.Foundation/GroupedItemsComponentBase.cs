@@ -1,4 +1,3 @@
-using System;
 using NE.Standard.UI.Authoring.Components;
 
 namespace NE.Standard.UI.Components.Foundation;
@@ -22,12 +21,7 @@ public abstract class GroupedItemsComponentBase<TComponent, TItem, TTemplate>(st
     /// </summary>
     public TComponent SetGroupTemplate(IVisualComponent template)
     {
-        ArgumentNullException.ThrowIfNull(template);
-
-        if (ReferenceEquals(template, this))
-            throw new InvalidOperationException("A component cannot use itself as template content.");
-
-        GroupTemplate = template;
+        GroupTemplate = Accept(template);
         return Self;
     }
 }

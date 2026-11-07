@@ -391,8 +391,8 @@ public sealed partial class UIClientPage
     {
         foreach (UIPropertyAddress address in _values.Keys.ToArray())
         {
-            if (IsUnderRow(address.Component, host, key))
-                _ = _values.Remove(address);
+            if (IsUnderRow(address.Component, host, key) && _values.Remove(address))
+                _ = _changedProperties.Add(address);
         }
 
         foreach (UIPropertyAddress address in _held.Keys.ToArray())
@@ -409,23 +409,37 @@ public sealed partial class UIClientPage
 
         foreach (UIComponentAddress list in _rows.Keys.ToArray())
         {
-            if (IsUnderRow(list, host, key))
-                _ = _rows.Remove(list);
+            if (IsUnderRow(list, host, key) && _rows.Remove(list))
+                _ = _changedCollections.Add(list);
         }
 
         foreach (UIComponentAddress field in _fields.Keys.ToArray())
         {
-            if (IsUnderRow(field, host, key))
-                _ = _fields.Remove(field);
+            if (IsUnderRow(field, host, key) && _fields.Remove(field))
+                _ = _changedValidations.Add(field);
         }
     }
 
-    private static bool IsUnderRow(UIComponentAddress component, UIComponentAddress host, string? key)
+    private bool IsUnderRow(UIComponentAddress component, UIComponentAddress host, string? key)
     {
         var keys = component.DynamicParameters;
         var depth = host.DynamicParameters.Length;
 
-        return keys.Length > depth && StartsWith(keys, host.DynamicParameters) && (key is null || Equals(keys[depth], key));
+        return keys.Length > depth
+            && StartsWith(keys, host.DynamicParameters)
+            && (key is null || Equals(keys[depth], key))
+            && IsInHostSubtree(component.Id, host.Id);
+    }
+
+    private bool IsInHostSubtree(UIComponentId componentId, UIComponentId hostId)
+    {
+        for (UIComponentId? current = componentId; current is UIComponentId id && View.Graph.TryGet(id, out UIComponentNode? node); current = node.ParentId)
+        {
+            if (id.Equals(hostId))
+                return true;
+        }
+
+        return false;
     }
 
     private static bool StartsWith(object?[] keys, object?[] prefix)

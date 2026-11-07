@@ -55,7 +55,7 @@ public interface IUIRuntimeAccess
     /// <see cref="InvokeAsync(Func{CancellationToken, Task}, CancellationToken)"/>; the token it is given is cancelled when the runtime
     /// is asked to go — its retention past, its session ended — which then waits for the job to end. It runs outside any command, so
     /// <c>Context.Handle</c> there is the connection the runtime is attached to, not the one that started it. A failure goes to the
-    /// controller's exception handler. A <c>Background</c> command, by contrast, is cancelled with its connection. Start a job from a
+    /// controller's exception handler. A <c>Background</c> command, by contrast, runs for the runtime's lifetime and is not cancelled when the connection drops. Start a job from a
     /// command or a hook that runs once the runtime has started, not from initialization: its writes need a started runtime.
     /// </remarks>
     void Start(Func<CancellationToken, Task> action);

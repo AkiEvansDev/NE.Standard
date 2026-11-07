@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 
 namespace NE.Standard.UI.Abstractions.Styling;
@@ -31,10 +30,10 @@ public readonly record struct UIThickness(double Left, double Top, double Right,
     /// </summary>
     public void Validate()
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(Left);
-        ArgumentOutOfRangeException.ThrowIfNegative(Top);
-        ArgumentOutOfRangeException.ThrowIfNegative(Right);
-        ArgumentOutOfRangeException.ThrowIfNegative(Bottom);
+        UICornerRadius.ValidateNonNegativeFinite(Left, nameof(Left));
+        UICornerRadius.ValidateNonNegativeFinite(Top, nameof(Top));
+        UICornerRadius.ValidateNonNegativeFinite(Right, nameof(Right));
+        UICornerRadius.ValidateNonNegativeFinite(Bottom, nameof(Bottom));
     }
 
     /// <summary>The four sides — top, right, bottom, left — collapsed where they repeat.</summary>

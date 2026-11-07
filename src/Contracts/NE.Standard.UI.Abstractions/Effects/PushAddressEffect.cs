@@ -12,24 +12,23 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// same runtime, without a reload and without the view filters; the controller decides what a parameter gone means. A parameter the
 /// route keys its runtime by (<c>route.Identity</c>) names another runtime, and going back to it loads that page.
 /// </remarks>
-public sealed class PushAddressEffect : ClientEffect
+public sealed class PushAddressEffect(IReadOnlyDictionary<string, object?>? parameters) : ClientEffect
 {
-    /// <summary>
-    /// Creates an effect that adds a history entry whose query is <paramref name="parameters"/>; none is the bare route.
-    /// </summary>
-    public PushAddressEffect(IReadOnlyDictionary<string, object?>? parameters)
-    {
-        Parameters = parameters ?? new Dictionary<string, object?>();
-
-        foreach (var key in Parameters.Keys)
-            ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(parameters));
-    }
-
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.PushAddress;
 
     /// <summary>
     /// Gets the parameters the query is written from, as a <c>NavigateEffect</c>'s are: a collection repeats its key, a null is left out.
     /// </summary>
-    public IReadOnlyDictionary<string, object?> Parameters { get; }
+    public IReadOnlyDictionary<string, object?> Parameters { get; } = NormalizeParameters(parameters);
+
+    internal static IReadOnlyDictionary<string, object?> NormalizeParameters(IReadOnlyDictionary<string, object?>? parameters)
+    {
+        IReadOnlyDictionary<string, object?> normalized = parameters ?? new Dictionary<string, object?>();
+
+        foreach (var key in normalized.Keys)
+            ArgumentException.ThrowIfNullOrWhiteSpace(key, nameof(parameters));
+
+        return normalized;
+    }
 }

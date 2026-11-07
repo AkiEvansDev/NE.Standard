@@ -47,4 +47,4 @@ public sealed class OrdersView : UIViewBase, IUIViewDefinition
   - `TextComponent.Description` and `ParagraphComponent.Description` support inline emphasis/code/links unless `SetDescriptionPlain(true)` is set (or `Bound*` presets are used, which always render data plain).
   - `SetDescriptionAutolinks(true)` turns bare `http(s)://` URLs into links (ideal for chat messages).
   - `SetHeadingLevel(1..6)` renders `.ui-text__title` as semantic `<h1>`–`<h6>`.
-- **Phone bottom bar**: `SetWindowFoot(true)` on the bottom-most composer or bar colours the mobile system bar to match.
+- **Phone system bars**: Mark a full-width bottom composer or bar with `.SetWindowFoot()` (`UIForm.Composer` does this by default) so the phone's system bar matches its background, automatically dimmed by `var(--ui-color-overlay)` while a modal side drawer or modal dialog is open; unpinned slide-out drawers stop at `bottom: env(safe-area-inset-bottom, 0px)` on a `1px solid var(--ui-color-border)` bottom hairline.

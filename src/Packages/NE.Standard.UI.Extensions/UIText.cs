@@ -38,6 +38,20 @@ public static class UIText
     public static TextComponent Body(UIPhrase? title = null, UIPhrase? description = null)
         => Create(title, description).AsBody();
 
+    /// <summary>
+    /// Running text that opens an inline rename field over its title on a double-click or <c>F2</c> without changing its look or
+    /// place while not editing, bound two-way to <paramref name="titlePath"/>.
+    /// </summary>
+    public static TextComponent Editable<TSource>(Expression<Func<TSource, object?>> titlePath, UIBindingScope scope = UIBindingScope.Root, string? renameCommand = null)
+        => new TextComponent().AsBody().Editable(titlePath, scope, renameCommand);
+
+    /// <summary>
+    /// Running text that opens an inline rename field over its title on a double-click or <c>F2</c> without changing its look or
+    /// place while not editing, bound two-way to <paramref name="titlePath"/>.
+    /// </summary>
+    public static TextComponent Editable(string titlePath, UIBindingScope scope = UIBindingScope.Root, string? renameCommand = null)
+        => new TextComponent().AsBody().Editable(titlePath, scope, renameCommand);
+
     /// <summary>The small line, and a line under it as small in the muted ink: never larger than what it explains.</summary>
     public static TextComponent Caption(UIPhrase? title = null, UIPhrase? description = null)
         => Create(title, description).AsCaption().SetDescriptionType(UITextAppearance.Caption).SetDescriptionColor(UIThemeColor.Muted);

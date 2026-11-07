@@ -147,6 +147,7 @@ public static class RecursiveValueCoercion
                 // A list of keys arrives as the client's own array, one text per element.
                 _ when IsStringList(underlyingType) && value is IEnumerable<object?> listItems => ToStringArray(listItems),
                 _ when underlyingType.IsEnum && value is string enumText => Enum.Parse(underlyingType, enumText, ignoreCase: false),
+                _ when underlyingType.IsEnum && value is double or float or decimal => ToWholeNumber(value, Enum.GetUnderlyingType(underlyingType)) is { } enumInteger ? Enum.ToObject(underlyingType, enumInteger) : null,
                 _ when underlyingType.IsEnum => Enum.ToObject(underlyingType, value),
                 // An enum maps back to a text property as its member's name — the wire format, and how a select's options are
                 // keyed; otherwise a select bound to an enum opens empty.

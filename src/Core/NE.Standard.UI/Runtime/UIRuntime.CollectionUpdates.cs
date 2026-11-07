@@ -167,7 +167,7 @@ internal sealed partial class UIRuntime
         }
 
         if (replacedKey is not null)
-            AppendDescendantCollectionUpdatesNoLock(collectionPath.AppendKey(replacedKey));
+            _ = AppendDescendantCollectionUpdatesNoLock(collectionPath.AppendKey(replacedKey));
     }
 
     private bool IsTemplateKeyProperty(UIComponentId componentId, RecursivePath path, int start)

@@ -21,7 +21,7 @@ public abstract partial class BadgeComponent<T>(string? id = null) : VisualCompo
     private static readonly UITextAppearance DefaultTitleType = UITextAppearance.Overline;
 
     /// <summary>
-    /// Gets or sets the badge's visual kind — Primary, Accent, Info, Warning, Success, Danger, or Surface; default Primary.
+    /// Gets or sets the badge's visual kind — Primary, Accent, Info, Warning, Success, Danger, Surface, or Plain; default Primary.
     /// </summary>
     [UIComponentProperty(DefaultValue = UIBadgeVariant.Primary)]
     public UIBadgeVariant? Variant { get; set; }

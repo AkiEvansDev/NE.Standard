@@ -11,7 +11,7 @@ public sealed class CompiledUIItemsFilter
     /// <summary>
     /// Creates a compiled items filter from its resolved source and comparison settings.
     /// </summary>
-    public CompiledUIItemsFilter(CompiledUIItemsRuleSource source, string itemProperty, UIComparisonOperator @operator = UIComparisonOperator.Like, object? value = null)
+    public CompiledUIItemsFilter(CompiledUIItemsRuleSource source, string itemProperty, UIComparisonOperator @operator = UIComparisonOperator.LikeIgnoreCase, object? value = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
 

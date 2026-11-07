@@ -122,6 +122,17 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
             return;
 
         _disposed = true;
+
+        RemoteUIClientTransport[] active;
+        lock (_transports)
+        {
+            active = [.. _transports];
+            _transports.Clear();
+        }
+
+        for (var i = 0; i < active.Length; i++)
+            _ = active[i].CloseAsync(CancellationToken.None);
+
         HttpClient.Dispose();
     }
 

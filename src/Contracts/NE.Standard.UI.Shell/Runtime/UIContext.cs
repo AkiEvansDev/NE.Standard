@@ -465,9 +465,6 @@ public sealed class UIContext
 
         Handle.Instance.Validate();
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(Handle.Session.SessionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(Handle.Session.Language);
-        ArgumentNullException.ThrowIfNull(Handle.Session.Roles);
-        ArgumentNullException.ThrowIfNull(Handle.Session.Permissions);
+        Handle.Session.ValidateSessionFields();
     }
 }

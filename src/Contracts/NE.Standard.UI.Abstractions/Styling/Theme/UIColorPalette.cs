@@ -16,7 +16,7 @@ public sealed record UIColorPalette
     // WCAG's floor for graphics: a series' line, bar or sector clears it on the page and on a card.
     private const double GraphicRatio = 3;
 
-    // Soft graphic floor for a dark-mode selection or focus mark: AstralTeal (#006E64) clears 2.46:1 on #262626 and stays raw,
+    // Soft graphic floor for a dark-mode selection or focus mark: AstralTeal (#006E64) clears 2.4:1 on #222222 and stays raw,
     // while very dark custom primaries lift by the fewest tenths to read on both dark grounds.
     private const double DarkMarkRatio = 2.4;
 
@@ -65,12 +65,12 @@ public sealed record UIColorPalette
     /// <summary>
     /// The page/surface background color.
     /// </summary>
-    public ColorVariant Background { get; init; } = ColorVariant.FromRgb(32, 32, 32);
+    public ColorVariant Background { get; init; } = ColorVariant.FromRgb(20, 20, 20);
 
     /// <summary>
     /// A surface's background color (e.g. a card, popup, or dialog).
     /// </summary>
-    public ColorVariant Surface { get; init; } = ColorVariant.FromRgb(38, 38, 38);
+    public ColorVariant Surface { get; init; } = ColorVariant.FromRgb(34, 34, 34);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Primary"/>.
@@ -87,12 +87,12 @@ public sealed record UIColorPalette
     /// <summary>
     /// The color intended to sit on top of <see cref="Background"/>.
     /// </summary>
-    public ColorVariant OnBackground { get; init; } = ColorVariant.FromRgb(220, 220, 220);
+    public ColorVariant OnBackground { get; init; } = ColorVariant.FromRgb(230, 230, 230);
 
     /// <summary>
     /// The color intended to sit on top of <see cref="Surface"/>.
     /// </summary>
-    public ColorVariant OnSurface { get; init; } = ColorVariant.FromRgb(220, 220, 220);
+    public ColorVariant OnSurface { get; init; } = ColorVariant.FromRgb(230, 230, 230);
 
     /// <summary>
     /// The informational status color.
@@ -178,7 +178,7 @@ public sealed record UIColorPalette
     /// <summary>
     /// The default border color (subtle structural divider / Border1).
     /// </summary>
-    public ColorVariant Border { get; init; } = ColorVariant.FromRgb(52, 52, 52);
+    public ColorVariant Border { get; init; } = ColorVariant.FromRgb(50, 50, 50);
 
     /// <summary>
     /// The stronger control/frame border color (Border2): a field's resting border, an unchecked box's or switch's ring, or a
@@ -249,6 +249,32 @@ public sealed record UIColorPalette
             FocusRing = Follow(FocusRing, Accent, accent)
         };
     }
+
+    internal UIColorPalette WithBrandColors(ColorVariant primary, ColorVariant accent)
+    {
+        if (primary.Equals(Primary))
+            return WithAccent(accent);
+
+        if (accent.Equals(Accent))
+            return WithPrimary(primary);
+
+        ColorVariant oldPrimary = Primary;
+        ColorVariant oldAccent = Accent;
+        ColorVariant oldSelected = Selected;
+        ColorVariant oldFocusRing = FocusRing;
+        UIColorPalette updated = WithPrimary(primary).WithAccent(accent);
+
+        return updated with
+        {
+            Selected = FollowBrand(oldSelected, oldPrimary, primary, oldAccent, accent),
+            FocusRing = FollowBrand(oldFocusRing, oldPrimary, primary, oldAccent, accent)
+        };
+    }
+
+    private static ColorVariant FollowBrand(ColorVariant token, ColorVariant oldPrimary, ColorVariant newPrimary, ColorVariant oldAccent, ColorVariant newAccent)
+        => MatchesHue(token, oldPrimary) ? Follow(token, oldPrimary, newPrimary)
+            : MatchesHue(token, oldAccent) ? Follow(token, oldAccent, newAccent)
+            : token;
 
     /// <summary>
     /// <see cref="Primary"/> as a selection or focus mark on this palette's grounds: shaded to read on a light page so pale custom
@@ -325,7 +351,87 @@ public sealed record UIColorPalette
 
     /// <summary>A colour drawn from <paramref name="from"/>'s hue drawn the same way from <paramref name="to"/>; any other kept.</summary>
     private static ColorVariant Follow(ColorVariant token, ColorVariant from, ColorVariant to)
-        => token.Name == from.Name && token.Rgb == from.Rgb ? Adjusted(to, token.Adjustment, token.Factor, token.Opacity) : token;
+        => MatchesHue(token, from) ? Adjusted(to, token.Adjustment, token.Factor, token.Opacity) : token;
+
+    private static bool MatchesHue(ColorVariant token, ColorVariant from)
+        => token.Name == from.Name && token.Rgb == from.Rgb;
+
+    /// <inheritdoc />
+    public bool Equals(UIColorPalette? other)
+    {
+        if (other is null)
+            return false;
+
+        if (ReferenceEquals(this, other))
+            return true;
+
+        return Primary.Equals(other.Primary)
+            && Accent.Equals(other.Accent)
+            && Background.Equals(other.Background)
+            && Surface.Equals(other.Surface)
+            && OnPrimary.Equals(other.OnPrimary)
+            && OnAccent.Equals(other.OnAccent)
+            && OnBackground.Equals(other.OnBackground)
+            && OnSurface.Equals(other.OnSurface)
+            && Info.Equals(other.Info)
+            && Warning.Equals(other.Warning)
+            && Success.Equals(other.Success)
+            && Danger.Equals(other.Danger)
+            && OnInfo.Equals(other.OnInfo)
+            && OnWarning.Equals(other.OnWarning)
+            && OnSuccess.Equals(other.OnSuccess)
+            && OnDanger.Equals(other.OnDanger)
+            && PrimaryInk.Equals(other.PrimaryInk)
+            && AccentInk.Equals(other.AccentInk)
+            && InfoInk.Equals(other.InfoInk)
+            && WarningInk.Equals(other.WarningInk)
+            && SuccessInk.Equals(other.SuccessInk)
+            && DangerInk.Equals(other.DangerInk)
+            && Selected.Equals(other.Selected)
+            && FocusRing.Equals(other.FocusRing)
+            && Border.Equals(other.Border)
+            && Mark.Equals(other.Mark)
+            && Shadow.Equals(other.Shadow)
+            && Overlay.Equals(other.Overlay)
+            && DisabledOpacity == other.DisabledOpacity
+            && SeriesEqual(Series, other.Series);
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+    {
+        HashCode hash = new();
+        hash.Add(Primary);
+        hash.Add(Accent);
+        hash.Add(Background);
+        hash.Add(Surface);
+        hash.Add(Selected);
+        hash.Add(FocusRing);
+        hash.Add(DisabledOpacity);
+
+        IReadOnlyList<ColorVariant> series = Series;
+        for (var i = 0; i < series.Count; i++)
+            hash.Add(series[i]);
+
+        return hash.ToHashCode();
+    }
+
+    private static bool SeriesEqual(IReadOnlyList<ColorVariant> left, IReadOnlyList<ColorVariant> right)
+    {
+        if (ReferenceEquals(left, right))
+            return true;
+
+        if (left.Count != right.Count)
+            return false;
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (!left[i].Equals(right[i]))
+                return false;
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// Validates all color variants in the palette.

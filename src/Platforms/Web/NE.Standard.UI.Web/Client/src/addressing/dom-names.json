@@ -839,6 +839,11 @@
         "value":  "data-ui-window-foot"
     },
     {
+        "constant":  "WindowFootEdgeAttribute",
+        "value":  "data-ui-window-foot-edge",
+        "clientOnly":  true
+    },
+    {
         "constant":  "ContentFillsAttribute",
         "value":  "data-ui-content-fills"
     },
@@ -1218,11 +1223,6 @@
     {
         "constant":  "KeyboardUpAttribute",
         "value":  "data-ui-keyboard-up",
-        "clientOnly":  true
-    },
-    {
-        "constant":  "WindowFootEdgeAttribute",
-        "value":  "data-ui-window-foot-edge",
         "clientOnly":  true
     },
     {
@@ -2233,12 +2233,29 @@
         "value":  "ui-menu__item"
     },
     {
+        "constant":  "ContentTextClass",
+        "value":  "ui-content-text"
+    },
+    {
         "constant":  "TextBodyClass",
         "value":  "ui-text__body"
     },
     {
         "constant":  "TextHeaderClass",
         "value":  "ui-text__header"
+    },
+    {
+        "constant":  "TextRenameClass",
+        "value":  "ui-text__rename",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "TextRenamedTitleAttribute",
+        "value":  "data-ui-text-renamed-title"
+    },
+    {
+        "constant":  "TextRenamableAttribute",
+        "value":  "data-ui-text-renamable"
     },
     {
         "constant":  "MenuSubmenuClass",

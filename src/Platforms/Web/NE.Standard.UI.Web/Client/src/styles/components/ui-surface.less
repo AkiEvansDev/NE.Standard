@@ -92,6 +92,7 @@
     --ui-ground: var(--ui-surface-fill);
     // The page's own level again, inside a surface panel too: a popup opened here is the page's.
     --ui-popup-ground: initial;
+    --ui-field-ground-share: initial;
 }
 
 // A list drawn on Background (a key-value list, a table's box, a tree; every one by default) is the ground of what holds it, not a block
@@ -102,10 +103,11 @@
     --ui-faint-base: inherit;
     --ui-ground: inherit;
     --ui-popup-ground: inherit;
+    --ui-field-ground-share: inherit;
     background-color: transparent;
 }
 
-// Surface's ground: the palette's surface colour (`#262626` on dark, `#E4E4E4` on light), with no artificial text mix.
+// Surface's ground: the palette's surface colour (`#222222` on dark, `#E4E4E4` on light), with no artificial text mix.
 .ui-surface--surface {
     --ui-surface-fill: var(--ui-surface-color, var(--ui-color-surface));
     background-color: var(--ui-surface-fill);
@@ -126,4 +128,5 @@
     --ui-ground: var(--ui-surface-fill) !important;
     // Mostly the page's ground, so a popup opened here is the page's.
     --ui-popup-ground: initial;
+    --ui-field-ground-share: initial;
 }

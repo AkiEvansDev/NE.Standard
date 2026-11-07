@@ -72,6 +72,7 @@ public sealed class UIRouteDefinition
         ArgumentException.ThrowIfNullOrWhiteSpace(Route);
         ArgumentException.ThrowIfNullOrWhiteSpace(ViewKey);
         ArgumentNullException.ThrowIfNull(AccessRules);
+        ArgumentNullException.ThrowIfNull(ViewFilters);
         ArgumentNullException.ThrowIfNull(IdentityParameters);
 
         if (ControllerType is not null && !typeof(IUIController).IsAssignableFrom(ControllerType))
@@ -91,5 +92,8 @@ public sealed class UIRouteDefinition
             ArgumentNullException.ThrowIfNull(AccessRules[i]);
             AccessRules[i].Validate();
         }
+
+        for (var i = 0; i < ViewFilters.Length; i++)
+            ArgumentNullException.ThrowIfNull(ViewFilters[i]);
     }
 }

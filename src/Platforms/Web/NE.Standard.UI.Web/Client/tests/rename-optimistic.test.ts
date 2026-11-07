@@ -23,6 +23,7 @@ installFakeDom({
 
 const { TabsViewEngine } = await import("../src/interactions/tabs-view-engine.ts");
 const { TreeEngine } = await import("../src/interactions/tree-engine.ts");
+const { TextRenameEngine } = await import("../src/interactions/text-rename-engine.ts");
 
 function createPatchHub(): {
     readonly propertyPatchEngine: { addValueChangeHandler(handler: PropertyValueChangeHandler): () => void };
@@ -149,6 +150,56 @@ test("Tree rename updates the node title synchronously on commit and reconciles 
     });
 
     assert.equal(title.textContent, "readme.md");
+
+    engine.dispose();
+});
+
+test("TextComponent inline rename updates the title synchronously on F2 commit and reconciles a server RenamedTitle answer", () => {
+    const root = new FakeElement();
+    const hub = createPatchHub();
+    const title = FakeElement.of("ui-text__title", {}, "span");
+
+    title.textContent = "Untracked node";
+
+    const header = FakeElement.of("ui-text__header").append(title);
+    const content = FakeElement.of("ui-text__content").append(header);
+    const text = FakeElement.of("ui-text ui-content-text", {
+        "data-ui-text-renamable": "",
+        "data-ui-value-kind": "text-title",
+        tabindex: "0"
+    }).append(content);
+
+    root.append(text);
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(root);
+
+    const engine = new TextRenameEngine({
+        root: real<ParentNode>(root),
+        propertyPatchEngine: hub.propertyPatchEngine
+    });
+
+    pressKey(text, "F2");
+
+    const field = text.children.find(child => child instanceof FakeInput) as FakeInput;
+
+    assert.ok(field);
+    field.value = "Renamed node";
+    pressKey(field, "Enter");
+
+    assert.equal(title.textContent, "Renamed node");
+    assert.equal(text.getAttribute("data-ui-text-renamed-title"), "Renamed node");
+
+    // Server refuses or normalizes RenamedTitle.
+    hub.emit({
+        reference: { componentId: 3, propertyId: "RenamedTitle" },
+        propertyName: "RenamedTitle",
+        dynamicParameters: [],
+        value: "Normalized node",
+        local: false,
+        components: [real(text)]
+    });
+
+    assert.equal(title.textContent, "Normalized node");
 
     engine.dispose();
 });

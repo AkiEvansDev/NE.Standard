@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ThemeAttribute } from "../addressing/dom-attributes.ts";
+import { ContentTextClass, ThemeAttribute } from "../addressing/dom-attributes.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry, EffectContext } from "../addressing/dom-registry.ts";
 import { resolveValueHolder, toDomString } from "../extensions/value-readers.ts";
@@ -285,13 +285,14 @@ export class EffectRegistry {
 
             const effect = context.effect as RenameItemClientEffect;
             const renamer = [...this.itemRenamers].find(([hostClass]) => element.classList.contains(hostClass))?.[1];
+            const key = typeof effect.key === "string" ? effect.key : "";
 
-            if (renamer === undefined || typeof effect.key !== "string" || effect.key.length === 0) {
+            if (renamer === undefined || (key.length === 0 && !element.classList.contains(ContentTextClass))) {
                 logWarn("rename item effect names no host that renames its items, or no key.", context.effect);
                 return;
             }
 
-            if (!renamer(element as HTMLElement, effect.key))
+            if (!renamer(element as HTMLElement, key))
                 logWarn("rename item effect names an item the host does not show.", context.effect);
         });
 

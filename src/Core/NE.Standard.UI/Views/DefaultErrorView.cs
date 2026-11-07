@@ -22,7 +22,7 @@ internal sealed class DefaultErrorView : UIViewBase, IUIViewDefinition
         StatusComponent status = new StatusComponent(UIGlyphs.Error, UIColorStyle.Danger, UIStrings.ErrorTitle)
             .AddAction(DefaultStatusPage.HomeButton(nameof(DefaultErrorController.GoHome)));
 
-        // The message comes from the address (`?message=`): anyone can write it, so it is shown as written, never as markup.
+        // An exception message may contain brackets or stars from stack or parameter text, so it is shown as written, never as markup.
         _ = status.Words
             .BindDescription(nameof(DefaultErrorController.Message))
             .SetDescriptionPlain(true);

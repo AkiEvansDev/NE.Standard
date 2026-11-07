@@ -35,7 +35,7 @@ with the item models and the enums on their own pages beside it.
 
 ## Contents
 
-- `TextComponent` - an icon, a title, a description and a badge, one line each unless told to wrap; `TitleType` is its role and `SetHeadingLevel(1..6)` renders `.ui-text__title` as `<h1>`–`<h6>`.
+- `TextComponent` - an icon, a title, a description and a badge, one line each unless told to wrap; `TitleType` is its role, `SetHeadingLevel(1..6)` renders `.ui-text__title` as `<h1>`–`<h6>`, and `SetRenamable(true)` / `BindRenamedTitle` / `OnRename` (or `UIText.Editable` / `.Editable(...)`) opens its title for inline editing on double click, `F2` or `RenameItemEffect(target)`.
 - `ParagraphComponent` - text meant to be read, wrapping, `MaxLines`.
 - `IconComponent`, `ImageComponent`, `BadgeComponent`, `SeparatorComponent`. A picture with no picture - no address, an empty one,
   one that fails - draws a glyph (`UIGlyphs.Person` in a circle, `UIGlyphs.Image` otherwise); `IconFallback`

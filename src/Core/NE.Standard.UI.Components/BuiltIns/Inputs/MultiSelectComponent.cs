@@ -50,9 +50,9 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         {
             field = value;
 
-            if (value is UIMultiSelectVariant variant && ReferenceEquals(Template, _variantTemplate))
+            if (ReferenceEquals(Template, _variantTemplate))
             {
-                _variantTemplate = CreateVariantTemplate(variant);
+                _variantTemplate = CreateVariantTemplate(value ?? UIMultiSelectVariant.Chips);
                 _ = SetTemplate(_variantTemplate);
             }
         }

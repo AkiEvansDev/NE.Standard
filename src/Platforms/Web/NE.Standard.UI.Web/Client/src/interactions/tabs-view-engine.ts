@@ -471,7 +471,7 @@ export class TabsViewEngine {
         domEvent.stopPropagation();
 
         // A tab that cannot be removed, or a strip that removes nothing, has its close hidden; a press that still lands raises nothing.
-        if (!isRemovable(root, item))
+        if (isInert(root) || isInert(item) || !isRemovable(root, item))
             return true;
 
         item.dispatchEvent(new Event("remove", { bubbles: true }));
@@ -487,7 +487,7 @@ export class TabsViewEngine {
         const label = captionLabel(domEvent.target);
         const root = label?.closest<HTMLElement>(`.${TabsViewClass}`) ?? null;
 
-        if (label === null || root === null || !root.hasAttribute(TabsRenamableAttribute))
+        if (label === null || root === null || !root.hasAttribute(TabsRenamableAttribute) || isInert(root) || isInert(label))
             return;
 
         domEvent.preventDefault();
@@ -560,7 +560,7 @@ export class TabsViewEngine {
         const label = domEvent.target.closest<HTMLElement>(`.${TabItemLabelClass}`);
         const root = label?.closest<HTMLElement>(`.${TabsViewClass}`) ?? null;
 
-        if (label === null || root === null)
+        if (label === null || root === null || isInert(root) || isInert(label))
             return;
 
         // F2 renames the caption the caret is on, the key the tree's rows answer too. A chord with it is another's.

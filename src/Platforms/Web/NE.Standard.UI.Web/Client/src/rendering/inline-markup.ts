@@ -218,7 +218,7 @@ function parseRange(markup: MarkupText, start: number, end: number, styles: Inli
     while (index < end) {
         const current = text[index];
 
-        if (current === Escape && index + 1 < end && isMarkerCharacter(text[index + 1])) {
+        if (current === Escape && index + 1 < end && isEscapableCharacter(text[index + 1])) {
             buffer.value += text[index + 1];
             index += 2;
             continue;
@@ -322,7 +322,7 @@ function readCode(markup: MarkupText, index: number, end: number): number | null
 
 function appendLiteral(text: string, start: number, end: number, buffer: { value: string }): void {
     for (let index = start; index < end; index++) {
-        if (text[index] === Escape && index + 1 < end && isMarkerCharacter(text[index + 1])) {
+        if (text[index] === Escape && index + 1 < end && isEscapableCharacter(text[index + 1])) {
             buffer.value += text[index + 1];
             index++;
             continue;
@@ -365,7 +365,7 @@ function readStyle(markup: MarkupText, index: number, end: number): StyleMatch |
     if (current !== "*" && current !== "_" && current !== "~")
         return null;
 
-    const doubled = index + 1 < end && text[index + 1] === current;
+    const doubled = index + 1 < end && text[index + 1] === current && !markup.isEscaped(index + 1);
 
     let style: InlineStyles;
     let markerLength: number;
@@ -728,10 +728,13 @@ class MarkupText {
         if (index === 0 || this.text[index] !== marker || this.isEscaped(index) || isSpace(this.text[index - 1]))
             return false;
 
-        const repeated = index + 1 < this.text.length && this.text[index + 1] === marker;
+        const repeated = index + 1 < this.text.length && this.text[index + 1] === marker && !this.isEscaped(index + 1);
 
         // The doubled marker must be exactly doubled, so `***a***` closes as bold wrapping italic.
-        return markerLength === 2 ? repeated : !repeated;
+        if (markerLength === 2)
+            return repeated && (index + 2 >= this.text.length || this.text[index + 2] !== marker || this.isEscaped(index + 2));
+
+        return !repeated && (this.text[index - 1] !== marker || this.isEscaped(index - 1));
     }
 }
 
@@ -750,6 +753,10 @@ function closingMarkerSlot(marker: string, markerLength: number): number {
         default:
             return 4;
     }
+}
+
+function isEscapableCharacter(value: string): boolean {
+    return isMarkerCharacter(value) || value === IconMarker;
 }
 
 function isMarkerCharacter(value: string): boolean {

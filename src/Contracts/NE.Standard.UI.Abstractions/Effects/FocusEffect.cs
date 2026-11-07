@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -32,7 +33,10 @@ public sealed class FocusEffect(UIComponentReference target) : TargetedClientEff
 
     /// <inheritdoc />
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
-        => new CompiledFocusEffect(resolver.ResolveComponent(Target));
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+        return new CompiledFocusEffect(resolver.ResolveComponent(Target));
+    }
 }
 
 internal sealed class CompiledFocusEffect(UIComponentAddress target) : CompiledTargetedClientEffect(target)

@@ -7,7 +7,7 @@
 // Whether a checkbox or switch carries words, a glyph or a badge of its own; bare boxes (a table's select column, a trailing row toggle) do not.
 @ui-toggle-labelled: ~":is([data-ui-text-title], [data-ui-text-description], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-title])";
 
-// A toggle answers pointer hover and keyboard focus with an outer wash round its box and label, a stepped box fill and ring, and a stronger lean on press (`:active`).
+// A toggle answers pointer hover and keyboard focus with an outer wash round its box and label, a stepped box fill and ring, and a stronger lean on pointer press (`:active`).
 @ui-toggle-live: ~":not(.ui-disabled, .ui-readonly, .ui-loading)";
 @ui-toggle-item-live: ~":not([data-ui-row-idle], [aria-disabled='true'], [data-ui-pending])";
 @ui-toggle-row-hover: var(--ui-wash-hover);
@@ -124,6 +124,20 @@
             @{root}@{ui-toggle-live}:hover > @{input}:checked ~ @{box} {
                 @on();
             }
+
+            // Gated behind hover capability so a touch press on a phone flips the toggle without flashing the old state's ring or knob white first.
+            @{root}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
+                @off-press();
+            }
+
+            @{unmarked}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
+                border-color: @ui-toggle-ring-press;
+            }
+
+            @{root}@{ui-toggle-live}:active > @{input}:checked ~ @{box} {
+                @on();
+                --ui-toggle-lean: 80%;
+            }
         }
 
         @{root}@{ui-toggle-live}@{ui-keyboard-within} > @{input}:not(:checked) ~ @{box} {
@@ -137,19 +151,6 @@
 
         @{root}@{ui-toggle-live}@{ui-keyboard-within} > @{input}:checked ~ @{box} {
             @on();
-        }
-
-        @{root}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
-            @off-press();
-        }
-
-        @{unmarked}@{ui-toggle-live}:active > @{input}:not(:checked) ~ @{box} {
-            border-color: @ui-toggle-ring-press;
-        }
-
-        @{root}@{ui-toggle-live}:active > @{input}:checked ~ @{box} {
-            @on();
-            --ui-toggle-lean: 80%;
         }
     }
 }

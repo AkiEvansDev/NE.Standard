@@ -15,6 +15,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="NE.Standard.UI.Client" />
+    <InternalsVisibleTo Include="NE.Standard.UI.Wpf" />
+    <InternalsVisibleTo Include="NE.Standard.UI.Wpf.Renderers" />
+    <InternalsVisibleTo Include="NE.Standard.UI.Wpf.Renderers.Foundation" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NE.Standard.UI.Primitives\NE.Standard.UI.Primitives.csproj" />
   </ItemGroup>
 

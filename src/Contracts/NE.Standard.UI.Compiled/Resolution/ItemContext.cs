@@ -81,7 +81,7 @@ public sealed class ItemContext(object? item)
 
                 if (parameter.Kind == CompiledUIBindingParameterKind.Dynamic)
                 {
-                    if (!TryResolveDynamicParameter(parameter, scopes, out current))
+                    if (!TryResolveDynamicParameter(current, parameter, scopes, out current))
                         return false;
 
                     currentValid = true;
@@ -120,7 +120,7 @@ public sealed class ItemContext(object? item)
         return index;
     }
 
-    private static bool TryResolveDynamicParameter(CompiledUIBindingParameter parameter, IReadOnlyList<UIDynamicParameterScope> scopes, out object? value)
+    private static bool TryResolveDynamicParameter(object? current, CompiledUIBindingParameter parameter, IReadOnlyList<UIDynamicParameterScope> scopes, out object? value)
     {
         value = null;
 
@@ -133,6 +133,15 @@ public sealed class ItemContext(object? item)
 
             if (!scope.ComponentId.Equals(componentId))
                 continue;
+
+            if (scope.Item is not null)
+            {
+                value = scope.Item;
+                return true;
+            }
+
+            if (scope.Key is not null && TryReadCollectionItem(current, scope.Key, out value))
+                return true;
 
             value = scope.Item;
             return true;

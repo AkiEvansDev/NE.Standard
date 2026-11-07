@@ -42,6 +42,7 @@ public readonly record struct UIPropertyReference
     public UIPropertyReference(UIComponentReference component, UIProperty property)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(component.Id);
+        ArgumentException.ThrowIfNullOrWhiteSpace(property.Name, nameof(property));
 
         Component = component;
         Property = property;

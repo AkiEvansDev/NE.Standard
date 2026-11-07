@@ -18,7 +18,8 @@ public sealed class UIItemsSort
         ArgumentException.ThrowIfNullOrWhiteSpace(itemProperty);
         ArgumentOutOfRangeException.ThrowIfNegative(priority);
 
-        activeValue ??= true;
+        if (activeOperator != UIComparisonOperator.Required)
+            activeValue ??= true;
 
         Source = new UIItemsRuleSource(source, activeOperator, activeValue);
         ItemProperty = itemProperty;

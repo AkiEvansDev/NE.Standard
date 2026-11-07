@@ -103,10 +103,60 @@ public sealed record UserSessionState : IUserSessionContext
     /// Validates the stored session.
     /// </summary>
     public void Validate()
+        => ((IUserSessionContext)this).ValidateSessionFields();
+
+    /// <inheritdoc />
+    public bool Equals(UserSessionState? other)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(SessionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(Language);
-        ArgumentNullException.ThrowIfNull(Roles);
-        ArgumentNullException.ThrowIfNull(Permissions);
+        if (other is null)
+            return false;
+
+        if (ReferenceEquals(this, other))
+            return true;
+
+        return string.Equals(SessionId, other.SessionId, StringComparison.Ordinal)
+            && string.Equals(Language, other.Language, StringComparison.Ordinal)
+            && ThemeMode == other.ThemeMode
+            && Equals(ThemeColors, other.ThemeColors)
+            && string.Equals(TimeZone, other.TimeZone, StringComparison.Ordinal)
+            && IsAuthenticated == other.IsAuthenticated
+            && string.Equals(UserId, other.UserId, StringComparison.Ordinal)
+            && PendingIdRotation == other.PendingIdRotation
+            && IsUnclaimed == other.IsUnclaimed
+            && CreatedAtUtc.Equals(other.CreatedAtUtc)
+            && LastSeenAtUtc.Equals(other.LastSeenAtUtc)
+            && SetsEqual(Roles, other.Roles)
+            && SetsEqual(Permissions, other.Permissions);
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+    {
+        HashCode hash = new();
+        hash.Add(SessionId, StringComparer.Ordinal);
+        hash.Add(Language, StringComparer.Ordinal);
+        hash.Add(ThemeMode);
+        hash.Add(ThemeColors);
+        hash.Add(TimeZone, StringComparer.Ordinal);
+        hash.Add(IsAuthenticated);
+        hash.Add(UserId, StringComparer.Ordinal);
+        hash.Add(PendingIdRotation);
+        hash.Add(IsUnclaimed);
+        hash.Add(CreatedAtUtc);
+        hash.Add(LastSeenAtUtc);
+        hash.Add(Roles?.Count ?? 0);
+        hash.Add(Permissions?.Count ?? 0);
+        return hash.ToHashCode();
+    }
+
+    internal static bool SetsEqual(IReadOnlySet<string>? left, IReadOnlySet<string>? right)
+    {
+        if (ReferenceEquals(left, right))
+            return true;
+
+        if (left is null || right is null)
+            return false;
+
+        return left.SetEquals(right);
     }
 }

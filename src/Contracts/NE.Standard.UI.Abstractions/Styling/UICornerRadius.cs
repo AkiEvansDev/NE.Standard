@@ -37,11 +37,30 @@ public readonly record struct UICornerRadius(double TopLeft, double TopRight, do
     /// </summary>
     public void Validate()
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(TopLeft);
-        ArgumentOutOfRangeException.ThrowIfNegative(TopRight);
-        ArgumentOutOfRangeException.ThrowIfNegative(BottomRight);
-        ArgumentOutOfRangeException.ThrowIfNegative(BottomLeft);
+        ValidateCorner(TopLeft, nameof(TopLeft));
+        ValidateCorner(TopRight, nameof(TopRight));
+        ValidateCorner(BottomRight, nameof(BottomRight));
+        ValidateCorner(BottomLeft, nameof(BottomLeft));
     }
+
+    internal static void ValidateNonNegativeFinite(double value, string paramName)
+    {
+        if (!double.IsFinite(value))
+            throw new ArgumentOutOfRangeException(paramName, value, "Value must be a finite number.");
+
+        ArgumentOutOfRangeException.ThrowIfNegative(value, paramName);
+    }
+
+    internal static void ValidatePositiveFinite(double value, string paramName)
+    {
+        if (!double.IsFinite(value))
+            throw new ArgumentOutOfRangeException(paramName, value, "Value must be a finite number.");
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value, paramName);
+    }
+
+    private static void ValidateCorner(double value, string paramName)
+        => ValidateNonNegativeFinite(value, paramName);
 
     /// <summary>The four corners in their declared order, collapsed where they repeat.</summary>
     public override string ToString()

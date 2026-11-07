@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -102,7 +103,10 @@ public sealed class ScrollToEffect(UIComponentReference target, ScrollToBehavior
 
     /// <inheritdoc />
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
-        => new CompiledScrollToEffect(resolver.ResolveComponent(Target), Behavior, Block);
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+        return new CompiledScrollToEffect(resolver.ResolveComponent(Target), Behavior, Block);
+    }
 }
 
 internal sealed class CompiledScrollToEffect(UIComponentAddress target, ScrollToBehavior behavior, ScrollToBlock block) : CompiledTargetedClientEffect(target)

@@ -134,7 +134,8 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
         return Self;
     }
 
-    private IVisualComponent Accept(IVisualComponent visualTemplate)
+    /// <summary>Validates that <paramref name="visualTemplate"/> is non-null and not this component itself.</summary>
+    protected IVisualComponent Accept(IVisualComponent visualTemplate)
     {
         ArgumentNullException.ThrowIfNull(visualTemplate);
 

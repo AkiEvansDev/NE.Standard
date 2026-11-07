@@ -59,7 +59,7 @@ public sealed partial class UIClientPage
         }
 
         if (binding is null)
-            return compiled?.Value;
+            return View.Interactions.TryGetFirstPaintValue(new UIPropertyAddress(componentId, property), out var painted) ? painted : compiled?.Value;
 
         if (ReadsItem(binding) && TryReadItemValueNoLock(binding, componentId, rowKeys, out var value))
             return CompiledViewWireSerializer.CoerceWireValue(binding.TargetValueType, value) ?? binding.TargetFallbackValue;

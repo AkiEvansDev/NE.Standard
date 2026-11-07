@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
@@ -36,7 +37,10 @@ public sealed class OpenPickerEffect(UIComponentReference target) : TargetedClie
 
     /// <inheritdoc />
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
-        => new CompiledOpenPickerEffect(resolver.ResolveComponent(Target));
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+        return new CompiledOpenPickerEffect(resolver.ResolveComponent(Target));
+    }
 }
 
 internal sealed class CompiledOpenPickerEffect(UIComponentAddress target) : CompiledTargetedClientEffect(target)

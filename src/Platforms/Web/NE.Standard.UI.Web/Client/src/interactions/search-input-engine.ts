@@ -7,6 +7,7 @@ import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { PendingDelayMilliseconds } from "../events/pending-mark.ts";
 import { CommitPauses } from "./debounced-commit-engine.ts";
+import { isInert, isReadOnly } from "./interactive-state.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { entryWords, foldWords, matchesTerms, searchTerms } from "./search-terms.ts";
 
@@ -133,6 +134,9 @@ export class SearchInputEngine {
             return;
 
         const input = domEvent.target;
+
+        if (isReadOnly(input) || isInert(input))
+            return;
 
         domEvent.preventDefault();
         this.pauses.drop(input);

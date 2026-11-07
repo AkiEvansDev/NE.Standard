@@ -374,7 +374,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         WebPageWords words = WebPageWords.For(application, resolution, packageStrings);
         WebHydration hydration = await WebHydration
-            .PrepareAsync(host, resolution, shape, words, http.RequestAborted)
+            .PrepareAsync(host, resolution, shape, words, cancellationToken)
             .ConfigureAwait(false);
 
         // The controller signed in as the render built its runtime: this response hands out the new key, in place of the one it carried.

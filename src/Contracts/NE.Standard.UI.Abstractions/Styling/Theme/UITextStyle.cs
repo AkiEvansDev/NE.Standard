@@ -32,11 +32,11 @@ public readonly record struct UITextStyle()
     /// </summary>
     public void Validate()
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(FontSize);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(LineHeight);
+        UICornerRadius.ValidatePositiveFinite(FontSize, nameof(FontSize));
+        UICornerRadius.ValidatePositiveFinite(LineHeight, nameof(LineHeight));
         ArgumentOutOfRangeException.ThrowIfNegative(FontWeight);
 
         if (LetterSpacing is double letterSpacing)
-            ArgumentOutOfRangeException.ThrowIfNegative(letterSpacing);
+            UICornerRadius.ValidateNonNegativeFinite(letterSpacing, nameof(LetterSpacing));
     }
 }

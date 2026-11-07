@@ -300,7 +300,7 @@ public sealed partial class UIClientPage
         {
             0 => 0,
             1 => leftNumber.CompareTo(rightNumber),
-            _ => compareInfo.Compare(leftText, rightText, CompareOptions.None)
+            _ => compareInfo.Compare(leftText, rightText, CompareOptions.StringSort)
         };
     }
 

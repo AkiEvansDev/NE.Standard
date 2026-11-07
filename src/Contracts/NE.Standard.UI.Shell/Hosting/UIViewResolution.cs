@@ -59,9 +59,6 @@ public sealed class UIViewResolution
         Route.Validate();
         Navigation.Validate();
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(Session.SessionId);
-        ArgumentException.ThrowIfNullOrWhiteSpace(Session.Language);
-        ArgumentNullException.ThrowIfNull(Session.Roles);
-        ArgumentNullException.ThrowIfNull(Session.Permissions);
+        Session.ValidateSessionFields();
     }
 }

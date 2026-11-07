@@ -197,10 +197,13 @@ public static class UIInlineMarkup
             if (index == 0 || Text[index] != marker || IsEscaped(index) || IsSpace(Text[index - 1]))
                 return false;
 
-            var repeated = index + 1 < Text.Length && Text[index + 1] == marker;
+            var repeated = index + 1 < Text.Length && Text[index + 1] == marker && !IsEscaped(index + 1);
 
             // The doubled marker must be exactly doubled, so `***a***` closes as bold wrapping italic.
-            return markerLength == 2 ? repeated : !repeated;
+            if (markerLength == 2)
+                return repeated && (index + 2 >= Text.Length || Text[index + 2] != marker || IsEscaped(index + 2));
+
+            return !repeated && (Text[index - 1] != marker || IsEscaped(index - 1));
         }
     }
 
@@ -329,7 +332,7 @@ public static class UIInlineMarkup
         {
             var current = text[index];
 
-            if (current == EscapeCharacter && index + 1 < end && IsMarkerCharacter(text[index + 1]))
+            if (current == EscapeCharacter && index + 1 < end && IsEscapableCharacter(text[index + 1]))
             {
                 _ = buffer.Append(text[index + 1]);
                 index += 2;
@@ -427,7 +430,7 @@ public static class UIInlineMarkup
     {
         for (var index = start; index < end; index++)
         {
-            if (text[index] == EscapeCharacter && index + 1 < end && IsMarkerCharacter(text[index + 1]))
+            if (text[index] == EscapeCharacter && index + 1 < end && IsEscapableCharacter(text[index + 1]))
             {
                 _ = buffer.Append(text[index + 1]);
                 index++;
@@ -459,7 +462,7 @@ public static class UIInlineMarkup
         if (current is not ('*' or '_' or '~'))
             return false;
 
-        var doubled = index + 1 < end && text[index + 1] == current;
+        var doubled = index + 1 < end && text[index + 1] == current && !text.IsEscaped(index + 1);
 
         if (current == '*')
         {
@@ -771,6 +774,9 @@ public static class UIInlineMarkup
 
         return true;
     }
+
+    private static bool IsEscapableCharacter(char value)
+        => IsMarkerCharacter(value) || value == IconMarker;
 
     private static bool IsMarkerCharacter(char value)
         => value is '*' or '_' or '~' or '[' or ']' or '(' or ')' or FoldOpen or FoldClose or CodeMarker or EscapeCharacter;

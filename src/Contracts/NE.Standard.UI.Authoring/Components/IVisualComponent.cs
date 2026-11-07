@@ -329,9 +329,9 @@ public interface IVisualComponent : IBindableComponent
     static UIProperty WindowFootProperty { get; } = new(nameof(WindowFoot));
 
     /// <summary>
-    /// Gets whether this component is the window's foot where it stands at the window's bottom edge (a chat's composer, a pane's last
-    /// row): the phone's system bar under the page takes its colour, and where the page runs under that bar it keeps clear of it in
-    /// that colour. The page's bottom bar is one by itself.
+    /// Gets whether this component is the window's foot (a chat's composer, a pane's last row): where it stands at the window's bottom
+    /// edge the phone's system bar takes its background colour, dimmed by any open modal drawer or dialog veil, and its content sits above the bar.
+    /// The page's bottom bar is one by itself.
     /// </summary>
     /// <remarks>Render-time only.</remarks>
     bool? WindowFoot { get; }

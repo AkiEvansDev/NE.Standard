@@ -220,7 +220,7 @@ export class NumberInputEngine {
         const row = button.closest(`.${NumberInputRowClass}`);
         const input = row?.querySelector<HTMLInputElement>(`.${NumberInputFieldClass}`) ?? null;
 
-        if (input === null || input.readOnly || input.disabled)
+        if (input === null || isReadOnly(input) || isInert(input))
             return;
 
         domEvent.preventDefault();
@@ -239,7 +239,7 @@ export class NumberInputEngine {
 
         const input = asField(domEvent.target);
 
-        if (input === null || input.readOnly || input.disabled)
+        if (input === null || isReadOnly(input) || isInert(input))
             return;
 
         domEvent.preventDefault();

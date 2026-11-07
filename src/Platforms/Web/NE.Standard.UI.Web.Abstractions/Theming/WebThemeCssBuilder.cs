@@ -176,14 +176,15 @@ public static class WebThemeCssBuilder
     {
         // The pointer's share by mode; a control with an opaque fill of its own (a surface button, a clickable surface) or its own hue
         // (a Link button) mixes the share where the wash itself would lay a second colour over it.
-        Append(builder, "wash-hover-share", dark ? "4%" : "10%");
+        Append(builder, "wash-hover-share", dark ? "8%" : "10%");
         Append(builder, "wash-hover", "color-mix(in srgb, var(--ui-color-on-surface) var(--ui-wash-hover-share), transparent)");
         Append(builder, "wash-selected", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 12%, transparent)" : "color-mix(in srgb, var(--ui-mark-selected) 16%, transparent)");
         // Fainter than a selection: the entry a chosen descendant is folded under, which points at the selection rather than being it.
         Append(builder, "wash-descendant", dark ? "color-mix(in srgb, var(--ui-color-on-surface) 12%, transparent)" : "color-mix(in srgb, var(--ui-mark-selected) 8%, transparent)");
-        Append(builder, "text-selected", dark ? "#F0F0F0" : "var(--ui-color-on-surface)");
+        Append(builder, "text-selected", dark ? "#F6F6F6" : "var(--ui-color-on-surface)");
         Append(builder, "text-muted-share", dark ? "64%" : "70%");
         Append(builder, "text-placeholder-share", dark ? "48%" : "54%");
+        Append(builder, "field-rest-share", dark ? "8%" : "10%");
         Append(builder, "popup-base", "var(--ui-color-surface)");
         Append(builder, "tint-ground", dark ? "var(--ui-color-surface)" : "var(--ui-color-background)");
         Append(builder, "tint-share", dark ? "28%" : "20%");
