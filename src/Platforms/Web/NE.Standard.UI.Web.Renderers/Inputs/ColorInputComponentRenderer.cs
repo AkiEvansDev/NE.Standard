@@ -191,7 +191,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 RenderChannelField(context, fields, UIStrings.ColorBlue, "b");
             });
 
-            RenderOpacitySlider(context, pane);
+            RenderOpacitySlider(context, pane, "opacity");
         });
     }
 
@@ -211,9 +211,9 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 RenderChips(context, palette, BrightChips);
             });
 
-            RenderSlider(context, pane, "ui-color-input__slider", UIStrings.ColorFactor, WebAttributes.ColorFactor, -ColorVariant.MaxFactor, ColorVariant.MaxFactor, 0);
+            RenderSlider(context, pane, "ui-color-input__slider", UIStrings.ColorFactor, WebAttributes.ColorFactor, -ColorVariant.MaxFactor, ColorVariant.MaxFactor, 0, "factor");
 
-            RenderOpacitySlider(context, pane);
+            RenderOpacitySlider(context, pane, "palette-opacity");
         });
     }
 
@@ -256,6 +256,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 _ = input.Attribute("type", "text");
                 _ = input.Attribute("autocomplete", "off");
                 _ = input.Attribute(attribute);
+                NativeInputRendererBase.RenderFieldName(context, input, key);
             });
         });
     }
@@ -273,15 +274,16 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 _ = input.Attribute("inputmode", "numeric");
                 _ = input.Attribute("autocomplete", "off");
                 _ = input.Attribute(WebAttributes.ColorChannel, channel);
+                NativeInputRendererBase.RenderFieldName(context, input, channel);
             });
         });
     }
 
     /// <summary>The opacity slider, named on its row, which the stylesheet hides without <c>ShowOpacity</c>.</summary>
-    private static void RenderOpacitySlider(WebRenderContext context, IHtmlElementBuilder pane)
-        => RenderSlider(context, pane, "ui-color-input__slider ui-color-input__slider--opacity", UIStrings.ColorOpacity, WebAttributes.ColorOpacity, 0, 255, 255);
+    private static void RenderOpacitySlider(WebRenderContext context, IHtmlElementBuilder pane, string part)
+        => RenderSlider(context, pane, "ui-color-input__slider ui-color-input__slider--opacity", UIStrings.ColorOpacity, WebAttributes.ColorOpacity, 0, 255, 255, part);
 
-    private static void RenderSlider(WebRenderContext context, IHtmlElementBuilder pane, string rowClass, string labelKey, string attribute, int min, int max, int value)
+    private static void RenderSlider(WebRenderContext context, IHtmlElementBuilder pane, string rowClass, string labelKey, string attribute, int min, int max, int value, string part)
     {
         _ = pane.Element("label", row =>
         {
@@ -295,6 +297,7 @@ public sealed class ColorInputComponentRenderer : TextContentRendererBase
                 _ = input.Attribute("max", max.ToString(CultureInfo.InvariantCulture));
                 _ = input.Attribute("value", value.ToString(CultureInfo.InvariantCulture));
                 _ = input.Attribute(attribute);
+                NativeInputRendererBase.RenderFieldName(context, input, part);
             });
 
             _ = row.Element("span", readout => readout

@@ -42,6 +42,7 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
     const input = document.createElement("input");
 
     input.type = "text";
+    input.name = "rename";
     input.className = options.className;
     input.setAttribute(RenameFieldAttribute, "");
     // A press or a key in the field is the field's: never the click of the node, tab or row it covers.

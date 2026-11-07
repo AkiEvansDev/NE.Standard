@@ -222,6 +222,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
     {
         _ = entry.Class(WebClassNames.MultiSelectEntry);
         _ = entry.Attribute("type", "text");
+        NativeInputRendererBase.RenderFieldName(context, entry, "entry");
         _ = entry.Attribute("autocomplete", "off");
         _ = entry.Attribute("enterkeyhint", "enter");
         _ = entry.Attribute("aria-autocomplete", "list");

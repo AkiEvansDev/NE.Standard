@@ -13,6 +13,7 @@ function decorateCheckboxRow(context: RowDecoratorContext): void {
 
     input.className = CheckboxInputClass;
     input.type = "checkbox";
+    input.name = `ui-${context.componentId}-check`;
     input.value = context.key;
 
     const box = document.createElement("span");

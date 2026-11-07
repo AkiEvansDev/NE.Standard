@@ -56,6 +56,7 @@ public sealed partial class MultiSelectComponentRenderer
         var full = ReadRenderValue<int?>(context, MultiSelectComponent.MaxSelectedProperty, null) is int max && max > 0 && chosen.Count >= max;
         var readOnly = RenderReadOnly(context, root);
         var disabled = ReadRenderValue<bool?>(context, IVisualComponent.EnabledProperty, null) == false || ReadRenderValue<bool?>(context, IVisualComponent.LoadingProperty, null) == true;
+        var checkName = NativeInputRendererBase.FieldName(context, "check");
 
         // Before the option's text, as a checkbox's box is and as the client's CheckboxRowDecorator prepends it on a row it builds.
         // The host is the group, not the root: the caption and the validation line stand outside the choice itself.
@@ -65,7 +66,7 @@ public sealed partial class MultiSelectComponentRenderer
                 _ = host.Attribute("role", "group");
                 TextContentRendererBase.RenderGroupLabel(context, host);
             },
-            decorateItem: (row, item, _) => RenderCheck(row, item, chosen, full, readOnly, disabled)
+            decorateItem: (row, item, _) => RenderCheck(row, item, chosen, full, readOnly, disabled, checkName)
         );
 
         RenderValueInput(context, root, valueKind, chosenKeys, valueBinding);
@@ -93,9 +94,9 @@ public sealed partial class MultiSelectComponentRenderer
 
     /// <summary>
     /// One option's box, checked where its key is chosen; a full field turns off the boxes it does not hold, as its list refuses their
-    /// options, so the first paint already says so. Out of a form's fields: the value travels on the value input alone.
+    /// options, so the first paint already says so.
     /// </summary>
-    private static void RenderCheck(IHtmlElementBuilder row, object? item, HashSet<string> chosen, bool full, bool readOnly, bool disabled)
+    private static void RenderCheck(IHtmlElementBuilder row, object? item, HashSet<string> chosen, bool full, bool readOnly, bool disabled, string checkName)
     {
         var key = item is IBindableItem bindable ? bindable.Id : null;
         var isChecked = key is not null && chosen.Contains(key);
@@ -108,6 +109,7 @@ public sealed partial class MultiSelectComponentRenderer
         {
             _ = input.Class(WebClassNames.CheckboxInput);
             _ = input.Attribute("type", "checkbox");
+            _ = input.Attribute("name", checkName);
 
             if (!string.IsNullOrEmpty(key))
                 _ = input.Attribute("value", key);

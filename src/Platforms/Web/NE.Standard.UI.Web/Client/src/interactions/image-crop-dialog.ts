@@ -189,6 +189,7 @@ function buildDialog(): CropParts {
     const zoom = Parts.element("input", ImageCropZoomClass, "zoom") as HTMLInputElement;
 
     zoom.type = "range";
+    zoom.name = "zoom";
     zoom.min = "1";
     zoom.max = String(MaxCropZoom);
     zoom.step = "0.01";

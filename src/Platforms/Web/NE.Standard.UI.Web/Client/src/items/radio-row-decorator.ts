@@ -13,6 +13,7 @@ function decorateRadioRow(context: RowDecoratorContext): void {
 
     input.className = RadioGroupInputClass;
     input.type = "radio";
+    input.name = `ui-${context.componentId}`;
     input.value = context.key;
 
     const dot = document.createElement("span");

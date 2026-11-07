@@ -712,6 +712,7 @@ async function copyText(text: string): Promise<void> {
 function copyBySelection(text: string): boolean {
     const holder = document.createElement("textarea");
 
+    holder.name = "clipboard";
     holder.value = text;
     holder.setAttribute("readonly", "");
     holder.style.position = "fixed";

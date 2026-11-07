@@ -262,13 +262,14 @@ test("Space is the box's own, and a key with a modifier is no walk", () => {
 test("a row the client builds gets the checkbox's own input, its key its value, and its box ahead of the template", () => {
     const row = FakeElement.of("ui-multi-select__check", {}, "label").append(FakeElement.of("ui-text"));
 
-    CheckboxRowDecorator.decorate(real({ row, key: "thu" }));
+    CheckboxRowDecorator.decorate(real({ row, key: "thu", componentId: 12 }));
 
     const [input, boxElement] = row.children;
 
     assert.equal(CheckboxRowDecorator.kind, "checkbox");
     assert.ok(input instanceof FakeInput);
     assert.equal(input.type, "checkbox");
+    assert.equal(input.name, "ui-12-check");
     assert.equal(input.value, "thu");
     assert.ok(input.classes.has("ui-checkbox__input"));
     assert.ok(boxElement.classes.has("ui-checkbox__box"));
