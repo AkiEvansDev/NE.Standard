@@ -83,16 +83,28 @@ export function openInlineRename(options: InlineRenameOptions): boolean {
         if (isComposing(keyEvent))
             return;
 
-        if (keyEvent.key === "Enter")
+        if (keyEvent.key === "Enter") {
             finish(true, true);
-        else if (keyEvent.key === "Escape")
+            keyEvent.preventDefault();
+        }
+        else if (keyEvent.key === "Escape") {
             finish(false, true);
-        else
-            return;
+            keyEvent.preventDefault();
+        }
 
-        keyEvent.preventDefault();
         keyEvent.stopPropagation();
     });
+
+    // `<summary>` folds its `<details>` on a Space keyup unless the keyup is cancelled; stopping propagation also keeps keys typed in the field from reaching a composite around it.
+    input.addEventListener("keyup", keyEvent => {
+        if (keyEvent.key === " ")
+            keyEvent.preventDefault();
+
+        keyEvent.stopPropagation();
+    });
+
+    input.addEventListener("click", domEvent => domEvent.stopPropagation());
+    input.addEventListener("dblclick", domEvent => domEvent.stopPropagation());
 
     input.addEventListener("blur", () => finish(true, false));
 

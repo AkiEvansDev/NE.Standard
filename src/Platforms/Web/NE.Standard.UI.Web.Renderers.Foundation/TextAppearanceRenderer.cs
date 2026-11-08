@@ -25,7 +25,7 @@ public static class TextAppearanceRenderer
     private static readonly WebDomOperation[] DescriptionOperations =
     [
         .. Operations,
-        WebDomOperation.Class(target: ".ui-text", converter: WebDomConverters.TextDescriptionTypeClass)
+        WebDomOperation.Class(target: "." + WebClassNames.Text, converter: WebDomConverters.TextDescriptionTypeClass)
     ];
 
     public static void RenderTextAppearance(WebRenderContext context, IHtmlElementBuilder target, UIProperty property)

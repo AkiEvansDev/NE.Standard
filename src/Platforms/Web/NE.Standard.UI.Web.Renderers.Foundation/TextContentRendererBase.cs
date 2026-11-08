@@ -20,7 +20,7 @@ namespace NE.Standard.UI.Web.Renderers.Foundation;
 public abstract class TextContentRendererBase : WebComponentRendererBase
 {
     /// <summary>The BEM prefix every text body renders under, whichever component hosts it.</summary>
-    public const string TextClassPrefix = "ui-text";
+    public const string TextClassPrefix = WebClassNames.Text;
 
     /// <summary>The BEM prefix the parts around an input's label — the field, the marker — render under.</summary>
     public const string InputClassPrefix = "ui-input";

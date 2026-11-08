@@ -169,6 +169,41 @@ internal partial class SelectableTextLayoutGroupContext : TextLayoutGroupContext
 }
 
 /// <summary>
+/// A header's layout where the words are not selectable (an expander's <c>&lt;summary&gt;</c>), plus whether its title opens an inline
+/// rename box on double-click, F2 or <see cref="RenameItemEffect"/>.
+/// </summary>
+internal sealed partial class RenamableHeaderLayoutGroupContext : TextLayoutGroupContext
+{
+    [RecursiveMember]
+    public partial bool? Renamable { get; set; }
+
+    public RenamableHeaderLayoutGroupContext()
+    {
+        AddOption(nameof(Renamable), CycleRenamable, () => Renamable);
+    }
+
+    public void CycleRenamable()
+        => SetLastChange(nameof(Renamable), Renamable = CycleValue(Renamable, null, true, false));
+}
+
+/// <summary>
+/// A text block's layout, plus whether its title opens an inline rename box on double-click, F2 or <see cref="RenameItemEffect"/>.
+/// </summary>
+internal sealed partial class RenamableTextLayoutGroupContext : SelectableTextLayoutGroupContext
+{
+    [RecursiveMember]
+    public partial bool? Renamable { get; set; }
+
+    public RenamableTextLayoutGroupContext()
+    {
+        AddOption(nameof(Renamable), CycleRenamable, () => Renamable);
+    }
+
+    public void CycleRenamable()
+        => SetLastChange(nameof(Renamable), Renamable = CycleValue(Renamable, null, true, false));
+}
+
+/// <summary>
 /// A paragraph's layout: everything a text block has, plus how far it is allowed to run.
 /// </summary>
 internal sealed partial class ParagraphLayoutGroupContext : SelectableTextLayoutGroupContext

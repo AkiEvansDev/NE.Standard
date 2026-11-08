@@ -5,7 +5,7 @@ using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
-using NE.Standard.UI.Components.BuiltIns.Templates;
+using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.Foundation.Items;
 
 namespace NE.Standard.UI.Compilation;
@@ -77,6 +77,10 @@ internal static class UIEffectTargets
             throw new InvalidOperationException($"Client effect kind '{effect.Kind}' names '{componentId}' ({typeKey}), but it acts on {needs}.");
     }
 
+    /// <summary>Whether the component type registered under <paramref name="typeKey"/> renames its own title in place.</summary>
+    public static bool TakesInlineRename(string typeKey)
+        => ByTypeKey.TryGetValue(typeKey, out Takes takes) && takes.HasFlag(Takes.InlineRename);
+
     private static Takes TakesOf(Type type)
     {
         Takes takes = Takes.None;
@@ -93,7 +97,7 @@ internal static class UIEffectTargets
         if (typeof(ICaretFieldComponent).IsAssignableFrom(type))
             takes |= Takes.Text;
 
-        if (type == typeof(TextComponent) || DerivesFrom(type, typeof(DefaultTextTemplate<>)))
+        if (DerivesFrom(type, typeof(TextComponent<>)) && !DerivesFrom(type, typeof(TreeNodeComponent<>)))
             takes |= Takes.InlineRename;
 
         return takes;

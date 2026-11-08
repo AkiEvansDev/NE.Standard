@@ -16,7 +16,7 @@ public sealed class ParagraphComponentRenderer : TextContentRendererBase
 
     public override string ComponentTypeKey => ParagraphComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-text";
+    protected override string ClassName => WebClassNames.Text;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {

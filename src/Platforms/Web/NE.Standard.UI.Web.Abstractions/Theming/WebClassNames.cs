@@ -477,6 +477,8 @@ public static class WebClassNames
     public const string TemporalInput = "ui-temporal-input";
 
     /// <summary>The text classes the client finds elements by too.</summary>
+    public const string Text = "ui-text";
+
     public const string TextMaxLines = "ui-text--max-lines";
 
     public const string TextBody = "ui-text__body";

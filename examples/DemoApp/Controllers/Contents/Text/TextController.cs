@@ -4,23 +4,6 @@ using DemoApp.Controllers.Base;
 namespace DemoApp.Controllers.Contents.Text;
 
 /// <summary>
-/// A text block's layout, plus whether its title opens an inline rename box on double-click, F2 or <see cref="RenameItemEffect"/>.
-/// </summary>
-internal sealed partial class RenamableTextLayoutGroupContext : SelectableTextLayoutGroupContext
-{
-    [RecursiveMember]
-    public partial bool? Renamable { get; set; }
-
-    public RenamableTextLayoutGroupContext()
-    {
-        AddOption(nameof(Renamable), CycleRenamable, () => Renamable);
-    }
-
-    public void CycleRenamable()
-        => SetLastChange(nameof(Renamable), Renamable = CycleValue(Renamable, null, true, false));
-}
-
-/// <summary>
 /// Three inline-renamable text blocks: one bound two-way and also opened by a button's <see cref="RenameItemEffect"/>, one built with
 /// <c>UIText.Editable</c>, and one whose command refuses the reserved name <c>production</c> and restores the previous title.
 /// </summary>

@@ -905,7 +905,7 @@ export const LongPressHoldEndEventName = "ui-long-press-hold-end";
 
 export const MenuHostClass = "ui-menu__host";
 export const MenuItemWrapperClass = "ui-menu__item";
-export const ContentTextClass = "ui-content-text";
+export const TextClass = "ui-text";
 export const TextBodyClass = "ui-text__body";
 export const TextHeaderClass = "ui-text__header";
 /** Client-only: the inline rename field a text component opens over its title. */

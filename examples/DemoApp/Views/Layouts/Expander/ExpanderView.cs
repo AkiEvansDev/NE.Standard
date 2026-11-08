@@ -58,6 +58,8 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
             .BindDescriptionType<ExpanderController>(static x => x.HeaderTextGroup.DescriptionType)
             .BindDescriptionColor<ExpanderController>(static x => x.HeaderTextGroup.DescriptionColor)
             .BindTextAlignment<ExpanderController>(static x => x.HeaderGroup.TextAlignment)
+            .BindRenamable<ExpanderController>(static x => x.HeaderGroup.Renamable)
+            .BindRenamedTitle<ExpanderController>(static x => x.HeaderTextGroup.Title)
             .BindBadgePlacement<ExpanderController>(static x => x.HeaderBadgeGroup.BadgePlacement)
             .BindBadgeVariant<ExpanderController>(static x => x.HeaderBadgeGroup.BadgeVariant)
             .BindBadgeColor<ExpanderController>(static x => x.HeaderBadgeGroup.BadgeColor)

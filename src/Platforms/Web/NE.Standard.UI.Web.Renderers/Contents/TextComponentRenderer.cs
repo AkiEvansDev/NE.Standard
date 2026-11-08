@@ -24,7 +24,16 @@ public class TextComponentRenderer : TextContentRendererBase
 
     public override string ComponentTypeKey => TextComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-text";
+    protected override string ClassName => WebClassNames.Text;
+
+    /// <summary>Whether the component is reading words on the page rather than a control's or a section's header.</summary>
+    protected virtual bool IsReadingWords => true;
+
+    /// <summary>Where the text's badge stands when the component does not set <c>BadgePlacement</c>.</summary>
+    protected virtual UITextBadgePlacement DefaultBadgePlacement => UITextBadgePlacement.Inline;
+
+    /// <summary>What the region's owner keeps in step with whether the text shows anything (<see cref="WebTextBodyOptions.PartsShownOperation"/>).</summary>
+    protected virtual WebDomOperation? PartsShownOperation => null;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -32,7 +41,8 @@ public class TextComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         // Reading words: the reader may select them where they stand on the page, not in a row, a menu or a control.
-        _ = root.Class(WebClassNames.ContentText);
+        if (IsReadingWords)
+            _ = root.Class(WebClassNames.ContentText);
 
         RenderTooltip(context, root);
         RenderTextWrap(context, root);
@@ -41,7 +51,8 @@ public class TextComponentRenderer : TextContentRendererBase
         RenderTextBody(context, root, root, new WebTextBodyOptions
         {
             IncludeTextLayout = true,
-            DefaultBadgePlacement = UITextBadgePlacement.Inline
+            DefaultBadgePlacement = DefaultBadgePlacement,
+            PartsShownOperation = PartsShownOperation
         });
     }
 

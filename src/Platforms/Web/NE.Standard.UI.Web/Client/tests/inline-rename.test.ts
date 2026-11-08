@@ -3,7 +3,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 const typeStyle = { fontFamily: "", fontSize: "", fontWeight: "", fontStyle: "", lineHeight: "20px", letterSpacing: "", textAlign: "start" };
 // What a test lays out beyond the title's type: an element's own computed width and box sizing.
@@ -247,5 +247,20 @@ test("the field is named by what it does, in the page's language, its value the 
 
     assert.equal(field.getAttribute("aria-label"), "Rename");
     assert.equal(field.value, "draft.md");
+    press(field, "Escape");
+});
+
+test("Space keyup inside the rename field is cancelled and stopped so an enclosing summary never folds its details", () => {
+    const { field } = open("Section title");
+    const keydown = new FakeEvent("keydown", " ");
+    const keyup = new FakeEvent("keyup", " ");
+
+    field.dispatchEvent(keydown);
+    field.dispatchEvent(keyup);
+
+    assert.equal(keydown.defaultPrevented, false);
+    assert.equal(keydown.stoppedHere, true);
+    assert.equal(keyup.defaultPrevented, true);
+    assert.equal(keyup.stoppedHere, true);
     press(field, "Escape");
 });

@@ -176,7 +176,7 @@ Returned in `UICommandResult.Ok([...])`, pushed with `Context.SendEffectsAsync`,
 `DiscardFormEffect`, `OpenDialogEffect`/`CloseDialogEffect(key)`, `ShowNotificationEffect`,
 `ShowSystemNotificationEffect`, `RequestNotificationPermissionEffect` (from an interaction: a browser asks only inside a press),
 `AnnounceEffect` (screen reader only), `DownloadFileEffect`, `SetThemeEffect`,
-`SetThemeColorsEffect`, `SetLanguageEffect`, `RenameItemEffect` (a tree's node, a tab), `CopyToClipboardEffect`, `InsertTextEffect`,
+`SetThemeColorsEffect`, `SetLanguageEffect`, `RenameItemEffect` (a tree's node, a tab, a text or header region), `CopyToClipboardEffect`, `InsertTextEffect`,
 `OpenPickerEffect`, `ShowImageEffect` (lightbox; `OnClickShowImage` on a surface) — every targeted effect takes a component instance (`UIComponentReference`) or string id. `ClientEffectKinds` lists the kinds. A dialog
 key the view does not declare is refused at compile from an interaction and dropped (logged as an error) from a command; so is an
 effect at a component it cannot act on (a picker at no file input, a row at no list, an insert at no `ICaretFieldComponent` - a

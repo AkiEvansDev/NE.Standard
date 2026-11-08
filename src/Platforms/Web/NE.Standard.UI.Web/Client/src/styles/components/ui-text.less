@@ -26,11 +26,11 @@
 // rule reads a part below the body.
 @ui-text-with-badge: ~":is([data-ui-text-badge-icon] > .ui-text, [data-ui-text-badge-icon] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-icon].ui-text, [data-ui-text-badge-title] > .ui-text, [data-ui-text-badge-title] > :not([data-ui-id]) > .ui-text, [data-ui-text-badge-title].ui-text)";
 
-.ui-text.ui-content-text {
+.ui-text:is(.ui-content-text, .ui-expander__header-region, .ui-card__header-text, .ui-tab__caption, [data-ui-text-renamable]) {
     position: relative;
 }
 
-.ui-text.ui-content-text[data-ui-text-renamable] {
+.ui-text[data-ui-text-renamable] {
     border-radius: @ui-space-1;
 }
 
@@ -220,6 +220,15 @@
     font: inherit;
     letter-spacing: inherit;
     .ui-text-nowrap();
+}
+
+// A renamable title in a summary fits its words so a press on the band beside them still folds the section.
+.ui-expander__header > .ui-expander__header-text > .ui-text[data-ui-text-renamable] > .ui-text__body > .ui-text__header > .ui-text__title {
+    flex: 0 1 auto;
+}
+
+.ui-expander__header > .ui-expander__header-text > .ui-text[data-ui-text-renamable]:not(.ui-text--align-center, .ui-text--align-end, .ui-text--align-justify) > .ui-text__body > .ui-text__header > .ui-text__title {
+    justify-self: start;
 }
 
 @{ui-text-with-title} > .ui-text__body > .ui-text__header > .ui-text__title {

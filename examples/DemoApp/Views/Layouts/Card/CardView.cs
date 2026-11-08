@@ -79,6 +79,8 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
             .BindDescriptionColor<CardController>(static x => x.HeaderTextGroup.DescriptionColor)
             .BindTextAlignment<CardController>(static x => x.HeaderGroup.TextAlignment)
             .BindTextSelectable<CardController>(static x => x.HeaderGroup.TextSelectable)
+            .BindRenamable<CardController>(static x => x.HeaderGroup.Renamable)
+            .BindRenamedTitle<CardController>(static x => x.HeaderTextGroup.Title)
             .BindBadgePlacement<CardController>(static x => x.HeaderBadgeGroup.BadgePlacement)
             .BindBadgeVariant<CardController>(static x => x.HeaderBadgeGroup.BadgeVariant)
             .BindBadgeColor<CardController>(static x => x.HeaderBadgeGroup.BadgeColor)

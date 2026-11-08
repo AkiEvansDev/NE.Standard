@@ -2233,8 +2233,8 @@
         "value":  "ui-menu__item"
     },
     {
-        "constant":  "ContentTextClass",
-        "value":  "ui-content-text"
+        "constant":  "TextClass",
+        "value":  "ui-text"
     },
     {
         "constant":  "TextBodyClass",

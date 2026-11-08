@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { PropertyValueChange, PropertyValueChangeHandler } from "../src/updates/property-patch-engine.ts";
-import { FakeElement, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 const typeStyle = { fontFamily: "", fontSize: "", fontWeight: "", fontStyle: "", lineHeight: "20px", letterSpacing: "", textAlign: "start" };
 
@@ -200,6 +200,71 @@ test("TextComponent inline rename updates the title synchronously on F2 commit a
     });
 
     assert.equal(title.textContent, "Normalized node");
+
+    engine.dispose();
+});
+
+test("ExpanderHeaderRegion inside a summary renames on F2, double-click or RenameItemEffect without folding on title click", () => {
+    const root = new FakeElement();
+    const hub = createPatchHub();
+    const title = FakeElement.of("ui-text__title", {}, "span");
+
+    title.textContent = "World section";
+
+    const header = FakeElement.of("ui-text__header").append(title);
+    const body = FakeElement.of("ui-text__body").append(header);
+    const headerRegion = FakeElement.of("ui-expander__header-region ui-text", {
+        "data-ui-text-renamable": "",
+        "data-ui-value-kind": "text-title",
+        tabindex: "0"
+    }).append(body);
+    const headerText = FakeElement.of("ui-expander__header-text").append(headerRegion);
+    const chevron = FakeElement.of("ui-expander__chevron", {}, "span");
+    const summary = FakeElement.of("ui-expander__header", {}, "summary").append(headerText, chevron);
+    const details = FakeElement.of("ui-expander", {}, "details").append(summary);
+
+    root.append(details);
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(root);
+
+    let registeredRename: ((target: HTMLElement, key: string) => boolean) | null = null;
+    const engine = new TextRenameEngine({
+        root: real<ParentNode>(root),
+        propertyPatchEngine: hub.propertyPatchEngine,
+        effects: {
+            applyAll: () => undefined,
+            registerItemRenamer: (_className: string, handler: (target: HTMLElement, key: string) => boolean) => {
+                registeredRename = handler;
+            }
+        } as never
+    });
+
+    // Clicking the title words cancels the summary's native toggle; clicking the summary band or chevron beside them does not.
+    const titleClick = new FakeEvent("click");
+    title.dispatchEvent(titleClick);
+    assert.equal(titleClick.defaultPrevented, true);
+
+    const chevronClick = new FakeEvent("click");
+    chevron.dispatchEvent(chevronClick);
+    assert.equal(chevronClick.defaultPrevented, false);
+
+    // Pressing F2 while the summary is focused opens the rename field over the header title.
+    pressKey(summary, "F2");
+
+    let field = headerRegion.children.find(child => child instanceof FakeInput) as FakeInput;
+    assert.ok(field);
+    assert.equal(title.style.flex, "1 1 auto");
+    field.value = "Renamed section";
+    pressKey(field, "Enter");
+
+    assert.equal(title.textContent, "Renamed section");
+    assert.equal(title.style.flex, "");
+
+    // RenameItemEffect also opens the field on a header region that does not carry .ui-content-text.
+    assert.equal(registeredRename!(real(headerRegion), ""), true);
+    field = headerRegion.children.find(child => child instanceof FakeInput) as FakeInput;
+    assert.ok(field);
+    pressKey(field, "Escape");
 
     engine.dispose();
 });

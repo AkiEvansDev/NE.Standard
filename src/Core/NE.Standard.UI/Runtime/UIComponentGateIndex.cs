@@ -12,13 +12,13 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compilation;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
-using NE.Standard.UI.Components.BuiltIns.Templates;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Json;
@@ -454,7 +454,7 @@ internal sealed class UIComponentGateIndex
     /// </summary>
     private static UITextRenameGate? CreateTextRenameGate(CompiledView view, UIComponentNode node, Dictionary<UIComponentId, UIRowAbilities> rowRoots)
     {
-        if (node.TypeKey != TextComponent.ComponentTypeKey && node.TypeKey != DefaultTextTemplate.ComponentTypeKey)
+        if (!UIEffectTargets.TakesInlineRename(node.TypeKey))
             return null;
 
         if (rowRoots.ContainsKey(node.ComponentId) && node.ParentId is UIComponentId hostId && view.State.TryGetValue(hostId, IItemsHostAbilitiesComponent.RenamableProperty, out _))

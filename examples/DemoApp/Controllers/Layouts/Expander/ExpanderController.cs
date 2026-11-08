@@ -133,7 +133,7 @@ internal sealed partial class ExpanderController() : DemoStandardController
     public partial TextContentGroupContext HeaderTextGroup { get; set; } = new("Advanced settings", "Retention, replicas and the backup window");
 
     [RecursiveMember]
-    public partial TextLayoutGroupContext HeaderGroup { get; set; } = new();
+    public partial RenamableHeaderLayoutGroupContext HeaderGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial TextBadgeGroupContext HeaderBadgeGroup { get; set; } = new();

@@ -44,7 +44,7 @@ export class AccordionEngine {
     }
 
     private handleSummaryClick(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
+        if (domEvent.defaultPrevented || !(domEvent.target instanceof Element))
             return;
 
         const summary = domEvent.target.closest("summary");

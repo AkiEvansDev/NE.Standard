@@ -1,5 +1,5 @@
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { RowPressEventName } from "../addressing/dom-attributes.ts";
+import { RenameFieldAttribute, RowPressEventName, TextRenamableAttribute, TextTitleClass } from "../addressing/dom-attributes.ts";
 import { normalizeEventName } from "../metadata/metadata-index.ts";
 
 export type EventAttachContext = {
@@ -74,7 +74,7 @@ const pressedFolds = new WeakMap<HTMLDetailsElement, boolean>();
 const judgedToggles = new WeakMap<Event, boolean>();
 
 // What a summary does not fold for: a control in it takes the press itself. Not `[role=button]`, which has no press of its own.
-const SummaryControlSelector = "button, a, input, select, textarea, label";
+const SummaryControlSelector = `button, a, input, select, textarea, label, [${RenameFieldAttribute}], [${TextRenamableAttribute}] .${TextTitleClass}`;
 
 // Bubbling, so a handler that kept the summary from folding (`preventDefault`) leaves no mark behind.
 function markPressedFold(domEvent: Event): void {

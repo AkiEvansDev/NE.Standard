@@ -170,7 +170,7 @@ internal sealed partial class CardController() : DemoStandardController
     public partial TextContentGroupContext HeaderTextGroup { get; set; } = new("Change request · CHG-482", "Resize db-us-east-2 to Dedicated");
 
     [RecursiveMember]
-    public partial SelectableTextLayoutGroupContext HeaderGroup { get; set; } = new();
+    public partial RenamableTextLayoutGroupContext HeaderGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial TextBadgeGroupContext HeaderBadgeGroup { get; set; } = new();
