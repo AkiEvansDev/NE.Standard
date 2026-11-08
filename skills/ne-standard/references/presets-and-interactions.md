@@ -37,6 +37,7 @@ Interactions execute in the browser without a server round-trip:
   - `otherComponent.ShowLoadingDuring(sourceId, EventNames.Click)`
 - Per-item client effect on a menu/bar/list without a server trip:
   - `menu.OnItemClick("copy", CopyToClipboardEffect.ValueOf(codeComponent))`
+  - `menu.OnItemClick("phrases", InsertTextEffect.CurrentItemValue(composerId))` (matches any dynamic sub-entry under submenu `"phrases"` and inserts `MenuItem.Value` or its shown title)
   - `rowTemplate.InteractOnRow(EventNames.Click, "open-dialog", new OpenDialogEffect("details"))`
 
 ## Client Effects (`ClientEffect`)
@@ -45,5 +46,5 @@ Returned from `[UICommand]` via `UICommandResult.Ok(effect)` or triggered from i
 - Navigation & URL: `NavigateEffect(url)`, `NavigateBackEffect(fallbackUrl)`, `ReplaceAddressEffect(url)`, `PushAddressEffect(url)`, `ConfirmLeaveEffect(enabled)`.
 - Focus & Scroll: `FocusEffect(target)`, `ScrollToEffect(target)`, `ScrollEffect(target, position)`, `ScrollToItemEffect(list, itemKey)`.
 - Dialogs & Toasts: `OpenDialogEffect(key)`, `CloseDialogEffect(key)`, `ShowNotificationEffect(message, style)`, `ShowSystemNotificationEffect(title, body)`, `RequestNotificationPermissionEffect()`.
-- Editing & Clipboard: `CopyToClipboardEffect.Text(str)` / `CopyToClipboardEffect.ValueOf(target)`, `InsertTextEffect(target, text)`, `RenameItemEffect(target)` / `RenameItemEffect(target, itemKey)`, `DiscardFormEffect(formId)`, `OpenPickerEffect(fileInput)`, `ShowImageEffect(url)`.
+- Editing & Clipboard: `CopyToClipboardEffect.Text(str)` / `CopyToClipboardEffect.ValueOf(target)`, `InsertTextEffect.Literal(target, text)` / `InsertTextEffect.CurrentItemKey(target)` / `InsertTextEffect.CurrentItemValue(target)`, `RenameItemEffect(target)` / `RenameItemEffect(target, itemKey)`, `DiscardFormEffect(formId)`, `OpenPickerEffect(fileInput)`, `ShowImageEffect(url)`.
 - Session & Theme: `SetThemeEffect(mode)`, `SetThemeColorsEffect(primary, accent)`, `SetLanguageEffect(lang)`, `DownloadFileEffect(url, fileName)`, `AnnounceEffect(message)`.

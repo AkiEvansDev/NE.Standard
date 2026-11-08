@@ -32,11 +32,13 @@ const hosts: readonly (readonly [string, string])[] = [
     [".ui-key-value-action", ".ui-key-value-action__host"]
 ];
 
-test("each host marked by ShowEmptyTemplate off hides its own empty state, through its host alone", () => {
+test("each host marked by ShowEmptyTemplate off hides its own empty state, through its host alone, and collapses when empty", () => {
     for (const [root, host] of hosts) {
         const selector = `${root}[data-ui-no-empty] > ${host} > [data-ui-empty-placeholder]`;
+        const rootSelector = `${root}[data-ui-no-empty][data-ui-items-empty]`;
 
         assert.match(declarations(selector) ?? "", /display: none;/, selector);
+        assert.match(declarations(rootSelector) ?? "", /display: none;/, rootSelector);
     }
 });
 

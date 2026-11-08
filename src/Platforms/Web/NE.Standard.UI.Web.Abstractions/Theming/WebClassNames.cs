@@ -304,6 +304,8 @@ public static class WebClassNames
     /// <summary>The multi select classes the client finds elements by too.</summary>
     public const string MultiSelect = "ui-multi-select";
 
+    public const string MultiSelectButton = "ui-multi-select--button";
+
     public const string MultiSelectCheckboxes = "ui-multi-select--checkboxes";
 
     public const string MultiSelectCheck = "ui-multi-select__check";
@@ -761,6 +763,7 @@ public static class WebClassNames
         {
             UIItemsLayoutType.Stack => "ui-items-view--stack",
             UIItemsLayoutType.Wrap => "ui-items-view--wrap",
+            UIItemsLayoutType.Accordion => "ui-items-view--accordion",
             _ => string.Empty
         };
 

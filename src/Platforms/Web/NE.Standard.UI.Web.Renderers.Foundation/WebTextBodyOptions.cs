@@ -48,4 +48,10 @@ public readonly record struct WebTextBodyOptions
     /// anything decides around it — a card's header band, gone with nothing to show. Null for none.
     /// </summary>
     public WebDomOperation? PartsShownOperation { get; init; }
+
+    /// <summary>
+    /// Fallback words for the badge when <c>BadgeTitle</c> is neither set nor bound and <c>BadgeIcon</c> draws nothing — a button
+    /// multi-select's initial chosen count.
+    /// </summary>
+    public string? FallbackBadgeTitle { get; init; }
 }

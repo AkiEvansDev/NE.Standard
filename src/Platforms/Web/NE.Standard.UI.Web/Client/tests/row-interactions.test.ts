@@ -57,3 +57,16 @@ test("a key sent as a number names the row its digits name", () => {
     assert.equal(engine.takesRowEvent("click", 3, [42]), true);
     assert.equal(engine.takesRowEvent("click", 3, []), false);
 });
+
+test("an interaction naming a submenu's key matches every sub-entry inside it", () => {
+    const applied: unknown[] = [];
+    const submenuEffect = { actionKind: "Effect", sourceEvent: { componentId: 3, eventName: "click", rowKey: "phrases" }, effect: { kind: "InsertText", target: { id: 9 }, itemValue: true } };
+    const engine = engineWith([submenuEffect], applied);
+
+    assert.equal(engine.takesRowEvent("click", 3, ["phrases", "phrase:0"]), true);
+    assert.equal(engine.takesRowEvent("click", 3, ["other", "phrase:0"]), false);
+
+    engine.applyEvent({ name: "click", componentId: 3, dynamicParameters: ["phrases", "phrase:0"], domEvent: real<Event>(new Event("click")) });
+
+    assert.deepEqual(applied, ["InsertText"]);
+});

@@ -525,6 +525,8 @@ export type EffectContext = {
     readonly dom: DomRegistry;
     // The row an interaction ran for, innermost key last; none for a command's effect.
     readonly row?: readonly unknown[];
+    // The component that raised the interaction; none for a command's effect.
+    readonly source?: Element | null;
 };
 
 export type EffectRunner = {

@@ -3,7 +3,7 @@
 // the server takes past a moment to answer turns the field's glyph into the loading ring until the last one asked is answered.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, ItemsEmptyAttribute, SearchAnsweredAttribute, SearchDebounceAttribute, SearchFieldClass, SearchInputClass, SearchManualAttribute, SearchMinLengthAttribute, SearchWaitingAttribute, SelectClass, SelectListClass, SelectOptionClass } from "../addressing/dom-attributes.ts";
+import { EmptyPlaceholderAttribute, EmptyTemplateAttribute, GroupHeaderAttribute, ItemsEmptyAttribute, MultiSelectButtonClass, SearchAnsweredAttribute, SearchDebounceAttribute, SearchFieldClass, SearchInputClass, SearchManualAttribute, SearchMinLengthAttribute, SearchWaitingAttribute, SelectClass, SelectListClass, SelectOptionClass } from "../addressing/dom-attributes.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import { PendingDelayMilliseconds } from "../events/pending-mark.ts";
 import { CommitPauses } from "./debounced-commit-engine.ts";
@@ -82,7 +82,7 @@ function settleAnswer(target: EventTarget | null): void {
 
 /** The listbox a search's field asks the options of. */
 function listOf(input: Element): Element | null {
-    return input.closest(`.${SelectClass}`)?.querySelector(`.${SelectListClass}`) ?? null;
+    return input.closest(`.${SelectClass}, .${MultiSelectButtonClass}`)?.querySelector(`.${SelectListClass}`) ?? null;
 }
 
 export type SearchInputEngineOptions = {
@@ -174,7 +174,7 @@ export function narrowToTerm(input: HTMLInputElement): void {
     if (input.hasAttribute(SearchAnsweredAttribute))
         return;
 
-    const select = input.closest<HTMLElement>(`.${SelectClass}`);
+    const select = input.closest<HTMLElement>(`.${SelectClass}, .${MultiSelectButtonClass}`);
     const list = select?.querySelector<HTMLElement>(`.${SelectListClass}`);
 
     if (select === null || select === undefined || list === null || list === undefined)

@@ -373,11 +373,22 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     }
 
     /// <summary>
-    /// Marks an <see cref="IEmptyStateComponent"/>'s root while <c>ShowEmptyTemplate</c> is off; the one shared stylesheet rule
-    /// (<c>.ui-empty-state-host()</c>) hides the placeholder under it, so a bound flag turned on shows it again.
+    /// Marks an <see cref="IEmptyStateComponent"/>'s root while <c>ShowEmptyTemplate</c> is off, and as empty when its static render
+    /// draws the empty placeholder; the one shared stylesheet rule (<c>.ui-empty-state-host()</c>) hides the placeholder under it and
+    /// collapses the root when it takes no drops, so a bound flag turned on shows it again.
     /// </summary>
     protected static void RenderEmptyStateSwitch(WebRenderContext context, IHtmlElementBuilder root)
-        => RenderFlagAttribute(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, NoEmptyAttribute, WebValueCondition.IsFalse);
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        RenderFlagAttribute(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, NoEmptyAttribute, WebValueCondition.IsFalse);
+
+        (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
+
+        if (!isBound && items.Count == 0 && context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.EmptyTemplate, out _))
+            _ = root.Attribute(WebAttributes.ItemsEmpty);
+    }
 
     /// <summary>Renders the empty-state content directly into an items host, and marks the host as showing it.</summary>
     protected static void RenderEmptyPlaceholder(WebRenderContext context, IHtmlElementBuilder host)

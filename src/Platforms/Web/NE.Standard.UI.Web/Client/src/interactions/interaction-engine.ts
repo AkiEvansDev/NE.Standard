@@ -7,6 +7,7 @@ import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { getIdValue, getInteractionActionKind, rowKeysText } from "../metadata/metadata-index.ts";
 import type {
     ClientEffect,
+    InsertTextClientEffect,
     MetadataIndex,
     TargetedClientEffect,
     WebRenderInteractionMetadata,
@@ -88,10 +89,11 @@ export class InteractionEngine {
 
     public applyEvent(context: InteractionEventContext): void {
         const interactions = this.index.getEventInteractions(context.componentId, context.name);
+        const source = context.domEvent?.target instanceof Element ? context.domEvent.target : null;
 
         for (const interaction of interactions) {
             if (isRowsOwn(interaction, context.dynamicParameters))
-                this.applyInteraction(interaction, context.dynamicParameters, true);
+                this.applyInteraction(interaction, context.dynamicParameters, true, true, source);
         }
     }
 
@@ -216,12 +218,13 @@ export class InteractionEngine {
         interaction: WebRenderInteractionMetadata,
         dynamicParameters: readonly unknown[],
         local: boolean,
-        sourceValue: unknown = true
+        sourceValue: unknown = true,
+        source: Element | null = null
     ): void {
         const actionKind = getInteractionActionKind(interaction.actionKind);
 
         if (actionKind === "Effect") {
-            this.applyEffectInteraction(interaction, dynamicParameters, sourceValue);
+            this.applyEffectInteraction(interaction, dynamicParameters, sourceValue, source);
             return;
         }
 
@@ -260,7 +263,8 @@ export class InteractionEngine {
     private applyEffectInteraction(
         interaction: WebRenderInteractionMetadata,
         dynamicParameters: readonly unknown[],
-        sourceValue: unknown
+        sourceValue: unknown,
+        source: Element | null = null
     ): void {
         const effect = interaction.effect;
 
@@ -270,8 +274,19 @@ export class InteractionEngine {
         }
 
         // Fires only while the condition holds; falseValue has no meaning for an effect.
-        if (this.evaluator.matches(interaction, sourceValue))
-            this.options.effects.apply({ effect: withScopeParameters(effect, dynamicParameters, this.options.dom), dom: this.options.dom, row: dynamicParameters });
+        if (this.evaluator.matches(interaction, sourceValue)) {
+            const sourceId = getIdValue(interaction.sourceEvent?.componentId);
+            const resolvedSource = (effect as InsertTextClientEffect).itemValue === true && sourceId > 0
+                ? this.options.dom.findComponent(sourceId, dynamicParameters) ?? source
+                : source;
+
+            this.options.effects.apply({
+                effect: withScopeParameters(effect, dynamicParameters, this.options.dom),
+                dom: this.options.dom,
+                row: dynamicParameters,
+                ...(resolvedSource === null ? {} : { source: resolvedSource })
+            });
+        }
     }
 }
 
@@ -282,8 +297,8 @@ function hasRowKey(interaction: WebRenderInteractionMetadata): boolean {
 }
 
 /**
- * Whether an event raised with these keys fires the interaction: any row's for one that names none, else only the row it names — the
- * innermost key, the row the event's component is drawn for; a key sent as a number and read off the DOM as digits is one row.
+ * Whether an event raised with these keys fires the interaction: any row's for one that names none, else only the row it names — any
+ * key in the row's scope chain, so a submenu's key matches its entries too; a key sent as a number and read off the DOM as digits is one row.
  */
 function isRowsOwn(interaction: WebRenderInteractionMetadata, dynamicParameters: readonly unknown[]): boolean {
     const rowKey = interaction.sourceEvent?.rowKey;
@@ -291,9 +306,7 @@ function isRowsOwn(interaction: WebRenderInteractionMetadata, dynamicParameters:
     if (rowKey === null || rowKey === undefined)
         return true;
 
-    const key = dynamicParameters.length === 0 ? undefined : dynamicParameters[dynamicParameters.length - 1];
-
-    return key !== null && key !== undefined && String(key) === rowKey;
+    return dynamicParameters.some(key => key !== null && key !== undefined && String(key) === rowKey);
 }
 
 /** What a copy writes: the source's value, or the target's authored one (`falseValue`) while the source holds nothing or blank text. */

@@ -922,6 +922,7 @@ export const MenuUnfoldedAttribute = "data-ui-menu-unfolded";
 
 export const MultiSelectCheckClass = "ui-multi-select__check";
 export const SelectValueInputClass = "ui-select__value-input";
+export const MultiSelectButtonClass = "ui-multi-select--button";
 // MultiSelectComponentRenderer.CheckboxesClassName, beside `ui-multi-select`; never `ui-select`, so the select engine passes it by.
 export const MultiSelectCheckboxesClass = "ui-multi-select--checkboxes";
 
@@ -1276,6 +1277,7 @@ export const TreeRulesEventName = "ui-tree-rules";
 export const TemplateAttribute = "data-ui-template";
 
 export const ItemsViewStackClass = "ui-items-view--stack";
+export const ItemsViewAccordionClass = "ui-items-view--accordion";
 
 export const RadioGroupInputClass = "ui-radio-group__input";
 export const RadioGroupDotClass = "ui-radio-group__dot";
@@ -1324,7 +1326,7 @@ export const ClearTargetAttribute = "data-ui-clear-target";
 
 const CheckboxClass = "ui-checkbox";
 const SmallInputClass = "ui-input--small";
-const MenuItemValueClass = "ui-menu-item__value";
+export const MenuItemValueClass = "ui-menu-item__value";
 const TextInputActionClass = "ui-text-input__action";
 const BadgeDangerClass = "ui-badge-variant--danger";
 const BadgeWarningClass = "ui-badge-variant--warning";

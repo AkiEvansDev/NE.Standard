@@ -1,5 +1,5 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
-import { ItemsViewStackClass, ItemsViewWrapClass, OrientationVerticalClass, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
+import { ItemsViewAccordionClass, ItemsViewStackClass, ItemsViewWrapClass, OrientationVerticalClass, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import { itemBox, scrollHostTo } from "../addressing/items-viewport.ts";
 import { forgetCursorName, rowCursorRoot, setRowFocus, waitingCursorKey } from "../interactions/row-cursor.ts";
@@ -374,11 +374,11 @@ export function groupOf(entry: VirtualEntry): string {
     return group.ok && typeof group.value === "string" ? group.value : "";
 }
 
-/** Whether the host's rows stand one under another down the page: a vertical stack's, or a table's. */
+/** Whether the host's rows stand one under another down the page: a vertical stack's, an accordion's, or a table's. */
 export function isColumn(host: Element): boolean {
     const view = host.parentElement;
 
-    return view !== null && (view.classList.contains(TableScrollClass) || (view.classList.contains(ItemsViewStackClass) && view.classList.contains(OrientationVerticalClass)));
+    return view !== null && (view.classList.contains(TableScrollClass) || view.classList.contains(ItemsViewAccordionClass) || (view.classList.contains(ItemsViewStackClass) && view.classList.contains(OrientationVerticalClass)));
 }
 
 /** The line a wrapping host's row stands on, by the row each line starts at. */

@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Text;
@@ -30,6 +32,8 @@ public static class UIComparisonEvaluator
         if (UIScriptNumber.ReadsAsNull(right))
             right = null;
 
+        left = Comparable(left);
+        right = Comparable(right);
         var text = UIScriptText.Of(left);
 
         return @operator switch
@@ -43,11 +47,29 @@ public static class UIComparisonEvaluator
             UIComparisonOperator.LessOrEqual => IsOrdered(left, right, static order => order <= 0),
             UIComparisonOperator.Like => text.Contains(UIScriptText.Of(right), StringComparison.Ordinal),
             UIComparisonOperator.LikeIgnoreCase => text.Contains(UIScriptText.Of(right), StringComparison.OrdinalIgnoreCase),
-            UIComparisonOperator.In => IsIn(text, right),
+            UIComparisonOperator.In => IsIn(left, right),
             UIComparisonOperator.Regex => IsRegexMatch(text, right),
             UIComparisonOperator.RegexEach => IsEveryRegexMatch(left, right),
             _ => false
         };
+    }
+
+    // A bindable item (such as a tag badge in a row's collection) compares by its identity, matching the client's `comparable`.
+    private static object? Comparable(object? value)
+    {
+        if (value is IBindableItem item)
+            return item.Id;
+
+        if (value is IReadOnlyDictionary<string, object?> map)
+        {
+            if (map.TryGetValue("id", out var id) && id is string idText)
+                return idText;
+
+            if (map.TryGetValue("Id", out var pascalId) && pascalId is string pascalIdText)
+                return pascalIdText;
+        }
+
+        return value;
     }
 
     /// <summary>
@@ -112,14 +134,30 @@ public static class UIComparisonEvaluator
     private static bool IsText(object? value)
         => value is string or char or DateTime or DateTimeOffset or DateOnly or TimeOnly or UIPhrase;
 
-    private static bool IsIn(string text, object? right)
+    private static bool IsIn(object? left, object? right)
     {
         if (right is not IEnumerable candidates || right is string)
             return false;
 
+        if (left is IEnumerable items and not string and not IReadOnlyDictionary<string, object?>)
+        {
+            foreach (var item in items)
+            {
+                if (IsMember(UIScriptText.Of(Comparable(item)), candidates))
+                    return true;
+            }
+
+            return false;
+        }
+
+        return IsMember(UIScriptText.Of(left), candidates);
+    }
+
+    private static bool IsMember(string text, IEnumerable candidates)
+    {
         foreach (var candidate in candidates)
         {
-            if (string.Equals(UIScriptText.Of(candidate), text, StringComparison.Ordinal))
+            if (string.Equals(UIScriptText.Of(Comparable(candidate)), text, StringComparison.Ordinal))
                 return true;
         }
 

@@ -17,12 +17,13 @@ Full guide: https://akievansdev.github.io/NE.Standard/items.html
       )
   ```
 - Polymorphic templates: `.SetTemplateKeyProperty<OrderItem>(x => x.Kind)` + `.AddTemplateVariant("invoice", ...)` (every variant must be non-null).
-- Empty states: `.SetEmptyTemplate(UIPage.Empty(UIGlyphs.Inbox, "No orders", "Create an order to get started"))` or `.ConfigureDefaultEmptyTemplate(...)`.
+- Empty states: `.SetEmptyTemplate(UIPage.Empty(UIGlyphs.Inbox, "No orders", "Create an order to get started"))`, `.ConfigureDefaultEmptyTemplate(...)`, or `.SetShowEmptyTemplate(false)` (collapses the host root when empty so nested tag/attachment lists leave no parent gap).
+- Accordion over a dynamic collection: `.SetLayoutType(UIItemsLayoutType.Accordion)` on `ItemsViewComponent` with an `ExpanderComponent` row template coordinates single-expand and connected borders/corners across visible rows on the client without controller `Expanded`/`BorderThickness`/`BorderRadius` state.
 
 ## Filtering, Sorting, Selection, and Row Events
 
 - Client/server rules on the host:
-  - `.FilterBy<OrderItem>(x => x.Status, UIComparisonOperator.Equal, "Open")` (or bound filter value via `FilterBy` / `DataGridComponent.AddFilter<TRow>`).
+  - `.FilterBy<OrderItem>(x => x.Status, UIComparisonOperator.Equal, "Open")` (or bound filter value via `FilterBy` / `DataGridComponent.AddFilter<TRow>`; `UIComparisonOperator.In` also checks intersection when the item property is a collection of strings or `IBindableItem`s against a `MultiSelectComponent`'s `ValueProperty`).
   - `.SortBy<OrderItem>(x => x.CreatedAt, UISortDirection.Descending)`.
   - `.AddItemReads<OrderItem>(x => x.ExtraField)` ensures custom properties needed by the client are projected.
 - Selection: `.SetSelectionMode(UISelectionMode.Single | Many)` + `.BindSelectedKey(c => c.SelectedId)` / `.BindSelectedKeys(c => c.SelectedIds)`.

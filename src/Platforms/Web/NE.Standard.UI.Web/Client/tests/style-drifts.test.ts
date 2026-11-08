@@ -127,11 +127,16 @@ test("every input's root is the one shell: a column centred across a row, as tal
 
 test("an accordion shares its sections' edges and rounds its outer corners, a quiet section's none: it is a line with no edge", () => {
     const sectionRules = rules.filter(rule => rule.selector.startsWith(".ui-accordion > .ui-expander") && /border-(width|radius)/.test(rule.body));
+    const itemSectionRules = rules.filter(rule => rule.selector.startsWith(".ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item") && /border-(width|radius)/.test(rule.body));
 
     assert.ok(sectionRules.length >= 5);
+    assert.ok(itemSectionRules.length >= 5);
 
     for (const rule of sectionRules)
         assert.match(rule.selector, /\.ui-expander:not\(\.ui-expander--quiet\)(:[a-z-]+)?$/);
+
+    for (const rule of itemSectionRules)
+        assert.match(rule.selector, /\.ui-expander:not\(\.ui-expander--quiet\)$/);
 });
 
 test("no stylesheet writes or reads the retired field hover edge variables, and an image drop zone draws no hover border", () => {

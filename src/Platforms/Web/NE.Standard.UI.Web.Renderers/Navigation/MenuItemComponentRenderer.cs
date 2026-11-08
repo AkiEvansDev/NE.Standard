@@ -102,7 +102,7 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         if (resolvedKind is UIMenuItemKind.Item or UIMenuItemKind.Check)
             RenderShortcut(context, root);
 
-        if (resolvedKind == UIMenuItemKind.Select)
+        if (resolvedKind is UIMenuItemKind.Item or UIMenuItemKind.Select)
             RenderValue(context, root);
 
         RenderChecked(context, root, kind, popup);

@@ -58,6 +58,7 @@ public abstract class DefaultMenuItemTemplate<TTemplate> : MenuItemComponent<TTe
         _ = BindSelected(nameof(IMenuItemModel.Selected), UIBindingScope.Relative, optional: true);
         _ = BindShortcut(nameof(IMenuItemModel.Shortcut), UIBindingScope.Relative, optional: true);
         _ = BindInActionBar(nameof(IMenuItemModel.InActionBar), UIBindingScope.Relative, optional: true);
+        _ = BindValue(nameof(IMenuItemModel.Value), UIBindingScope.Relative, optional: true);
     }
 
     private void BindEntryLabel(bool description)

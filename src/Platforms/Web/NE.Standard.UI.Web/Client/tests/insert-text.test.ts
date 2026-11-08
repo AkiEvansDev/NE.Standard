@@ -114,6 +114,15 @@ test("the effect finds the component's own field and reads the row's key when it
     // No row to read a key from: nothing is inserted.
     applyInsertText({ kind: "InsertText", itemKey: true }, component, []);
     assert.equal(area.value, "Hi 👋!");
+
+    // A row's value: the menu entry's Value span when set, else the words the row shows.
+    const menuEntry = FakeElement.of("ui-menu-item").append("Short...", FakeElement.of("ui-menu-item__value").append("Full phrase text"));
+    applyInsertText({ kind: "InsertText", itemValue: true }, component, ["phrases", "phrase:0"], real<Element>(menuEntry));
+    assert.equal(area.value, "Hi 👋!Full phrase text");
+
+    const plainRow = FakeElement.of("ui-menu-item").append("Plain title");
+    applyInsertText({ kind: "InsertText", itemValue: true }, component, ["phrases", "phrase:1"], real<Element>(plainRow));
+    assert.equal(area.value, "Hi 👋!Full phrase textPlain title");
 });
 
 test("a row's press reaches a field outside its list, and one inside its own row", () => {

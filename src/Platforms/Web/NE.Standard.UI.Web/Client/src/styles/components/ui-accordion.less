@@ -39,3 +39,25 @@
 .ui-accordion > .ui-expander:not(.ui-expander--quiet):only-child {
     .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-card));
 }
+
+// The same block over an ItemsView in Accordion layout: each row wrapper sits between the host and its expander, and filtered rows stay
+// in the DOM with .ui-hidden, so the first, last and adjacent visible rows are chosen among `:not(.ui-hidden)`.
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item > .ui-expander:not(.ui-expander--quiet) {
+    .ui-responsive-property(border-radius, --ui-border-radius, 0);
+}
+
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:not(.ui-hidden) ~ .ui-items-view__item:not(.ui-hidden) > .ui-expander:not(.ui-expander--quiet) {
+    .ui-responsive-property(border-width, --ui-border-thickness, ~"0 var(--ui-border-width, 1px) var(--ui-border-width, 1px)");
+}
+
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:nth-child(1 of .ui-items-view__item:not(.ui-hidden)) > .ui-expander:not(.ui-expander--quiet) {
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-card) var(--ui-radius-card) 0 0");
+}
+
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:nth-last-child(1 of .ui-items-view__item:not(.ui-hidden)) > .ui-expander:not(.ui-expander--quiet) {
+    .ui-responsive-property(border-radius, --ui-border-radius, ~"0 0 var(--ui-radius-card) var(--ui-radius-card)");
+}
+
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:nth-child(1 of .ui-items-view__item:not(.ui-hidden)):nth-last-child(1 of .ui-items-view__item:not(.ui-hidden)) > .ui-expander:not(.ui-expander--quiet) {
+    .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-card));
+}

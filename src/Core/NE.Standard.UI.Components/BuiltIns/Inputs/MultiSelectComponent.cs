@@ -55,8 +55,17 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
                 _variantTemplate = CreateVariantTemplate(value ?? UIMultiSelectVariant.Chips);
                 _ = SetTemplate(_variantTemplate);
             }
+
+            if (value == UIMultiSelectVariant.Button && BadgeVariant is null && !HasBinding(ITextBaseComponent.BadgeVariantProperty))
+                _ = SetBadgeVariant(UIBadgeVariant.Primary);
         }
     }
+
+    /// <summary>
+    /// Gets or sets the button chrome variant used when <see cref="Variant"/> is <see cref="UIMultiSelectVariant.Button"/>.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = UIButtonVariant.Ghost)]
+    public UIButtonVariant? ButtonVariant { get; set; }
 
     /// <summary>
     /// Gets or sets how many options can be chosen at most; unset, any number. The list refuses one more once the field holds as many,
@@ -103,18 +112,26 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         return Self;
     }
 
-    /// <summary>Refuses free text under <see cref="UIMultiSelectVariant.Checkboxes"/>, which has no field to type a tag in.</summary>
+    /// <summary>Refuses free text under <see cref="UIMultiSelectVariant.Checkboxes"/> or <see cref="UIMultiSelectVariant.Button"/>, which have no field to type a tag in.</summary>
     private static void ThrowIfFreeTextRefused(UIMultiSelectVariant? variant, string parameterName)
     {
-        if (variant == UIMultiSelectVariant.Checkboxes)
+        if (variant is UIMultiSelectVariant.Checkboxes or UIMultiSelectVariant.Button)
             throw new ArgumentException("A multi-select drawn as checkboxes takes no free text: it has no field to type a tag in. Leave AllowFreeText off, or draw it as Chips or Badges.", parameterName);
     }
 
-    /// <summary>Refuses field actions under <see cref="UIMultiSelectVariant.Checkboxes"/>, which has no field box to place them in.</summary>
+    /// <summary>Refuses field actions under <see cref="UIMultiSelectVariant.Checkboxes"/> or <see cref="UIMultiSelectVariant.Button"/>, which have no field box to place them in.</summary>
     private static void ThrowIfActionsRefused(UIMultiSelectVariant? variant, string parameterName)
     {
-        if (variant == UIMultiSelectVariant.Checkboxes)
+        if (variant is UIMultiSelectVariant.Checkboxes or UIMultiSelectVariant.Button)
             throw new ArgumentException("A multi-select drawn as checkboxes takes no field actions: it has no field box to place them in. Remove the actions, or draw it as Chips or Badges.", parameterName);
+    }
+
+    internal static void RequireButtonVariant(IMultiSelectComponent select, string host)
+    {
+        ArgumentNullException.ThrowIfNull(select);
+
+        if (select.Variant != UIMultiSelectVariant.Button)
+            throw new ArgumentException($"Only a multi-select with {nameof(UIMultiSelectVariant)}.{nameof(UIMultiSelectVariant.Button)} may stand in {host} actions.", nameof(select));
     }
 
     /// <inheritdoc/>
@@ -124,7 +141,7 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
     private static DefaultTextTemplate CreateVariantTemplate(UIMultiSelectVariant variant) => variant switch
     {
         // The badge inline on the row's first line, after a title only where the option has one, the description under it.
-        UIMultiSelectVariant.Badges => CreateOptionTemplate().SetBadgePlacement(UITextBadgePlacement.Inline),
+        UIMultiSelectVariant.Badges or UIMultiSelectVariant.Button => CreateOptionTemplate().SetBadgePlacement(UITextBadgePlacement.Inline),
         // Title, as a checkbox's and a radio's: the box stands on its option's title line, and its glyph and badge beside it.
         UIMultiSelectVariant.Checkboxes => new DefaultTextTemplate(binds: true)
             .SetIconAlignment(UITextIconAlignment.Title)
@@ -203,9 +220,9 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
             ThrowIfActionsRefused(Variant, nameof(Variant));
     }
 
-    /// <summary>The checkboxes keep their caption on top whatever <c>TitlePlacement</c> asks, as their renderer draws it; the field honours it.</summary>
+    /// <summary>The checkboxes keep their caption on top whatever <c>TitlePlacement</c> asks, as their renderer draws it; the field honours it; a button has no caption row.</summary>
     public override UISize? CaptionRowBox(UIResponsiveTier tier)
-        => InputCaptionRow.Box(this, tier, honoursInside: Variant != UIMultiSelectVariant.Checkboxes);
+        => Variant == UIMultiSelectVariant.Button ? null : InputCaptionRow.Box(this, tier, honoursInside: Variant != UIMultiSelectVariant.Checkboxes);
 }
 
 /// <summary>

@@ -80,14 +80,20 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
     /// </summary>
     public static void RenderButtonLook(WebRenderContext context, IHtmlElementBuilder root, UIProperty variantProperty)
     {
-        _ = RenderProperty<UIButtonVariant?>(context, root, variantProperty, static (target, value) =>
+        RenderButtonVariant(context, root, variantProperty);
+        TierClassRenderer.Render(context, root, ButtonComponent.SizeProperty, SizeFamily);
+    }
+
+    /// <summary>
+    /// A button's variant class on <paramref name="root"/>, read from <paramref name="variantProperty"/> without registering the
+    /// button's own <c>Size</c> property — for an input-sized control whose variant is a button's (<see cref="UIMultiSelectVariant.Button"/>).
+    /// </summary>
+    public static void RenderButtonVariant(WebRenderContext context, IHtmlElementBuilder root, UIProperty variantProperty)
+        => _ = RenderProperty<UIButtonVariant?>(context, root, variantProperty, static (target, value) =>
         {
             if (value is UIButtonVariant variant)
                 _ = target.Class(WebClassNames.ButtonVariant(variant));
         }, VariantOperations);
-
-        TierClassRenderer.Render(context, root, ButtonComponent.SizeProperty, SizeFamily);
-    }
 
     /// <summary>
     /// The chord that presses the control, as the attribute the page's shortcut registry reads (<c>shortcut-engine.ts</c>); the client

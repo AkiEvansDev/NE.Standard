@@ -317,6 +317,10 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         return Self;
     }
 
+    /// <summary>Gets whether <paramref name="property"/> has an authored property binding on this component.</summary>
+    protected bool HasBinding(UIProperty property)
+        => _bindingIndexes.ContainsKey(property);
+
     private UIPropertyDefinition GetBindableDefinition(UIProperty property)
     {
         EnsurePropertiesRegistered();

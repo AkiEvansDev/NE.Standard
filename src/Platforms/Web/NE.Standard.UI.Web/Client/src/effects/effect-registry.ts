@@ -359,7 +359,7 @@ export class EffectRegistry {
             const element = resolveTarget(context);
 
             if (element !== null)
-                applyInsertText(context.effect, element, context.row ?? []);
+                applyInsertText(context.effect, element, context.row ?? [], context.source ?? null);
         });
 
         // Opened in this task: a browser shows a chooser only inside the reader's own gesture, which an interaction's effect still is.

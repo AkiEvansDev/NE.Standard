@@ -1,6 +1,6 @@
 import {
     ActiveAttribute, BadgeSelectClass, ComponentKeyAttribute, ensureElementId, ListTriggerClass as TriggerClass,
-    MultiSelectChipClass, MultiSelectChipRemoveClass, MultiSelectChipsClass, SearchInputClass, SelectActionClass, SelectChipAttribute,
+    MultiSelectButtonClass, MultiSelectChipClass, MultiSelectChipRemoveClass, MultiSelectChipsClass, SearchInputClass, SelectActionClass, SelectChipAttribute,
     SelectClass, SelectClearAttribute, SelectedKeysAttribute, SelectFreeTextAttribute, SelectListClass,
     SelectListIdPrefix, SelectMaxAttribute, SelectOpenClass, SelectOptionClass, SelectPlacementAttribute,
     SelectPopupClass, SelectTagEntryAttribute, SelectValueAttribute, SelectValueInputClass
@@ -20,10 +20,10 @@ import { narrowToTerm, needsManualSearch, refreshEmptyState } from "./search-inp
 import {
     BadgeOptionAttributes, candidateOptions, collectMutatedSelects, controlOf, currentOption, entryOf, entryTarget,
     focusChip, handleChipNavigationKey, holdHeightAbove, initializeEntryPopup, initializePopupFocus,
-    initializeSearchPopup, isBoxAroundEntry, isDisabledOptionKey, isFixed, isMultiple, keepFieldFocus, markActiveOption, markListKeyboard,
+    initializeSearchPopup, isBoxAroundEntry, isDisabledOptionKey, isFixed, isMultiple, isSelectTrigger, keepFieldFocus, markActiveOption, markListKeyboard,
     moveCurrentOption, ObservedAttributes, OptionAttributes, optionKeyNamed, optionLabel, optionsOf,
-    resetSearchField, resolveClearKeySelect, resolveClosedArrowStart, scrollIntoList, searchFieldOf, syncMultipleSelect, syncSingleSelect,
-    typedFieldOf
+    resetSearchField, resolveClearKeySelect, resolveClosedArrowStart, scrollIntoList, searchFieldOf, SelectHostSelector, SelectTriggerSelector, syncMultipleSelect, syncSingleSelect,
+    triggerOf, typedFieldOf
 } from "./select-dom.ts";
 import { TypeAhead, typeAheadCharacter } from "./type-ahead.ts";
 import { trackInnerPointer } from "./surface-press-engine.ts";
@@ -87,7 +87,7 @@ export class SelectInteractionEngine {
         if (this.root instanceof Node)
             new MutationObserver(answer).observe(this.root, { attributes: true, attributeFilter: ObservedAttributes, childList: true, subtree: true });
 
-        for (const select of this.root.querySelectorAll<HTMLElement>(`.${SelectClass}`))
+        for (const select of this.root.querySelectorAll<HTMLElement>(SelectHostSelector))
             this.sync(select);
 
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
@@ -286,7 +286,7 @@ export class SelectInteractionEngine {
         const select = this.openSelect;
         const option = select === null || !(domEvent.target instanceof Element) ? null : domEvent.target.closest<HTMLElement>(`.${SelectOptionClass}`);
 
-        if (select === null || option === null || option.hasAttribute(ActiveAttribute) || isItemDisabled(option) || isInert(option) || option.closest(`.${SelectClass}`) !== select)
+        if (select === null || option === null || option.hasAttribute(ActiveAttribute) || isItemDisabled(option) || isInert(option) || option.closest(SelectHostSelector) !== select)
             return;
 
         if (typedFieldOf(select) === null) {
@@ -320,7 +320,7 @@ export class SelectInteractionEngine {
         const clear = domEvent.target.closest<HTMLElement>(`[${SelectClearAttribute}]`);
 
         if (clear !== null) {
-            const clearSelect = clear.closest<HTMLElement>(`.${SelectClass}`);
+            const clearSelect = clear.closest<HTMLElement>(SelectHostSelector);
 
             if (clearSelect !== null) {
                 domEvent.preventDefault();
@@ -338,10 +338,10 @@ export class SelectInteractionEngine {
         if (domEvent.target.closest(`.${SelectActionClass}`) !== null)
             return;
 
-        const trigger = domEvent.target.closest<HTMLElement>(`.${TriggerClass}`);
+        const trigger = domEvent.target.closest<HTMLElement>(SelectTriggerSelector);
 
         if (trigger !== null) {
-            const select = trigger.closest<HTMLElement>(`.${SelectClass}`);
+            const select = trigger.closest<HTMLElement>(SelectHostSelector);
 
             if (isFixed(select))
                 return;
@@ -363,7 +363,7 @@ export class SelectInteractionEngine {
         if (option === null)
             return;
 
-        const select = option.closest<HTMLElement>(`.${SelectClass}`);
+        const select = option.closest<HTMLElement>(SelectHostSelector);
 
         if (select !== null)
             this.choose(select, option);
@@ -436,7 +436,7 @@ export class SelectInteractionEngine {
             return;
         }
 
-        const select = option.closest<HTMLElement>(`.${SelectClass}`);
+        const select = option.closest<HTMLElement>(SelectHostSelector);
 
         if (select === null)
             return;
@@ -572,13 +572,13 @@ export class SelectInteractionEngine {
         const character = typeAheadCharacter(domEvent);
         const target = domEvent.target instanceof HTMLElement ? domEvent.target : null;
 
-        if (character === null || target === null || !(target.classList.contains(TriggerClass) || target.classList.contains(SelectOptionClass)))
+        if (character === null || target === null || !(isSelectTrigger(target) || target.classList.contains(SelectOptionClass)))
             return false;
 
-        const select = target.closest<HTMLElement>(`.${SelectClass}`);
+        const select = target.closest<HTMLElement>(SelectHostSelector);
         const open = select !== null && select === this.openSelect;
 
-        if (select === null || isFixed(select) || (!open && !target.classList.contains(TriggerClass)))
+        if (select === null || isFixed(select) || (!open && !isSelectTrigger(target)))
             return false;
 
         const field = searchFieldOf(select);
@@ -627,8 +627,8 @@ export class SelectInteractionEngine {
     }
 
     private handleTriggerKey(domEvent: KeyboardEvent): boolean {
-        const trigger = domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TriggerClass) ? domEvent.target : null;
-        const select = trigger?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
+        const trigger = domEvent.target instanceof HTMLElement && isSelectTrigger(domEvent.target) ? domEvent.target : null;
+        const select = trigger?.closest<HTMLElement>(SelectHostSelector) ?? null;
 
         if (select === null || isFixed(select))
             return false;
@@ -688,7 +688,7 @@ export class SelectInteractionEngine {
 
         refreshEmptyState(select);
 
-        const trigger = select.querySelector<HTMLElement>(`.${TriggerClass}`);
+        const trigger = triggerOf(select);
         const popup = select.querySelector<HTMLElement>(`.${SelectPopupClass}`);
         const list = select.querySelector<HTMLElement>(`.${SelectListClass}`) ?? popup;
         const token = select.getAttribute(SelectPlacementAttribute);
@@ -703,11 +703,13 @@ export class SelectInteractionEngine {
 
         field?.setAttribute("aria-controls", listId);
 
+        const button = select.classList.contains(MultiSelectButtonClass);
+        const defaultPlacement = button ? "bottom-end" : "bottom-start";
         const opened = this.popups.open({
             owner: select,
             popup,
-            anchor: trigger,
-            placement: { placement: token !== null && isAnchoredPopupPlacement(token) ? token : "bottom-start", minAnchorWidth: true },
+            anchor: button ? select : trigger,
+            placement: { placement: token !== null && isAnchoredPopupPlacement(token) ? token : defaultPlacement, minAnchorWidth: !button },
             openers: entry !== null ? [entry] : field === null ? [trigger] : [trigger, field],
             namedBy: entry ?? trigger,
             namedPart: list,

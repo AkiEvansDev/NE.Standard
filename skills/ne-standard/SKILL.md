@@ -164,7 +164,7 @@ browser with no round trip; reach for them before a command that only flips a fl
   button group, breadcrumbs, items view; `OnItemClick`/`OnActionClick(key, effect)`), declared or bound entries, every
   press path (click, keyboard, shortcut, long press, action bar); the other keys keep the command. On a row's own template the same
   is `InteractOnRow(eventName, rowKey, effect)`. A Copy entry is
-  `.OnItemClick("copy", CopyToClipboardEffect.ValueOf(textId))`, never a command answering with the text.
+  `.OnItemClick("copy", CopyToClipboardEffect.ValueOf(textId))`, and a dynamic quick-phrase submenu is `.OnItemClick("phrases", InsertTextEffect.CurrentItemValue(composerId))` (matching any sub-entry under submenu `"phrases"`), never a command answering with the text.
 - Presets over them: `ShownWhen`, `HiddenWhen`, `EnabledWhen`, `DisabledWhen` (another component instance or string id), `ShownFrom`/`ShownBelow` (a breakpoint).
 - Components that scroll together share `SetScrollGroup("name")`.
 
@@ -249,7 +249,7 @@ The whole catalogue with a link per page is [components.md](components.md). In s
 (`TextComponent`, `ParagraphComponent`, `IconComponent`, `ImageComponent`, `BadgeComponent`, `LinkComponent`, `StatusComponent`,
 `TimestampComponent`, `FileTileComponent`, `KeyValueActionComponent`, `SeparatorComponent`), actions (`ButtonComponent`,
 `ActionComponent`, `SplitButtonComponent`, `CommandBarComponent`, `ThemeSwitcherComponent`, `LanguageSwitcherComponent`), inputs
-(text, area, number, slider, switch, checkbox, radio, select, multi-select — chips, badges or checkboxes — search — option picker or `SetAllowFreeText()` autocomplete —, date, time, date-time,
+(`text`, `area`, `number`, `slider`, `switch`, `checkbox`, `radio`, `select`, `multi-select` — `Chips`, `Badges`, `Checkboxes`, or compact filter trigger `Button` — `search` — option picker or `SetAllowFreeText()` autocomplete —, `date`, `time`, `date-time`,
 calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `TreeComponent`, `PagerComponent`), navigation
 (`MenuComponent`, `TabsComponent`, `TabsViewComponent`, `BreadcrumbsComponent`, `StepsComponent`, `ButtonGroupComponent`), indicators
 (`ProgressComponent`, `SpinnerComponent`).
@@ -268,7 +268,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
   `OnItemOpenWithItem`, `OnItemOpenWithItemKey`, `OnItemOpenWith`) on the hosts that raise it, a composite host named by
   `SetAccessibleName`, drag and drop between lists, virtualized hosting, the empty template
   (`ConfigureDefaultEmptyTemplate` on every items host, putting the built-in one in where there is none,
-  `ConfigureDefaultGroupTemplate`, `SetShowEmptyTemplate(false)` - not on a select or a search, whose open list always answers -,
+  `ConfigureDefaultGroupTemplate`, `SetShowEmptyTemplate(false)` — collapses the host root when empty so nested tag or attachment lists leave no parent gap; not on a select or a search, whose open list always answers —, `UIItemsLayoutType.Accordion` on `ItemsViewComponent` (single-expand coordination and connected borders across visible `ExpanderComponent` rows),
   or `SetEmptyTemplate(UIPage.Empty(...))`, centred in a list
   given the region's height), a
   navigation rail per breakpoint (`SetDisplay(UIMenuDisplay.Rail, xl: UIMenuDisplay.List)`: one menu, a list in a phone's drawer

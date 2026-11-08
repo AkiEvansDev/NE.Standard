@@ -270,7 +270,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         if (options.PartsShownOperation is WebDomOperation then)
             badgeOptions = FollowedBadgeOptions.GetOrAdd((badgeOptions, then), static key => key.Options with { PartsShownOperation = key.Then });
 
-        BadgeRenderer.RenderBadge(context, root, badge, badgeOptions, root);
+        BadgeRenderer.RenderBadge(context, root, badge, badgeOptions, root, options.FallbackBadgeTitle);
 
         if (!options.NamesField)
             return;

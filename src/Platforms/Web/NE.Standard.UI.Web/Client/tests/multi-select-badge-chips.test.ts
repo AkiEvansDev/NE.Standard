@@ -174,3 +174,34 @@ test("a badges multi-select's watch of its options hears a style change, which a
 
     assert.ok(watch?.filter.includes("style"));
 });
+
+test("a button multi-select keeps its count badge in step with its chosen keys and hides it when none are chosen", () => {
+    const badgeWords = FakeElement.of("ui-badge__title ui-text-type--overline", {}, "span");
+    const badge = FakeElement.of("ui-text__badge ui-badge ui-badge-variant--primary ui-text-type--overline", {}, "span").append(badgeWords);
+    const header = FakeElement.of("ui-text__header", {}, "span").append(badge);
+    const body = FakeElement.of("ui-text__body", {}, "span").append(header);
+    const content = FakeElement.of("ui-button__content ui-text", {}, "span").append(body);
+    const trigger = FakeElement.of("ui-split-button__main", { type: "button" }, "button").append(content);
+    const options = ["bug", "docs"].map(key => FakeElement.of("ui-select__option", { "data-ui-key": key, role: "option", "aria-selected": "false" }));
+    const popup = FakeElement.of("ui-select__popup ui-select__list", { role: "listbox" }).append(...options);
+    const valueInput = FakeElement.of("ui-select__value-input", { "data-ui-value-kind": "selected-keys" }, "input");
+    const select = FakeElement.of("ui-multi-select ui-multi-select--button ui-button ui-button--ghost", { "data-ui-id": "9" }).append(trigger, popup, valueInput);
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(select);
+
+    select.setAttribute("data-ui-selected-keys", JSON.stringify(["bug", "docs"]));
+    heard(select, "data-ui-selected-keys");
+
+    assert.equal(badgeWords.textContent, "2");
+    assert.equal(badge.hasAttribute("data-ui-badge-set"), true);
+    assert.equal(select.hasAttribute("data-ui-text-badge-title"), true);
+
+    select.removeAttribute("data-ui-selected-keys");
+    heard(select, "data-ui-selected-keys");
+
+    assert.equal(badgeWords.textContent, "");
+    assert.equal(badge.hasAttribute("data-ui-badge-set"), false);
+    assert.equal(badge.hasAttribute("data-ui-badge-title"), false);
+    assert.equal(select.hasAttribute("data-ui-text-badge-title"), false);
+});

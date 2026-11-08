@@ -60,6 +60,12 @@
     flex-direction: column;
 }
 
+.ui-items-view--accordion > .ui-items-view__host,
+.ui-items-view--accordion > [data-ui-items-host] {
+    display: flex;
+    flex-direction: column;
+}
+
 // The wrap panel's flow, not a grid, which stretches an unplaced item across the row: a spanless item takes its content's width.
 .ui-items-view--wrap > .ui-items-view__host,
 .ui-items-view--wrap > [data-ui-items-host] {
@@ -240,7 +246,9 @@
 
 // flex-shrink: 0 — the host is a scroller and its content is meant to be bigger than it, not squeezed to fit.
 .ui-items-view--stack > .ui-items-view__host > *,
-.ui-items-view--stack > [data-ui-items-host] > * {
+.ui-items-view--stack > [data-ui-items-host] > *,
+.ui-items-view--accordion > .ui-items-view__host > *,
+.ui-items-view--accordion > [data-ui-items-host] > * {
     flex-shrink: 0;
 }
 
@@ -286,7 +294,9 @@
 }
 
 .ui-items-view--stack.ui-orientation--vertical > .ui-items-view__host > .ui-items-view__item,
-.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > .ui-items-view__item {
+.ui-items-view--stack.ui-orientation--vertical > [data-ui-items-host] > .ui-items-view__item,
+.ui-items-view--accordion > .ui-items-view__host > .ui-items-view__item,
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item {
     width: 100%;
 }
 

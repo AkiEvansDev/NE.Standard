@@ -15,4 +15,9 @@ public enum UIItemsLayoutType
     /// placement takes that column span of the 24-column grid instead.
     /// </summary>
     Wrap = 1,
+
+    /// <summary>
+    /// A vertical stack of <c>ExpanderComponent</c> rows that share their borders and outer corners and keep at most one row open at a time.
+    /// </summary>
+    Accordion = 2,
 }

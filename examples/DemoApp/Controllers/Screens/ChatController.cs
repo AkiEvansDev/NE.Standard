@@ -94,17 +94,9 @@ internal sealed partial class DemoChatMessage(string id, string author, string t
     [RecursiveMember(false)]
     public RecursiveCollection<DemoChatPhoto> Photos { get; } = [];
 
-    /// <summary>The photos' strip, collapsed on a message that carries none.</summary>
-    [RecursiveMember(false)]
-    public UIVisibility PhotosVisibility => Photos.Count > 0 ? UIVisibility.Visible : UIVisibility.Collapsed;
-
     /// <summary>The files sent with the words, each a tile; none for most messages.</summary>
     [RecursiveMember(false)]
     public RecursiveCollection<FileItem> Files { get; } = [];
-
-    /// <summary>The files' strip, collapsed on a message that carries none.</summary>
-    [RecursiveMember(false)]
-    public UIVisibility FilesVisibility => Files.Count > 0 ? UIVisibility.Visible : UIVisibility.Collapsed;
 
     /// <summary>Whether the message is pinned; its pin entry offers the other way round.</summary>
     public bool Pinned { get; private set; }

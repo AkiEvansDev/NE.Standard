@@ -57,6 +57,7 @@ installFakeDom({
     MutationObserver: FakeObserver
 });
 
+const { AccordionEngine } = await import("../src/interactions/accordion-engine.ts");
 const { CollapsibleEngine } = await import("../src/interactions/collapsible-engine.ts");
 const { EventCatalog, registerBuiltInEvents } = await import("../src/extensions/events.ts");
 const { EventPipeline } = await import("../src/events/event-pipeline.ts");
@@ -329,4 +330,49 @@ test("a fold inside a component raises nothing of that component's, and its own 
     await page.raise(outer, "collapse");
 
     assert.deepEqual(page.sent, [7]);
+});
+
+test("an items view in accordion layout keeps one row's expander open, closes siblings on click, and opens a newly added row", () => {
+    const root = FakeElement.of("page");
+    const host = FakeElement.of("ui-items-view__host", { "data-ui-items-host": "" });
+    const view = FakeElement.of("ui-items-view ui-items-view--accordion", { "data-ui-id": "10" }).append(host);
+
+    function makeRow(key: string, open = true): { row: FakeElement; details: FakeElement & { open: boolean }; summary: FakeElement } {
+        const details = new DetailsElement();
+        const summary = FakeElement.of("ui-expander__header", {}, "summary");
+
+        details.className = "ui-expander";
+        details.open = open;
+        details.append(summary, FakeElement.of("ui-expander__content"));
+
+        const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key }).append(details);
+
+        return { row, details, summary };
+    }
+
+    const first = makeRow("a", true);
+    const second = makeRow("b", true);
+
+    host.append(first.row, second.row);
+    root.append(view);
+
+    new AccordionEngine({ root: real<ParentNode>(root) });
+
+    assert.equal(first.details.open, true);
+    assert.equal(second.details.open, false);
+
+    second.summary.dispatchEvent(new FakeEvent("click"));
+    second.details.open = true;
+
+    assert.equal(first.details.open, false);
+    assert.equal(second.details.open, true);
+
+    const added = makeRow("c", true);
+
+    host.append(added.row);
+    FakeObserver.added(added.row);
+
+    assert.equal(first.details.open, false);
+    assert.equal(second.details.open, false);
+    assert.equal(added.details.open, true);
 });

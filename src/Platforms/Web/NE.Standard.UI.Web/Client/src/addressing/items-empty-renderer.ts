@@ -1,5 +1,5 @@
 // `.ts` on the value import: `node --test` runs this module directly.
-import { EmptyPlaceholderAttribute, GroupHeaderAttribute, HiddenClass, ItemsEmptyAttribute, NonItemAttribute, WindowSpacerAttribute } from "./dom-attributes.ts";
+import { ComponentSelector, EmptyPlaceholderAttribute, GroupHeaderAttribute, HiddenClass, ItemsEmptyAttribute, NonItemAttribute, WindowSpacerAttribute } from "./dom-attributes.ts";
 
 type EmptyTemplateSource = {
     getEmptyTemplate(componentId: number): HTMLTemplateElement | undefined;
@@ -37,18 +37,23 @@ export function findEmptyPlaceholder(host: Element): Element | null {
 }
 
 // Counts visible items, so a filter (a class toggle) runs first; a virtualized host passes its own answer, since it draws less than it holds.
-// The host wears the mark while the placeholder stands in it, as the server writes it; a host emptied wholesale (a reset) is put right here.
+// The host and its component root wear the mark while the placeholder stands in it, as the server writes it; a host emptied wholesale (a reset) is put right here.
 export function ensureEmptyState<TStack>(host: Element, componentId: number, templates: EmptyTemplateSource, renderer: EmptyTemplateRenderer<TStack>, hasItems?: boolean): void {
     hasItems ??= getRealItemElements(host).some(item => !item.classList.contains(HiddenClass));
     const placeholder = findEmptyPlaceholder(host);
+    const root = host.closest(ComponentSelector);
 
     if (hasItems) {
         placeholder?.remove();
         host.toggleAttribute(ItemsEmptyAttribute, false);
+        root?.toggleAttribute(ItemsEmptyAttribute, false);
         return;
     }
 
-    host.toggleAttribute(ItemsEmptyAttribute, placeholder !== null || appendEmptyPlaceholder(host, componentId, templates, renderer));
+    const empty = placeholder !== null || appendEmptyPlaceholder(host, componentId, templates, renderer);
+
+    host.toggleAttribute(ItemsEmptyAttribute, empty);
+    root?.toggleAttribute(ItemsEmptyAttribute, empty);
 }
 
 /** Draws the empty template into the host and answers whether there was one to draw. */

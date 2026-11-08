@@ -28,5 +28,10 @@ public enum UIMultiSelectVariant
     /// Every option standing in the field as a checkbox, with no list and no chips: the value is the checked keys. Takes no free
     /// text; past <c>MaxSelected</c> the unchecked boxes are off.
     /// </summary>
-    Checkboxes = 2
+    Checkboxes = 2,
+
+    /// <summary>
+    /// A compact button trigger that opens the multi-select popup and shows the chosen count in its badge when no badge title is set.
+    /// </summary>
+    Button = 3
 }

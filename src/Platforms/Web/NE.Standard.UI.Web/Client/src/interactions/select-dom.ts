@@ -2,19 +2,19 @@
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    ActiveAttribute, BadgeClass, BadgeIconAttribute, BadgeIconClass, BadgeSelectClass, BadgeTitleAttribute,
+    ActiveAttribute, BadgeClass, BadgeIconAttribute, BadgeIconClass, BadgeSelectClass, BadgeSetAttribute, BadgeTitleAttribute,
     BadgeTitleClass, BadgeVariantInfoClass, BindingAttributePrefix, ClearableAttribute, ComponentContextAttribute,
     ComponentIdAttribute, ComponentKeyAttribute, ComponentParameterCountAttribute, ensureElementId, HiddenClass,
     IconClass, InputAffixIconPrefixClass, ListKeyboardAttribute, ListTriggerClass as TriggerClass,
-    MultiSelectChipClass, MultiSelectChipLabelClass, MultiSelectChipRemoveClass, MultiSelectChipsClass,
+    MultiSelectButtonClass, MultiSelectChipClass, MultiSelectChipLabelClass, MultiSelectChipRemoveClass, MultiSelectChipsClass,
     MultiSelectClass, MultiSelectEntryClass, PointerFocusAttribute, PopupPlacementAttribute, SearchClass,
     SearchInputClass, SelectActionClass, SelectChipAttribute, SelectChipsAttribute, SelectClass, SelectContentAttribute,
     SelectedKeysAttribute, SelectFreeTextAttribute, SelectListClass, SelectMaxAttribute, SelectOpenClass, SelectOptionClass,
     SelectOptionIdPrefix, SelectPlaceholderClass, SelectPopupClass, SelectTriggerContentClass, SelectValueAttribute,
-    SelectValueInputClass, TextBadgeClass, TextTypeOverlineClass, ValueBindingAttribute
+    SelectValueInputClass, SplitButtonMainClass, TextBadgeClass, TextBadgeTitleAttribute, TextTypeOverlineClass, ValueBindingAttribute
 } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
-import { writeBadgeWords } from "../rendering/web-dom-converters.ts";
+import { writeBadgeCount, writeBadgeWords } from "../rendering/web-dom-converters.ts";
 import { isInert, isItemDisabled, isReadOnly } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { isChoiceFull, parseChosenKeys, parseMaxChosen } from "./multi-select-keys.ts";
@@ -34,6 +34,21 @@ export const OptionAttributes = ["class", ComponentKeyAttribute];
 // The multi-select's badges variant copies its options' badges into its chips, a badge's colour patched inline: a badge's variant is
 // heard there too, and only a badge's, since the engine writes an option's own (a narrowed list hides by it).
 export const BadgeOptionAttributes = [...OptionAttributes, "style"];
+
+export const SelectHostSelector = `.${SelectClass}, .${MultiSelectButtonClass}`;
+export const SelectTriggerSelector = `.${TriggerClass}, .${MultiSelectButtonClass} > .${SplitButtonMainClass}`;
+
+function isSelectHost(element: Element): boolean {
+    return element.classList.contains(SelectClass) || element.classList.contains(MultiSelectButtonClass);
+}
+
+export function isSelectTrigger(element: Element): boolean {
+    return element.classList.contains(TriggerClass) || (element.classList.contains(SplitButtonMainClass) && element.parentElement?.classList.contains(MultiSelectButtonClass) === true);
+}
+
+export function triggerOf(select: HTMLElement): HTMLElement | null {
+    return select.querySelector<HTMLElement>(SelectTriggerSelector);
+}
 
 /** A read-only select, search or multi-select keeps its field focusable and readable, and offers no list and no change. */
 export function isFixed(select: HTMLElement | null): boolean {
@@ -65,7 +80,7 @@ export function typedFieldOf(select: HTMLElement): HTMLInputElement | null {
 
 /** Where the field's keyboard stands when it is closed: a free-text entry, else the trigger. */
 export function controlOf(select: HTMLElement): HTMLElement | null {
-    return entryOf(select) ?? select.querySelector<HTMLElement>(`.${TriggerClass}`);
+    return entryOf(select) ?? triggerOf(select);
 }
 
 /** The free-text entry an event happened in and its multi-select, or null for any other target. */
@@ -78,7 +93,7 @@ export function entryTarget(domEvent: Event): { entry: HTMLInputElement; select:
 
 /** This select's own options: a select rendered inside an option's template keeps its list to itself. */
 export function optionsOf(select: HTMLElement): HTMLElement[] {
-    return ownDescendants(select, `.${SelectPopupClass} .${SelectOptionClass}`, `.${SelectClass}`);
+    return ownDescendants(select, `.${SelectPopupClass} .${SelectOptionClass}`, SelectHostSelector);
 }
 
 /** The open list's current option: the focused one, else — a search keeps the focus in its field — the marked one. */
@@ -90,7 +105,7 @@ export function currentOption(select: HTMLElement): HTMLElement | null {
 
 /** Marks each of the select's lists whose current option is the keyboard's, not the pointer's; written only when it changes. */
 export function markListKeyboard(select: HTMLElement): void {
-    for (const list of ownDescendants(select, `.${SelectListClass}`, `.${SelectClass}`)) {
+    for (const list of ownDescendants(select, `.${SelectListClass}`, SelectHostSelector)) {
         const keyboard = list.querySelector(`:scope > .${SelectOptionClass}[${ActiveAttribute}]:not([${PointerFocusAttribute}])`) !== null;
 
         if (list.hasAttribute(ListKeyboardAttribute) !== keyboard)
@@ -244,7 +259,7 @@ export function resolveClearKeySelect(domEvent: KeyboardEvent, openSelect: HTMLE
     if ((domEvent.key !== "Delete" && domEvent.key !== "Backspace") || !isPlainKey(domEvent) || !(domEvent.target instanceof HTMLElement))
         return null;
 
-    const select = domEvent.target.closest<HTMLElement>(`.${SelectClass}`);
+    const select = domEvent.target.closest<HTMLElement>(SelectHostSelector);
 
     if (select === null || select === openSelect || !select.hasAttribute(ClearableAttribute) || isFixed(select))
         return null;
@@ -256,8 +271,8 @@ export function resolveClearKeySelect(domEvent: KeyboardEvent, openSelect: HTMLE
 }
 
 export function resolveClosedArrowStart(domEvent: KeyboardEvent, openSelect: HTMLElement | null): { select: HTMLElement; start: HTMLElement | null } | null {
-    const trigger = domEvent.target instanceof HTMLElement && domEvent.target.classList.contains(TriggerClass) ? domEvent.target : null;
-    const select = trigger?.closest<HTMLElement>(`.${SelectClass}`) ?? null;
+    const trigger = domEvent.target instanceof HTMLElement && isSelectTrigger(domEvent.target) ? domEvent.target : null;
+    const select = trigger?.closest<HTMLElement>(SelectHostSelector) ?? null;
 
     if (select === null || select === openSelect || isFixed(select))
         return null;
@@ -343,14 +358,19 @@ export function syncMultipleSelect(select: HTMLElement): void {
     // A key no option has is a tag the reader typed, where the field takes free text; anywhere else, nothing to show.
     const shown = entry === null ? keys.filter(key => byKey.has(key)) : keys;
 
-    const badges = select.classList.contains(BadgeSelectClass);
+    if (select.classList.contains(MultiSelectButtonClass)) {
+        syncButtonCountBadge(select, shown.length);
+    }
+    else {
+        const badges = select.classList.contains(BadgeSelectClass);
 
-    renderChips(select, shown.map(key => {
-        const option = byKey.get(key) ?? null;
-        const badge = badges ? optionBadge(option) : undefined;
+        renderChips(select, shown.map(key => {
+            const option = byKey.get(key) ?? null;
+            const badge = badges ? optionBadge(option) : undefined;
 
-        return { key, label: chipLabel(option, key, badge ?? null), badge };
-    }));
+            return { key, label: chipLabel(option, key, badge ?? null), badge };
+        }));
+    }
 
     if (entry !== null && entry.readOnly !== isFixed(select))
         entry.readOnly = isFixed(select);
@@ -371,6 +391,25 @@ export function syncMultipleSelect(select: HTMLElement): void {
         valueInput.setAttribute(SelectedKeysAttribute, text);
 
     refreshEmptyState(select);
+}
+
+function syncButtonCountBadge(select: HTMLElement, count: number): void {
+    const badge = triggerOf(select)?.querySelector<HTMLElement>(`.${TextBadgeClass}`) ?? null;
+    const words = badge?.querySelector<HTMLElement>(`.${BadgeTitleClass}`) ?? null;
+
+    if (badge === null || words === null || badge.hasAttribute(BadgeIconAttribute) || words.hasAttribute(`${BindingAttributePrefix}badge-title`))
+        return;
+
+    if (count > 0) {
+        writeBadgeCount(badge, count);
+        select.setAttribute(TextBadgeTitleAttribute, "");
+        return;
+    }
+
+    words.textContent = "";
+    badge.removeAttribute(BadgeTitleAttribute);
+    badge.removeAttribute(BadgeSetAttribute);
+    select.removeAttribute(TextBadgeTitleAttribute);
 }
 
 function renderTriggerContent(select: HTMLElement, option: HTMLElement | null, value: string | null, drawnKeys: WeakMap<HTMLElement, string>): boolean {
@@ -460,7 +499,7 @@ function ensureTriggerContent(trigger: HTMLElement, existing: HTMLElement | null
 }
 
 export function keepFieldFocus(select: HTMLElement): void {
-    const trigger = select.querySelector<HTMLElement>(`.${TriggerClass}`);
+    const trigger = triggerOf(select);
     const target = controlOf(select);
 
     if (trigger !== null && target !== null && !trigger.contains(document.activeElement))
@@ -676,16 +715,16 @@ export function collectMutatedSelects(mutation: MutationRecord, selects: Set<HTM
             if (!(added instanceof HTMLElement))
                 continue;
 
-            if (added.classList.contains(SelectClass))
+            if (isSelectHost(added))
                 selects.add(added);
 
-            for (const select of added.querySelectorAll<HTMLElement>(`.${SelectClass}`))
+            for (const select of added.querySelectorAll<HTMLElement>(SelectHostSelector))
                 selects.add(select);
         }
     }
 
     if (mutation.type === "attributes" && (mutation.attributeName === SelectValueAttribute || mutation.attributeName === SelectedKeysAttribute || mutation.attributeName === SelectMaxAttribute)) {
-        if (mutation.target instanceof HTMLElement && mutation.target.classList.contains(SelectClass))
+        if (mutation.target instanceof HTMLElement && isSelectHost(mutation.target))
             selects.add(mutation.target);
 
         return;
@@ -696,7 +735,7 @@ export function collectMutatedSelects(mutation: MutationRecord, selects: Set<HTM
     if (mutation.attributeName === "style" && target?.classList.contains(BadgeClass) !== true)
         return;
 
-    const select = target?.closest(`.${SelectPopupClass}`)?.closest<HTMLElement>(`.${SelectClass}`);
+    const select = target?.closest(`.${SelectPopupClass}`)?.closest<HTMLElement>(SelectHostSelector);
 
     if (select !== null && select !== undefined)
         selects.add(select);

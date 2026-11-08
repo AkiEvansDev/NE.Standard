@@ -41,7 +41,7 @@ export function evaluateOperator(leftValue: unknown, operator: WebInteractionOpe
         case "LikeIgnoreCase":
             return String(left ?? "").toLowerCase().includes(String(right ?? "").toLowerCase());
         case "In":
-            return Array.isArray(right) && right.some(item => String(item ?? "") === String(left ?? ""));
+            return evaluateIn(left, right);
         case "Regex":
             return evaluateRegex(left, right);
         case "RegexEach":
@@ -52,14 +52,36 @@ export function evaluateOperator(leftValue: unknown, operator: WebInteractionOpe
 }
 
 /**
- * A value as a rule or a sort reads it: a phrase by its key, an author's text by its text — never "[object Object]"; the server's
- * `UIComparisonEvaluator` reads a phrase so, since a rule is the same in every language.
+ * A value as a rule or a sort reads it: a phrase by its key, an author's text by its text, a bindable item by its id — never
+ * "[object Object]"; the server's `UIComparisonEvaluator` reads them so, since a rule is the same in every language.
  */
 export function comparable(value: unknown): unknown {
     if (isPhrase(value))
         return value.key;
 
-    return isAuthorText(value) ? value.text : value;
+    if (isAuthorText(value))
+        return value.text;
+
+    if (value !== null && typeof value === "object" && !Array.isArray(value) && typeof (value as { id?: unknown }).id === "string")
+        return (value as { id: string }).id;
+
+    return value;
+}
+
+/** Whether the value, or any element of a list value, is in the comparison list. */
+function evaluateIn(left: unknown, right: unknown): boolean {
+    if (!Array.isArray(right))
+        return false;
+
+    return Array.isArray(left)
+        ? left.some(entry => isMember(comparable(entry), right))
+        : isMember(left, right);
+}
+
+function isMember(value: unknown, candidates: readonly unknown[]): boolean {
+    const text = String(value ?? "");
+
+    return candidates.some(candidate => String(comparable(candidate) ?? "") === text);
 }
 
 /** Whether the pair stands in the order asked: as numbers, or — when neither text reads as a number — as ordinal text. */

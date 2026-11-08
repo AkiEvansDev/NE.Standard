@@ -3,20 +3,29 @@
 // focus is in a panel beside it, so a press in an emoji flyout inserts where the reader stopped.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
+import { MenuItemValueClass } from "../addressing/dom-attributes.ts";
 import { isCaretField } from "../interactions/caret-fields.ts";
 import { isInert, isReadOnly } from "../interactions/interactive-state.ts";
 import { insertTextAsTyped } from "../interactions/legacy-commands.ts";
 import type { InsertTextClientEffect } from "../metadata/metadata-index.ts";
 import { logWarn } from "../metadata/logger.ts";
+import { shownText } from "./shown-text.ts";
 
 type CaretField = HTMLInputElement | HTMLTextAreaElement;
 
-/** Runs an insertion on the component it addresses: its text, or the key of the row the press came from, into its text field. */
-export function applyInsertText(effect: InsertTextClientEffect, component: Element, row: readonly unknown[]): void {
-    const text = effect.itemKey === true ? rowKey(row) : effect.text;
+/** Runs an insertion on the component it addresses: its text, or the key or value of the row the press came from, into its text field. */
+export function applyInsertText(effect: InsertTextClientEffect, component: Element, row: readonly unknown[], source: Element | null = null): void {
+    const text = effect.itemKey === true ? rowKey(row) : effect.itemValue === true ? rowValue(source) : effect.text;
 
     if (typeof text !== "string") {
-        logWarn(effect.itemKey === true ? "insert text effect reads the row's key but ran for no row." : "insert text effect carries no text.", effect);
+        logWarn(
+            effect.itemKey === true
+                ? "insert text effect reads the row's key but ran for no row."
+                : effect.itemValue === true
+                    ? "insert text effect reads the row's value but ran for no row with a value."
+                    : "insert text effect carries no text.",
+            effect
+        );
         return;
     }
 
@@ -35,6 +44,21 @@ function rowKey(row: readonly unknown[]): string | null {
     const key = row.length === 0 ? null : row[row.length - 1];
 
     return key === null || key === undefined ? null : String(key);
+}
+
+/** The pressed row's value: its menu entry's value when given, else the words the row shows. */
+function rowValue(source: Element | null): string | null {
+    if (source === null)
+        return null;
+
+    const entryValue = (source.querySelector(`.${MenuItemValueClass}`)?.textContent ?? "").trim();
+
+    if (entryValue.length > 0)
+        return entryValue;
+
+    const shown = shownText(source);
+
+    return shown.length === 0 ? null : shown;
 }
 
 /** The component's own text field: itself, or the first caret field inside it, which stands before any panel its actions hold. */

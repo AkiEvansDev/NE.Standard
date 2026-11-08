@@ -2,6 +2,7 @@
 @import "../mixins/empty-state.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/placement.less";
+@import "../mixins/pressable.less";
 @import "../mixins/field.less";
 @import "../mixins/focus.less";
 @import "../mixins/responsive.less";
@@ -252,4 +253,50 @@
 
     .ui-multi-select__check[aria-disabled="true"]:not([data-ui-row-idle]) {
         opacity: var(--ui-disabled-opacity);
+    }
+
+// Drawn as a button (UIMultiSelectVariant.Button): a single button trigger that opens the multi-select popup and shows the chosen
+// count on its badge; its root wears `.ui-button` for the variant, size and hover rules, and `.ui-pressable-body` lays out the trigger.
+.ui-multi-select--button.ui-button, .ui-multi-select--button.ui-button[data-ui-text-icon]:not([data-ui-text-title]), .ui-multi-select--button.ui-button@{ui-button-inline-badge} {
+    .ui-responsive-property(padding, --ui-padding, 0);
+}
+
+.ui-pressable-body(~".ui-multi-select--button > .ui-split-button__main"; ~".ui-multi-select--button > .ui-split-button__main");
+
+    .ui-multi-select--button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2);
+    }
+
+    .ui-button--small.ui-multi-select--button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+    .ui-multi-select--button@{ui-button-inline-badge} > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-2 0.625rem);
+    }
+
+    .ui-button--small.ui-multi-select--button@{ui-button-inline-badge} > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-1);
+    }
+
+    .ui-button--large.ui-multi-select--button@{ui-button-inline-badge} > .ui-split-button__main {
+        .ui-responsive-property(padding, --ui-padding, @ui-space-3);
+    }
+
+    .ui-multi-select--button > .ui-split-button__main {
+        gap: 0.375rem;
+        border-radius: inherit;
+    }
+
+    // No divided rule on a button trigger; hidden on an icon-only button unless the author opted in, shown beside a title.
+    .ui-multi-select--button:not([data-ui-text-title]) .ui-select__chevron {
+        display: none;
+    }
+
+    .ui-multi-select--button .ui-select__chevron {
+        width: auto;
+        margin-inline-start: -0.125rem;
+        padding: 0;
+        border: none;
+        color: inherit;
     }

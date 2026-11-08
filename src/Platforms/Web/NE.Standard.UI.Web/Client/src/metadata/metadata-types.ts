@@ -492,10 +492,11 @@ export type CopyToClipboardClientEffect = TargetedClientEffect & {
     readonly text?: string | null;
 };
 
-/** Puts a literal, or the key of the row whose press raised it, into the addressed field at its caret. */
+/** Puts a literal, or the key or value of the row whose press raised it, into the addressed field at its caret. */
 export type InsertTextClientEffect = TargetedClientEffect & {
     readonly text?: string | null;
     readonly itemKey?: boolean;
+    readonly itemValue?: boolean;
 };
 
 export type ScrollToClientEffect = TargetedClientEffect & {

@@ -141,6 +141,12 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
         => AddLeadingAction(flyout, false);
 
     /// <summary>
+    /// Adds a button-variant multi-select at the start of the field, after the actions added before.
+    /// </summary>
+    public T AddLeadingAction(IMultiSelectComponent select)
+        => AddLeadingAction(select, false);
+
+    /// <summary>
     /// Adds a button at the start of the field; <paramref name="inField"/> flags it as standing in the field (an emoji), first at its
     /// start and kept beside the text under <see cref="ActionsBelow"/>. One leading action of a field is in it.
     /// </summary>
@@ -156,6 +162,15 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
     public T AddLeadingAction(FlyoutComponent flyout, bool inField)
     {
         _actions.AddLeading(flyout, inField);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a button-variant multi-select at the start of the field; <paramref name="inField"/> flags it as standing in the field.
+    /// </summary>
+    public T AddLeadingAction(IMultiSelectComponent select, bool inField)
+    {
+        _actions.AddLeading(select, inField);
         return Self;
     }
 
@@ -179,6 +194,15 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
     }
 
     /// <summary>
+    /// Adds a button-variant multi-select at the start of the field that stands at <paramref name="belowAt"/> of the row under it.
+    /// </summary>
+    public T AddLeadingAction(IMultiSelectComponent select, UIAlignment belowAt)
+    {
+        _actions.AddLeading(select, belowAt);
+        return Self;
+    }
+
+    /// <summary>
     /// Adds a button at the end of the field, beside its text at the bottom edge, after those added before.
     /// </summary>
     public T AddTrailingAction(IButtonComponent action)
@@ -190,6 +214,12 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
     /// </summary>
     public T AddTrailingAction(FlyoutComponent flyout)
         => AddTrailingAction(flyout, false);
+
+    /// <summary>
+    /// Adds a button-variant multi-select at the end of the field, after the actions added before.
+    /// </summary>
+    public T AddTrailingAction(IMultiSelectComponent select)
+        => AddTrailingAction(select, false);
 
     /// <summary>
     /// Adds a button at the end of the field; <paramref name="inField"/> flags it as standing in the field (a Send), last at its end
@@ -212,6 +242,15 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
     }
 
     /// <summary>
+    /// Adds a button-variant multi-select at the end of the field; <paramref name="inField"/> flags it as standing in the field.
+    /// </summary>
+    public T AddTrailingAction(IMultiSelectComponent select, bool inField)
+    {
+        _actions.AddTrailing(select, inField);
+        return Self;
+    }
+
+    /// <summary>
     /// Adds a button at the end of the field that stands at <paramref name="belowAt"/> of the row under it (<see cref="ActionsBelow"/>);
     /// beside the text it stands first at the end.
     /// </summary>
@@ -227,6 +266,15 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
     public T AddTrailingAction(FlyoutComponent flyout, UIAlignment belowAt)
     {
         _actions.AddTrailing(flyout, belowAt);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a button-variant multi-select at the end of the field that stands at <paramref name="belowAt"/> of the row under it.
+    /// </summary>
+    public T AddTrailingAction(IMultiSelectComponent select, UIAlignment belowAt)
+    {
+        _actions.AddTrailing(select, belowAt);
         return Self;
     }
 

@@ -650,12 +650,12 @@ public sealed partial class UIClientPage
     }
 
     /// <summary>
-    /// Whether an event raised with these keys fires the interaction: any row's for one that names none, else the row it names — the
-    /// innermost key, as the page reads it (<c>interaction-engine.ts</c>).
+    /// Whether an event raised with these keys fires the interaction: any row's for one that names none, else the row it names — any
+    /// key in the row's scope chain, so a submenu's key matches its entries too (<c>interaction-engine.ts</c>).
     /// </summary>
     private static bool IsRowsOwn(CompiledUIInteraction interaction, object?[] rowKeys)
         => interaction.RowKey is null
-            || (rowKeys.Length > 0 && rowKeys[^1] is { } key && string.Equals(Convert.ToString(key, CultureInfo.InvariantCulture), interaction.RowKey, StringComparison.Ordinal));
+            || Array.Exists(rowKeys, key => key is not null && string.Equals(Convert.ToString(key, CultureInfo.InvariantCulture), interaction.RowKey, StringComparison.Ordinal));
 
     /// <summary>An interaction as the client runs it: its effect while the condition holds, else the value it writes to its target.</summary>
     private void ApplyInteractionNoLock(CompiledUIInteraction interaction, object?[] rowKeys, bool local, object? sourceValue, int depth, List<UIClientWrite> writes)

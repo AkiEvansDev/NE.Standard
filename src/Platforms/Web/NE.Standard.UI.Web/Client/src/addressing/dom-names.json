@@ -2284,6 +2284,10 @@
         "value":  "ui-select__value-input"
     },
     {
+        "constant":  "MultiSelectButtonClass",
+        "value":  "ui-multi-select--button"
+    },
+    {
         "constant":  "MultiSelectCheckboxesClass",
         "value":  "ui-multi-select--checkboxes"
     },
@@ -3324,6 +3328,10 @@
     {
         "constant":  "ItemsViewStackClass",
         "value":  "ui-items-view--stack"
+    },
+    {
+        "constant":  "ItemsViewAccordionClass",
+        "value":  "ui-items-view--accordion"
     },
     {
         "constant":  "RadioGroupInputClass",

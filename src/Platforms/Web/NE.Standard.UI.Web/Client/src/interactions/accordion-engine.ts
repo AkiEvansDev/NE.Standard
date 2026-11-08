@@ -1,9 +1,12 @@
 // Keeps one section of an accordion open at a time; the sections stay ordinary <details>.
 
-import { AccordionClass } from "../addressing/dom-attributes.ts";
-import { observeComponents } from "./dom-mutations";
+import { AccordionClass, ItemsHostAttribute, ItemsViewAccordionClass, ItemsViewItemClass } from "../addressing/dom-attributes.ts";
+import { observeComponents } from "./dom-mutations.ts";
 
+const AccordionSelector = `.${AccordionClass}, .${ItemsViewAccordionClass}`;
 const SectionSelector = "details";
+const DirectSectionSelector = `:scope > ${SectionSelector}`;
+const ItemsSectionSelector = `:scope > [${ItemsHostAttribute}] > .${ItemsViewItemClass} > ${SectionSelector}`;
 
 export type AccordionEngineOptions = {
     readonly root?: ParentNode;
@@ -11,6 +14,7 @@ export type AccordionEngineOptions = {
 
 export class AccordionEngine {
     private readonly root: ParentNode;
+    private readonly seenSections = new WeakSet<HTMLDetailsElement>();
 
     public constructor(options: AccordionEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -21,24 +25,38 @@ export class AccordionEngine {
         // Still the toggle, for a section opened from anywhere else; capture, because it does not bubble.
         this.root.addEventListener("toggle", domEvent => this.handleToggle(domEvent), true);
 
-        this.normalizeAll(this.root.querySelectorAll<HTMLElement>(`.${AccordionClass}`));
+        this.normalizeAll(this.root.querySelectorAll<HTMLElement>(AccordionSelector));
 
-        observeComponents(this.root, `.${AccordionClass}`, { childList: true, addedOnly: true }, accordions => this.normalizeAll(accordions));
+        observeComponents(this.root, AccordionSelector, { childList: true, addedOnly: true }, accordions => this.normalizeAll(accordions));
     }
 
-    /** Leaves the first open section open and closes the rest. */
+    /** Leaves the first newly added open section (or the existing open one) open and closes the rest. */
     private normalizeAll(accordions: Iterable<HTMLElement>): void {
         for (const accordion of accordions) {
-            let seen = false;
+            const addedOpen: HTMLDetailsElement[] = [];
+            const existingOpen: HTMLDetailsElement[] = [];
 
             for (const section of this.sectionsOf(accordion)) {
+                const isNew = !this.seenSections.has(section);
+                this.seenSections.add(section);
+
                 if (!section.open)
                     continue;
 
-                if (seen)
-                    section.open = false;
+                if (isNew)
+                    addedOpen.push(section);
                 else
-                    seen = true;
+                    existingOpen.push(section);
+            }
+
+            const kept = addedOpen[0] ?? existingOpen[0];
+
+            if (kept === undefined)
+                continue;
+
+            for (const section of [...addedOpen, ...existingOpen]) {
+                if (section !== kept)
+                    section.open = false;
             }
         }
     }
@@ -67,10 +85,9 @@ export class AccordionEngine {
     }
 
     private closeSiblings(section: HTMLDetailsElement): void {
-        const accordion = section.parentElement;
+        const accordion = this.accordionOf(section);
 
-        // Direct children only: a nested accordion must not close the outer one's sections.
-        if (accordion === null || !accordion.classList.contains(AccordionClass))
+        if (accordion === null)
             return;
 
         for (const sibling of this.sectionsOf(accordion)) {
@@ -79,7 +96,27 @@ export class AccordionEngine {
         }
     }
 
+    private accordionOf(section: HTMLDetailsElement): HTMLElement | null {
+        const parent = section.parentElement;
+
+        // Direct children only: a nested accordion must not close the outer one's sections.
+        if (parent === null)
+            return null;
+
+        if (parent.classList.contains(AccordionClass))
+            return parent;
+
+        if (parent.classList.contains(ItemsViewItemClass) && parent.parentElement?.hasAttribute(ItemsHostAttribute) === true) {
+            const view = parent.parentElement.parentElement;
+
+            if (view !== null && view.classList.contains(ItemsViewAccordionClass))
+                return view;
+        }
+
+        return null;
+    }
+
     private sectionsOf(accordion: HTMLElement): HTMLDetailsElement[] {
-        return [...accordion.querySelectorAll<HTMLDetailsElement>(`:scope > ${SectionSelector}`)];
+        return [...accordion.querySelectorAll<HTMLDetailsElement>(accordion.classList.contains(AccordionClass) ? DirectSectionSelector : ItemsSectionSelector)];
     }
 }

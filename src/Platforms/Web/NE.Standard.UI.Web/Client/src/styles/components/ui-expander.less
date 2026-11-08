@@ -34,8 +34,8 @@
 
 // One shared height curve, @ui-motion-ease (the `linear` is content-visibility's step), so an opening and a closing section in an
 // accordion cancel frame by frame instead of swelling everything below.
-:where(.ui-accordion) > .ui-expander::details-content,
-:where(.ui-accordion) > .ui-expander[open]::details-content {
+:where(.ui-accordion, .ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item) > .ui-expander::details-content,
+:where(.ui-accordion, .ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item) > .ui-expander[open]::details-content {
     transition-timing-function: @ui-motion-ease, linear;
 }
 
@@ -45,7 +45,7 @@
 }
 
 // Except down a stack panel, which already decides its children's alignment axis: a vertical stack aligns on the horizontal one.
-:where(.ui-stack-panel.ui-orientation--vertical, .ui-accordion) > .ui-expander:not([open]) {
+:where(.ui-stack-panel.ui-orientation--vertical, .ui-accordion, .ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item) > .ui-expander:not([open]) {
     align-self: var(--ui-align-h, normal);
 }
 

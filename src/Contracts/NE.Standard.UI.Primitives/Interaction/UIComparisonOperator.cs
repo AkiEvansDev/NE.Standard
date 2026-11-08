@@ -46,7 +46,7 @@ public enum UIComparisonOperator
     Like = 7,
 
     /// <summary>
-    /// The value must be contained in the comparison value's collection.
+    /// The value (or at least one element when the value is a collection) must be contained in the comparison value's collection.
     /// </summary>
     In = 8,
 

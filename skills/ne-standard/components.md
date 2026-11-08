@@ -71,7 +71,7 @@ arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a b
 - `SelectComponent`, `MultiSelectComponent`, `SearchComponent` (a select with a popup search field; `OnSearch` asks the server, and `SetAllowFreeText()` lets `Enter` in the popup search field commit a typed value not in `Options`; all three take in-field `AddLeadingAction`, `AddTrailingAction` and `SetTrailingAction` buttons or button-anchored `FlyoutComponent`s). A
   multi-select's `SetVariant(UIMultiSelectVariant…)` draws it as `Chips` (the default), `Badges` (each option its badge, chosen
   into the field as the badge) or `Checkboxes` (a box per option in place, no list; `Orientation`/`Spacing`/`ItemMinWidth` as a radio group's;
-  no free text or field actions). `SetVariant` installs the variant's option template unless one of your own is set.
+  no free text or field actions) or `Button` (a compact button trigger with `ButtonVariant`, icon/title and an automatic chosen-count badge when `Value.Count > 0` that opens the multi-select popup and also fits in `TextInputComponent`/`TextAreaComponent` field actions; no free text or field actions of its own). `SetVariant` installs the variant's option template unless one of your own is set.
 - `DateInputComponent`, `TimeInputComponent`, `DateTimeInputComponent`, `CalendarComponent` (a month in place, a day or a period).
   A period (`SetIsRange()`) keeps its ends `SetMinDistance(TimeSpan)` apart, as a range slider keeps its handles; a date's in whole days, a time's under a day.
 - `ColorInputComponent` - a colour picked freely in an always-available picker (`#RRGGBB`, or `#RRGGBBAA` with `SetAllowOpacity(true)` to expose the alpha channel slider), with `ShowPalette` optionally adding a palette tab and `Picker | Palette` switcher.
@@ -80,7 +80,7 @@ arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a b
 ## Items
 
 - `ItemsViewComponent` - a collection held whole, virtualized or windowed from a source (`BindSource`), grouped, scrolled,
-  laid out any way; `SetTemplate`, `AnchorToEnd`, `SetLoadingLook`.
+  laid out any way (`Vertical`, `Horizontal`, `Wrap`, `Accordion` — single-expand coordination and connected borders across visible `ExpanderComponent` rows); `SetTemplate`, `AnchorToEnd`, `SetLoadingLook`, `SetShowEmptyTemplate(false)` (collapses the host root when empty so nested tag or attachment lists leave no parent gap).
 - `TableComponent` - rows under a header, a template per column (`AddTextColumn<TRow>(caption, r => r.Prop)` or custom template), filters and sorts by rule, selection (`SelectionMode = Many` adds a leading checkbox column with `Shift+Click` range selection and a three-state select-all header box); each row named by its
   header cell, the first captioned column or `SetRowHeaderColumn(key)`.
 - `TreeComponent` with `TreeNodeComponent` - thin rows with a glyph and a title over `TreeNode` items; inline rename

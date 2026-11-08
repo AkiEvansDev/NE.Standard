@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
@@ -10,10 +11,12 @@ using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Models;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
+using NE.Standard.UI.Web.Renderers.Actions;
 using NE.Standard.UI.Web.Renderers.Foundation;
 using NE.Standard.UI.Web.Renderers.Items;
 
@@ -29,6 +32,9 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
 {
     /// <summary>The root's mark beside <c>ui-multi-select</c> as <see cref="UIMultiSelectVariant.Badges"/>, which the stylesheet and the select engine read.</summary>
     public const string BadgeSelectClassName = WebClassNames.BadgeSelect;
+
+    /// <summary>The root's mark beside <c>ui-multi-select</c> as <see cref="UIMultiSelectVariant.Button"/>, which the stylesheet and the select engine read.</summary>
+    public const string ButtonClassName = WebClassNames.MultiSelectButton;
 
     private const string ChipLabelClassName = WebClassNames.MultiSelectChipLabel;
 
@@ -50,6 +56,12 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         if (variant == UIMultiSelectVariant.Checkboxes)
         {
             RenderCheckboxes(context, root);
+            return;
+        }
+
+        if (variant == UIMultiSelectVariant.Button)
+        {
+            RenderButton(context, root);
             return;
         }
 
@@ -88,6 +100,41 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         SelectComponentRenderer.RenderPopup(context, root, items, isBound, new HashSet<string>(chosenKeys, StringComparer.Ordinal));
 
         RenderValidationMessage(context, root);
+    }
+
+    private static void RenderButton(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        _ = root.Class(ButtonClassName);
+        _ = root.Class(WebClassNames.Button);
+
+        ButtonRendererBase.RenderButtonVariant(context, root, MultiSelectComponent.ButtonVariantProperty);
+        RenderTooltip(context, root);
+
+        if (ReadRenderValue<UIResponsive<UISize>?>(context, ISizedInputComponent.SizeProperty, null) is { Base: not UISize.Medium } size)
+            _ = root.Class(WebClassNames.ButtonSize(size.Base));
+
+        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ISurfaceComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
+        SurfaceStyleRenderer.RenderBackground(context, root, ISurfaceComponent.BackgroundProperty);
+        SurfaceStyleRenderer.RenderBackgroundImage(context, root);
+        BorderStyleRenderer.RenderBorderStyle(context, root);
+        SelectComponentRenderer.RenderAdornmentState(context, root);
+
+        if (ReadRenderValue<UIPopupPlacement?>(context, IPopupPlacementComponent.PopupPlacementProperty, null) == UIPopupPlacement.BottomStart)
+            _ = root.Attribute(WebAttributes.SelectPlacement, WebClassNames.PopupPlacement(UIPopupPlacement.BottomStart));
+
+        RenderMaxSelected(context, root);
+
+        WebRenderValueKind valueKind = RenderChosenKeys(context, root, out IReadOnlyList<string> chosenKeys, out CompiledUIBinding? valueBinding);
+
+        RenderTemplates(context, root);
+        RegisterItemsTemplateMetadata(context, SelectComponentRenderer.OptionWrapperElementName, SelectComponentRenderer.OptionWrapperClassName, itemWrapperRole: SelectComponentRenderer.OptionRole, announcesSelection: true);
+        RegisterItemsFilterSortMetadata(context);
+
+        (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
+
+        RenderButtonTrigger(context, root, chosenKeys);
+        RenderValueInput(context, root, valueKind, chosenKeys, valueBinding);
+        SelectComponentRenderer.RenderPopup(context, root, items, isBound, new HashSet<string>(chosenKeys, StringComparer.Ordinal));
     }
 
     private static void RenderMaxSelected(WebRenderContext context, IHtmlElementBuilder root)
@@ -132,6 +179,44 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         }
 
         return distinct;
+    }
+
+    private static void RenderButtonTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<string> chosenKeys)
+    {
+        _ = root.Element("button", trigger =>
+        {
+            _ = trigger.Class(WebClassNames.SplitButtonMain);
+            _ = trigger.Attribute("type", "button");
+
+            RenderPopupTrigger(trigger, "listbox");
+            NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, trigger);
+            TextContentRendererBase.RenderFieldLabel(context, trigger);
+            SelectComponentRenderer.RenderClearKey(context, trigger);
+
+            if (!TextContentRendererBase.IsFieldNamed(context))
+            {
+                _ = ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _, markup: true);
+
+                if (!string.IsNullOrWhiteSpace(tooltip))
+                    _ = trigger.Attribute("aria-label", UIInlineMarkup.ToPlainText(tooltip));
+                else
+                    WebWords.Write(context, trigger, "aria-label", UIStrings.SplitButtonMore);
+            }
+
+            _ = trigger.Element("span", label =>
+            {
+                _ = label.Class(WebClassNames.ButtonContent);
+                TextContentRendererBase.RenderTextBody(context, root, label, new WebTextBodyOptions
+                {
+                    DefaultBadgePlacement = UITextBadgePlacement.Trailing,
+                    NamesField = true,
+                    ReachableBadge = false,
+                    FallbackBadgeTitle = chosenKeys.Count > 0 ? chosenKeys.Count.ToString(CultureInfo.InvariantCulture) : null
+                });
+            });
+
+            SelectComponentRenderer.RenderChevron(trigger);
+        });
     }
 
     /// <summary>

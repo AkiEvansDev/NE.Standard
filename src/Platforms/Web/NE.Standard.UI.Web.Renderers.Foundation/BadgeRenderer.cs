@@ -91,7 +91,7 @@ public static class BadgeRenderer
         => RenderBadge(context, componentRoot, badgeRoot, options, shownMarkHost: null);
 
     /// <summary>A badge whose showing <paramref name="shownMarkHost"/> wears: the element <see cref="WebBadgeRenderOptions.ShownMarkTarget"/> names.</summary>
-    public static void RenderBadge(WebRenderContext context, IHtmlElementBuilder componentRoot, IHtmlElementBuilder badgeRoot, WebBadgeRenderOptions options, IHtmlElementBuilder? shownMarkHost)
+    public static void RenderBadge(WebRenderContext context, IHtmlElementBuilder componentRoot, IHtmlElementBuilder badgeRoot, WebBadgeRenderOptions options, IHtmlElementBuilder? shownMarkHost, string? fallbackTitle = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(componentRoot);
@@ -118,6 +118,7 @@ public static class BadgeRenderer
         TextAppearanceRenderer.RenderTextAppearance(context, badgeRoot, options.TitleTypeProperty);
 
         BadgeStateOperations state = StateOperations.GetOrAdd((options.ContentStateTarget, options.ShownMarkTarget, options.PartsShownOperation, options.IconShape?.StandInOperation), static key => new BadgeStateOperations(key.Target, key.ShownTarget, key.Then, key.StandIn));
+        var drawsIcon = false;
 
         _ = badgeRoot.Element("span", icon =>
         {
@@ -133,6 +134,7 @@ public static class BadgeRenderer
             {
                 if (IconValueRenderer.Draws(value))
                 {
+                    drawsIcon = true;
                     _ = badgeRoot.Attribute(WebAttributes.BadgeIcon);
                     _ = shownMarkHost?.Attribute(WebAttributes.TextBadgeIcon);
                     IconValueRenderer.RenderIconValue(target, value);
@@ -146,18 +148,29 @@ public static class BadgeRenderer
 
             TextAppearanceRenderer.RenderTextAppearance(context, title, options.TitleTypeProperty);
 
-            _ = WebComponentRendererBase.RenderProperty<string?>(context, title, options.TitleProperty, (target, value) =>
+            var wroteTitle = false;
+
+            WebRenderValueKind titleKind = WebComponentRendererBase.RenderProperty<string?>(context, title, options.TitleProperty, (target, value) =>
             {
                 if (value is not null)
                     _ = badgeRoot.Attribute(WebAttributes.BadgeSet);
 
                 if (!string.IsNullOrWhiteSpace(value))
                 {
+                    wroteTitle = true;
                     _ = badgeRoot.Attribute(WebAttributes.BadgeTitle, BadgeTitleFit(value));
                     _ = shownMarkHost?.Attribute(WebAttributes.TextBadgeTitle);
                     _ = target.Text(value);
                 }
             }, state.Title);
+
+            if (!wroteTitle && titleKind != WebRenderValueKind.Binding && !drawsIcon && !string.IsNullOrWhiteSpace(fallbackTitle))
+            {
+                _ = badgeRoot.Attribute(WebAttributes.BadgeSet);
+                _ = badgeRoot.Attribute(WebAttributes.BadgeTitle, BadgeTitleFit(fallbackTitle));
+                _ = shownMarkHost?.Attribute(WebAttributes.TextBadgeTitle);
+                _ = title.Text(fallbackTitle);
+            }
         });
     }
 

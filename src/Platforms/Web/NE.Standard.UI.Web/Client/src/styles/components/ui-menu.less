@@ -363,9 +363,10 @@
         display: none;
     }
 
-// A caption and a rule take no key, and a collapsed menu or a rail has no room for the text.
+// A caption and a rule take no key, only a select entry shows its value on the row, and a collapsed menu or a rail has no room for the text.
 .ui-menu-item[data-ui-menu-item-kind="header"] > .ui-menu-item__shortcut,
 .ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-menu-item__shortcut,
+.ui-menu-item:not([data-ui-menu-item-kind="select"]) > .ui-menu-item__value,
 @{ui-menu-folded} .ui-menu-item__shortcut {
     display: none;
 }

@@ -36,18 +36,21 @@ function marked(at: FakeElement): boolean {
     return at.hasAttribute("data-ui-items-empty");
 }
 
-test("an empty host is marked as it draws its empty state, and unmarked when a row comes", () => {
+test("an empty host and its component root are marked as it draws its empty state, and unmarked when a row comes", () => {
     const at = host();
+    const root = FakeElement.of("ui-items-view", { "data-ui-id": "5" }).append(at);
 
     sync(at);
 
     assert.equal(marked(at), true);
+    assert.equal(marked(root), true);
     assert.equal(at.children.filter(child => child.hasAttribute("data-ui-empty-placeholder")).length, 1);
 
     at.append(row("one"));
     sync(at);
 
     assert.equal(marked(at), false);
+    assert.equal(marked(root), false);
     assert.equal(at.children.filter(child => child.hasAttribute("data-ui-empty-placeholder")).length, 0);
 });
 

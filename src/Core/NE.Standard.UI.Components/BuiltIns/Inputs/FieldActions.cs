@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Constants;
@@ -26,9 +27,14 @@ internal sealed class FieldActions
 
     // How many stand under each numbered region name: an in-field one has a region of its own.
     private int _leadingCount;
+    private int _leadingButtonCount;
     private int _leadingBelowEndCount;
     private int _trailingBelowStartCount;
+    private int _trailingBelowStartButtonCount;
     private int _trailingCount;
+    private int _trailingButtonCount;
+    private bool _hasLeadingInField;
+    private bool _hasTrailingInField;
 
     public IReadOnlyDictionary<string, IVisualComponent> Regions => _regions;
 
@@ -42,41 +48,68 @@ internal sealed class FieldActions
 
     /// <summary>Adds <paramref name="action"/> at the field's start; <paramref name="inField"/> stands it first, one to a field.</summary>
     public void AddLeading(IButtonComponent action, bool inField)
-        => AddLeading(action, action, inField, belowEnd: false);
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        AddLeading(action, action, inField, belowEnd: false);
+    }
 
     /// <summary>Adds <paramref name="flyout"/> at the field's start, listed by the button it opens from, as the button's overload.</summary>
     public void AddLeading(FlyoutComponent flyout, bool inField)
         => AddLeading(FlyoutComponent.ButtonAnchorOf(flyout, Host), flyout, inField, belowEnd: false);
 
+    /// <summary>Adds a button-variant <paramref name="select"/> at the field's start.</summary>
+    public void AddLeading(IMultiSelectComponent select, bool inField)
+    {
+        MultiSelectComponent.RequireButtonVariant(select, Host);
+        AddLeading(control: null, select, inField, belowEnd: false);
+    }
+
     /// <summary>Adds <paramref name="action"/> at the field's start, standing at <paramref name="belowAt"/> of the row under it.</summary>
     public void AddLeading(IButtonComponent action, UIAlignment belowAt)
-        => AddLeading(action, action, inField: false, IsEnd(belowAt));
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        AddLeading(action, action, inField: false, IsEnd(belowAt));
+    }
 
     /// <summary>Adds <paramref name="flyout"/> at the field's start, standing at <paramref name="belowAt"/> of the row under it.</summary>
     public void AddLeading(FlyoutComponent flyout, UIAlignment belowAt)
         => AddLeading(FlyoutComponent.ButtonAnchorOf(flyout, Host), flyout, inField: false, IsEnd(belowAt));
 
-    private void AddLeading(IButtonComponent control, IVisualComponent region, bool inField, bool belowEnd)
+    /// <summary>Adds a button-variant <paramref name="select"/> at the field's start, standing at <paramref name="belowAt"/> of the row under it.</summary>
+    public void AddLeading(IMultiSelectComponent select, UIAlignment belowAt)
     {
-        ArgumentNullException.ThrowIfNull(control);
+        MultiSelectComponent.RequireButtonVariant(select, Host);
+        AddLeading(control: null, select, inField: false, IsEnd(belowAt));
+    }
 
+    private void AddLeading(IButtonComponent? control, IVisualComponent region, bool inField, bool belowEnd)
+    {
         if (inField)
         {
-            ThrowIfTaken(LeadingInField);
+            ThrowIfTaken(_hasLeadingInField);
 
             _regions[RegionNames.LeadingInFieldAction] = region;
-            _leading.Insert(0, control);
-            LeadingInField = control;
+            _hasLeadingInField = true;
+
+            if (control is not null)
+            {
+                _leading.Insert(0, control);
+                LeadingInField = control;
+            }
         }
         else if (belowEnd)
         {
             // Last at the start, nearest the text, so the row under it reads in the field's order.
             _regions[RegionNames.FieldAction(RegionNames.LeadingBelowEndAction, _leadingBelowEndCount++)] = region;
-            _leading.Add(control);
+
+            if (control is not null)
+                _leading.Add(control);
         }
         else
         {
-            _leading.Insert((LeadingInField is null ? 0 : 1) + _leadingCount, control);
+            if (control is not null)
+                _leading.Insert((LeadingInField is null ? 0 : 1) + _leadingButtonCount++, control);
+
             _regions[RegionNames.FieldAction(RegionNames.LeadingAction, _leadingCount++)] = region;
         }
     }
@@ -89,50 +122,77 @@ internal sealed class FieldActions
             _ => throw new ArgumentOutOfRangeException(nameof(belowAt), belowAt, "The row under a field has a start and an end."),
         };
 
-    private static void ThrowIfTaken(IButtonComponent? inField)
+    private static void ThrowIfTaken(bool hasInField)
     {
-        if (inField is not null)
+        if (hasInField)
             throw new InvalidOperationException("A field has one action in it at each end.");
     }
 
     /// <summary>Adds <paramref name="action"/> at the field's end; <paramref name="inField"/> stands it last, one to a field.</summary>
     public void AddTrailing(IButtonComponent action, bool inField)
-        => AddTrailing(action, action, inField, belowStart: false);
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        AddTrailing(action, action, inField, belowStart: false);
+    }
 
     /// <summary>Adds <paramref name="flyout"/> at the field's end, listed by the button it opens from, as the button's overload.</summary>
     public void AddTrailing(FlyoutComponent flyout, bool inField)
         => AddTrailing(FlyoutComponent.ButtonAnchorOf(flyout, Host), flyout, inField, belowStart: false);
 
+    /// <summary>Adds a button-variant <paramref name="select"/> at the field's end.</summary>
+    public void AddTrailing(IMultiSelectComponent select, bool inField)
+    {
+        MultiSelectComponent.RequireButtonVariant(select, Host);
+        AddTrailing(control: null, select, inField, belowStart: false);
+    }
+
     /// <summary>Adds <paramref name="action"/> at the field's end, standing at <paramref name="belowAt"/> of the row under it.</summary>
     public void AddTrailing(IButtonComponent action, UIAlignment belowAt)
-        => AddTrailing(action, action, inField: false, !IsEnd(belowAt));
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        AddTrailing(action, action, inField: false, !IsEnd(belowAt));
+    }
 
     /// <summary>Adds <paramref name="flyout"/> at the field's end, standing at <paramref name="belowAt"/> of the row under it.</summary>
     public void AddTrailing(FlyoutComponent flyout, UIAlignment belowAt)
         => AddTrailing(FlyoutComponent.ButtonAnchorOf(flyout, Host), flyout, inField: false, !IsEnd(belowAt));
 
-    private void AddTrailing(IButtonComponent control, IVisualComponent region, bool inField, bool belowStart)
+    /// <summary>Adds a button-variant <paramref name="select"/> at the field's end, standing at <paramref name="belowAt"/> of the row under it.</summary>
+    public void AddTrailing(IMultiSelectComponent select, UIAlignment belowAt)
     {
-        ArgumentNullException.ThrowIfNull(control);
+        MultiSelectComponent.RequireButtonVariant(select, Host);
+        AddTrailing(control: null, select, inField: false, !IsEnd(belowAt));
+    }
 
+    private void AddTrailing(IButtonComponent? control, IVisualComponent region, bool inField, bool belowStart)
+    {
         if (inField)
         {
-            ThrowIfTaken(TrailingInField);
+            ThrowIfTaken(_hasTrailingInField);
 
             _regions[RegionNames.TrailingInFieldAction] = region;
-            _trailing.Add(control);
-            TrailingInField = control;
+            _hasTrailingInField = true;
+
+            if (control is not null)
+            {
+                _trailing.Add(control);
+                TrailingInField = control;
+            }
         }
         else if (belowStart)
         {
             // First at the end, nearest the text, as a leading one sent to the row's end stands last at the start.
-            _trailing.Insert(_trailingBelowStartCount, control);
+            if (control is not null)
+                _trailing.Insert(_trailingBelowStartButtonCount++, control);
+
             _regions[RegionNames.FieldAction(RegionNames.TrailingBelowStartAction, _trailingBelowStartCount++)] = region;
         }
         else
         {
             // Before the in-field one, which stands last whenever it was added.
-            _trailing.Insert(_trailingBelowStartCount + _trailingCount, control);
+            if (control is not null)
+                _trailing.Insert(_trailingBelowStartButtonCount + _trailingButtonCount++, control);
+
             _regions[RegionNames.FieldAction(RegionNames.TrailingAction, _trailingCount++)] = region;
         }
     }
@@ -155,6 +215,15 @@ internal sealed class FieldActions
         AddTrailing(anchor, flyout, inField: false, belowStart: false);
     }
 
+    /// <summary>Makes a button-variant <paramref name="select"/> the field's one trailing action, in place of any added before.</summary>
+    public void SetTrailing(IMultiSelectComponent select)
+    {
+        MultiSelectComponent.RequireButtonVariant(select, Host);
+
+        ClearTrailing();
+        AddTrailing(control: null, select, inField: false, belowStart: false);
+    }
+
     private void ClearTrailing()
     {
         for (var i = 0; i < _trailingCount; i++)
@@ -166,7 +235,10 @@ internal sealed class FieldActions
         _ = _regions.Remove(RegionNames.TrailingInFieldAction);
         _trailing.Clear();
         _trailingCount = 0;
+        _trailingButtonCount = 0;
         _trailingBelowStartCount = 0;
+        _trailingBelowStartButtonCount = 0;
+        _hasTrailingInField = false;
         TrailingInField = null;
     }
 }

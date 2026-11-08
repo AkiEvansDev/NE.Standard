@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
@@ -92,6 +93,16 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     }
 
     /// <summary>
+    /// Puts a button-variant multi-select at the end of the field, in place of any action there before.
+    /// </summary>
+    public T SetTrailingAction(IMultiSelectComponent select)
+    {
+        ValidateActionSupported(nameof(select));
+        _actions.SetTrailing(select);
+        return Self;
+    }
+
+    /// <summary>
     /// Adds a button at the start of the field, after those added before; the field dresses it as an adornment.
     /// </summary>
     public T AddLeadingAction(IButtonComponent action)
@@ -113,6 +124,16 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     }
 
     /// <summary>
+    /// Adds a button-variant multi-select at the start of the field, after the actions added before.
+    /// </summary>
+    public T AddLeadingAction(IMultiSelectComponent select)
+    {
+        ValidateActionSupported(nameof(select));
+        _actions.AddLeading(select, inField: false);
+        return Self;
+    }
+
+    /// <summary>
     /// Adds a button at the end of the field, after those added before; the field dresses it as an adornment.
     /// </summary>
     public T AddTrailingAction(IButtonComponent action)
@@ -130,6 +151,16 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     {
         ValidateActionSupported(nameof(flyout));
         _actions.AddTrailing(flyout, inField: false);
+        return Self;
+    }
+
+    /// <summary>
+    /// Adds a button-variant multi-select at the end of the field, after the actions added before.
+    /// </summary>
+    public T AddTrailingAction(IMultiSelectComponent select)
+    {
+        ValidateActionSupported(nameof(select));
+        _actions.AddTrailing(select, inField: false);
         return Self;
     }
 
