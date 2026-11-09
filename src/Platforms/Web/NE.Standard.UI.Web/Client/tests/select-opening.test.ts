@@ -265,4 +265,13 @@ test("a button in a select's action group neither opens nor closes the list, and
     multiButton.dispatchEvent(downOnAction);
     assert.equal(downOnTrigger.defaultPrevented, true);
     assert.equal(downOnAction.defaultPrevented, false);
+
+    // Clicking an option in a multi-select (such as UIMultiSelectVariant.Button inside `<label class="ui-text-input">`) cancels the
+    // default action so the enclosing label does not synthesize a second click on the outer `<input>` and dismiss the popup.
+    const buttonMulti = scene(); buttonMulti.select.classes.add("ui-multi-select"); buttonMulti.select.classes.add("ui-multi-select--button"); press(buttonMulti);
+    const optionClick = new FakeEvent("click");
+    buttonMulti.options[0].dispatchEvent(optionClick);
+    assert.equal(optionClick.defaultPrevented, true);
+    assert.equal(buttonMulti.select.classes.has("ui-select--open"), true);
+    close(buttonMulti);
 });

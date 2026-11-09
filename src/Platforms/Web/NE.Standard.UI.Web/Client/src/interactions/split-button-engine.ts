@@ -49,9 +49,19 @@ export class SplitButtonEngine {
 
         const open = this.menus.current;
 
-        // The main part pressed while the list is open runs its command and takes the list away with it.
-        if (open !== null && domEvent.target instanceof Element && domEvent.target.closest(`.${SplitButtonMainClass}`)?.closest(`.${SplitButtonClass}`) === open)
-            this.menus.close(open);
+        // The main part pressed while the list is open runs its command and takes the list away with it; a press inside the popup on a
+        // non-link entry prevents an enclosing `<label class="ui-text-input">` from activating its `<input>` and dismissing the menu.
+        if (open !== null && domEvent.target instanceof Element) {
+            if (domEvent.target.closest(`.${SplitButtonMainClass}`)?.closest(`.${SplitButtonClass}`) === open) {
+                this.menus.close(open);
+                return;
+            }
+
+            const menu = menuOf(open);
+
+            if (menu !== null && menu.contains(domEvent.target) && !(domEvent.target instanceof HTMLInputElement) && domEvent.target.closest("a[href]") === null)
+                domEvent.preventDefault();
+        }
     }
 
     /** The arrows open the menu from either opener the way they open a select: ArrowDown on its first entry, ArrowUp on its last. */

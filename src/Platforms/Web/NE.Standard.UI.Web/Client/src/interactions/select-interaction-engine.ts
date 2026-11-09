@@ -358,6 +358,9 @@ export class SelectInteractionEngine {
             return;
         }
 
+        if (!(domEvent.target instanceof HTMLInputElement) && domEvent.target.closest(`.${SelectListClass}`) !== null)
+            domEvent.preventDefault();
+
         const option = domEvent.target.closest<HTMLElement>(`.${SelectOptionClass}`);
 
         if (option === null)
@@ -366,7 +369,11 @@ export class SelectInteractionEngine {
         const select = option.closest<HTMLElement>(SelectHostSelector);
 
         if (select !== null)
+        {
+            // Prevent default so an enclosing `<label class="ui-text-input">` does not synthesize a click on its `<input>`.
+            domEvent.preventDefault();
             this.choose(select, option);
+        }
     }
 
     private pressEntryBox(select: HTMLElement, entry: HTMLInputElement, onEntry: boolean): void {
