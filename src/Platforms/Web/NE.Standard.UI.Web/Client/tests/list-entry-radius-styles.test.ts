@@ -64,7 +64,7 @@ test("a list's rows round all four corners for their washes and selection; a gri
     for (const [host, row] of [[".ui-items-view--stack", ".ui-items-view__item"], [".ui-tree", ".ui-tree__row"]] as const) {
         const rows = `${host} > [data-ui-items-host] > ${row}`;
 
-        assert.equal(declarations(`${rows} {`)?.trim(), entryRadius, `${row} does not take the list entry's corner`);
+        assert.equal(declarations(`${rows} {`)?.trim(), `${entryRadius}\n  corner-shape: squircle;`, `${row} does not take the list entry's corner`);
         assert.equal(declarations(`${rows}[data-ui-selected] {\n  border-top-left-radius: 0;`), null, `a chosen ${row} squares its corners`);
     }
 

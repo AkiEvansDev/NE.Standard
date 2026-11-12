@@ -1,3 +1,4 @@
+@import "../core/tokens.less";
 @import "../mixins/responsive.less";
 @import "../mixins/stand-in.less";
 
@@ -10,6 +11,7 @@
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     // BorderRadius, through the border's chain as a bordered component's corners are.
     .ui-responsive-property(border-radius, --ui-border-radius, 0);
+    corner-shape: @ui-corner-shape;
 }
 
     // `height: 100%` of a box with no height of its own is the picture's own; a cap on the box's height reaches it, as it did the
@@ -21,6 +23,7 @@
         max-width: 100%;
         max-height: inherit;
         border-radius: inherit;
+        corner-shape: inherit;
         object-fit: contain;
     }
 
@@ -31,6 +34,7 @@
 .ui-image--circle {
     aspect-ratio: 1;
     border-radius: 50%;
+    corner-shape: round;
 }
 
     .ui-image--circle > .ui-image__picture {

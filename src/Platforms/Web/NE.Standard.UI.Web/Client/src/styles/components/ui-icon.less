@@ -1,3 +1,4 @@
+@import "../core/tokens.less";
 @import "../mixins/glyphs.less";
 @import "../mixins/responsive.less";
 @import "../mixins/stand-in.less";
@@ -67,11 +68,13 @@
     background: var(--ui-icon-url) center / contain no-repeat;
     // em, so the radius stays the same fraction of any box; ui-text.less overrides it with the card's radius for the tile.
     border-radius: 0.1875em;
+    corner-shape: @ui-corner-shape;
 }
 
 // IconShape Circle: a picture cut round — a person — and `cover`, so one of any proportion fills the circle.
 .ui-icon--image.ui-icon--circle::before {
     border-radius: 50%;
+    corner-shape: round;
     background-size: cover;
 }
 
@@ -99,6 +102,7 @@
 
     .ui-icon--circle[data-ui-icon-failed]::before {
         border-radius: 50%;
+        corner-shape: round;
         background: @ui-stand-in-ground;
     }
 

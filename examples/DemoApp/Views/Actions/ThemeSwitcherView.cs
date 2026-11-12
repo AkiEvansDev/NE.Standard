@@ -83,7 +83,7 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("In a page's head",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Surface)
-                .SetPadding(UIThickness.All(16, 8, 8, 8))
+                .SetPadding(UIThickness.All(16, 8, 16, 8))
                 .SetContent(UILayout.Ends(
                     UIText.Body("Orvane Cloud", "Admin panel"),
                     UIIconButtons.Search(),

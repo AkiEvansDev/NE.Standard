@@ -67,6 +67,7 @@
     padding-left: calc(@ui-space-4 + @ui-accent-stroke);
     border: var(--ui-border-width, 1px) solid var(--ui-color-border);
     border-radius: var(--ui-radius-notification);
+    corner-shape: @ui-corner-shape;
     background: var(--ui-color-surface);
     color: var(--ui-color-on-surface);
     .ui-popup-ground-lifted(var(--ui-color-surface));
@@ -81,6 +82,7 @@
         inset: calc(-1 * var(--ui-border-width, 1px));
         z-index: -1;
         border-radius: inherit;
+        corner-shape: inherit;
         pointer-events: none;
         .ui-elevation-3();
     }
@@ -95,6 +97,7 @@
         left: 0;
         border-left: @ui-accent-stroke solid var(--ui-notification-accent, var(--ui-color-border));
         border-radius: var(--ui-radius-notification) 0 0 var(--ui-radius-notification);
+        corner-shape: @ui-corner-shape;
     }
 
 .ui-notification--leaving {

@@ -43,6 +43,7 @@
     padding: 0;
     border: none;
     border-radius: calc(var(--ui-radius-input) - 2px);
+    corner-shape: @ui-nested-corner-shape;
     background-color: #fff;
     background-image:
         linear-gradient(var(--ui-color-input-color, transparent), var(--ui-color-input-color, transparent)),
@@ -115,14 +116,16 @@
     gap: 2px;
     padding: 2px;
     border: 1px solid var(--ui-color-mark);
-    border-radius: var(--ui-radius-button);
+    border-radius: calc(var(--ui-radius-button) + 2px);
+    corner-shape: @ui-corner-shape;
     background-color: var(--ui-color-background);
 }
 
 .ui-color-input__tab {
     .ui-bare-button();
     padding: 2px @ui-space-2;
-    border-radius: calc(var(--ui-radius-button) - 2px);
+    border-radius: calc(var(--ui-radius-button) - 1px);
+    corner-shape: @ui-nested-corner-shape;
     color: @ui-text-muted;
     font-size: var(--ui-text-caption-font-size);
     line-height: var(--ui-text-caption-line-height);
@@ -258,6 +261,7 @@
     padding: 0;
     border: 1px solid var(--ui-color-border);
     border-radius: var(--ui-radius-input);
+    corner-shape: @ui-corner-shape;
     background: var(--ui-color-input-chip, transparent);
     background-clip: padding-box;
     cursor: pointer;

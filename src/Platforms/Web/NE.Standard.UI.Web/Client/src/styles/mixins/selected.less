@@ -145,6 +145,7 @@
     padding: @ui-space-1 @ui-space-2;
     border: 0;
     border-radius: @ui-list-entry-radius;
+    corner-shape: @ui-corner-shape;
     background: none;
     color: @ui-text-muted;
     font: inherit;
@@ -203,6 +204,7 @@
 .ui-list-row-corners(@host; @row) {
     @{host} > [data-ui-items-host] > @{row} {
         border-radius: @ui-list-entry-radius;
+        corner-shape: @ui-corner-shape;
     }
 
     @{host}[style*="--ui-selected-mark: inset 2px"] > [data-ui-items-host] > @{row}[data-ui-selected] {

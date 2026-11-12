@@ -85,7 +85,7 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
         return DemoUI.CreateExample("Two languages, one press",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Surface)
-                .SetPadding(UIThickness.All(16, 8, 8, 8))
+                .SetPadding(UIThickness.All(16, 8, 16, 8))
                 .SetContent(UILayout.Ends(
                     UIText.Body("Orvane status", "status.orvane.example"),
                     new LanguageSwitcherComponent()

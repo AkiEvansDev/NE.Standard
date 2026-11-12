@@ -65,6 +65,12 @@
 @ui-part-radius: ~"calc(var(--ui-radius-button) * 2 / 3)";
 @ui-part-radius-sm: ~"calc(var(--ui-radius-button) / 2)";
 
+// Every rounded corner's curve — continuous curvature so a 1 px border keeps its peak brightness round the bend instead of dimming on
+// 1 dppx screens as a circular arc does; true circles (50 %) and semicircular pills (999 px) are shapes, not corners, and stay round.
+@ui-corner-shape: squircle;
+// An inner curve nested across a narrow gap inside a squircle shell (a button group's segment, a colour swatch), softer so the channel stays even.
+@ui-nested-corner-shape: ~"superellipse(1.5)";
+
 // The page's stacking ladder, low to high, in one place: a new layer takes its step here, never a number of its own.
 // An action bar stands under the page's bands, so a sticky header covers one scrolled under it.
 @ui-z-action-bar: 29;

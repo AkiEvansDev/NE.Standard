@@ -38,6 +38,7 @@
     height: 1.5rem;
     padding: 0 0.125rem 0 @ui-space-2;
     border-radius: var(--ui-radius-input);
+    corner-shape: @ui-corner-shape;
     background: var(--ui-wash-selected);
     color: var(--ui-text-selected);
     font-size: var(--ui-text-caption-font-size);
@@ -290,6 +291,7 @@
     .ui-multi-select--button > .ui-split-button__main {
         gap: 0.375rem;
         border-radius: inherit;
+        corner-shape: inherit;
     }
 
     // No divided rule on a button trigger; hidden on an icon-only button unless the author opted in via SetShowChevron(true).

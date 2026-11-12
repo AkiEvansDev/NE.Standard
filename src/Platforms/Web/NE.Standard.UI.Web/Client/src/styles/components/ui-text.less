@@ -32,6 +32,7 @@
 
 .ui-text[data-ui-text-renamable] {
     border-radius: @ui-space-1;
+    corner-shape: @ui-corner-shape;
 }
 
 .ui-text__rename {
@@ -85,6 +86,7 @@
     line-height: inherit;
     aspect-ratio: 1;
     border-radius: var(--ui-radius-card);
+    corner-shape: @ui-corner-shape;
     overflow: hidden;
 }
 
@@ -121,11 +123,13 @@
         background-size: cover;
         // The tile's own radius, not the picture's — otherwise the same corner is rounded twice.
         border-radius: inherit;
+        corner-shape: inherit;
     }
 
 // A round picture's tile is the circle itself, which the picture above inherits; later and as specific, so it wins.
 .ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]).ui-icon--circle {
     border-radius: 50%;
+    corner-shape: round;
 }
 
 // The icon's column exists in both modes; gated on an icon actually being drawn, else the single-track layout above applies.
@@ -424,6 +428,7 @@
 .ui-text__code {
     padding: 0.1em 0.35em;
     border-radius: @ui-space-1;
+    corner-shape: @ui-corner-shape;
     background: color-mix(in srgb, @ui-text-ink 10%, var(--ui-color-surface));
     box-shadow: inset 0 0 0 1px var(--ui-color-mark);
     color: @ui-text-ink;

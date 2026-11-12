@@ -137,6 +137,7 @@
 .ui-temporal-input__segment {
     padding: 0 2px;
     border-radius: @ui-part-radius;
+    corner-shape: @ui-corner-shape;
     cursor: default;
     .ui-interactive-base();
     transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
@@ -252,6 +253,7 @@
     min-height: @ui-list-row-height;
     padding: 0 @ui-space-1;
     border-radius: @ui-list-entry-radius;
+    corner-shape: @ui-corner-shape;
     .ui-interactive-base();
 }
 
@@ -369,6 +371,7 @@
         z-index: -1;
         inset-block: 0;
         inset-inline: (@ui-list-entry-gap / -2);
+        corner-shape: @ui-corner-shape;
         background: var(--ui-temporal-day-tint);
         pointer-events: none;
     }
@@ -452,6 +455,7 @@
         left: 0;
         height: @ui-temporal-cell-height;
         border-radius: @ui-list-entry-radius;
+        corner-shape: @ui-corner-shape;
         background: var(--ui-wash-selected);
         transform: translateY(-50%);
         pointer-events: none;

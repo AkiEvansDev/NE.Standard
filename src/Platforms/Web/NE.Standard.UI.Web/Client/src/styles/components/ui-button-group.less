@@ -5,14 +5,14 @@
 @import "../mixins/selected.less";
 @import "../mixins/surface-image.less";
 
-// Segmented capsule with a 1px mark border, 2px inner padding and gap, no divider lines, and neutral pill selection.
+// Segmented strip with a 1px mark border, 2px inner padding and gap, widened outer squircle, and concentric inner segments.
 .ui-button-group {
     display: inline-flex;
     align-self: var(--ui-align-v, center);
     .ui-responsive-property(min-height, --ui-min-height, @ui-control-height);
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     padding: 2px;
-    .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-button); var(--ui-color-mark));
+    .ui-authored-border(~"var(--ui-border-width, 1px)"; ~"calc(var(--ui-radius-button) + 2px)"; var(--ui-color-mark));
     transition: @ui-root-transition, border-color @ui-motion-fast @ui-motion-ease, box-shadow @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease;
     background-color: var(--ui-surface-color, var(--ui-color-background));
     // On `::before`, the strip's first item, so the blur's layer stays over what is in view while the strip scrolls.
@@ -93,7 +93,7 @@
     align-items: stretch;
 }
 
-    // Each segment is a concentric inner pill with 1st-degree muted ink at rest, stepping up to 2nd-degree on hover/focus.
+    // Each segment is a concentric inner superellipse with 1st-degree muted ink at rest, stepping up to 2nd-degree on hover/focus.
     .ui-button-group__item > .ui-button {
         align-self: stretch;
         .ui-responsive-property(min-height, --ui-min-height, 0);
@@ -101,7 +101,8 @@
         border-style: none;
         border-color: currentColor;
         .ui-responsive-property(border-width, --ui-border-thickness, 0);
-        .ui-responsive-property(border-radius, --ui-border-radius, ~"calc(var(--ui-radius-button) - 2px)");
+        .ui-responsive-property(border-radius, --ui-border-radius, ~"calc(var(--ui-radius-button) - var(--ui-border-width, 1px))");
+        corner-shape: @ui-nested-corner-shape;
         background-color: transparent;
         color: @ui-text-muted;
     }

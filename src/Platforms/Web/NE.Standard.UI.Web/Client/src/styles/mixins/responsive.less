@@ -1,3 +1,5 @@
+@import "../core/tokens.less";
+
 // A responsive value's tier chain, widest first, read through a lookup: `.ui-responsive-chain(--ui-x; 0px)[@value]`, ending at
 // @default (none when it is left out). It reads the widest tier written, so the element carrying the tiers fences them.
 .ui-responsive-chain(@variable; @default: ~"") {
@@ -25,6 +27,7 @@
     .ui-responsive-property(border-width, --ui-border-thickness, @width);
     border-color: @color;
     .ui-responsive-property(border-radius, --ui-border-radius, @radius);
+    corner-shape: @ui-corner-shape;
 }
 
 // Resets a property's five tiers on a component root that re-declares them, and fences each into its band there.

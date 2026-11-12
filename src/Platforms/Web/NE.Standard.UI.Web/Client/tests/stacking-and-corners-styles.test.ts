@@ -38,3 +38,46 @@ test("children laid in one cell stand in their order: each is positioned, weight
     // A z-index would make each child a stacking context, holding a popup inside under its later siblings.
     assert.doesNotMatch(rule[1], /z-index/);
 });
+
+test("rounded corners follow @ui-corner-shape, nested 2px channels step to @ui-nested-corner-shape, and circles and pills stay round", async () => {
+    assert.match(read("core/tokens.less"), /@ui-corner-shape: squircle;[\s\S]*@ui-nested-corner-shape: ~"superellipse\(1\.5\)";/);
+
+    const directCornerShape = sources
+        .filter(source => source !== "core/tokens.less")
+        .flatMap(source => [...read(source).matchAll(/corner-shape:\s*(?:squircle|~"superellipse|superellipse)/g)].map(match => `${source}: ${match[0]}`));
+
+    assert.deepEqual(directCornerShape, []);
+
+    const entry = resolve(styles, "../ui.less");
+    const css = (await less.render(readFileSync(entry, "utf8"), { filename: entry })).css;
+    const ruleBody = (selector: string): string => {
+        const start = css.indexOf(`\n${selector} {`);
+
+        assert.ok(start >= 0, `missing rule for ${selector}`);
+        return css.slice(css.indexOf("{", start) + 1, css.indexOf("}", start));
+    };
+
+    const groupBody = ruleBody(".ui-button-group");
+    assert.match(groupBody, /calc\(var\(--ui-radius-button\) \+ 2px\)/);
+    assert.match(groupBody, /corner-shape: squircle;/);
+
+    const groupItemBody = ruleBody(".ui-button-group__item > .ui-button");
+    assert.match(groupItemBody, /calc\(var\(--ui-radius-button\) - var\(--ui-border-width, 1px\)\)/);
+    assert.match(groupItemBody, /corner-shape: superellipse\(1\.5\);/);
+
+    assert.match(ruleBody(".ui-color-input__tabs"), /border-radius: calc\(var\(--ui-radius-button\) \+ 2px\);\s*corner-shape: squircle;/);
+    assert.match(ruleBody(".ui-color-input__tab"), /border-radius: calc\(var\(--ui-radius-button\) - 1px\);\s*corner-shape: superellipse\(1\.5\);/);
+    assert.match(ruleBody(".ui-color-input__swatch"), /corner-shape: superellipse\(1\.5\);/);
+
+    for (const circleSelector of [
+        ".ui-image--circle",
+        ".ui-image-input--avatar > .ui-image-input__surface",
+        ".ui-icon--image.ui-icon--circle::before",
+        ".ui-icon--circle[data-ui-icon-failed]::before",
+        ".ui-text--icon-content > .ui-text__icon:is(.ui-icon--image, [data-ui-icon-failed]).ui-icon--circle"
+    ])
+        assert.match(ruleBody(circleSelector), /corner-shape: round;/, circleSelector);
+
+    for (const shapeSelector of [".ui-switch__box", ".ui-slider__track", ".ui-radio-group__dot"])
+        assert.doesNotMatch(ruleBody(shapeSelector), /corner-shape:\s*(?:squircle|superellipse)/, shapeSelector);
+});

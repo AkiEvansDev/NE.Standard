@@ -11,6 +11,7 @@
 // popup opened in it lifted once more — for the framework's dialog and a package's own <dialog> alike, so the two are one ground.
 .ui-dialog-look() {
     border-radius: var(--ui-radius-card);
+    corner-shape: @ui-corner-shape;
     background: var(--ui-color-surface);
     color: var(--ui-color-on-surface);
     --ui-faint-base: initial;
@@ -43,6 +44,7 @@
 // alike.
 .ui-sheet-edge() {
     border-radius: var(--ui-radius-card) var(--ui-radius-card) 0 0;
+    corner-shape: @ui-corner-shape;
 }
 
 // A sheet a swipe puts away follows the finger (`--ui-sheet-drag`, sheet-swipe.ts), at once while dragged; its own transitions take

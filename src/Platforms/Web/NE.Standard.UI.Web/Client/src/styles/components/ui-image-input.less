@@ -60,6 +60,7 @@
     width: 100%;
     height: 100%;
     border-radius: inherit;
+    corner-shape: inherit;
 }
 
     // Fit is on the picture, not a root: the class's size chain would read the root's Width, so the box is restated.
@@ -181,6 +182,7 @@
     .ui-responsive-property(width, --ui-width, 4rem);
     .ui-responsive-property(height, --ui-height, 4rem);
     .ui-responsive-property(border-radius, --ui-border-radius, 50%);
+    corner-shape: round;
     border-style: solid;
 }
 
@@ -209,6 +211,7 @@
         width: 1.75rem;
         height: 1.75rem;
         border-radius: @ui-part-radius;
+        corner-shape: @ui-corner-shape;
     }
 
     .ui-image-input--inline .ui-image-input__placeholder {
@@ -436,6 +439,7 @@
     width: 5rem;
     height: 5rem;
     border-radius: var(--ui-radius-input);
+    corner-shape: @ui-corner-shape;
     overflow: hidden;
 }
 
@@ -499,6 +503,7 @@
         width: 1.375rem;
         height: 1.375rem;
         border-radius: @ui-part-radius;
+        corner-shape: @ui-corner-shape;
         background: transparent;
         color: var(--ui-text-muted);
         transition: opacity @ui-motion-fast @ui-motion-ease, background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
@@ -652,6 +657,7 @@
     aspect-ratio: 1;
     overflow: hidden;
     border-radius: var(--ui-radius-button);
+    corner-shape: @ui-corner-shape;
     background: color-mix(in srgb, var(--ui-color-on-surface) 12%, transparent);
     cursor: grab;
     // The finger's drag and pinch are the picture's, not the page's scroll and zoom.

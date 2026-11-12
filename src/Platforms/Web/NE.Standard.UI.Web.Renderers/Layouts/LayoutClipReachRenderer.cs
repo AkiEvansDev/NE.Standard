@@ -12,6 +12,7 @@ using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Items;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -148,6 +149,16 @@ internal static class LayoutClipReachRenderer
 
         if (typeKey == ExpanderComponent.ComponentTypeKey)
             return TryGetStatic(view, childId, ExpanderComponent.VariantProperty, out UIExpanderVariant? variant) && variant == UIExpanderVariant.Quiet ? Contour : None;
+
+        if (typeKey == LanguageSwitcherComponent.ComponentTypeKey || typeKey == ThemeSwitcherComponent.ComponentTypeKey)
+            return TryGetStatic(view, childId, ISwitcherComponent.VariantProperty, out UISwitcherVariant? switcherVariant) && switcherVariant == UISwitcherVariant.Field ? Contour : None;
+
+        if (typeKey == FlyoutComponent.ComponentTypeKey && view.Graph.TryGetSlot(childId, UIComponentSlotKind.Region, out UIComponentSlot? anchorSlot, RegionNames.Anchor))
+        {
+            UIComponentId anchorId = anchorSlot.RootComponentId;
+            var anchorReach = ChildReach(view, anchorId, view.Graph.GetRequired(anchorId).TypeKey);
+            return anchorReach == None && HasNegativeMargin(view, anchorId) ? Contour : anchorReach;
+        }
 
         if (typeKey == KeyValueActionComponent.ComponentTypeKey)
             return !HasStaticFrame(view, childId) ? Contour : None;
