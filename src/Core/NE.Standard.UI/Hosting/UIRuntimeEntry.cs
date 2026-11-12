@@ -8,7 +8,7 @@ namespace NE.Standard.UI.Hosting;
 
 internal sealed class UIRuntimeEntry
 {
-    private readonly HashSet<string> _connectionIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _connectionIds = [with(StringComparer.Ordinal)];
     private readonly TaskCompletionSource _initialization = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private long _lastSessionActivityPersistTicksUtc;
 

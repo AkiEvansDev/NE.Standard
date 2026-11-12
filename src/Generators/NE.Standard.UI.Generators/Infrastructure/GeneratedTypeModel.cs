@@ -7,13 +7,17 @@ namespace NE.Standard.UI.Generators.Infrastructure;
 /// </summary>
 internal sealed record GeneratedTypeModel(string HintName, string? Namespace, EquatableArray<string> Declarations, string DisplayName, bool IsPartial, LocationInfo? Location)
 {
-    public static GeneratedTypeModel From(INamedTypeSymbol type, string hintSuffix)
-        => new(
+    public static GeneratedTypeModel From(INamedTypeSymbol type, string hintSuffix, bool includeLocation = false)
+    {
+        var isPartial = type.IsPartial();
+
+        return new GeneratedTypeModel(
             HintName: HintNameBuilder.Build(type, hintSuffix),
             Namespace: type.ContainingNamespace.IsGlobalNamespace ? null : type.ContainingNamespace.ToDisplayString(),
             Declarations: TypeDeclarationWriter.GetDeclarations(type),
             DisplayName: type.ToDisplayString(),
-            IsPartial: type.IsPartial(),
-            Location: LocationInfo.From(type)
+            IsPartial: isPartial,
+            Location: !isPartial || includeLocation ? LocationInfo.From(type) : null
         );
+    }
 }

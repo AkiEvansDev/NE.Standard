@@ -98,7 +98,7 @@ internal sealed partial class UIRuntime
                 if (_ended || disposeRequested)
                     return new CancellationToken(canceled: true);
 
-                _stays ??= new Dictionary<string, CancellationTokenSource>(StringComparer.Ordinal);
+                _stays ??= [with(StringComparer.Ordinal)];
 
                 if (!_stays.TryGetValue(windowId, out CancellationTokenSource? stay))
                 {
@@ -107,7 +107,7 @@ internal sealed partial class UIRuntime
                 }
 
                 if (leftAtUtc is DateTime left)
-                    _ = (_leftAt ??= new Dictionary<string, DateTime>(StringComparer.Ordinal)).TryAdd(windowId, left);
+                    _ = (_leftAt ??= [with(StringComparer.Ordinal)]).TryAdd(windowId, left);
 
                 return stay.Token;
             }
@@ -126,7 +126,7 @@ internal sealed partial class UIRuntime
                 if (_stays is null || !_stays.ContainsKey(windowId))
                     return;
 
-                (_leftAt ??= new Dictionary<string, DateTime>(StringComparer.Ordinal))[windowId] = utcNow;
+                (_leftAt ??= [with(StringComparer.Ordinal)])[windowId] = utcNow;
             }
         }
 

@@ -628,7 +628,7 @@ test("under a least distance a new start drops the end it would stand too near",
 });
 
 /** A date input editing a period as `DateInputRenderer` writes one: two fields, the end's marked, over their hidden inputs. */
-function datePeriod(start: string, end: string, distance: string): { readonly start: FakeInput; readonly end: FakeInput; readonly startField: FakeInput; readonly endField: FakeInput; readonly said: unknown[] } {
+function datePeriod(start: string, end: string, distance: string): { readonly root: FakeElement; readonly start: FakeInput; readonly end: FakeInput; readonly startField: FakeInput; readonly endField: FakeInput; readonly said: unknown[]; push(property: string): void } {
     const startField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
     const endField = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field" });
     const startInput = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: start });
@@ -646,10 +646,23 @@ function datePeriod(start: string, end: string, distance: string): { readonly st
         "data-ui-temporal-months": Months
     }).append(FakeElement.of("ui-temporal-input__row").append(startField, endField), startInput, endInput);
     const { validation, said } = marks();
+    let handler: ((change: unknown) => void) | null = null;
 
-    new TemporalPickerEngine({ root: real<ParentNode>(place(root)), validation: real(validation) });
+    new TemporalPickerEngine({
+        root: real<ParentNode>(place(root)),
+        validation: real(validation),
+        propertyPatchEngine: real({ addValueChangeHandler: (added: (change: unknown) => void) => { handler = added; } })
+    });
 
-    return { start: startInput, end: endInput, startField, endField, said };
+    return {
+        root,
+        start: startInput,
+        end: endInput,
+        startField,
+        endField,
+        said,
+        push: property => handler?.({ propertyName: property, components: [root], dynamicParameters: [], value: startInput.value, local: false })
+    };
 }
 
 test("a period's end typed nearer the start than its least distance stays as typed and says why, nor is such a start", () => {
@@ -740,6 +753,22 @@ test("a period's end typed before the start is judged as the ends stand once the
     period.startField.dispatchEvent(new FakeEvent("change"));
 
     assert.deepEqual([period.start.value, period.end.value], ["2026-09-05", "2026-09-10"], "a day after the end, nearer it than two days");
+});
+
+test("shrinking MinDistance settles a held too-near typed end and clears its refusal", () => {
+    const period = datePeriod("2026-09-10", "2026-09-14", "2.00:00:00");
+
+    period.endField.value = "2026-09-11";
+    period.endField.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(period.end.value, "2026-09-14");
+    assert.deepEqual(period.said, [{ severity: "error", words: { key: "ui.value.near.end", args: { min: "2026-09-12" } } }]);
+
+    period.root.setAttribute("data-ui-temporal-min-distance", "1.00:00:00");
+    period.push("MinDistance");
+
+    assert.equal(period.end.value, "2026-09-11");
+    assert.equal(period.said.at(-1), null);
 });
 
 test("a moment period's end clock offers no hour wholly too near the start, and holds an hour partly near at the least distance", () => {

@@ -37,10 +37,12 @@ internal sealed partial class WebSessionKeys : IUISessionKeyHandover
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(1);
 
     private const int TokenBytes = 32;
+    private const int MaxKeysPerSession = 8;
 
     private static readonly byte[] PadInfo = "ne.ui.session-key"u8.ToArray();
 
     private readonly ConcurrentDictionary<string, Entry> _entries = new(StringComparer.Ordinal);
+    private long _sequence;
     private readonly IUIUpdateSink _updates;
     private readonly TimeProvider _time;
     private readonly ILogger<WebSessionKeys> _logger;
@@ -89,10 +91,11 @@ internal sealed partial class WebSessionKeys : IUISessionKeyHandover
         DateTimeOffset now = _time.GetUtcNow();
 
         Sweep(now);
+        TrimSession(boundSessionId);
 
         var token = RandomNumberGenerator.GetBytes(TokenBytes);
 
-        _entries[Index(token)] = new Entry(Seal(Encoding.UTF8.GetBytes(key.Value), token), boundSessionId, now + Lifetime);
+        _entries[Index(token)] = new Entry(Seal(Encoding.UTF8.GetBytes(key.Value), token), boundSessionId, now + Lifetime, Interlocked.Increment(ref _sequence));
 
         return Base64Url.EncodeToString(token);
     }
@@ -104,6 +107,31 @@ internal sealed partial class WebSessionKeys : IUISessionKeyHandover
         {
             if (entry.Value.ExpiresAt <= now)
                 _ = _entries.TryRemove(entry);
+        }
+    }
+
+    private void TrimSession(string boundSessionId)
+    {
+        while (true)
+        {
+            var count = 0;
+            KeyValuePair<string, Entry>? oldest = null;
+
+            foreach (KeyValuePair<string, Entry> entry in _entries)
+            {
+                if (!string.Equals(entry.Value.BoundSessionId, boundSessionId, StringComparison.Ordinal))
+                    continue;
+
+                count++;
+
+                if (oldest is null || entry.Value.Sequence < oldest.Value.Value.Sequence)
+                    oldest = entry;
+            }
+
+            if (count < MaxKeysPerSession || oldest is null)
+                return;
+
+            _ = _entries.TryRemove(oldest.Value);
         }
     }
 
@@ -155,5 +183,5 @@ internal sealed partial class WebSessionKeys : IUISessionKeyHandover
         return bytes.Length == TokenBytes;
     }
 
-    private sealed record Entry(byte[] SealedKey, string BoundSessionId, DateTimeOffset ExpiresAt);
+    private sealed record Entry(byte[] SealedKey, string BoundSessionId, DateTimeOffset ExpiresAt, long Sequence);
 }

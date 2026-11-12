@@ -111,7 +111,7 @@ Built-in item models: `TextItem`, `TextBaseItem`, `ButtonItem`, `MenuItem`, `Tab
 Each add-on's README (on its repository, and in the NuGet cache next to the package) is its full reference.
 
 - CodeInput (https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput): `CodeInputComponent` - a code editor field with
-  highlighting, completions, find and replace; `MarkdownDisplayComponent` - a Markdown document as formatted text.
+  highlighting, inline completions (`AddCompletion`, `SetCompletionItems`, `SetCompletionTriggers`), custom mark/span/token styles (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`), find and replace; `MarkdownDisplayComponent` - a Markdown document as formatted text (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`).
 - DataGrid (https://github.com/AkiEvansDev/NE.Standard.UI.DataGrid): `DataGridComponent` - a table with typed columns, sorting,
   filters (`AddFilter<TRow>`), editing, paging, totals and export; `DataGridCellComponent` - a typed column's cell; `DataGridFilterComponent` - one
   filter of a grid.

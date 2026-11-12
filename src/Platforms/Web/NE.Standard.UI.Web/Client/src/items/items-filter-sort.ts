@@ -1,5 +1,5 @@
 // `.ts` on value imports and `import type` on the rest: `node --test` resolves files literally and would load a type-only module whole.
-import { readItemPropertyPath } from "./binding-template-evaluator.ts";
+import { readItemPropertyPath, readItemPropertySegments, splitPropertyPath } from "./binding-template-evaluator.ts";
 import { HiddenClass } from "../addressing/dom-attributes.ts";
 import { logWarn } from "../metadata/logger.ts";
 import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
@@ -82,10 +82,80 @@ function valueContainsWord(value: unknown, word: string): boolean {
 }
 
 export function sortElements(elements: readonly Element[], activeSorts: readonly ActiveSort[], itemsRenderer: ItemsTemplateRenderer): Element[] {
-    if (activeSorts.length === 0)
-        return [...elements];
+    return sortByActiveSorts(elements, activeSorts, element => itemsRenderer.getItemValue(element));
+}
 
-    return [...elements].sort((left, right) => compareItems(itemsRenderer.getItemValue(left), itemsRenderer.getItemValue(right), activeSorts));
+type PreparedSort = {
+    readonly segments: readonly string[];
+    readonly sign: 1 | -1;
+};
+
+type PreparedSortKey = {
+    readonly rank: number;
+    readonly num: number;
+    readonly text: string;
+};
+
+/** Orders entries by `activeSorts` with each item's sort keys read and parsed once in O(N) before `.sort()` runs. */
+export function sortByActiveSorts<T>(entries: readonly T[], activeSorts: readonly ActiveSort[], itemOf: (entry: T) => unknown): T[] {
+    if (activeSorts.length === 0 || entries.length <= 1)
+        return [...entries];
+
+    const preparedSorts: PreparedSort[] = activeSorts.map(sort => ({
+        segments: splitPropertyPath(sort.itemProperty),
+        sign: getItemsSortDirection(sort.direction) === "Descending" ? -1 : 1
+    }));
+    const keyed = entries.map(entry => {
+        const item = itemOf(entry);
+
+        return {
+            entry,
+            keys: preparedSorts.map(sort => prepareSortKey(comparable(readItemPropertySegments(item, sort.segments))))
+        };
+    });
+
+    keyed.sort((left, right) => {
+        for (let i = 0; i < preparedSorts.length; i++) {
+            const comparison = comparePreparedKeys(left.keys[i], right.keys[i]);
+
+            if (comparison !== 0)
+                return comparison * preparedSorts[i].sign;
+        }
+
+        return 0;
+    });
+
+    return keyed.map(item => item.entry);
+}
+
+function prepareSortKey(value: unknown): PreparedSortKey {
+    if (value === null || value === undefined)
+        return NothingSortKey;
+
+    if (typeof value === "number")
+        return Number.isNaN(value) ? NothingSortKey : { rank: 1, num: value, text: "" };
+
+    if (typeof value === "string" && value.trim().length === 0)
+        return NothingSortKey;
+
+    const num = Number(value);
+
+    return Number.isNaN(num) ? { rank: 2, num: 0, text: String(value) } : { rank: 1, num, text: "" };
+}
+
+const NothingSortKey: PreparedSortKey = { rank: 0, num: 0, text: "" };
+
+function comparePreparedKeys(left: PreparedSortKey, right: PreparedSortKey): number {
+    if (left.rank !== right.rank)
+        return left.rank - right.rank;
+
+    if (left.rank === 0)
+        return 0;
+
+    if (left.rank === 1)
+        return left.num === right.num ? 0 : Math.sign(left.num - right.num);
+
+    return left.text === right.text ? 0 : left.text.localeCompare(right.text);
 }
 
 /** Two items' values against the active sorts, highest priority first. */

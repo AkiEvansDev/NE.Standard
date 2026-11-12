@@ -151,7 +151,7 @@ public sealed class LanguageSwitcherComponentRenderer : WebComponentRendererBase
         if (chosen is null || chosen.Count == 0)
             return listed;
 
-        List<string> offered = new(chosen.Count);
+        List<string> offered = [with(chosen.Count)];
 
         foreach (var language in chosen)
         {

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
@@ -38,6 +37,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
 
     private const string ChipLabelClassName = WebClassNames.MultiSelectChipLabel;
 
+    private static readonly string ButtonPropertyOwnerTypeKey = $"{MultiSelectComponent.ComponentTypeKey}.button";
     private static readonly WebDomOperation[] MaxSelectedOperations = [WebDomOperation.Attribute(WebAttributes.SelectMax, target: "root", converter: WebDomConverters.PositiveCount)];
     private static readonly WebDomOperation[] SelectedKeysOperations = [WebDomOperation.Attribute(WebAttributes.SelectedKeys, target: "root", converter: WebDomConverters.UniqueSelectedKeysAttribute)];
 
@@ -66,6 +66,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         }
 
         var freeText = ReadRenderValue<bool?>(context, MultiSelectComponent.AllowFreeTextProperty, null) == true;
+        var entryId = freeText ? ComponentPartId(context, "entry") : null;
 
         // Each chip its option's badge, rather than its words on the selection's tint.
         var badges = variant == UIMultiSelectVariant.Badges;
@@ -75,9 +76,9 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         if (badges)
             _ = root.Class(BadgeSelectClassName);
 
-        RenderTooltip(context, root);
+        RenderTooltip(context, root, TextContentRendererBase.TooltipNameOperation);
         TextContentRendererBase.RenderInputAppearance(context, root);
-        TextContentRendererBase.RenderInputHeader(context, root, titleCanGoInside: true);
+        TextContentRendererBase.RenderInputHeader(context, root, titleCanGoInside: true, labelForId: entryId);
         SelectComponentRenderer.RenderAdornmentState(context, root);
         RenderMaxSelected(context, root);
 
@@ -95,7 +96,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
-        RenderTrigger(context, root, items, chosenKeys, freeText, badges);
+        RenderTrigger(context, root, items, chosenKeys, freeText, badges, entryId);
         RenderValueInput(context, root, valueKind, chosenKeys, valueBinding);
         SelectComponentRenderer.RenderPopup(context, root, items, isBound, new HashSet<string>(chosenKeys, StringComparer.Ordinal));
 
@@ -108,19 +109,14 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         _ = root.Class(WebClassNames.Button);
 
         ButtonRendererBase.RenderButtonVariant(context, root, MultiSelectComponent.ButtonVariantProperty);
-        RenderTooltip(context, root);
-
-        if (ReadRenderValue<UIResponsive<UISize>?>(context, ISizedInputComponent.SizeProperty, null) is { Base: not UISize.Medium } size)
-            _ = root.Class(WebClassNames.ButtonSize(size.Base));
+        TierClassRenderer.Render(context, root, ButtonPropertyOwnerTypeKey, ISizedInputComponent.SizeProperty, ButtonRendererBase.SizeFamily);
+        RenderTooltip(context, root, TextContentRendererBase.TooltipNameOperation);
 
         ResponsiveRenderer.ApplyResponsiveThickness(context, root, ISurfaceComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
         SurfaceStyleRenderer.RenderBackground(context, root, ISurfaceComponent.BackgroundProperty);
         SurfaceStyleRenderer.RenderBackgroundImage(context, root);
         BorderStyleRenderer.RenderBorderStyle(context, root);
-        SelectComponentRenderer.RenderAdornmentState(context, root);
-
-        if (ReadRenderValue<UIPopupPlacement?>(context, IPopupPlacementComponent.PopupPlacementProperty, null) == UIPopupPlacement.BottomStart)
-            _ = root.Attribute(WebAttributes.SelectPlacement, WebClassNames.PopupPlacement(UIPopupPlacement.BottomStart));
+        SelectComponentRenderer.RenderAdornmentState(context, root, ButtonPropertyOwnerTypeKey, UIPopupPlacement.BottomEnd, SelectComponentRenderer.ButtonPlacementOperations);
 
         RenderMaxSelected(context, root);
 
@@ -135,6 +131,8 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         RenderButtonTrigger(context, root, chosenKeys);
         RenderValueInput(context, root, valueKind, chosenKeys, valueBinding);
         SelectComponentRenderer.RenderPopup(context, root, items, isBound, new HashSet<string>(chosenKeys, StringComparer.Ordinal));
+
+        RenderValidationMessage(context, root);
     }
 
     private static void RenderMaxSelected(WebRenderContext context, IHtmlElementBuilder root)
@@ -170,7 +168,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         if (keys is null)
             return distinct;
 
-        HashSet<string> seen = new(StringComparer.Ordinal);
+        HashSet<string> seen = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < keys.Count; i++)
         {
@@ -190,18 +188,8 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
 
             RenderPopupTrigger(trigger, "listbox");
             NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, trigger);
-            TextContentRendererBase.RenderFieldLabel(context, trigger);
+            TextContentRendererBase.RenderFieldValidationState(context, trigger);
             SelectComponentRenderer.RenderClearKey(context, trigger);
-
-            if (!TextContentRendererBase.IsFieldNamed(context))
-            {
-                _ = ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _, markup: true);
-
-                if (!string.IsNullOrWhiteSpace(tooltip))
-                    _ = trigger.Attribute("aria-label", UIInlineMarkup.ToPlainText(tooltip));
-                else
-                    WebWords.Write(context, trigger, "aria-label", UIStrings.SplitButtonMore);
-            }
 
             _ = trigger.Element("span", label =>
             {
@@ -209,11 +197,30 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
                 TextContentRendererBase.RenderTextBody(context, root, label, new WebTextBodyOptions
                 {
                     DefaultBadgePlacement = UITextBadgePlacement.Trailing,
-                    NamesField = true,
-                    ReachableBadge = false,
+                    FieldHelpBadge = true,
+                    TooltipNamesHost = true,
+                    PropertyOwnerTypeKey = ButtonPropertyOwnerTypeKey,
                     FallbackBadgeTitle = chosenKeys.Count > 0 ? chosenKeys.Count.ToString(CultureInfo.InvariantCulture) : null
                 });
             });
+
+            WebRenderValueKind titled = ResolveRenderValue(context, ITextBaseComponent.TitleProperty, out string? title, out _);
+            WebRenderValueKind named = ResolveRenderValue(context, IAccessibleNameComponent.AccessibleNameProperty, out string? name, out _);
+            var untitled = string.IsNullOrWhiteSpace(title);
+
+            if ((untitled || titled == WebRenderValueKind.Binding) && named != WebRenderValueKind.Binding && string.IsNullOrWhiteSpace(name))
+            {
+                _ = trigger.Attribute(TextContentRendererBase.TooltipNamedAttribute);
+
+                WebRenderValueKind tooltipKind = ResolveRenderValue(context, ITooltipComponent.TooltipProperty, out string? tooltip, out _, markup: true);
+
+                if (untitled && !string.IsNullOrWhiteSpace(tooltip))
+                    _ = trigger.Attribute("aria-label", UIInlineMarkup.ToPlainText(tooltip));
+                else if (untitled && tooltipKind != WebRenderValueKind.Binding)
+                    WebWords.Write(context, trigger, "aria-label", UIStrings.SplitButtonMore);
+            }
+
+            RenderAccessibleName(context, trigger);
 
             SelectComponentRenderer.RenderChevron(trigger);
         });
@@ -223,7 +230,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
     /// The field's box: the chips, then — taking free text — the entry the reader types in, which is then the combobox in the box's
     /// place, so the same names, read-only mark and caption land on whichever control the reader reaches.
     /// </summary>
-    private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, IReadOnlyList<string> chosenKeys, bool freeText, bool badges)
+    private static void RenderTrigger(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, IReadOnlyList<string> chosenKeys, bool freeText, bool badges, string? entryId)
     {
         _ = root.Element("div", trigger =>
         {
@@ -241,7 +248,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
 
             FieldActionsRenderer.RenderLeadingGroups(context, trigger, WebClassNames.SelectAction, $"{WebClassNames.Select}__below");
 
-            TextContentRendererBase.RenderInputHeaderInside(context, root, trigger);
+            TextContentRendererBase.RenderInputHeaderInside(context, root, trigger, labelForId: entryId);
 
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: false));
 
@@ -272,7 +279,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
                     _ = chips.Attribute(WebAttributes.SelectChips);
 
                 if (freeText)
-                    _ = chips.Element("input", entry => RenderEntry(context, root, entry));
+                    _ = chips.Element("input", entry => RenderEntry(context, root, entry, entryId));
 
                 // After the entry, whose `:placeholder-shown` hides it as a sibling once text is typed; placed over it, so the order shows nothing.
                 SelectComponentRenderer.RenderPlaceholder(context, chips, hidden: drawn > 0);
@@ -296,6 +303,7 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
         RenderPopupTrigger(control, "listbox");
         NativeInputRendererBase.RenderIsReadOnlyAsAria(context, root, control);
         TextContentRendererBase.RenderFieldLabel(context, control);
+        SelectComponentRenderer.RenderComboboxPlaceholderName(context, control);
         SelectComponentRenderer.RenderClearKey(context, control);
     }
 
@@ -303,8 +311,11 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
     /// The entry after the chips, where Enter or a comma makes a chip of the text: an editable combobox over the suggestions, as a
     /// search's field is. Its text is a draft, never the value — the engine keeps it from the value's listeners.
     /// </summary>
-    private static void RenderEntry(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder entry)
+    private static void RenderEntry(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder entry, string? entryId)
     {
+        if (entryId is not null)
+            _ = entry.Attribute("id", entryId);
+
         _ = entry.Class(WebClassNames.MultiSelectEntry);
         _ = entry.Attribute("type", "text");
         NativeInputRendererBase.RenderFieldName(context, entry, "entry");

@@ -27,6 +27,8 @@ clientStrings.useTable(tableOf({
     "ui.value.min": "At least {min}.",
     "ui.value.after": "Not after {max}.",
     "ui.value.before": "Not before {min}.",
+    "ui.value.near.start": "Not after {max}.",
+    "ui.value.near.end": "Not before {min}.",
     "ui.value.format": "The value does not match the expected format."
 }));
 
@@ -245,4 +247,78 @@ test("a period's end before Min is refused as its start would be", () => {
     scene.end?.dispatchEvent(new FakeEvent("change"));
 
     assert.equal(scene.line.textContent, "Not before 09:00.");
+});
+
+test("pushing Value on a range leaves an active EndValue bound refusal standing until EndValue settles", () => {
+    const scene = temporal("time", "09:30:00", "19:30:00");
+
+    scene.value.setAttribute("data-ui-form-id", "shift");
+    scene.end?.setAttribute("data-ui-form-id", "shift");
+    scene.end?.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(engine.isRefused(real(scene.root)), true);
+    assert.equal(scene.line.textContent, "Not after 18:00.");
+
+    scene.value.value = "10:00:00";
+    for (const handler of valueChangeHandlers)
+        handler({ reference: { componentId: 7, propertyId: "Value" }, propertyName: "Value", dynamicParameters: [], value: "10:00:00", local: false, components: [real(scene.root)] });
+
+    assert.equal(engine.isRefused(real(scene.root)), true);
+    assert.ok(scene.root.classes.has("ui-invalid"));
+    assert.equal(engine.runSubmitValidation("shift"), false);
+
+    if (scene.end !== null)
+        scene.end.value = "17:00:00";
+    for (const handler of valueChangeHandlers)
+        handler({ reference: { componentId: 7, propertyId: "EndValue" }, propertyName: "EndValue", dynamicParameters: [], value: "17:00:00", local: false, components: [real(scene.root)] });
+
+    assert.equal(engine.isRefused(real(scene.root)), false);
+    assert.ok(!scene.root.classes.has("ui-invalid"));
+    assert.equal(engine.runSubmitValidation("shift"), true);
+});
+
+test("a period end nearer than MinDistance is refused as a bound error and settles when MinDistance shrinks", () => {
+    const scene = temporal("time", "09:30:00", "10:00:00");
+
+    scene.root.setAttribute("data-ui-temporal-min-distance", "01:00:00");
+    scene.end?.dispatchEvent(new FakeEvent("change"));
+
+    assert.equal(engine.isRefused(real(scene.root)), true);
+    assert.equal(scene.line.textContent, "Not before 10:30.");
+
+    scene.root.setAttribute("data-ui-temporal-min-distance", "00:30:00");
+    for (const handler of valueChangeHandlers)
+        handler({ reference: { componentId: 7, propertyId: "MinDistance" }, propertyName: "MinDistance", dynamicParameters: [], value: "00:30:00", local: false, components: [real(scene.root)] });
+
+    assert.equal(engine.isRefused(real(scene.root)), false);
+    assert.ok(!scene.root.classes.has("ui-invalid"));
+});
+
+test("hidden and disabled fields are skipped on form submit validation, error checks, and invalid focus", () => {
+    const hiddenField = numberField();
+    hiddenField.input.setAttribute("data-ui-form-id", "checkout");
+    give(hiddenField, "1500");
+    hiddenField.root.visible = false;
+
+    assert.equal(engine.runSubmitValidation("checkout"), true);
+    assert.equal(engine.hasFormError("checkout"), false);
+    assert.equal(engine.focusFirstInvalid("checkout"), false);
+
+    const collapsedField = numberField();
+    collapsedField.input.setAttribute("data-ui-form-id", "checkout");
+    give(collapsedField, "1500");
+    collapsedField.root.laidOut = false;
+
+    assert.equal(engine.runSubmitValidation("checkout"), true);
+    assert.equal(engine.hasFormError("checkout"), false);
+    assert.equal(engine.focusFirstInvalid("checkout"), false);
+
+    const disabledField = numberField();
+    disabledField.input.setAttribute("data-ui-form-id", "checkout");
+    give(disabledField, "1500");
+    disabledField.root.classes.add("ui-disabled");
+
+    assert.equal(engine.runSubmitValidation("checkout"), true);
+    assert.equal(engine.hasFormError("checkout"), false);
+    assert.equal(engine.focusFirstInvalid("checkout"), false);
 });

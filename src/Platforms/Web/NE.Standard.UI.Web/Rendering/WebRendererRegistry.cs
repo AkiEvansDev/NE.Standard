@@ -14,7 +14,7 @@ internal sealed class WebRendererRegistry : IWebRendererRegistry
     {
         ArgumentNullException.ThrowIfNull(renderers);
 
-        Dictionary<string, IWebComponentRenderer> builder = new(StringComparer.Ordinal);
+        Dictionary<string, IWebComponentRenderer> builder = [with(StringComparer.Ordinal)];
 
         foreach (IWebComponentRenderer renderer in renderers)
         {

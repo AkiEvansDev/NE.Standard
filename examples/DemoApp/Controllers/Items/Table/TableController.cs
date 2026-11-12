@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using DemoApp.Controllers.Base;
@@ -172,7 +173,7 @@ internal sealed partial class TableRowsGroupContext : DemoGroupContext
 
         DemoDeploymentRow row = Items[^1];
 
-        row.Service = row.Service.EndsWith('*') ? row.Service.TrimEnd('*') : $"{row.Service}*";
+        row.Service = row.Service.EndsWith('*', StringComparison.Ordinal) ? row.Service.TrimEnd('*') : $"{row.Service}*";
     }
 }
 

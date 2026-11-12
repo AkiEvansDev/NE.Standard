@@ -11,6 +11,25 @@ namespace NE.Standard.UI.Abstractions.Binding.Addresses;
 /// </summary>
 public sealed class UIComponentAddressJsonConverter : JsonConverter<UIComponentAddress>
 {
+    private readonly int _maxParameters;
+
+    /// <summary>
+    /// Initializes an unbounded component address converter.
+    /// </summary>
+    public UIComponentAddressJsonConverter()
+        : this(int.MaxValue)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a component address converter bounded to at most <paramref name="maxParameters"/> dynamic parameters.
+    /// </summary>
+    public UIComponentAddressJsonConverter(int maxParameters)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxParameters);
+        _maxParameters = maxParameters;
+    }
+
     public override UIComponentAddress Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
@@ -32,7 +51,7 @@ public sealed class UIComponentAddressJsonConverter : JsonConverter<UIComponentA
             if (isId)
                 id = JsonSerializer.Deserialize<UIComponentId>(ref reader, options);
             else if (isParameters && reader.TokenType == JsonTokenType.StartArray)
-                parameters = UIDynamicParametersJsonConverter.ReadParameters(ref reader);
+                parameters = UIDynamicParametersJsonConverter.ReadParameters(ref reader, _maxParameters);
             else if (reader.TokenType is JsonTokenType.StartObject or JsonTokenType.StartArray)
                 reader.Skip();
         }
@@ -68,22 +87,44 @@ public sealed class UIComponentAddressJsonConverter : JsonConverter<UIComponentA
 /// </summary>
 public sealed class UIDynamicParametersJsonConverter : JsonConverter<object?[]>
 {
+    private readonly int _maxParameters;
+
+    /// <summary>
+    /// Initializes an unbounded dynamic parameters converter.
+    /// </summary>
+    public UIDynamicParametersJsonConverter()
+        : this(int.MaxValue)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a dynamic parameters converter bounded to at most <paramref name="maxParameters"/> entries.
+    /// </summary>
+    public UIDynamicParametersJsonConverter(int maxParameters)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maxParameters);
+        _maxParameters = maxParameters;
+    }
+
     public override object?[] Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartArray)
             throw new JsonException("Dynamic parameters must be an array.");
 
-        return ReadParameters(ref reader);
+        return ReadParameters(ref reader, _maxParameters);
     }
 
     // Read by hand rather than as object?[]: that gives a JsonElement, or a long under the hub's options, which the runtime refuses
     // only once it resolves the binding — as its own failure rather than a malformed call.
-    internal static object?[] ReadParameters(ref Utf8JsonReader reader)
+    internal static object?[] ReadParameters(ref Utf8JsonReader reader, int maxParameters = int.MaxValue)
     {
         List<object?> parameters = [];
 
         while (reader.Read() && reader.TokenType != JsonTokenType.EndArray)
         {
+            if (parameters.Count >= maxParameters)
+                throw new JsonException($"Dynamic parameters cannot exceed {maxParameters} entries.");
+
             parameters.Add(reader.TokenType switch
             {
                 JsonTokenType.Null => null,

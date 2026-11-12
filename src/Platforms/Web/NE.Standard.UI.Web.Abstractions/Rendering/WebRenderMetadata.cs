@@ -309,7 +309,7 @@ public sealed class WebRenderMetadata
         if ((itemsView.Filters.Length == 0 && itemsView.Sorts.Length == 0) || !_itemsFilterSortComponents.Add(componentId))
             return;
 
-        List<WebRenderItemsFilterMetadata> filters = new(itemsView.Filters.Length);
+        List<WebRenderItemsFilterMetadata> filters = [with(itemsView.Filters.Length)];
 
         for (var i = 0; i < itemsView.Filters.Length; i++)
         {
@@ -328,7 +328,7 @@ public sealed class WebRenderMetadata
             _pendingItemsFilters.Add((compiled, metadata));
         }
 
-        List<WebRenderItemsSortMetadata> sorts = new(itemsView.Sorts.Length);
+        List<WebRenderItemsSortMetadata> sorts = [with(itemsView.Sorts.Length)];
 
         for (var i = 0; i < itemsView.Sorts.Length; i++)
         {

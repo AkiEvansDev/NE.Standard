@@ -68,7 +68,7 @@ internal sealed partial class UIViewCompilationContext
     /// </summary>
     private void EnsureDropKindsAreOffered()
     {
-        HashSet<string> offered = new(StringComparer.Ordinal);
+        HashSet<string> offered = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < _componentOrder.Count; i++)
         {

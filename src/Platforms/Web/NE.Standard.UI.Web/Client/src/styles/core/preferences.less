@@ -300,15 +300,19 @@
         color: HighlightText;
     }
 
-    // A splitter's or resize edge's line is a pseudo-element's ground: text colour at rest, selection colour while live.
-    .ui-grid-splitter::before {
+    // A splitter's, resize edge's, pane grip's or sheet's handle is a pseudo-element's ground: text colour at rest, selection colour while live.
+    .ui-grid-splitter::before,
+    .ui-pane-container__grip::before,
+    [data-ui-sheet][popover]::before,
+    .ui-dialog[data-ui-dialog-placement="bottom"]:is([data-ui-dialog-close-backdrop], [data-ui-dialog-close-escape]) > .ui-dialog__surface::before {
         forced-color-adjust: none;
         background: CanvasText;
     }
 
     @media @{ui-can-hover} {
         .ui-grid-splitter@{ui-button-live}:hover::before,
-        .ui-table__resizer:hover::before {
+        .ui-table__resizer:hover::before,
+        .ui-pane-container__grip:hover::before {
             forced-color-adjust: none;
             background: Highlight;
         }
@@ -317,7 +321,9 @@
     .ui-grid-splitter@{ui-keyboard-focus}::before,
     .ui-grid-splitter[data-ui-splitting]::before,
     .ui-table__resizer@{ui-keyboard-focus}::before,
-    .ui-table__resizer[data-ui-splitting]::before {
+    .ui-table__resizer[data-ui-splitting]::before,
+    .ui-pane-container__grip@{ui-keyboard-focus}::before,
+    .ui-pane-container__pane[data-ui-pane-lifted] > .ui-pane-container__grip::before {
         forced-color-adjust: none;
         background: Highlight;
     }

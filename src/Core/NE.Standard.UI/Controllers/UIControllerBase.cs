@@ -478,8 +478,8 @@ public abstract partial class UIControllerBase : RecursiveObservable, IUIControl
     {
         const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
-        Dictionary<string, UICommandDescriptor> commands = new(StringComparer.Ordinal);
-        Dictionary<string, Type> declaringTypes = new(StringComparer.Ordinal);
+        Dictionary<string, UICommandDescriptor> commands = [with(StringComparer.Ordinal)];
+        Dictionary<string, Type> declaringTypes = [with(StringComparer.Ordinal)];
 
         for (Type? current = controllerType; current is not null && current != typeof(UIControllerBase) && current != typeof(object); current = current.BaseType)
         {

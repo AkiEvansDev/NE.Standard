@@ -1,6 +1,6 @@
 // Placement for every popup engine: a popup is `position: fixed`, stays in the DOM, and needs no ancestor with a fixed containing block.
 
-import { BottomBarAttribute, DialogAttribute, DrawerOpenAttribute, PopupCappedAttribute, PopupLiftedAttribute, PopupPlacementAttribute, PopupStoodInAttribute, RegionAttribute, SheetAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, DialogAttribute, DrawerOpenAttribute, NotificationHostClass, PopupCappedAttribute, PopupLiftedAttribute, PopupPlacementAttribute, PopupStoodInAttribute, RegionAttribute, SheetAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
 import { afterTransitions, motion } from "../rendering/motion.ts";
 import { reachesTier } from "../rendering/responsive-tier.ts";
 import { withoutRuntimeCleanup } from "../runtime/cleanup-scope.ts";
@@ -60,7 +60,8 @@ export type AnchoredPopupOptions = {
 // The anchor is any element — an SVG shape as well as a control — since only its box is read.
 type TrackedPopup = {
     readonly anchor: Element;
-    readonly options: AnchoredPopupOptions;
+    readonly options?: AnchoredPopupOptions;
+    readonly point?: { readonly x: number; readonly y: number };
     /** The side it stands on, kept while it fits as its own size changes: a list narrowed as the reader types would jump across. */
     side?: AnchoredPopupPlacement;
 };
@@ -129,8 +130,10 @@ export function isSheet(popup: Element): boolean {
 /** Lifts a sheet into the top layer whatever stands around it: over the bottom bar, a dialog and the veil shown just before it. */
 export function liftIntoTopLayer(popup: HTMLElement): void {
     if (popup.hasAttribute(PopupLiftedAttribute)) {
-        if (!popup.matches(":popover-open"))
+        if (!popup.matches(":popover-open")) {
             popup.showPopover();
+            keepNotificationsAbove(popup);
+        }
 
         return;
     }
@@ -138,6 +141,20 @@ export function liftIntoTopLayer(popup: HTMLElement): void {
     popup.setAttribute("popover", "manual");
     popup.setAttribute(PopupLiftedAttribute, "");
     showInTopLayerAtOnce(popup);
+}
+
+function keepNotificationsAbove(popup: HTMLElement): void {
+    const root: ParentNode | null = popup.ownerDocument ?? (typeof document === "undefined" ? null : document);
+
+    if (root === null || !("querySelectorAll" in root))
+        return;
+
+    for (const host of root.querySelectorAll<HTMLElement>(`.${NotificationHostClass}`)) {
+        if (host.children.length > 0 && typeof host.showPopover === "function" && host.matches(":popover-open")) {
+            host.hidePopover();
+            host.showPopover();
+        }
+    }
 }
 
 const RaisedLayerSelector = `dialog:modal, [${DialogAttribute}]:not([hidden]), [${DrawerOpenAttribute}="left-side"] > [${RegionAttribute}="left-side"], [${DrawerOpenAttribute}="right-side"] > [${RegionAttribute}="right-side"]`;
@@ -203,6 +220,7 @@ function showInTopLayerAtOnce(popup: HTMLElement): void {
 
     if (overlay === -1) {
         popup.showPopover();
+        keepNotificationsAbove(popup);
         return;
     }
 
@@ -214,6 +232,7 @@ function showInTopLayerAtOnce(popup: HTMLElement): void {
     // The style is settled with the hold off before it goes back on; the fade already under way keeps its own duration.
     void getComputedStyle(popup).getPropertyValue("overlay");
     popup.style.removeProperty("transition-duration");
+    keepNotificationsAbove(popup);
 }
 
 function hasConfiningAncestor(element: Element): boolean {
@@ -286,7 +305,9 @@ export function lowerIntoPlace(popup: HTMLElement, lowered?: () => void): void {
 export function repositionAnchoredPopup(popup: HTMLElement): void {
     const tracking = tracked.get(popup);
 
-    if (tracking !== undefined)
+    if (tracking?.point !== undefined)
+        placePoint(popup, tracking.point.x, tracking.point.y);
+    else if (tracking?.options !== undefined)
         position(tracking.anchor, popup, tracking.options);
 }
 
@@ -355,18 +376,22 @@ function attachListeners(): void {
         window.visualViewport?.addEventListener("scroll", () => scheduleReposition(null));
 
         // A fixed popup does not re-lay-out for free when its own contents change size.
-        resizeObserver = new ResizeObserver(entries => {
-            for (const entry of entries) {
-                if (!(entry.target instanceof HTMLElement))
-                    continue;
+        if (typeof ResizeObserver !== "undefined") {
+            resizeObserver = new ResizeObserver(entries => {
+                for (const entry of entries) {
+                    if (!(entry.target instanceof HTMLElement))
+                        continue;
 
-                const tracking = tracked.get(entry.target);
+                    const tracking = tracked.get(entry.target);
 
-                // Its own size changed, not where its anchor stands: it keeps its side while that fits.
-                if (tracking !== undefined)
-                    position(tracking.anchor, entry.target, tracking.options, true);
-            }
-        });
+                    // Its own size changed, not where its anchor stands: it keeps its side while that fits.
+                    if (tracking?.point !== undefined)
+                        placePoint(entry.target, tracking.point.x, tracking.point.y);
+                    else if (tracking?.options !== undefined)
+                        position(tracking.anchor, entry.target, tracking.options, true);
+                }
+            });
+        }
     });
 }
 
@@ -383,7 +408,13 @@ export function repositionAll(scrolled: EventTarget | null): void {
         if (scrolled instanceof Node && popup.contains(scrolled))
             continue;
 
-        position(entry.anchor, popup, entry.options);
+        if (entry.point !== undefined) {
+            if (scrolled === null)
+                placePoint(popup, entry.point.x, entry.point.y);
+        }
+        else if (entry.options !== undefined) {
+            position(entry.anchor, popup, entry.options);
+        }
     }
 }
 
@@ -736,12 +767,18 @@ export function bottomBarTop(fallback: number): number {
  * Places a popup at a point — a context menu at the pointer or the finger — as a native menu stands: down and to the right of it, up
  * where there is no room below, leftward where there is none to the right, never over the point; clamped only where neither fits.
  */
-export function placeAtPoint(popup: HTMLElement, x: number, y: number): void {
+export function placeAtPoint(popup: HTMLElement, x: number, y: number, anchor: Element = popup): void {
     if (isSheet(popup))
         return;
 
-    liftOutOfTransform(popup, popup);
+    tracked.set(popup, { anchor, point: { x, y } });
+    attachListeners();
+    resizeObserver?.observe(popup);
+    liftOutOfTransform(anchor, popup);
+    placePoint(popup, x, y);
+}
 
+function placePoint(popup: HTMLElement, x: number, y: number): void {
     // Measured once shown, or a display:none popup measures as zero and never turns.
     const rect = popup.getBoundingClientRect();
     const band = visibleBand();

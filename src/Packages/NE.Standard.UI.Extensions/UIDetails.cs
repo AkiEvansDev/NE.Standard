@@ -33,7 +33,7 @@ public static class UIDetails
 
         KeyValueActionItem[] items = new KeyValueActionItem[rows.Length];
         HashSet<UIPhrase> names = [];
-        HashSet<string> ids = new(StringComparer.Ordinal);
+        HashSet<string> ids = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < rows.Length; i++)
         {

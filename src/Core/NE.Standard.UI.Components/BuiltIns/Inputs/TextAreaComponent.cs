@@ -325,6 +325,25 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
         if (MaxRows is int maxRows)
             ArgumentOutOfRangeException.ThrowIfLessThan(maxRows, Rows ?? DefaultRows);
     }
+
+    /// <inheritdoc/>
+    protected override Action? SnapshotAuthoredState()
+    {
+        Action? restoreBase = base.SnapshotAuthoredState();
+        Action? restoreActions = _actions.SnapshotAuthoredState();
+
+        if (restoreBase is null)
+            return restoreActions;
+
+        if (restoreActions is null)
+            return restoreBase;
+
+        return () =>
+        {
+            restoreBase();
+            restoreActions();
+        };
+    }
 }
 
 /// <summary>

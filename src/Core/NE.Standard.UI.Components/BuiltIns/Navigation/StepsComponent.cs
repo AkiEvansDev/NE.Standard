@@ -34,14 +34,18 @@ public abstract partial class StepsComponent<T> : ItemsComponentBase<T, ITextMod
     /// </summary>
     protected StepsComponent(string? id = null) : base(id)
     {
-        _ = SetTemplate(new DefaultTextTemplate(binds: true));
+        SetDefaultTemplate(new DefaultTextTemplate(binds: true));
     }
 
     /// <summary>
     /// Configures the built-in default text template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultTemplate(Action<DefaultTextTemplate> configure)
-        => Self.ConfigureTemplate(Template as DefaultTextTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(Template as DefaultTextTemplate, configure, "template");
+        MarkTemplateAuthored();
+        return result;
+    }
 
     /// <summary>
     /// Writes a click registration on the item template, now and on every one set later.

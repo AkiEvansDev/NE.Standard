@@ -38,7 +38,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
 {
     private const string DefaultTemplateKeyProperty = nameof(IMenuItemModel.Kind);
 
-    private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IVisualComponent> _regions = [with(StringComparer.Ordinal)];
     private int _submenuDepth;
     private bool _readsSubmenus;
 
@@ -188,7 +188,7 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     private void EnsureDefaultEmptyTemplate()
     {
         if (!HasEmptyTemplate)
-            _ = SetEmptyTemplate(new DefaultEmptyTemplate());
+            SetDefaultEmptyTemplate(new DefaultEmptyTemplate());
     }
 
     /// <summary>
@@ -210,8 +210,11 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
 
         if (depth == 0)
         {
-            _ = RemoveTemplateVariantCore(SubmenuTemplateKey);
-            _ = RemoveTemplateVariantCore(SelectTemplateKey);
+            RemoveDefaultTemplateVariant(SubmenuTemplateKey);
+
+            if (!IsTemplateVariantAuthored(SelectTemplateKey))
+                RemoveDefaultTemplateVariant(SelectTemplateKey);
+
             return;
         }
 
@@ -222,9 +225,10 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
         }
 
         if (GetTemplateVariant(SelectTemplateKey) is null)
-            _ = AddTemplateVariant(SelectTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Select));
+            SetDefaultTemplateVariant(SelectTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Select));
 
-        _ = SetTemplateVariantCore(SubmenuTemplateKey, MenuComponent.CreateNested(depth - 1).BindItems(nameof(IMenuItemModel.Items), UIBindingScope.Relative));
+        if (!IsTemplateVariantAuthored(SubmenuTemplateKey))
+            SetDefaultTemplateVariant(SubmenuTemplateKey, MenuComponent.CreateNested(depth - 1).BindItems(nameof(IMenuItemModel.Items), UIBindingScope.Relative));
     }
 
     /// <summary>
@@ -237,10 +241,10 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
 
     private protected MenuComponent(string? id, int submenuDepth, bool nested) : base(id)
     {
-        _ = SetTemplate(new DefaultMenuItemTemplate(binds: true));
-        _ = AddTemplateVariant(HeaderTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Header));
-        _ = AddTemplateVariant(SeparatorTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Separator));
-        _ = AddTemplateVariant(CheckTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Check));
+        SetDefaultTemplate(new DefaultMenuItemTemplate(binds: true));
+        SetDefaultTemplateVariant(HeaderTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Header));
+        SetDefaultTemplateVariant(SeparatorTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Separator));
+        SetDefaultTemplateVariant(CheckTemplateKey, DefaultMenuItemTemplate.ForKind(UIMenuItemKind.Check));
 
         if (nested)
             MarkNested();
@@ -312,6 +316,24 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
             if (template is IItemClickComponent submenu)
                 submenu.OnClickableItemTemplates(register);
         });
+    }
+
+    /// <inheritdoc/>
+    protected override Action? SnapshotAuthoredState()
+    {
+        Action? restoreBase = base.SnapshotAuthoredState();
+
+        if (!_regions.TryGetValue(RegionNames.ToggleContent, out IVisualComponent? ownToggleContent))
+            return restoreBase;
+
+        var ownShowSearch = ShowSearch;
+
+        return () =>
+        {
+            restoreBase?.Invoke();
+            _regions[RegionNames.ToggleContent] = ownToggleContent;
+            ShowSearch = ownShowSearch;
+        };
     }
 }
 

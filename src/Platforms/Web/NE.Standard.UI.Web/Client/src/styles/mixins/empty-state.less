@@ -29,7 +29,7 @@
         display: none;
     }
 
-    &[data-ui-no-empty][data-ui-items-empty] {
+    &[data-ui-no-empty][data-ui-items-empty]:not([data-ui-items-no-match], [data-ui-window-pending], [data-ui-drop-target], [data-ui-tree-draggable]) {
         display: none;
     }
 }

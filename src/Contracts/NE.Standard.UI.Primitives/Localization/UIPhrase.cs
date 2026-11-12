@@ -178,7 +178,28 @@ public sealed record UIPhrase
         if (TryReadDouble(left, out var leftDouble) && TryReadDouble(right, out var rightDouble))
             return leftDouble.Equals(rightDouble);
 
+        if (TryReadDecimal(left, out leftDecimal) && TryReadDouble(right, out rightDouble))
+            return AreDecimalAndDoubleEqual(leftDecimal, rightDouble);
+
+        if (TryReadDouble(left, out leftDouble) && TryReadDecimal(right, out rightDecimal))
+            return AreDecimalAndDoubleEqual(rightDecimal, leftDouble);
+
         return left.Equals(right);
+    }
+
+    private static bool AreDecimalAndDoubleEqual(decimal exact, double floating)
+    {
+        if (!double.IsFinite(floating))
+            return false;
+
+        try
+        {
+            return (decimal)floating == exact && (double)exact == floating;
+        }
+        catch (OverflowException)
+        {
+            return false;
+        }
     }
 
     private static bool TryReadDecimal(object value, out decimal number)

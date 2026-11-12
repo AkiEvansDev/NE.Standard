@@ -13,6 +13,7 @@ import { dispatchDraftDropped } from "./draft-events.ts";
 import { editingCellOf } from "./field-escape.ts";
 import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { FocusableSelector } from "./popup-focus.ts";
+import { popupHolding } from "./popup-dismissal.ts";
 import { isInert } from "./interactive-state.ts";
 import { cursorRowOf } from "./row-cursor.ts";
 import type { ShownValueValidation } from "./validation-engine.ts";
@@ -197,7 +198,7 @@ export class KeyValueActionEngine {
         const popup = domEvent.target.closest(PopupRoleSelector);
         const openList = cell.querySelector("[role='listbox']");
 
-        if ((popup !== null && cell.contains(popup)) || (openList !== null && openList.getClientRects().length > 0) || (domEvent.key === "Enter" && domEvent.target instanceof HTMLTextAreaElement))
+        if ((popup !== null && cell.contains(popup)) || popupHolding(domEvent.target) !== null || cell.querySelector("[aria-expanded='true']") !== null || (openList !== null && openList.getClientRects().length > 0) || (domEvent.key === "Enter" && domEvent.target instanceof HTMLTextAreaElement))
             return;
 
         const buttons = row.querySelectorAll<HTMLButtonElement>(`.${KeyValueActionEditActionClass} button`);

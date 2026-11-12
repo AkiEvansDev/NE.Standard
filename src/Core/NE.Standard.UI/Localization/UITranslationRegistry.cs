@@ -56,10 +56,10 @@ internal sealed class UITranslationRegistry : ITranslator
 
     private static string[] BuildLanguages(string defaultLanguage, ITranslationSource[] sources)
     {
-        HashSet<string> languages = new(StringComparer.Ordinal)
-        {
-            defaultLanguage
-        };
+        HashSet<string> languages =
+        [
+with(StringComparer.Ordinal),             defaultLanguage
+        ];
 
         for (var i = 0; i < sources.Length; i++)
         {
@@ -292,7 +292,7 @@ internal sealed class UITranslationRegistry : ITranslator
 
         if (!string.Equals(language, DefaultLanguage, StringComparison.Ordinal))
         {
-            own = new HashSet<string>(StringComparer.Ordinal);
+            own = [with(StringComparer.Ordinal)];
             complete &= Overlay(words, language, own);
         }
 

@@ -46,7 +46,7 @@ public sealed class UICompiledBindingIndex
         _templates = templates;
         _all = [.. bindings];
 
-        Dictionary<UIBindingId, CompiledUIBinding> byId = new(bindings.Length);
+        Dictionary<UIBindingId, CompiledUIBinding> byId = [with(bindings.Length)];
         Dictionary<UIPropertyAddress, CompiledUIBinding> propertyByAddress = [];
         Dictionary<UIPropertyAddress, CompiledUIBinding> collectionByAddress = [];
         Dictionary<UIBindingTemplateId, List<CompiledUIBinding>> byTemplate = [];
@@ -93,7 +93,7 @@ public sealed class UICompiledBindingIndex
     /// </summary>
     private static FrozenDictionary<RecursivePath, string> BuildTemplatesByShape(UICompiledBindingTemplateIndex templates)
     {
-        Dictionary<RecursivePath, string> byShape = new(RecursivePathTemplate.ShapeComparer);
+        Dictionary<RecursivePath, string> byShape = [with(RecursivePathTemplate.ShapeComparer)];
 
         foreach (CompiledUIBindingTemplate template in templates.All)
         {
@@ -262,6 +262,72 @@ public sealed class UICompiledBindingIndex
     /// </summary>
     public IReadOnlyList<CompiledUIBinding> GetControllerDescendantCollections(RecursivePath path, out object[] parameters)
         => GetDescendants(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentCollection, out parameters);
+
+    /// <summary>
+    /// Attempts to get controller-source property bindings matching <paramref name="path"/>, extracting parameters only on a match.
+    /// </summary>
+    public bool TryGetControllerProperties(RecursivePath path, out IReadOnlyList<CompiledUIBinding> bindings, out object[] parameters)
+        => TryGet(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentProperty, out bindings, out parameters);
+
+    /// <summary>
+    /// Attempts to get controller-source collection bindings matching <paramref name="path"/>, extracting parameters only on a match.
+    /// </summary>
+    public bool TryGetControllerCollections(RecursivePath path, out IReadOnlyList<CompiledUIBinding> bindings, out object[] parameters)
+        => TryGet(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentCollection, out bindings, out parameters);
+
+    /// <summary>
+    /// Attempts to get controller-source property bindings below <paramref name="path"/>, extracting parameters only on a match.
+    /// </summary>
+    public bool TryGetControllerDescendantProperties(RecursivePath path, out IReadOnlyList<CompiledUIBinding> bindings, out object[] parameters)
+        => TryGetDescendants(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentProperty, out bindings, out parameters);
+
+    /// <summary>
+    /// Attempts to get controller-source collection bindings below <paramref name="path"/>, extracting parameters only on a match.
+    /// </summary>
+    public bool TryGetControllerDescendantCollections(RecursivePath path, out IReadOnlyList<CompiledUIBinding> bindings, out object[] parameters)
+        => TryGetDescendants(_sources.Controller.Id, path, CompiledUIBindingKind.ComponentCollection, out bindings, out parameters);
+
+    private bool TryGet(UIBindingSourceId sourceId, RecursivePath path, CompiledUIBindingKind kind, out IReadOnlyList<CompiledUIBinding> bindings, out object[] parameters)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        if (_templatesByShape.TryGetValue(path, out var template))
+        {
+            CompiledUIBinding[] matched = GetByTemplateString(sourceId, template, kind);
+
+            if (matched.Length > 0)
+            {
+                bindings = matched;
+                parameters = RecursivePathTemplate.GetParameters(path);
+                return true;
+            }
+        }
+
+        bindings = Empty;
+        parameters = [];
+        return false;
+    }
+
+    private bool TryGetDescendants(UIBindingSourceId sourceId, RecursivePath path, CompiledUIBindingKind kind, out IReadOnlyList<CompiledUIBinding> bindings, out object[] parameters)
+    {
+        ArgumentNullException.ThrowIfNull(path);
+
+        if (_templatesByShape.TryGetValue(path, out var template))
+        {
+            CompiledUIBinding[] matched = GetDescendantsByTemplateString(sourceId, template, kind);
+
+            if (matched.Length > 0)
+            {
+                bindings = matched;
+                parameters = RecursivePathTemplate.GetParameters(path);
+                return true;
+            }
+        }
+
+        bindings = Empty;
+        parameters = [];
+        return false;
+    }
 
     /// <summary>
     /// Gets bindings for a source and concrete path.

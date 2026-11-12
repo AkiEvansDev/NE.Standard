@@ -25,7 +25,7 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(560,
-            ("Spans of twenty-four, and one child wider than its columns", frame => frame.AddChild(CreateSpansPane())),
+            ("Spans of twenty-four, and one child wider than its columns", frame => frame.SetPadding(UIThickness.All(12, 12, 124, 12)).AddChild(CreateSpansPane())),
             ("A fixed column beside what is left", frame => frame.AddChild(CreateColumnsPane())),
             ("Rows: a fixed one, one sized by its content, one with a floor", frame => frame.AddChild(CreateRowsPane())),
             ("Placed twice: full width below xl, two across from xl up", frame => frame.AddChild(CreateBreakpointPane()))
@@ -36,6 +36,7 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateSpansPane()
         => Bind(new ContainerComponent()
+            .SetMaxWidth(UILayoutLength.Absolute(560))
             .SetRow(1, UIGridUnit.Auto())
             .AddRow(UIGridUnit.Auto())
             .AddRow(UIGridUnit.Auto())
@@ -45,7 +46,7 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
             .AddChild(Tile(4).SetPlacement(1, 2, 12, 1))
             .AddChild(Tile(5).SetPlacement(13, 2, 12, 1))
             .AddChild(Tile(6).SetPlacement(1, 3, 20, 1))
-            .AddChild(Tile(7, width: 160).SetPlacement(21, 3, 4, 1))
+            .AddChild(Tile(7, width: 140).SetPlacement(21, 3, 4, 1))
         );
 
     /// <summary>
@@ -110,9 +111,10 @@ internal sealed class ContainerView : DemoComponentView, IUIViewDefinition
         if (width is not double fixedWidth)
             return tile.SetWidth(UILayoutLength.Auto());
 
-        // It says its own width, or a tile clipped at the container's edge reads as the grid failing.
+        // It says its own width and max-width (a placed child is otherwise capped to its cell), or a tile clipped at the container's edge reads as the grid failing.
         return tile
             .SetWidth(UILayoutLength.Absolute(fixedWidth))
+            .SetMaxWidth(UILayoutLength.Absolute(fixedWidth))
             .SetContent(new TextComponent()
                 .SetTitle(string.Create(CultureInfo.InvariantCulture, $"{number} · {fixedWidth:0} px"))
                 .SetTitleType(UITextAppearance.Caption)

@@ -371,15 +371,14 @@ export class MenuGroupEngine {
 
         this.closeGroups(menu);
 
-        // Level with its entry: docked to the popup that entry stands in, or spaced outside an on-page surface wrapping the menu.
-        const popupSurface = anchor.closest(PopupMenuSelector);
-        const surface = popupSurface ?? menuSurfaceBox(outerMenu);
+        // Level with its entry and docked flush to the popup or on-page menu surface that entry stands in.
+        const surface = anchor.closest(PopupMenuSelector) ?? menuSurfaceBox(outerMenu);
 
         // Called what its group's own entry says, as a native submenu is.
         const list = submenu.querySelector<HTMLElement>(`:scope > .${RootClass}`);
         const entry = group.querySelector<HTMLElement>(`:scope > .${ItemClass}`);
 
-        if (!this.flyouts.open({ owner: group, popup: submenu, anchor, placement: { placement: `${towardContent(outerMenu)}-start`, surface, docked: popupSurface !== null, alignEntries: true }, namedBy: entry, namedPart: list }))
+        if (!this.flyouts.open({ owner: group, popup: submenu, anchor, placement: { placement: `${towardContent(outerMenu)}-start`, surface, alignEntries: true }, namedBy: entry, namedPart: list }))
             return;
 
         // From the keyboard, into its first entry, as a submenu opened by a key is; a press leaves the focus on the rail.
@@ -456,7 +455,7 @@ export function outermostMenuOf(menu: HTMLElement): HTMLElement {
     return current;
 }
 
-/** An on-page `.ui-surface` wrapping a menu alone, so a flyout from inside it stands clear of the surface's border. */
+/** An on-page `.ui-surface` wrapping a menu alone, so a flyout from inside it docks flush against the surface's border. */
 function menuSurfaceBox(menu: HTMLElement): HTMLElement | undefined {
     const parent = menu.parentElement;
 

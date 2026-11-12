@@ -282,7 +282,7 @@ public sealed class ServerItemJsonConverter : JsonConverter<object>
             _name = name;
             _inner = member.Inner is { IsWhole: false } inner ? inner : null;
             _converter = property.CustomConverter as JsonConverter<TValue>;
-            _typeInfo = (JsonTypeInfo<TValue>)options.GetTypeInfo(typeof(TValue));
+            _typeInfo = options.GetTypeInfo<TValue>();
 
             // An overridable getter is read through the contract, which dispatches as the type does.
             if (!typeof(TOwner).IsValueType && property.AttributeProvider is PropertyInfo { GetMethod: { IsStatic: false } getter } && (!getter.IsVirtual || getter.IsFinal))

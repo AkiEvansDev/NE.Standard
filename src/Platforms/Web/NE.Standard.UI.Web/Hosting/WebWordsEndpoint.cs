@@ -141,7 +141,7 @@ internal sealed class WebWordsAsset
     public static WebWordsAsset Build(ITranslator translator, string language, IEnumerable<IUIStringsSource> packages, bool reportMissing, UITemporalOptions? temporal)
     {
         UIWordTable table = translator.ListWords(language);
-        SortedDictionary<string, string> words = new(StringComparer.Ordinal);
+        SortedDictionary<string, string> words = [with(StringComparer.Ordinal)];
 
         foreach (KeyValuePair<string, string> word in table.Words)
             words[word.Key] = word.Value;

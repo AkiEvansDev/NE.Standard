@@ -28,7 +28,7 @@ public sealed class UICompiledBindingTemplateIndex
 
         _all = [.. templates];
 
-        Dictionary<UIBindingTemplateId, CompiledUIBindingTemplate> byId = new(templates.Length);
+        Dictionary<UIBindingTemplateId, CompiledUIBindingTemplate> byId = [with(templates.Length)];
         Dictionary<TemplateKey, CompiledUIBindingTemplate> byKey = [];
 
         for (var i = 0; i < templates.Length; i++)

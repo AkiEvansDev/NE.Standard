@@ -50,8 +50,18 @@ public enum ScrollToBlock
 /// <summary>
 /// Requests the UI client to scroll a component into view.
 /// </summary>
-public sealed class ScrollToEffect(UIComponentReference target, ScrollToBehavior behavior, ScrollToBlock block) : TargetedClientEffect(target)
+public sealed class ScrollToEffect : TargetedClientEffect
 {
+    /// <summary>
+    /// Creates an effect aimed at the given target component with the specified behavior and block alignment.
+    /// </summary>
+    public ScrollToEffect(UIComponentReference target, ScrollToBehavior behavior, ScrollToBlock block)
+        : base(target)
+    {
+        Behavior = behavior;
+        Block = block;
+    }
+
     /// <summary>
     /// Creates an effect that scrolls the component identified by <paramref name="targetComponentId"/>
     /// into view, using the default behavior and block alignment.
@@ -84,6 +94,21 @@ public sealed class ScrollToEffect(UIComponentReference target, ScrollToBehavior
         : this(new UIComponentReference(targetComponent, dynamicParameters), behavior, block)
     { }
 
+    [JsonConstructor]
+    internal ScrollToEffect(UIComponentAddress? resolvedTarget, ScrollToBehavior behavior, ScrollToBlock block)
+        : base(resolvedTarget)
+    {
+        Behavior = behavior;
+        Block = block;
+    }
+
+    private ScrollToEffect(UIComponentAddress resolvedTarget, UIComponentReference target, ScrollToBehavior behavior, ScrollToBlock block)
+        : base(resolvedTarget, target)
+    {
+        Behavior = behavior;
+        Block = block;
+    }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.ScrollTo;
 
@@ -94,29 +119,17 @@ public sealed class ScrollToEffect(UIComponentReference target, ScrollToBehavior
     /// <summary>
     /// Gets the scrolling behavior.
     /// </summary>
-    public ScrollToBehavior Behavior { get; init; } = behavior;
+    public ScrollToBehavior Behavior { get; init; }
 
     /// <summary>
     /// Gets the target block alignment.
     /// </summary>
-    public ScrollToBlock Block { get; init; } = block;
+    public ScrollToBlock Block { get; init; }
 
     /// <inheritdoc />
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        return new CompiledScrollToEffect(resolver.ResolveComponent(Target), Behavior, Block);
+        return ResolvedTarget is not null ? this : new ScrollToEffect(resolver.ResolveComponent(Target), Target, Behavior, Block);
     }
-}
-
-internal sealed class CompiledScrollToEffect(UIComponentAddress target, ScrollToBehavior behavior, ScrollToBlock block) : CompiledTargetedClientEffect(target)
-{
-    public override string Kind => ClientEffectKinds.ScrollTo;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
-
-    public ScrollToBehavior Behavior { get; } = behavior;
-    public ScrollToBlock Block { get; } = block;
 }

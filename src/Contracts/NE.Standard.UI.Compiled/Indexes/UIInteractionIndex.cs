@@ -32,7 +32,7 @@ public sealed class UIInteractionIndex
         ArgumentNullException.ThrowIfNull(interactions);
 
         _all = [.. interactions];
-        _firstPaint = firstPaint is null || firstPaint.Count == 0 ? FrozenDictionary<UIPropertyAddress, object?>.Empty : firstPaint.ToFrozenDictionary();
+        _firstPaint = firstPaint is null || firstPaint.Count == 0 ? [] : firstPaint.ToFrozenDictionary();
 
         Dictionary<UIPropertyAddress, List<CompiledUIInteraction>> byPropertySource = [];
         Dictionary<CompiledUIEventAddress, List<CompiledUIInteraction>> byEventSource = [];

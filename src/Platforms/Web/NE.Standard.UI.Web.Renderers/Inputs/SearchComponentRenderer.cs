@@ -104,6 +104,9 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         _ = input.Attribute("aria-expanded", "false");
         TextContentRendererBase.RenderFieldLabel(context, input);
 
+        if (!TextContentRendererBase.IsFieldNamed(context))
+            WebWords.Write(context, input, "aria-label", UIStrings.SearchField);
+
         // The framework's word: the author's placeholder is the closed field's, as a select's.
         WebWords.Write(context, input, "placeholder", UIStrings.SearchField);
 

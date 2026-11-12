@@ -7,4 +7,6 @@ public sealed class TabCaptionRegionRenderer : TextRegionRendererBase
     public override string ComponentTypeKey => TabCaptionRegion.ComponentTypeKey;
 
     protected override string ClassName => "ui-tab__caption";
+
+    protected override bool InsideFocusableControl => true;
 }

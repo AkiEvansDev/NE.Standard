@@ -283,7 +283,7 @@ export function periodDistanceRefusal(root: HTMLElement, value: Date, end: boole
     if (apart === null || other === null)
         return null;
 
-    const start = value.getTime() < other.getTime();
+    const start = value.getTime() === other.getTime() ? !end : value.getTime() < other.getTime();
 
     if (start ? isHeldApart(value, other, apart) : isHeldApart(other, value, apart))
         return null;
@@ -437,16 +437,16 @@ export function typedValue(root: HTMLElement, text: string): string {
 }
 
 /** Puts a period's ends in order after one is written: an end typed or stepped before the start swaps with it, rather than refusing. */
-export function orderPeriod(root: HTMLElement): void {
+export function orderPeriod(root: HTMLElement): boolean {
     if (!isRange(root))
-        return;
+        return false;
 
     // The end read at the start's offset: two instants, whatever offsets they are written with.
     const period = { start: readValueOf(root, false), end: readOtherEnd(root, false) };
     const ordered = orderedPeriod(period);
 
     if (ordered === period)
-        return;
+        return false;
 
     // The ends trade their texts rather than being written again, so each instant keeps the offset it is written with.
     const start = valueInputOf(root, false)?.value ?? "";
@@ -454,23 +454,36 @@ export function orderPeriod(root: HTMLElement): void {
 
     writeTextOf(root, end, false);
     writeTextOf(root, start, true);
+
+    return true;
 }
 
 /**
- * The words a control's value past its Min or Max is refused in — its start's, then a period's end's — the bound written as the field
- * shows a value; null for values inside them, or none. Never pulled back to the bound: the reader sees what they gave and why.
+ * The words a control's value past its Min, Max or MinDistance is refused in — its start's, then a period's end's, or the requested
+ * end's alone — the bound written as the field shows a value; null for values inside them, or none. Never pulled back to the bound:
+ * the reader sees what they gave and why.
  */
-export function temporalBoundRefusal(root: HTMLElement): Phrase | null {
-    for (const end of isRange(root) ? [false, true] : [false]) {
-        const value = readValueOf(root, end);
-        const min = readBound(root, TemporalMinAttribute, end);
-        const max = readBound(root, TemporalMaxAttribute, end);
+export function temporalBoundRefusal(root: HTMLElement, end?: boolean): Phrase | null {
+    const ends = end !== undefined ? [end] : isRange(root) ? [false, true] : [false];
+
+    for (const candidate of ends) {
+        const value = readValueOf(root, candidate);
+        const min = readBound(root, TemporalMinAttribute, candidate);
+        const max = readBound(root, TemporalMaxAttribute, candidate);
 
         if (value !== null && min !== null && value.getTime() < min.getTime())
             return { key: "ui.value.before", args: { min: formatTemporal(min, readFormat(root), readCulturePack(root)) } };
 
         if (value !== null && max !== null && value.getTime() > max.getTime())
             return { key: "ui.value.after", args: { max: formatTemporal(max, readFormat(root), readCulturePack(root)) } };
+    }
+
+    if (isRange(root)) {
+        const targetEnd = end ?? true;
+        const value = readValueOf(root, targetEnd);
+
+        if (value !== null)
+            return periodDistanceRefusal(root, value, targetEnd);
     }
 
     return null;

@@ -266,10 +266,22 @@
     color: inherit;
 }
 
-// A component clipping its children (`Overflow` Hidden, written inline as `overflow: clip`) leaves them the keyboard frame's reach past
-// its edge: a frame drawn round a link's words or a toggle's row stood cut on the side where it met the panel.
-[data-ui-id][style*="overflow: clip"] {
+// Every IOverflowComponent defaults to Hidden (`overflow: clip`, IOverflowComponent.OverflowProperty); written here too so a bound
+// null matches an unbound component without an inline style.
+:where(.ui-container, .ui-pane-container, .ui-stack-panel, .ui-wrap-panel, .ui-surface, .ui-card, .ui-expander, .ui-accordion, .ui-key-value-action, .ui-button:not(.ui-tab-caption))[data-ui-id] {
+    overflow: clip;
+}
+
+// Unframed layout panels whose unframed descendants protrude a hover contour, thumb or underline (`LayoutClipReachRenderer`), and
+// forced-colours outside focus outlines, keep @ui-keyboard-frame-reach; framed/filled surfaces and ordinary panels clip at 0 px.
+[data-ui-id][data-ui-clip-reach="contour"]:not([style*="--ui-border-thickness"], [style*="--ui-surface-color"], [style*="--ui-bg-image"]) {
     overflow-clip-margin: @ui-keyboard-frame-reach;
+}
+
+@media (forced-colors: active) {
+    :is(.ui-container, .ui-stack-panel, .ui-wrap-panel, .ui-accordion)[data-ui-id]:not([style*="--ui-border-thickness"], [style*="--ui-surface-color"], [style*="--ui-bg-image"]) {
+        overflow-clip-margin: @ui-keyboard-frame-reach;
+    }
 }
 
 // A lifted popup is a manual popover whose default box (centred, bordered, padded) would fill in what its rules leave unset;

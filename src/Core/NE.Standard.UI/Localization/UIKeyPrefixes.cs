@@ -15,7 +15,7 @@ internal static class UIKeyPrefixes
         if (keyPrefixes is null || keyPrefixes.Count == 0)
             return [];
 
-        HashSet<string> prefixes = new(StringComparer.Ordinal) { UITranslationRegistry.FrameworkPrefix };
+        HashSet<string> prefixes = [with(StringComparer.Ordinal), UITranslationRegistry.FrameworkPrefix];
 
         for (var i = 0; i < keyPrefixes.Count; i++)
         {

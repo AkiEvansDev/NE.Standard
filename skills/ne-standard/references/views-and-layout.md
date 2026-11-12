@@ -9,7 +9,7 @@ public sealed class OrdersView : UIViewBase, IUIViewDefinition
 {
     public static string ViewKey => "orders";
 
-    public override string? Title => "Orders";
+    public override string Title => "Orders";
 
     public override UIViewOptions Options => new()
     {
@@ -18,13 +18,13 @@ public sealed class OrdersView : UIViewBase, IUIViewDefinition
         ShellLayout = UIShellLayout.HeaderFirst
     };
 
-    public override IUIComponentDefinition CreateContent() => ...;
+    protected override IVisualComponent CreateContent() => ...;
 }
 ```
 
-- Regions: `CreateContent()` (required), `CreateHeader()`, `CreateFooter()`, `CreateLeftSide()`, `CreateRightSide()`.
-- `CreateDialogs()` returns `IEnumerable<UIDialog>` (use `UIDialogs.Create`, `UIDialogs.Form`, `UIDialogs.Confirm`, or `new UIDialog(key, content) { TitleId = ..., CloseOnBackdrop = true, CloseOnEscape = true }.OnClose(command)`).
-- `CreateShortcuts()` returns `IEnumerable<UIShortcut>` (`new UIShortcut("Ctrl+S", nameof(OrdersController.Save))`).
+- Regions (`protected virtual`, except `CreateContent` which is `protected abstract`): `CreateContent()` (required, returns `IVisualComponent`), `CreateHeader()`, `CreateFooter()`, `CreateLeftSide()`, `CreateRightSide()` (each returns `IVisualComponent?`).
+- `CreateDialogs()` (`protected virtual`) returns `IReadOnlyList<UIDialog>` (use `UIDialogs.Create`, `UIDialogs.Form`, `UIDialogs.Confirm`, or `new UIDialog(key, content) { TitleId = ..., CloseOnBackdrop = true, CloseOnEscape = true }.OnClose(command)`).
+- `CreateShortcuts()` (`protected virtual`) returns `IReadOnlyList<UIShortcut>` (`new UIShortcut("Ctrl+S", nameof(OrdersController.Save))`).
 - Authored IDs (`new StackPanelComponent("sidebar")`) persist reader state (splitter share, collapsed state, pane layout) across reloads.
 
 ## 24-Column Grid & Responsive Values

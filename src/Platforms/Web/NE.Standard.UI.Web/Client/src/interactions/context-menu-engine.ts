@@ -5,13 +5,14 @@
 // waits to be drawn until it is wanted (`row-menus.ts`): asked for here, it is drawn, and opens once the page's engines took it in.
 
 import type { AnchoredPopupOptions } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarMoreClass, ActionBarRestAttribute, ActionBarStripClass, ComponentSelector, ContextMenuAttribute, ContextMenuLaterAttribute, ContextMenuOpenClass, ContextMenuOpeningEventName, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector } from "../addressing/dom-attributes.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarMoreClass, ActionBarRestAttribute, ActionBarStripClass, ComponentSelector, ContextMenuAttribute, ContextMenuLaterAttribute, ContextMenuOpenClass, ContextMenuOpeningEventName, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector, RenameFieldAttribute } from "../addressing/dom-attributes.ts";
 import { drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAtPoint } from "./anchored-popup.ts";
 import { takesTyping } from "./caret-fields.ts";
 import { isInert, isItemRefused } from "./interactive-state.ts";
 import { isLongPressOpening, LongPress } from "./long-press.ts";
 import { choosesMenuEntry, menuWalk } from "./menu-group-engine.ts";
+import { FieldBoxSelector } from "./own-control.ts";
 import { ownDescendants } from "./own-descendants.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { shownRules } from "./tab-menu.ts";
@@ -182,7 +183,7 @@ export class ContextMenuEngine {
             return;
 
         if (anchor === null)
-            placeAtPoint(menu, x, y);
+            placeAtPoint(menu, x, y, owner);
 
         focusOpening(menu);
     }
@@ -216,8 +217,13 @@ export function contextMenuAt(target: Element): { readonly owner: HTMLElement; r
 /** The owners a right press on `target` asks in turn, nearest first, past the ones with nothing to offer it and up to a refusal. */
 function* offeringOwners(target: Element): Generator<HTMLElement, void> {
     const refusing = target.closest(`[${NoContextMenuAttribute}]`);
+    const typing = takesTyping(target);
+    const typingOwner = typing ? ownTypingOwner(target) : null;
 
     for (let owner = target.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`); owner !== null; owner = owner.parentElement?.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`) ?? null) {
+        if (typing && owner !== typingOwner)
+            return;
+
         // A part of the owner that refuses a menu — a panel standing over a canvas — keeps the owner's menu off it, as a row does.
         if (refusing !== null && owner.contains(refusing))
             return;
@@ -231,6 +237,16 @@ function* offeringOwners(target: Element): Generator<HTMLElement, void> {
 
         yield owner;
     }
+}
+
+function ownTypingOwner(target: Element): Element | null {
+    if (target.hasAttribute(RenameFieldAttribute))
+        return null;
+
+    if (target.hasAttribute(ContextMenuOwnerAttribute))
+        return target;
+
+    return target.closest(FieldBoxSelector)?.closest(ComponentSelector) ?? null;
 }
 
 /**
@@ -329,7 +345,7 @@ export function actionBarMenuOf(target: Element, actionBar: boolean): HTMLElemen
     const owner = target.closest<HTMLElement>(`[${ContextMenuOwnerAttribute}]`);
     const refusing = target.closest(`[${NoContextMenuAttribute}]`);
 
-    if (owner === null || isInert(owner) || isRefused(owner) || (refusing !== null && owner.contains(refusing)))
+    if (owner === null || (takesTyping(target) && owner !== ownTypingOwner(target)) || isInert(owner) || isRefused(owner) || (refusing !== null && owner.contains(refusing)))
         return null;
 
     return candidateMenus(owner, target).find(menu => prepareMenu(menu, target, actionBar)) ?? null;

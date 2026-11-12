@@ -55,7 +55,7 @@ internal sealed partial class UIRuntime
         private const int MaxOffers = 32;
 
         private readonly Lock _sync = new();
-        private readonly Dictionary<string, OfferedCommand> _items = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, OfferedCommand> _items = [with(StringComparer.Ordinal)];
         private readonly Queue<string> _order = new();
 
         public string Add(string commandName, IReadOnlyDictionary<string, object?> arguments)

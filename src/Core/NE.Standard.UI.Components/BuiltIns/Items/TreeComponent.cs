@@ -67,17 +67,21 @@ public abstract partial class TreeComponent<T> : RowItemsComponentBase<T, ITreeN
     /// </summary>
     protected TreeComponent(string? id = null) : base(id)
     {
-        _ = SetRowTemplate(new DefaultRowTemplate());
+        SetDefaultTemplateVariant(TemplateNames.Row, new DefaultRowTemplate());
         _ = DeclareCompositeSlot(TemplateNames.Node, nameof(ITreeNodeModel.Kind));
-        _ = SetTemplateVariantCore(TemplateNames.Node, new TreeNodeComponent(binds: true));
-        _ = SetEmptyTemplate(new DefaultEmptyTemplate());
+        SetDefaultTemplateVariant(TemplateNames.Node, new TreeNodeComponent(binds: true));
+        SetDefaultEmptyTemplate(new DefaultEmptyTemplate());
     }
 
     /// <summary>
     /// Configures the built-in node template — its glyph, its colours, the menu every node without a kind of its own opens.
     /// </summary>
     public T ConfigureDefaultNode(Action<TreeNodeComponent> configure)
-        => Self.ConfigureTemplate(NodeTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(NodeTemplate, configure, "template");
+        MarkTemplateVariantAuthored(TemplateNames.Node);
+        return result;
+    }
 
     /// <summary>
     /// Sets the node template a node is drawn with when no variant matches its kind.

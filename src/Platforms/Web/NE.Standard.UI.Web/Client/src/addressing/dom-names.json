@@ -367,6 +367,19 @@
         "value":  "data-ui-items-empty"
     },
     {
+        "constant":  "ItemsNoMatchAttribute",
+        "value":  "data-ui-items-no-match",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "GroupStartAttribute",
+        "value":  "data-ui-group-start"
+    },
+    {
+        "constant":  "GroupEndAttribute",
+        "value":  "data-ui-group-end"
+    },
+    {
         "constant":  "CollectionSinkAttribute",
         "value":  "data-ui-collection-sink"
     },
@@ -707,6 +720,12 @@
         "constant":  "WindowAggregatesAttribute",
         "value":  "data-ui-window-aggregates",
         "plugin":  "windowAggregates"
+    },
+    {
+        "constant":  "ItemsVersionAttribute",
+        "value":  "data-ui-items-version",
+        "clientOnly":  true,
+        "plugin":  "itemsVersion"
     },
     {
         "constant":  "FormIdAttribute",
@@ -1436,6 +1455,10 @@
         "constant":  "TextInputClass",
         "value":  "ui-text-input",
         "plugin":  "textInputClass"
+    },
+    {
+        "constant":  "InputHeaderClass",
+        "value":  "ui-input__header"
     },
     {
         "constant":  "InvalidClass",
@@ -3473,5 +3496,13 @@
         "constant":  "BadgeSurfaceClass",
         "value":  "ui-badge-variant--surface",
         "plugin":  "badgeSurfaceClass"
+    },
+    {
+        "constant":  "PlaceholderNamesAttribute",
+        "value":  "data-ui-placeholder-names"
+    },
+    {
+        "constant":  "TextAreaClass",
+        "value":  "ui-text-area"
     }
 ]

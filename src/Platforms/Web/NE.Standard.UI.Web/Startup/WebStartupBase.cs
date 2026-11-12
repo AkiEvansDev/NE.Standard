@@ -85,15 +85,19 @@ internal static class WebServerRegistration
                 static (options, ui) => options.EnableForHttps = ui.Value.EnableForHttps
             );
 
-        // The limiter first: a call it refuses is refused at once, not after the simulated wait.
+        // The limiter first, so a refused call never waits; the disconnect filter next, so a closed socket ends both the simulated wait
+        // and the hub method quietly rather than as a dispatcher error.
         _ = services.AddSignalR(static options =>
         {
             options.AddFilter<WebHubCallLimiter>();
+            options.AddFilter<WebHubDisconnectFilter>();
             options.AddFilter<WebHubLatency>();
             // What a stateful reconnect replays: past it a push waits for the client's ack, so it holds about thirty messages at the
             // 32 KB cap rather than SignalR's 100 KB, three — a push to a page whose socket blinked would stall the runtime's sends.
             options.StatefulReconnectBufferSize = 1024 * 1024;
-        }).AddJsonProtocol(WebHubProtocol.Configure);
+        }).AddJsonProtocol();
+        _ = services.AddOptions<JsonHubProtocolOptions>()
+            .Configure<IServiceProvider>(static (options, provider) => WebHubProtocol.Configure(options, provider.GetService<UIApplication>()?.Security));
 
         services.TryAddSingleton<WebAssetCompression>();
         services.TryAddSingleton(TimeProvider.System);
@@ -104,6 +108,7 @@ internal static class WebServerRegistration
         services.TryAddSingleton<WebOutgoingValues>();
         services.TryAddSingleton<WebRuntimeStamps>();
         services.TryAddSingleton<WebHubCallLimiter>();
+        services.TryAddSingleton<WebHubDisconnectFilter>();
         services.TryAddSingleton<WebHubLatency>();
         services.TryAddSingleton<WebUIMetrics>();
         services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();

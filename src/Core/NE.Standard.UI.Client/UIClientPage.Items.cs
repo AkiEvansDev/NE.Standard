@@ -14,6 +14,7 @@ using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Text;
+using NE.Standard.UI.Serialization;
 
 namespace NE.Standard.UI.Client;
 
@@ -31,25 +32,43 @@ public sealed partial class UIClientPage
     /// </summary>
     private List<UIClientRowEntry> ReadVisibleRowsNoLock(UIComponentAddress host)
     {
+        var language = Language;
+
+        if (_visibleRowsCache.TryGetValue(host, out (long Stamp, string Language, List<UIClientRowEntry> Rows) cached)
+            && cached.Stamp == _visibleRowsStamp
+            && string.Equals(cached.Language, language, StringComparison.Ordinal))
+        {
+            return cached.Rows;
+        }
+
         List<UIClientRowEntry> sourceRows = ReadSourceRowsNoLock(host);
 
         if (sourceRows.Count == 0 || ReadNoLock(host.Id, host.DynamicParameters, IItemsHostComponent.HostModeProperty) is UIItemsHostMode.Windowed)
+        {
+            _visibleRowsCache[host] = (_visibleRowsStamp, language, sourceRows);
             return sourceRows;
+        }
 
         CompiledUIItemsView? itemsView = ReadNoLock(host.Id, host.DynamicParameters, IItemsComponent.ItemsViewProperty) as CompiledUIItemsView;
         UIItemsQuery? query = ReadNoLock(host.Id, host.DynamicParameters, IItemsComponent.QueryProperty) as UIItemsQuery;
 
         if (itemsView is null && query is null)
+        {
+            _visibleRowsCache[host] = (_visibleRowsStamp, language, sourceRows);
             return sourceRows;
+        }
 
         List<ActiveItemsFilter> filters = BuildActiveFiltersNoLock(itemsView, query, host.DynamicParameters);
         var searchWords = SplitSearchWords(query?.Search);
         List<ActiveItemsSort> sorts = BuildActiveSortsNoLock(itemsView, query, host.DynamicParameters);
 
         if (filters.Count == 0 && searchWords.Length == 0 && sorts.Count == 0)
+        {
+            _visibleRowsCache[host] = (_visibleRowsStamp, language, sourceRows);
             return sourceRows;
+        }
 
-        List<(UIClientRowEntry Row, int Index)> matched = new(sourceRows.Count);
+        List<(UIClientRowEntry Row, int Index)> matched = [with(sourceRows.Count)];
 
         for (var i = 0; i < sourceRows.Count; i++)
         {
@@ -61,15 +80,16 @@ public sealed partial class UIClientPage
 
         if (sorts.Count > 0 && matched.Count > 1)
         {
-            CompareInfo compareInfo = ResolveCompareInfo(Language);
+            CompareInfo compareInfo = ResolveCompareInfo(language);
             matched.Sort((left, right) => CompareRows(left, right, sorts, compareInfo));
         }
 
-        List<UIClientRowEntry> visible = new(matched.Count);
+        List<UIClientRowEntry> visible = [with(matched.Count)];
 
         for (var i = 0; i < matched.Count; i++)
             visible.Add(matched[i].Row);
 
+        _visibleRowsCache[host] = (_visibleRowsStamp, language, visible);
         return visible;
     }
 
@@ -170,7 +190,7 @@ public sealed partial class UIClientPage
         return true;
     }
 
-    private static bool MatchesSearch(object? item, string[] searchWords)
+    private bool MatchesSearch(object? item, string[] searchWords)
     {
         if (item is null || searchWords.Length == 0)
             return true;
@@ -184,7 +204,7 @@ public sealed partial class UIClientPage
         return true;
     }
 
-    private static bool ValueContainsWord(object? value, string word, int depth)
+    private bool ValueContainsWord(object? value, string word, int depth)
     {
         if (value is null || depth > 6)
             return false;
@@ -195,7 +215,9 @@ public sealed partial class UIClientPage
                 return text.Contains(word, StringComparison.OrdinalIgnoreCase);
             case UIPhrase { IsText: true } authorText:
                 return authorText.Key.Contains(word, StringComparison.OrdinalIgnoreCase);
-            case UIPhrase or bool:
+            case UIPhrase phrase:
+                return Words(phrase) is { Length: > 0 } translated && translated.Contains(word, StringComparison.OrdinalIgnoreCase);
+            case bool:
                 return false;
             default:
                 break;
@@ -206,6 +228,24 @@ public sealed partial class UIClientPage
 
         if (value is DateTime or DateTimeOffset or DateOnly or TimeOnly)
             return UIScriptText.Of(value).Contains(word, StringComparison.OrdinalIgnoreCase);
+
+        if (value is IReadOnlyDictionary<string, object?> wireDictionary)
+        {
+            if ((wireDictionary.ContainsKey("key") || wireDictionary.ContainsKey("text"))
+                && wireDictionary.Count <= 2
+                && CompiledViewWireSerializer.CoerceWireValue(typeof(UIPhrase), wireDictionary) is UIPhrase coercedPhrase)
+            {
+                return Words(coercedPhrase) is { Length: > 0 } wireTranslated && wireTranslated.Contains(word, StringComparison.OrdinalIgnoreCase);
+            }
+
+            foreach (var entry in wireDictionary.Values)
+            {
+                if (ValueContainsWord(entry, word, depth + 1))
+                    return true;
+            }
+
+            return false;
+        }
 
         if (value is IDictionary dictionary)
         {
@@ -231,7 +271,10 @@ public sealed partial class UIClientPage
 
         Type type = value.GetType();
 
-        if (type.IsPrimitive || type.IsEnum)
+        if (type.IsEnum)
+            return value.ToString()!.Contains(word, StringComparison.OrdinalIgnoreCase);
+
+        if (type.IsPrimitive)
             return false;
 
         PropertyInfo[] properties = SearchablePropertiesCache.GetOrAdd(type, static itemType => itemType.GetProperties(BindingFlags.Instance | BindingFlags.Public));
@@ -311,6 +354,12 @@ public sealed partial class UIClientPage
 
         if (UIScriptNumber.ReadsAsNull(value))
             return 0;
+
+        if (value is bool flag)
+        {
+            number = flag ? 1 : 0;
+            return 1;
+        }
 
         if (UIScriptNumber.TryRead(value, out number))
             return 1;

@@ -179,14 +179,19 @@ function resolveStackItem(stack: readonly ItemStackEntry[], componentId: IdValue
     return NotResolved;
 }
 
-/** The value at a dotted property path of an item, each step read by the one rule below; undefined where a step cannot be taken. */
-export function readItemPropertyPath(item: unknown, path: string): unknown {
-    if (path.length === 0 || path === ".")
+/** Splits a dotted property path once into its steps; empty when the path names the item itself. */
+export function splitPropertyPath(path: string): readonly string[] {
+    return path.length === 0 || path === "." ? [] : path.split(".");
+}
+
+/** The value at pre-split property steps of an item, each step read by the one rule below; undefined where a step cannot be taken. */
+export function readItemPropertySegments(item: unknown, segments: readonly string[]): unknown {
+    if (segments.length === 0)
         return item;
 
     let current: unknown = item;
 
-    for (const segment of path.split(".")) {
+    for (const segment of segments) {
         const resolution = tryReadItemProperty(current, segment);
 
         if (!resolution.ok)
@@ -196,6 +201,11 @@ export function readItemPropertyPath(item: unknown, path: string): unknown {
     }
 
     return current;
+}
+
+/** The value at a dotted property path of an item, each step read by the one rule below; undefined where a step cannot be taken. */
+export function readItemPropertyPath(item: unknown, path: string): unknown {
+    return readItemPropertySegments(item, splitPropertyPath(path));
 }
 
 export function tryReadItemProperty(item: unknown, propertyName: string): BindingTemplateResolution {

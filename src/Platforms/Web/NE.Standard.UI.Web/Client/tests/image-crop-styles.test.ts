@@ -43,3 +43,10 @@ test("where a pointer hovers the zoom slider is shown across the dialog", () => 
     assert.ok(shown.every(rule => !/clip:|display:\s*none|visibility:\s*hidden/.test(rule.body)));
     assert.ok(shown.some(rule => /width:\s*100%/.test(rule.body)));
 });
+
+test("picture image-input surface caps its width at 100% of the capped root", () => {
+    const match = css.match(/\.ui-image-input--picture\s*>\s*\.ui-image-input__surface\s*\{([^}]*)\}/);
+
+    assert.ok(match);
+    assert.match(match[1], /max-width:\s*100%/);
+});

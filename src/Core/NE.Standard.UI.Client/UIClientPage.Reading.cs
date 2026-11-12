@@ -111,22 +111,13 @@ public sealed partial class UIClientPage
     private List<UIDynamicParameterScope> ScopesNoLock(UIComponentId componentId, object?[] rowKeys)
     {
         IReadOnlyList<UIComponentId> roots = View.Graph.GetItemScopes(componentId);
-        List<UIDynamicParameterScope> scopes = new(roots.Count);
+        List<UIDynamicParameterScope> scopes = [with(roots.Count)];
 
         for (var i = 0; i < roots.Count && i < rowKeys.Length; i++)
         {
             var key = rowKeys[i] as string ?? Convert.ToString(rowKeys[i], CultureInfo.InvariantCulture) ?? string.Empty;
             UIComponentId host = HostOf(roots[i]);
-            object? item = null;
-
-            foreach (UIClientRowEntry row in ReadSourceRowsNoLock(new UIComponentAddress(host, rowKeys[..i])))
-            {
-                if (string.Equals(row.Key, key, StringComparison.Ordinal))
-                {
-                    item = row.Item;
-                    break;
-                }
-            }
+            var item = TryGetSourceRowNoLock(new UIComponentAddress(host, rowKeys[..i]), key, out UIClientRowEntry? row) ? row.Item : null;
 
             scopes.Add(new UIDynamicParameterScope(roots[i], key, item));
         }
@@ -164,6 +155,9 @@ public sealed partial class UIClientPage
                 return false;
 
             if (scope.Item is IMenuItemModel entry && ResolveAtTierNoLock<UIVisibility>(entry.Visibility) is UIVisibility.Collapsed or UIVisibility.Hidden)
+                return false;
+
+            if (scope.Item is ITextBaseModel textEntry && ResolveAtTierNoLock<UIVisibility>(textEntry.Visibility) is UIVisibility.Collapsed or UIVisibility.Hidden)
                 return false;
 
             if (scope.Item is IReadOnlyDictionary<string, object?> && ItemContext.TryReadProperty(scope.Item, nameof(IMenuItemModel.Visibility), out var visibility) && ResolveAtTierNoLock<UIVisibility>(visibility) is UIVisibility.Collapsed or UIVisibility.Hidden)
@@ -222,6 +216,9 @@ public sealed partial class UIClientPage
         foreach (UIDynamicParameterScope scope in ScopesNoLock(componentId, rowKeys))
         {
             if (scope.Item is IMenuItemModel entry && (ResolveAtTierNoLock<bool>(entry.Enabled) is false || entry.Kind is UIMenuItemKind.Header or UIMenuItemKind.Separator))
+                return false;
+
+            if (scope.Item is ITextBaseModel textEntry && ResolveAtTierNoLock<bool>(textEntry.Enabled) is false)
                 return false;
 
             if (scope.Item is IReadOnlyDictionary<string, object?>
@@ -417,7 +414,7 @@ public sealed partial class UIClientPage
 
     /// <summary>Whether the property is bound to write back what the reader changes.</summary>
     internal bool WritesBack(UIComponentId componentId, UIProperty property)
-        => BindingOf(componentId, property) is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource };
+        => BindingOf(componentId, property) is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource or UIBindingMode.OnSubmit };
 
     /// <summary>The property and value choosing an option row writes back on <paramref name="host"/>, or null where it writes none.</summary>
     internal (UIProperty Property, object Value)? ChoiceWrite(UIComponentNode host, object?[] hostKeys, string key)
@@ -570,7 +567,7 @@ public sealed partial class UIClientPage
     {
         ReadOnlySpan<RecursivePathTemplatePart> parts = View.Templates.GetRequired(binding.TemplateId).Parsed.Parts;
         CompiledUIBindingParameter[] parameters = binding.Parameters;
-        List<CompiledUIBindingParameter> slotParameters = new(parameters.Length);
+        List<CompiledUIBindingParameter> slotParameters = [with(parameters.Length)];
 
         for (var i = 0; i < parameters.Length; i++)
         {

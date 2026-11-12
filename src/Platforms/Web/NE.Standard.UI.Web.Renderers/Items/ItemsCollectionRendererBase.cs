@@ -32,6 +32,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     private const string ItemsQueryClassName = "ui-items-query";
     // ShowEmptyTemplate off, on an empty-state host's root; the stylesheet alone reads it (mixins/empty-state.less).
     private const string NoEmptyAttribute = "data-ui-no-empty";
+    private const string DropTargetAttribute = "data-ui-drop-target";
 
     /// <summary>The client's row decorator that gives a row it builds its grip (<see cref="RenderRowGrip"/>).</summary>
     protected const string RowGripDecorator = "grip";
@@ -213,7 +214,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        HashSet<string> keys = new(StringComparer.Ordinal);
+        HashSet<string> keys = [with(StringComparer.Ordinal)];
 
         UISelectionMode? mode = ResolveSelectionMode(context);
 
@@ -384,10 +385,24 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
 
         RenderFlagAttribute(context, root, IEmptyStateComponent.ShowEmptyTemplateProperty, NoEmptyAttribute, WebValueCondition.IsFalse);
 
+        if (HasDropHandler(context.ViewResolution.View, context.Node.ComponentId))
+            _ = root.Attribute(DropTargetAttribute);
+
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
 
         if (!isBound && items.Count == 0 && context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.EmptyTemplate, out _))
             _ = root.Attribute(WebAttributes.ItemsEmpty);
+    }
+
+    private static bool HasDropHandler(CompiledView view, UIComponentId componentId)
+    {
+        foreach (CompiledUIEvent entry in view.Events.GetByComponent(componentId))
+        {
+            if (entry.Address.EventName.StartsWith(EventNames.DropPrefix, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>Renders the empty-state content directly into an items host, and marks the host as showing it.</summary>
@@ -587,7 +602,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         }
 
         List<string> order = [];
-        Dictionary<string, List<int>> buckets = new(StringComparer.Ordinal);
+        Dictionary<string, List<int>> buckets = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < items.Count; i++)
         {
@@ -604,15 +619,22 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         }
 
         // The items without a group are a bucket with no header: a rule with an empty label would only be a stray line.
-        foreach (var key in order)
+        for (var b = 0; b < order.Count; b++)
         {
+            var key = order[b];
             List<int> indexes = buckets[key];
+            var headed = key.Length > 0;
+            var nextHeaded = b + 1 < order.Count && order[b + 1].Length > 0;
 
-            if (key.Length > 0)
+            if (headed)
                 RenderGroupHeader(context, host, items[indexes[0]]);
 
-            foreach (var index in indexes)
-                RenderItem(context, host, items[index], index, itemClassName, itemElementName, decorateItem, appendItem);
+            for (var j = 0; j < indexes.Count; j++)
+            {
+                var index = indexes[j];
+
+                RenderItem(context, host, items[index], index, itemClassName, itemElementName, decorateItem, appendItem, groupStart: headed && j == 0, groupEnd: nextHeaded && j == indexes.Count - 1);
+            }
         }
     }
 
@@ -628,12 +650,15 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         for (var i = 0; i < items.Count; i++)
         {
             var group = items[i] is IBindableGroup grouped ? grouped.Group ?? string.Empty : string.Empty;
+            var startsGroup = group.Length > 0 && !string.Equals(group, previous, StringComparison.Ordinal);
+            var nextGroup = i + 1 < items.Count && items[i + 1] is IBindableGroup next ? next.Group ?? string.Empty : string.Empty;
+            var endsGroup = nextGroup.Length > 0 && !string.Equals(nextGroup, group, StringComparison.Ordinal);
 
-            if (group.Length > 0 && !string.Equals(group, previous, StringComparison.Ordinal))
+            if (startsGroup)
                 RenderGroupHeader(context, host, items[i]);
 
             previous = group;
-            RenderItem(context, host, items[i], i, itemClassName, itemElementName, decorateItem, appendItem);
+            RenderItem(context, host, items[i], i, itemClassName, itemElementName, decorateItem, appendItem, groupStart: startsGroup, groupEnd: endsGroup);
         }
     }
 
@@ -657,7 +682,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         if (items.Count == 0 || IsSessionItems(context) || (!always && !isGrouped && !HasItemsViewRules(context)))
             return;
 
-        List<WebRenderItemValue> values = new(items.Count);
+        List<WebRenderItemValue> values = [with(items.Count)];
         UIItemProjection projection = context.ViewResolution.View.ItemProjections.For(context.Node.ComponentId);
 
         for (var i = 0; i < items.Count; i++)
@@ -704,6 +729,9 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     }
 
     protected static void RenderItem(WebRenderContext context, IHtmlElementBuilder host, object? item, int index, string itemClassName, string itemElementName = "div", Action<IHtmlElementBuilder, object?, int>? decorateItem = null, Action<IHtmlElementBuilder, object?, int>? appendItem = null)
+        => RenderItem(context, host, item, index, itemClassName, itemElementName, decorateItem, appendItem, groupStart: false, groupEnd: false);
+
+    private static void RenderItem(WebRenderContext context, IHtmlElementBuilder host, object? item, int index, string itemClassName, string itemElementName, Action<IHtmlElementBuilder, object?, int>? decorateItem, Action<IHtmlElementBuilder, object?, int>? appendItem, bool groupStart, bool groupEnd)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(host);
@@ -721,6 +749,13 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         {
             _ = itemRoot.Class(itemClassName);
             ApplyItemParameterAttributes(itemRoot, parameter, item);
+
+            if (groupStart)
+                _ = itemRoot.Attribute(WebAttributes.GroupStart);
+
+            if (groupEnd)
+                _ = itemRoot.Attribute(WebAttributes.GroupEnd);
+
             decorateItem?.Invoke(itemRoot, item, index);
 
             context.Renderer.RenderComponent(itemContext.ForHtml(itemRoot), slot.RootComponentId);

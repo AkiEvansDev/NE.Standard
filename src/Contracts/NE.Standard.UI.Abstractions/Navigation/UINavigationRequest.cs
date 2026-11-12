@@ -74,6 +74,11 @@ public sealed class UINavigationRequest
             return;
 
         foreach (KeyValuePair<string, object?> parameter in Parameters)
+        {
             ArgumentException.ThrowIfNullOrWhiteSpace(parameter.Key);
+
+            if (parameter.Value is RecursiveValuePastLimits)
+                throw new ArgumentException($"Navigation parameter '{parameter.Key}' exceeds the configured value limits.", nameof(Parameters));
+        }
     }
 }

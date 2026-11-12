@@ -60,7 +60,7 @@ function syncItemsHostNow(host: Element, componentId: number, context: ItemsHost
     if (host.parentElement?.classList.contains(TreeRootClass) === true) {
         host.dispatchEvent(new Event(TreeRulesEventName, { bubbles: true }));
         // After the walk, which marks what a filter leaves out: a tree with no node to show draws its empty state, as a list does.
-        ensureEmptyState(host, componentId, context.templates, context.renderer, host.querySelector(ShownTreeRowSelector) !== null);
+        ensureEmptyState(host, componentId, context.templates, context.renderer, host.querySelector(ShownTreeRowSelector) !== null, host.querySelector(`:scope > .${TreeRowClass}`) !== null);
         return;
     }
 

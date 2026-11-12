@@ -366,7 +366,7 @@ internal sealed partial class UIHost
 
         if (RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out UIRuntimeEntry? entry))
         {
-            own = entry!.Runtime;
+            own = entry.Runtime;
 
             await Own(own).NotifySessionChangedAsync(handle, cancellationToken).ConfigureAwait(false);
         }

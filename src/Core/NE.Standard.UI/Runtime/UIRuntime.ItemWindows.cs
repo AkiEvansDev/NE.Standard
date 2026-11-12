@@ -189,7 +189,7 @@ internal sealed partial class UIRuntime
         }
 
         List<UIItemSortTerm> sorts = [.. query.Sorts];
-        List<int> priorities = new(itemsView.Sorts.Length);
+        List<int> priorities = [with(itemsView.Sorts.Length)];
         var authored = sorts.Count;
 
         for (var i = 0; i < itemsView.Sorts.Length; i++)

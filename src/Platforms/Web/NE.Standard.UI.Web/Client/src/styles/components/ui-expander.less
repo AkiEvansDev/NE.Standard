@@ -9,13 +9,6 @@
     display: block;
 }
 
-// Its clip at the inside of its edge: the reach a clipping component leaves a keyboard frame (runtime.less) would put it outside the
-// border, where whatever the content draws at its corners lies over the border's curve. Its content stands in its padding and the
-// header's frame inside the header, so no frame needs the reach.
-.ui-expander:not(.ui-expander--quiet)[data-ui-id][style*="overflow: clip"] {
-    overflow-clip-margin: 0px;
-}
-
 // ::details-content transitions height 0 -> auto (needs interpolate-size); allow-discrete keeps content-visibility measurable meanwhile.
 .ui-expander::details-content {
     block-size: 0;
@@ -134,7 +127,7 @@
     box-shadow: none;
 }
 
-    .ui-expander--quiet[data-ui-id][style*="overflow: clip"] {
+    .ui-expander--quiet[data-ui-id] {
         overflow-clip-margin: @ui-space-2;
     }
 

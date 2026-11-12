@@ -43,10 +43,10 @@ public abstract partial class CommandBarComponent<T> : GroupedItemsComponentBase
     /// </summary>
     protected CommandBarComponent(string? id = null) : base(id)
     {
-        _ = SetTemplate(new DefaultButtonTemplate(binds: true));
+        SetDefaultTemplate(new DefaultButtonTemplate(binds: true));
 
         // A boundary, not a heading: the stylesheet draws the separator on the header's box and shows no content.
-        _ = SetGroupTemplate(new DefaultGroupTemplate(binds: false));
+        SetDefaultGroupTemplate(new DefaultGroupTemplate(binds: false));
     }
 
     /// <summary>

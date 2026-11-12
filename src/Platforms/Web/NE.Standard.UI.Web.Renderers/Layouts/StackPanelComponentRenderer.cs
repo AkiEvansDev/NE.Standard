@@ -24,6 +24,7 @@ public sealed class StackPanelComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
+        LayoutClipReachRenderer.Render(context, root);
 
         OrientationStyleRenderer.RenderOrientation(context, root, IOrientationComponent.OrientationProperty);
 

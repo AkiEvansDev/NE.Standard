@@ -6,12 +6,15 @@
 .ui-text-input {
     // Static header-over-field shell: __header, then __row (field, affixes, clear), then __message. Deliberately not a floating label.
     .ui-input-root();
-    cursor: text;
 }
 
 .ui-text-input__row {
     .ui-input-field();
 }
+
+    .ui-text-input@{ui-field-live} > .ui-text-input__row {
+        cursor: text;
+    }
 
 // Hidden by the stylesheet rather than left out, so ShowClearButton is bindable. Every field has a placeholder (a blank one where the
 // author gave none), so its showing means empty.

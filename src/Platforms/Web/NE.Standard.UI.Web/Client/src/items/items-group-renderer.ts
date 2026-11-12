@@ -2,7 +2,7 @@
 import { ComponentKeyAttribute, GroupAttribute, GroupHeaderAttribute } from "../addressing/dom-attributes.ts";
 import { getActiveSorts, readItemsQuery, sortElements } from "./items-filter-sort.ts";
 import { findEmptyPlaceholder, getRealItemElements, toNodes } from "../addressing/items-empty-renderer.ts";
-import { bucketByGroup, drawGroupHeader, firstShownRow, markGroupHeader } from "./items-group-runs.ts";
+import { bucketByGroup, drawGroupHeader, firstShownRow, markGroupEdges, markGroupHeader } from "./items-group-runs.ts";
 import { placeInOrder } from "./items-dom-order.ts";
 import { getSourceOrder } from "../addressing/items-source-order.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
@@ -43,6 +43,7 @@ export function regroupHost(host: Element, componentId: number, templates: Items
 
     if (!isGrouped) {
         placeInOrder(host, [...sortElements(items, activeSorts, renderer), ...toNodes(placeholder)]);
+        markGroupEdges(host);
         return;
     }
 
@@ -84,6 +85,7 @@ export function regroupHost(host: Element, componentId: number, templates: Items
 
     headersByHost.set(host, headers);
     placeInOrder(host, [...orderedNodes, ...toNodes(placeholder)]);
+    markGroupEdges(host);
 }
 
 /** The group's header from the last pass while it still stands in the host, now standing in the bucket's first shown row, as a virtualized host keeps one. */

@@ -252,6 +252,10 @@ public static class WebAttributes
 
     public const string GroupHeader = "data-ui-group-header";
 
+    public const string GroupStart = "data-ui-group-start";
+
+    public const string GroupEnd = "data-ui-group-end";
+
     /// <summary>On a group header: the key of the row it is drawn from, which its components stand in as a row's stand in its key.</summary>
     public const string GroupAnchor = "data-ui-group-anchor";
 
@@ -881,6 +885,9 @@ public static class WebAttributes
     public const string WindowPaged = "data-ui-window-paged";
 
     public const string WindowTotal = "data-ui-window-total";
+
+    /// <summary>On a field with no caption and no <c>AccessibleName</c>: its placeholder names the control as the page translates or patches it.</summary>
+    public const string PlaceholderNames = "data-ui-placeholder-names";
 
     /// <summary>An element's chrome words with their keys (<c>WebWords</c>, <c>strings.write</c>), which a language switch writes again.</summary>
     public const string Words = "data-ui-words";

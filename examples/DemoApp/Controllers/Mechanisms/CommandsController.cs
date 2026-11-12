@@ -153,7 +153,7 @@ internal sealed partial class AddressGroupContext : DemoGroupContext
     /// <summary>The query the state is written as: what differs from the defaults alone, so a fresh page's address stays bare.</summary>
     public Dictionary<string, object?> Parameters()
     {
-        Dictionary<string, object?> parameters = new(StringComparer.Ordinal);
+        Dictionary<string, object?> parameters = [with(StringComparer.Ordinal)];
 
         if (Plan is not null and not Standard)
             parameters["plan"] = Plan;

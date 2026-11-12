@@ -34,10 +34,10 @@ public sealed class UIComponentGraph
 
         _all = [.. nodes];
 
-        Dictionary<UIComponentId, UIComponentNode> nodeBuilder = new(nodes.Length);
+        Dictionary<UIComponentId, UIComponentNode> nodeBuilder = [with(nodes.Length)];
         Dictionary<ComponentSlotKindKey, List<UIComponentSlot>> slotsByKindBuilder = [];
         Dictionary<ComponentSlotExactKey, UIComponentSlot> slotsByExactKeyBuilder = [];
-        Dictionary<string, UIComponentId> idsByAuthoringId = new(StringComparer.Ordinal);
+        Dictionary<string, UIComponentId> idsByAuthoringId = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < nodes.Length; i++)
         {
@@ -81,7 +81,7 @@ public sealed class UIComponentGraph
             ValidateNodeReferences(nodes[i], nodeBuilder);
 
         // Read on every command: worked out once per view, and a component that starts no row shares its parent's array.
-        Dictionary<UIComponentId, UIComponentId[]> itemScopes = new(nodes.Length);
+        Dictionary<UIComponentId, UIComponentId[]> itemScopes = [with(nodes.Length)];
 
         for (var i = 0; i < nodes.Length; i++)
             ResolveItemScopes(nodes[i], nodeBuilder, itemScopes);

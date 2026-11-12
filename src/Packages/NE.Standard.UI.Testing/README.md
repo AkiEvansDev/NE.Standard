@@ -35,9 +35,11 @@ all a test project references beside it.
 
 ## The application
 
-`UITestApp.Create<TStartup>()` builds the application from its `UIStartupBase` exactly as its host would, with no
-platform under it: the test is the platform. `configureServices` runs after the startup's own registrations, so a fake
-registered there replaces the real service; `configureApplication` adds to the application as the startup does.
+`UITestApp.Create<TStartup>()` builds the application from its `UIStartupBase` exactly as its host would — compiling
+each route's view lazily as it is opened unless the startup configures eager compilation — with no platform under it:
+the test is the platform. `configureServices` runs after the startup's own registrations, so a fake registered there
+replaces the real service (`UITestApp` also registers a default `/_ne/content` `IUIContentAddressResolver` unless
+overridden); `configureApplication` adds to the application as the startup does.
 
 The scheduler is parked. A command's changes reach the page that asked before the command returns, and the runtime keeps
 what it owes the rest — a posted action's writes, `OnAttachedAsync`'s — for the flush, which only `page.FlushAsync()`
@@ -55,7 +57,8 @@ address bar shows, after every address effect the page received.
 The session is the application's own: `session.SignIn(userId, roles, permissions)`, `InLanguage("ru")` and
 `InTimeZone(...)` are stored in its session store before the page opens and presented as a cookie would present them,
 so the resolver, authorization and filters read them as they read a real session. `WithNotificationPermission(...)` is
-what its pages' browser reports. `page.OpenAsync(address)` opens another page in the same session; `page.CloseAsync()`
+what its pages' browser reports, and `page.Session` reads the session's live state after sign-in, sign-out, language,
+time-zone or permission changes. `page.OpenAsync(address)` opens another page in the same session; `page.CloseAsync()`
 closes one as a closed tab does and returns once `OnDetachedAsync` ran (the runtime stays for its retention).
 
 A page whose view binds what names nothing — a property the controller lacks, a step the server cannot read — is refused
@@ -66,31 +69,34 @@ gives (an argument the command has no parameter for, a `Root` binding a row's it
 ## Finding a component
 
 - `page.Component("chat-conversation")` — by the id the view gave it.
-- `page.ComponentBoundTo(nameof(SignUpController.Email))` — by the controller path its value, its items or another
-  property is bound to.
+- `page.ComponentBoundTo(nameof(SignUpController.Email))` or `page.ComponentBoundTo<SignUpController>(c => c.Email)` —
+  by the controller path its value, its items or another property is bound to (and on a `UITestComponent`, within its subtree).
 - `page.ComponentNamed("Create account")` — by what a reader knows it by: its title, accessible name or tooltip, as
   written or in the page's language.
 
-A list's rows are `component.Rows` and `component.Row(key)`; a row's components are found the same way inside it
-(`row.Component(id)`, `row.ComponentBoundTo("Text")`), and `row.ContextMenu` is what a right click on it shows. A split
-button's entries are the rows of `component.Menu`; a menu row's sub-entries are `row.Rows` and `row.Row(key)`, and
-`menu.Row(key)` reaches a unique sub-entry too.
+A list's visible rows (after any plain-host `FilterBy`, `SortBy` and `Query` rules, or a windowed host's realized window)
+are `component.Rows` and `component.Row(key)`; a row's components are found the same way inside it (`row.Component(id)`,
+`row.ComponentBoundTo("Text")`, `row.ComponentBoundTo<TItem>(x => x.Text)`), and `row.ContextMenu` and
+`component.ContextMenu` are what a right click shows. A split button's entries are the rows of `component.Menu`; a menu
+row's sub-entries are `row.Rows` and `row.Row(key)`, and `menu.Row(key)` reaches a unique sub-entry too.
 
 ## Reading it
 
 What a component shows is read off the change sets the page received, applied the way the client applies them:
-`Value`, `Title`, `Get(property)`, `Text(property)`, `IsVisible` and `IsEnabled` (an ancestor collapsed, disabled or
-loading counts, as does a dialog not open), and `ValidationMessage` — the strongest of the field's failing rules, a value
-past its bounds, the controller's bound message and the server's refusal, as the page shows it. A row's binding is read off
-the row's item; a reset and its inserts keep what the page held under the rows they resend unchanged.
+`Value`, `Title`, `Get(property)`, `Text(property)`, `IsVisible` and `IsEnabled` (resolved at `page.ResponsiveTier`, and
+an ancestor collapsed, disabled or loading counts, as does a dialog not open), and `ValidationMessage` — the strongest of
+the field's failing rules, a value past its bounds, a message routed through `ValidationInto`, the controller's bound
+message and the server's refusal, as the page shows it. A row's binding is read off the row's item; a reset and its
+inserts keep what the page held under the rows they resend unchanged.
 The client interactions a view declares run too: a part shown while a switch is on appears when the switch is written.
 
-`page.Effects` and `page.EffectsOf<ShowNotificationEffect>()` are every effect the page received, run as the browser runs
-them: dialogs open and close with theirs, the dialog service's too (`page.IsDialogOpen(key)`); the viewer's own close
-(`CloseDialogEffect` with `RaisesClose`) lets the edit of a form under the dialog's key go and raises its `OnClose`; a show,
-hide or collapse writes its target's visibility; an address effect rewrites `page.Address`; a discard lets a form's held
-edits go; a language or a theme the page switches to reaches its session and controller. An effect naming a dialog the view
-does not declare throws, as the server drops it. `page.Downloads` holds the files sent to it. `page.Controller<T>()` is the
+`page.Effects` and `page.EffectsOf<ShowNotificationEffect>()` are every effect the page received (`page.ClearEffects()`
+clears the recorded list), run as the browser runs them: dialogs open and close with theirs, the dialog service's too
+(`page.IsDialogOpen(key)`); the viewer's own close (`CloseDialogEffect` with `RaisesClose`) lets the edit of a form
+under the dialog's key go and raises its `OnClose`; a show, hide or collapse writes its target's visibility; an address
+effect rewrites `page.Address`; a discard lets a form's held edits go; a language or a theme the page switches to
+reaches its session and controller. An effect naming a dialog the view does not declare throws, as the server drops it.
+`page.Downloads` holds the files sent to it (`page.ClearDownloads()` clears them). `page.Controller<T>()` is the
 controller, for what the screen does not show.
 
 ## Acting on it
@@ -99,17 +105,24 @@ Each act goes through the host's own entry points, the ones the web hub calls �
 filters and authorization all run:
 
 - `SetValueAsync(value)` types and leaves a field: its change rules, the interactions reading it, the write to the
-  server (or, under `OnSubmit`, held for its form — a push waits behind the edit until a `DiscardFormEffect`), its change
-  command, its blur rules. A number or a date past its `Min`/`Max` stays in the field, refused in words, and is not sent;
-  a value no reader could give — a slider past its bounds, a negative where none is taken — throws. It answers a
-  `UITestCommandResult`: refused for a value the page or the server refused, else what the change command did.
+  server (or, under `OnSubmit`, held for its form — row fields included — while a push waits behind the edit until a
+  `DiscardFormEffect`), its change command, its blur rules. A number or a date past its `Min`/`Max` stays in the field,
+  refused in words, and is not sent; a value no reader could give — a slider past its bounds, a negative where none is
+  taken — throws. It answers a `UITestCommandResult`: refused for a value the page or the server refused, else what the
+  change command did.
 - `ClickAsync()` presses: a button submitting a form is refused while a field of the form is in error, as the browser
   refuses it, and the result says so (`Sent` false); a surface or a file tile whose `Clickable` is false throws, as the
   browser lets its click go by.
+- `RenameAsync(title)` on a `UITestComponent` or `UITestRow` writes the new caption through `RenamedTitle` and runs any
+  `OnRename` / `OnItemRename` command, respecting `Renamable`, `CanRename` and one-shot `RenameItemEffect` grants.
 - `DispatchAsync(eventName, eventKeys)` raises any event a component declares; one that submits its field's form (a
   code field's save, `IFormSubmittingComponent`) sends the form's held values first.
 - `row.ClickAsync()` and `row.ChooseAsync()` press or choose a row; an entry with an effect of its own
   (`OnItemClick(key, effect)`) runs it on the page and sends nothing.
+- `component.RequestItemWindowAsync(anchor, count, mode)` loads a window of rows on a windowed `UIItemSourceBase` host.
+- `page.SetResponsiveTier(tier)` and `page.SetViewportWidth(widthPixels)` set `page.ResponsiveTier` (`Xxl` by default).
+- `page.GoBackAsync()` and `page.GoForwardAsync()` step through in-place address history (`CanGoBack`, `CanGoForward`).
+- `page.Store` (`UIClientStore`) reads, writes and removes component preferences keyed by authored id and slot.
 - `page.DismissDialogAsync(key)` closes a dialog as Escape or a press beside it does: its form's edit goes and its
   `OnClose` runs; one that takes neither throws.
 - `page.PressNotificationActionAsync(toast)` presses a notification's action — its Undo.
@@ -121,13 +134,10 @@ and the effects the page received while it ran.
 
 ## What it does not model
 
-Layout and styling; a responsive value at any width but the widest; a plain list's own filter and sort rules (rows
-stand in the order the server sent them); item windows read on scroll; popups other than dialogs (a context menu and a
-flyout stand open); a validation message sent into another component; the trimming and debouncing a field does in the
-browser; fields in a list's rows on a submit; what the web hub adds of its own — its call budget, a large value staged
-beside it. A row's item is the server's own object, so a property the server changed
-shows there before the flush sends it. A page's DOM, focus and keyboard are the browser's — for those,
-drive a browser.
+Layout and styling; popups other than dialogs (a context menu and a flyout stand open); the trimming and debouncing a
+field does in the browser; what the web hub adds of its own — its call budget, a large value staged beside it. A row's
+item is the server's own object, so a property the server changed shows there before the flush sends it. A page's DOM,
+focus and keyboard are the browser's — for those, drive a browser.
 
 ## Licence
 

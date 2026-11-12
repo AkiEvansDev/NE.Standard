@@ -75,7 +75,7 @@ public sealed class CompiledUIBinding
     /// binding; <see langword="null"/> for context and collection bindings, which have no scalar target.
     /// </summary>
     /// <remarks>
-    /// Not serialized: the compiled view is rebuilt per process, and the client gets <c>WebRenderBindingMetadata</c> instead.
+    /// Serialized by <c>CompiledViewWireSerializer</c> for the C# client (<c>UIClientPage</c>), while the browser receives <c>WebRenderBindingMetadata</c>.
     /// </remarks>
     public Type? TargetValueType { get; init; }
 

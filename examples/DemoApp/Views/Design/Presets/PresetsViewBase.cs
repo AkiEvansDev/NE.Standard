@@ -224,7 +224,7 @@ internal abstract class PresetsViewBase : DemoView
     protected static ContainerComponent CreatePaneHeaderGroup()
         => DemoUI.CreateExample("Header for a pane",
             new SurfaceComponent()
-                .SetPadding(UIThickness.Uniform(8))
+                .SetPadding(UIThickness.All(12, 10, 12, 10))
                 .SetContent(UIPage.Header(
                     UIHeaderSize.Pane,
                     UILayout.Row(4,

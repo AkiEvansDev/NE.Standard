@@ -261,6 +261,10 @@
     .ui-responsive-property(padding, --ui-padding, 0);
 }
 
+.ui-multi-select--button.ui-button[data-ui-text-icon]:not([data-ui-text-title]):not(.ui-select--no-chevron) {
+    aspect-ratio: auto;
+}
+
 .ui-pressable-body(~".ui-multi-select--button > .ui-split-button__main"; ~".ui-multi-select--button > .ui-split-button__main");
 
     .ui-multi-select--button[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main {
@@ -288,11 +292,7 @@
         border-radius: inherit;
     }
 
-    // No divided rule on a button trigger; hidden on an icon-only button unless the author opted in, shown beside a title.
-    .ui-multi-select--button:not([data-ui-text-title]) .ui-select__chevron {
-        display: none;
-    }
-
+    // No divided rule on a button trigger; hidden on an icon-only button unless the author opted in via SetShowChevron(true).
     .ui-multi-select--button .ui-select__chevron {
         width: auto;
         margin-inline-start: -0.125rem;

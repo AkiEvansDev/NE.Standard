@@ -51,7 +51,7 @@ internal sealed class StandardUserClaimsMapper : IUserClaimsMapper
     /// </summary>
     private static FrozenSet<string> ReadRoles(ClaimsPrincipal principal)
     {
-        HashSet<string> roles = new(StringComparer.Ordinal);
+        HashSet<string> roles = [with(StringComparer.Ordinal)];
 
         foreach (ClaimsIdentity identity in principal.Identities)
         {
@@ -67,7 +67,7 @@ internal sealed class StandardUserClaimsMapper : IUserClaimsMapper
         if (string.IsNullOrWhiteSpace(claimType))
             return [];
 
-        HashSet<string> values = new(StringComparer.Ordinal);
+        HashSet<string> values = [with(StringComparer.Ordinal)];
 
         foreach (Claim claim in principal.FindAll(claimType))
             _ = values.Add(claim.Value);

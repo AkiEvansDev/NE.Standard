@@ -6,6 +6,7 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
@@ -43,17 +44,25 @@ public sealed partial class UIClientPage
     private UIResponsiveTier _responsiveTier = UIResponsiveTier.Xxl;
 
     private readonly Dictionary<UIPropertyAddress, object?> _values = [];
-    private readonly Dictionary<UIComponentAddress, List<UIClientRowEntry>> _rows = [];
+    private readonly Dictionary<(UIComponentId Id, UIProperty Property), HashSet<UIPropertyAddress>> _scopedValues = [];
+    private readonly Dictionary<(UIComponentAddress Host, string Key), HashSet<UIPropertyAddress>> _valuesByRow = [];
+    private readonly Dictionary<UIComponentAddress, HashSet<string>> _rowKeysByHost = [];
+    private readonly Dictionary<UIComponentAddress, UIClientRowBuffer> _rows = [];
+    private readonly Dictionary<UIComponentAddress, (long Stamp, string Language, List<UIClientRowEntry> Rows)> _visibleRowsCache = [];
+    private long _visibleRowsStamp;
     private readonly Dictionary<UIComponentAddress, UIClientField> _fields = [];
     private readonly Dictionary<UIPropertyAddress, object?> _held = [];
     // The server's latest value of a held address, which a discard puts back.
     private readonly Dictionary<UIPropertyAddress, object?> _serverValues = [];
+    private readonly HashSet<UIComponentAddress> _openedRenames = [];
+    private readonly HashSet<UIPropertyAddress> _redirectedTargets = [];
     private readonly List<ClientEffect> _effects = [];
     private readonly List<UIClientDownload> _downloads = [];
-    private readonly HashSet<string> _openDialogs = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _openDialogs = [with(StringComparer.Ordinal)];
     // What effects left for after the act, run once the lock is let go (RunReactionsAsync).
     private readonly List<UIClientReaction> _reactions = [];
     private bool _resync;
+    private Task _pendingReactionDrain = Task.CompletedTask;
 
     private readonly HashSet<UIPropertyAddress> _changedProperties = [];
     private readonly HashSet<UIComponentAddress> _changedCollections = [];
@@ -227,6 +236,8 @@ public sealed partial class UIClientPage
 
     private async Task<UIClientCommandResult> StepHistoryAsync(int delta, CancellationToken cancellationToken)
     {
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
         IReadOnlyDictionary<string, object?>? parameters;
         int mark;
 
@@ -285,6 +296,20 @@ public sealed partial class UIClientPage
         return found;
     }
 
+    /// <summary>Clears the recorded client effects on this page.</summary>
+    public void ClearEffects()
+    {
+        lock (_sync)
+            _effects.Clear();
+    }
+
+    /// <summary>Clears the recorded file downloads on this page.</summary>
+    public void ClearDownloads()
+    {
+        lock (_sync)
+            _downloads.Clear();
+    }
+
     /// <summary>Gets whether the dialog <paramref name="key"/> is open.</summary>
     public bool IsDialogOpen(string key)
     {
@@ -299,9 +324,11 @@ public sealed partial class UIClientPage
     /// key go and raising its <c>OnClose</c>, whose command's answer this is.
     /// </summary>
     /// <exception cref="InvalidOperationException">The dialog is not open, or takes neither Escape nor a press beside it.</exception>
-    public Task<UIClientCommandResult> DismissDialogAsync(string key, CancellationToken cancellationToken = default)
+    public async Task<UIClientCommandResult> DismissDialogAsync(string key, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
 
         UIComponentId root;
 
@@ -321,7 +348,7 @@ public sealed partial class UIClientPage
             root = dialog.RootComponentId;
         }
 
-        return DispatchCoreAsync(root, [], EventNames.Close, [], cancellationToken);
+        return await DispatchCoreAsync(root, [], EventNames.Close, [], cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Gets the page's in-process controller as <typeparamref name="TController"/>.</summary>
@@ -377,6 +404,7 @@ public sealed partial class UIClientPage
     {
         _ = await Transport.FlushAsync(cancellationToken).ConfigureAwait(false);
 
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
         await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
         NotifyIfChanged();
@@ -386,6 +414,8 @@ public sealed partial class UIClientPage
     public async Task RequestItemWindowAsync(UIComponentId componentId, object?[] rowKeys, UIItemAnchor anchor, int count, UIItemWindowMode mode = UIItemWindowMode.Replace, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(rowKeys);
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
 
         UIComponentNode node = View.Graph.GetRequired(componentId);
 
@@ -404,7 +434,7 @@ public sealed partial class UIClientPage
             cancellationToken
         ).ConfigureAwait(false);
 
-        Receive(changes);
+        ApplyReceivedChanges(changes);
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
         await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
         NotifyIfChanged();
@@ -415,6 +445,8 @@ public sealed partial class UIClientPage
     public async Task<UIClientCommandResult> PressNotificationActionAsync(ShowNotificationEffect notification, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(notification);
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
 
         var action = notification.Action?.Id ?? throw new InvalidOperationException("The notification offers no action the page could press.");
 
@@ -444,7 +476,9 @@ public sealed partial class UIClientPage
 
     private async Task ReportAsync(UIClientState state, CancellationToken cancellationToken)
     {
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
         await Transport.ReportClientStateAsync(state, cancellationToken).ConfigureAwait(false);
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
         await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
         NotifyIfChanged();
@@ -464,7 +498,10 @@ public sealed partial class UIClientPage
         if (handler is null)
         {
             lock (_sync)
+            {
+                SyncRedirectedValidationMessagesNoLock();
                 ClearPendingNotificationNoLock();
+            }
 
             return;
         }
@@ -472,7 +509,10 @@ public sealed partial class UIClientPage
         UIClientPageChange? batch;
 
         lock (_sync)
+        {
+            SyncRedirectedValidationMessagesNoLock();
             batch = TakePendingNotificationNoLock();
+        }
 
         if (batch is { HasChanges: true })
             handler(batch);

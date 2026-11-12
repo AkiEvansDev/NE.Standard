@@ -8,6 +8,7 @@ using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
@@ -238,8 +239,8 @@ public static class UIDialogs
     }
 
     /// <summary>
-    /// Joins every field under <paramref name="component"/> with no form of its own, written or bound, to the dialog's; a context menu's
-    /// fields are no part of the form.
+    /// Joins every field under <paramref name="component"/> with no form of its own, written or bound, to the dialog's; templates,
+    /// context menus and the internal regions of composite controls keep their own boundaries.
     /// </summary>
     private static void JoinForm(IVisualComponent component, string formId)
     {
@@ -248,10 +249,19 @@ public static class UIDialogs
 
         foreach (UIComponentTreeSlot slot in UIComponentTree.EnumerateSlots(component))
         {
-            if (slot.Kind != UIComponentSlotKind.ContextMenu)
+            if (slot.Kind == UIComponentSlotKind.Child || (slot.Kind == UIComponentSlotKind.Region && IsFormLayoutRegionContainer(component)))
                 JoinForm(slot.Root, formId);
         }
     }
+
+    private static bool IsFormLayoutRegionContainer(IVisualComponent component)
+        => component is SurfaceComponent
+            or CardComponent
+            or ExpanderComponent
+            or CollapsiblePanelComponent
+            or FlyoutComponent
+            or PaneContainerComponent
+            or TabsComponent;
 
     /// <summary>
     /// The same with words the controller holds — the title at <paramref name="titlePath"/> (Add or Edit), the line at

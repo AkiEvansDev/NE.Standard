@@ -19,7 +19,7 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
     public partial UIThemeColor? Background { get; set; }
 
     [RecursiveMember]
-    public partial UIOverflow? Overflow { get; set; }
+    public partial UIOverflow? Overflow { get; set; } = UIOverflow.Hidden;
 
     [RecursiveMember]
     public partial string? Shortcut { get; set; }

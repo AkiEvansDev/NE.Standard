@@ -40,6 +40,7 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
         DefaultBindingMode = UIBindingMode.TwoWay,
+        DefaultBindingScope = UIBindingScope.Relative,
         DefaultValue = null)]
     public double? Order { get; set; }
 
@@ -53,6 +54,7 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     [UIComponentProperty(
         BindingCapabilities = UIBindingCapabilities.SourceToTarget | UIBindingCapabilities.TargetToSource,
         DefaultBindingMode = UIBindingMode.TwoWay,
+        DefaultBindingScope = UIBindingScope.Relative,
         DefaultValue = false)]
     public bool? Pinned { get; set; }
 
@@ -61,7 +63,7 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     /// </summary>
     protected TabItemComponent(string? id = null) : base(id)
     {
-        SetRegion(RegionNames.Header, new TabCaptionRegion());
+        SetDefaultRegion(RegionNames.Header, new TabCaptionRegion());
 
         // Written by the page, an order is no move the server can judge: a drag renumbers tabs that did not move, one write at a time.
         _ = On(EventNames.Move, UIBuiltInCommands.MoveTab, UIAction.ArgCurrentItemKey(UIBuiltInCommands.KeyArgument), UIAction.ArgEventValue(UIBuiltInCommands.IndexArgument));
@@ -72,7 +74,11 @@ public abstract partial class TabItemComponent<T> : RegionContainerComponentBase
     /// Configures the built-in caption region.
     /// </summary>
     public T ConfigureDefaultCaption(Action<TabCaptionRegion> configure)
-        => Self.ConfigureTemplate(Caption as TabCaptionRegion, configure, "caption");
+    {
+        T result = Self.ConfigureTemplate(Caption as TabCaptionRegion, configure, "caption");
+        MarkRegionAuthored(RegionNames.Header);
+        return result;
+    }
 
     /// <summary>
     /// Sets the page this tab opens.

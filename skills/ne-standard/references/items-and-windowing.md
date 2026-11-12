@@ -24,10 +24,10 @@ Full guide: https://akievansdev.github.io/NE.Standard/items.html
 
 - Client/server rules on the host:
   - `.FilterBy<OrderItem>(x => x.Status, UIComparisonOperator.Equal, "Open")` (or bound filter value via `FilterBy` / `DataGridComponent.AddFilter<TRow>`; `UIComparisonOperator.In` also checks intersection when the item property is a collection of strings or `IBindableItem`s against a `MultiSelectComponent`'s `ValueProperty`).
-  - `.SortBy<OrderItem>(x => x.CreatedAt, UISortDirection.Descending)`.
+  - `.SortBy<OrderItem>(x => x.CreatedAt, UIItemsSortDirection.Descending)`.
   - `.AddItemReads<OrderItem>(x => x.ExtraField)` ensures custom properties needed by the client are projected.
-- Selection: `.SetSelectionMode(UISelectionMode.Single | Many)` + `.BindSelectedKey(c => c.SelectedId)` / `.BindSelectedKeys(c => c.SelectedIds)`.
-- Standard row event blocks (`OnItemClick*`, `OnItemOpen*`, `OnItemRemove*`, `OnItemMove*`, `OnItemRename*`, `OnItemUnfold*`), each with 5 overloads:
+- Selection: `.SetSelectionMode(UISelectionMode.One | Many)` + `.BindSelectedKey(c => c.SelectedId)` / `.BindSelectedKeys(c => c.SelectedIds)`.
+- Standard row event blocks (`OnItemClick*`, `OnItemOpen*`, `OnItemRemove*`, `OnItemMove*`, `OnItemRename*`, `OnItemUnfold*`), each with 5 overloads (any inline rename via `.SetRenamable(true)`/`.BindRenamable(...)`, `OnItemRename*`, `UITabMenuEntries.Rename`, or `RenameItemEffect` also requires a writable `.BindRenamedTitle(...)`):
   - `OnItemOpen(command)`
   - `OnItemOpenLiteral(command, args...)`
   - `OnItemOpenWithItem(command)`

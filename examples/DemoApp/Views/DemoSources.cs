@@ -42,11 +42,12 @@ internal static partial class DemoSources
 
     private static readonly Lazy<SourceType[]> Types = new(Load);
 
-    private static readonly HashSet<string> Modifiers = new(StringComparer.Ordinal)
-    {
+    private static readonly HashSet<string> Modifiers =
+    [
+        with(StringComparer.Ordinal),
         "public", "private", "protected", "internal", "static", "readonly", "const", "sealed", "override", "virtual", "abstract",
         "partial", "async", "new", "extern", "unsafe", "volatile", "required", "file"
-    };
+    ];
 
     /// <summary>The pieces, each found by name, one after another.</summary>
     public static string Read(IEnumerable<DemoCode> pieces)
@@ -135,7 +136,7 @@ internal static partial class DemoSources
             var next = i + 1 < code.Length ? code[i + 1] : '\0';
 
             if (c == '/' && next == '/')
-                i = Blank(code, i, text.IndexOf('\n', i) is var line and >= 0 ? line : code.Length);
+                i = Blank(code, i, text.IndexOf('\n', i, StringComparison.Ordinal) is var line and >= 0 ? line : code.Length);
             else if (c == '/' && next == '*')
                 i = Blank(code, i, text.IndexOf("*/", i + 2, StringComparison.Ordinal) is var close and >= 0 ? close + 2 : code.Length);
             else if (c == '"')
@@ -250,7 +251,7 @@ internal static partial class DemoSources
                 List<SourceMember> nested = open < 0 || declared.Value.StartsWith("enum", StringComparison.Ordinal)
                     ? []
                     : Parse(text, code, open + 1, to - 1, space, types);
-                var lineStart = text.LastIndexOf('\n', from + declared.Index) + 1;
+                var lineStart = text.LastIndexOf('\n', from + declared.Index, StringComparison.Ordinal) + 1;
                 var declaration = Dedent(text[lineStart..(open < 0 ? to : open)]).TrimEnd();
 
                 types.Add(new SourceType(space, name, body, declaration, [.. nested]));

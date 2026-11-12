@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
@@ -82,6 +84,8 @@ public abstract class UIViewBase : IUIView
     /// </summary>
     protected virtual IReadOnlyList<UIShortcut> CreateShortcuts() => [];
 
+    private const int MaxCascadeDepth = 256;
+
     private void EnsureBuilt()
     {
         if (_regions is not null && _dialogs is not null)
@@ -97,7 +101,7 @@ public abstract class UIViewBase : IUIView
         context.AddRegion(RegionNames.RightSide, CreateRightSide());
         context.AddRegion(RegionNames.Footer, CreateFooter());
         context.AddDialogs(CreateDialogs());
-        context.AddDialogs(CollectComponentDialogs(context));
+        context.AddDialogs(ApplyDefaultsAndCollectDialogs(context));
 
         _regions = [.. context.Regions];
         _dialogs = [.. context.Dialogs];
@@ -116,30 +120,84 @@ public abstract class UIViewBase : IUIView
         }
     }
 
-    // A component's dialogs are the view's: rendered in the shell like a declared one, opened by key from either side.
-    private static List<UIDialog> CollectComponentDialogs(UIViewBuildContext context)
+    // Cascades SetDefaults once as the view tree is built so component-owned dialogs added by a rule are collected and layout validation sees final values.
+    private static List<UIDialog> ApplyDefaultsAndCollectDialogs(UIViewBuildContext context)
     {
-        List<UIDialog> dialogs = [];
+        HashSet<IVisualComponent> visited = [with(ReferenceEqualityComparer.Instance)];
+        List<UIDefaultsRule> activeRules = [];
+        List<(UIDialog Dialog, UIDefaultsRule[] OwnerRules)> ownedDialogs = [];
 
         foreach (UIRegion region in context.Regions)
-            CollectComponentDialogs(region.Root, dialogs);
+            ApplySubtreeDefaults(region.Root, activeRules, visited, ownedDialogs, 1);
 
         foreach (UIDialog dialog in context.Dialogs)
-            CollectComponentDialogs(dialog.Content, dialogs);
+        {
+            if (dialog.Content is not null)
+                ApplySubtreeDefaults(dialog.Content, activeRules, visited, ownedDialogs, 1);
+        }
+
+        List<UIDialog> collected = [with(ownedDialogs.Count)];
 
         // A dialog found this way may hold a component with dialogs of its own; the list grows under the loop.
-        for (var i = 0; i < dialogs.Count; i++)
-            CollectComponentDialogs(dialogs[i].Content, dialogs);
+        for (var i = 0; i < ownedDialogs.Count; i++)
+        {
+            (UIDialog dialog, UIDefaultsRule[] ownerRules) = ownedDialogs[i];
+            collected.Add(dialog);
 
-        return dialogs;
+            if (dialog.Content is null)
+                continue;
+
+            activeRules.Clear();
+            activeRules.AddRange(ownerRules);
+            ApplySubtreeDefaults(dialog.Content, activeRules, visited, ownedDialogs, 1);
+            activeRules.Clear();
+        }
+
+        return collected;
     }
 
-    private static void CollectComponentDialogs(IVisualComponent root, List<UIDialog> dialogs)
+    private static void ApplySubtreeDefaults(IVisualComponent component, List<UIDefaultsRule> activeRules, HashSet<IVisualComponent> visited, List<(UIDialog Dialog, UIDefaultsRule[] OwnerRules)> ownedDialogs, int depth)
     {
-        foreach (IVisualComponent component in UIComponentTree.EnumerateDescendants(root))
+        if (depth > MaxCascadeDepth || !visited.Add(component))
+            return;
+
+        if (activeRules.Count > 0 && component is IPropertyBindingComponent target)
         {
-            if (component is IDialogOwnerComponent { HasDialogs: true } owner)
-                dialogs.AddRange(owner.Dialogs);
+            List<UIDefaultsRule>? matching = null;
+
+            for (var i = 0; i < activeRules.Count; i++)
+            {
+                UIDefaultsRule rule = activeRules[i];
+
+                if (rule.TargetType.IsInstanceOfType(component))
+                    (matching ??= []).Add(rule);
+            }
+
+            if (matching is not null)
+            {
+                UIPropertyRegister.EnsureRegistered(component.GetType());
+                target.ApplyDefaults(CollectionsMarshal.AsSpan(matching), UIPropertyRegister.GetProperties(component.TypeKey));
+            }
         }
+
+        var priorCount = activeRules.Count;
+        IReadOnlyList<UIDefaultsRule> ownDefaults = component.Defaults;
+
+        for (var i = 0; i < ownDefaults.Count; i++)
+            activeRules.Add(ownDefaults[i]);
+
+        if (component is IDialogOwnerComponent { HasDialogs: true } owner)
+        {
+            UIDefaultsRule[] snapshot = activeRules.Count > 0 ? [.. activeRules] : [];
+
+            foreach (UIDialog dialog in owner.Dialogs)
+                ownedDialogs.Add((dialog, snapshot));
+        }
+
+        foreach (UIComponentTreeSlot slot in UIComponentTree.EnumerateSlots(component))
+            ApplySubtreeDefaults(slot.Root, activeRules, visited, ownedDialogs, depth + 1);
+
+        if (activeRules.Count > priorCount)
+            activeRules.RemoveRange(priorCount, activeRules.Count - priorCount);
     }
 }

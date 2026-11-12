@@ -26,7 +26,7 @@ public sealed class UICompiledBindingSourceIndex
 
         _all = [.. sources];
 
-        Dictionary<UIBindingSourceId, CompiledUIBindingSource> byId = new(sources.Length);
+        Dictionary<UIBindingSourceId, CompiledUIBindingSource> byId = [with(sources.Length)];
         Dictionary<UIComponentId, CompiledUIBindingSource> componentItemsByComponentId = [];
 
         CompiledUIBindingSource? controller = null;

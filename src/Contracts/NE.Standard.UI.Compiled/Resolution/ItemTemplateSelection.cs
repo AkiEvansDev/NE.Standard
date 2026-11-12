@@ -93,7 +93,7 @@ public static class ItemTemplateSelection
 
         while (true)
         {
-            var dot = path.IndexOf('.', start);
+            var dot = path.IndexOf('.', start, StringComparison.Ordinal);
             var end = dot < 0 ? path.Length : dot;
 
             if (path.AsSpan(start, end - start).IsWhiteSpace())

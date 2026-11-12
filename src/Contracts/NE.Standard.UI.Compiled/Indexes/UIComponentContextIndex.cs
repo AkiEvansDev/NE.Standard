@@ -24,7 +24,7 @@ public sealed class UIComponentContextIndex
 
         _all = [.. contexts];
 
-        Dictionary<UIContextId, CompiledUIContext> byId = new(contexts.Length);
+        Dictionary<UIContextId, CompiledUIContext> byId = [with(contexts.Length)];
 
         for (var i = 0; i < contexts.Length; i++)
         {

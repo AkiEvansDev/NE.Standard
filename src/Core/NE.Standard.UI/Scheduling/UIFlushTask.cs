@@ -56,35 +56,20 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
 
         try
         {
-            ParallelOptions options = new()
+            if (runtimes.Length == 1)
             {
-                CancellationToken = cancellationToken,
-                MaxDegreeOfParallelism = _maxParallelFlushes
-            };
-
-            await Parallel.ForEachAsync(runtimes, options, async (runtime, itemCancellationToken) =>
+                await FlushCandidateAsync(runtimes[0], counts, cancellationToken, cancellationToken).ConfigureAwait(false);
+            }
+            else
             {
-                // Selected before the cleanup pass, which runs beside this one, may have stopped and disposed it since. One still
-                // flushing from an earlier pass keeps its work pending, so a later pass picks it up once that flush ends.
-                if (runtime.IsStopped || !_inFlight.TryAdd(runtime, 0))
-                    return;
-
-                // The stop token, not the item's: a flush that outlives its pass goes on once the pass is over.
-                Task flush = FlushOneAsync(runtime, counts, cancellationToken);
-
-                if (flush.IsCompleted)
-                    return;
-
-                try
+                ParallelOptions options = new()
                 {
-                    // A runtime held by its hook or by a slow window read would otherwise hold the whole pass, and with it every
-                    // other runtime's next flush; past one interval it goes on alone.
-                    await flush.WaitAsync(Options.Interval, itemCancellationToken).ConfigureAwait(false);
-                }
-                catch (TimeoutException)
-                {
-                }
-            }).ConfigureAwait(false);
+                    CancellationToken = cancellationToken,
+                    MaxDegreeOfParallelism = _maxParallelFlushes
+                };
+
+                await Parallel.ForEachAsync(runtimes, options, (runtime, itemCancellationToken) => FlushCandidateAsync(runtime, counts, cancellationToken, itemCancellationToken)).ConfigureAwait(false);
+            }
         }
         finally
         {
@@ -97,6 +82,30 @@ internal sealed partial class UIFlushTask : RuntimeScheduledTask
                 Log.ScheduledFlushCompleted(_logger, runtimes.Length, elapsed.TotalMilliseconds, queued, failed);
 
             _metrics?.FlushCompleted(elapsed, failed);
+        }
+    }
+
+    private async ValueTask FlushCandidateAsync(IUIRuntime runtime, PassCounts counts, CancellationToken stopCancellationToken, CancellationToken itemCancellationToken)
+    {
+        // Selected before the cleanup pass, which runs beside this one, may have stopped and disposed it since. One still
+        // flushing from an earlier pass keeps its work pending, so a later pass picks it up once that flush ends.
+        if (runtime.IsStopped || !_inFlight.TryAdd(runtime, 0))
+            return;
+
+        // The stop token, not the item's: a flush that outlives its pass goes on once the pass is over.
+        Task flush = FlushOneAsync(runtime, counts, stopCancellationToken);
+
+        if (flush.IsCompleted)
+            return;
+
+        try
+        {
+            // A runtime held by its hook or by a slow window read would otherwise hold the whole pass, and with it every
+            // other runtime's next flush; past one interval it goes on alone.
+            await flush.WaitAsync(Options.Interval, itemCancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
         }
     }
 

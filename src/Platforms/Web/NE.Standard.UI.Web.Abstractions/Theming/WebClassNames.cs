@@ -254,6 +254,9 @@ public static class WebClassNames
 
     public const string ImageInputMultiple = "ui-image-input--multiple";
 
+    /// <summary>The input header class the client finds elements by too.</summary>
+    public const string InputHeader = "ui-input__header";
+
     /// <summary>The items view classes the client finds elements by too.</summary>
     public const string ItemsView = "ui-items-view";
 
@@ -502,6 +505,8 @@ public static class WebClassNames
     public const string TextTitle = "ui-text__title";
 
     /// <summary>The text area classes the client finds elements by too.</summary>
+    public const string TextArea = "ui-text-area";
+
     public const string TextAreaGrow = "ui-text-area--grow";
 
     /// <summary>The theme switcher classes the client finds elements by too.</summary>
@@ -955,7 +960,7 @@ public static class WebClassNames
     /// <summary>A tab menu's chosen entries as the space-separated tokens <c>data-ui-tabs-menu</c> carries, in flag order; empty for none.</summary>
     public static string TabMenuEntries(UITabMenuEntries value)
     {
-        List<string> tokens = new(4);
+        List<string> tokens = [with(4)];
 
         if (value.HasFlag(UITabMenuEntries.Rename))
             tokens.Add("rename");

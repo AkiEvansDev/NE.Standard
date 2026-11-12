@@ -99,11 +99,11 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// </summary>
     protected KeyValueActionComponent(string? id = null) : base(id)
     {
-        _ = SetRowTemplate(new DefaultRowTemplate());
+        SetDefaultTemplateVariant(TemplateNames.Row, new DefaultRowTemplate());
         _ = DeclareCompositeSlot(TemplateNames.ValueInput, nameof(IKeyValueActionModel.InputTemplate));
-        _ = SetKeyTemplate(new DefaultKeyTemplate(binds: true));
-        _ = SetValueTemplate(new DefaultValueTemplate(binds: true));
-        _ = SetActionTemplate(new DefaultActionTemplate(binds: true));
+        SetDefaultTemplateVariant(TemplateNames.Key, new DefaultKeyTemplate(binds: true));
+        SetDefaultTemplateVariant(TemplateNames.Value, new DefaultValueTemplate(binds: true));
+        SetDefaultTemplateVariant(TemplateNames.Action, new DefaultActionTemplate(binds: true));
         // No empty template until ConfigureDefaultEmptyTemplate asks for one: a detail list in a card has nothing to say while empty.
     }
 
@@ -111,19 +111,31 @@ public abstract partial class KeyValueActionComponent<T> : RowItemsComponentBase
     /// Configures the default key template.
     /// </summary>
     public T ConfigureDefaultKeyTemplate(Action<DefaultKeyTemplate> configure)
-        => Self.ConfigureTemplate(KeyTemplate as DefaultKeyTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(KeyTemplate as DefaultKeyTemplate, configure, "template");
+        MarkTemplateVariantAuthored(TemplateNames.Key);
+        return result;
+    }
 
     /// <summary>
     /// Configures the default value template.
     /// </summary>
     public T ConfigureDefaultValueTemplate(Action<DefaultValueTemplate> configure)
-        => Self.ConfigureTemplate(ValueTemplate as DefaultValueTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(ValueTemplate as DefaultValueTemplate, configure, "template");
+        MarkTemplateVariantAuthored(TemplateNames.Value);
+        return result;
+    }
 
     /// <summary>
     /// Configures the default action template.
     /// </summary>
     public T ConfigureDefaultActionTemplate(Action<DefaultActionTemplate> configure)
-        => Self.ConfigureTemplate(ActionTemplate as DefaultActionTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(ActionTemplate as DefaultActionTemplate, configure, "template");
+        MarkTemplateVariantAuthored(TemplateNames.Action);
+        return result;
+    }
 
     /// <summary>
     /// Sets the key template.

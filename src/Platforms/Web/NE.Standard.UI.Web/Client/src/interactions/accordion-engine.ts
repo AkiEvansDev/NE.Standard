@@ -1,6 +1,6 @@
 // Keeps one section of an accordion open at a time; the sections stay ordinary <details>.
 
-import { AccordionClass, ItemsHostAttribute, ItemsViewAccordionClass, ItemsViewItemClass } from "../addressing/dom-attributes.ts";
+import { AccordionClass, HiddenClass, ItemsHostAttribute, ItemsViewAccordionClass, ItemsViewItemClass } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 
 const AccordionSelector = `.${AccordionClass}, .${ItemsViewAccordionClass}`;
@@ -27,7 +27,7 @@ export class AccordionEngine {
 
         this.normalizeAll(this.root.querySelectorAll<HTMLElement>(AccordionSelector));
 
-        observeComponents(this.root, AccordionSelector, { childList: true, addedOnly: true }, accordions => this.normalizeAll(accordions));
+        observeComponents(this.root, AccordionSelector, { childList: true, attributeFilter: ["class", "hidden"], addedOnly: true }, accordions => this.normalizeAll(accordions));
     }
 
     /** Leaves the first newly added open section (or the existing open one) open and closes the rest. */
@@ -39,6 +39,13 @@ export class AccordionEngine {
             for (const section of this.sectionsOf(accordion)) {
                 const isNew = !this.seenSections.has(section);
                 this.seenSections.add(section);
+
+                if (isSectionHidden(section)) {
+                    if (section.open)
+                        section.open = false;
+
+                    continue;
+                }
 
                 if (!section.open)
                     continue;
@@ -119,4 +126,13 @@ export class AccordionEngine {
     private sectionsOf(accordion: HTMLElement): HTMLDetailsElement[] {
         return [...accordion.querySelectorAll<HTMLDetailsElement>(accordion.classList.contains(AccordionClass) ? DirectSectionSelector : ItemsSectionSelector)];
     }
+}
+
+function isSectionHidden(section: HTMLDetailsElement): boolean {
+    if (section.classList.contains(HiddenClass) || section.hasAttribute("hidden"))
+        return true;
+
+    const parent = section.parentElement;
+
+    return parent !== null && parent.classList.contains(ItemsViewItemClass) && (parent.classList.contains(HiddenClass) || parent.hasAttribute("hidden"));
 }

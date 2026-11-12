@@ -12,7 +12,7 @@ internal static class UIViewCompiler
     {
         ArgumentNullException.ThrowIfNull(view);
 
-        UIViewCompilationContext context = new(controllerType);
+        UIViewCompilationContext context = new(controllerType, applyDefaults: view is not UIViewBase);
 
         foreach (UIRegion region in view.Regions)
             context.AddRegion(region);

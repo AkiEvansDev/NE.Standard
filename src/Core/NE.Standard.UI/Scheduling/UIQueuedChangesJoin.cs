@@ -49,7 +49,7 @@ internal sealed class UIQueuedChangesJoin
         // The first numbered set numbers what came before it as never queued.
         if (numbers is not null && _sequences is null)
         {
-            _sequences = new List<long>(_updates.Count + numbers.Length);
+            _sequences = [with(_updates.Count + numbers.Length)];
 
             for (var i = 0; i < _updates.Count; i++)
                 _sequences.Add(ServerChangeSet.Unnumbered);

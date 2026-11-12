@@ -3,7 +3,7 @@
 // item before the window, which the source reports. The spacers stay where they are; nothing but the headers moves.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { ComponentKeyAttribute, GroupAnchorAttribute, GroupAttribute, GroupHeaderAttribute, HiddenClass, WindowGroupBeforeAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentKeyAttribute, EmptyPlaceholderAttribute, GroupAnchorAttribute, GroupAttribute, GroupEndAttribute, GroupHeaderAttribute, GroupStartAttribute, HiddenClass, NonItemAttribute, WindowGroupBeforeAttribute, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import type { ItemStackEntry } from "./binding-template-evaluator";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
@@ -33,6 +33,39 @@ export function regroupWindow(host: Element, draw: (row: Element) => Element | n
     for (const header of host.querySelectorAll(`:scope > [${GroupHeaderAttribute}]`)) {
         if (!kept.has(header))
             header.remove();
+    }
+
+    markGroupEdges(host);
+}
+
+/** Stamps the first visible row after a group header and the last visible row before one so grouped accordion blocks keep outer edges. */
+export function markGroupEdges(host: Element): void {
+    let previousShown: Element | null = null;
+    let afterHeader = false;
+
+    for (const child of host.children) {
+        if (child.hasAttribute(GroupHeaderAttribute)) {
+            if (!child.classList.contains(HiddenClass) && !child.hasAttribute("hidden")) {
+                previousShown?.toggleAttribute(GroupEndAttribute, true);
+                afterHeader = true;
+            }
+
+            continue;
+        }
+
+        if (child.hasAttribute(NonItemAttribute) || child.hasAttribute(EmptyPlaceholderAttribute) || child.hasAttribute(WindowSpacerAttribute))
+            continue;
+
+        if (child.classList.contains(HiddenClass) || child.hasAttribute("hidden")) {
+            child.toggleAttribute(GroupStartAttribute, false);
+            child.toggleAttribute(GroupEndAttribute, false);
+            continue;
+        }
+
+        child.toggleAttribute(GroupStartAttribute, afterHeader);
+        child.toggleAttribute(GroupEndAttribute, false);
+        afterHeader = false;
+        previousShown = child;
     }
 }
 

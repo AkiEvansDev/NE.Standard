@@ -24,40 +24,40 @@
     .ui-responsive-property(border-radius, --ui-border-radius, 0);
 }
 
-.ui-accordion > .ui-expander + .ui-expander:not(.ui-expander--quiet) {
+.ui-accordion > .ui-expander:not(.ui-hidden, [hidden]) ~ .ui-expander:not(.ui-hidden, [hidden]):not(.ui-expander--quiet) {
     .ui-responsive-property(border-width, --ui-border-thickness, ~"0 var(--ui-border-width, 1px) var(--ui-border-width, 1px)");
 }
 
-.ui-accordion > .ui-expander:not(.ui-expander--quiet):first-child {
+.ui-accordion > .ui-expander:not(.ui-expander--quiet):nth-child(1 of .ui-expander:not(.ui-hidden, [hidden])) {
     .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-card) var(--ui-radius-card) 0 0");
 }
 
-.ui-accordion > .ui-expander:not(.ui-expander--quiet):last-child {
+.ui-accordion > .ui-expander:not(.ui-expander--quiet):nth-last-child(1 of .ui-expander:not(.ui-hidden, [hidden])) {
     .ui-responsive-property(border-radius, --ui-border-radius, ~"0 0 var(--ui-radius-card) var(--ui-radius-card)");
 }
 
-.ui-accordion > .ui-expander:not(.ui-expander--quiet):only-child {
+.ui-accordion > .ui-expander:not(.ui-expander--quiet):nth-child(1 of .ui-expander:not(.ui-hidden, [hidden])):nth-last-child(1 of .ui-expander:not(.ui-hidden, [hidden])) {
     .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-card));
 }
 
-// The same block over an ItemsView in Accordion layout: each row wrapper sits between the host and its expander, and filtered rows stay
-// in the DOM with .ui-hidden, so the first, last and adjacent visible rows are chosen among `:not(.ui-hidden)`.
+// The same block over an ItemsView in Accordion layout: each row wrapper sits between the host and its expander, filtered rows stay
+// in the DOM with .ui-hidden, and grouped hosts mark the first and last visible rows around each group header.
 .ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item > .ui-expander:not(.ui-expander--quiet) {
     .ui-responsive-property(border-radius, --ui-border-radius, 0);
 }
 
-.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:not(.ui-hidden) ~ .ui-items-view__item:not(.ui-hidden) > .ui-expander:not(.ui-expander--quiet) {
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:not(.ui-hidden, [hidden]) ~ .ui-items-view__item:not(.ui-hidden, [hidden], [data-ui-group-start]) > .ui-expander:not(.ui-expander--quiet) {
     .ui-responsive-property(border-width, --ui-border-thickness, ~"0 var(--ui-border-width, 1px) var(--ui-border-width, 1px)");
 }
 
-.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:nth-child(1 of .ui-items-view__item:not(.ui-hidden)) > .ui-expander:not(.ui-expander--quiet) {
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:is(:nth-child(1 of .ui-items-view__item:not(.ui-hidden, [hidden])), [data-ui-group-start]) > .ui-expander:not(.ui-expander--quiet) {
     .ui-responsive-property(border-radius, --ui-border-radius, ~"var(--ui-radius-card) var(--ui-radius-card) 0 0");
 }
 
-.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:nth-last-child(1 of .ui-items-view__item:not(.ui-hidden)) > .ui-expander:not(.ui-expander--quiet) {
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:is(:nth-last-child(1 of .ui-items-view__item:not(.ui-hidden, [hidden])), [data-ui-group-end]) > .ui-expander:not(.ui-expander--quiet) {
     .ui-responsive-property(border-radius, --ui-border-radius, ~"0 0 var(--ui-radius-card) var(--ui-radius-card)");
 }
 
-.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:nth-child(1 of .ui-items-view__item:not(.ui-hidden)):nth-last-child(1 of .ui-items-view__item:not(.ui-hidden)) > .ui-expander:not(.ui-expander--quiet) {
+.ui-items-view--accordion > [data-ui-items-host] > .ui-items-view__item:is(:nth-child(1 of .ui-items-view__item:not(.ui-hidden, [hidden])), [data-ui-group-start]):is(:nth-last-child(1 of .ui-items-view__item:not(.ui-hidden, [hidden])), [data-ui-group-end]) > .ui-expander:not(.ui-expander--quiet) {
     .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-card));
 }

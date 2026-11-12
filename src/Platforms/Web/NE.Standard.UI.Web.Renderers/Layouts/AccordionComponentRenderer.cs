@@ -20,6 +20,7 @@ public sealed class AccordionComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
+        LayoutClipReachRenderer.Render(context, root);
 
         RenderChildren(context, root);
     }

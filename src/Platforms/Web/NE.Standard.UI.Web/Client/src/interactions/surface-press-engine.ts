@@ -39,7 +39,7 @@ export class SurfacePressEngine {
         trackInnerPointer(root, ["hover", "press"], target => surfacesAround(target.closest(ControlSelector)));
 
         // A bound Clickable, a disabled or loading state and the controls it holds all change what a surface is to the keyboard.
-        observeComponents(root, SurfaceSelector, { childList: true, attributeFilter: ["class"] }, surfaces => this.syncEach(surfaces));
+        observeComponents(root, SurfaceSelector, { childList: true, attributeFilter: ["class"], addedOnly: true }, surfaces => this.syncEach(surfaces));
 
         this.syncEach(root.querySelectorAll(SurfaceSelector));
     }

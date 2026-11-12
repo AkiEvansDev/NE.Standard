@@ -67,7 +67,7 @@ internal sealed class UICommandInvoker
 
         CommandParameter[] parameters = new CommandParameter[commandParameterCount];
 
-        HashSet<string> names = new(StringComparer.Ordinal);
+        HashSet<string> names = [with(StringComparer.Ordinal)];
         for (var i = 0; i < commandParameterCount; i++)
         {
             ParameterInfo parameter = methodParameters[i];

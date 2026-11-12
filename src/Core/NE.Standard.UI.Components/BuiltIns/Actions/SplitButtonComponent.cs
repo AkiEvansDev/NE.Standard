@@ -31,7 +31,7 @@ public abstract partial class SplitButtonComponent<T> : ButtonComponent<T>, IReg
     // A button at a bar's end, as most are: the menu lines up under it rather than running past the bar.
     private const UIPopupPlacement DefaultPopupPlacement = UIPopupPlacement.BottomEnd;
 
-    private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IVisualComponent> _regions = [with(StringComparer.Ordinal)];
 
     /// <summary>
     /// Initializes the button with an empty menu in its region.

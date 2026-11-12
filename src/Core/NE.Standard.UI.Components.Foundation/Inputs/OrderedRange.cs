@@ -67,4 +67,58 @@ public static class OrderedRange
 
         ValidatePeriod(start, end, minDistance, static (from, to) => TimeSpan.FromDays(to.DayNumber - from.DayNumber), "date");
     }
+
+    /// <summary>
+    /// Whether <paramref name="end"/> falls before <paramref name="start"/> or nearer to it than <paramref name="least"/> without
+    /// overflowing across opposite-signed extremes.
+    /// </summary>
+    public static bool IsNearer(decimal start, decimal end, decimal least)
+    {
+        if (end < start)
+            return true;
+
+        if (least <= 0m)
+            return false;
+
+        if (start >= 0m || end <= 0m)
+            return end - start < least;
+
+        var negatedStart = -start;
+
+        if (end >= least || negatedStart >= least)
+            return false;
+
+        var larger = end >= negatedStart ? end : negatedStart;
+        var smaller = end >= negatedStart ? negatedStart : end;
+
+        return smaller < least - larger;
+    }
+
+    /// <summary>
+    /// Whether <paramref name="value"/> lies between two steps of <paramref name="step"/> counted from <paramref name="origin"/> without
+    /// overflowing or rounding across opposite-signed extremes.
+    /// </summary>
+    public static bool IsOffStep(decimal origin, decimal step, decimal value)
+    {
+        if (step <= 0m)
+            return false;
+
+        var valueRemainder = value % step;
+        var originRemainder = origin % step;
+
+        if (valueRemainder == originRemainder)
+            return false;
+
+        if ((valueRemainder > 0m && originRemainder < 0m) || (valueRemainder < 0m && originRemainder > 0m))
+        {
+            var absValue = valueRemainder > 0m ? valueRemainder : -valueRemainder;
+            var absOrigin = originRemainder > 0m ? originRemainder : -originRemainder;
+            var larger = absValue >= absOrigin ? absValue : absOrigin;
+            var smaller = absValue >= absOrigin ? absOrigin : absValue;
+
+            return step - larger != smaller;
+        }
+
+        return true;
+    }
 }

@@ -95,14 +95,23 @@ internal sealed partial class UIRuntime
 
     private ServerChangeSet CopyPendingUpdatesNoLock()
     {
-        if (_pendingUpdates.Count == 0)
+        if (_pendingUpdateCount == 0)
             return ServerChangeSet.Empty;
 
-        ServerUIUpdate[] updates = new ServerUIUpdate[_pendingUpdates.Count];
+        ServerUIUpdate[] updates = new ServerUIUpdate[_pendingUpdateCount];
         var sequences = new long[updates.Length];
+        var next = 0;
 
-        for (var i = 0; i < updates.Length; i++)
-            (updates[i], sequences[i]) = _pendingUpdates[i];
+        for (var i = 0; i < _pendingUpdates.Count; i++)
+        {
+            PendingUpdate pending = _pendingUpdates[i];
+
+            if (pending.Update is null)
+                continue;
+
+            updates[next] = pending.Update;
+            sequences[next++] = pending.Sequence;
+        }
 
         ServerChangeSet changes = new() { Updates = updates, Sequences = sequences };
         changes.Validate();
@@ -110,11 +119,16 @@ internal sealed partial class UIRuntime
         return changes;
     }
 
-    /// <summary>Queues an update under the next number.</summary>
-    private void QueueUpdateNoLock(ServerUIUpdate update)
-        => _pendingUpdates.Add(new PendingUpdate(update, ++_updateSequence));
+    /// <summary>Queues an update under the next number and returns its slot in <c>_pendingUpdates</c>.</summary>
+    private int QueueUpdateNoLock(ServerUIUpdate update)
+    {
+        var index = _pendingUpdates.Count;
+        _pendingUpdates.Add(new PendingUpdate(update, ++_updateSequence));
+        _pendingUpdateCount++;
+        return index;
+    }
 
-    private readonly record struct PendingUpdate(ServerUIUpdate Update, long Sequence);
+    private readonly record struct PendingUpdate(ServerUIUpdate? Update, long Sequence);
 
     /// <summary>Who a drain's change set goes to, which decides what it takes from the queue.</summary>
     private readonly record struct DrainTarget(bool Whole, bool Dispatch, string? AnswerFor, DrainSends? Sends)
@@ -144,7 +158,10 @@ internal sealed partial class UIRuntime
     private void ClearPendingUpdatesNoLock()
     {
         _pendingUpdates.Clear();
-        _queuedValueAddresses.Clear();
+        _pendingUpdateCount = 0;
+        _queuedValueIndices.Clear();
+        _queuedRowReplaces.Clear();
+        _rowChildUpdateIndices.Clear();
         _pendingFullResync = false;
     }
 
@@ -184,16 +201,14 @@ internal sealed partial class UIRuntime
                 break;
 
             default:
-                QueueUpdateNoLock(update);
+                _ = QueueUpdateNoLock(update);
                 break;
         }
     }
 
     private void AppendExactValueUpdatesNoLock(RecursivePath path)
     {
-        IReadOnlyList<CompiledUIBinding> bindings = View.Bindings.GetControllerProperties(path, out var materializedParameters);
-
-        if (bindings.Count == 0)
+        if (!View.Bindings.TryGetControllerProperties(path, out IReadOnlyList<CompiledUIBinding> bindings, out var materializedParameters))
             return;
 
         var value = TryGetControllerValue(path);
@@ -271,7 +286,8 @@ internal sealed partial class UIRuntime
 
     private void AppendDescendantValueUpdatesNoLock(RecursivePath path)
     {
-        IReadOnlyList<CompiledUIBinding> bindings = View.Bindings.GetControllerDescendantProperties(path, out var baseParameters);
+        if (!View.Bindings.TryGetControllerDescendantProperties(path, out IReadOnlyList<CompiledUIBinding> bindings, out var baseParameters))
+            return;
 
         for (var i = 0; i < bindings.Count; i++)
         {
@@ -292,6 +308,6 @@ internal sealed partial class UIRuntime
         // A resync sends every value to every instance; a write held back from one would be held from nothing.
         _heldValues.Clear();
         _pendingFullResync = true;
-        QueueUpdateNoLock(new ServerFullResyncUIUpdate());
+        _ = QueueUpdateNoLock(new ServerFullResyncUIUpdate());
     }
 }

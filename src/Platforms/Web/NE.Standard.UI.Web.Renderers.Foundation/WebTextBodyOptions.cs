@@ -24,6 +24,12 @@ public readonly record struct WebTextBodyOptions
     public bool NamesField { get; init; }
 
     /// <summary>
+    /// Whether the badge carries the input caption's tooltip operations and hidden help description without rewriting the field's
+    /// <c>aria-label</c> on a title update — a button multi-select trigger whose visible words include its chosen-count badge.
+    /// </summary>
+    public bool FieldHelpBadge { get; init; }
+
+    /// <summary>
     /// Whether a badge with a tooltip is a tab stop of its own, named by the words and showing them on a press and on focus — in a field's
     /// caption that stands outside any control (above the field, a checkbox's label), never inside a button or a field's box, where a
     /// nested tab stop is invalid. Only with <see cref="NamesField"/>. A help badge (<c>SetHelp</c>'s) there shows its words on a press
@@ -54,4 +60,15 @@ public readonly record struct WebTextBodyOptions
     /// multi-select's initial chosen count.
     /// </summary>
     public string? FallbackBadgeTitle { get; init; }
+
+    /// <summary>
+    /// The <c>id</c> of the native field a caption's <c>&lt;label for&gt;</c> names when the component root itself is not a <c>label</c>
+    /// (<c>TextInputComponent</c>); null renders the title as a <c>span</c>.
+    /// </summary>
+    public string? LabelForId { get; init; }
+
+    /// <summary>
+    /// Optional property-owner key for <c>TitleProperty</c> when one component type renders distinct title operation sets across variants.
+    /// </summary>
+    public string? PropertyOwnerTypeKey { get; init; }
 }

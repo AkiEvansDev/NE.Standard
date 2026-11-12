@@ -9,10 +9,12 @@ using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Compilation;
@@ -35,6 +37,15 @@ internal sealed partial class UIViewCompilationContext
         if (property.Equals(IVisualComponent.HorizontalAlignmentProperty))
             return component is ISwitcherComponent { Variant: UISwitcherVariant.Field } ? (UIResponsive<UIAlignment>)UIAlignment.Stretch : null;
 
+        if (component is IMultiSelectComponent { Variant: UIMultiSelectVariant.Button })
+        {
+            if (property.Equals(IPopupPlacementComponent.PopupPlacementProperty))
+                return UIPopupPlacement.BottomEnd;
+
+            if (property.Equals(SelectComponent.ShowChevronProperty) && !UIPhrase.HasWords(component is ITextBaseComponent text ? text.Title : null) && FindBinding(component, ITextBaseComponent.TitleProperty) is null)
+                return false;
+        }
+
         return property.Equals(IVisualComponent.AlignWithFieldBoxesProperty) ? ImpliedFieldBoxes(component) : null;
     }
 
@@ -46,7 +57,7 @@ internal sealed partial class UIViewCompilationContext
         if (_clickInteractionSources is not null)
             return _clickInteractionSources;
 
-        HashSet<string> sources = new(StringComparer.Ordinal);
+        HashSet<string> sources = [with(StringComparer.Ordinal)];
 
         foreach (IVisualComponent owner in _componentOrder)
         {

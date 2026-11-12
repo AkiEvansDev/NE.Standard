@@ -407,6 +407,7 @@ public static class UIText
             .SetOrientation(UIOrientation.Horizontal)
             .SetLayoutType(UIItemsLayoutType.Wrap)
             .SetSpacing(BadgeSpacing)
+            .SetShowEmptyTemplate(false)
             .SetTemplate(BoundBadge());
 
         return WithBadges(title, row, icon);

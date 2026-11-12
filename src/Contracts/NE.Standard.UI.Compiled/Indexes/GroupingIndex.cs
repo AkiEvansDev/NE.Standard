@@ -29,7 +29,7 @@ internal static class GroupingIndex
     public static FrozenDictionary<TKey, TValue[]> Freeze<TKey, TValue>(Dictionary<TKey, List<TValue>> source)
         where TKey : notnull
     {
-        Dictionary<TKey, TValue[]> result = new(source.Count);
+        Dictionary<TKey, TValue[]> result = [with(source.Count)];
 
         foreach (KeyValuePair<TKey, List<TValue>> pair in source)
             result.Add(pair.Key, [.. pair.Value]);

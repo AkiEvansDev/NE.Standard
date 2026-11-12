@@ -24,7 +24,7 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     where T : ContainerComponent<T>, IUIComponentDefinition
 {
     private readonly UIResponsive<UIGridUnit>[] _columns = new UIResponsive<UIGridUnit>[UIGridPlacement.GridColumns];
-    private readonly List<UIResponsive<UIGridUnit>> _rows = new(1);
+    private readonly List<UIResponsive<UIGridUnit>> _rows = [with(1)];
 
     /// <summary>
     /// Initializes a new container with a full set of star-sized columns and a single star-sized row.

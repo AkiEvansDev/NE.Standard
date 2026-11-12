@@ -305,7 +305,7 @@ internal sealed partial class ChatController : UIControllerBase
 
     // What a delete took, by the message's id, for the toast's Undo to put back: a soft delete. A real store would purge the row once
     // the toast's window has passed; this history lives in memory, so there is nothing to purge.
-    private readonly Dictionary<string, (DemoChatItem Chat, DemoChatMessage Message, int Index)> _deleted = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (DemoChatItem Chat, DemoChatMessage Message, int Index)> _deleted = [with(StringComparer.Ordinal)];
 
     // UTC until the reader's zone is heard, as the page attaches.
     private TimeZoneInfo _zone = TimeZoneInfo.Utc;

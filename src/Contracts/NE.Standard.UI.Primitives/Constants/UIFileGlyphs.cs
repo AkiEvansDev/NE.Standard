@@ -67,7 +67,7 @@ public static class UIFileGlyphs
     public static string For(string? fileName, string? contentType)
     {
         var name = fileName ?? string.Empty;
-        var dot = name.LastIndexOf('.');
+        var dot = name.LastIndexOf('.', StringComparison.Ordinal);
 
         if (dot >= 0 && ByExtension.TryGetValue(name[(dot + 1)..].ToLowerInvariant(), out var byExtension))
             return byExtension;
@@ -86,7 +86,7 @@ public static class UIFileGlyphs
 
     private static FrozenDictionary<string, string> Kinds(params (string Glyph, string[] Extensions)[] kinds)
     {
-        Dictionary<string, string> table = new(StringComparer.Ordinal);
+        Dictionary<string, string> table = [with(StringComparer.Ordinal)];
 
         foreach ((var glyph, var extensions) in kinds)
         {

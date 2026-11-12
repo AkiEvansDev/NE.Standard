@@ -1,7 +1,7 @@
 // A press on a field box's own empty space — its padding, or the gap a caption inside leaves before a value sized to its text —
 // focuses the box's text field with the caret at the end, so the box answers as one field wherever it is pressed.
 
-import { EventBoundaryAttribute, FieldClass, PopupRoleSelector } from "../addressing/dom-attributes.ts";
+import { EventBoundaryAttribute, FieldClass, InputHeaderClass, NumberInputClass, PopupRoleSelector, TemporalInputClass, TextAreaClass, TextInputClass } from "../addressing/dom-attributes.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { FieldBoxSelector, NativeControlSelector } from "./own-control.ts";
@@ -11,6 +11,7 @@ import { FieldBoxSelector, NativeControlSelector } from "./own-control.ts";
 const OwnPartSelector = `${NativeControlSelector}, [tabindex], [contenteditable], ${PopupRoleSelector}, [${EventBoundaryAttribute}]`;
 // The box's text field: the framework's field class on a caret input or a multi-line field.
 const FieldSelector = `:scope > input.${FieldClass}, :scope > textarea.${FieldClass}`;
+const HeaderSelector = `:is(.${TextInputClass}, .${TextAreaClass}, .${NumberInputClass}, .${TemporalInputClass}) > .${InputHeaderClass}`;
 
 export type FieldBoxPressEngineOptions = {
     readonly root?: ParentNode;
@@ -27,7 +28,7 @@ export class FieldBoxPressEngine {
         if (domEvent.defaultPrevented || domEvent.button !== 0 || !(domEvent.target instanceof Element))
             return;
 
-        const box = domEvent.target.closest(FieldBoxSelector);
+        const box = domEvent.target.closest(FieldBoxSelector) ?? resolveHeaderBox(domEvent.target);
 
         if (box === null || (domEvent.target !== box && domEvent.target.closest(OwnPartSelector) !== null))
             return;
@@ -50,4 +51,18 @@ export class FieldBoxPressEngine {
 
         field.setSelectionRange(end, end);
     }
+}
+
+function resolveHeaderBox(target: Element): Element | null {
+    if (target.closest("label") !== null)
+        return null;
+
+    const root = target.closest(HeaderSelector)?.parentElement ?? null;
+
+    if (root === null)
+        return null;
+
+    const childField = root.querySelector(`:scope > textarea.${FieldClass}`);
+
+    return childField !== null ? root : root.querySelector(`:scope > :is(${FieldBoxSelector})`);
 }

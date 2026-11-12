@@ -31,7 +31,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
         IncrementalValuesProvider<UIComponentPropertyModel> properties = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 UIComponentPropertyNames.AttributeMetadataName,
-                predicate: static (node, _) => node is PropertyDeclarationSyntax,
+                predicate: static (node, _) => node is PropertyDeclarationSyntax or IndexerDeclarationSyntax,
                 transform: static (ctx, ct) => UIComponentPropertyModelFactory.CreatePropertyModel(ctx, ct))
             .Where(static model => model is not null)
             .Select(static (model, _) => model!)
@@ -55,72 +55,27 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             .Select(static (model, _) => model!)
             .WithTrackingName(DefaultModelsStep);
 
-        IncrementalValueProvider<((ImmutableArray<UIComponentPropertyModel> Properties, ImmutableArray<UIComponentPropertyBlockModel> Blocks) Left, ImmutableArray<UIComponentPropertyDefaultModel> Defaults)> source = properties
+        IncrementalValuesProvider<TypeWorkGroup> types = properties
             .Collect()
             .Combine(blocks.Collect())
             .Combine(defaults.Collect())
+            .SelectMany(static (source, _) => GroupByType(source.Left.Left, source.Left.Right, source.Right))
             .WithTrackingName(CollectedModelsStep);
 
-        context.RegisterSourceOutput(source, static (ctx, source) => Execute(ctx, source.Left.Properties, source.Left.Blocks, source.Defaults));
-    }
-
-    private static void Execute(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks, ImmutableArray<UIComponentPropertyDefaultModel> defaults)
-    {
-        if (properties.IsDefaultOrEmpty && blocks.IsDefaultOrEmpty && defaults.IsDefaultOrEmpty)
-            return;
-
-        foreach ((UIComponentTypeModel type, List<TypeWorkItem> items) in GroupByType(context, properties, blocks, defaults))
-        {
-            var hasErrors = false;
-
-            if (!type.Declaration.IsPartial)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(UIComponentPropertyDiagnostics.ComponentMustBePartial, type.Declaration.Location?.ToLocation(), type.Declaration.DisplayName));
-
-                hasErrors = true;
-            }
-
-            if (string.IsNullOrWhiteSpace(type.SelfType))
-            {
-                context.ReportDiagnostic(Diagnostic.Create(UIComponentPropertyDiagnostics.InvalidSelfType, type.Declaration.Location?.ToLocation(), type.Declaration.DisplayName));
-
-                hasErrors = true;
-            }
-
-            foreach (TypeWorkItem item in items)
-            {
-                if (item.Property is { } property)
-                {
-                    foreach (DiagnosticInfo diagnostic in property.Diagnostics)
-                        context.ReportDiagnostic(diagnostic.ToDiagnostic());
-
-                    hasErrors |= property.HasErrors;
-                }
-                else if (item.DefaultOverride is { } defaultOverride)
-                {
-                    foreach (DiagnosticInfo diagnostic in defaultOverride.Diagnostics)
-                        context.ReportDiagnostic(diagnostic.ToDiagnostic());
-
-                    hasErrors |= defaultOverride.HasErrors;
-                }
-            }
-
-            if (hasErrors || items.Count == 0)
-                continue;
-
-            var source = GenerateType(type, items);
-
-            context.AddSource(type.Declaration.HintName, SourceText.From(source, Encoding.UTF8));
-        }
+        context.RegisterSourceOutput(types, static (ctx, group) => ExecuteType(ctx, group));
     }
 
     /// <summary>
     /// Pairs every component type with its own annotated properties, what its <c>[UIComponentPropertyBlock]</c> contracts contribute,
     /// and its inherited <c>[UIComponentPropertyDefault]</c> overrides.
     /// </summary>
-    private static List<(UIComponentTypeModel Owner, List<TypeWorkItem> Items)> GroupByType(SourceProductionContext context, ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks, ImmutableArray<UIComponentPropertyDefaultModel> defaults)
+    private static ImmutableArray<TypeWorkGroup> GroupByType(ImmutableArray<UIComponentPropertyModel> properties, ImmutableArray<UIComponentPropertyBlockModel> blocks, ImmutableArray<UIComponentPropertyDefaultModel> defaults)
     {
+        if (properties.IsDefaultOrEmpty && blocks.IsDefaultOrEmpty && defaults.IsDefaultOrEmpty)
+            return [];
+
         HintNameGroups<UIComponentTypeModel, TypeWorkItem> groups = new();
+        Dictionary<string, List<DiagnosticInfo>> diagnosticsByHintName = [with(System.StringComparer.Ordinal)];
 
         if (!properties.IsDefaultOrEmpty)
         {
@@ -133,9 +88,7 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             foreach (UIComponentPropertyBlockModel block in blocks)
             {
                 List<TypeWorkItem> target = groups.GetOrAdd(block.Owner, block.Owner.Declaration);
-
-                foreach (DiagnosticInfo diagnostic in block.Diagnostics)
-                    context.ReportDiagnostic(diagnostic.ToDiagnostic());
+                AppendGroupDiagnostics(diagnosticsByHintName, block.Owner.Declaration.HintName, block.Diagnostics);
 
                 foreach (UIComponentPropertyModel property in block.Properties)
                     target.Add(new TypeWorkItem(property, null));
@@ -147,19 +100,88 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             foreach (UIComponentPropertyDefaultModel defaultModel in defaults)
             {
                 List<TypeWorkItem> target = groups.GetOrAdd(defaultModel.Owner, defaultModel.Owner.Declaration);
-
-                foreach (DiagnosticInfo diagnostic in defaultModel.Diagnostics)
-                    context.ReportDiagnostic(diagnostic.ToDiagnostic());
+                AppendGroupDiagnostics(diagnosticsByHintName, defaultModel.Owner.Declaration.HintName, defaultModel.Diagnostics);
 
                 foreach (UIComponentPropertyDefaultOverrideModel defaultOverride in defaultModel.Overrides)
                     target.Add(new TypeWorkItem(null, defaultOverride));
             }
         }
 
-        return groups.Groups;
+        ImmutableArray<TypeWorkGroup>.Builder result = ImmutableArray.CreateBuilder<TypeWorkGroup>(groups.Groups.Count);
+
+        foreach ((UIComponentTypeModel owner, List<TypeWorkItem> items) in groups.Groups)
+        {
+            EquatableArray<DiagnosticInfo> diagnostics = diagnosticsByHintName.TryGetValue(owner.Declaration.HintName, out List<DiagnosticInfo>? ownerDiagnostics)
+                ? ownerDiagnostics.ToEquatableArray()
+                : EquatableArray<DiagnosticInfo>.Empty;
+
+            result.Add(new TypeWorkGroup(owner, items.ToEquatableArray(), diagnostics));
+        }
+
+        return result.MoveToImmutable();
     }
 
-    private static string GenerateType(UIComponentTypeModel type, List<TypeWorkItem> items)
+    private static void AppendGroupDiagnostics(Dictionary<string, List<DiagnosticInfo>> diagnosticsByHintName, string hintName, EquatableArray<DiagnosticInfo> diagnostics)
+    {
+        if (diagnostics.Count == 0)
+            return;
+
+        if (!diagnosticsByHintName.TryGetValue(hintName, out List<DiagnosticInfo>? list))
+            diagnosticsByHintName[hintName] = list = [];
+
+        foreach (DiagnosticInfo diagnostic in diagnostics)
+            list.Add(diagnostic);
+    }
+
+    private static void ExecuteType(SourceProductionContext context, TypeWorkGroup group)
+    {
+        UIComponentTypeModel type = group.Owner;
+        var hasErrors = false;
+
+        foreach (DiagnosticInfo diagnostic in group.Diagnostics)
+            context.ReportDiagnostic(diagnostic.ToDiagnostic());
+
+        if (!type.Declaration.IsPartial)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(UIComponentPropertyDiagnostics.ComponentMustBePartial, type.Declaration.Location?.ToLocation(), type.Declaration.DisplayName));
+
+            hasErrors = true;
+        }
+
+        if (string.IsNullOrWhiteSpace(type.SelfType))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(UIComponentPropertyDiagnostics.InvalidSelfType, type.Declaration.Location?.ToLocation(), type.Declaration.DisplayName));
+
+            hasErrors = true;
+        }
+
+        foreach (TypeWorkItem item in group.Items)
+        {
+            if (item.Property is { } property)
+            {
+                foreach (DiagnosticInfo diagnostic in property.Diagnostics)
+                    context.ReportDiagnostic(diagnostic.ToDiagnostic());
+
+                hasErrors |= property.HasErrors;
+            }
+            else if (item.DefaultOverride is { } defaultOverride)
+            {
+                foreach (DiagnosticInfo diagnostic in defaultOverride.Diagnostics)
+                    context.ReportDiagnostic(diagnostic.ToDiagnostic());
+
+                hasErrors |= defaultOverride.HasErrors;
+            }
+        }
+
+        if (hasErrors || group.Items.Count == 0)
+            return;
+
+        var source = GenerateType(type, group.Items);
+
+        context.AddSource(type.Declaration.HintName, SourceText.From(source, Encoding.UTF8));
+    }
+
+    private static string GenerateType(UIComponentTypeModel type, EquatableArray<TypeWorkItem> items)
     {
         StringBuilder builder = new();
 
@@ -310,6 +332,14 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
         if (model.ThrowIfNull)
             _ = builder.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(value);");
 
+        if (model.IsBindable)
+        {
+            _ = builder
+                .Append("        RemoveNonOptionalBinding(")
+                .Append(UIComponentPropertyNames.GetUIPropertyName(model.Name))
+                .AppendLine(");");
+        }
+
         _ = builder
             .Append("        ")
             .Append(model.Name)
@@ -447,6 +477,8 @@ public sealed class UIComponentPropertyGenerator : IIncrementalGenerator
             .Append(model.DefaultValue)
             .AppendLine(");");
     }
+
+    private readonly record struct TypeWorkGroup(UIComponentTypeModel Owner, EquatableArray<TypeWorkItem> Items, EquatableArray<DiagnosticInfo> Diagnostics);
 
     private readonly record struct TypeWorkItem(UIComponentPropertyModel? Property, UIComponentPropertyDefaultOverrideModel? DefaultOverride);
 }

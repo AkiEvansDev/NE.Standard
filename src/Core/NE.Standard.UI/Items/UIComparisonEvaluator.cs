@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using NE.Standard.UI.Abstractions.Binding;
@@ -34,21 +35,20 @@ public static class UIComparisonEvaluator
 
         left = Comparable(left);
         right = Comparable(right);
-        var text = UIScriptText.Of(left);
 
         return @operator switch
         {
-            UIComparisonOperator.Required => left is not null and not false && !string.IsNullOrWhiteSpace(text),
-            UIComparisonOperator.Equal => string.Equals(text, UIScriptText.Of(right), StringComparison.Ordinal),
-            UIComparisonOperator.NotEqual => !string.Equals(text, UIScriptText.Of(right), StringComparison.Ordinal),
+            UIComparisonOperator.Required => left is not null and not false && !string.IsNullOrWhiteSpace(UIScriptText.Of(left)),
+            UIComparisonOperator.Equal => string.Equals(UIScriptText.Of(left), UIScriptText.Of(right), StringComparison.Ordinal),
+            UIComparisonOperator.NotEqual => !string.Equals(UIScriptText.Of(left), UIScriptText.Of(right), StringComparison.Ordinal),
             UIComparisonOperator.Greater => IsOrdered(left, right, static order => order > 0),
             UIComparisonOperator.GreaterOrEqual => IsOrdered(left, right, static order => order >= 0),
             UIComparisonOperator.Less => IsOrdered(left, right, static order => order < 0),
             UIComparisonOperator.LessOrEqual => IsOrdered(left, right, static order => order <= 0),
-            UIComparisonOperator.Like => text.Contains(UIScriptText.Of(right), StringComparison.Ordinal),
-            UIComparisonOperator.LikeIgnoreCase => text.Contains(UIScriptText.Of(right), StringComparison.OrdinalIgnoreCase),
+            UIComparisonOperator.Like => UIScriptText.Of(left).Contains(UIScriptText.Of(right), StringComparison.Ordinal),
+            UIComparisonOperator.LikeIgnoreCase => UIScriptText.Of(left).Contains(UIScriptText.Of(right), StringComparison.OrdinalIgnoreCase),
             UIComparisonOperator.In => IsIn(left, right),
-            UIComparisonOperator.Regex => IsRegexMatch(text, right),
+            UIComparisonOperator.Regex => IsRegexMatch(UIScriptText.Of(left), right),
             UIComparisonOperator.RegexEach => IsEveryRegexMatch(left, right),
             _ => false
         };
@@ -66,6 +66,14 @@ public static class UIComparisonEvaluator
                 return idText;
 
             if (map.TryGetValue("Id", out var pascalId) && pascalId is string pascalIdText)
+                return pascalIdText;
+        }
+        else if (value is IDictionary<string, object?> mutableMap)
+        {
+            if (mutableMap.TryGetValue("id", out var id) && id is string idText)
+                return idText;
+
+            if (mutableMap.TryGetValue("Id", out var pascalId) && pascalId is string pascalIdText)
                 return pascalIdText;
         }
 
@@ -139,7 +147,7 @@ public static class UIComparisonEvaluator
         if (right is not IEnumerable candidates || right is string)
             return false;
 
-        if (left is IEnumerable items and not string and not IReadOnlyDictionary<string, object?>)
+        if (left is IEnumerable items and not string and not IReadOnlyDictionary<string, object?> and not IDictionary<string, object?>)
         {
             foreach (var item in items)
             {
@@ -183,13 +191,38 @@ public static class UIComparisonEvaluator
         if (left is null)
             return true;
 
-        if (left is string || left is not IEnumerable items)
+        if (left is string or IReadOnlyDictionary<string, object?> or IDictionary<string, object?> || left is not IEnumerable items)
             return IsRegexMatch(UIScriptText.Of(left), right);
+
+        Regex regex;
+
+        try
+        {
+            regex = new Regex(UIScriptText.Of(right), RegexOptions.None, RegexTimeout);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        var started = Stopwatch.GetTimestamp();
 
         foreach (var item in items)
         {
-            if (!IsRegexMatch(UIScriptText.Of(item), right))
+            if (Stopwatch.GetElapsedTime(started) >= RegexTimeout)
                 return false;
+
+            var value = UIScriptNumber.ReadsAsNull(item) ? null : Comparable(item);
+
+            try
+            {
+                if (!regex.IsMatch(UIScriptText.Of(value)))
+                    return false;
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                return false;
+            }
         }
 
         return true;

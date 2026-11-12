@@ -21,21 +21,25 @@ internal static class RecursiveMemberModelFactory
             && property.Modifiers.Any(SyntaxKind.PublicKeyword)
             && !property.Modifiers.Any(SyntaxKind.StaticKeyword)
             && !property.Modifiers.Any(SyntaxKind.AbstractKeyword)
-            && HasPublicMutableSetter(property.AccessorList)
-            && !HasKnownPropertyAttribute(property.AttributeLists);
+            && HasPublicMutableSetter(property.AccessorList);
 
     public static DiagnosticInfo? CreateUnannotatedDiagnostic(GeneratorSyntaxContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
+        Compilation compilation = context.SemanticModel.Compilation;
+
         if (context.SemanticModel.GetDeclaredSymbol(context.Node, cancellationToken) is not IPropertySymbol property
+            || property.PartialDefinitionPart is not null
+            || property.PartialImplementationPart is not null
             || property.ContainingType is not INamedTypeSymbol containingType
-            || property.FindAttribute(RecursiveMemberNames.AttributeMetadataName) is not null)
+            || property.FindAttribute(compilation, RecursiveMemberNames.AttributeMetadataName) is not null
+            || property.FindAttribute(compilation, ComponentProperties.UIComponentPropertyNames.AttributeMetadataName) is not null)
         {
             return null;
         }
 
-        INamedTypeSymbol? recursiveObservableType = context.SemanticModel.Compilation.GetTypeByMetadataName(RecursiveMemberNames.RecursiveObservableMetadataName);
+        INamedTypeSymbol? recursiveObservableType = compilation.GetTypeByMetadataName(RecursiveMemberNames.RecursiveObservableMetadataName);
 
         return recursiveObservableType is not null && containingType.InheritsFrom(recursiveObservableType)
             ? DiagnosticInfo.Create(RecursiveMemberDiagnostics.UnannotatedMutableProperty, property, property.Name, containingType.ToDisplayString())
@@ -56,27 +60,6 @@ internal static class RecursiveMemberModelFactory
         return false;
     }
 
-    private static bool HasKnownPropertyAttribute(SyntaxList<AttributeListSyntax> attributeLists)
-    {
-        foreach (AttributeListSyntax list in attributeLists)
-        {
-            foreach (AttributeSyntax attribute in list.Attributes)
-            {
-                var name = attribute.Name switch
-                {
-                    IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
-                    QualifiedNameSyntax qualified => qualified.Right.Identifier.ValueText,
-                    _ => null
-                };
-
-                if (name is "RecursiveMember" or "RecursiveMemberAttribute" or "UIComponentProperty" or "UIComponentPropertyAttribute")
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
     public static RecursiveMemberModel? CreateMemberModel(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -92,12 +75,13 @@ internal static class RecursiveMemberModelFactory
         if (containingType is null)
             return null;
 
-        AttributeData? attribute = property.FindAttribute(RecursiveMemberNames.AttributeMetadataName);
+        Compilation compilation = context.SemanticModel.Compilation;
+        AttributeData? attribute = property.FindAttribute(compilation, RecursiveMemberNames.AttributeMetadataName);
 
         if (attribute is null)
             return null;
 
-        INamedTypeSymbol? recursiveObservableType = context.SemanticModel.Compilation.GetTypeByMetadataName(RecursiveMemberNames.RecursiveObservableMetadataName);
+        INamedTypeSymbol? recursiveObservableType = compilation.GetTypeByMetadataName(RecursiveMemberNames.RecursiveObservableMetadataName);
         RecursiveMemberAttributeValues values = RecursiveMemberAttributeValues.From(attribute);
         List<DiagnosticInfo> diagnostics = [];
 
@@ -150,13 +134,18 @@ internal static class RecursiveMemberModelFactory
     }
 
     private static RecursiveOwnerModel CreateOwnerModel(INamedTypeSymbol type, INamedTypeSymbol? recursiveObservableType)
-        => new(
-            Declaration: GeneratedTypeModel.From(type, HintSuffix),
+    {
+        var isOrdinaryClass = type.TypeKind == TypeKind.Class && !type.IsRecord;
+        var inheritsRecursiveObservable = recursiveObservableType is not null && type.InheritsFrom(recursiveObservableType);
+
+        return new RecursiveOwnerModel(
+            Declaration: GeneratedTypeModel.From(type, HintSuffix, includeLocation: !isOrdinaryClass || !inheritsRecursiveObservable),
             Name: type.Name,
-            IsOrdinaryClass: type.TypeKind == TypeKind.Class && !type.IsRecord,
-            InheritsRecursiveObservable: recursiveObservableType is not null && type.InheritsFrom(recursiveObservableType),
+            IsOrdinaryClass: isOrdinaryClass,
+            InheritsRecursiveObservable: inheritsRecursiveObservable,
             ConstructorAccessibility: GetConstructorAccessibility(type)
         );
+    }
 
     /// <summary>The accessibility of the initialization constructor to generate, or <see langword="null"/> when the type declares one of its own.</summary>
     private static string? GetConstructorAccessibility(INamedTypeSymbol type)

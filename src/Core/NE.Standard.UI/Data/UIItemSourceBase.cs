@@ -230,7 +230,7 @@ public abstract partial class UIItemSourceBase<TItem> : UIItemSourceBase
 
         // Drop items the window already holds rather than repeating them: two rows under one key would collide client-side. Looked up
         // by the window's own index by key, not a scan of it per row read.
-        List<TItem> fresh = new(window.Items.Count);
+        List<TItem> fresh = [with(window.Items.Count)];
 
         for (var i = 0; i < window.Items.Count; i++)
         {

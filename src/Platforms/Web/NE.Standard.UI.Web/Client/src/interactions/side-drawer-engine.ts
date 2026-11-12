@@ -14,6 +14,7 @@ import { escapeIsClaimed } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { choosesMenuEntry } from "./menu-group-engine.ts";
 import { isBehindModal } from "./open-dialogs.ts";
+import { syncLiftedPopups } from "./anchored-popup.ts";
 import { hasOpenPopups } from "./popup-dismissal.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
 import { onTierChange } from "../rendering/responsive-tier.ts";
@@ -200,6 +201,7 @@ export class SideDrawerEngine {
         this.openers.set(shell, opener);
         this.markToggles(shell);
         this.hold(drawer, side, isModal(shell, side));
+        syncLiftedPopups();
         this.placeSwitch(drawer, opener);
 
         // Into the drawer, not behind the backdrop; a single next-frame fallback covers a drawer whose visibility transitions in.
@@ -356,6 +358,7 @@ export class SideDrawerEngine {
 
         this.release(drawer);
         this.renameSwitch(drawer);
+        syncLiftedPopups();
     }
 
     /** The button the drawer opened from, or failing that the side's first one in sight: not one a collapsed header holds. */

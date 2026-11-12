@@ -76,7 +76,10 @@ public sealed class UIClientComponent
     public bool IsEnabled => Page.IsEnabled(Node.ComponentId, _rowKeys);
 
     /// <summary>Gets the validation message the field shows, in the page's language, or <see langword="null"/> for none.</summary>
-    public string? ValidationMessage => Page.Message(Node.ComponentId, _rowKeys) is { } message ? Page.Words(message.Message) : null;
+    public string? ValidationMessage
+        => Page.View.Validations.TryGetMessageTarget(Node.ComponentId, out _)
+            ? null
+            : Page.Message(Node.ComponentId, _rowKeys) is { } message ? Page.Words(message.Message) : null;
 
     /// <summary>Gets the severity of the message the field shows, or <see langword="null"/> for none.</summary>
     public UIValidationSeverity? ValidationSeverity => Page.Message(Node.ComponentId, _rowKeys)?.Severity;
@@ -178,6 +181,10 @@ public sealed class UIClientComponent
     /// <summary>Writes <paramref name="value"/> to a property the reader changes, such as a list's chosen key, as <see cref="SetValueAsync"/> does.</summary>
     public Task<UIClientCommandResult> SetAsync(UIProperty property, object? value, CancellationToken cancellationToken = default)
         => Page.SetValueAsync(Node.ComponentId, _rowKeys, property, value, cancellationToken);
+
+    /// <summary>Commits <paramref name="title"/> as an inline rename on this component, writing <c>RenamedTitle</c> and raising <c>rename</c>.</summary>
+    public Task<UIClientCommandResult> RenameAsync(string title, CancellationToken cancellationToken = default)
+        => Page.RenameComponentAsync(Node.ComponentId, _rowKeys, title, cancellationToken);
 
     /// <summary>Presses the component: its click command — refused while its form has a field in error — or the interactions it drives.</summary>
     /// <exception cref="InvalidOperationException">The component is not shown, or is disabled or loading.</exception>

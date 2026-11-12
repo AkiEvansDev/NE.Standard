@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -20,6 +21,7 @@ using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Items;
 using NE.Standard.UI.Compiled.Models;
@@ -29,6 +31,7 @@ using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
+using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Serialization;
 
@@ -45,9 +48,11 @@ public static class CompiledViewWireSerializer
     private const string NullablePrefix = "nullable:";
     private const string ReadOnlyListPrefix = "ro_list:";
     private const string ReadOnlyDictionaryPrefix = "ro_dict:";
+    private const string EnumPrefix = "enum:";
+    private const string StructPrefix = "struct:";
 
     private static readonly Lock RegistrySync = new();
-    private static readonly Dictionary<string, Type> TagToType = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, Type> TagToType = [with(StringComparer.Ordinal)];
     private static readonly Dictionary<Type, string> TypeToTag = [];
     private static readonly HashSet<Assembly> ScannedAssemblies = [];
     private static readonly JsonSerializerOptions ValueJsonOptions = CreateValueJsonOptions();
@@ -55,8 +60,16 @@ public static class CompiledViewWireSerializer
     static CompiledViewWireSerializer()
     {
         RegisterScalarTag("bool", typeof(bool));
+        RegisterScalarTag("u8", typeof(byte));
+        RegisterScalarTag("i8", typeof(sbyte));
+        RegisterScalarTag("i16", typeof(short));
+        RegisterScalarTag("u16", typeof(ushort));
         RegisterScalarTag("i32", typeof(int));
+        RegisterScalarTag("u32", typeof(uint));
         RegisterScalarTag("i64", typeof(long));
+        RegisterScalarTag("u64", typeof(ulong));
+        RegisterScalarTag("nint", typeof(nint));
+        RegisterScalarTag("nuint", typeof(nuint));
         RegisterScalarTag("f64", typeof(double));
         RegisterScalarTag("f32", typeof(float));
         RegisterScalarTag("dec", typeof(decimal));
@@ -109,7 +122,7 @@ public static class CompiledViewWireSerializer
                     if (type.IsGenericTypeDefinition
                         || (type.IsAbstract && type.IsSealed)
                         || type.FullName is null
-                        || type.Name.StartsWith('<')
+                        || type.Name.StartsWith('<', StringComparison.Ordinal)
                         || typeof(Delegate).IsAssignableFrom(type)
                         || typeof(Exception).IsAssignableFrom(type)
                         || typeof(Task).IsAssignableFrom(type))
@@ -147,6 +160,8 @@ public static class CompiledViewWireSerializer
         };
 
         options.Converters.Add(new JsonStringEnumConverter());
+        options.Converters.Add(new NIntWireJsonConverter());
+        options.Converters.Add(new NUIntWireJsonConverter());
         options.Converters.Add(new UIPhraseJsonConverter());
         options.Converters.Add(new UIPhraseValueJsonConverter());
         options.Converters.Add(new UIMomentJsonConverter());
@@ -165,13 +180,19 @@ public static class CompiledViewWireSerializer
         options.Converters.Add(new UIItemsQueryTermsWireJsonConverter());
         options.Converters.Add(new UIItemReadsWireJsonConverter());
         options.Converters.Add(new CompiledUIItemsViewWireJsonConverter());
-        options.Converters.Add(new TextModelWireJsonConverter());
-        options.Converters.Add(new ButtonModelWireJsonConverter());
-        options.Converters.Add(new MenuItemModelWireJsonConverter());
-        options.Converters.Add(new OptionModelWireJsonConverter());
-        options.Converters.Add(new TreeNodeModelWireJsonConverter());
-        options.Converters.Add(new TabItemModelWireJsonConverter());
-        options.Converters.Add(new ItemAbilitiesModelWireJsonConverter());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<IBadgeModel, BadgeItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<IBreadcrumbItemModel, BreadcrumbItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<IButtonModel, ButtonItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<IFileModel, FileItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<IItemAbilitiesModel, TabItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<IKeyValueActionModel, KeyValueActionItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<IMenuItemModel, MenuItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<IOptionModel, OptionItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<ITabItemModel, TabItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<ITextBaseModel, TextBaseItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<ITextModel, TextItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<ITooltipModel, TextBaseItem>());
+        options.Converters.Add(new ModelInterfaceWireJsonConverter<ITreeNodeModel, TreeNode>());
         options.Converters.Add(new ObjectToInferredTypesConverter());
         return options;
     }
@@ -179,14 +200,14 @@ public static class CompiledViewWireSerializer
     /// <summary>
     /// Serializes a <see cref="CompiledView"/> to a UTF-8 JSON byte array.
     /// </summary>
-    public static byte[] SerializeToUtf8Bytes(CompiledView view)
+    public static byte[] SerializeToUtf8Bytes(CompiledView view, bool includeDiagnostics = true)
     {
         ArgumentNullException.ThrowIfNull(view);
 
         using MemoryStream buffer = new();
         using (Utf8JsonWriter writer = new(buffer))
         {
-            Write(writer, view);
+            Write(writer, view, includeDiagnostics);
         }
 
         return buffer.ToArray();
@@ -195,7 +216,7 @@ public static class CompiledViewWireSerializer
     /// <summary>
     /// Writes a <see cref="CompiledView"/> as a JSON object to <paramref name="writer"/>.
     /// </summary>
-    public static void Write(Utf8JsonWriter writer, CompiledView view)
+    public static void Write(Utf8JsonWriter writer, CompiledView view, bool includeDiagnostics = true)
     {
         ArgumentNullException.ThrowIfNull(writer);
         ArgumentNullException.ThrowIfNull(view);
@@ -223,13 +244,19 @@ public static class CompiledViewWireSerializer
         WriteGraph(writer, view.Graph);
 
         writer.WritePropertyName("state");
-        WriteStates(writer, view.State);
+        WriteStates(writer, view.State, view.ItemProjections);
 
         writer.WritePropertyName("sources");
         WriteSources(writer, view.Sources);
 
         writer.WritePropertyName("templates");
         WriteTemplates(writer, view.Templates);
+
+        if (view.Contexts.All.Count > 0)
+        {
+            writer.WritePropertyName("contexts");
+            WriteContexts(writer, view.Contexts);
+        }
 
         writer.WritePropertyName("bindings");
         WriteBindings(writer, view.Bindings);
@@ -243,13 +270,22 @@ public static class CompiledViewWireSerializer
         writer.WritePropertyName("validations");
         WriteValidations(writer, view.Validations);
 
-        writer.WritePropertyName("itemProjections");
-        WriteItemProjections(writer, view.ItemProjections);
-
-        if (view.Warnings.Count > 0)
+        if (view.Validations.MessageTargets.Count > 0)
         {
-            writer.WritePropertyName("warnings");
-            WriteWarnings(writer, view.Warnings);
+            writer.WritePropertyName("validationMessageTargets");
+            WriteValidationMessageTargets(writer, view.Validations.MessageTargets);
+        }
+
+        if (includeDiagnostics)
+        {
+            writer.WritePropertyName("itemProjections");
+            WriteItemProjections(writer, view.ItemProjections);
+
+            if (view.Warnings.Count > 0)
+            {
+                writer.WritePropertyName("warnings");
+                WriteWarnings(writer, view.Warnings);
+            }
         }
 
         writer.WriteEndObject();
@@ -268,7 +304,7 @@ public static class CompiledViewWireSerializer
         writer.WriteEndObject();
     }
 
-    private static void WriteTypedValue(Utf8JsonWriter writer, object? value)
+    private static void WriteTypedValue(Utf8JsonWriter writer, object? value, UIItemProjection? itemProjection = null)
     {
         switch (value)
         {
@@ -295,30 +331,35 @@ public static class CompiledViewWireSerializer
         }
 
         Type runtimeType = value.GetType();
-        if (TryWriteTypedSequence(writer, value, runtimeType))
+        if (TryWriteTypedSequence(writer, value, runtimeType, itemProjection))
             return;
 
         var tag = GetTypeTag(runtimeType);
         writer.WriteStartObject();
         writer.WriteString(TypeTagProperty, tag);
         writer.WritePropertyName(ValueProperty);
-        JsonSerializer.Serialize(writer, value, runtimeType, ValueJsonOptions);
+
+        if (string.Equals(tag, "item", StringComparison.Ordinal))
+            ServerItemJsonConverter.WriteItem(writer, value, itemProjection, ValueJsonOptions);
+        else
+            JsonSerializer.Serialize(writer, value, runtimeType, ValueJsonOptions);
+
         writer.WriteEndObject();
     }
 
-    private static bool TryWriteTypedSequence(Utf8JsonWriter writer, object value, Type runtimeType)
+    private static bool TryWriteTypedSequence(Utf8JsonWriter writer, object value, Type runtimeType, UIItemProjection? itemProjection)
     {
         if (runtimeType.IsArray)
         {
             Type elementType = runtimeType.GetElementType()!;
-            WriteSequenceEnvelope(writer, $"{ArrayPrefix}{ResolveSequenceElementTag(elementType, (IEnumerable)value)}", (IEnumerable)value);
+            WriteSequenceEnvelope(writer, $"{ArrayPrefix}{ResolveSequenceElementTag(elementType, (IEnumerable)value)}", (IEnumerable)value, itemProjection);
             return true;
         }
 
         if (runtimeType.IsGenericType && runtimeType.GetGenericTypeDefinition() == typeof(RecursiveCollection<>))
         {
             Type elementType = runtimeType.GetGenericArguments()[0];
-            WriteSequenceEnvelope(writer, $"{RecursiveCollectionPrefix}{ResolveSequenceElementTag(elementType, (IEnumerable)value)}", (IEnumerable)value);
+            WriteSequenceEnvelope(writer, $"{RecursiveCollectionPrefix}{ResolveSequenceElementTag(elementType, (IEnumerable)value)}", (IEnumerable)value, itemProjection);
             return true;
         }
 
@@ -327,7 +368,7 @@ public static class CompiledViewWireSerializer
             Type? elementType = TryGetGenericCollectionElement(runtimeType);
             if (elementType is not null)
             {
-                WriteSequenceEnvelope(writer, $"{ArrayPrefix}{ResolveSequenceElementTag(elementType, sequence)}", sequence);
+                WriteSequenceEnvelope(writer, $"{ArrayPrefix}{ResolveSequenceElementTag(elementType, sequence)}", sequence, itemProjection);
                 return true;
             }
         }
@@ -350,7 +391,7 @@ public static class CompiledViewWireSerializer
         return tag;
     }
 
-    private static void WriteSequenceEnvelope(Utf8JsonWriter writer, string tag, IEnumerable sequence)
+    private static void WriteSequenceEnvelope(Utf8JsonWriter writer, string tag, IEnumerable sequence, UIItemProjection? itemProjection)
     {
         writer.WriteStartObject();
         writer.WriteString(TypeTagProperty, tag);
@@ -358,7 +399,7 @@ public static class CompiledViewWireSerializer
         writer.WriteStartArray();
 
         foreach (var element in sequence)
-            WriteTypedValue(writer, element);
+            WriteTypedValue(writer, element, itemProjection);
 
         writer.WriteEndArray();
         writer.WriteEndObject();
@@ -370,13 +411,53 @@ public static class CompiledViewWireSerializer
             || runtimeType == typeof(UIItemsView)
             || runtimeType == typeof(CompiledUIItemsView)
             || typeof(IDictionary).IsAssignableFrom(runtimeType)
-            || (runtimeType.IsGenericType && runtimeType.GetGenericTypeDefinition() == typeof(Dictionary<,>));
+            || TryGetDictionaryArguments(runtimeType, out _, out _);
+
+    private static bool TryGetDictionaryArguments(Type type, [NotNullWhen(true)] out Type? keyType, [NotNullWhen(true)] out Type? valueType)
+    {
+        if (type.IsGenericType)
+        {
+            Type genericDef = type.GetGenericTypeDefinition();
+            if (genericDef == typeof(IReadOnlyDictionary<,>) || genericDef == typeof(IDictionary<,>) || genericDef == typeof(Dictionary<,>))
+            {
+                Type[] args = type.GetGenericArguments();
+                keyType = args[0];
+                valueType = args[1];
+                return true;
+            }
+        }
+
+        foreach (Type contract in type.GetInterfaces())
+        {
+            if (contract.IsGenericType && (contract.GetGenericTypeDefinition() == typeof(IReadOnlyDictionary<,>) || contract.GetGenericTypeDefinition() == typeof(IDictionary<,>)))
+            {
+                Type[] args = contract.GetGenericArguments();
+                keyType = args[0];
+                valueType = args[1];
+                return true;
+            }
+        }
+
+        keyType = null;
+        valueType = null;
+        return false;
+    }
 
     private static Type? TryGetGenericCollectionElement(Type type)
     {
+        if (type == typeof(string))
+            return null;
+
+        if (type.IsGenericType)
+        {
+            Type genericDef = type.GetGenericTypeDefinition();
+            if (genericDef == typeof(IReadOnlyList<>) || genericDef == typeof(IList<>) || genericDef == typeof(ICollection<>) || genericDef == typeof(IReadOnlyCollection<>) || genericDef == typeof(IEnumerable<>))
+                return type.GetGenericArguments()[0];
+        }
+
         foreach (Type contract in type.GetInterfaces())
         {
-            if (contract.IsGenericType && (contract.GetGenericTypeDefinition() == typeof(IReadOnlyList<>) || contract.GetGenericTypeDefinition() == typeof(ICollection<>)))
+            if (contract.IsGenericType && (contract.GetGenericTypeDefinition() == typeof(IReadOnlyList<>) || contract.GetGenericTypeDefinition() == typeof(ICollection<>) || contract.GetGenericTypeDefinition() == typeof(IReadOnlyCollection<>)))
                 return contract.GetGenericArguments()[0];
         }
 
@@ -416,11 +497,32 @@ public static class CompiledViewWireSerializer
         if (TypeToTag.TryGetValue(type, out existing))
             return existing;
 
+        if (TryGetDictionaryArguments(type, out Type? dictKey, out Type? dictValue))
+            return $"{ReadOnlyDictionaryPrefix}{GetTypeTag(dictKey)},{GetTypeTag(dictValue)}";
+
+        if (TryGetGenericCollectionElement(type) is Type collectionElement)
+            return $"{ReadOnlyListPrefix}{GetTypeTag(collectionElement)}";
+
+        if (type.IsEnum)
+            return $"{EnumPrefix}{GetExternalTypeSpec(type)}";
+
+        if (type.IsValueType && !type.IsPrimitive)
+            return $"{StructPrefix}{GetExternalTypeSpec(type)}";
+
         // Application-defined item models (outside NE.Standard.UI.*) travel as wire item dictionaries on the client.
         if (!type.IsPrimitive && type != typeof(string))
             return "item";
 
         throw new InvalidOperationException($"Type '{type.FullName}' is not registered for compiled view wire serialization.");
+    }
+
+    private static string GetExternalTypeSpec(Type type)
+    {
+        var spec = type.FullName is string fullName && type.Assembly.GetName().Name is string assemblyName
+            ? $"{fullName}, {assemblyName}"
+            : type.Name;
+
+        return spec.Replace(',', '|');
     }
 
     private static void WriteRegions(Utf8JsonWriter writer, CompiledRegion[] regions)
@@ -449,6 +551,69 @@ public static class CompiledViewWireSerializer
             writer.WriteStartObject();
             writer.WriteString("key", dialog.Key);
             writer.WriteNumber("rootComponentId", dialog.RootComponentId.Value);
+
+            if (dialog.Surface != UISurfaceStyle.Surface)
+                writer.WriteString("surface", dialog.Surface.ToString());
+
+            if (dialog.Placement != UIDialogPlacement.Center)
+                writer.WriteString("placement", dialog.Placement.ToString());
+
+            if (dialog.Width is { } width)
+            {
+                writer.WritePropertyName("width");
+                JsonSerializer.Serialize(writer, width, ValueJsonOptions);
+            }
+
+            if (dialog.MinWidth is { } minWidth)
+            {
+                writer.WritePropertyName("minWidth");
+                JsonSerializer.Serialize(writer, minWidth, ValueJsonOptions);
+            }
+
+            if (dialog.MaxWidth is { } maxWidth)
+            {
+                writer.WritePropertyName("maxWidth");
+                JsonSerializer.Serialize(writer, maxWidth, ValueJsonOptions);
+            }
+
+            if (dialog.Height is { } height)
+            {
+                writer.WritePropertyName("height");
+                JsonSerializer.Serialize(writer, height, ValueJsonOptions);
+            }
+
+            if (dialog.MinHeight is { } minHeight)
+            {
+                writer.WritePropertyName("minHeight");
+                JsonSerializer.Serialize(writer, minHeight, ValueJsonOptions);
+            }
+
+            if (dialog.MaxHeight is { } maxHeight)
+            {
+                writer.WritePropertyName("maxHeight");
+                JsonSerializer.Serialize(writer, maxHeight, ValueJsonOptions);
+            }
+
+            if (dialog.HorizontalAlignment is { } horizontalAlignment)
+                writer.WriteString("horizontalAlignment", horizontalAlignment.ToString());
+
+            if (dialog.VerticalAlignment is { } verticalAlignment)
+                writer.WriteString("verticalAlignment", verticalAlignment.ToString());
+
+            if (dialog.Margin is { } margin)
+            {
+                writer.WritePropertyName("margin");
+                JsonSerializer.Serialize(writer, margin, ValueJsonOptions);
+            }
+
+            if (!dialog.Modal)
+                writer.WriteBoolean("modal", false);
+
+            if (dialog.AccessibleName is not null)
+            {
+                writer.WritePropertyName("accessibleName");
+                JsonSerializer.Serialize(writer, dialog.AccessibleName, ValueJsonOptions);
+            }
 
             if (dialog.TitleComponentId is UIComponentId titleId)
                 writer.WriteNumber("titleComponentId", titleId.Value);
@@ -519,7 +684,7 @@ public static class CompiledViewWireSerializer
         writer.WriteEndArray();
     }
 
-    private static void WriteStates(Utf8JsonWriter writer, UIComponentStateIndex stateIndex)
+    private static void WriteStates(Utf8JsonWriter writer, UIComponentStateIndex stateIndex, UIItemProjectionIndex itemProjections)
     {
         List<LayoutWireEntry> layouts = BuildLayoutEntries(stateIndex.All, out Dictionary<UIComponentStateLayout, int> layoutIndices);
 
@@ -535,7 +700,7 @@ public static class CompiledViewWireSerializer
         foreach (UIComponentState state in stateIndex.All)
         {
             var layoutIndex = layoutIndices[state.Layout];
-            WriteStateEntry(writer, state, layoutIndex, layouts[layoutIndex].Defaults);
+            WriteStateEntry(writer, state, layoutIndex, layouts[layoutIndex].Defaults, itemProjections);
         }
 
         writer.WriteEndArray();
@@ -544,7 +709,7 @@ public static class CompiledViewWireSerializer
 
     private static List<LayoutWireEntry> BuildLayoutEntries(IReadOnlyList<UIComponentState> states, out Dictionary<UIComponentStateLayout, int> layoutIndices)
     {
-        layoutIndices = new Dictionary<UIComponentStateLayout, int>(ReferenceEqualityComparer.Instance);
+        layoutIndices = [with(ReferenceEqualityComparer.Instance)];
         List<LayoutWireEntry> layouts = [];
 
         foreach (UIComponentState state in states)
@@ -557,15 +722,8 @@ public static class CompiledViewWireSerializer
             for (var slot = 0; slot < count; slot++)
             {
                 CompiledUIPropertyValue candidate = state.All[slot];
-                defaults[slot] = candidate.IsBind
-                    ? new CompiledUIPropertyValue
-                    {
-                        Property = candidate.Property,
-                        IsTranslatable = candidate.IsTranslatable,
-                        IsContent = false,
-                        IsBind = false,
-                        Value = null,
-                    }
+                defaults[slot] = candidate.IsBind || IsServerOnlyProperty(candidate.Property) || IsItemsSlotProperty(candidate.Property)
+                    ? CreateEmptySlotValue(candidate)
                     : candidate;
             }
 
@@ -575,6 +733,22 @@ public static class CompiledViewWireSerializer
 
         return layouts;
     }
+
+    private static bool IsServerOnlyProperty(UIProperty property)
+        => property == IClientWriteCheckComponent.ClientWriteCheckProperty;
+
+    private static bool IsItemsSlotProperty(UIProperty property)
+        => property == IItemsComponent.ItemsProperty;
+
+    private static CompiledUIPropertyValue CreateEmptySlotValue(CompiledUIPropertyValue source)
+        => new()
+        {
+            Property = source.Property,
+            IsTranslatable = source.IsTranslatable,
+            IsContent = false,
+            IsBind = false,
+            Value = null,
+        };
 
     private static void WriteLayoutEntry(Utf8JsonWriter writer, LayoutWireEntry entry)
     {
@@ -604,7 +778,7 @@ public static class CompiledViewWireSerializer
         writer.WriteEndObject();
     }
 
-    private static void WriteStateEntry(Utf8JsonWriter writer, UIComponentState state, int layoutIndex, CompiledUIPropertyValue[] defaults)
+    private static void WriteStateEntry(Utf8JsonWriter writer, UIComponentState state, int layoutIndex, CompiledUIPropertyValue[] defaults, UIItemProjectionIndex itemProjections)
     {
         writer.WriteStartObject();
         writer.WriteNumber("id", state.ComponentId.Value);
@@ -616,6 +790,9 @@ public static class CompiledViewWireSerializer
         for (var slot = 0; slot < values.Count; slot++)
         {
             CompiledUIPropertyValue current = values[slot];
+            if (IsServerOnlyProperty(current.Property) && !current.IsBind && current.Value is not null)
+                current = CreateEmptySlotValue(current);
+
             if (SameSlotValue(current, defaults[slot]))
                 continue;
 
@@ -632,7 +809,8 @@ public static class CompiledViewWireSerializer
             else
             {
                 writer.WritePropertyName("v");
-                WriteTypedValue(writer, current.Value);
+                UIItemProjection? projection = IsItemsSlotProperty(current.Property) ? itemProjections.For(state.ComponentId) : null;
+                WriteTypedValue(writer, current.Value, projection);
             }
 
             writer.WriteEndObject();
@@ -722,6 +900,21 @@ public static class CompiledViewWireSerializer
             writer.WriteString("template", template.Template);
             if (template.ParameterCount != 0)
                 writer.WriteNumber("parameterCount", template.ParameterCount);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteContexts(Utf8JsonWriter writer, UIComponentContextIndex contexts)
+    {
+        writer.WriteStartArray();
+
+        foreach (CompiledUIContext context in contexts.All)
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("id", context.Id.Value);
+            writer.WriteNumber("templateId", context.TemplateId.Value);
             writer.WriteEndObject();
         }
 
@@ -986,6 +1179,22 @@ public static class CompiledViewWireSerializer
         writer.WriteEndArray();
     }
 
+    private static void WriteValidationMessageTargets(Utf8JsonWriter writer, IReadOnlyDictionary<UIComponentId, UIPropertyAddress> messageTargets)
+    {
+        writer.WriteStartArray();
+
+        foreach (KeyValuePair<UIComponentId, UIPropertyAddress> entry in messageTargets.OrderBy(static pair => pair.Key.Value))
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("sourceComponentId", entry.Key.Value);
+            writer.WriteNumber("targetComponentId", entry.Value.Component.Id.Value);
+            writer.WriteString("targetProperty", entry.Value.Property.Name);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
     private static void WriteItemProjections(Utf8JsonWriter writer, UIItemProjectionIndex itemProjections)
     {
         writer.WriteStartObject();
@@ -1122,10 +1331,16 @@ public static class CompiledViewWireSerializer
         UIComponentStateIndex state = ReadStates(root.GetProperty("state"));
         UICompiledBindingSourceIndex sources = ReadSources(root.GetProperty("sources"));
         UICompiledBindingTemplateIndex templates = ReadTemplates(root.GetProperty("templates"));
+        UIComponentContextIndex contexts = root.TryGetProperty("contexts", out JsonElement contextsElement)
+            ? ReadContexts(contextsElement)
+            : new UIComponentContextIndex([]);
         UICompiledBindingIndex bindings = ReadBindings(root.GetProperty("bindings"), sources, templates);
         UIInteractionIndex interactions = ReadInteractions(root.GetProperty("interactions"));
         UIEventIndex events = ReadEvents(root.GetProperty("events"), sources, templates, graph);
-        UIValidationIndex validations = ReadValidations(root.GetProperty("validations"));
+        KeyValuePair<UIComponentId, UIPropertyAddress>[]? validationMessageTargets = root.TryGetProperty("validationMessageTargets", out JsonElement messageTargetsElement)
+            ? ReadValidationMessageTargets(messageTargetsElement)
+            : null;
+        UIValidationIndex validations = ReadValidations(root.GetProperty("validations"), validationMessageTargets);
         UIItemProjectionIndex itemProjections = root.TryGetProperty("itemProjections", out JsonElement projectionsElement)
             ? ReadItemProjections(projectionsElement)
             : UIItemProjectionIndex.Empty;
@@ -1144,7 +1359,7 @@ public static class CompiledViewWireSerializer
             State = state,
             Sources = sources,
             Templates = templates,
-            Contexts = new UIComponentContextIndex([]),
+            Contexts = contexts,
             Bindings = bindings,
             Interactions = interactions,
             Events = events,
@@ -1157,7 +1372,7 @@ public static class CompiledViewWireSerializer
 
     private static Dictionary<string, object?> ReadTitleArguments(JsonElement element)
     {
-        Dictionary<string, object?> result = new(StringComparer.Ordinal);
+        Dictionary<string, object?> result = [with(StringComparer.Ordinal)];
 
         foreach (JsonProperty property in element.EnumerateObject())
             result[property.Name] = ReadTypedValue(property.Value);
@@ -1202,6 +1417,12 @@ public static class CompiledViewWireSerializer
                     return ReadRecursiveCollection(ResolveTypeTag(tag[RecursiveCollectionPrefix.Length..]), valueElement);
 
                 Type targetType = ResolveTypeTag(tag);
+                if (targetType == typeof(IReadOnlyDictionary<string, object?>))
+                    return ObjectToInferredTypesConverter.ToInferredValue(valueElement);
+
+                if (valueElement.ValueKind == JsonValueKind.Null)
+                    return targetType.IsValueType && Nullable.GetUnderlyingType(targetType) is null ? Activator.CreateInstance(targetType) : null;
+
                 return valueElement.Deserialize(targetType, ValueJsonOptions);
             case JsonValueKind.Array:
             default:
@@ -1250,7 +1471,10 @@ public static class CompiledViewWireSerializer
             return found;
 
         if (tag.StartsWith(NullablePrefix, StringComparison.Ordinal))
-            return typeof(Nullable<>).MakeGenericType(ResolveTypeTag(tag[NullablePrefix.Length..]));
+        {
+            Type inner = ResolveTypeTag(tag[NullablePrefix.Length..]);
+            return inner.IsValueType ? typeof(Nullable<>).MakeGenericType(inner) : inner;
+        }
 
         if (tag.StartsWith(ArrayPrefix, StringComparison.Ordinal))
             return ResolveTypeTag(tag[ArrayPrefix.Length..]).MakeArrayType();
@@ -1266,17 +1490,119 @@ public static class CompiledViewWireSerializer
 
         if (tag.StartsWith(ReadOnlyDictionaryPrefix, StringComparison.Ordinal))
         {
-            var comma = tag.IndexOf(',', ReadOnlyDictionaryPrefix.Length);
-            Type keyType = ResolveTypeTag(tag[ReadOnlyDictionaryPrefix.Length..comma]);
-            Type valType = ResolveTypeTag(tag[(comma + 1)..]);
+            SplitDictionaryTagArguments(tag.AsSpan(ReadOnlyDictionaryPrefix.Length), out ReadOnlySpan<char> keySpan, out ReadOnlySpan<char> valSpan);
+            Type keyType = ResolveTypeTag(keySpan.ToString());
+            Type valType = ResolveTypeTag(valSpan.ToString());
             return typeof(IReadOnlyDictionary<,>).MakeGenericType(keyType, valType);
         }
+
+        if (tag.StartsWith(EnumPrefix, StringComparison.Ordinal))
+            return TryResolveExternalType(tag[EnumPrefix.Length..]) is { IsEnum: true } enumType ? enumType : typeof(string);
+
+        if (tag.StartsWith(StructPrefix, StringComparison.Ordinal))
+            return TryResolveExternalType(tag[StructPrefix.Length..]) is { IsValueType: true } structType ? structType : typeof(IReadOnlyDictionary<string, object?>);
 
         EnsureLoadedAssembliesScanned();
         if (TagToType.TryGetValue(tag, out found))
             return found;
 
         throw new JsonException($"Unrecognized compiled view type tag '{tag}'.");
+    }
+
+    private static void SplitDictionaryTagArguments(ReadOnlySpan<char> body, out ReadOnlySpan<char> keyTag, out ReadOnlySpan<char> valueTag)
+    {
+        var needed = 1;
+        var cursor = 0;
+
+        while (cursor < body.Length)
+        {
+            while (TryAdvanceTagPrefix(body, ref cursor, out var extraOperand))
+            {
+                if (extraOperand)
+                    needed++;
+            }
+
+            var comma = body[cursor..].IndexOf(',');
+            if (comma < 0)
+                break;
+
+            cursor += comma;
+            needed--;
+
+            if (needed == 0)
+            {
+                keyTag = body[..cursor];
+                valueTag = body[(cursor + 1)..];
+                return;
+            }
+
+            cursor++;
+        }
+
+        throw new JsonException($"Malformed dictionary type tag 'ro_dict:{body}'.");
+    }
+
+    private static bool TryAdvanceTagPrefix(ReadOnlySpan<char> body, ref int cursor, out bool extraOperand)
+    {
+        extraOperand = false;
+        ReadOnlySpan<char> slice = body[cursor..];
+
+        if (slice.StartsWith(ReadOnlyDictionaryPrefix, StringComparison.Ordinal))
+        {
+            cursor += ReadOnlyDictionaryPrefix.Length;
+            extraOperand = true;
+            return true;
+        }
+
+        if (slice.StartsWith(NullablePrefix, StringComparison.Ordinal))
+        {
+            cursor += NullablePrefix.Length;
+            return true;
+        }
+
+        if (slice.StartsWith(ArrayPrefix, StringComparison.Ordinal))
+        {
+            cursor += ArrayPrefix.Length;
+            return true;
+        }
+
+        if (slice.StartsWith(ResponsivePrefix, StringComparison.Ordinal))
+        {
+            cursor += ResponsivePrefix.Length;
+            return true;
+        }
+
+        if (slice.StartsWith(RecursiveCollectionPrefix, StringComparison.Ordinal))
+        {
+            cursor += RecursiveCollectionPrefix.Length;
+            return true;
+        }
+
+        if (slice.StartsWith(ReadOnlyListPrefix, StringComparison.Ordinal))
+        {
+            cursor += ReadOnlyListPrefix.Length;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static Type? TryResolveExternalType(string encodedSpec)
+    {
+        var spec = encodedSpec.Replace('|', ',');
+        if (Type.GetType(spec, throwOnError: false) is Type direct)
+            return direct;
+
+        var comma = spec.IndexOf(',', StringComparison.Ordinal);
+        var fullName = (comma >= 0 ? spec[..comma] : spec).Trim();
+
+        foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (!assembly.IsDynamic && assembly.GetType(fullName, throwOnError: false) is Type loaded)
+                return loaded;
+        }
+
+        return null;
     }
 
     private static CompiledRegion[] ReadRegions(JsonElement element)
@@ -1311,6 +1637,19 @@ public static class CompiledViewWireSerializer
             {
                 Key = item.GetProperty("key").GetString()!,
                 RootComponentId = new UIComponentId(item.GetProperty("rootComponentId").GetInt32()),
+                Surface = item.TryGetProperty("surface", out JsonElement surfaceEl) ? Enum.Parse<UISurfaceStyle>(surfaceEl.GetString()!) : UISurfaceStyle.Surface,
+                Placement = item.TryGetProperty("placement", out JsonElement placementEl) ? Enum.Parse<UIDialogPlacement>(placementEl.GetString()!) : UIDialogPlacement.Center,
+                Width = item.TryGetProperty("width", out JsonElement widthEl) ? widthEl.Deserialize<UIResponsive<UILayoutLength>>(ValueJsonOptions) : null,
+                MinWidth = item.TryGetProperty("minWidth", out JsonElement minWidthEl) ? minWidthEl.Deserialize<UIResponsive<UILayoutLength>>(ValueJsonOptions) : null,
+                MaxWidth = item.TryGetProperty("maxWidth", out JsonElement maxWidthEl) ? maxWidthEl.Deserialize<UIResponsive<UILayoutLength>>(ValueJsonOptions) : null,
+                Height = item.TryGetProperty("height", out JsonElement heightEl) ? heightEl.Deserialize<UIResponsive<UILayoutLength>>(ValueJsonOptions) : null,
+                MinHeight = item.TryGetProperty("minHeight", out JsonElement minHeightEl) ? minHeightEl.Deserialize<UIResponsive<UILayoutLength>>(ValueJsonOptions) : null,
+                MaxHeight = item.TryGetProperty("maxHeight", out JsonElement maxHeightEl) ? maxHeightEl.Deserialize<UIResponsive<UILayoutLength>>(ValueJsonOptions) : null,
+                HorizontalAlignment = item.TryGetProperty("horizontalAlignment", out JsonElement hAlignEl) ? Enum.Parse<UIAlignment>(hAlignEl.GetString()!) : null,
+                VerticalAlignment = item.TryGetProperty("verticalAlignment", out JsonElement vAlignEl) ? Enum.Parse<UIAlignment>(vAlignEl.GetString()!) : null,
+                Margin = item.TryGetProperty("margin", out JsonElement marginEl) ? marginEl.Deserialize<UIResponsive<UIThickness>>(ValueJsonOptions) : null,
+                Modal = !item.TryGetProperty("modal", out JsonElement modalEl) || modalEl.GetBoolean(),
+                AccessibleName = item.TryGetProperty("accessibleName", out JsonElement accNameEl) ? accNameEl.Deserialize<UIPhrase>(ValueJsonOptions) : null,
                 TitleComponentId = titleId,
                 CloseOnEscape = item.GetProperty("closeOnEscape").GetBoolean(),
                 CloseOnBackdrop = item.GetProperty("closeOnBackdrop").GetBoolean(),
@@ -1515,6 +1854,23 @@ public static class CompiledViewWireSerializer
         return new UICompiledBindingTemplateIndex(templates);
     }
 
+    private static UIComponentContextIndex ReadContexts(JsonElement element)
+    {
+        CompiledUIContext[] contexts = new CompiledUIContext[element.GetArrayLength()];
+        var index = 0;
+
+        foreach (JsonElement item in element.EnumerateArray())
+        {
+            contexts[index++] = new CompiledUIContext
+            {
+                Id = new UIContextId(item.GetProperty("id").GetInt32()),
+                TemplateId = new UIBindingTemplateId(item.GetProperty("templateId").GetInt32()),
+            };
+        }
+
+        return new UIComponentContextIndex(contexts);
+    }
+
     private static UICompiledBindingIndex ReadBindings(JsonElement element, UICompiledBindingSourceIndex sources, UICompiledBindingTemplateIndex templates)
     {
         CompiledUIBinding[] bindings = new CompiledUIBinding[element.GetArrayLength()];
@@ -1618,7 +1974,7 @@ public static class CompiledViewWireSerializer
         Dictionary<UIPropertyAddress, object?>? firstPaint = null;
         if (element.TryGetProperty("firstPaint", out JsonElement fpElement))
         {
-            firstPaint = new Dictionary<UIPropertyAddress, object?>(fpElement.GetArrayLength());
+            firstPaint = [with(fpElement.GetArrayLength())];
             foreach (JsonElement fpItem in fpElement.EnumerateArray())
             {
                 UIPropertyAddress address = new(new UIComponentId(fpItem.GetProperty("componentId").GetInt32()), new UIProperty(fpItem.GetProperty("property").GetString()!));
@@ -1678,12 +2034,38 @@ public static class CompiledViewWireSerializer
         return new UIEventIndex(events, sources, templates, graph);
     }
 
-    private static UIValidationIndex ReadValidations(JsonElement element)
+    private static KeyValuePair<UIComponentId, UIPropertyAddress>[] ReadValidationMessageTargets(JsonElement element)
     {
-        CompiledUIValidationRule[] rules = new CompiledUIValidationRule[element.GetArrayLength()];
+        KeyValuePair<UIComponentId, UIPropertyAddress>[] targets = new KeyValuePair<UIComponentId, UIPropertyAddress>[element.GetArrayLength()];
         var index = 0;
 
         foreach (JsonElement item in element.EnumerateArray())
+        {
+            UIComponentId sourceId = new(item.GetProperty("sourceComponentId").GetInt32());
+            UIPropertyAddress target = new(
+                new UIComponentId(item.GetProperty("targetComponentId").GetInt32()),
+                new UIProperty(item.GetProperty("targetProperty").GetString()!)
+            );
+            targets[index++] = new KeyValuePair<UIComponentId, UIPropertyAddress>(sourceId, target);
+        }
+
+        return targets;
+    }
+
+    private static UIValidationIndex ReadValidations(JsonElement element, KeyValuePair<UIComponentId, UIPropertyAddress>[]? messageTargets)
+    {
+        JsonElement rulesElement = element;
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            rulesElement = element.GetProperty("rules");
+            if (messageTargets is null && element.TryGetProperty("messageTargets", out JsonElement inlineTargets))
+                messageTargets = ReadValidationMessageTargets(inlineTargets);
+        }
+
+        CompiledUIValidationRule[] rules = new CompiledUIValidationRule[rulesElement.GetArrayLength()];
+        var index = 0;
+
+        foreach (JsonElement item in rulesElement.EnumerateArray())
         {
             UIPropertyAddress? valueSource = item.TryGetProperty("valueSourceComponentId", out JsonElement vsCompElement)
                 ? new UIPropertyAddress(new UIComponentId(vsCompElement.GetInt32()), new UIProperty(item.GetProperty("valueSourceProperty").GetString()!))
@@ -1701,7 +2083,7 @@ public static class CompiledViewWireSerializer
             };
         }
 
-        return new UIValidationIndex(rules);
+        return messageTargets is { Length: > 0 } ? new UIValidationIndex(rules, messageTargets) : new UIValidationIndex(rules);
     }
 
     private static UIItemProjectionIndex ReadItemProjections(JsonElement element)
@@ -1730,7 +2112,7 @@ public static class CompiledViewWireSerializer
         List<UIComponentId>? boundRules = null;
         if (element.TryGetProperty("boundRules", out JsonElement boundArray))
         {
-            boundRules = new List<UIComponentId>(boundArray.GetArrayLength());
+            boundRules = [with(boundArray.GetArrayLength())];
             foreach (JsonElement item in boundArray.EnumerateArray())
                 boundRules.Add(new UIComponentId(item.GetInt32()));
         }
@@ -1744,7 +2126,7 @@ public static class CompiledViewWireSerializer
             return UIItemProjection.Whole;
 
         JsonElement membersElement = element.GetProperty("members");
-        List<UIItemProjectionMember> members = new(membersElement.GetArrayLength());
+        List<UIItemProjectionMember> members = [with(membersElement.GetArrayLength())];
 
         foreach (JsonElement memberItem in membersElement.EnumerateArray())
         {
@@ -1871,6 +2253,24 @@ public static class CompiledViewWireSerializer
 
     private sealed record LayoutWireEntry(UIComponentStateLayout Layout, CompiledUIPropertyValue[] Defaults);
 
+    private sealed class NIntWireJsonConverter : JsonConverter<nint>
+    {
+        public override nint Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => checked((nint)reader.GetInt64());
+
+        public override void Write(Utf8JsonWriter writer, nint value, JsonSerializerOptions options)
+            => writer.WriteNumberValue(value);
+    }
+
+    private sealed class NUIntWireJsonConverter : JsonConverter<nuint>
+    {
+        public override nuint Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => checked((nuint)reader.GetUInt64());
+
+        public override void Write(Utf8JsonWriter writer, nuint value, JsonSerializerOptions options)
+            => writer.WriteNumberValue(value);
+    }
+
     private sealed class ColorVariantWireJsonConverter : JsonConverter<ColorVariant>
     {
         public override ColorVariant Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -1974,66 +2374,14 @@ public static class CompiledViewWireSerializer
         }
     }
 
-    private sealed class TextModelWireJsonConverter : JsonConverter<ITextModel>
+    private sealed class ModelInterfaceWireJsonConverter<TInterface, TModel> : JsonConverter<TInterface>
+        where TInterface : class
+        where TModel : class, TInterface
     {
-        public override ITextModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => JsonSerializer.Deserialize<TextItem>(ref reader, options);
+        public override TInterface? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            => JsonSerializer.Deserialize<TModel>(ref reader, options);
 
-        public override void Write(Utf8JsonWriter writer, ITextModel value, JsonSerializerOptions options)
-            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
-    }
-
-    private sealed class ButtonModelWireJsonConverter : JsonConverter<IButtonModel>
-    {
-        public override IButtonModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => JsonSerializer.Deserialize<ButtonItem>(ref reader, options);
-
-        public override void Write(Utf8JsonWriter writer, IButtonModel value, JsonSerializerOptions options)
-            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
-    }
-
-    private sealed class MenuItemModelWireJsonConverter : JsonConverter<IMenuItemModel>
-    {
-        public override IMenuItemModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => JsonSerializer.Deserialize<MenuItem>(ref reader, options);
-
-        public override void Write(Utf8JsonWriter writer, IMenuItemModel value, JsonSerializerOptions options)
-            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
-    }
-
-    private sealed class OptionModelWireJsonConverter : JsonConverter<IOptionModel>
-    {
-        public override IOptionModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => JsonSerializer.Deserialize<OptionItem>(ref reader, options);
-
-        public override void Write(Utf8JsonWriter writer, IOptionModel value, JsonSerializerOptions options)
-            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
-    }
-
-    private sealed class TreeNodeModelWireJsonConverter : JsonConverter<ITreeNodeModel>
-    {
-        public override ITreeNodeModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => JsonSerializer.Deserialize<TreeNode>(ref reader, options);
-
-        public override void Write(Utf8JsonWriter writer, ITreeNodeModel value, JsonSerializerOptions options)
-            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
-    }
-
-    private sealed class TabItemModelWireJsonConverter : JsonConverter<ITabItemModel>
-    {
-        public override ITabItemModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => JsonSerializer.Deserialize<TabItem>(ref reader, options);
-
-        public override void Write(Utf8JsonWriter writer, ITabItemModel value, JsonSerializerOptions options)
-            => JsonSerializer.Serialize(writer, value, value.GetType(), options);
-    }
-
-    private sealed class ItemAbilitiesModelWireJsonConverter : JsonConverter<IItemAbilitiesModel>
-    {
-        public override IItemAbilitiesModel? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => JsonSerializer.Deserialize<TabItem>(ref reader, options);
-
-        public override void Write(Utf8JsonWriter writer, IItemAbilitiesModel value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, TInterface value, JsonSerializerOptions options)
             => JsonSerializer.Serialize(writer, value, value.GetType(), options);
     }
 

@@ -20,10 +20,20 @@ public static class TierClassRenderer
         where T : struct
     {
         ArgumentNullException.ThrowIfNull(context);
+
+        Render(context, target, context.Node.TypeKey, property, family);
+    }
+
+    /// <summary>Renders <paramref name="property"/> under <paramref name="propertyOwnerTypeKey"/> through <paramref name="family"/>, kept by a live patch.</summary>
+    public static void Render<T>(WebRenderContext context, IHtmlElementBuilder target, string propertyOwnerTypeKey, UIProperty property, TierClassFamily<T> family)
+        where T : struct
+    {
+        ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(target);
+        ArgumentException.ThrowIfNullOrWhiteSpace(propertyOwnerTypeKey);
         ArgumentNullException.ThrowIfNull(family);
 
-        _ = WebComponentRendererBase.RenderProperty(context, target, property, family.Write, family.Operations);
+        _ = WebComponentRendererBase.RenderProperty(context, target, propertyOwnerTypeKey, property, family.Write, family.Operations);
     }
 
     /// <summary>The base tier's class, and the family's attribute where the tiers differ.</summary>

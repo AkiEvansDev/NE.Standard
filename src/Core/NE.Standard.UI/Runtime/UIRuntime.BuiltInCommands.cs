@@ -112,6 +112,14 @@ internal sealed partial class UIRuntime
         if (index is not null && moved.Pinned)
             throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' names tab '{key}', which is pinned and moves only as it is pinned or unpinned.");
 
+        if (index is null)
+        {
+            moved = moved with { Pinned = !moved.Pinned };
+
+            if (!WriteTabPropertyNoLock(tabId, moved.Parameters, TabItemComponent.PinnedProperty, moved.Pinned))
+                return;
+        }
+
         strip.RemoveAt(from);
 
         var to = index is int place ? Math.Clamp(place, PinnedBoundary(strip), strip.Count) : PinnedBoundary(strip);
@@ -122,7 +130,7 @@ internal sealed partial class UIRuntime
             return;
 
         foreach ((var at, var order) in OrdersAfterMove(strip, to))
-            WriteTabOrderNoLock(tabId, strip[at].Parameters, order);
+            _ = WriteTabPropertyNoLock(tabId, strip[at].Parameters, TabItemComponent.OrderProperty, order);
     }
 
     /// <summary>The strip as it stands: every tab with its keys, its order and whether it is pinned, sorted as the strip sorts them.</summary>
@@ -141,10 +149,14 @@ internal sealed partial class UIRuntime
             strip.Add(new StripTab(item.Id, parameters, strip.Count, ReadTabOrderNoLock(tabId, parameters), ReadTabValueNoLock(tabId, TabItemComponent.PinnedProperty, parameters) is true));
         }
 
-        // A tab with no order sorts ahead of any number; ties keep the collection's order, as the page's stable sort does, which
-        // List.Sort alone does not keep.
+        // Pinned tabs stand at the head; within each group, a tab with no order sorts ahead of any number, and ties keep the collection's order.
         strip.Sort(static (left, right) =>
         {
+            var pinned = right.Pinned.CompareTo(left.Pinned);
+
+            if (pinned != 0)
+                return pinned;
+
             var order = left.Order is null ? right.Order is null ? 0 : -1 : right.Order is null ? 1 : left.Order.Value.CompareTo(right.Order.Value);
 
             return order != 0 ? order : left.Position.CompareTo(right.Position);
@@ -192,10 +204,20 @@ internal sealed partial class UIRuntime
     /// <summary>The orders to write, by place, once the tab at <paramref name="index"/> stands there in <paramref name="strip"/>.</summary>
     private static Dictionary<int, double> OrdersAfterMove(List<StripTab> strip, int index)
     {
+        StripTab? previous = index > 0 ? strip[index - 1] : null;
         StripTab? next = index + 1 < strip.Count ? strip[index + 1] : null;
 
         if (next is null || next.Order is not null)
-            return new Dictionary<int, double> { [index] = OrderBetween(index > 0 ? strip[index - 1].Order : null, next?.Order) };
+        {
+            var between = OrderBetween(previous?.Order, next?.Order);
+
+            if (double.IsFinite(between)
+                && (previous?.Order is not double before || between > before)
+                && (next?.Order is not double after || between < after))
+            {
+                return new Dictionary<int, double> { [index] = between };
+            }
+        }
 
         Dictionary<int, double> orders = [];
 
@@ -218,16 +240,22 @@ internal sealed partial class UIRuntime
             (double before, double after) => (before + after) / 2
         };
 
-    /// <summary>Writes one tab's order as the page's own write would land, through the tab's two-way binding.</summary>
-    private void WriteTabOrderNoLock(UIComponentId tabId, object?[] parameters, double order)
+    /// <summary>Writes one tab's server-owned property (<c>Pinned</c> or <c>Order</c>) through the tab's writable binding.</summary>
+    private bool WriteTabPropertyNoLock(UIComponentId tabId, object?[] parameters, UIProperty property, object? value)
     {
+        UIPropertyAddress address = new(tabId, property, parameters);
+
+        if (!View.Bindings.TryResolveWrite(address, out CompiledUIBindingResolution resolution))
+            return false;
+
         ClientValueUIUpdate update = new()
         {
-            Address = new UIPropertyAddress(tabId, TabItemComponent.OrderProperty, parameters),
-            Value = order
+            Address = address,
+            Value = value
         };
 
-        _ = ApplyValueUpdate(update, View.Bindings.ResolveWrite(update.Address), read: null, out _);
+        _ = ApplyValueUpdate(update, resolution, read: null, out ClientValueUIUpdate? applied);
+        return applied is not null;
     }
 
     /// <summary>

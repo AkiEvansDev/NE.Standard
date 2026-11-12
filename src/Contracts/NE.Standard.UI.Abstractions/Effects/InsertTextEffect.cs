@@ -18,9 +18,28 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// </remarks>
 public sealed class InsertTextEffect : TargetedClientEffect
 {
-    private InsertTextEffect(UIComponentReference target, string? text, bool itemValue = false) : base(target)
+    private InsertTextEffect(UIComponentReference target, string? text, bool itemValue = false)
+        : base(target)
     {
         Text = text;
+        ItemKey = text is null && !itemValue;
+        ItemValue = itemValue;
+    }
+
+    [JsonConstructor]
+    internal InsertTextEffect(UIComponentAddress? resolvedTarget, string? text, bool itemKey, bool itemValue = false)
+        : base(resolvedTarget)
+    {
+        Text = text;
+        ItemKey = itemKey;
+        ItemValue = itemValue;
+    }
+
+    private InsertTextEffect(UIComponentAddress resolvedTarget, UIComponentReference target, string? text, bool itemKey, bool itemValue)
+        : base(resolvedTarget, target)
+    {
+        Text = text;
+        ItemKey = itemKey;
         ItemValue = itemValue;
     }
 
@@ -98,6 +117,11 @@ public sealed class InsertTextEffect : TargetedClientEffect
     public string? Text { get; }
 
     /// <summary>
+    /// Gets whether the text is the key of the row the press came from, rather than <see cref="Text"/>.
+    /// </summary>
+    public bool ItemKey { get; }
+
+    /// <summary>
     /// Gets a value indicating whether the text is the value of the row the press came from, rather than its key.
     /// </summary>
     public bool ItemValue { get; }
@@ -106,23 +130,6 @@ public sealed class InsertTextEffect : TargetedClientEffect
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        return new CompiledInsertTextEffect(resolver.ResolveComponent(Target), Text, Text is null && !ItemValue, ItemValue);
+        return ResolvedTarget is not null ? this : new InsertTextEffect(resolver.ResolveComponent(Target), Target, Text, ItemKey, ItemValue);
     }
-}
-
-internal sealed class CompiledInsertTextEffect(UIComponentAddress target, string? text, bool itemKey, bool itemValue = false) : CompiledTargetedClientEffect(target)
-{
-    public override string Kind => ClientEffectKinds.InsertText;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
-
-    public string? Text { get; } = text;
-
-    /// <summary>Whether the text is the key of the row the press came from, in place of <see cref="Text"/>.</summary>
-    public bool ItemKey { get; } = itemKey;
-
-    /// <summary>Whether the text is the value of the row the press came from, in place of <see cref="Text"/>.</summary>
-    public bool ItemValue { get; } = itemValue;
 }

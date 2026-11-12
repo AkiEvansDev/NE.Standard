@@ -72,7 +72,8 @@ public sealed class InProcessUIClientTransport : IUIClientTransport
     /// <summary>Gets the session id of this page.</summary>
     public string SessionId => Session.SessionId;
 
-    private IUserSessionContext Session => _resolution is not null ? _resolution.Handle.Session : _view!.Session;
+    /// <summary>Gets the live session context of this page.</summary>
+    public IUserSessionContext Session => _resolution is not null ? _resolution.Handle.Session : _view!.Session;
 
     /// <inheritdoc />
     public string InstanceId { get; }

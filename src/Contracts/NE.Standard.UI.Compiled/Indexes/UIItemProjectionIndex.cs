@@ -25,7 +25,7 @@ public sealed class UIItemProjectionIndex
         ArgumentNullException.ThrowIfNull(projections);
 
         _projections = projections.ToFrozenDictionary();
-        _ruleReads = ruleReads is null ? FrozenDictionary<UIComponentId, string[]>.Empty : ruleReads.ToFrozenDictionary();
+        _ruleReads = ruleReads is null ? [] : ruleReads.ToFrozenDictionary();
         _boundRules = boundRules is null ? [] : boundRules.ToFrozenSet();
     }
 

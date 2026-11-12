@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { compareItems, compareValues, getActiveSorts, itemMatchesFilters } from "../src/items/items-filter-sort.ts";
+import { compareItems, compareValues, getActiveSorts, itemMatchesFilters, sortByActiveSorts } from "../src/items/items-filter-sort.ts";
 import type { ItemsQuery } from "../src/items/items-filter-sort.ts";
 import type { PropertyStateStore } from "../src/state/property-state-store.ts";
 import type { WebRenderItemsSortMetadata } from "../src/metadata/metadata-index.ts";
@@ -152,4 +152,18 @@ test("query.search matches every word case-insensitively across text and number 
     assert.equal(itemMatchesFilters(undefined, row, noState, { search: "true" }), false);
     assert.equal(itemMatchesFilters(undefined, row, noState, { search: "false" }), false);
     assert.equal(itemMatchesFilters(undefined, row, noState, { search: "grid-demo" }), false);
+});
+
+test("sortByActiveSorts precomputes nested paths once per item and matches compareItems across mixed ranks and ties", () => {
+    const entries = [
+        { key: "c", item: { meta: { score: "10", label: "Beta" } } },
+        { key: "a", item: { meta: { score: null, label: "Gamma" } } },
+        { key: "d", item: { meta: { score: "2", label: "Delta" } } },
+        { key: "b", item: { meta: { score: "10", label: "Alpha" } } },
+        { key: "e", item: { meta: { score: "1a", label: "Zeta" } } }
+    ];
+    const sorts = [sort("Meta.Score"), sort("Meta.Label")];
+    const sorted = sortByActiveSorts(entries, sorts, entry => entry.item);
+
+    assert.deepEqual(sorted.map(entry => entry.key), ["a", "d", "b", "c", "e"]);
 });

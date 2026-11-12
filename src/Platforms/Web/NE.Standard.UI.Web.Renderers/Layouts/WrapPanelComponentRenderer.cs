@@ -19,6 +19,7 @@ public sealed class WrapPanelComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
+        LayoutClipReachRenderer.Render(context, root);
 
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, ISpacingComponent.SpacingProperty, "--ui-wrap-panel-spacing");
         ResponsiveRenderer.ApplyResponsiveSpacing(context, root, WrapPanelComponent.LineSpacingProperty, "--ui-wrap-panel-line-spacing");

@@ -52,7 +52,7 @@ internal sealed partial class FilesController : UIControllerBase
 
     // A tab closed a moment ago, by its id, for the toast's Undo to put back as it was — a new file's words included, which nothing
     // else holds.
-    private readonly Dictionary<string, (DemoFileDocument Document, int Index)> _closed = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (DemoFileDocument Document, int Index)> _closed = [with(StringComparer.Ordinal)];
 
     /// <summary>The tree: every folder and file there is, open or not, each file keyed as its tab is.</summary>
     [RecursiveMember(false)]

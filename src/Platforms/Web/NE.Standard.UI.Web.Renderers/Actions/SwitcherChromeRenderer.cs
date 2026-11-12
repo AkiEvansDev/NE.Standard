@@ -65,7 +65,7 @@ internal static class SwitcherChromeRenderer
 
         _ = root.Element("span", header =>
         {
-            _ = header.Class("ui-input__header");
+            _ = header.Class(WebClassNames.InputHeader);
             _ = header.Class(WebClassNames.Text);
             _ = header.Class(WebClassNames.TextType(UITextType.Caption));
 

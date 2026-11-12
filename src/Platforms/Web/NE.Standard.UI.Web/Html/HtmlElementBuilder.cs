@@ -9,8 +9,9 @@ namespace NE.Standard.UI.Web.Html;
 
 internal sealed class HtmlElementBuilder : HtmlChildrenBuilder, IHtmlElementBuilder, IHtmlContent
 {
-    private static readonly HashSet<string> VoidElements = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly HashSet<string> VoidElements =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
         "area",
         "base",
         "br",
@@ -24,7 +25,7 @@ internal sealed class HtmlElementBuilder : HtmlChildrenBuilder, IHtmlElementBuil
         "source",
         "track",
         "wbr"
-    };
+    ];
 
     // What a style may hold only inside a quoted string: outside one each ends the declaration, opens a block or starts an escape,
     // and a raw control character ends the string itself. `*` for a comment's start, `/*`: it would hide what follows, the next

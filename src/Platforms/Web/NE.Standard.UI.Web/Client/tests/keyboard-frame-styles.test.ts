@@ -87,10 +87,12 @@ test("a quiet expander's header pulls its inline padding into the margin with ho
 });
 
 test("a component that clips its children leaves an outside focus ring its reach in forced colours", () => {
-    assert.match(rules("[data-ui-id][style*=\"overflow: clip\"]"), /overflow-clip-margin: 8px;/);
-    assert.match(rules(".ui-expander:not(.ui-expander--quiet)[data-ui-id][style*=\"overflow: clip\"]"), /overflow-clip-margin: 0px;/);
+    assert.match(css, /:where\(\.ui-container, \.ui-pane-container, \.ui-stack-panel, \.ui-wrap-panel, \.ui-surface, \.ui-card, \.ui-expander, \.ui-accordion, \.ui-key-value-action, \.ui-button:not\(\.ui-tab-caption\)\)\[data-ui-id\] \{\s*overflow: clip;/);
+    assert.match(css, /\[data-ui-id\]\[data-ui-clip-reach="contour"\]:not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\], \[style\*="--ui-bg-image"\]\) \{\s*overflow-clip-margin: 8px;/);
+    assert.match(rules(".ui-expander--quiet[data-ui-id]"), /overflow-clip-margin: 0\.5rem;/);
     assert.match(rules(".ui-expander.ui-expander--quiet"), /border-radius: var\(--ui-border-radius-xxl, .*, 0\)+;/);
     assert.match(rules(".ui-items-view__host.ui-scroll-x--disabled.ui-scroll-y--disabled"), /overflow: clip;\s*overflow-clip-margin: 8px;/);
+    assert.match(rules(".ui-dialog__surface > .ui-stack-panel"), /overflow-clip-margin: 8px;/);
     assert.match(rules(".ui-dialog__surface > .ui-stack-panel > .ui-scroll"), /--ui-fill-margin-x: var\(--ui-margin-x-xxl, .*, -16px\)+;\s*margin: var\(--ui-margin-xxl, .*, 0 -8px\)+;\s*padding: var\(--ui-padding-xxl, .*, 0 max\(var\(--ui-scroll-room-right\), 8px\) var\(--ui-scroll-room-x\) 8px\)+;/);
 });
 

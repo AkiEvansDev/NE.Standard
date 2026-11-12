@@ -154,8 +154,8 @@ internal sealed partial class UIViewCompilationContext
     /// </summary>
     private void EnsureFormsAreSubmitted()
     {
-        HashSet<string> submitted = new(StringComparer.Ordinal);
-        HashSet<string> pressed = new(StringComparer.Ordinal);
+        HashSet<string> submitted = [with(StringComparer.Ordinal)];
+        HashSet<string> pressed = [with(StringComparer.Ordinal)];
 
         foreach (IVisualComponent component in _componentOrder)
         {

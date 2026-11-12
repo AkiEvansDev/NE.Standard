@@ -370,7 +370,7 @@ export class SelectInteractionEngine {
 
         if (select !== null)
         {
-            // Prevent default so an enclosing `<label class="ui-text-input">` does not synthesize a click on its `<input>`.
+            // Prevent default so any enclosing `<label>` does not synthesize a click on an associated control.
             domEvent.preventDefault();
             this.choose(select, option);
         }

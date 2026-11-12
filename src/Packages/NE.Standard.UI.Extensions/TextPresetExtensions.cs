@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
+using NE.Standard.UI.Components.BuiltIns.Regions;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Binding;
 
@@ -47,6 +48,24 @@ public static class TextPresetExtensions
     /// title and its two-way renamed title to <paramref name="titlePath"/> and optionally running <paramref name="renameCommand"/> on commit.
     /// </summary>
     public static TextComponent Editable<TSource>(this TextComponent text, Expression<Func<TSource, object?>> titlePath, UIBindingScope scope = UIBindingScope.Root, string? renameCommand = null)
+        => text.Editable(PresetBindings.Path(titlePath), scope, renameCommand);
+
+    /// <summary>
+    /// Makes the expander header's title editable in place without changing its rest look or layout.
+    /// </summary>
+    public static ExpanderHeaderRegion Editable<TSource>(this ExpanderHeaderRegion text, Expression<Func<TSource, object?>> titlePath, UIBindingScope scope = UIBindingScope.Root, string? renameCommand = null)
+        => text.Editable(PresetBindings.Path(titlePath), scope, renameCommand);
+
+    /// <summary>
+    /// Makes the card header's title editable in place without changing its rest look or layout.
+    /// </summary>
+    public static CardHeaderRegion Editable<TSource>(this CardHeaderRegion text, Expression<Func<TSource, object?>> titlePath, UIBindingScope scope = UIBindingScope.Root, string? renameCommand = null)
+        => text.Editable(PresetBindings.Path(titlePath), scope, renameCommand);
+
+    /// <summary>
+    /// Makes the tab caption's title editable in place without changing its rest look or layout.
+    /// </summary>
+    public static TabCaptionRegion Editable<TSource>(this TabCaptionRegion text, Expression<Func<TSource, object?>> titlePath, UIBindingScope scope = UIBindingScope.Relative, string? renameCommand = null)
         => text.Editable(PresetBindings.Path(titlePath), scope, renameCommand);
 
     /// <summary>

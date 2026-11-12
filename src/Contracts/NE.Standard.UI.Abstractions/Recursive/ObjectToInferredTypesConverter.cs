@@ -12,10 +12,45 @@ namespace NE.Standard.UI.Abstractions.Recursive;
 /// </summary>
 public sealed class ObjectToInferredTypesConverter : JsonConverter<object?>
 {
+    private readonly int _maxElements;
+    private readonly int _maxDepth;
+    private readonly bool _throwOnLimit;
+
+    /// <summary>
+    /// Initializes an unbounded converter for trusted in-memory or server-written payloads.
+    /// </summary>
+    public ObjectToInferredTypesConverter()
+        : this(int.MaxValue, int.MaxValue, throwOnLimit: false)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a converter bounded to <paramref name="maxElements"/> items and fields and <paramref name="maxDepth"/> nesting levels.
+    /// </summary>
+    public ObjectToInferredTypesConverter(int maxElements, int maxDepth, bool throwOnLimit = false)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxElements);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxDepth);
+
+        _maxElements = maxElements;
+        _maxDepth = maxDepth;
+        _throwOnLimit = throwOnLimit;
+    }
+
     public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using JsonDocument document = JsonDocument.ParseValue(ref reader);
-        return ToInferredValue(document.RootElement);
+
+        if (_maxElements == int.MaxValue && _maxDepth == int.MaxValue)
+            return ToInferredValue(document.RootElement);
+
+        var budget = _maxElements;
+
+        return TryToInferred(document.RootElement, 1, _maxDepth, ref budget, out var value)
+            ? value
+            : _throwOnLimit
+                ? throw new JsonException("Value exceeds the configured element count or nesting depth limits.")
+                : RecursiveValuePastLimits.Instance;
     }
 
     public override void Write(Utf8JsonWriter writer, object? value, JsonSerializerOptions options)
@@ -62,6 +97,10 @@ public sealed class ObjectToInferredTypesConverter : JsonConverter<object?>
         return TryToInferred(element, 1, maxDepth, ref budget, out var value) ? value : RecursiveValuePastLimits.Instance;
     }
 
+    /// <summary>The element as its inferred CLR value, drawing from a shared <paramref name="budget"/> across sibling values.</summary>
+    public static object? ToInferredValue(JsonElement element, ref int budget, int maxDepth)
+        => budget >= 0 && TryToInferred(element, 1, maxDepth, ref budget, out var value) ? value : RecursiveValuePastLimits.Instance;
+
     private static bool TryToInferred(JsonElement element, int depth, int maxDepth, ref int budget, out object? value)
     {
         if (element.ValueKind == JsonValueKind.Array)
@@ -103,7 +142,7 @@ public sealed class ObjectToInferredTypesConverter : JsonConverter<object?>
         if (depth > maxDepth)
             return false;
 
-        Dictionary<string, object?> result = new(StringComparer.Ordinal);
+        Dictionary<string, object?> result = [with(StringComparer.Ordinal)];
 
         foreach (JsonProperty property in element.EnumerateObject())
         {

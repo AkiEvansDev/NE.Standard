@@ -15,11 +15,15 @@ internal sealed partial class StackPanelGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial bool Wrap { get; set; }
 
+    [RecursiveMember]
+    public partial UIOverflow? Overflow { get; set; } = UIOverflow.Hidden;
+
     public StackPanelGroupContext()
     {
         AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
         AddOption(nameof(Wrap), ToggleWrap, () => Wrap);
+        AddOption(nameof(Overflow), CycleOverflow, () => Overflow);
     }
 
     public void CycleOrientation()
@@ -31,6 +35,9 @@ internal sealed partial class StackPanelGroupContext : DemoGroupContext
     // Only says anything across a row, and only once the row runs out of width.
     public void ToggleWrap()
         => SetLastChange(nameof(Wrap), Wrap = !Wrap);
+
+    public void CycleOverflow()
+        => SetLastChange(nameof(Overflow), Overflow = CycleEnum(Overflow));
 }
 
 /// <summary>
@@ -45,10 +52,14 @@ internal sealed partial class WrapPanelGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UIResponsive<double>? LineSpacing { get; set; }
 
+    [RecursiveMember]
+    public partial UIOverflow? Overflow { get; set; } = UIOverflow.Hidden;
+
     public WrapPanelGroupContext()
     {
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
         AddOption(nameof(LineSpacing), CycleLineSpacing, () => LineSpacing);
+        AddOption(nameof(Overflow), CycleOverflow, () => Overflow);
     }
 
     public void CycleSpacing()
@@ -57,6 +68,9 @@ internal sealed partial class WrapPanelGroupContext : DemoGroupContext
     // Starts unset: that is the value that shows the fallback to Spacing.
     public void CycleLineSpacing()
         => SetLastChange(nameof(LineSpacing), LineSpacing = CycleValue(LineSpacing, null, 4d, 16d, 40d));
+
+    public void CycleOverflow()
+        => SetLastChange(nameof(Overflow), Overflow = CycleEnum(Overflow));
 }
 
 /// <summary>

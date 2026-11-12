@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Runtime;
@@ -51,10 +52,10 @@ internal sealed partial class UIHost
 
     private UIRuntimeEntry GetRequiredRuntimeEntry(UIHandle handle)
     {
-        // Asked again on a miss: a sign-in moves the handle and its runtime to the new id as one step under the store's lock, so a key
-        // read just before it names nothing, and the handle read again names the runtime.
-        return RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out UIRuntimeEntry? entry) || RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out entry)
-            ? entry!
+        var route = UIRoutePath.Normalize(handle.Instance.Navigation.Route);
+
+        return RuntimeStore.TryGetAttachedEntry(handle, route, out UIRuntimeEntry? entry)
+            ? entry
             : throw new InvalidOperationException($"Attached runtime for instance '{handle.Instance.Id}' was not found.");
     }
 
@@ -235,6 +236,9 @@ internal sealed partial class UIHost
 
         navigation.Validate();
 
+        if (!RecursiveValueCoercion.IsWithinLimits(navigation.Parameters, _application.Security.MaxClientValueElements, _application.Security.MaxClientValueDepth))
+            throw new InvalidOperationException("Navigation parameters exceed the configured value limits.");
+
         UIRuntimeEntry entry = GetRequiredRuntimeEntry(handle);
 
         if (!await RefreshSessionActivityAsync(handle, entry, cancellationToken).ConfigureAwait(false))
@@ -326,9 +330,11 @@ internal sealed partial class UIHost
         ArgumentNullException.ThrowIfNull(handle);
         ArgumentNullException.ThrowIfNull(state);
 
-        if (RuntimeStore.TryGetAttachedEntry(CreateRuntimeKey(handle), handle.Instance.Id, out UIRuntimeEntry? entry))
+        var route = UIRoutePath.Normalize(handle.Instance.Navigation.Route);
+
+        if (RuntimeStore.TryGetAttachedEntry(handle, route, out UIRuntimeEntry? entry))
         {
-            Own(entry!.Runtime).UpdateClientState(handle, state);
+            Own(entry.Runtime).UpdateClientState(handle, state);
             return;
         }
 

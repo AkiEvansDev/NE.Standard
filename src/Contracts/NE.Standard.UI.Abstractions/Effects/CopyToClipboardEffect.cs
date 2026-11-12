@@ -10,10 +10,18 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// </summary>
 public sealed class CopyToClipboardEffect : ClientEffect
 {
-    private CopyToClipboardEffect(string? text, UIComponentReference? target)
+    private CopyToClipboardEffect(string? text, UIComponentReference? target, UIComponentAddress? resolvedTarget = null)
     {
         Text = text;
         Target = target;
+        ResolvedTarget = resolvedTarget;
+    }
+
+    [JsonConstructor]
+    internal CopyToClipboardEffect(string? text, UIComponentAddress? resolvedTarget)
+    {
+        Text = text;
+        ResolvedTarget = resolvedTarget;
     }
 
     /// <summary>
@@ -22,7 +30,7 @@ public sealed class CopyToClipboardEffect : ClientEffect
     public static CopyToClipboardEffect Literal(string text)
     {
         ArgumentNullException.ThrowIfNull(text);
-        return new CopyToClipboardEffect(text, null);
+        return new CopyToClipboardEffect(text, target: null);
     }
 
     /// <summary>
@@ -63,25 +71,24 @@ public sealed class CopyToClipboardEffect : ClientEffect
     /// <summary>
     /// Gets the component whose value or shown words are copied; null when <see cref="Text"/> is given.
     /// </summary>
+    [JsonIgnore]
     public UIComponentReference? Target { get; }
+
+    /// <summary>
+    /// Gets the resolved component address once compiled or received over the wire; null when <see cref="Text"/> is given.
+    /// </summary>
+    [JsonInclude]
+    [JsonPropertyName("target")]
+    public UIComponentAddress? ResolvedTarget { get; }
 
     /// <inheritdoc />
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        return new CompiledCopyToClipboardEffect(Text, Target is null ? null : resolver.ResolveComponent(Target.Value));
+
+        if (ResolvedTarget is not null || Target is null)
+            return this;
+
+        return new CopyToClipboardEffect(Text, Target, resolver.ResolveComponent(Target.Value));
     }
-}
-
-internal sealed class CompiledCopyToClipboardEffect(string? text, UIComponentAddress? target) : ClientEffect
-{
-    public override string Kind => ClientEffectKinds.CopyToClipboard;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
-
-    public string? Text { get; } = text;
-
-    public UIComponentAddress? Target { get; } = target;
 }

@@ -36,7 +36,7 @@ public sealed class WebManifestOptions
         ArgumentException.ThrowIfNullOrWhiteSpace(Name);
         ArgumentException.ThrowIfNullOrWhiteSpace(StartAddress);
 
-        if (!StartAddress.StartsWith('/') || StartAddress.StartsWith("//", StringComparison.Ordinal))
+        if (!StartAddress.StartsWith('/', StringComparison.Ordinal) || StartAddress.StartsWith("//", StringComparison.Ordinal))
             throw new InvalidOperationException($"The manifest's start address '{StartAddress}' is not a path of this site.");
 
         foreach (WebManifestIcon icon in Icons)

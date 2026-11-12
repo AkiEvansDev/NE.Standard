@@ -50,7 +50,7 @@ export class SplitButtonEngine {
         const open = this.menus.current;
 
         // The main part pressed while the list is open runs its command and takes the list away with it; a press inside the popup on a
-        // non-link entry prevents an enclosing `<label class="ui-text-input">` from activating its `<input>` and dismissing the menu.
+        // non-link entry prevents any enclosing `<label>` from activating an associated control and dismissing the menu.
         if (open !== null && domEvent.target instanceof Element) {
             if (domEvent.target.closest(`.${SplitButtonMainClass}`)?.closest(`.${SplitButtonClass}`) === open) {
                 this.menus.close(open);

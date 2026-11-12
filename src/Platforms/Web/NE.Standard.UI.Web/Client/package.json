@@ -11,15 +11,15 @@
     "build": "node scripts/build-dom-names.mjs && npm run typecheck && npm run lint && node scripts/build-plugin-less.mjs && vite build --clearScreen false --logLevel error && vite build -c vite.boot.config.ts --clearScreen false --logLevel error && vite build -c vite.worker.config.ts --clearScreen false --logLevel error"
   },
   "dependencies": {
-    "@microsoft/signalr": "10.0.11"
+    "@microsoft/signalr": "11.0.0"
   },
   "devDependencies": {
-    "@types/node": "26.6.5",
-    "knip": "6.41.0",
+    "@types/node": "26.6.6",
+    "knip": "6.45.1",
     "less": "4.9.1",
-    "oxlint": "1.88.0",
-    "oxlint-tsgolint": "7.0.2004",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2006",
     "typescript": "7.0.2",
-    "vite": "8.3.4"
+    "vite": "8.3.8"
   }
 }

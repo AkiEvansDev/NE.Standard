@@ -10,7 +10,7 @@ import type { ContextMenuOpeningDetail } from "./context-menu-engine.ts";
 import { happenedInside, observeComponents } from "./dom-mutations.ts";
 import { markDragStart } from "./drag-marks.ts";
 import { isLaidOut } from "./element-visibility.ts";
-import { openInlineRename } from "./inline-rename.ts";
+import { isInRenameField, openInlineRename } from "./inline-rename.ts";
 import { isInert } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { ownDescendants } from "./own-descendants.ts";
@@ -386,7 +386,7 @@ export class TabsViewEngine {
         return true;
     }
 
-    /** Pins or unpins a tab, its pin written back through the tab's own value, and moves it to the pinned head the server keeps. */
+    /** Pins or unpins a tab, moving it to the pinned head and raising `tab-pin` so the server records both the pin and the orders. */
     private setPinned(root: HTMLElement, item: HTMLElement, pinned: boolean): void {
         if (item.hasAttribute(TabPinnedAttribute) === pinned)
             return;
@@ -394,33 +394,27 @@ export class TabsViewEngine {
         const pin = item.querySelector<HTMLElement>(`:scope > .${TabItemCaptionClass} > .${TabItemPinClass}`);
 
         item.toggleAttribute(TabPinnedAttribute, pinned);
-
-        if (pin !== null) {
-            pin.toggleAttribute(TabPinnedAttribute, pinned);
-            pin.dispatchEvent(new Event("change", { bubbles: true }));
-        }
+        pin?.toggleAttribute(TabPinnedAttribute, pinned);
 
         const items = this.ownItems(root);
         const others = items.filter(other => other !== item);
         const index = pinnedBoundary(others.map(stripTab));
 
-        // Already standing there, the tab's order is already between its neighbours; a tab alone always is.
-        if (items.indexOf(item) === index)
-            return;
+        if (items.indexOf(item) !== index) {
+            const next = others[index];
 
-        const next = others[index];
+            if (next !== undefined)
+                rowOf(next).before(rowOf(item));
+            else
+                rowOf(others[others.length - 1]).after(rowOf(item));
+        }
 
-        if (next !== undefined)
-            rowOf(next).before(rowOf(item));
-        else
-            rowOf(others[others.length - 1]).after(rowOf(item));
-
-        // Stands there now; the server, which judges the pin, writes the orders that keep it there.
+        // Raised even when the tab already stands at the boundary: the server owns both the pin flag and the orders.
         item.dispatchEvent(new Event(TabPinEventName, { bubbles: true }));
     }
 
     private handleClick(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
+        if (!(domEvent.target instanceof Element) || isInRenameField(domEvent.target))
             return;
 
         if (this.handleMenuEntry(domEvent.target))

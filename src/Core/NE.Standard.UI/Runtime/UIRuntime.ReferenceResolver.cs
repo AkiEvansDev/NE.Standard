@@ -150,8 +150,8 @@ internal sealed partial class UIRuntime : IUIReferenceResolver
 
             EnsureRuntimeEffectFits(effect);
 
-            if (effect is RenameItemEffect rename && resolved is CompiledTargetedClientEffect compiled)
-                NoteOpenedRename(compiled.Target, rename.Key ?? string.Empty);
+            if (resolved is RenameItemEffect { ResolvedTarget: { } target } rename)
+                NoteOpenedRename(target, rename.Key ?? string.Empty);
 
             return resolved;
         }

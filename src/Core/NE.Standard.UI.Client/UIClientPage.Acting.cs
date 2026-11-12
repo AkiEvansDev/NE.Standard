@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,15 +9,22 @@ using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Components.BuiltIns.Actions;
+using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Items;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Localization;
@@ -28,8 +36,8 @@ namespace NE.Standard.UI.Client;
 /// <summary>A value the page owes the server: one an interaction wrote to a property bound to write back.</summary>
 internal sealed record UIClientWrite(UIPropertyAddress Address, object? Value);
 
-/// <summary>What an effect leaves the page to do once the act that brought it is done: a dialog's close to raise, a setting to tell the session, or an in-place navigation.</summary>
-internal sealed record UIClientReaction(UIComponentId? DialogClosed = null, ClientEffect? Setting = null, IReadOnlyDictionary<string, object?>? NavigateInPlace = null, bool HasNavigateInPlace = false);
+/// <summary>What an effect or bound change leaves the page to do once the act that brought it is done.</summary>
+internal sealed record UIClientReaction(UIComponentId? DialogClosed = null, ClientEffect? Setting = null, IReadOnlyDictionary<string, object?>? NavigateInPlace = null, bool HasNavigateInPlace = false, UINavigationRequest? FallbackOrigin = null, IReadOnlyList<UIClientWrite>? DeferredWrites = null);
 
 /// <summary>The server's refusal of a field's value, shown until a value it takes replaces it or the controller gives that property again.</summary>
 internal sealed record UIClientRefusal(UIPhrase Message, UIValidationSeverity Severity, UIProperty Property);
@@ -42,6 +50,8 @@ internal sealed class UIClientField
 {
     public HashSet<CompiledUIValidationRule> Failing { get; } = [];
 
+    public HashSet<UIProperty> WithheldByBounds { get; } = [];
+
     public bool Touched { get; set; }
 
     public UIClientRefusal? Refusal { get; set; }
@@ -49,6 +59,8 @@ internal sealed class UIClientField
     public UIPhrase? BoundRefusal { get; set; }
 
     public bool GateRefused { get; set; }
+
+    public bool LastEditedEnd { get; set; }
 }
 
 public sealed partial class UIClientPage
@@ -63,6 +75,8 @@ public sealed partial class UIClientPage
     /// </summary>
     internal async Task<UIClientCommandResult> SetValueAsync(UIComponentId componentId, object?[] rowKeys, UIProperty property, object? value, CancellationToken cancellationToken)
     {
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
         UIComponentNode node = EnsureActionable(componentId, rowKeys, "write to");
 
         if (Read(componentId, rowKeys, IInputComponent.IsReadOnlyProperty) is true)
@@ -79,18 +93,44 @@ public sealed partial class UIClientPage
         lock (_sync)
         {
             mark = _effects.Count;
-            FieldNoLock(address.Component).Touched = true;
+            UIClientField field = FieldNoLock(address.Component);
+            field.Touched = true;
+            if (property == IPeriodInputComponent.EndValueProperty)
+                field.LastEditedEnd = true;
+            else if (property == IInputComponent.ValueProperty)
+                field.LastEditedEnd = false;
+
             _ = _changedValidations.Add(address.Component);
 
             // From the first edit on, the server's value waits aside for a discard to put back; a push meanwhile lands there.
-            if (binding is { Mode: UIBindingMode.OnSubmit } && !_held.ContainsKey(address))
-                _serverValues[address] = ReadNoLock(componentId, rowKeys, property);
+            var prior = ReadNoLock(componentId, rowKeys, property);
+            var hadServerValue = _serverValues.ContainsKey(address);
 
             WriteValueNoLock(address, value, local: true, depth: 0, writes);
             outOfBounds = JudgeBoundsNoLock(address.Component);
 
             if (binding is { Mode: UIBindingMode.OnSubmit })
+            {
+                if (!hadServerValue)
+                    _serverValues[address] = prior;
+
                 _held[address] = value;
+            }
+            else if (binding is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource })
+            {
+                if (outOfBounds)
+                {
+                    if (!hadServerValue && !field.WithheldByBounds.Contains(property))
+                        _serverValues[address] = prior;
+
+                    _ = field.WithheldByBounds.Add(property);
+                }
+                else
+                {
+                    _ = field.WithheldByBounds.Remove(property);
+                    _ = _serverValues.Remove(address);
+                }
+            }
         }
 
         // A value past the bounds stays the reader's and is never sent: the controller keeps the last one it took.
@@ -182,29 +222,91 @@ public sealed partial class UIClientPage
     private UIPhrase? BoundRefusalNoLock(UIComponentAddress component)
     {
         var keys = component.DynamicParameters;
+
+        // A slider never stands past them, and a field the reader cannot change shows its value as it is.
+        if (ReadNoLock(component.Id, keys, IInputComponent.IsReadOnlyProperty) is true)
+            return null;
+
         var min = ReadNoLock(component.Id, keys, IBoundedInputComponent.MinProperty);
         var max = ReadNoLock(component.Id, keys, IBoundedInputComponent.MaxProperty);
         var moment = IsMoment(min ?? max);
+        var isRange = ReadNoLock(component.Id, keys, IPeriodInputComponent.IsRangeProperty) is true;
 
-        // A slider never stands past them, and a field the reader cannot change shows its value as it is.
-        if ((min is null && max is null) || (!moment && View.Graph.GetRequired(component.Id).TypeKey != NumberInputComponent.ComponentTypeKey) || ReadNoLock(component.Id, keys, IInputComponent.IsReadOnlyProperty) is true)
-            return null;
-
-        UIProperty[] ends = ReadNoLock(component.Id, keys, IPeriodInputComponent.IsRangeProperty) is true ? [IInputComponent.ValueProperty, IPeriodInputComponent.EndValueProperty] : [IInputComponent.ValueProperty];
-
-        foreach (UIProperty end in ends)
+        if ((min is not null || max is not null) && (moment || View.Graph.GetRequired(component.Id).TypeKey == NumberInputComponent.ComponentTypeKey))
         {
-            var value = ReadNoLock(component.Id, keys, end);
+            UIProperty[] ends = isRange ? [IInputComponent.ValueProperty, IPeriodInputComponent.EndValueProperty] : [IInputComponent.ValueProperty];
 
-            if (Order(value, min) < 0)
-                return UIPhrase.Of(moment ? UIStrings.ValueNotBefore : UIStrings.ValueAtLeast, ("min", min));
+            foreach (UIProperty end in ends)
+            {
+                var value = ReadNoLock(component.Id, keys, end);
 
-            if (Order(value, max) > 0)
-                return UIPhrase.Of(moment ? UIStrings.ValueNotAfter : UIStrings.ValueAtMost, ("max", max));
+                if (Order(value, min) < 0)
+                    return UIPhrase.Of(moment ? UIStrings.ValueNotBefore : UIStrings.ValueAtLeast, ("min", min));
+
+                if (Order(value, max) > 0)
+                    return UIPhrase.Of(moment ? UIStrings.ValueNotAfter : UIStrings.ValueAtMost, ("max", max));
+            }
         }
 
-        return null;
+        return isRange ? PeriodDistanceRefusalNoLock(component, keys) : null;
     }
+
+    private UIPhrase? PeriodDistanceRefusalNoLock(UIComponentAddress component, object?[] keys)
+    {
+        var typeKey = View.Graph.GetRequired(component.Id).TypeKey;
+
+        if (typeKey == SliderComponent.ComponentTypeKey || typeKey == CalendarComponent.ComponentTypeKey)
+            return null;
+
+        if (ReadNoLock(component.Id, keys, IPeriodInputComponent.MinDistanceProperty) is not { } rawDistance
+            || !RecursiveValueCoercion.TryCoerce(rawDistance, out TimeSpan span)
+            || span <= TimeSpan.Zero)
+        {
+            return null;
+        }
+
+        var start = ReadNoLock(component.Id, keys, IInputComponent.ValueProperty);
+        var end = ReadNoLock(component.Id, keys, IPeriodInputComponent.EndValueProperty);
+
+        if (start is null || end is null || Order(start, end) is not int order)
+            return null;
+
+        var editedEnd = _fields.TryGetValue(component, out UIClientField? tracked) && tracked.LastEditedEnd;
+        (var first, var second, var checkAsEnd) = order <= 0 ? (start, end, editedEnd) : (end, start, !editedEnd);
+
+        return (first, second) switch
+        {
+            (DateOnly from, DateOnly to) when TimeSpan.FromDays(to.DayNumber - from.DayNumber) < span
+                => checkAsEnd
+                    ? UIPhrase.Of(UIStrings.ValueEndTooNear, ("min", from.AddDays((int)Math.Ceiling(span.TotalDays))))
+                    : UIPhrase.Of(UIStrings.ValueStartTooNear, ("max", to.AddDays(-(int)Math.Ceiling(span.TotalDays)))),
+            (TimeOnly from, TimeOnly to) when to.ToTimeSpan() - from.ToTimeSpan() < span
+                => checkAsEnd
+                    ? UIPhrase.Of(UIStrings.ValueEndTooNear, ("min", TimeOnly.FromTimeSpan(TimeSpan.FromTicks(Math.Clamp(from.Ticks + span.Ticks, 0L, TimeOnly.MaxValue.Ticks)))))
+                    : UIPhrase.Of(UIStrings.ValueStartTooNear, ("max", TimeOnly.FromTimeSpan(TimeSpan.FromTicks(Math.Clamp(to.Ticks - span.Ticks, 0L, TimeOnly.MaxValue.Ticks))))),
+            (DateTime from, DateTime to) when to - from < span
+                => checkAsEnd
+                    ? UIPhrase.Of(UIStrings.ValueEndTooNear, ("min", AddSafe(from, span)))
+                    : UIPhrase.Of(UIStrings.ValueStartTooNear, ("max", SubtractSafe(to, span))),
+            (DateTimeOffset from, DateTimeOffset to) when to - from < span
+                => checkAsEnd
+                    ? UIPhrase.Of(UIStrings.ValueEndTooNear, ("min", AddSafe(from, span)))
+                    : UIPhrase.Of(UIStrings.ValueStartTooNear, ("max", SubtractSafe(to, span))),
+            _ => null
+        };
+    }
+
+    private static DateTime AddSafe(DateTime value, TimeSpan span)
+        => DateTime.MaxValue - value < span ? DateTime.MaxValue : value + span;
+
+    private static DateTime SubtractSafe(DateTime value, TimeSpan span)
+        => value - DateTime.MinValue < span ? DateTime.MinValue : value - span;
+
+    private static DateTimeOffset AddSafe(DateTimeOffset value, TimeSpan span)
+        => DateTimeOffset.MaxValue - value < span ? DateTimeOffset.MaxValue : value + span;
+
+    private static DateTimeOffset SubtractSafe(DateTimeOffset value, TimeSpan span)
+        => value - DateTimeOffset.MinValue < span ? DateTimeOffset.MinValue : value - span;
 
     private static bool IsMoment(object? value)
         => value is DateOnly or TimeOnly or DateTime or DateTimeOffset;
@@ -229,15 +331,260 @@ public sealed partial class UIClientPage
         => UIScriptNumber.TryRead(value, out var number) ? number : null;
 
     /// <summary>Raises an event as a reader's gesture does: refused on a component a reader could not reach.</summary>
-    internal Task<UIClientCommandResult> DispatchAsync(UIComponentId componentId, object?[] rowKeys, string eventName, object?[] eventKeys, CancellationToken cancellationToken)
+    internal async Task<UIClientCommandResult> DispatchAsync(UIComponentId componentId, object?[] rowKeys, string eventName, object?[] eventKeys, CancellationToken cancellationToken)
     {
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
         UIComponentNode node = EnsureActionable(componentId, rowKeys, $"raise '{eventName}' on");
+
+        if (ClosesOnReadOnly(eventName) && Read(componentId, rowKeys, IInputComponent.IsReadOnlyProperty) is true)
+            throw new InvalidOperationException($"'{node.AuthoringId}' is read-only: a reader cannot raise '{eventName}' on it.");
 
         // A surface or a tile that is not clickable lets its click go by, as the page's suppress mark does.
         if (eventName == EventNames.Click && Read(componentId, rowKeys, IClickableComponent.ClickableProperty) is false)
             throw new InvalidOperationException($"'{node.AuthoringId}' is not clickable: a reader cannot press it.");
 
-        return DispatchCoreAsync(componentId, rowKeys, eventName, eventKeys, cancellationToken);
+        return await DispatchCoreAsync(componentId, rowKeys, eventName, eventKeys, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool ClosesOnReadOnly(string eventName)
+        => eventName is not (EventNames.Focus or EventNames.Blur or EventNames.HoverStart or EventNames.HoverEnd or "graph-node-click" or "graph-run-stop");
+
+    internal async Task EnsureRowChoosableAsync(UIComponentNode host, object?[] hostKeys, object?[] rowKeys, UIClientRowEntry entry, CancellationToken cancellationToken)
+    {
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = EnsureActionable(host.ComponentId, hostKeys, "choose a row of");
+
+        UIComponentId rootId = RowTemplate(host.ComponentId, hostKeys, entry.Item);
+        _ = EnsureActionable(rootId, rowKeys, "choose");
+
+        if (Read(rootId, rowKeys, IItemAbilitiesComponent.CanSelectProperty) is false
+            || entry.Item is IItemAbilitiesModel { CanSelect: false }
+            || (entry.Item is IReadOnlyDictionary<string, object?> && ItemContext.TryReadProperty(entry.Item, nameof(IItemAbilitiesModel.CanSelect), out var canSelect) && canSelect is false))
+        {
+            throw new InvalidOperationException($"Row '{entry.Key}' of '{host.AuthoringId}' refuses selection.");
+        }
+    }
+
+    /// <summary>Commits an inline rename on a standalone renamable component or row template root, writing <c>RenamedTitle</c> and raising <c>rename</c>.</summary>
+    internal async Task<UIClientCommandResult> RenameComponentAsync(UIComponentId componentId, object?[] rowKeys, string title, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+
+        var trimmed = title.Trim();
+
+        if (trimmed.Length == 0)
+            throw new ArgumentException("A rename cannot commit a blank title.", nameof(title));
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
+        UIComponentNode node = EnsureActionable(componentId, rowKeys, "rename");
+
+        if (node.ParentId is UIComponentId hostId && View.State.TryGetValue(hostId, IItemsHostAbilitiesComponent.RenamableProperty, out _) && rowKeys.Length > 0)
+            return await RenameRowCoreAsync(View.Graph.GetRequired(hostId), rowKeys[..^1], rowKeys, componentId, componentId, trimmed, $"'{node.AuthoringId}'", cancellationToken).ConfigureAwait(false);
+
+        if (BindingOf(componentId, IRenamableComponent.RenamedTitleProperty) is null)
+            throw new InvalidOperationException($"'{node.AuthoringId}' is not renamable: it binds no renamed title.");
+
+        if (Read(componentId, rowKeys, IItemAbilitiesComponent.CanRenameProperty) is false)
+            throw new InvalidOperationException($"'{node.AuthoringId}' refuses inline rename.");
+
+        UIComponentAddress openedAddress = new(componentId, rowKeys);
+        bool open;
+
+        lock (_sync)
+            open = _openedRenames.Contains(openedAddress) || ReadNoLock(componentId, rowKeys, TextComponent.RenamableProperty) is true;
+
+        if (!open)
+            throw new InvalidOperationException($"'{node.AuthoringId}' is not renamable: a reader cannot rename it.");
+
+        return await CommitRenameAsync(componentId, componentId, rowKeys, trimmed, $"'{node.AuthoringId}'", openedAddress, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Commits an inline rename on a list, tree or tab row, writing <c>RenamedTitle</c> on its rename slot and raising <c>rename</c>.</summary>
+    internal async Task<UIClientCommandResult> RenameRowAsync(UIComponentNode host, object?[] hostKeys, UIClientRowEntry entry, string title, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+
+        var trimmed = title.Trim();
+
+        if (trimmed.Length == 0)
+            throw new ArgumentException("A rename cannot commit a blank title.", nameof(title));
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
+        _ = EnsureActionable(host.ComponentId, hostKeys, "rename a row of");
+
+        object?[] rowKeys = [.. hostKeys, entry.Key];
+        UIComponentId rootId = RowTemplate(host.ComponentId, hostKeys, entry.Item);
+        UIComponentId valueTargetId = ResolveRowRenameValueTarget(host, rowKeys, entry.Item, rootId);
+
+        return await RenameRowCoreAsync(host, hostKeys, rowKeys, rootId, valueTargetId, trimmed, $"Row '{entry.Key}' of '{host.AuthoringId}'", cancellationToken).ConfigureAwait(false);
+    }
+
+    private UIComponentId ResolveRowRenameValueTarget(UIComponentNode host, object?[] rowKeys, object? rowItem, UIComponentId rootId)
+    {
+        if (BindingOf(rootId, IRenamableComponent.RenamedTitleProperty) is not null)
+            return rootId;
+
+        foreach (UIComponentSlot slot in host.Slots)
+        {
+            if (slot.Kind == UIComponentSlotKind.TemplateVariant
+                && slot.RootComponentId != rootId
+                && IsWornByCompositeRow(host.ComponentId, slot.RootComponentId, rowKeys, rowItem)
+                && BindingOf(slot.RootComponentId, IRenamableComponent.RenamedTitleProperty) is not null)
+            {
+                return slot.RootComponentId;
+            }
+        }
+
+        return rootId;
+    }
+
+    private async Task<UIClientCommandResult> RenameRowCoreAsync(UIComponentNode host, object?[] hostKeys, object?[] rowKeys, UIComponentId rootId, UIComponentId valueTargetId, string trimmed, string owner, CancellationToken cancellationToken)
+    {
+        _ = EnsureActionable(valueTargetId, rowKeys, "rename");
+
+        if (valueTargetId != rootId)
+            _ = EnsureActionable(rootId, rowKeys, "rename");
+
+        if (BindingOf(valueTargetId, IRenamableComponent.RenamedTitleProperty) is null)
+            throw new InvalidOperationException($"{owner} is not renamable: it binds no renamed title.");
+
+        if (Read(rootId, rowKeys, IItemAbilitiesComponent.CanRenameProperty) is false || (valueTargetId != rootId && Read(valueTargetId, rowKeys, IItemAbilitiesComponent.CanRenameProperty) is false))
+            throw new InvalidOperationException($"{owner} refuses inline rename.");
+
+        UIComponentAddress openedHostRow = new(host.ComponentId, rowKeys);
+        UIComponentAddress openedValueTarget = new(valueTargetId, rowKeys);
+        bool open;
+
+        lock (_sync)
+            open = _openedRenames.Contains(openedHostRow) || _openedRenames.Contains(openedValueTarget) || IsHostRowRenamableNoLock(host.ComponentId, hostKeys, valueTargetId, rowKeys);
+
+        if (!open)
+            throw new InvalidOperationException($"{owner} is not renamable: a reader cannot rename it.");
+
+        UIComponentId eventTargetId = HasEventOrInteraction(rootId, EventNames.Rename) ? rootId : valueTargetId;
+
+        return await CommitRenameAsync(valueTargetId, eventTargetId, rowKeys, trimmed, owner, openedHostRow, cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool IsHostRowRenamableNoLock(UIComponentId hostId, object?[] hostKeys, UIComponentId valueTargetId, object?[] rowKeys)
+    {
+        if (ReadNoLock(hostId, hostKeys, IItemsHostAbilitiesComponent.RenamableProperty) is true)
+            return true;
+
+        if (ReadNoLock(hostId, hostKeys, TabsViewComponent.TabMenuEntriesProperty) is UITabMenuEntries entries && entries.HasFlag(UITabMenuEntries.Rename))
+            return true;
+
+        return !View.State.TryGetValue(hostId, IItemsHostAbilitiesComponent.RenamableProperty, out _)
+            && ReadNoLock(valueTargetId, rowKeys, TextComponent.RenamableProperty) is true;
+    }
+
+    private bool HasEventOrInteraction(UIComponentId componentId, string eventName)
+        => HasEvent(componentId, eventName) || View.Interactions.GetBySource(new CompiledUIEventAddress(componentId, eventName)).Count > 0;
+
+    private async Task<UIClientCommandResult> CommitRenameAsync(UIComponentId valueTargetId, UIComponentId eventTargetId, object?[] rowKeys, string trimmed, string owner, UIComponentAddress openedAddress, CancellationToken cancellationToken)
+    {
+        UIComponentAddress valueComponent = new(valueTargetId, rowKeys);
+        UIPropertyAddress renamedAddress = new(valueComponent, IRenamableComponent.RenamedTitleProperty);
+        UIPropertyAddress? titleAddress = ResolveRenameTitleTarget(valueTargetId) is UIComponentId titleId
+            ? new UIPropertyAddress(new UIComponentAddress(titleId, rowKeys), ITextBaseComponent.TitleProperty)
+            : null;
+        CompiledUIBinding? binding = BindingOf(valueTargetId, IRenamableComponent.RenamedTitleProperty);
+        List<UIClientWrite> writes = [];
+        var hadExplicitTitle = false;
+        object? explicitTitle = null;
+        var unchanged = false;
+        int mark;
+
+        lock (_sync)
+        {
+            mark = _effects.Count;
+            _ = _openedRenames.Remove(openedAddress);
+            _ = _openedRenames.Remove(valueComponent);
+
+            var currentShown = titleAddress is UIPropertyAddress currentTitleAddress
+                ? Words(ReadNoLock(currentTitleAddress.Component.Id, rowKeys, ITextBaseComponent.TitleProperty))?.Trim()
+                : Words(ReadNoLock(valueTargetId, rowKeys, IRenamableComponent.RenamedTitleProperty))?.Trim();
+
+            if (string.Equals(trimmed, currentShown, StringComparison.Ordinal))
+            {
+                unchanged = true;
+            }
+            else
+            {
+                if (titleAddress is UIPropertyAddress knownTitle)
+                    hadExplicitTitle = _values.TryGetValue(knownTitle, out explicitTitle);
+
+                if (binding is { Mode: UIBindingMode.OnSubmit } && !_held.ContainsKey(renamedAddress))
+                    _serverValues[renamedAddress] = ReadNoLock(valueTargetId, rowKeys, IRenamableComponent.RenamedTitleProperty);
+
+                WriteValueNoLock(renamedAddress, trimmed, local: true, depth: 0, writes);
+
+                if (titleAddress is UIPropertyAddress targetTitle)
+                {
+                    SetValueEntryNoLock(targetTitle, trimmed);
+                    _ = _changedProperties.Add(targetTitle);
+                }
+
+                if (binding is { Mode: UIBindingMode.OnSubmit })
+                    _held[renamedAddress] = trimmed;
+                else if (binding is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource })
+                    writes.Insert(0, new UIClientWrite(renamedAddress, trimmed));
+            }
+        }
+
+        if (unchanged)
+        {
+            NotifyIfChanged();
+            return UIClientCommandResult.RanOnPage(EffectsSince(mark));
+        }
+
+        await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
+        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
+
+        bool refused;
+
+        lock (_sync)
+        {
+            UIClientField field = FieldNoLock(valueComponent);
+            refused = field.Refusal is not null || field.GateRefused;
+
+            if (refused && titleAddress is UIPropertyAddress revertTitle && _values.TryGetValue(revertTitle, out var currentTitle) && Equals(currentTitle, trimmed))
+            {
+                if (hadExplicitTitle)
+                    SetValueEntryNoLock(revertTitle, explicitTitle);
+                else
+                    _ = RemoveValueEntryNoLock(revertTitle);
+
+                _ = _changedProperties.Add(revertTitle);
+            }
+        }
+
+        if (refused)
+        {
+            NotifyIfChanged();
+            return UIClientCommandResult.Refused($"The server refused the rename of {owner}.");
+        }
+
+        if (HasEventOrInteraction(eventTargetId, EventNames.Rename))
+            return await DispatchCoreAsync(eventTargetId, rowKeys, EventNames.Rename, [], cancellationToken).ConfigureAwait(false);
+
+        NotifyIfChanged();
+        return UIClientCommandResult.RanOnPage(EffectsSince(mark));
+    }
+
+    private UIComponentId? ResolveRenameTitleTarget(UIComponentId valueTargetId)
+    {
+        if (View.State.TryGetValue(valueTargetId, ITextBaseComponent.TitleProperty, out _))
+            return valueTargetId;
+
+        return View.Graph.TryGetSlot(valueTargetId, UIComponentSlotKind.Region, out UIComponentSlot? header, RegionNames.Header)
+            && View.State.TryGetValue(header.RootComponentId, ITextBaseComponent.TitleProperty, out _)
+                ? header.RootComponentId
+                : null;
     }
 
     /// <summary>
@@ -313,7 +660,7 @@ public sealed partial class UIClientPage
                 if (!IsInFormNoLock(field, formId))
                     continue;
 
-                if (field.DynamicParameters.Length > 0 && (!IsShownNoLock(field.Id, field.DynamicParameters) || !IsEnabledNoLock(field.Id, field.DynamicParameters)))
+                if (!IsShownNoLock(field.Id, field.DynamicParameters) || !IsEnabledNoLock(field.Id, field.DynamicParameters))
                     continue;
 
                 FieldNoLock(field).Touched = true;
@@ -391,6 +738,7 @@ public sealed partial class UIClientPage
     private async Task<bool> SubmitHeldValuesAsync(string formId, CancellationToken cancellationToken)
     {
         List<UIClientWrite> writes = [];
+        List<(bool HadServerValue, object? ServerValue)> savedOriginals = [];
 
         lock (_sync)
         {
@@ -403,27 +751,62 @@ public sealed partial class UIClientPage
             foreach (UIClientWrite write in writes)
             {
                 _ = _held.Remove(write.Address);
-                _ = _serverValues.Remove(write.Address);
+                var hadOriginal = _serverValues.Remove(write.Address, out var original);
+                savedOriginals.Add((hadOriginal, original));
             }
         }
 
-        await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            lock (_sync)
+            {
+                for (var i = 0; i < writes.Count; i++)
+                {
+                    UIPropertyAddress address = writes[i].Address;
+                    _ = _held.TryAdd(address, writes[i].Value);
+
+                    if (savedOriginals[i].HadServerValue)
+                        _ = _serverValues.TryAdd(address, savedOriginals[i].ServerValue);
+                }
+            }
+
+            throw;
+        }
+
+        var accepted = true;
 
         lock (_sync)
         {
             for (var i = 0; i < writes.Count; i++)
             {
-                UIClientField field = FieldNoLock(writes[i].Address.Component);
+                UIPropertyAddress address = writes[i].Address;
+                UIClientField field = FieldNoLock(address.Component);
 
-                if (field.Refusal is not null || field.GateRefused)
-                    return false;
+                if (field.Refusal is not null && !field.GateRefused)
+                {
+                    _ = _held.TryAdd(address, writes[i].Value);
+
+                    if (savedOriginals[i].HadServerValue)
+                        _ = _serverValues.TryAdd(address, savedOriginals[i].ServerValue);
+
+                    accepted = false;
+                }
+                else if (field.GateRefused)
+                {
+                    accepted = false;
+                }
             }
         }
 
-        return true;
+        return accepted;
     }
 
     /// <summary>Sends a command and applies its answer, the event's before- and after- interactions around it.</summary>
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Best-effort after-interaction write flush must not mask the original command exception.")]
     private async Task<UIClientCommandResult> SendCommandAsync(UICommandRequest request, UIComponentAddress? source, string? eventName, CancellationToken cancellationToken)
     {
         List<UIClientWrite> writes = [];
@@ -439,7 +822,36 @@ public sealed partial class UIClientPage
 
         await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
 
-        UICommandExecutionResult result = await Transport.ProcessEventAsync(request, cancellationToken).ConfigureAwait(false);
+        UICommandExecutionResult result;
+
+        try
+        {
+            result = await Transport.ProcessEventAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            writes.Clear();
+
+            lock (_sync)
+            {
+                if (source is UIComponentAddress failedAfter)
+                    RunEventInteractionsNoLock(failedAfter, EventNames.AfterPrefix + eventName, writes);
+            }
+
+            if (writes.Count > 0 && !cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await SendValuesAsync(writes, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+            }
+
+            NotifyIfChanged();
+            throw;
+        }
 
         writes.Clear();
 
@@ -479,7 +891,11 @@ public sealed partial class UIClientPage
                 _reactions.RemoveAt(0);
             }
 
-            if (reaction.DialogClosed is UIComponentId root)
+            if (reaction.DeferredWrites is { Count: > 0 } deferredWrites)
+            {
+                await SendValuesAsync(deferredWrites, cancellationToken).ConfigureAwait(false);
+            }
+            else if (reaction.DialogClosed is UIComponentId root)
             {
                 _ = await DispatchCoreAsync(root, [], EventNames.Close, [], cancellationToken).ConfigureAwait(false);
             }
@@ -493,6 +909,12 @@ public sealed partial class UIClientPage
 
                 lock (_sync)
                 {
+                    if (reaction.FallbackOrigin is UINavigationRequest origin && Array.Exists(navResult.Command.Effects, static effect => effect is NavigateEffect))
+                    {
+                        _navigation = origin;
+                        _history[0] = origin;
+                    }
+
                     ApplyNoLock(navResult.Changes.For(Transport.InstanceId));
                     ApplyEffectsNoLock(navResult.Command.Effects);
                 }
@@ -514,7 +936,7 @@ public sealed partial class UIClientPage
     }
 
     /// <summary>Sends values to the server in one change set and applies the answer — a refusal among them.</summary>
-    private async Task SendValuesAsync(List<UIClientWrite> writes, CancellationToken cancellationToken)
+    private async Task SendValuesAsync(IReadOnlyList<UIClientWrite> writes, CancellationToken cancellationToken)
     {
         if (writes.Count == 0 || !Transport.HasController)
             return;
@@ -540,12 +962,12 @@ public sealed partial class UIClientPage
 
         ServerChangeSet answer = await Transport.ProcessChangeSetAsync(new ClientChangeSet { Updates = updates }, cancellationToken).ConfigureAwait(false);
 
-        Receive(answer);
+        ApplyReceivedChanges(answer);
         MarkRevertedWrites(writes, answer);
         await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private void MarkRevertedWrites(List<UIClientWrite> writes, ServerChangeSet answer)
+    private void MarkRevertedWrites(IReadOnlyList<UIClientWrite> writes, ServerChangeSet answer)
     {
         if (answer.IsEmpty)
             return;
@@ -596,7 +1018,7 @@ public sealed partial class UIClientPage
     private List<ClientEffect> EffectsSince(int mark)
     {
         lock (_sync)
-            return _effects.GetRange(mark, _effects.Count - mark);
+            return mark >= _effects.Count ? [] : _effects.GetRange(mark, _effects.Count - mark);
     }
 
     /// <summary>
@@ -605,7 +1027,7 @@ public sealed partial class UIClientPage
     /// </summary>
     private void WriteValueNoLock(UIPropertyAddress address, object? value, bool local, int depth, List<UIClientWrite> writes)
     {
-        _values[address] = value;
+        SetValueEntryNoLock(address, value);
         _ = _changedProperties.Add(address);
 
         if (address.Property == IInputComponent.ValidationProperty)
@@ -665,7 +1087,11 @@ public sealed partial class UIClientPage
         if (interaction.ActionKind == UIInteractionActionKind.Effect)
         {
             if (matches && interaction.Effect is { } effect)
-                ApplyEffectsNoLock([effect]);
+            {
+                UIComponentId? sourceId = interaction.Source?.Component.Id ?? interaction.SourceEvent?.ComponentId;
+                UIComponentAddress? sourceAddress = sourceId is UIComponentId id ? new UIComponentAddress(id, rowKeys) : null;
+                ApplyEffectsNoLock([effect], sourceAddress, depth, writes);
+            }
 
             return;
         }
@@ -773,33 +1199,113 @@ public sealed partial class UIClientPage
     internal (UIPhrase Message, UIValidationSeverity Severity)? Message(UIComponentId componentId, object?[] rowKeys)
     {
         lock (_sync)
-        {
-            UIComponentAddress component = new(componentId, rowKeys);
-            UIClientField field = FieldNoLock(component);
-            (UIPhrase Message, UIValidationSeverity Severity)? strongest = null;
+            return MessageNoLock(new UIComponentAddress(componentId, rowKeys));
+    }
 
-            if (field.BoundRefusal is { } outOfBounds)
-                strongest = (outOfBounds, UIValidationSeverity.Error);
+    private (UIPhrase Message, UIValidationSeverity Severity)? MessageNoLock(UIComponentAddress component)
+    {
+        UIClientField field = FieldNoLock(component);
+        (UIPhrase Message, UIValidationSeverity Severity)? strongest = null;
 
-            if (field.Refusal is { } refusal && Graver(refusal.Severity, strongest))
-                strongest = (refusal.Message, refusal.Severity);
+        if (field.BoundRefusal is { } outOfBounds)
+            strongest = (outOfBounds, UIValidationSeverity.Error);
 
-            if (ReadNoLock(componentId, rowKeys, IInputComponent.ValidationProperty) is UIValidationMessage bound && Graver(bound.Severity, strongest))
-                strongest = (bound.Message, bound.Severity);
+        if (field.Refusal is { } refusal && Graver(refusal.Severity, strongest))
+            strongest = (refusal.Message, refusal.Severity);
 
-            if (!field.Touched)
-                return strongest;
+        if (ReadNoLock(component.Id, component.DynamicParameters, IInputComponent.ValidationProperty) is UIValidationMessage bound && Graver(bound.Severity, strongest))
+            strongest = (bound.Message, bound.Severity);
 
-            foreach (CompiledUIValidationRule rule in View.Validations.GetByComponent(componentId))
-            {
-                if (field.Failing.Contains(rule) && Graver(rule.Severity, strongest))
-                    strongest = (rule.Message, rule.Severity);
-            }
-
+        if (!field.Touched)
             return strongest;
+
+        foreach (CompiledUIValidationRule rule in View.Validations.GetByComponent(component.Id))
+        {
+            if (field.Failing.Contains(rule) && Graver(rule.Severity, strongest))
+                strongest = (rule.Message, rule.Severity);
         }
+
+        return strongest;
     }
 
     private static bool Graver(UIValidationSeverity severity, (UIPhrase Message, UIValidationSeverity Severity)? than)
         => than is null || severity < than.Value.Severity;
+
+    /// <summary>Writes active validation messages of fields using <c>ValidationInto</c> onto their target component properties.</summary>
+    internal void SyncRedirectedValidationMessagesNoLock()
+    {
+        if (View.Validations.MessageTargets.Count == 0 || (_changedValidations.Count == 0 && !_languageOrThemeChanged && !_fullResyncOccurred))
+            return;
+
+        Dictionary<UIPropertyAddress, List<string>>? gathered = null;
+
+        foreach (UIComponentNode node in View.Graph.All)
+        {
+            if (!View.Validations.TryGetMessageTarget(node.ComponentId, out UIPropertyAddress target))
+                continue;
+
+            var targetDepth = View.Graph.GetItemScopes(target.Component.Id).Count;
+
+            foreach (UIComponentAddress field in EnumerateFieldAddressesNoLock(node.ComponentId))
+            {
+                if (MessageNoLock(field) is not { } message || Words(message.Message) is not { Length: > 0 } words)
+                    continue;
+
+                var targetKeys = field.DynamicParameters.Length >= targetDepth ? field.DynamicParameters[..targetDepth] : [];
+                UIPropertyAddress targetAddress = new(new UIComponentAddress(target.Component.Id, targetKeys), target.Property);
+
+                gathered ??= [];
+                if (!gathered.TryGetValue(targetAddress, out List<string>? lines))
+                {
+                    lines = [];
+                    gathered.Add(targetAddress, lines);
+                }
+
+                lines.Add(words);
+            }
+        }
+
+        if (_redirectedTargets.Count > 0)
+        {
+            List<UIPropertyAddress>? cleared = null;
+
+            foreach (UIPropertyAddress previous in _redirectedTargets)
+            {
+                if (gathered is null || !gathered.ContainsKey(previous))
+                    (cleared ??= []).Add(previous);
+            }
+
+            if (cleared is not null)
+            {
+                for (var i = 0; i < cleared.Count; i++)
+                {
+                    UIPropertyAddress address = cleared[i];
+                    _ = _redirectedTargets.Remove(address);
+
+                    if (View.State.TryGetValue(address.Component.Id, address.Property, out CompiledUIPropertyValue? compiled) && compiled.Value is not null)
+                        SetValueEntryNoLock(address, null);
+                    else
+                        _ = RemoveValueEntryNoLock(address);
+
+                    _ = _changedProperties.Add(address);
+                }
+            }
+        }
+
+        if (gathered is null)
+            return;
+
+        foreach ((UIPropertyAddress targetAddress, List<string> lines) in gathered)
+        {
+            var joined = string.Join('\n', lines);
+
+            if (!_values.TryGetValue(targetAddress, out var existing) || !Equals(existing, joined))
+            {
+                SetValueEntryNoLock(targetAddress, joined);
+                _ = _changedProperties.Add(targetAddress);
+            }
+
+            _ = _redirectedTargets.Add(targetAddress);
+        }
+    }
 }

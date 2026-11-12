@@ -59,9 +59,9 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     /// </summary>
     protected SelectComponentBase(string? id = null) : base(id)
     {
-        _ = SetTemplate(CreateOptionTemplate());
-        _ = SetEmptyTemplate(new DefaultEmptyTemplate());
-        _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
+        SetDefaultTemplate(CreateOptionTemplate());
+        SetDefaultEmptyTemplate(new DefaultEmptyTemplate());
+        SetDefaultGroupTemplate(new DefaultGroupTemplate(binds: true));
     }
 
     /// <summary>
@@ -175,5 +175,28 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     /// Configures the built-in default group template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)
-        => Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
+        MarkGroupTemplateAuthored();
+        return result;
+    }
+
+    /// <inheritdoc/>
+    protected override Action? SnapshotAuthoredState()
+    {
+        Action? restoreBase = base.SnapshotAuthoredState();
+        Action? restoreActions = _actions.SnapshotAuthoredState();
+
+        if (restoreBase is null)
+            return restoreActions;
+
+        if (restoreActions is null)
+            return restoreBase;
+
+        return () =>
+        {
+            restoreBase();
+            restoreActions();
+        };
+    }
 }

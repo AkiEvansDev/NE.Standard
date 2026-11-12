@@ -18,7 +18,7 @@ public abstract class ButtonRendererBase : WebComponentRendererBase
 {
     // Every button, menu entry, breadcrumb and tab caption registers these, so they are built once.
     private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonVariantClass)];
-    private static readonly TierClassFamily<UISize> SizeFamily = new(WebAttributes.TierSize, WebDomConverters.ButtonSizeClass, WebDomConverters.ButtonSizeTierClasses, WebClassNames.ButtonSize);
+    internal static readonly TierClassFamily<UISize> SizeFamily = new(WebAttributes.TierSize, WebDomConverters.ButtonSizeClass, WebDomConverters.ButtonSizeTierClasses, WebClassNames.ButtonSize);
     private static readonly WebDomOperation[] ShortcutOperations = [WebDomOperation.Attribute(WebAttributes.Shortcut, converter: WebDomConverters.NonBlankText)];
 
     protected override string ElementName => "button";

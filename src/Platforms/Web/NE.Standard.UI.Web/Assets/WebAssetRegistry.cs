@@ -18,7 +18,7 @@ internal sealed class WebAssetRegistry : IWebAssetRegistry
     {
         ArgumentNullException.ThrowIfNull(assets);
 
-        Dictionary<string, WebAssetDescriptor> builder = new(StringComparer.Ordinal);
+        Dictionary<string, WebAssetDescriptor> builder = [with(StringComparer.Ordinal)];
 
         Add(builder, StandardWebAssetDescriptors.FontCss);
         Add(builder, StandardWebAssetDescriptors.Font);

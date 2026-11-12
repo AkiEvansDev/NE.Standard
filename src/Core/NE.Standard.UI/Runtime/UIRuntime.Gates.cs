@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Data;
@@ -33,13 +34,16 @@ internal sealed partial class UIRuntime
     private int _refusalWarnings;
     private long _refusalMinuteEnd;
 
-    // Items on which the server dispatched RenameItemEffect, reopening inline rename on a host whose Renamable is closed.
+    private const byte OpenedRenameWrite = UIComponentGateIndex.RenameWriteStep;
+    private const byte OpenedRenameCommand = UIComponentGateIndex.RenameCommandStep;
+
+    // Items on which the server dispatched RenameItemEffect, reopening one inline rename on a host whose Renamable is closed.
     private ConcurrentDictionary<(UIComponentAddress Host, string Key), byte>? _openedRenames;
 
     private UIComponentGateIndex Gates => field ??= UIComponentGateIndex.For(View);
 
     private void NoteOpenedRename(UIComponentAddress host, string key)
-        => LazyInitializer.EnsureInitialized(ref _openedRenames, static () => new())[(host, key)] = 0;
+        => LazyInitializer.EnsureInitialized(ref _openedRenames, static () => new())[(host, key)] = OpenedRenameWrite | OpenedRenameCommand;
 
     /// <summary>
     /// Refuses a command raised on a component the server knows is disabled, loading or hidden — by a static value or the
@@ -97,7 +101,7 @@ internal sealed partial class UIRuntime
             if (target.ReadOnly is { } readOnly && ClosesOnReadOnly(compiledEvent.Address.EventName) && IsClosedNoLock(readOnly, dynamicParameters))
                 throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a component that is read-only.");
 
-            if (target.TextRename is { } textRename && compiledEvent.Address.EventName == EventNames.Rename && IsTextRenameRefusedNoLock(textRename, dynamicParameters))
+            if (target.TextRename is { } textRename && compiledEvent.Address.EventName == EventNames.Rename && IsTextRenameRefusedNoLock(textRename, dynamicParameters, OpenedRenameCommand))
                 throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a text component whose Renamable is false.");
         }
 
@@ -108,14 +112,19 @@ internal sealed partial class UIRuntime
         if (!IsNamedByKey(row!, dynamicParameters))
             throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' names a row by something other than its key.");
 
+        var renameStep = compiledEvent.Address.EventName == EventNames.Rename ? OpenedRenameCommand : (byte)0;
+
         // The row looked up once: the lookup that found it held answers for its abilities too.
         if (EventAbility(compiledEvent.Address.EventName) is UIComponentGateKind ability
             && (ownRow is { } held
-                ? IsRowRefusedNoLock(row!, ability, TakeDynamicParameters(dynamicParameters, row!.RowParameterCount), held)
-                : IsRowRefusedNoLock(row!, ability, dynamicParameters)))
+                ? IsRowRefusedNoLock(row!, ability, TakeDynamicParameters(dynamicParameters, row!.RowParameterCount), held, renameStep)
+                : IsRowRefusedNoLock(row!, ability, dynamicParameters, renameStep)))
         {
             throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a row whose {ability} is false.");
         }
+
+        if (compiledEvent.Address.EventName == EventNames.TabPin && row!.Host?.TabPin is { } tabPin && IsClosedNoLock(tabPin, dynamicParameters))
+            throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' was raised on a strip whose tab menu does not offer pinning.");
 
         if (compiledEvent.Address.EventName == EventNames.ItemMenuEntry && IsTabMenuEntryRefusedNoLock(compiledEvent.Address.ComponentId, row!, dynamicParameters))
             throw new UnauthorizedAccessException($"Command '{compiledEvent.Command}' names an entry its tab menu does not offer.");
@@ -162,7 +171,7 @@ internal sealed partial class UIRuntime
     /// Whether a standalone text component refuses a rename: closed unless <c>Renamable</c> is true or an interaction or
     /// <see cref="Abstractions.Effects.RenameItemEffect"/> opened inline rename on it.
     /// </summary>
-    private bool IsTextRenameRefusedNoLock(UITextRenameGate textRename, object?[] dynamicParameters)
+    private bool IsTextRenameRefusedNoLock(UITextRenameGate textRename, object?[] dynamicParameters, byte step)
     {
         if (textRename.Renamable is not { } renamable || !IsClosedNoLock(renamable, dynamicParameters))
             return false;
@@ -177,9 +186,49 @@ internal sealed partial class UIRuntime
             ? TakeDynamicParameters(dynamicParameters, node.ContextParameterCount)
             : [];
 
-        return !TryCreateHostAddress(textRename.ComponentId, parameters, out UIComponentAddress address)
-            || ((textRename.ScopedInteractions is null || !textRename.ScopedInteractions.Contains(address))
-                && (_openedRenames is null || !_openedRenames.ContainsKey((address, string.Empty))));
+        if (!TryCreateHostAddress(textRename.ComponentId, parameters, out UIComponentAddress address))
+            return true;
+
+        if (textRename.ScopedInteractions is not null && textRename.ScopedInteractions.Contains(address))
+            return false;
+
+        return !TryConsumeOpenedRename((address, string.Empty), textRename.Steps, step);
+    }
+
+    private static bool TryCreateHostAddress(UIComponentId hostId, object?[] hostParameters, out UIComponentAddress address)
+    {
+        for (var i = 0; i < hostParameters.Length; i++)
+        {
+            if (!UIRowKeys.IsKey(hostParameters[i]))
+            {
+                address = default;
+                return false;
+            }
+        }
+
+        address = new UIComponentAddress(hostId, hostParameters);
+        return true;
+    }
+
+    private bool TryConsumeOpenedRename((UIComponentAddress Host, string Key) entry, byte availableSteps, byte step)
+    {
+        if (step == 0 || _openedRenames is not { } opened)
+            return false;
+
+        while (opened.TryGetValue(entry, out var mask))
+        {
+            var effective = (byte)(mask & availableSteps);
+
+            if ((effective & step) == 0)
+                return false;
+
+            var next = step == OpenedRenameCommand ? (byte)0 : (byte)(effective & ~step);
+
+            if (next == 0 ? opened.TryRemove(KeyValuePair.Create(entry, mask)) : opened.TryUpdate(entry, next, mask))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -315,9 +364,9 @@ internal sealed partial class UIRuntime
         return false;
     }
 
-    /// <summary>Whether an event is a row's own — a move, a removal, a rename, an entry of a tab's menu — rather than a component's in it.</summary>
+    /// <summary>Whether an event is a row's own — a move, a removal, a rename, a tab's pin, an entry of a tab's menu — rather than a component's in it.</summary>
     private static bool IsRowsOwnEvent(string eventName)
-        => eventName is EventNames.ItemMenuEntry || EventAbility(eventName) is not null;
+        => eventName is EventNames.ItemMenuEntry or EventNames.TabPin || EventAbility(eventName) is not null;
 
     /// <summary>Whether the keys name the row by its key, a text, where the row's key stands.</summary>
     private static bool IsNamedByKey(UIRowAbilities row, object?[] dynamicParameters)
@@ -339,7 +388,7 @@ internal sealed partial class UIRuntime
     /// names a row its host's rows, read, do not hold. Rows the server cannot read refuse nothing, as a gate it cannot read closes nothing.
     /// </summary>
     /// <remarks>The item is read only for an event or a write that names its row, never on a render or an ordinary value.</remarks>
-    private bool IsRowRefusedNoLock(UIRowAbilities row, UIComponentGateKind ability, object?[] dynamicParameters)
+    private bool IsRowRefusedNoLock(UIRowAbilities row, UIComponentGateKind ability, object?[] dynamicParameters, byte renameStep = 0)
     {
         var count = row.RowParameterCount;
 
@@ -348,7 +397,7 @@ internal sealed partial class UIRuntime
 
         var rowParameters = TakeDynamicParameters(dynamicParameters, count);
 
-        return IsRowRefusedNoLock(row, ability, rowParameters, row.Items is { } items ? LookUpRowNoLock(items, rowParameters, key) : default);
+        return IsRowRefusedNoLock(row, ability, rowParameters, row.Items is { } items ? LookUpRowNoLock(items, rowParameters, key) : default, renameStep);
     }
 
     /// <summary>
@@ -356,25 +405,25 @@ internal sealed partial class UIRuntime
     /// not do what <paramref name="ability"/> asks: not held, its host's switch closed, its template's ability closed, or its own item
     /// saying false.
     /// </summary>
-    private bool IsRowRefusedNoLock(UIRowAbilities row, UIComponentGateKind ability, object?[] rowParameters, RowLookup lookup)
+    private bool IsRowRefusedNoLock(UIRowAbilities row, UIComponentGateKind ability, object?[] rowParameters, RowLookup lookup, byte renameStep = 0)
     {
         if (lookup.Missing)
-            return true;
-
-        if (row.Host is { } host && IsHostAbilityRefusedNoLock(host, ability, row.RowParameterCount, rowParameters))
             return true;
 
         if (row.For(ability) is { } gate && IsClosedNoLock(gate, rowParameters))
             return true;
 
-        return lookup.Item is IItemAbilitiesModel item && UIComponentGateIndex.Closes(ability, UIRowAbilities.Read(item, ability));
+        if (lookup.Item is IItemAbilitiesModel item && UIComponentGateIndex.Closes(ability, UIRowAbilities.Read(item, ability)))
+            return true;
+
+        return row.Host is { } host && IsHostAbilityRefusedNoLock(host, ability, row.RowParameterCount, rowParameters, row.RenameSteps, renameStep);
     }
 
     /// <summary>
     /// Whether the host itself closes <paramref name="ability"/> for the row: <c>Draggable</c> off for a move, <c>Removable</c> off for a
     /// removal, or <c>Renamable</c> off without the strip's tab menu or a <c>RenameItemEffect</c> opening rename on the item.
     /// </summary>
-    private bool IsHostAbilityRefusedNoLock(UIHostRowGates host, UIComponentGateKind ability, int rowParameterCount, object?[] rowParameters)
+    private bool IsHostAbilityRefusedNoLock(UIHostRowGates host, UIComponentGateKind ability, int rowParameterCount, object?[] rowParameters, byte renameSteps, byte renameStep)
     {
         if (ability == UIComponentGateKind.CanDrag)
             return host.Draggable is { } draggable && IsClosedNoLock(draggable, rowParameters);
@@ -403,24 +452,13 @@ internal sealed partial class UIRuntime
 
         var hostParameters = TakeDynamicParameters(rowParameters, rowParameterCount - 1);
 
-        return !TryCreateHostAddress(host.HostId, hostParameters, out UIComponentAddress hostAddress)
-            || ((host.ScopedInteractionKeys is null || !host.ScopedInteractionKeys.Contains((hostAddress, key)))
-                && (_openedRenames is null || !_openedRenames.ContainsKey((hostAddress, key))));
-    }
+        if (!TryCreateHostAddress(host.HostId, hostParameters, out UIComponentAddress hostAddress))
+            return true;
 
-    private static bool TryCreateHostAddress(UIComponentId hostId, object?[] hostParameters, out UIComponentAddress address)
-    {
-        for (var i = 0; i < hostParameters.Length; i++)
-        {
-            if (!UIRowKeys.IsKey(hostParameters[i]))
-            {
-                address = default;
-                return false;
-            }
-        }
+        if (host.ScopedInteractionKeys is not null && host.ScopedInteractionKeys.Contains((hostAddress, key)))
+            return false;
 
-        address = new UIComponentAddress(hostId, hostParameters);
-        return true;
+        return !TryConsumeOpenedRename((hostAddress, key), renameSteps, renameStep);
     }
 
     /// <summary>
@@ -483,8 +521,8 @@ internal sealed partial class UIRuntime
         UIComponentGateIndex gates = Gates;
         UIProperty property = update.Address.Property;
 
-        // A tab's order is the server's to write, from a drag's or a pin's place; the page's own write of one is never taken.
-        if (property == TabItemComponent.OrderProperty)
+        // A tab's order and pin are the server's to write, from a drag's or a pin's place; the page's own write of either is never taken.
+        if (property == TabItemComponent.OrderProperty || property == TabItemComponent.PinnedProperty)
             return true;
 
         if (property == IItemsComponent.QueryProperty && IsQueryWriteRefused(update, resolution, ref read))
@@ -522,9 +560,9 @@ internal sealed partial class UIRuntime
             }
 
             if ((target.ReadOnly is { } readOnly && IsClosedNoLock(readOnly, dynamicParameters))
-                || (target.TextRename is { } textRename && property == IRenamableComponent.RenamedTitleProperty && !UIComponentGateIndex.IsInteractionTarget(View, componentId, property) && IsTextRenameRefusedNoLock(textRename, dynamicParameters))
                 || (target.Values is { } checks && IsValueRefusedNoLock(checks, update, resolution, ref read, changeSet))
-                || (target.WriteCheck is { } writeCheck && IsCheckRefusedNoLock(writeCheck, update, resolution, ref read)))
+                || (target.WriteCheck is { } writeCheck && IsCheckRefusedNoLock(writeCheck, update, resolution, ref read))
+                || (target.TextRename is { } textRename && property == IRenamableComponent.RenamedTitleProperty && !UIComponentGateIndex.IsInteractionTarget(View, componentId, property) && IsTextRenameRefusedNoLock(textRename, dynamicParameters, OpenedRenameWrite)))
             {
                 return true;
             }
@@ -536,10 +574,18 @@ internal sealed partial class UIRuntime
         if (gates.TryGetRows(componentId, out UIRowGates rows) && IsChoice(property, rows))
             return IsChoiceRefusedNoLock(gates, rows, update, resolution);
 
-        return WriteAbility(property) is UIComponentGateKind ability
-            && !UIComponentGateIndex.IsInteractionTarget(View, componentId, property)
-            && gates.TryGetRowRoot(componentId, out UIRowAbilities? row)
-            && IsRowRefusedNoLock(row!, ability, dynamicParameters);
+        if (WriteAbility(property) is not UIComponentGateKind ability || !gates.TryGetRowRoot(componentId, out UIRowAbilities? row))
+            return false;
+
+        if (!UIComponentGateIndex.IsInteractionTarget(View, componentId, property))
+        {
+            var renameStep = property == IRenamableComponent.RenamedTitleProperty ? OpenedRenameWrite : (byte)0;
+
+            if (IsRowRefusedNoLock(row!, ability, dynamicParameters, renameStep))
+                return true;
+        }
+
+        return property == TreeNodeComponent.DropTargetProperty && IsTreeDropRefusedNoLock(gates, componentId, row!, dynamicParameters, update.Value);
     }
 
     /// <summary>
@@ -556,9 +602,12 @@ internal sealed partial class UIRuntime
         if (read.Value.Value is null)
             return IsViewerQueryRefusedNoLock(update.Address.Component.Id, UIItemsQuery.Empty);
 
-        return RecursiveValueCoercion.TryCoerce(read.Value.Value, typeof(UIItemsQuery), out var coerced)
-            && coerced is UIItemsQuery query
-            && IsViewerQueryRefusedNoLock(update.Address.Component.Id, query);
+        if (!RecursiveValueCoercion.TryCoerce(read.Value.Value, typeof(UIItemsQuery), out var coerced) || coerced is not UIItemsQuery query)
+            return false;
+
+        read = new ClientValueRead(read.Value.Normalization, query);
+
+        return IsViewerQueryRefusedNoLock(update.Address.Component.Id, query);
     }
 
     /// <summary>
@@ -639,6 +688,16 @@ internal sealed partial class UIRuntime
         if (property != IInputComponent.ValueProperty && property != IPeriodInputComponent.EndValueProperty)
             return false;
 
+        var dynamicParameters = update.Address.Component.DynamicParameters;
+
+        if (property == IPeriodInputComponent.EndValueProperty
+            && checks.IsRange is { } rangeGate
+            && TryReadGateValueNoLock(rangeGate, dynamicParameters, out var rangeMode)
+            && rangeMode is not true)
+        {
+            return true;
+        }
+
         read ??= ReadClientValue(resolution.Binding, update.Value);
 
         if (read.Value.Normalization == UIFormattedValueNormalization.Rejected
@@ -647,8 +706,6 @@ internal sealed partial class UIRuntime
         {
             return false;
         }
-
-        var dynamicParameters = update.Address.Component.DynamicParameters;
 
         return IsBeyondNoLock(checks.Min, checks.ValueType, value, dynamicParameters, below: true)
             || IsBeyondNoLock(checks.Max, checks.ValueType, value, dynamicParameters, below: false)
@@ -694,7 +751,11 @@ internal sealed partial class UIRuntime
             return true;
         }
 
-        return TryReadGateNoLock(bound, dynamicParameters, out read);
+        if (!TryReadGateNoLock(bound, dynamicParameters, out read))
+            return false;
+
+        read ??= value.Static;
+        return true;
     }
 
     /// <summary>
@@ -736,6 +797,9 @@ internal sealed partial class UIRuntime
     private bool IsPastOtherEndNoLock(UIValueChecks checks, UIPeriodEnds ends, UIComponentAddress component, bool isEnd, object value, ClientChangeSet? changeSet)
     {
         var dynamicParameters = component.DynamicParameters;
+
+        if (checks.IsRange is { } rangeGate && TryReadGateValueNoLock(rangeGate, dynamicParameters, out var rangeMode) && rangeMode is not true)
+            return false;
 
         if ((isEnd ? ends.Start : ends.End) is not { } other
             || !TryReadOtherEndNoLock(checks, other, component, isEnd ? IInputComponent.ValueProperty : IPeriodInputComponent.EndValueProperty, changeSet, out var held)
@@ -810,11 +874,11 @@ internal sealed partial class UIRuntime
     private static bool IsNearer(object start, object end, object? least)
         => (start, end) switch
         {
-            (decimal from, decimal to) => to - from < (least as decimal? ?? 0m),
-            (DateOnly from, DateOnly to) => TimeSpan.FromDays(to.DayNumber - from.DayNumber) < (least as TimeSpan? ?? TimeSpan.Zero),
-            (TimeOnly from, TimeOnly to) => to.ToTimeSpan() - from.ToTimeSpan() < (least as TimeSpan? ?? TimeSpan.Zero),
-            (DateTimeOffset from, DateTimeOffset to) => to - from < (least as TimeSpan? ?? TimeSpan.Zero),
-            (DateTime from, DateTime to) => to - from < (least as TimeSpan? ?? TimeSpan.Zero),
+            (decimal from, decimal to) => OrderedRange.IsNearer(from, to, least as decimal? ?? 0m),
+            (DateOnly from, DateOnly to) => to < from || (least is TimeSpan span && span > TimeSpan.Zero && TimeSpan.FromDays(to.DayNumber - from.DayNumber) < span),
+            (TimeOnly from, TimeOnly to) => to < from || (least is TimeSpan span && span > TimeSpan.Zero && to.ToTimeSpan() - from.ToTimeSpan() < span),
+            (DateTimeOffset from, DateTimeOffset to) => to < from || (least is TimeSpan span && span > TimeSpan.Zero && to - from < span),
+            (DateTime from, DateTime to) => to < from || (least is TimeSpan span && span > TimeSpan.Zero && to - from < span),
             _ => false
         };
 
@@ -830,7 +894,7 @@ internal sealed partial class UIRuntime
 
         var origin = min is { } bound && ReadDecimalNoLock(bound, dynamicParameters) is decimal lower ? lower : 0m;
 
-        return (written - origin) % size != 0;
+        return OrderedRange.IsOffStep(origin, size, written);
     }
 
     /// <summary>A slider's step as the page steps by it: a null the controller holds is the browser's 1, as an unset step is.</summary>
@@ -904,7 +968,7 @@ internal sealed partial class UIRuntime
 
     private static int CountDistinct(IEnumerable keys)
     {
-        HashSet<string> distinct = new(StringComparer.Ordinal);
+        HashSet<string> distinct = [with(StringComparer.Ordinal)];
 
         foreach (var key in keys)
         {
@@ -1124,7 +1188,7 @@ internal sealed partial class UIRuntime
     /// <summary>The keys chosen now — one key, or a list of them — as a set; empty where nothing is chosen.</summary>
     private static HashSet<string> ToChosenSet(object? current)
     {
-        HashSet<string> chosen = new(StringComparer.Ordinal);
+        HashSet<string> chosen = [with(StringComparer.Ordinal)];
 
         if (ToChoiceKey(current) is string key)
         {
@@ -1178,6 +1242,196 @@ internal sealed partial class UIRuntime
             return UIComponentGateKind.CanRename;
 
         return property == TreeNodeComponent.DropTargetProperty ? UIComponentGateKind.CanDrag : null;
+    }
+
+    /// <summary>
+    /// Whether a tree node's written <c>DropTarget</c> names a destination the tree does not accept: a non-string, the dragged node
+    /// itself, a missing or disabled/hidden node, a non-folder, or an ancestor chain that runs through the dragged node.
+    /// </summary>
+    private bool IsTreeDropRefusedNoLock(UIComponentGateIndex gates, UIComponentId componentId, UIRowAbilities row, object?[] dynamicParameters, object? value)
+    {
+        if (value is null or "")
+            return false;
+
+        if (value is not string targetKey)
+            return true;
+
+        if (dynamicParameters.Length < row.RowParameterCount || dynamicParameters[row.RowParameterCount - 1] is not string draggedKey || string.Equals(targetKey, draggedKey, StringComparison.Ordinal))
+            return true;
+
+        if (row.Items is not { } items)
+            return false;
+
+        var outerParameters = TakeDynamicParameters(dynamicParameters, row.RowParameterCount - 1);
+
+        if (ReadRowCollectionNoLock(items, outerParameters) is not IEnumerable collection)
+            return false;
+
+        var targetParameters = AppendDynamicParameter(outerParameters, targetKey);
+        RowLookup targetLookup = LookUpRowNoLock(items, targetParameters, targetKey);
+
+        if (targetLookup.Missing)
+            return true;
+
+        UIComponentNode? hostNode = View.Graph.TryGet(componentId, out UIComponentNode? draggedNode)
+            && draggedNode.ParentId is UIComponentId hostId
+            && View.Graph.TryGet(hostId, out UIComponentNode? owner)
+                ? owner
+                : null;
+        UIComponentId? targetRootId = ResolveTreeRowRootId(gates, hostNode, componentId, targetLookup.Item);
+        UIComponentId? hostRowRootId = hostNode is not null && gates.TryGetRows(hostNode.ComponentId, out UIRowGates hostRows) ? hostRows.TemplateRootId : null;
+
+        if ((targetRootId is UIComponentId rootId && gates.TryGet(rootId, out UIComponentGates? targetGates) && IsClosedNoLock(targetGates!.Chain, targetParameters))
+            || (hostRowRootId is UIComponentId rowRootId && rowRootId != targetRootId && gates.TryGet(rowRootId, out UIComponentGates? rowGates) && IsClosedNoLock(rowGates!.Chain, targetParameters))
+            || (targetLookup.Item is ITextBaseModel textModel && (UIComponentGateIndex.Closes(UIComponentGateKind.Enabled, textModel.Enabled) || UIComponentGateIndex.Closes(UIComponentGateKind.Visibility, textModel.Visibility))))
+        {
+            return true;
+        }
+
+        var isFolder = ReadTreeFlagNoLock(targetRootId, TreeNodeComponent.IsFolderProperty, targetParameters, (targetLookup.Item as ITreeNodeModel)?.IsFolder);
+
+        if (isFolder == false)
+            return true;
+
+        if (isFolder is null
+            && ReadTreeFlagNoLock(targetRootId, TreeNodeComponent.HasChildrenProperty, targetParameters, (targetLookup.Item as ITreeNodeModel)?.HasChildren) != true
+            && !HasTreeChildNoLock(gates, hostNode, componentId, outerParameters, collection, targetKey))
+        {
+            return true;
+        }
+
+        var parentKey = ReadTreeParentIdNoLock(targetRootId, targetParameters, targetLookup.Item);
+        HashSet<string>? visited = null;
+
+        while (parentKey is { Length: > 0 })
+        {
+            if (string.Equals(parentKey, draggedKey, StringComparison.Ordinal))
+                return true;
+
+            if (!(visited ??= [with(StringComparer.Ordinal)]).Add(parentKey))
+                break;
+
+            var parentParameters = AppendDynamicParameter(outerParameters, parentKey);
+            RowLookup parentLookup = LookUpRowNoLock(items, parentParameters, parentKey);
+
+            if (parentLookup.Missing || parentLookup.Item is null)
+                break;
+
+            UIComponentId? parentRootId = ResolveTreeRowRootId(gates, hostNode, componentId, parentLookup.Item);
+            parentKey = ReadTreeParentIdNoLock(parentRootId, parentParameters, parentLookup.Item);
+        }
+
+        return false;
+    }
+
+    private IEnumerable? ReadRowCollectionNoLock(UIRowItems items, object?[] outerParameters)
+    {
+        if (items.Declared is { } declared)
+            return declared;
+
+        return items.Bound is { } bound && TryResolveGatePath(bound, outerParameters, out RecursivePath path) && TryReadGatePathNoLock(bound, path, out var held)
+            ? held as IEnumerable
+            : null;
+    }
+
+    private UIComponentId? ResolveTreeRowRootId(UIComponentGateIndex gates, UIComponentNode? hostNode, UIComponentId fallbackId, object? item)
+    {
+        if (hostNode is null || !gates.TryGetRowVariant(fallbackId, out UIRowVariant? ownVariant))
+            return fallbackId;
+
+        if (!IsOtherTemplatesRow(ownVariant!, item))
+            return fallbackId;
+
+        foreach (UIComponentSlot slot in hostNode.Slots)
+        {
+            if (slot.Kind is not (UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant)
+                || !gates.TryGetRowVariant(slot.RootComponentId, out UIRowVariant? variant)
+                || !string.Equals(variant!.CompositeBaseKey, ownVariant!.CompositeBaseKey, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!IsOtherTemplatesRow(variant, item))
+                return slot.RootComponentId;
+        }
+
+        return fallbackId;
+    }
+
+    private bool? ReadTreeFlagNoLock(UIComponentId? rootId, UIProperty property, object?[] rowParameters, bool? fallback)
+    {
+        if (!TryReadTreeNodeValueNoLock(rootId, property, rowParameters, out var value) || value is null)
+            return fallback;
+
+        return RecursiveValueCoercion.TryCoerce(value, typeof(bool), out var coerced) && coerced is bool flag ? flag : fallback;
+    }
+
+    private bool HasTreeChildNoLock(UIComponentGateIndex gates, UIComponentNode? hostNode, UIComponentId fallbackId, object?[] outerParameters, IEnumerable collection, string folderKey)
+    {
+        foreach (var candidate in collection)
+        {
+            if (candidate is not IBindableItem { Id: { Length: > 0 } childKey } || string.Equals(childKey, folderKey, StringComparison.Ordinal))
+                continue;
+
+            var childParameters = AppendDynamicParameter(outerParameters, childKey);
+            UIComponentId? childRootId = ResolveTreeRowRootId(gates, hostNode, fallbackId, candidate);
+
+            if (string.Equals(ReadTreeParentIdNoLock(childRootId, childParameters, candidate), folderKey, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    private string? ReadTreeParentIdNoLock(UIComponentId? rootId, object?[] rowParameters, object? item)
+    {
+        if (TryReadTreeNodeValueNoLock(rootId, TreeNodeComponent.ParentIdProperty, rowParameters, out var value) && value is string parentId)
+            return parentId;
+
+        return (item as ITreeNodeModel)?.ParentId;
+    }
+
+    private bool TryReadTreeNodeValueNoLock(UIComponentId? rootId, UIProperty property, object?[] rowParameters, out object? value)
+    {
+        value = null;
+
+        if (rootId is not UIComponentId nodeId)
+            return false;
+
+        if (View.Bindings.TryGetProperty(new UIPropertyAddress(nodeId, property), out CompiledUIBinding? binding))
+        {
+            if (!View.Sources.TryGet(binding.SourceId, out CompiledUIBindingSource? source)
+                || rowParameters.Length < CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters))
+            {
+                return false;
+            }
+
+            CompiledUIBindingResolution resolution = View.Bindings.Resolve(binding, rowParameters);
+            var found = source.Kind == CompiledUIBindingSourceKind.Controller
+                ? Controller.TryGetRecursiveValue(resolution.Path, out value)
+                : source.Kind == CompiledUIBindingSourceKind.ComponentItems
+                    && source.ComponentId is UIComponentId hostId
+                    && View.State.TryGetValue(hostId, IItemsComponent.ItemsProperty, out CompiledUIPropertyValue? items)
+                    && !items.IsBind
+                    && items.Value is IEnumerable declared
+                    && TryReadDeclaredValue(declared, resolution.Path, out value);
+
+            if (found || binding.Optional)
+            {
+                value ??= binding.TargetFallbackValue;
+                return value is not null || found;
+            }
+
+            return false;
+        }
+
+        if (View.State.TryGetValue(nodeId, property, out CompiledUIPropertyValue? staticValue) && !staticValue.IsBind)
+        {
+            value = staticValue.Value;
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -32,8 +32,9 @@ internal sealed class UIViewCompilationResult(CompiledRegion[] regions, Compiled
     public UICompileWarning[] Warnings { get; } = warnings;
 }
 
-internal sealed partial class UIViewCompilationContext(Type? controllerType = null) : IUIReferenceResolver
+internal sealed partial class UIViewCompilationContext(Type? controllerType = null, bool applyDefaults = true) : IUIReferenceResolver
 {
+    private readonly bool _applyDefaults = applyDefaults;
     // What compiled but is not what the author meant; the host logs these, it does not stop for them.
     private readonly List<UICompileWarning> _warnings = [];
 
@@ -53,16 +54,16 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         public bool DefinesParameter { get; } = definesParameter;
     }
 
-    private readonly Dictionary<string, UIComponentId> _componentIdsByAuthoringId = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UIComponentId> _componentIdsByAuthoringId = [with(StringComparer.Ordinal)];
     private readonly Dictionary<UIComponentId, string> _authoringIdByComponentId = [];
-    private readonly Dictionary<string, IVisualComponent> _components = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IVisualComponent> _components = [with(StringComparer.Ordinal)];
     private readonly List<IVisualComponent> _componentOrder = [];
-    private readonly Dictionary<string, string?> _parentByComponentId = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string?> _defaultsParentByComponentId = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> _dialogOwnerByContentId = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, List<UIComponentSlot>> _slotsByOwnerComponentId = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, UIComponentSlot> _slotByRootComponentId = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, UIComponentTypeState> _typeStates = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _parentByComponentId = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, string?> _defaultsParentByComponentId = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, string> _dialogOwnerByContentId = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, List<UIComponentSlot>> _slotsByOwnerComponentId = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, UIComponentSlot> _slotByRootComponentId = [with(StringComparer.Ordinal)];
+    private readonly Dictionary<string, UIComponentTypeState> _typeStates = [with(StringComparer.Ordinal)];
     private readonly List<CompiledRegion> _regions = [];
     private readonly List<CompiledDialog> _dialogs = [];
 
@@ -163,7 +164,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
 
     public UIViewCompilationResult BuildResult()
     {
-        Dictionary<string, CompiledUIBindingSource> sourcesByKey = new(StringComparer.Ordinal);
+        Dictionary<string, CompiledUIBindingSource> sourcesByKey = [with(StringComparer.Ordinal)];
         Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey = [];
         Dictionary<UIBindingTemplateId, CompiledUIContext> contextsByTemplateId = [];
         List<CompiledUIBinding> bindings = [];
@@ -189,6 +190,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         EnsureFormsAreSubmitted();
 
         CompiledUIInteraction[] interactions = BuildInteractions();
+        ValidateInlineRenameBindings(interactions);
         CompiledUIEvent[] events = BuildEvents(templatesByKey, componentContexts, rootPath);
         CompiledUIValidationRule[] validations = BuildValidations(componentContexts);
         KeyValuePair<UIComponentId, UIPropertyAddress>[] validationMessageTargets = BuildValidationMessageTargets();

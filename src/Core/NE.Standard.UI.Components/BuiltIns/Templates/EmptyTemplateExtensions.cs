@@ -25,6 +25,7 @@ public static class EmptyTemplateExtensions
         if (!component.HasEmptyTemplate)
             _ = component.SetEmptyTemplate(new DefaultEmptyTemplate());
 
-        return component.ConfigureTemplate(component.EmptyTemplate as DefaultEmptyTemplate, configure, "template");
+        T result = component.ConfigureTemplate(component.EmptyTemplate as DefaultEmptyTemplate, configure, "template");
+        return result.SetEmptyTemplate(result.EmptyTemplate!);
     }
 }

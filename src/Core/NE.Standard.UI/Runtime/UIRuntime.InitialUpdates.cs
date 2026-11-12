@@ -144,9 +144,7 @@ internal sealed partial class UIRuntime
         finally
         {
             ClearPendingUpdatesNoLock();
-
-            _pendingUpdates.AddRange(pendingUpdates);
-            NoteQueuedValueAddressesNoLock(pendingUpdates);
+            RestorePendingUpdatesNoLock(pendingUpdates);
             _pendingFullResync = pendingFullResync;
             _dirtyItemWindows = dirtyItemWindows;
         }
@@ -326,7 +324,7 @@ internal sealed partial class UIRuntime
         if (parts.Length == 0)
             return RecursivePath.Empty;
 
-        List<PathSegment> segments = new(parts.Length);
+        List<PathSegment> segments = [with(parts.Length)];
 
         foreach (RecursivePathTemplatePart part in parts)
         {

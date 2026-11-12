@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { CalendarBodyClass, CalendarClass, cssAttributeValue, TemporalCellAttribute, TemporalCentredAttribute, TemporalDayAttribute, TemporalInputClass, TemporalInputDayClass, TemporalInputFieldClass, TemporalInputMonthClass, TemporalInputOpenClass, TemporalInputPopupClass, TemporalInputTimeCellClass, TemporalInputTimeColumnClass, TemporalNavAttribute, TemporalToggleAttribute, TemporalUnitAttribute } from "../addressing/dom-attributes.ts";
+import { CalendarBodyClass, CalendarClass, cssAttributeValue, PlaceholderNamesAttribute, TemporalCellAttribute, TemporalCentredAttribute, TemporalDayAttribute, TemporalInputClass, TemporalInputDayClass, TemporalInputFieldClass, TemporalInputMonthClass, TemporalInputOpenClass, TemporalInputPopupClass, TemporalInputTimeCellClass, TemporalInputTimeColumnClass, TemporalNavAttribute, TemporalToggleAttribute, TemporalUnitAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
 import { formatTemporal, isDigitFormat, temporalPlaceholder } from "../rendering/temporal-format.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
@@ -39,8 +39,8 @@ export class TemporalPickerEngine {
     private readonly states = new WeakMap<HTMLElement, CalendarState>();
     // The fields this has written once: a field the reader holds is left alone after that, whatever it holds — an empty one too.
     private readonly written = new WeakSet<HTMLInputElement>();
-    // The controls whose line says why a typed value was written back, until the reader gives them another.
-    private readonly refused = new WeakSet<HTMLElement>();
+    // The controls whose line says why a typed value was held back, mapped to the field holding that typed text until settled or replaced.
+    private readonly refused = new WeakMap<HTMLElement, HTMLInputElement>();
     // The language the page's own temporal names and formats are drawn in: the server's, until a switch.
     private drawnLanguage = document.documentElement.lang;
 
@@ -80,9 +80,12 @@ export class TemporalPickerEngine {
 
         // The components the patch landed on, not every one the id addresses: a package's clone of a template is patched alone.
         this.options.propertyPatchEngine?.addValueChangeHandler(change => {
-            // Min/Max/DisplayFormat are live-patchable, and the picker's disabled cells are computed from them.
+            // Min/Max/MinDistance/DisplayFormat are live-patchable, and the picker's disabled cells are computed from them.
             const pickers = componentParts(change.components, TemporalRootSelector);
             const pushedValue = change.propertyName === "Value" || change.propertyName === "EndValue";
+
+            for (const picker of pickers)
+                this.reconcileRefused(picker, pushedValue ? change.propertyName === "EndValue" : undefined);
 
             this.applyDisplay(pickers);
 
@@ -100,6 +103,7 @@ export class TemporalPickerEngine {
         // A patched attribute re-renders what is showing.
         observeComponents(this.root, TemporalRootSelector, { attributeFilter: [...PickerAttributes] }, pickers => {
             for (const picker of pickers) {
+                this.reconcileRefused(picker);
                 this.applyDisplay([picker]);
 
                 if (this.isShowing(picker))
@@ -205,11 +209,14 @@ export class TemporalPickerEngine {
                 if (field.placeholder !== placeholder)
                     field.placeholder = placeholder;
 
+                if (field.hasAttribute(PlaceholderNamesAttribute) && field.getAttribute("aria-label") !== placeholder)
+                    field.setAttribute("aria-label", placeholder);
+
                 if (field.inputMode !== inputMode)
                     field.inputMode = inputMode;
 
-                // The reader's text is left alone once written; a picker drawn and focused at once (a cell's editor) is still unwritten.
-                if (field === document.activeElement && this.written.has(field))
+                // The reader's text is left alone once written, and a refused typed draft stays visible until edited or settled.
+                if ((field === document.activeElement && this.written.has(field)) || this.refused.get(picker) === field)
                     continue;
 
                 this.written.add(field);
@@ -259,13 +266,12 @@ export class TemporalPickerEngine {
         const canonical = moment === null ? typed : canonicalOf(picker, moment, isEndPart(domEvent.target));
 
         // A day the grid would not offer is not taken, nor is an end nearer the other than a period's least distance, which the server
-        // would refuse — judged once the ends are ordered below. Either stays as typed and says why on the field's line, as a refused
-        // tag does and as a number past its bound does: the error points at a value still on screen, and the server holds the last one
-        // taken, until the reader gives the control another value.
+        // would refuse — judged as the ends would stand once ordered. Either stays as typed in its field while the canonical input keeps
+        // the last committed value, and reconcileRefused re-judges it if MinDistance, MarkedDays or the other end changes.
         const refusal = isUnmarkedDay(picker, canonical) ? { key: "ui.value.unmarked" } : moment === null ? null : periodDistanceRefusal(picker, moment, isEndPart(domEvent.target));
 
         if (refusal !== null) {
-            this.refused.add(picker);
+            this.refused.set(picker, domEvent.target);
             this.options.validation?.mark(picker, "error", refusal);
             return;
         }
@@ -277,11 +283,47 @@ export class TemporalPickerEngine {
             this.getState(picker).choosingEnd = false;
 
         valueInput.value = canonical;
-        valueInput.dispatchEvent(new Event("change", { bubbles: true }));
 
-        // Both ends typed and the wrong way round: the ends swap, and both fields are written again from what they hold.
-        orderPeriod(picker);
+        // Both ends typed and the wrong way round: the ends swap and dispatch their ordered changes; otherwise this end's change goes.
+        if (!orderPeriod(picker))
+            valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+
         this.applyDisplay([picker]);
+    }
+
+    private reconcileRefused(picker: HTMLElement, replacedEnd?: boolean): void {
+        const field = this.refused.get(picker);
+
+        if (field === undefined)
+            return;
+
+        const end = isEndPart(field);
+
+        if (replacedEnd === end) {
+            this.unsayRefusal(picker);
+            return;
+        }
+
+        const typed = typedValue(picker, field.value);
+        const moment = parseCanonical(typed, readMode(picker));
+        const canonical = moment === null ? typed : canonicalOf(picker, moment, end);
+        const refusal = isUnmarkedDay(picker, canonical) ? { key: "ui.value.unmarked" } : moment === null ? null : periodDistanceRefusal(picker, moment, end);
+
+        if (refusal !== null) {
+            this.options.validation?.mark(picker, "error", refusal);
+            return;
+        }
+
+        this.unsayRefusal(picker);
+
+        const valueInput = valueInputOf(picker, end);
+
+        if (valueInput !== null) {
+            valueInput.value = canonical;
+
+            if (!orderPeriod(picker))
+                valueInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
     }
 
     private unsayRefusal(picker: HTMLElement): void {

@@ -103,7 +103,7 @@ public sealed class TreeComponentRenderer : ItemsCollectionRendererBase
             RegisterServerRenderedItemValues(context, items);
 
             // Depth and fold in one walk: the list is in walking order, so a parent has been placed before its children.
-            Dictionary<string, TreePlacement> placed = new(StringComparer.Ordinal);
+            Dictionary<string, TreePlacement> placed = [with(StringComparer.Ordinal)];
 
             for (var i = 0; i < items.Count; i++)
                 RenderRow(context, host, items[i], placed, selected, selectable);

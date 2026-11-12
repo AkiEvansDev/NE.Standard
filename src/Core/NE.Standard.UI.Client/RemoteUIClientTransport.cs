@@ -90,6 +90,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         Language = language;
         ThemeMode = themeMode;
         ThemeColors = themeColors;
+        ClientState = new UIClientState(IsVisible: true, session.NotificationPermission);
         _initialPageId = initialPageId;
         _initialSequence = initialSequence;
         _initialChanges = initialChanges;
@@ -98,6 +99,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
         _ = _hub.On<PushedServerChangeSet, string?>("ui.changes", OnServerChangesAsync);
         _ = _hub.On<PushedCommandExecutionResult, string?>("ui.commandResult", OnServerCommandResultAsync);
+        _hub.Reconnected += OnReconnectedAsync;
     }
 
     /// <inheritdoc />
@@ -137,12 +139,19 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         CancellationToken cancellationToken)
     {
         var requestPath = $"/_ne/view?address={Uri.EscapeDataString(address)}&windowId={Uri.EscapeDataString(session.ClientWindowId)}";
-        using HttpResponseMessage response = await session.HttpClient.GetAsync(new Uri(requestPath, UriKind.Relative), cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(session.TimeZone))
+            requestPath += $"&timeZone={Uri.EscapeDataString(session.TimeZone)}";
 
-        if (!response.IsSuccessStatusCode && response.StatusCode != System.Net.HttpStatusCode.NotFound)
+        using HttpResponseMessage response = await session.HttpClient.GetAsync(new Uri(requestPath, UriKind.Relative), cancellationToken).ConfigureAwait(false);
+        var isJson = string.Equals(response.Content.Headers.ContentType?.MediaType, "application/json", StringComparison.OrdinalIgnoreCase);
+
+        if (!response.IsSuccessStatusCode && (response.StatusCode != System.Net.HttpStatusCode.NotFound || !isJson))
             _ = response.EnsureSuccessStatusCode();
 
         var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        if (bytes.Length == 0)
+            _ = response.EnsureSuccessStatusCode();
+
         using JsonDocument doc = JsonDocument.Parse(bytes);
         JsonElement root = doc.RootElement;
 
@@ -190,8 +199,16 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             onClose
         );
 
-        await hub.StartAsync(cancellationToken).ConfigureAwait(false);
-        return transport;
+        try
+        {
+            await hub.StartAsync(cancellationToken).ConfigureAwait(false);
+            return transport;
+        }
+        catch
+        {
+            await hub.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     private static HubConnection BuildHubConnection(RemoteUIClientSession session, ConcurrentQueue<Task> incoming)
@@ -208,6 +225,8 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             : builder.WithUrl(hubUri, Configure);
 
         return configured
+            .WithStatefulReconnect()
+            .WithAutomaticReconnect()
             .AddJsonProtocol(protocol =>
             {
                 UIWireJson.Apply(protocol.PayloadSerializerOptions);
@@ -222,6 +241,12 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
     internal void BindPage(UIClientPage page)
         => _page = page;
+
+    private async Task OnReconnectedAsync(string? connectionId)
+    {
+        if (!_closed && _page is { } page)
+            await page.ReceivePushedAsync(new ServerChangeSet { Updates = [new ServerFullResyncUIUpdate()] }).ConfigureAwait(false);
+    }
 
     private async Task OnServerChangesAsync(PushedServerChangeSet pushed, string? runtimeStamp)
     {
@@ -239,7 +264,8 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private async Task ApplyPushedChangesAsync(ServerChangeSet changes)
     {
         ServerChangeSet resolved = await ResolveStagedUpdatesAsync(changes, CancellationToken.None).ConfigureAwait(false);
-        _page?.Receive(resolved);
+        if (_page is { } page)
+            await page.ReceivePushedAsync(resolved).ConfigureAwait(false);
     }
 
     private async Task OnServerCommandResultAsync(PushedCommandExecutionResult pushed, string? runtimeStamp)
@@ -261,7 +287,8 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         if (onlySessionKey && resolved.Changes.Updates.Length == 0)
             return;
 
-        _page?.Receive(resolved);
+        if (_page is { } page)
+            await page.ReceivePushedAsync(resolved).ConfigureAwait(false);
     }
 
     private bool IsStaleStamp(string? runtimeStamp)
@@ -286,12 +313,17 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                     Parameters = InitialNavigation.Parameters,
                     PageId = _initialPageId,
                     View = View.Fingerprint,
-                    Since = _initialSequence
+                    Since = _initialSequence,
+                    TimeZone = _session.TimeZone,
+                    ClientState = ToWireClientState(ClientState)
                 },
                 cancellationToken
             ).ConfigureAwait(false);
 
-            if (!firstAttach.Fresh && !firstAttach.Reload)
+            if (firstAttach.Reload)
+                throw new InvalidOperationException($"The server requested a page reload for '{Route}' before the hub attached; reopen the page.");
+
+            if (!firstAttach.Fresh)
             {
                 _runtimeStamp = firstAttach.Runtime;
                 ServerChangeSet hydrated = await ResolveStagedUpdatesAsync(_initialChanges, cancellationToken).ConfigureAwait(false);
@@ -303,26 +335,56 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                         ? delta
                         : new ServerChangeSet { Updates = [.. hydrated.Updates, .. delta.Updates] };
             }
+
+            _runtimeStamp = firstAttach.Runtime;
         }
 
         UINavigationRequest currentNav = _page?.Navigation ?? InitialNavigation;
-        WireAttachResult resyncAttach = await _hub.InvokeAsync<WireAttachResult>(
-            "AttachAsync",
-            new WireAttachRequest
-            {
-                ClientWindowId = _session.ClientWindowId,
-                Route = currentNav.Route,
-                Parameters = currentNav.Parameters,
-                View = View.Fingerprint
-            },
-            cancellationToken
-        ).ConfigureAwait(false);
+        WireAttachResult resyncAttach = await InvokeResyncAttachAsync(currentNav, cancellationToken).ConfigureAwait(false);
+
+        if (resyncAttach.Fresh)
+        {
+            _runtimeStamp = resyncAttach.Runtime;
+            resyncAttach = await InvokeResyncAttachAsync(currentNav, cancellationToken).ConfigureAwait(false);
+        }
 
         if (resyncAttach.Runtime is not null)
             _runtimeStamp = resyncAttach.Runtime;
 
         return await ResolveStagedUpdatesAsync(resyncAttach.InitialChanges, cancellationToken).ConfigureAwait(false);
     }
+
+    private async Task<WireAttachResult> InvokeResyncAttachAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        WireAttachResult result = await _hub.InvokeAsync<WireAttachResult>(
+            "AttachAsync",
+            new WireAttachRequest
+            {
+                ClientWindowId = _session.ClientWindowId,
+                Route = navigation.Route,
+                Parameters = navigation.Parameters,
+                View = View.Fingerprint,
+                Runtime = _runtimeStamp,
+                TimeZone = _session.TimeZone,
+                ClientState = ToWireClientState(ClientState)
+            },
+            cancellationToken
+        ).ConfigureAwait(false);
+
+        if (result.Reload)
+            throw new InvalidOperationException($"The server requested a page reload for '{navigation.Route}'; reopen the page.");
+
+        return result;
+    }
+
+    private static WireClientStateRequest? ToWireClientState(UIClientState state)
+        => state == UIClientState.Unreported
+            ? null
+            : new WireClientStateRequest
+            {
+                Visible = state.IsVisible,
+                NotificationPermission = state.NotificationPermission
+            };
 
     /// <inheritdoc />
     public async Task<UICommandExecutionResult> ProcessEventAsync(UICommandRequest request, CancellationToken cancellationToken = default)
@@ -606,6 +668,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             return;
 
         _closed = true;
+        _hub.Reconnected -= OnReconnectedAsync;
         _onClose?.Invoke(this);
         await _hub.DisposeAsync().ConfigureAwait(false);
     }
@@ -627,7 +690,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         if (effects.Length == 0)
             return (ReferenceEquals(changes, raw.Changes) ? raw : raw with { Changes = changes }, false);
 
-        List<ClientEffect> filtered = new(effects.Length);
+        List<ClientEffect> filtered = [with(effects.Length)];
         var sawSessionKey = false;
 
         for (var i = 0; i < effects.Length; i++)
@@ -833,7 +896,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private sealed class RemoteClientTranslator(string defaultLanguage) : ITranslator
     {
         private readonly ConcurrentDictionary<string, Dictionary<string, string>> _tables = new(StringComparer.Ordinal);
-        private readonly HashSet<string> _languages = new(StringComparer.Ordinal) { defaultLanguage };
+        private readonly HashSet<string> _languages = [with(StringComparer.Ordinal), defaultLanguage];
 
         public string DefaultLanguage { get; } = defaultLanguage;
 
@@ -849,7 +912,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         public void LoadWords(JsonElement root)
         {
             var lang = root.TryGetProperty("language", out JsonElement langEl) ? langEl.GetString() ?? DefaultLanguage : DefaultLanguage;
-            Dictionary<string, string> words = new(StringComparer.Ordinal);
+            Dictionary<string, string> words = [with(StringComparer.Ordinal)];
 
             if (root.TryGetProperty("words", out JsonElement wordsEl) && wordsEl.ValueKind == JsonValueKind.Object)
             {
@@ -971,6 +1034,10 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         public long? Since { get; init; }
 
         public string? Runtime { get; init; }
+
+        public string? TimeZone { get; init; }
+
+        public WireClientStateRequest? ClientState { get; init; }
 
         public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
     }

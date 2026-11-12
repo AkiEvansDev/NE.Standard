@@ -4,6 +4,7 @@ import { BindSelectedKeyAttribute, TabActionsAttribute, TabCaptionClass, TabCapt
 import { isFieldKey } from "./caret-fields.ts";
 import { happenedInside, observeComponents } from "./dom-mutations.ts";
 import { isLaidOut } from "./element-visibility.ts";
+import { isInRenameField } from "./inline-rename.ts";
 import { isInert } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { ownDescendants } from "./own-descendants.ts";
@@ -128,7 +129,7 @@ export class TabsEngine {
     }
 
     private handleClick(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
+        if (!(domEvent.target instanceof Element) || isInRenameField(domEvent.target))
             return;
 
         const overflowButton = domEvent.target.closest<HTMLElement>(`.${TabOverflowClass}`);

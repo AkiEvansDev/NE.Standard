@@ -135,7 +135,7 @@ public static class TextEntryInputComponentExtensions
         if (triggers is not { Count: > 0 })
             return;
 
-        HashSet<string> seen = new(StringComparer.Ordinal);
+        HashSet<string> seen = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < triggers.Count; i++)
         {

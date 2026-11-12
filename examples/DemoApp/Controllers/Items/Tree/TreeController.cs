@@ -280,7 +280,7 @@ internal sealed partial class TreeNodesGroupContext : DemoGroupContext
 
         var title = node.Title?.Key ?? string.Empty;
 
-        node.Title = title.EndsWith('*') ? title.TrimEnd('*') : $"{title}*";
+        node.Title = title.EndsWith('*', StringComparison.Ordinal) ? title.TrimEnd('*') : $"{title}*";
     }
 }
 

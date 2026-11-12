@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ClearAttribute, ClearTargetAttribute, ComponentSelector, cssAttributeValue, DraftDroppedEventName, FormIdAttribute, SecretFieldAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
+import { ClearAttribute, ClearTargetAttribute, ComponentSelector, cssAttributeValue, DraftDroppedEventName, FormIdAttribute, SecretFieldAttribute, TemporalEndAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
 import { isBufferedMode, isWritableMode, resolveWritableBinding, ValueSyncEventNames } from "../addressing/dom-registry.ts";
 import type { ComponentResolveResult, DomRegistry, FormValues, PressedForm } from "../addressing/dom-registry.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
@@ -66,6 +66,9 @@ export class ValueBindingEngine {
     // Fields typed in since their last send: a reload carries what they hold over though no `change` has sent it yet.
     private readonly typed = new Set<Element>();
 
+    // Controls whose `change` was held back by a bound or rule refusal: sent or buffered once widened bounds clear the refusal.
+    private readonly refusedElements = new Set<Element>();
+
     // Fields holding a value that waited out a drop and was not sent over another writer's, by their component, which wears the mark.
     private readonly conflicted = new Map<Element, Element>();
 
@@ -131,8 +134,14 @@ export class ValueBindingEngine {
         for (const element of [...this.bufferedElements]) {
             if (domEvent.target.contains(element) || !element.isConnected) {
                 this.bufferedElements.delete(element);
+                this.refusedElements.delete(element);
                 this.endConflict(element);
             }
+        }
+
+        for (const element of [...this.refusedElements]) {
+            if (domEvent.target.contains(element) || !element.isConnected)
+                this.refusedElements.delete(element);
         }
     }
 
@@ -144,6 +153,7 @@ export class ValueBindingEngine {
             // A field its row took off the page is let go of here too, rather than held for a submit that can never reach it.
             if (!element.isConnected) {
                 this.bufferedElements.delete(element);
+                this.refusedElements.delete(element);
                 this.endConflict(element);
                 continue;
             }
@@ -152,8 +162,24 @@ export class ValueBindingEngine {
                 continue;
 
             this.bufferedElements.delete(element);
+            this.refusedElements.delete(element);
             this.endConflict(element);
             released.push(element);
+        }
+
+        for (const element of [...this.refusedElements]) {
+            if (!element.isConnected) {
+                this.refusedElements.delete(element);
+                continue;
+            }
+
+            if (element.getAttribute(FormIdAttribute) !== formId)
+                continue;
+
+            this.refusedElements.delete(element);
+
+            if (!released.includes(element))
+                released.push(element);
         }
 
         return released;
@@ -165,7 +191,15 @@ export class ValueBindingEngine {
 
         for (const element of [...this.bufferedElements]) {
             this.bufferedElements.delete(element);
+            this.refusedElements.delete(element);
             this.endConflict(element);
+
+            if (element.isConnected)
+                released.add(element);
+        }
+
+        for (const element of [...this.refusedElements]) {
+            this.refusedElements.delete(element);
 
             if (element.isConnected)
                 released.add(element);
@@ -196,9 +230,47 @@ export class ValueBindingEngine {
 
     /** Lets a held element go; true when it was held, for the caller to put the server's value back into it. */
     public release(element: Element): boolean {
+        this.refusedElements.delete(element);
         this.endConflict(element);
 
         return this.bufferedElements.delete(element);
+    }
+
+    /** Commits or forgets edits on `component` that were held back by a bound refusal when bounds widen (`commit`) or a server value replaces them. */
+    public settleRefusedBounds(component: Element, commit: boolean, propertyName?: string): void {
+        for (const field of [...this.refusedElements]) {
+            if (!field.isConnected) {
+                this.refusedElements.delete(field);
+                continue;
+            }
+
+            if (!component.contains(field) || this.options.dom.resolveNearestComponent(field, () => true)?.element !== component)
+                continue;
+
+            if (propertyName !== undefined && this.fieldPropertyName(field) !== propertyName)
+                continue;
+
+            if (!commit) {
+                this.refusedElements.delete(field);
+                continue;
+            }
+
+            if (isReadOnly(field) || isInert(field) || this.options.refuses?.(field) === true)
+                continue;
+
+            this.refusedElements.delete(field);
+            this.commitTyped(field);
+        }
+    }
+
+    private fieldPropertyName(field: Element): string {
+        const propertyId = resolveWritableBinding(field, this.options.metadata)?.binding?.propertyId;
+        const defined = propertyId === undefined ? undefined : this.options.metadata.getPropertyDefinition(propertyId)?.propertyName;
+
+        if (defined !== undefined)
+            return defined;
+
+        return field.hasAttribute(TemporalEndAttribute) ? "EndValue" : "Value";
     }
 
     /**
@@ -320,8 +392,13 @@ export class ValueBindingEngine {
             return;
 
         // Not sent, and an OnSubmit field's error stops its form's submit: the controller keeps the last value it took.
-        if (domEvent.type === "change" && this.options.refuses?.(domEvent.target) === true)
+        if (domEvent.type === "change" && this.options.refuses?.(domEvent.target) === true) {
+            this.pruneDetached();
+            this.refusedElements.add(domEvent.target);
             return;
+        }
+
+        this.refusedElements.delete(domEvent.target);
 
         if (writable.buffered) {
             // The reader's next edit: held for the next submit as any edit is, the conflict over.
@@ -358,6 +435,11 @@ export class ValueBindingEngine {
         for (const element of this.conflicted.keys()) {
             if (!element.isConnected)
                 this.conflicted.delete(element);
+        }
+
+        for (const element of this.refusedElements) {
+            if (!element.isConnected)
+                this.refusedElements.delete(element);
         }
     }
 

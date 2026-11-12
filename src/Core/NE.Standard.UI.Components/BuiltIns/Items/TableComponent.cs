@@ -62,7 +62,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
 
     // The header's checkbox and any regions a derived table adds stand outside every row: a template variant is compiled in the row's
     // scope, so each would carry the row's key in its address with no row around it to supply one.
-    private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IVisualComponent> _regions = [with(StringComparer.Ordinal)];
 
     // Alone in their cells with no words of their own, so each is named for a screen reader; joined to the regions and templates only
     // while the table chooses many rows (SelectsMany).
@@ -137,9 +137,9 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
         get
         {
             if (SelectsMany())
-                _ = SetTemplateVariantCore(SelectionColumnTemplateKey, _selectRowCheckbox);
+                SetDefaultTemplateVariant(SelectionColumnTemplateKey, _selectRowCheckbox);
             else
-                _ = RemoveTemplateVariantCore(SelectionColumnTemplateKey);
+                RemoveDefaultTemplateVariant(SelectionColumnTemplateKey);
 
             return base.Templates;
         }
@@ -165,8 +165,8 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
     /// </summary>
     protected TableComponent(string? id = null) : base(id)
     {
-        _ = SetRowTemplate(new DefaultRowTemplate());
-        _ = SetEmptyTemplate(new DefaultEmptyTemplate());
+        SetDefaultTemplateVariant(Primitives.Constants.TemplateNames.Row, new DefaultRowTemplate());
+        SetDefaultEmptyTemplate(new DefaultEmptyTemplate());
     }
 
     /// <summary>Sets or removes a region standing outside the table's rows.</summary>

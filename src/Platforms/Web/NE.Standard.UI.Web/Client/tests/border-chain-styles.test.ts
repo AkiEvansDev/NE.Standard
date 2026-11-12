@@ -216,7 +216,7 @@ test("every approved flat declaration still exists, so the list never outlives i
 });
 
 test("an accordion's sections share the edge between them, through the chain so a section's own thickness still wins", () => {
-    const shared = all.find(rule => rule.selector === ".ui-accordion > .ui-expander + .ui-expander:not(.ui-expander--quiet)");
+    const shared = all.find(rule => rule.selector === ".ui-accordion > .ui-expander:not(.ui-hidden, [hidden]) ~ .ui-expander:not(.ui-hidden, [hidden]):not(.ui-expander--quiet)");
     const width = shared?.declarations.find(([property]) => property === "border-width")?.[1] ?? "";
 
     assert.match(width, /^var\(--ui-border-thickness.*, 0 var\(--ui-border-width, 1px\) var\(--ui-border-width, 1px\)\)+$/);

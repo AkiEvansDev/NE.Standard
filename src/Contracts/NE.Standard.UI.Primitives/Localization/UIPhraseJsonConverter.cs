@@ -55,7 +55,7 @@ public sealed class UIPhraseJsonConverter : JsonConverter<UIPhrase>
             }
             else if (string.Equals(property.Name, ArgumentsName, StringComparison.OrdinalIgnoreCase) && property.Value.ValueKind == JsonValueKind.Object)
             {
-                arguments = new Dictionary<string, object?>(StringComparer.Ordinal);
+                arguments = [with(StringComparer.Ordinal)];
 
                 foreach (JsonProperty argument in property.Value.EnumerateObject())
                     arguments[argument.Name] = ReadArgument(argument.Value);

@@ -122,8 +122,11 @@ function isEmptyValue(value: unknown): boolean {
 }
 
 /** The words a field's value past its bounds is refused in: a number field's, a temporal control's or a calendar's; null for any other. */
-export function boundRefusalOf(element: Element, read: (field: Element) => unknown): Phrase | null {
-    return numberBoundRefusal(element, read) ?? (element.matches(TemporalRootSelector) ? temporalBoundRefusal(element as HTMLElement) : null);
+export function boundRefusalOf(element: Element, read: (field: Element) => unknown, end?: boolean): Phrase | null {
+    if (element.matches(TemporalRootSelector))
+        return temporalBoundRefusal(element as HTMLElement, end);
+
+    return end === true ? null : numberBoundRefusal(element, read);
 }
 
 export function isSameWords(standing: unknown, words: Phrase | null): boolean {

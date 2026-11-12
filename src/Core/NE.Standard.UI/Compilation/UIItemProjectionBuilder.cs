@@ -64,7 +64,7 @@ internal static class UIItemProjectionBuilder
                 AddBindingRead(graph, hostsByRoot, reads, binding, templates.GetRequired(binding.TemplateId).Parsed);
         }
 
-        Dictionary<UIComponentId, UIItemProjection> projections = new(reads.Count);
+        Dictionary<UIComponentId, UIItemProjection> projections = [with(reads.Count)];
 
         foreach ((UIComponentId host, Reads hostReads) in reads)
             projections[host] = hostReads.Whole ? UIItemProjection.Whole : hostReads.Root.ToProjection();
@@ -331,7 +331,7 @@ internal static class UIItemProjectionBuilder
 
         private void Add(string[] path, int at, Fallback fallback)
         {
-            _children ??= new(StringComparer.Ordinal);
+            _children ??= [with(StringComparer.Ordinal)];
 
             if (!_children.TryGetValue(path[at], out ReadNode? child))
             {
@@ -370,7 +370,7 @@ internal static class UIItemProjectionBuilder
 
         public UIItemProjection ToProjection()
         {
-            List<UIItemProjectionMember> members = new(_children?.Count ?? 0);
+            List<UIItemProjectionMember> members = [with(_children?.Count ?? 0)];
 
             if (_children is not null)
             {

@@ -29,7 +29,7 @@ public sealed class UIAction
 
         Command = command;
         Arguments = arguments is null || arguments.Count == 0
-            ? FrozenDictionary<string, UIActionArgument>.Empty
+            ? []
             : arguments.ToFrozenDictionary(StringComparer.Ordinal);
     }
 

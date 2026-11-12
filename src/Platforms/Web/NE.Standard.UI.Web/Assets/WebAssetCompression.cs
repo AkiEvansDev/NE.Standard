@@ -36,6 +36,9 @@ internal sealed partial class WebAssetCompression(IOptions<WebResponseCompressio
     /// <summary>An asset's compressed forms; either is null where it would not be smaller than the asset itself.</summary>
     internal sealed record Compressed(byte[]? Brotli, byte[]? Gzip);
 
+    // Embedded assembly resources never change while the process lives, so every host in the process shares one Brotli/Gzip build.
+    private static readonly ConcurrentDictionary<(string Assembly, string Source, string Version), Lazy<Compressed>> EmbeddedBuilt = new();
+
     private readonly ConcurrentDictionary<(string Key, string Version), Lazy<Compressed>> _built = new();
 
     // The assets whose failed build was already logged, so an asset that keeps failing is one warning rather than one a request.
@@ -53,21 +56,29 @@ internal sealed partial class WebAssetCompression(IOptions<WebResponseCompressio
     {
         ArgumentNullException.ThrowIfNull(asset);
 
-        (string Key, string Version) key = default;
+        return asset.SourceKind == UIWebAssetSourceKind.EmbeddedResource
+            ? GetCached(asset, EmbeddedBuilt, static item => (item.ResourceAssemblyName ?? string.Empty, item.Source, item.ResolveVersion()))
+            : GetCached(asset, _built, static item => (item.Key, item.ResolveVersion()));
+    }
+
+    private Compressed? GetCached<TKey>(WebAssetDescriptor asset, ConcurrentDictionary<TKey, Lazy<Compressed>> cache, Func<WebAssetDescriptor, TKey> resolveKey)
+        where TKey : notnull
+    {
+        TKey? key = default;
         Lazy<Compressed>? built = null;
 
         try
         {
-            key = (asset.Key, asset.ResolveVersion());
-            built = _built.GetOrAdd(key, _ => new Lazy<Compressed>(() => Build(asset)));
+            key = resolveKey(asset);
+            built = cache.GetOrAdd(key, _ => new Lazy<Compressed>(() => Build(asset)));
 
             return built.Value;
         }
         catch (Exception exception) when (IsBuildFailure(exception))
         {
             // A Lazy keeps the exception it threw: left in place, every later request for this version would rethrow it.
-            if (built is not null)
-                _ = _built.TryRemove(new KeyValuePair<(string Key, string Version), Lazy<Compressed>>(key, built));
+            if (built is not null && key is not null)
+                _ = cache.TryRemove(new KeyValuePair<TKey, Lazy<Compressed>>(key, built));
 
             if (_reportedFailures.TryAdd(asset.Key, 0))
                 Log.BuildFailed(logger, exception, asset.Key);

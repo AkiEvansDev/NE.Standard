@@ -20,7 +20,7 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
 {
     // One lock for the index and every post, so two posts reach every runtime they share in the same order.
     private readonly Lock _sync = new();
-    private readonly Dictionary<string, HashSet<IUIRuntime>> _subscribers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, HashSet<IUIRuntime>> _subscribers = [with(StringComparer.Ordinal)];
     // Each runtime's own topics, so its end drops them without a walk of every topic.
     private readonly Dictionary<IUIRuntime, List<string>> _topics = [];
 
@@ -194,13 +194,13 @@ internal sealed class UIBroadcast(UIRuntimeStore store, IServiceProvider service
     private async ValueTask<List<List<IUIRuntime>>> FindUserSessionsAsync(string userId, CancellationToken cancellationToken)
     {
         IReadOnlyList<string> sessions = await services.GetRequiredService<IUserSessionStore>().FindByUserAsync(userId, cancellationToken).ConfigureAwait(false);
-        List<List<IUIRuntime>> found = new(sessions.Count);
+        List<List<IUIRuntime>> found = [with(sessions.Count)];
 
         // Read off each session's own index, as a session's end reads it; used outside the store's lock.
         for (var i = 0; i < sessions.Count; i++)
         {
             UIRuntimeKey[] keys = store.GetSessionKeys(sessions[i]);
-            List<IUIRuntime> runtimes = new(keys.Length);
+            List<IUIRuntime> runtimes = [with(keys.Length)];
 
             for (var k = 0; k < keys.Length; k++)
             {

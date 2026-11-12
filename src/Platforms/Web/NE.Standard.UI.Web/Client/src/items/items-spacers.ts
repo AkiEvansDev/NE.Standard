@@ -1,12 +1,12 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
-import { ItemsViewAccordionClass, ItemsViewStackClass, ItemsViewWrapClass, OrientationVerticalClass, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
+import { ItemsVersionAttribute, ItemsViewAccordionClass, ItemsViewStackClass, ItemsViewWrapClass, OrientationVerticalClass, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import { itemBox, scrollHostTo } from "../addressing/items-viewport.ts";
 import { forgetCursorName, rowCursorRoot, setRowFocus, waitingCursorKey } from "../interactions/row-cursor.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
 import type { PropertyStateStore } from "../state/property-state-store.ts";
 import { tryReadItemProperty } from "./binding-template-evaluator.ts";
-import { compareItems, getActiveSorts, itemMatchesFilters, readItemsQuery } from "./items-filter-sort.ts";
+import { getActiveSorts, itemMatchesFilters, readItemsQuery, sortByActiveSorts } from "./items-filter-sort.ts";
 import { bucketByGroup } from "./items-group-runs.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 
@@ -214,6 +214,11 @@ export function keepVirtualCursorShown(host: Element, state: VirtualHostState, b
     forgetCursorName(root);
 }
 
+export function bumpItemsVersion(host: Element, state: VirtualHostState): void {
+    state.version++;
+    host.setAttribute(ItemsVersionAttribute, String(state.version));
+}
+
 export function projectVirtualHost(host: Element, state: VirtualHostState, options: { readonly metadata: MetadataIndex; readonly templates: ItemsTemplateRegistry; readonly state: PropertyStateStore }): void {
     const config = options.metadata.getItemsFilterSortMetadata(state.componentId);
     const query = readItemsQuery(host);
@@ -222,7 +227,7 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
 
     let entries = state.entries;
 
-    state.version++;
+    bumpItemsVersion(host, state);
 
     if ((config !== undefined && config.filters.length > 0) || (query?.filters ?? []).length > 0 || (query?.search?.trim().length ?? 0) > 0)
         entries = entries.filter(entry => itemMatchesFilters(config, entry.item, options.state, query));
@@ -231,7 +236,7 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
 
     if (!grouped) {
         if (sorts.length > 0)
-            entries = [...entries].sort((left, right) => compareItems(left.item, right.item, sorts));
+            entries = sortByActiveSorts(entries, sorts, entry => entry.item);
 
         state.projected = entries.map(entry => ({ entry, header: false }));
         return;
@@ -245,7 +250,7 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
         let bucket = buckets.get(group)!;
 
         if (sorts.length > 0)
-            bucket = [...bucket].sort((left, right) => compareItems(left.item, right.item, sorts));
+            bucket = sortByActiveSorts(bucket, sorts, entry => entry.item);
 
         // The items without a group are a bucket with no header, as everywhere else.
         if (group !== "")

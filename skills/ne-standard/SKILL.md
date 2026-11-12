@@ -23,7 +23,7 @@ JavaScript snippet of your own, find it here. Every line names the real API and 
     `https://akievansdev.github.io/NE.Standard/components/<kebab-name>.html` (`TextInputComponent` is `text-input`; index at `https://akievansdev.github.io/NE.Standard/components/index.html`).
   - Graph add-on site: `https://akievansdev.github.io/NE.Standard.UI.Graph/` (components at `https://akievansdev.github.io/NE.Standard.UI.Graph/components/<kebab-name>.html`).
 - **Exact signatures of the version you build against** are in the packages themselves: every package ships its XML docs and
-  README in the NuGet cache, `~/.nuget/packages/<package id, lower case>/<version>/lib/net10.0/<Package.Id>.xml` and
+  README in the NuGet cache, `~/.nuget/packages/<package id, lower case>/<version>/lib/net11.0/<Package.Id>.xml` and
   `.../<version>/README.md` (the version is the one in the project's `Directory.Packages.props`). Grep the XML for a member
   (`M:NE.Standard.UI.Extensions.UILayout.Panes`) instead of guessing an overload.
 - When an API here and the package disagree, the package wins: this map follows the framework's newest release.
@@ -55,7 +55,7 @@ holds no application state and decides nothing; state survives a reload exactly 
   `ConfigureSessions`, `ConfigurePersistence`, `ConfigureErrorHandling`, `ConfigureLocalization`, `AddLocalizationSource`,
   `AddFrameworkWords`, `ConfigureTemporal`, `ConfigureTheme`, `ConfigureFiles`, `AddViewFilter`, `AddCommandFilter`.
 - Behind a proxy `UseForwardedHeaders` runs before the framework; `WebEndpointOptions` (`RequireAuthorization`,
-  `AuthorizationPolicy`), `WebResponseCompressionOptions`, `WebViewRenderCacheOptions`, `WebValueOptions`, assets through
+  `AuthorizationPolicy`, `EnableClientViewEndpoint` to also map `GET /_ne/view` on a web host for `NE.Standard.UI.Client`), `WebResponseCompressionOptions`, `WebViewRenderCacheOptions`, `WebValueOptions`, assets through
   `IWebAssetRegistry`, content scoped to a user through `IUIContentProvider`:
   [web-hosting.html](https://akievansdev.github.io/NE.Standard/web-hosting.html).
 
@@ -120,8 +120,8 @@ holds no application state and decides nothing; state survives a reload exactly 
 
 - Paths are `RecursivePath` (`Lines[0].Price`); write `Bind*<TSource>(c => c.Lines[0].Price)` or `nameof(...)` for a property. Scopes `UIBindingScope.Root` (the default of
   every `Bind*` but a row's own - an item's `CanSelect`/`CanDrag`/`CanRemove`/`CanRename`/`CanShowContextMenu`, a tree node's
-  `ParentId`/`HasChildren`/`IsFolder`/`Expanded`/`DropTarget`, a node's or a tab's `RenamedTitle`, which default to `Relative`), `Relative` (inside an
-  item template - pass it explicitly), `Parent`; `BindContext` moves a subtree's root.
+  `ParentId`/`HasChildren`/`IsFolder`/`Expanded`/`DropTarget`, a tab's `Order`/`Pinned`, and `IRenamableComponent.RenamedTitle`, which default to `Relative`), `Relative` (inside an
+  item template - pass it explicitly), `Parent`; `BindContext` moves a subtree's root. Inline rename (`.Editable`, `.SetRenamable(true)`/`.BindRenamable`, `OnRename*`, `OnItemRename*`, `UITabMenuEntries.Rename`, or `RenameItemEffect`) always requires a writable (`TwoWay`, `OneWayToSource`, or `OnSubmit`) `.BindRenamedTitle(...)` on the renamed component or item host, or view compilation fails.
 - Modes `OneWay`, `TwoWay` (an input's `Value` by default), `OneWayToSource`, `OnSubmit` (buffered until
   `ButtonComponent.OnSubmit(formId, command)`; `DiscardFormEffect(formId)` drops the edits). A form nothing submits - no
   button's `OnSubmit(formId, …)`, no field's own submitting event - fails the compile.
@@ -223,7 +223,7 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   one rule `ButtonVariant(variant)`/`ButtonInk(variant)` say (a filled button's fill, a bare one's ink); a button in a row's template sends
   the row's key with `OnClickWithItemKey(command)`.
 - `UIText` - `Display`, `Title`, `Subtitle`, `Body`, `Caption`, `Label`, `Note`, `Paragraph` (words left out to bind after:
-  `UIText.Note().BindDescription(path)`; never `string.Empty`), `Editable` (a text renamed in place by double click, F2 or `RenameItemEffect(target)` without changing its look or box while at rest), `Quote` (a title and a description line, or
+  `UIText.Note().BindDescription(path)`; never `string.Empty`), `Editable` (a text renamed in place by double click, F2 or `RenameItemEffect(target)` without changing its look or box while at rest; pair with `.BindRenamedTitle(...)`), `Quote` (a title and a description line, or
   `Quote(content)` round anything, the neutral stroke), `BoundQuote`, `Person` (`UISize.Small`, `Medium` or `Large`; or beside words of your own),
   `BoundPerson` (the avatar path optional), `WithBadges`, `BoundWithBadges`; and on any text `AsDisplay`, `AsTitle`, `AsSubtitle`,
   `AsBody`, `AsCaption`, `AsOverline`, `Muted`, `Editable` (`TextPresetExtensions`).
@@ -330,7 +330,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
 - `FileInputComponent` (`UIFileInputVariant`: `Row`, `Tiles`, `Shelf`, binding `SelectionId` or `SelectionIds`) and `ImageInputComponent` (`UIImageInputVariant`: `Picture`, `Avatar`, `Inline`, plus `SetMultiple(true)` binding `SelectionIds`) upload on pick; read the bytes with `Context.Uploads.GetSelectionAsync`; limits in `ConfigureFiles`, enforced on the server. Give a
   picker the composer's `SetFormId`: the form's `OnSubmit` then waits for its uploads in flight, so the file is never missed.
 - A download is `Context.Downloads.DownloadAsync(Context.Handle, name, type, bytes or stream)` (single-use, sends a
-  `DownloadFileEffect`); content kept around (avatars) is `IUIContentProvider` with `IUIContentAddressResolver`.
+  `DownloadFileEffect`, bounded by `UIFileOptions.MaxDownloadBytesPerSession` and `MaxDownloadBytesTotal`); content kept around (avatars) is `IUIContentProvider` with `IUIContentAddressResolver`.
 
 ## Words and languages
 
@@ -367,8 +367,8 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
   `UITestPage page = await app.OpenAsync("/route", session => session.SignIn("id", roles: ["admin"]))`.
 - Find with `page.Component(id)`, `ComponentBoundTo(path)` or `ComponentBoundTo<TSource>(c => ...)` (value, items/source, or property; `row.ComponentBoundTo<TItem>(x => ...)` inside a row), `ComponentNamed(name)`, `Rows`, `Row(key)` (and `row.Rows` / `row.Row(key)` for menu sub-entries), `ContextMenu`, a split
   button's `Menu`; act with
-  `SetValueAsync`, `ClickAsync` (`UITestCommandResult.Sent`); read `Value`, `Title`, `IsVisible`, `IsEnabled`,
-  `ValidationMessage`, `page.Effects`, `EffectsOf<T>()`, `IsDialogOpen`, `Address`, `Downloads`, `Controller<T>()`;
+  `SetValueAsync`, `ClickAsync` (`UITestCommandResult.Sent`), `RenameAsync(title)`; read `Value`, `Title`, `IsVisible`, `IsEnabled`,
+  `ValidationMessage` (including `ValidationInto`), `page.Session`, `page.Effects` (`ClearEffects()`), `EffectsOf<T>()`, `IsDialogOpen`, `Address`, `Downloads` (`ClearDownloads()`), `Controller<T>()`;
   `page.FlushAsync()` delivers what the runtime holds; `page.CloseAsync()` closes the page as a closed tab does; `page.DismissDialogAsync(key)` closes a dialog as Escape does;
   `page.SetResponsiveTier(tier)` / `page.SetViewportWidth(px)` resolve `UIResponsive<T>` properties; `page.GoBackAsync()` / `page.GoForwardAsync()` step through in-place address history (`CanGoBack`, `CanGoForward`);
   `component.RequestItemWindowAsync(anchor, count, mode)` loads windows on a `UIItemSourceBase` host; `page.Store` reads and writes `UIClientStore` preferences; plain hosts evaluate `FilterBy`, `SortBy` and `Query`, and row fields validate and submit `OnSubmit` values with their form.
@@ -384,8 +384,8 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
 - **Icons** - `NE.Standard.UI.Icons.Material` / `.Web.Icons.Material`: `MaterialIcons.Save`, `MaterialIcons.Outlined(...)`;
   host `services.AddMaterialWebIcons(names...)` (or with an explicit `MaterialIconStyle` mask) - only registered names
   draw, a misspelt one fails at startup; `MapUIGlyph` draws the framework's own glyphs from the set.
-- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, Ctrl+S raises `code-save`:
-  `OnSave`/`OnSaveLiteral`) and `MarkdownDisplayComponent`; host `services.AddCodeInput()`.
+- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, inline completions via `AddCompletion`/`SetCompletionItems`/`SetCompletionTriggers`, custom Markdown/token styles via `SetMarkStyle`/`AddSpanStyle`/`AddTokenStyle`, Ctrl+S raises `code-save`:
+  `OnSave`/`OnSaveLiteral`) and `MarkdownDisplayComponent` (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`); host `services.AddCodeInput()`.
 - **DataGrid** - `DataGridComponent` (a `TableComponent` with `AddTextColumn`, `AddEnumColumn<T>`, `AddNumberColumn`,
   `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, `AddColumn<TRow>` / `AddEditableColumn<TRow, TInput>`, `AddFilter<TRow>`, sorting, filters, editing, paging, totals, CSV export),
   `DataGridCellComponent`, `DataGridFilterComponent`; host `services.AddDataGrid()`.
@@ -394,9 +394,9 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
   `SetX`, `SetXAxis(UIChartAxis.Time(...))`, `SetSeriesPath(path, translate)`, `SetValuePath`, `AddSeries`, `SetHideEmptySeries`, `SetLegendColumns`, typed `<TRow>` path selectors, `OnPointClick`, `OnWindowChange`, each with a `…Literal` form); host
   `services.AddCharts()`.
 - **Graph** - `NodesComponent` (a node network whose kinds are C# classes, `SetCatalog`, `UINodeCatalog.FromTypes`,
-  `UINodeKinds.Common`, `SetPinChoices`/`BindPinChoices` for `[GraphInput(ChoicesKey = ...)]` dropdown pins; `OnSave`, `OnMenuEntry`, `OnNodeClick`, `OnStop`, each with a `…Literal` form),
-  `NodesParametersComponent` (`SetCanvas(canvas)`), `LayeredGraphComponent`, `ProductionGraphComponent`; host `services.AddGraph()`;
-  `NE.Standard.UI.Graph.Calculator` (`CalculatorNodes.Kinds`) and `NE.Standard.UI.Graph.Image` (`ImageNodes.Kinds`,
+  `UINodeKinds.Common` / `UINodeKinds.Files`, `SetPinChoices`/`BindPinChoices` for `[GraphInput(ChoicesKey = ...)]` dropdown pins — choice/enum/`ChoicesKey` inputs carry no pin unless `HasPin = true` is set; `OnSave`, `OnMenuEntry`, `OnNodeClick`, `OnStop`, each with a `…Literal` form),
+  `NodesParametersComponent` (`SetCanvas(canvas)`), `LayeredGraphComponent`, `ProductionGraphComponent`; host `services.AddGraph()` (`AddGraphFiles(root)` for file nodes);
+  `NE.Standard.UI.Graph.Calculator` (`CalculatorNodes.Kinds`) and `NE.Standard.UI.Graph.Image` (`ImageNodes.Kinds` / `ImageNodes.FileKinds`,
   `AddGraphImages()`, `IUINodeImageStore`). Its own site: https://akievansdev.github.io/NE.Standard.UI.Graph.
 
 ## Traps worth knowing

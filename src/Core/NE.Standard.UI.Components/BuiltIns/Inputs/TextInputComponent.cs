@@ -325,6 +325,25 @@ public abstract partial class TextInputComponent<T>(string? id = null) : InputCo
     /// </summary>
     public T OnEscapeLiteral(string command, params KeyValuePair<string, object?>[] arguments)
         => OnLiteral(EventNames.Escape, command, arguments);
+
+    /// <inheritdoc/>
+    protected override Action? SnapshotAuthoredState()
+    {
+        Action? restoreBase = base.SnapshotAuthoredState();
+        Action? restoreActions = _actions.SnapshotAuthoredState();
+
+        if (restoreBase is null)
+            return restoreActions;
+
+        if (restoreActions is null)
+            return restoreBase;
+
+        return () =>
+        {
+            restoreBase();
+            restoreActions();
+        };
+    }
 }
 
 /// <summary>

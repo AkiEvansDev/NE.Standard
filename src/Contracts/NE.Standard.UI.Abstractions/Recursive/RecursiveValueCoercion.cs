@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -29,7 +30,7 @@ public static class RecursiveValueCoercion
         {
             new DefinedEnumConverterFactory(),
             new ThemeColorJsonConverter(),
-            new PhraseJsonConverter(),
+            new UIPhraseValueJsonConverter(),
             new WrittenMomentConverterFactory(),
             new ObjectToInferredTypesConverter()
         }
@@ -119,6 +120,24 @@ public static class RecursiveValueCoercion
                 }
             }
 
+            if (jsonElement.ValueKind is JsonValueKind.Object or JsonValueKind.Array && !IsStringList(underlyingType) && IsModelType(underlyingType))
+            {
+                try
+                {
+                    var model = jsonElement.Deserialize(underlyingType, ModelOptions);
+
+                    if (model is not null && underlyingType.IsInstanceOfType(model))
+                    {
+                        result = model;
+                        return true;
+                    }
+                }
+                catch (Exception exception) when (exception is JsonException or NotSupportedException)
+                {
+                    return false;
+                }
+            }
+
             value = ObjectToInferredTypesConverter.ToInferredValue(jsonElement);
 
             if (value is null)
@@ -154,7 +173,7 @@ public static class RecursiveValueCoercion
                 _ when underlyingType == typeof(string) && value.GetType().IsEnum => value.ToString(),
                 // A document the client sent, as the inferred dictionary or array it arrives as, against the model that declares its
                 // shape — a graph's nodes, a grid's sort terms.
-                _ when (value is IDictionary<string, object?> or object?[] || (value is System.Collections.IEnumerable && value is not string && typeof(System.Collections.IEnumerable).IsAssignableFrom(underlyingType))) && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),
+                _ when (value is IDictionary<string, object?> or object?[] || (value is IEnumerable && value is not string && typeof(IEnumerable).IsAssignableFrom(underlyingType))) && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),
                 // Invariant text carries no group separator: "1,5" is a decimal comma typed in another culture, never fifteen.
                 _ when value is string fractionalText && IsFractional(underlyingType) => ParseFractional(fractionalText, underlyingType),
                 // A whole-number property takes a whole number, from a number or from text alike: a fraction is refused, never rounded.
@@ -193,13 +212,20 @@ public static class RecursiveValueCoercion
     /// </remarks>
     public static bool IsWithinLimits(object? value, int maxElements, int maxDepth)
     {
-        if (value is not (IDictionary<string, object?> or object?[]))
-            return value is not RecursiveValuePastLimits;
+        if (value is null or string or not (IEnumerable or RecursiveValuePastLimits))
+            return true;
+
+        if (value is RecursiveValuePastLimits)
+            return false;
 
         var budget = maxElements;
 
         return FitsWithin(value, 1, maxDepth, ref budget);
     }
+
+    /// <summary>Whether a value fits within the depth cap and the remaining shared element budget.</summary>
+    public static bool IsWithinBudget(object? value, ref int budget, int maxDepth)
+        => budget >= 0 && FitsWithin(value, 1, maxDepth, ref budget);
 
     private static bool FitsWithin(object? value, int depth, int maxDepth, ref int budget)
     {
@@ -210,6 +236,30 @@ public static class RecursiveValueCoercion
                     return false;
 
                 foreach (var entry in document.Values)
+                {
+                    if (!FitsWithin(entry, depth + 1, maxDepth, ref budget))
+                        return false;
+                }
+
+                return true;
+
+            case IReadOnlyDictionary<string, object?> readOnlyDocument:
+                if (depth > maxDepth || (budget -= readOnlyDocument.Count) < 0)
+                    return false;
+
+                foreach (var entry in readOnlyDocument.Values)
+                {
+                    if (!FitsWithin(entry, depth + 1, maxDepth, ref budget))
+                        return false;
+                }
+
+                return true;
+
+            case IDictionary untypedDocument:
+                if (depth > maxDepth || (budget -= untypedDocument.Count) < 0)
+                    return false;
+
+                foreach (var entry in untypedDocument.Values)
                 {
                     if (!FitsWithin(entry, depth + 1, maxDepth, ref budget))
                         return false;
@@ -229,8 +279,32 @@ public static class RecursiveValueCoercion
 
                 return true;
 
-            default:
+            case ICollection collection:
+                if (depth > maxDepth || (budget -= collection.Count) < 0)
+                    return false;
+
+                foreach (var item in collection)
+                {
+                    if (!FitsWithin(item, depth + 1, maxDepth, ref budget))
+                        return false;
+                }
+
                 return true;
+
+            case IEnumerable sequence when value is not string:
+                if (depth > maxDepth)
+                    return false;
+
+                foreach (var item in sequence)
+                {
+                    if (--budget < 0 || !FitsWithin(item, depth + 1, maxDepth, ref budget))
+                        return false;
+                }
+
+                return true;
+
+            default:
+                return value is not RecursiveValuePastLimits;
         }
     }
 
@@ -314,7 +388,7 @@ public static class RecursiveValueCoercion
             return arrayElement is not null && !arrayElement.IsInterface && !arrayElement.IsAbstract;
         }
 
-        if (type.IsGenericType && typeof(System.Collections.IEnumerable).IsAssignableFrom(type))
+        if (type.IsGenericType && typeof(IEnumerable).IsAssignableFrom(type))
         {
             Type[] arguments = type.GetGenericArguments();
             return arguments.Length == 1 && !arguments[0].IsInterface && !arguments[0].IsAbstract;
@@ -418,17 +492,6 @@ public static class RecursiveValueCoercion
 
         public override void Write(Utf8JsonWriter writer, UIThemeColor value, JsonSerializerOptions options)
             => writer.WriteStringValue(value.ToString());
-    }
-
-    private sealed class PhraseJsonConverter : JsonConverter<UIPhrase>
-    {
-        public override UIPhrase Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => reader.TokenType == JsonTokenType.String && reader.GetString() is string text
-                ? UIPhrase.Text(text)
-                : throw new JsonException();
-
-        public override void Write(Utf8JsonWriter writer, UIPhrase value, JsonSerializerOptions options)
-            => writer.WriteStringValue(value.Key);
     }
 
     private sealed class WrittenMomentConverterFactory : JsonConverterFactory

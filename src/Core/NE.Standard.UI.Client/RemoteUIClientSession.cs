@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http.Connections;
+using NE.Standard.UI.Shell.Runtime;
 
 namespace NE.Standard.UI.Client;
 
@@ -50,6 +51,17 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
 
     /// <summary>Gets the optional SignalR HTTP transport type override.</summary>
     public HttpTransportType? TransportType { get; }
+
+    /// <summary>Gets or sets the IANA time zone identifier reported to the server when opening and attaching pages.</summary>
+    public string? TimeZone { get; set; } = DefaultTimeZone();
+
+    /// <summary>Gets or sets the initial notification permission reported when attaching pages in this session.</summary>
+    public UINotificationPermission NotificationPermission { get; set; } = UINotificationPermission.Unsupported;
+
+    private static string? DefaultTimeZone()
+        => TimeZoneInfo.Local.HasIanaId
+            ? TimeZoneInfo.Local.Id
+            : TimeZoneInfo.TryConvertWindowsIdToIanaId(TimeZoneInfo.Local.Id, out var ianaId) ? ianaId : null;
 
     /// <summary>Opens a remote <see cref="UIClientPage"/> for <paramref name="address"/> and attaches it to the server hub.</summary>
     public async Task<UIClientPage> OpenPageAsync(string address = "/", IUIClientStorageProvider? storage = null, CancellationToken cancellationToken = default)
@@ -130,10 +142,35 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
             _transports.Clear();
         }
 
-        for (var i = 0; i < active.Length; i++)
-            _ = active[i].CloseAsync(CancellationToken.None);
+        if (active.Length == 0)
+        {
+            HttpClient.Dispose();
+            return;
+        }
 
-        HttpClient.Dispose();
+        _ = CloseAndDisposeAsync(active, HttpClient);
+    }
+
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Best-effort background close during synchronous Dispose must not fault unobserved tasks.")]
+    private static async Task CloseAndDisposeAsync(RemoteUIClientTransport[] active, HttpClient httpClient)
+    {
+        try
+        {
+            for (var i = 0; i < active.Length; i++)
+            {
+                try
+                {
+                    await active[i].CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+            }
+        }
+        finally
+        {
+            httpClient.Dispose();
+        }
     }
 
     private sealed class CookieTrackingHandler(CookieContainer cookies, Uri baseAddress, HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)

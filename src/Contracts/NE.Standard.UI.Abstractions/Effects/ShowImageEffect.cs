@@ -18,11 +18,21 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// </remarks>
 public sealed class ShowImageEffect : ClientEffect
 {
-    private ShowImageEffect(IReadOnlyList<UILightboxImage> images, int startIndex, UIComponentReference? target, bool includesRows)
+    private ShowImageEffect(IReadOnlyList<UILightboxImage> images, int startIndex, UIComponentReference? target, bool includesRows, UIComponentAddress? resolvedTarget = null)
     {
         Images = images;
         StartIndex = startIndex;
         Target = target;
+        IncludesRows = includesRows;
+        ResolvedTarget = resolvedTarget;
+    }
+
+    [JsonConstructor]
+    internal ShowImageEffect(IReadOnlyList<UILightboxImage> images, int startIndex, UIComponentAddress? resolvedTarget, bool includesRows)
+    {
+        Images = images;
+        StartIndex = startIndex;
+        ResolvedTarget = resolvedTarget;
         IncludesRows = includesRows;
     }
 
@@ -91,16 +101,27 @@ public sealed class ShowImageEffect : ClientEffect
     public int StartIndex { get; }
 
     /// <summary>Gets the component whose picture is shown; null when <see cref="Images"/> are given.</summary>
+    [JsonIgnore]
     public UIComponentReference? Target { get; }
 
+    /// <summary>Gets the resolved component address once compiled or received over the wire; null when <see cref="Images"/> are given.</summary>
+    [JsonInclude]
+    [JsonPropertyName("target")]
+    public UIComponentAddress? ResolvedTarget { get; }
+
     /// <summary>Gets whether the pictures of the target's other drawn rows are shown beside its own.</summary>
+    [JsonPropertyName("rows")]
     public bool IncludesRows { get; }
 
     /// <inheritdoc />
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        return new CompiledShowImageEffect(Images, StartIndex, Target is null ? null : resolver.ResolveComponent(Target.Value), IncludesRows);
+
+        if (ResolvedTarget is not null || Target is null)
+            return this;
+
+        return new ShowImageEffect(Images, StartIndex, Target, IncludesRows, resolver.ResolveComponent(Target.Value));
     }
 
     private static UILightboxImage[] ToImages(IEnumerable<string> sources)
@@ -120,22 +141,4 @@ public sealed class ShowImageEffect : ClientEffect
 
         return list;
     }
-}
-
-internal sealed class CompiledShowImageEffect(IReadOnlyList<UILightboxImage> images, int startIndex, UIComponentAddress? target, bool rows) : ClientEffect
-{
-    public override string Kind => ClientEffectKinds.ShowImage;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
-
-    public IReadOnlyList<UILightboxImage> Images { get; } = images;
-
-    public int StartIndex { get; } = startIndex;
-
-    public UIComponentAddress? Target { get; } = target;
-
-    /// <summary>Whether the target's other drawn rows show their pictures beside its own.</summary>
-    public bool Rows { get; } = rows;
 }

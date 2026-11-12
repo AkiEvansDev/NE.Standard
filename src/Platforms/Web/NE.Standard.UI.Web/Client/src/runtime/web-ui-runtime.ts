@@ -237,7 +237,8 @@ export class WebUIRuntime {
                 propertyPatchEngine,
                 updateProcessor: this.updateProcessor,
                 valueReaders: this.extensions.valueReaders,
-                readValue: element => this.readPluginValue(element)
+                readValue: element => this.readPluginValue(element),
+                onBoundsSettled: (component, commit, propertyName) => valueBinding?.settleRefusedBounds(component, commit, propertyName)
             });
             this.discardDrafts = () => {
                 for (const element of valueBinding?.releaseAll() ?? [])

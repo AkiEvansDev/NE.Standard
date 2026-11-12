@@ -27,12 +27,15 @@ function rule(selector: string): { readonly body: string; readonly at: number } 
     return { body: "", at: -1 };
 }
 
-test("a chip of round words keeps a pill's start padding, after the badge's circle takes it off", () => {
-    const circle = rule(`.ui-badge${RoundWords}`);
+test("a compact badge keeps side air past its corner arcs while an empty dot stays a square, and a chip keeps its pill start padding", () => {
+    const empty = rule(".ui-badge:not([data-ui-badge-icon], [data-ui-badge-title], .ui-badge-variant--plain)");
+    const compact = rule(`.ui-badge${RoundWords}`);
     const chip = rule(`${Chip}${RoundWords}`);
 
-    assert.match(circle.body, /padding-inline: 0;/);
+    assert.match(empty.body, /padding-inline: 0;\s*aspect-ratio: 1;/);
+    assert.match(compact.body, /min-width: calc\(.*;\s*padding-inline: 0\.375em;/);
+    assert.doesNotMatch(compact.body, /aspect-ratio: 1;/);
     assert.match(chip.body, /padding-inline-start: 0\.5em;/);
-    assert.ok(circle.at < chip.at, "the chip's rule comes later");
+    assert.ok(compact.at < chip.at, "the chip's rule comes later");
     assert.match(rule(Chip).body, /aspect-ratio: auto;/, "and is no circle");
 });

@@ -9,6 +9,8 @@ using NE.Standard.UI.Application;
 using NE.Standard.UI.Client;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
+using NE.Standard.UI.Primitives.Security;
+using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Navigation;
@@ -119,6 +121,27 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
         return await OpenAsync(UINavigationAddress.Parse(address), sessionId, described, cancellationToken).ConfigureAwait(false);
     }
 
+    internal async Task<UITestPage> OpenFromPageAsync(UINavigationRequest navigation, string sessionId, UITestSession initialSession, UINotificationPermission notificationPermission, CancellationToken cancellationToken)
+    {
+        UserSessionState? stored = await Services.GetRequiredService<IUserSessionStore>().TryGetAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        UITestSession current = UITestSession.FromCurrent(stored, initialSession, notificationPermission, Application.Security.IdentitySource == UIIdentitySource.Claims);
+
+        return await OpenAsync(navigation, sessionId, current, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal UITestSession ReadCurrentSession(InProcessUIClientTransport transport, UITestSession initialSession, UINotificationPermission notificationPermission)
+    {
+        var claimsIdentity = Application.Security.IdentitySource == UIIdentitySource.Claims;
+
+        if (Services.GetRequiredService<IUserSessionStore>() is UserSessionMemoryStore memory)
+        {
+            _ = memory.TryGet(transport.SessionId, out UserSessionState? stored);
+            return UITestSession.FromCurrent(stored, initialSession, notificationPermission, claimsIdentity);
+        }
+
+        return UITestSession.FromContext(transport.Session, initialSession, notificationPermission, claimsIdentity);
+    }
+
     /// <summary>Opens a page in the session <paramref name="sessionId"/> names, or a new anonymous one.</summary>
     internal async Task<UITestPage> OpenAsync(UINavigationRequest navigation, string? sessionId, UITestSession session, CancellationToken cancellationToken)
     {
@@ -144,9 +167,10 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
 
         EnsureCompiledClean(view);
 
+        UITestSession resolvedSession = UITestSession.FromContext(view.Session, session, session.NotificationPermission, Application.Security.IdentitySource == UIIdentitySource.Claims);
         InProcessUIClientTransport transport = new(Host, Services, Application, instanceId, view, Client.Remove);
         UIClientPage clientPage = new(transport);
-        UITestPage page = new(this, clientPage, transport, session);
+        UITestPage page = new(this, clientPage, transport, resolvedSession);
 
         // Before the attach: a controller's OnAttachedAsync may already push to the page.
         Client.Add(instanceId, page);

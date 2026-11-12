@@ -38,7 +38,7 @@ public sealed class UIItemsQueryTerms
         ArgumentNullException.ThrowIfNull(filters);
         ArgumentNullException.ThrowIfNull(sortProperties);
 
-        Dictionary<string, HashSet<UIComparisonOperator>> byProperty = new(StringComparer.Ordinal);
+        Dictionary<string, HashSet<UIComparisonOperator>> byProperty = [with(StringComparer.Ordinal)];
         HashSet<UIComparisonOperator> allOperators = [];
 
         foreach ((var property, IEnumerable<UIComparisonOperator> propertyOperators) in filters)

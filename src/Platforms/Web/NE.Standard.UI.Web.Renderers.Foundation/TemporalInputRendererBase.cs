@@ -52,8 +52,11 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         _ = root.Class(SharedClassName);
         _ = root.Attribute(WebAttributes.TemporalMode, TemporalMode);
 
+        var isRange = IsRange(context);
+        var fieldId = !isRange && HasPicker ? ComponentPartId(context, "field") : null;
+
         // Render-time only: how many fields the row holds is how the control is built.
-        if (IsRange(context))
+        if (isRange)
             _ = root.Attribute(WebAttributes.TemporalRange);
 
         RenderTooltip(context, root);
@@ -70,12 +73,12 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         WebTemporalCulturePack culture = RenderPickerMetadata(context, root, step, defaultDisplayFormat, inputCulture, ownCulture);
 
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root, titleCanGoInside: true);
+        RenderInputHeader(context, root, titleCanGoInside: true, labelForId: fieldId);
 
         if (IsClearable(context))
             NativeInputRendererBase.RenderClearable(context, root);
 
-        RenderRow(context, root, culture, defaultDisplayFormat);
+        RenderRow(context, root, culture, defaultDisplayFormat, fieldId);
 
         if (HasPicker)
         {
@@ -156,7 +159,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     /// Renders the row a value is entered in — two parts for a period — and the hidden canonical value inputs: a text field and the
     /// popup's toggle where there is a picker, a clock's segments and a stepper where the value is edited in place.
     /// </summary>
-    private void RenderRow(WebRenderContext context, IHtmlElementBuilder root, WebTemporalCulturePack culture, string defaultDisplayFormat)
+    private void RenderRow(WebRenderContext context, IHtmlElementBuilder root, WebTemporalCulturePack culture, string defaultDisplayFormat, string? fieldId)
     {
         var format = ResolveDisplayFormat(context, defaultDisplayFormat);
         var isRange = IsRange(context);
@@ -183,14 +186,14 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
-            RenderInputHeaderInside(context, root, row);
+            RenderInputHeaderInside(context, root, row, labelForId: fieldId);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
             _ = row.Element(partElement, part =>
             {
                 startPart = part;
-                RenderPart(context, part, format, end: false);
+                RenderPart(context, part, format, end: false, fieldId);
             });
 
             // A period's two parts share the row, and its toggle or stepper, which drives whichever part has focus.
@@ -201,7 +204,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
                 _ = row.Element(partElement, part =>
                 {
                     endPart = part;
-                    RenderPart(context, part, format, end: true);
+                    RenderPart(context, part, format, end: true, fieldId: null);
                 });
             }
 
@@ -253,11 +256,11 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
     }
 
     /// <summary>The part a value — or a period's start or end — is entered in: a text field, or a clock's segments.</summary>
-    private void RenderPart(WebRenderContext context, IHtmlElementBuilder part, string format, bool end)
+    private void RenderPart(WebRenderContext context, IHtmlElementBuilder part, string format, bool end, string? fieldId)
     {
         if (HasPicker)
         {
-            RenderDisplayField(context, part, format, end);
+            RenderDisplayField(context, part, format, end, fieldId);
             return;
         }
 
@@ -267,15 +270,22 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         RenderPartLabel(context, part, end);
     }
 
-    private static void RenderDisplayField(WebRenderContext context, IHtmlElementBuilder input, string format, bool end)
+    private static void RenderDisplayField(WebRenderContext context, IHtmlElementBuilder input, string format, bool end, string? fieldId)
     {
+        if (!end && fieldId is not null)
+            _ = input.Attribute("id", fieldId);
+
         _ = input.Class($"{SharedClassName}__field");
         NativeInputRendererBase.RenderFieldName(context, input, end ? "end-text" : "text");
         _ = input.Class(WebClassNames.Field);
         _ = input.Attribute("type", "text");
         _ = input.Attribute("autocomplete", "off");
         // The format in the page's letters; the client writes it again after a switch or a patched format.
-        _ = input.Attribute("placeholder", WebTemporalFormat.Placeholder(format, WebTemporalLetters.FromWords(context.Translate)));
+        var placeholder = WebTemporalFormat.Placeholder(format, WebTemporalLetters.FromWords(context.Translate));
+        _ = input.Attribute("placeholder", placeholder);
+
+        if (!end && !IsRange(context) && !IsFieldNamed(context))
+            _ = input.Attribute(WebAttributes.PlaceholderNames).Attribute("aria-label", placeholder);
 
         // The text is what a clear empties: the engine reads the emptied text into the value, as a reader's own edit.
         _ = input.Attribute(WebAttributes.ClearTarget);

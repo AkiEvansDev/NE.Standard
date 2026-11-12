@@ -23,6 +23,14 @@ public sealed class UserSessionMemoryStore : IUserSessionStore
     /// <summary>Gets how many sessions the store holds, for the host's meter.</summary>
     public int Count => _sessions.Count;
 
+    /// <summary>Reads a stored session synchronously when held in memory.</summary>
+    public bool TryGet(string sessionId, [NotNullWhen(true)] out UserSessionState? session)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        return _sessions.TryGetValue(sessionId, out session);
+    }
+
     /// <inheritdoc />
     public ValueTask<UserSessionState?> TryGetAsync(string sessionId, CancellationToken cancellationToken = default)
     {

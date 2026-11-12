@@ -65,7 +65,7 @@ internal sealed partial class UIRuntime
         if (since is null || drained is null || since.Value != renderSequence || _pendingFullResync || !string.Equals(PageIdOf(instanceId), renderPageId, StringComparison.Ordinal))
             return null;
 
-        List<ServerUIUpdate> updates = new(drained.Count + _pendingUpdates.Count + 1);
+        List<ServerUIUpdate> updates = [with(drained.Count + _pendingUpdateCount + 1)];
 
         AppendPastRender(updates, drained, renderSequence);
         AppendPastRender(updates, _pendingUpdates, renderSequence);
@@ -82,8 +82,8 @@ internal sealed partial class UIRuntime
     {
         for (var i = 0; i < queued.Count; i++)
         {
-            if (queued[i].Sequence > renderSequence)
-                updates.Add(queued[i].Update);
+            if (queued[i].Sequence > renderSequence && queued[i].Update is { } update)
+                updates.Add(update);
         }
     }
 
@@ -93,16 +93,20 @@ internal sealed partial class UIRuntime
     /// <summary>Keeps what a drain takes from the queue while a render waits for its page's attach.</summary>
     private void KeepDrainedPastRenderNoLock()
     {
-        if (_drainedPastRender is not { } drained || _pendingUpdates.Count == 0)
+        if (_drainedPastRender is not { } drained || _pendingUpdateCount == 0)
             return;
 
-        if (drained.Count + _pendingUpdates.Count > MaxUpdatesPastRender)
+        if (drained.Count + _pendingUpdateCount > MaxUpdatesPastRender)
         {
             ForgetRenderNoLock();
             return;
         }
 
-        drained.AddRange(_pendingUpdates);
+        for (var i = 0; i < _pendingUpdates.Count; i++)
+        {
+            if (_pendingUpdates[i].Update is not null)
+                drained.Add(_pendingUpdates[i]);
+        }
     }
 
     private void ForgetRenderNoLock()

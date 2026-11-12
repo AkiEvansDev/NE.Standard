@@ -14,5 +14,5 @@ public partial class TabItem : TextBaseItem, ITabItemModel
 
     /// <inheritdoc />
     [RecursiveMember]
-    public partial bool? Pinned { get; set; }
+    public partial bool? Pinned { get; set; } = false;
 }

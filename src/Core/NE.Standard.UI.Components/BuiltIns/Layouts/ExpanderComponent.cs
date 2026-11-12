@@ -50,14 +50,18 @@ public abstract partial class ExpanderComponent<T> : BorderedRegionComponentBase
     /// </summary>
     protected ExpanderComponent(string? id = null) : base(id)
     {
-        SetRegion(RegionNames.Header, new ExpanderHeaderRegion());
+        SetDefaultRegion(RegionNames.Header, new ExpanderHeaderRegion());
     }
 
     /// <summary>
     /// Configures the built-in default header region, throwing if a different header has been set.
     /// </summary>
     public T ConfigureDefaultHeader(Action<ExpanderHeaderRegion> configure)
-        => Self.ConfigureTemplate(Header as ExpanderHeaderRegion, configure, "header");
+    {
+        T result = Self.ConfigureTemplate(Header as ExpanderHeaderRegion, configure, "header");
+        MarkRegionAuthored(RegionNames.Header);
+        return result;
+    }
 
     /// <summary>
     /// Sets the control the header row carries at its far edge while expanded, outside the <c>summary</c> so interactive controls do not toggle the fold.

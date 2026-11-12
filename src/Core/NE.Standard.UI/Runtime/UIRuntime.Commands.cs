@@ -285,7 +285,7 @@ internal sealed partial class UIRuntime
     private sealed class RunLimiter
     {
         private readonly Lock _sync = new();
-        private readonly Dictionary<string, int> _active = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _active = [with(StringComparer.Ordinal)];
 
         public void Enter(string command, int maxRuns)
         {

@@ -183,20 +183,21 @@ html {
             }
         }
 
-        // The grids and stacks between, which clip, let the hung room through; one clipping inline keeps its reach past its edge as
-        // well (core/runtime.less, components/ui-button.less).
+        // The grids and stacks between, which clip, let the hung room through; one protruding a contour or hung glyph (`LayoutClipReachRenderer`)
+        // keeps that reach past its edge as well (core/runtime.less, components/ui-button.less).
         [style*="--ui-scrollbar-air"]:is(.ui-container, .ui-stack-panel),
         [style*="--ui-scrollbar-air"] :is(.ui-container, .ui-stack-panel) {
             overflow-clip-margin: var(--ui-scroll-hang);
 
             // Through a registered length: Chrome takes no math function in overflow-clip-margin, and a max() there clipped at 0.
-            &[style*="overflow: clip"] {
+            &[data-ui-clip-reach="contour"]:not([style*="--ui-border-thickness"], [style*="--ui-surface-color"], [style*="--ui-bg-image"]) {
                 --ui-scroll-clip-reach: max(@ui-keyboard-frame-reach, var(--ui-scroll-hang));
                 overflow-clip-margin: var(--ui-scroll-clip-reach);
             }
 
-            &:not([style*="--ui-border-thickness"], [style*="--ui-surface-color"])[style*="overflow: clip"],
-            &.ui-stack-panel:is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end) {
+            &[data-ui-clip-reach="glyph"]:not([style*="--ui-border-thickness"], [style*="--ui-surface-color"], [style*="--ui-bg-image"]),
+            &.ui-stack-panel:is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end),
+            :is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end) > &.ui-stack-panel.ui-orientation--horizontal:not([style*="--ui-border-thickness"], [style*="--ui-surface-color"], [style*="--ui-bg-image"]) {
                 --ui-scroll-clip-reach: max((unit(@ui-space-5) * 16px + @ui-keyboard-frame-reach), var(--ui-scroll-hang));
                 overflow-clip-margin: var(--ui-scroll-clip-reach);
             }

@@ -22,7 +22,7 @@ public abstract partial class TabsComponent<T>(string? id = null) : RegionContai
     private const string ActionsHost = "a strip's";
 
     private readonly List<string> _keys = [];
-    private readonly Dictionary<string, int> _tabActions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _tabActions = [with(StringComparer.Ordinal)];
     private int _stripActions;
 
     /// <summary>

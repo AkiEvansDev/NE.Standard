@@ -40,8 +40,17 @@ public enum ScrollPosition
 /// <summary>
 /// Requests the UI client to scroll a container, as opposed to bringing a component into view.
 /// </summary>
-public sealed class ScrollEffect(UIComponentReference target, ScrollPosition position) : TargetedClientEffect(target)
+public sealed class ScrollEffect : TargetedClientEffect
 {
+    /// <summary>
+    /// Creates an effect aimed at the given container and position.
+    /// </summary>
+    public ScrollEffect(UIComponentReference target, ScrollPosition position)
+        : base(target)
+    {
+        Position = position;
+    }
+
     /// <summary>
     /// Creates an effect that scrolls the container identified by <paramref name="targetComponentId"/> to the given position.
     /// </summary>
@@ -56,6 +65,25 @@ public sealed class ScrollEffect(UIComponentReference target, ScrollPosition pos
         : this(new UIComponentReference(targetComponent, dynamicParameters), position)
     { }
 
+    [JsonConstructor]
+    internal ScrollEffect(UIComponentAddress? resolvedTarget, ScrollPosition position, UIOrientation axis = UIOrientation.Vertical, double offset = 0d, ScrollToBehavior behavior = ScrollToBehavior.Smooth)
+        : base(resolvedTarget)
+    {
+        Position = position;
+        Axis = axis;
+        Offset = offset;
+        Behavior = behavior;
+    }
+
+    private ScrollEffect(UIComponentAddress resolvedTarget, UIComponentReference target, ScrollPosition position, UIOrientation axis, double offset, ScrollToBehavior behavior)
+        : base(resolvedTarget, target)
+    {
+        Position = position;
+        Axis = axis;
+        Offset = offset;
+        Behavior = behavior;
+    }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.Scroll;
 
@@ -66,7 +94,7 @@ public sealed class ScrollEffect(UIComponentReference target, ScrollPosition pos
     /// <summary>
     /// Gets the position the container is scrolled to.
     /// </summary>
-    public ScrollPosition Position { get; } = position;
+    public ScrollPosition Position { get; }
 
     /// <summary>
     /// Gets the axis scrolled by the effect.
@@ -88,20 +116,6 @@ public sealed class ScrollEffect(UIComponentReference target, ScrollPosition pos
     {
         ArgumentNullException.ThrowIfNull(resolver);
 
-        return new CompiledScrollEffect(resolver.ResolveComponent(Target), Position, Axis, Offset, Behavior);
+        return ResolvedTarget is not null ? this : new ScrollEffect(resolver.ResolveComponent(Target), Target, Position, Axis, Offset, Behavior);
     }
-}
-
-internal sealed class CompiledScrollEffect(UIComponentAddress target, ScrollPosition position, UIOrientation axis, double offset, ScrollToBehavior behavior) : CompiledTargetedClientEffect(target)
-{
-    public override string Kind => ClientEffectKinds.Scroll;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
-
-    public ScrollPosition Position { get; } = position;
-    public UIOrientation Axis { get; } = axis;
-    public double Offset { get; } = offset;
-    public ScrollToBehavior Behavior { get; } = behavior;
 }

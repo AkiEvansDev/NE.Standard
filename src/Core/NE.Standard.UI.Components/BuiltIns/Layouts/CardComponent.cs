@@ -39,7 +39,9 @@ public abstract partial class CardComponent<T>(string? id = null) : SurfaceCompo
         if (Header is null)
             SetRegion(RegionNames.Header, new CardHeaderRegion());
 
-        return Self.ConfigureTemplate(Header as CardHeaderRegion, configure, "header");
+        T result = Self.ConfigureTemplate(Header as CardHeaderRegion, configure, "header");
+        MarkRegionAuthored(RegionNames.Header);
+        return result;
     }
 
     /// <summary>

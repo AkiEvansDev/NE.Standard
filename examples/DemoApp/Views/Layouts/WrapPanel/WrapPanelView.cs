@@ -24,6 +24,7 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindSpacing<WrapPanelController>(static x => x.WrapGroup.Spacing)
             .BindLineSpacing<WrapPanelController>(static x => x.WrapGroup.LineSpacing)
+            .BindOverflow<WrapPanelController>(static x => x.WrapGroup.Overflow)
             // Two columns of twenty-four: near-square tiles, and twenty of them do not fill the second row.
             .AddChildren(DemoUI.CreateSpannedTiles(20, 2))
             .SetPlacement(1, 1, 24, 1)

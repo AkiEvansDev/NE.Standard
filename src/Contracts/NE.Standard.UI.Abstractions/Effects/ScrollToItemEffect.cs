@@ -41,6 +41,23 @@ public sealed class ScrollToItemEffect : TargetedClientEffect
         : this(new UIComponentReference(targetComponent, dynamicParameters), key)
     { }
 
+    [JsonConstructor]
+    internal ScrollToItemEffect(UIComponentAddress? resolvedTarget, string key, ScrollToBlock block = ScrollToBlock.Start, ScrollToBehavior behavior = ScrollToBehavior.Auto)
+        : base(resolvedTarget)
+    {
+        Key = key;
+        Block = block;
+        Behavior = behavior;
+    }
+
+    private ScrollToItemEffect(UIComponentAddress resolvedTarget, UIComponentReference target, string key, ScrollToBlock block, ScrollToBehavior behavior)
+        : base(resolvedTarget, target)
+    {
+        Key = key;
+        Block = block;
+        Behavior = behavior;
+    }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.ScrollToItem;
 
@@ -68,19 +85,6 @@ public sealed class ScrollToItemEffect : TargetedClientEffect
     {
         ArgumentNullException.ThrowIfNull(resolver);
 
-        return new CompiledScrollToItemEffect(resolver.ResolveComponent(Target), Key, Block, Behavior);
+        return ResolvedTarget is not null ? this : new ScrollToItemEffect(resolver.ResolveComponent(Target), Target, Key, Block, Behavior);
     }
-}
-
-internal sealed class CompiledScrollToItemEffect(UIComponentAddress target, string key, ScrollToBlock block, ScrollToBehavior behavior) : CompiledTargetedClientEffect(target)
-{
-    public override string Kind => ClientEffectKinds.ScrollToItem;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
-
-    public string Key { get; } = key;
-    public ScrollToBlock Block { get; } = block;
-    public ScrollToBehavior Behavior { get; } = behavior;
 }

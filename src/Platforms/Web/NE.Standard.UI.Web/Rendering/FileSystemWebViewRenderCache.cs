@@ -437,7 +437,7 @@ internal sealed partial class FileSystemWebViewRenderCache : IWebViewRenderCache
     private string ResolveDirectory(string key)
     {
         // The key is WebViewCacheKeys' `{ViewKey}:{Language}:{Fingerprint}`; one without the separator is a view of one compile.
-        var separator = key.LastIndexOf(':');
+        var separator = key.LastIndexOf(':', StringComparison.Ordinal);
 
         return separator < 0
             ? Path.Combine(_directoryPath, CreateDirectoryName(key), "compile")

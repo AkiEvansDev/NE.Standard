@@ -142,7 +142,7 @@ public abstract class RecursiveObservable
     {
         ArgumentNullException.ThrowIfNull(notify);
 
-        visited ??= new HashSet<RecursiveObservable>(ReferenceEqualityComparer.Instance);
+        visited ??= [with(ReferenceEqualityComparer.Instance)];
 
         if (!visited.Add(this))
             return;

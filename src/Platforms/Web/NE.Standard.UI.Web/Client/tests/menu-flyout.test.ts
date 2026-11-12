@@ -140,6 +140,26 @@ test("a submenu from a context menu's entry stands flush against the menu, its f
     openByPress(color.parts);
 });
 
+test("a submenu from an on-page surface-wrapped menu docks flush on the surface's 1 px border", () => {
+    const region = group("region");
+    const surface = FakeElement.of("ui-surface").append(FakeElement.of("ui-menu").append(FakeElement.of("ui-menu__host").append(region.element)));
+
+    region.element.setAttribute("data-ui-menu-select", "");
+    surface.rect = { left: 100, top: 100, width: 200, height: 120 };
+    boxStyles.set(surface, { borderRightWidth: "1px", borderLeftWidth: "1px" });
+    region.parts.entry.rect = { left: 105, top: 105, width: 190, height: 30 };
+    region.parts.submenu.rect = { left: 0, top: 0, width: 160, height: 120 };
+    boxStyles.set(region.parts.submenu, { paddingTop: "4px", borderTopWidth: "1px", paddingBottom: "4px", borderBottomWidth: "1px" });
+    fakeDocument.body.append(surface);
+
+    openByPress(region.parts);
+
+    assert.equal(region.parts.submenu.style.left, "299px");
+    assert.equal(region.parts.submenu.style.top, "100px");
+
+    openByPress(region.parts);
+});
+
 test("a group's flyout is called what the group's own entry says", () => {
     openByPress(inputs.parts);
 

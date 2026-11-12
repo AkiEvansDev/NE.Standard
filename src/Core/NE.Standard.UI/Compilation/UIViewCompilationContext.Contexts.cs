@@ -14,7 +14,7 @@ internal sealed partial class UIViewCompilationContext
 {
     private Dictionary<string, ResolvedComponentContext> BuildComponentContexts(Dictionary<string, CompiledUIBindingSource> sourcesByKey, Dictionary<BindingTemplateKey, CompiledUIBindingTemplate> templatesByKey, Dictionary<UIBindingTemplateId, CompiledUIContext> contextsByTemplateId, CompiledUIContext rootContext, CompiledPath rootPath)
     {
-        Dictionary<string, ResolvedComponentContext> result = new(StringComparer.Ordinal);
+        Dictionary<string, ResolvedComponentContext> result = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < _componentOrder.Count; i++)
         {
@@ -104,7 +104,7 @@ internal sealed partial class UIViewCompilationContext
         if (scopes.Count == 0 || CompiledUIBindingParameterResolver.CountDynamic(itemsPath.Parameters) == scopes.Count)
             return itemsPath;
 
-        List<CompiledUIBindingParameter> merged = new(itemsPath.Parameters.Length + scopes.Count);
+        List<CompiledUIBindingParameter> merged = [with(itemsPath.Parameters.Length + scopes.Count)];
         var scopeIndex = scopes.Count - 1;
 
         for (var i = 0; i < itemsPath.Parameters.Length; i++)

@@ -8,8 +8,15 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// <summary>
 /// Requests the UI client to focus a component.
 /// </summary>
-public sealed class FocusEffect(UIComponentReference target) : TargetedClientEffect(target)
+public sealed class FocusEffect : TargetedClientEffect
 {
+    /// <summary>
+    /// Creates an effect aimed at the given target component.
+    /// </summary>
+    public FocusEffect(UIComponentReference target)
+        : base(target)
+    { }
+
     /// <summary>
     /// Creates an effect that focuses the component identified by <paramref name="targetComponentId"/>.
     /// </summary>
@@ -24,6 +31,15 @@ public sealed class FocusEffect(UIComponentReference target) : TargetedClientEff
         : this(new UIComponentReference(targetComponent, dynamicParameters))
     { }
 
+    [JsonConstructor]
+    internal FocusEffect(UIComponentAddress? resolvedTarget)
+        : base(resolvedTarget)
+    { }
+
+    private FocusEffect(UIComponentAddress resolvedTarget, UIComponentReference target)
+        : base(resolvedTarget, target)
+    { }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.Focus;
 
@@ -35,15 +51,6 @@ public sealed class FocusEffect(UIComponentReference target) : TargetedClientEff
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        return new CompiledFocusEffect(resolver.ResolveComponent(Target));
+        return ResolvedTarget is not null ? this : new FocusEffect(resolver.ResolveComponent(Target), Target);
     }
-}
-
-internal sealed class CompiledFocusEffect(UIComponentAddress target) : CompiledTargetedClientEffect(target)
-{
-    public override string Kind => ClientEffectKinds.Focus;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
 }

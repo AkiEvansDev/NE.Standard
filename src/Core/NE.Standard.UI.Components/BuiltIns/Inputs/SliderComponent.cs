@@ -98,11 +98,18 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     }
 
     /// <summary>
-    /// Checks the bounds, the step, the band's ends and their least distance as they stand, by the setters' own rule; an unset step is
-    /// the page's 1 here, where every setter has run.
+    /// Checks the bounds, the step, the band's ends and their least distance as they stand, by the setters' own rule; unset bounds and
+    /// step take the page's 0, 100 and 1 here, where every setter and binding has run.
     /// </summary>
     public void ValidateConfiguration()
-        => ValidateConfiguration(Min, Max, Binds(StepProperty) ? null : Step ?? DefaultStep, Value, EndValue, MinDistance);
+        => ValidateConfiguration(
+            Binds(MinProperty) ? null : Min ?? IOrderedRangeComponent.DefaultMin,
+            Binds(MaxProperty) ? null : Max ?? IOrderedRangeComponent.DefaultMax,
+            Binds(StepProperty) ? null : Step ?? DefaultStep,
+            Value,
+            EndValue,
+            MinDistance
+        );
 
     /// <summary>Whether a binding sets the property, its value unknown until the source delivers it.</summary>
     private bool Binds(UIProperty property)
@@ -117,19 +124,19 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     }
 
     /// <summary>
-    /// The one rule every setter keeps: each end between the bounds (an unset one the bound the page draws) and on a step above zero
-    /// counted from the minimum, the ends in order and the least distance apart, a distance the track is long enough for. A bound
-    /// bound holds nothing, its value the source's; a null <paramref name="step"/> holds no end to a step.
+    /// The one rule every setter keeps: each end between the bounds already set and on a step above zero counted from a known minimum,
+    /// the ends in order and the least distance apart, a distance the track is long enough for. A bound or not-yet-set bound holds
+    /// nothing until <see cref="ValidateConfiguration()"/> supplies the page's defaults at compile time.
     /// </summary>
     private void ValidateConfiguration(decimal? min, decimal? max, decimal? step, decimal? value, decimal? endValue, decimal? minDistance)
     {
-        // The setters pass the step as it stands: one held to the default 1 before SetStep would refuse SetValue(0.5).SetStep(0.5).
+        // The setters pass Min, Max and Step as they stand so setter/binding order never traps SetValue(-5).BindMin(...) or SetValue(500).SetMax(1000).
         var minBound = Binds(MinProperty);
         var maxBound = Binds(MaxProperty);
-        decimal? lower = minBound ? null : min ?? IOrderedRangeComponent.DefaultMin;
-        decimal? upper = maxBound ? null : max ?? IOrderedRangeComponent.DefaultMax;
+        var lower = minBound ? null : min;
+        var upper = maxBound ? null : max;
 
-        OrderedRange.Validate(minBound ? null : min, maxBound ? null : max, null, "value");
+        OrderedRange.Validate(lower, upper, null, "value");
         ValidateInBounds(lower, upper, value);
         ValidateInBounds(lower, upper, endValue);
 
@@ -145,7 +152,7 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
         if (minDistance < 0)
             throw new ArgumentOutOfRangeException(nameof(minDistance), minDistance, "The least distance cannot be negative.");
 
-        if (minDistance > upper - lower)
+        if (lower is decimal minimum && upper is decimal maximum && minDistance is decimal least && OrderedRange.IsNearer(minimum, maximum, least))
             throw new ArgumentOutOfRangeException(nameof(minDistance), minDistance, "The least distance cannot exceed the distance between the minimum and the maximum.");
 
         ValidateEnds(value, endValue, minDistance);
@@ -161,14 +168,14 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// <summary>An end on a step counted from the minimum, as the page steps and the server's gate holds it; unset, it checks nothing.</summary>
     private static void ValidateOnStep(decimal min, decimal step, decimal? value)
     {
-        if (value is decimal written && (written - min) % step != 0)
+        if (value is decimal written && OrderedRange.IsOffStep(min, step, written))
             throw new ArgumentOutOfRangeException(nameof(value), value, string.Create(CultureInfo.InvariantCulture, $"The value must lie on a step of {step} from the minimum."));
     }
 
     /// <summary>The band's two ends in order and at least the least distance apart; an unset end checks nothing.</summary>
     private static void ValidateEnds(decimal? start, decimal? end, decimal? minDistance)
     {
-        if (start is not decimal from || end is not decimal to || to - from >= (minDistance ?? 0))
+        if (start is not decimal from || end is not decimal to || !OrderedRange.IsNearer(from, to, minDistance ?? 0m))
             return;
 
         throw new ArgumentOutOfRangeException(nameof(end), end, minDistance > 0

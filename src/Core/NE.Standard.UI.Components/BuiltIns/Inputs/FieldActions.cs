@@ -21,7 +21,7 @@ internal sealed class FieldActions
     // Whose actions a flyout's anchor is refused among.
     private const string Host = "a field's";
 
-    private readonly Dictionary<string, IVisualComponent> _regions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IVisualComponent> _regions = [with(StringComparer.Ordinal)];
     private readonly List<IButtonComponent> _leading = [];
     private readonly List<IButtonComponent> _trailing = [];
 
@@ -222,6 +222,133 @@ internal sealed class FieldActions
 
         ClearTrailing();
         AddTrailing(control: null, select, inField: false, belowStart: false);
+    }
+
+    public Action? SnapshotAuthoredState()
+    {
+        var hadLeading = _leadingCount > 0 || _leadingBelowEndCount > 0 || _hasLeadingInField;
+        var hadTrailing = _trailingCount > 0 || _trailingBelowStartCount > 0 || _hasTrailingInField;
+
+        if (!hadLeading && !hadTrailing)
+            return null;
+
+        KeyValuePair<string, IVisualComponent>[]? leadingRegions = hadLeading ? SnapshotLeadingRegions() : null;
+        IButtonComponent[]? leadingButtons = hadLeading ? [.. _leading] : null;
+        var leadingCount = _leadingCount;
+        var leadingButtonCount = _leadingButtonCount;
+        var leadingBelowEndCount = _leadingBelowEndCount;
+        var hasLeadingInField = _hasLeadingInField;
+        IButtonComponent? leadingInField = LeadingInField;
+
+        KeyValuePair<string, IVisualComponent>[]? trailingRegions = hadTrailing ? SnapshotTrailingRegions() : null;
+        IButtonComponent[]? trailingButtons = hadTrailing ? [.. _trailing] : null;
+        var trailingCount = _trailingCount;
+        var trailingButtonCount = _trailingButtonCount;
+        var trailingBelowStartCount = _trailingBelowStartCount;
+        var trailingBelowStartButtonCount = _trailingBelowStartButtonCount;
+        var hasTrailingInField = _hasTrailingInField;
+        IButtonComponent? trailingInField = TrailingInField;
+
+        if (hadLeading)
+            ClearLeading();
+
+        if (hadTrailing)
+            ClearTrailing();
+
+        return () =>
+        {
+            if (hadLeading)
+            {
+                ClearLeading();
+
+                for (var i = 0; i < leadingRegions!.Length; i++)
+                    _regions[leadingRegions[i].Key] = leadingRegions[i].Value;
+
+                _leading.AddRange(leadingButtons!);
+                _leadingCount = leadingCount;
+                _leadingButtonCount = leadingButtonCount;
+                _leadingBelowEndCount = leadingBelowEndCount;
+                _hasLeadingInField = hasLeadingInField;
+                LeadingInField = leadingInField;
+            }
+
+            if (hadTrailing)
+            {
+                ClearTrailing();
+
+                for (var i = 0; i < trailingRegions!.Length; i++)
+                    _regions[trailingRegions[i].Key] = trailingRegions[i].Value;
+
+                _trailing.AddRange(trailingButtons!);
+                _trailingCount = trailingCount;
+                _trailingButtonCount = trailingButtonCount;
+                _trailingBelowStartCount = trailingBelowStartCount;
+                _trailingBelowStartButtonCount = trailingBelowStartButtonCount;
+                _hasTrailingInField = hasTrailingInField;
+                TrailingInField = trailingInField;
+            }
+        };
+    }
+
+    private KeyValuePair<string, IVisualComponent>[] SnapshotLeadingRegions()
+    {
+        List<KeyValuePair<string, IVisualComponent>> list = [];
+
+        if (_regions.TryGetValue(RegionNames.LeadingInFieldAction, out IVisualComponent? inField))
+            list.Add(new KeyValuePair<string, IVisualComponent>(RegionNames.LeadingInFieldAction, inField));
+
+        for (var i = 0; i < _leadingCount; i++)
+        {
+            var name = RegionNames.FieldAction(RegionNames.LeadingAction, i);
+            list.Add(new KeyValuePair<string, IVisualComponent>(name, _regions[name]));
+        }
+
+        for (var i = 0; i < _leadingBelowEndCount; i++)
+        {
+            var name = RegionNames.FieldAction(RegionNames.LeadingBelowEndAction, i);
+            list.Add(new KeyValuePair<string, IVisualComponent>(name, _regions[name]));
+        }
+
+        return [.. list];
+    }
+
+    private KeyValuePair<string, IVisualComponent>[] SnapshotTrailingRegions()
+    {
+        List<KeyValuePair<string, IVisualComponent>> list = [];
+
+        if (_regions.TryGetValue(RegionNames.TrailingInFieldAction, out IVisualComponent? inField))
+            list.Add(new KeyValuePair<string, IVisualComponent>(RegionNames.TrailingInFieldAction, inField));
+
+        for (var i = 0; i < _trailingCount; i++)
+        {
+            var name = RegionNames.FieldAction(RegionNames.TrailingAction, i);
+            list.Add(new KeyValuePair<string, IVisualComponent>(name, _regions[name]));
+        }
+
+        for (var i = 0; i < _trailingBelowStartCount; i++)
+        {
+            var name = RegionNames.FieldAction(RegionNames.TrailingBelowStartAction, i);
+            list.Add(new KeyValuePair<string, IVisualComponent>(name, _regions[name]));
+        }
+
+        return [.. list];
+    }
+
+    private void ClearLeading()
+    {
+        for (var i = 0; i < _leadingCount; i++)
+            _ = _regions.Remove(RegionNames.FieldAction(RegionNames.LeadingAction, i));
+
+        for (var i = 0; i < _leadingBelowEndCount; i++)
+            _ = _regions.Remove(RegionNames.FieldAction(RegionNames.LeadingBelowEndAction, i));
+
+        _ = _regions.Remove(RegionNames.LeadingInFieldAction);
+        _leading.Clear();
+        _leadingCount = 0;
+        _leadingButtonCount = 0;
+        _leadingBelowEndCount = 0;
+        _hasLeadingInField = false;
+        LeadingInField = null;
     }
 
     private void ClearTrailing()

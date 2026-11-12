@@ -6,17 +6,24 @@ namespace NE.Standard.UI.Generators.Infrastructure;
 
 internal static class SymbolExtensions
 {
-    /// <summary>The first attribute of <paramref name="metadataName"/> on the symbol, or null.</summary>
-    public static AttributeData? FindAttribute(this ISymbol symbol, string metadataName)
+    /// <summary>The first attribute of <paramref name="attributeType"/> on the symbol, or null.</summary>
+    public static AttributeData? FindAttribute(this ISymbol symbol, INamedTypeSymbol? attributeType)
     {
+        if (attributeType is null)
+            return null;
+
         foreach (AttributeData candidate in symbol.GetAttributes())
         {
-            if (candidate.AttributeClass?.ToDisplayString() == metadataName)
+            if (SymbolEqualityComparer.Default.Equals(candidate.AttributeClass, attributeType))
                 return candidate;
         }
 
         return null;
     }
+
+    /// <summary>The first attribute of <paramref name="metadataName"/> on the symbol, or null.</summary>
+    public static AttributeData? FindAttribute(this ISymbol symbol, Compilation compilation, string metadataName)
+        => symbol.FindAttribute(compilation.GetTypeByMetadataName(metadataName));
 
     /// <summary>Whether the type declares a member named <paramref name="memberName"/> other than <paramref name="except"/>: a generated one would collide with it.</summary>
     public static bool DeclaresOtherMember(this INamedTypeSymbol type, string memberName, ISymbol except)

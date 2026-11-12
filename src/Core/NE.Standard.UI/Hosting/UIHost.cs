@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Filters;
 using NE.Standard.UI.Navigation;
@@ -247,6 +248,9 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
         ArgumentNullException.ThrowIfNull(sessionInit);
 
         request.Validate();
+
+        if (!RecursiveValueCoercion.IsWithinLimits(request.Parameters, _application.Security.MaxClientValueElements, _application.Security.MaxClientValueDepth))
+            throw new InvalidOperationException("Navigation parameters exceed the configured value limits.");
 
         UINavigationRequest current = request;
         ResolvedSession? resolved = null;

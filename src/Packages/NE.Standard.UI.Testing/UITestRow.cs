@@ -77,6 +77,10 @@ public sealed class UITestRow
     public async Task<UITestCommandResult> ClickAsync(CancellationToken cancellationToken = default)
         => UITestCommandResult.From(await _row.ClickAsync(cancellationToken).ConfigureAwait(false));
 
+    /// <summary>Commits <paramref name="title"/> as an inline rename on this row, writing <c>RenamedTitle</c> and raising <c>rename</c>.</summary>
+    public async Task<UITestCommandResult> RenameAsync(string title, CancellationToken cancellationToken = default)
+        => UITestCommandResult.From(await _row.RenameAsync(title, cancellationToken).ConfigureAwait(false));
+
     /// <summary>
     /// Chooses the row as a press does: the host's chosen key or option value written where the host binds it to write back, then the row's
     /// click command where it has one and the write succeeded.

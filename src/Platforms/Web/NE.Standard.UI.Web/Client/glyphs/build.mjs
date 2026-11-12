@@ -13,12 +13,13 @@
 // 400 beside text); `GRAD` at 0; `opsz` at 20, the drawing made for small sizes, since nothing here is drawn above
 // 32px; `FILL` kept, because a pencil is filled and a calendar is not.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import subsetFont from "subset-font";
 
 const SOURCE = "node_modules/material-symbols/material-symbols-rounded.woff2";
 const OUTPUT = "../fonts/NEGlyphs.woff2";
+const WPF_FONTS_DIR = "../../../../Wpf/NE.Standard.UI.Wpf.Abstractions/Fonts";
 
 const GLYPHS = [
     ["expand_more", 0xe5cf],
@@ -43,7 +44,7 @@ const GLYPHS = [
     ["first_page", 0xe5dc],
     ["last_page", 0xe5dd],
     ["filter_list", 0xe152],
-    ["view_column", 0xe8ec],
+    ["checklist", 0xe6b1],
     ["add", 0xe145],
     ["search", 0xef7a],
     ["delete", 0xe92e],
@@ -154,7 +155,14 @@ const GLYPHS = [
     ["format_list_bulleted", 0xe241]
 ];
 
-const font = await subsetFont(readFileSync(SOURCE), String.fromCodePoint(...GLYPHS.map(([, codepoint]) => codepoint)), {
+const WPF_EXTRA_GLYPHS = [
+    ["expand_less", 0xe5ce],
+    ["chevron_left", 0xe5cb],
+    ["chevron_right", 0xe5cc]
+];
+
+const sourceBytes = readFileSync(SOURCE);
+const font = await subsetFont(sourceBytes, String.fromCodePoint(...GLYPHS.map(([, codepoint]) => codepoint)), {
     targetFormat: "woff2",
     variationAxes: { wght: 600, GRAD: 0, opsz: 20 }
 });
@@ -164,5 +172,126 @@ writeFileSync(resolve(OUTPUT), font);
 
 console.log(`${OUTPUT}: ${GLYPHS.length} glyphs, ${(font.length / 1024).toFixed(1)} KB`);
 
+if (existsSync(resolve(WPF_FONTS_DIR))) {
+    const wpfCodepoints = [...GLYPHS, ...WPF_EXTRA_GLYPHS].map(([, codepoint]) => codepoint);
+    const wpfRaw = await subsetFont(sourceBytes, String.fromCodePoint(...wpfCodepoints), {
+        targetFormat: "sfnt",
+        variationAxes: { FILL: 0, wght: 600, GRAD: 0, opsz: 20 }
+    });
+    const wpfNamed = renameSfnt(Buffer.from(wpfRaw), "NE Glyphs", "NE-Glyphs");
+    const wpfPath = resolve(WPF_FONTS_DIR, "NEGlyphs.ttf");
+
+    writeFileSync(wpfPath, wpfNamed);
+    console.log(`${wpfPath}: ${wpfCodepoints.length} glyphs, ${(wpfNamed.length / 1024).toFixed(1)} KB`);
+}
+
 for (const [name, codepoint] of GLYPHS)
     console.log(`  ${name.padEnd(16)} \\${codepoint.toString(16)}`);
+
+function renameSfnt(sfnt, familyName, postScriptName) {
+    const numTables = sfnt.readUInt16BE(4);
+    const entries = [];
+
+    for (let index = 0; index < numTables; index++) {
+        const dirOffset = 12 + index * 16;
+        const tag = sfnt.toString("ascii", dirOffset, dirOffset + 4);
+        const offset = sfnt.readUInt32BE(dirOffset + 8);
+        const length = sfnt.readUInt32BE(dirOffset + 12);
+
+        entries.push({ tag, data: Buffer.from(sfnt.subarray(offset, offset + length)) });
+    }
+
+    const nameEntry = entries.find(entry => entry.tag === "name");
+    const headEntry = entries.find(entry => entry.tag === "head");
+
+    nameEntry.data = buildNameTable([
+        [1, familyName],
+        [2, "Regular"],
+        [3, familyName],
+        [4, familyName],
+        [5, "Version 1.0"],
+        [6, postScriptName]
+    ]);
+    headEntry.data.writeUInt32BE(0, 8);
+    entries.sort((left, right) => left.tag.localeCompare(right.tag, "en"));
+
+    const headerLength = 12 + entries.length * 16;
+    let bodyLength = 0;
+
+    for (const entry of entries)
+        bodyLength += (entry.data.length + 3) & ~3;
+
+    const output = Buffer.alloc(headerLength + bodyLength);
+
+    sfnt.copy(output, 0, 0, 12);
+
+    let cursor = headerLength;
+    let headOffset = 0;
+
+    for (let index = 0; index < entries.length; index++) {
+        const entry = entries[index];
+        const dirOffset = 12 + index * 16;
+
+        if (entry.tag === "head")
+            headOffset = cursor;
+
+        entry.data.copy(output, cursor);
+        output.write(entry.tag, dirOffset, 4, "ascii");
+        output.writeUInt32BE(checksum(entry.data), dirOffset + 4);
+        output.writeUInt32BE(cursor, dirOffset + 8);
+        output.writeUInt32BE(entry.data.length, dirOffset + 12);
+        cursor += (entry.data.length + 3) & ~3;
+    }
+
+    output.writeUInt32BE((0xb1b0afba - checksum(output)) >>> 0, headOffset + 8);
+
+    return output;
+}
+
+function buildNameTable(records) {
+    const encoded = records.map(([nameId, text]) => ({
+        nameId,
+        bytes: Buffer.from(text, "utf16le").swap16()
+    }));
+    const stringOffset = 6 + encoded.length * 12;
+    const totalBytes = encoded.reduce((sum, item) => sum + item.bytes.length, 0);
+    const table = Buffer.alloc(stringOffset + totalBytes);
+
+    table.writeUInt16BE(0, 0);
+    table.writeUInt16BE(encoded.length, 2);
+    table.writeUInt16BE(stringOffset, 4);
+
+    let storageCursor = 0;
+
+    for (let index = 0; index < encoded.length; index++) {
+        const recordOffset = 6 + index * 12;
+        const { nameId, bytes } = encoded[index];
+
+        table.writeUInt16BE(3, recordOffset);
+        table.writeUInt16BE(1, recordOffset + 2);
+        table.writeUInt16BE(0x0409, recordOffset + 4);
+        table.writeUInt16BE(nameId, recordOffset + 6);
+        table.writeUInt16BE(bytes.length, recordOffset + 8);
+        table.writeUInt16BE(storageCursor, recordOffset + 10);
+        bytes.copy(table, stringOffset + storageCursor);
+        storageCursor += bytes.length;
+    }
+
+    return table;
+}
+
+function checksum(buffer) {
+    const paddedLength = (buffer.length + 3) & ~3;
+    let sum = 0;
+
+    for (let offset = 0; offset < paddedLength; offset += 4) {
+        const b0 = buffer[offset] ?? 0;
+        const b1 = buffer[offset + 1] ?? 0;
+        const b2 = buffer[offset + 2] ?? 0;
+        const b3 = buffer[offset + 3] ?? 0;
+
+        sum = (sum + (((b0 << 24) | (b1 << 16) | (b2 << 8) | b3) >>> 0)) >>> 0;
+    }
+
+    return sum;
+}

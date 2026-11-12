@@ -35,7 +35,7 @@ public abstract partial class BreadcrumbsComponent<T> : ItemsComponentBase<T, IB
     /// </summary>
     protected BreadcrumbsComponent(string? id = null) : base(id)
     {
-        _ = SetTemplate(new DefaultBreadcrumbItemTemplate(binds: true));
+        SetDefaultTemplate(new DefaultBreadcrumbItemTemplate(binds: true));
     }
 
     /// <summary>

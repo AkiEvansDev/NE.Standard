@@ -174,10 +174,10 @@
         }
     });
 
-    // A panel or a plain grid/stack clipping what it holds (Overflow Hidden) lets the hung box and its keyboard frame out: a large
-    // label's padding, the most anything hangs, and the frame's reach past it.
-    :is(.ui-container, .ui-stack-panel):not([style*="--ui-border-thickness"], [style*="--ui-surface-color"])[data-ui-id][style*="overflow: clip"],
-    .ui-stack-panel:is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end)[data-ui-id] {
+    // A panel with GlyphEdge, a horizontal row on its edge (glyph-edge.less), or an unframed layout panel holding one (`LayoutClipReachRenderer`), lets the hung box and its frame out.
+    [data-ui-id][data-ui-clip-reach="glyph"]:not([style*="--ui-border-thickness"], [style*="--ui-surface-color"], [style*="--ui-bg-image"]),
+    .ui-stack-panel:is(.ui-stack-panel--glyph-start, .ui-stack-panel--glyph-end)[data-ui-id],
+    :is(@{ui-glyph-start-edge}, @{ui-glyph-end-edge}) > .ui-stack-panel.ui-orientation--horizontal[data-ui-id]:not([style*="--ui-border-thickness"], [style*="--ui-surface-color"], [style*="--ui-bg-image"]) {
         overflow-clip-margin: (unit(@ui-space-5) * 16px + @ui-keyboard-frame-reach);
     }
 

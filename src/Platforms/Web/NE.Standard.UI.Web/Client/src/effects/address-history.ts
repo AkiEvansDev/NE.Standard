@@ -229,12 +229,13 @@ export function readQueryParameters(search: string): Record<string, unknown> | n
     parameters.forEach((value, key) => {
         if (Object.hasOwn(result, key)) {
             const existing = result[key];
+            const next = Array.isArray(existing) ? [...(existing as unknown[]), value] : [existing, value];
 
-            result[key] = Array.isArray(existing) ? [...(existing as unknown[]), value] : [existing, value];
+            Object.defineProperty(result, key, { value: next, writable: true, enumerable: true, configurable: true });
             return;
         }
 
-        result[key] = value;
+        Object.defineProperty(result, key, { value, writable: true, enumerable: true, configurable: true });
     });
 
     return result;

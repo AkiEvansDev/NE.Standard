@@ -77,6 +77,7 @@
 // shrinks to the panel's guard and scrolls with a faded edge.
 .ui-dialog__surface > .ui-stack-panel {
     .ui-responsive-property(min-height, --ui-min-height, 0);
+    overflow-clip-margin: @ui-keyboard-frame-reach;
 
     > .ui-scroll {
         flex: 0 1 auto;

@@ -20,14 +20,14 @@ public sealed class DictionaryTranslationSource : ITranslationSource
     {
         ArgumentNullException.ThrowIfNull(translations);
 
-        Dictionary<string, FrozenDictionary<string, string>> builder = new(StringComparer.Ordinal);
+        Dictionary<string, FrozenDictionary<string, string>> builder = [with(StringComparer.Ordinal)];
 
         foreach (KeyValuePair<string, IReadOnlyDictionary<string, string>> language in translations)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(language.Key);
             ArgumentNullException.ThrowIfNull(language.Value);
 
-            Dictionary<string, string> values = new(StringComparer.Ordinal);
+            Dictionary<string, string> values = [with(StringComparer.Ordinal)];
 
             foreach (KeyValuePair<string, string> translation in language.Value)
             {
@@ -73,5 +73,5 @@ public sealed class DictionaryTranslationSource : ITranslationSource
     public IReadOnlyDictionary<string, string>? ListWords(string language)
         => !string.IsNullOrWhiteSpace(language) && _translations.TryGetValue(language, out FrozenDictionary<string, string>? translations)
             ? translations
-            : FrozenDictionary<string, string>.Empty;
+            : [];
 }

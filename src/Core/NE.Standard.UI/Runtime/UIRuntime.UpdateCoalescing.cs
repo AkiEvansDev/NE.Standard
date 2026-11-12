@@ -1,17 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Shell.Updates.Server;
 
 namespace NE.Standard.UI.Runtime;
 
 internal sealed partial class UIRuntime
 {
-    // Every address a value update was queued for since the queue was last emptied: one not here has nothing queued to replace, so the
-    // queue is scanned only for an address written twice. One withdrawn since stays, and costs that address a scan for nothing.
-    private readonly HashSet<UIPropertyAddress> _queuedValueAddresses = [];
+    // Latest slot in _pendingUpdates for each queued property address, single-item collection Replace, and row scope, so repeated writes
+    // and row redraws supersede in O(1) without scanning or shifting the queue.
+    private readonly Dictionary<UIPropertyAddress, int> _queuedValueIndices = [];
+    private readonly Dictionary<(UIComponentAddress Host, string Key), int> _queuedRowReplaces = [];
+    private readonly Dictionary<(UIComponentId HostId, string RowKey), List<int>> _rowChildUpdateIndices = [];
+    private int _pendingUpdateCount;
 
     // Past this many updates queued for one host, and past its rows, a row withdrawn from it sends its list whole instead: four times the
     // whole queue of the heaviest page in ordinary use, which never reaches it, while a list rewritten wholesale stops reading the queue
@@ -21,29 +26,17 @@ internal sealed partial class UIRuntime
     /// <summary>Queues a value update in place of one still queued for the same address, which it supersedes.</summary>
     private void AddPendingValueUpdateNoLock(ServerValueUIUpdate update)
     {
-        if (!_queuedValueAddresses.Add(update.Address))
+        if (_queuedValueIndices.TryGetValue(update.Address, out var existingIndex)
+            && (uint)existingIndex < (uint)_pendingUpdates.Count
+            && _pendingUpdates[existingIndex].Update is ServerValueUIUpdate existing
+            && existing.Address.Equals(update.Address))
         {
-            for (var i = _pendingUpdates.Count - 1; i >= 0; i--)
-            {
-                if (_pendingUpdates[i].Update is ServerValueUIUpdate existing && existing.Address.Equals(update.Address))
-                {
-                    _pendingUpdates.RemoveAt(i);
-                    break;
-                }
-            }
+            SupersedePendingAtNoLock(existingIndex);
         }
 
-        QueueUpdateNoLock(update);
-    }
-
-    /// <summary>Notes the value updates put back in the queue, which <see cref="AddPendingValueUpdateNoLock"/> must still find.</summary>
-    private void NoteQueuedValueAddressesNoLock(List<PendingUpdate> updates)
-    {
-        for (var i = 0; i < updates.Count; i++)
-        {
-            if (updates[i].Update is ServerValueUIUpdate value)
-                _ = _queuedValueAddresses.Add(value.Address);
-        }
+        var index = QueueUpdateNoLock(update);
+        _queuedValueIndices[update.Address] = index;
+        NoteRowScopesNoLock(update.Address.Component, index);
     }
 
     private void AddPendingCollectionUpdateNoLock(ServerCollectionChangeUIUpdate update)
@@ -55,27 +48,162 @@ internal sealed partial class UIRuntime
         // A reset empties the host, so what was queued for it and its rows before is moot: a row drawn in a new variant sends its
         // list whole, and a command that then clears and refills the list would otherwise send it twice.
         if (update.Action == CollectionUpdateAction.Reset)
+        {
             WithdrawHostNoLock(update.Component.Id, update.Component.DynamicParameters);
+            var resetIndex = QueueUpdateNoLock(update);
+            NoteRowScopesNoLock(update.Component, resetIndex);
+            return;
+        }
 
-        QueueUpdateNoLock(update);
+        if (TryGetSingleReplacedKey(update, out var replacedKey))
+        {
+            (UIComponentAddress Component, string Key) row = (update.Component, replacedKey);
+
+            if (_queuedRowReplaces.TryGetValue(row, out var existingIndex)
+                && (uint)existingIndex < (uint)_pendingUpdates.Count
+                && _pendingUpdates[existingIndex].Update is ServerCollectionChangeUIUpdate existing
+                && existing.Component.Equals(update.Component)
+                && TryGetSingleReplacedKey(existing, out var existingKey)
+                && string.Equals(existingKey, replacedKey, StringComparison.Ordinal))
+            {
+                SupersedePendingAtNoLock(existingIndex);
+            }
+
+            var replaceIndex = QueueUpdateNoLock(update);
+            _queuedRowReplaces[row] = replaceIndex;
+            NoteRowScopesNoLock(update.Component, replaceIndex);
+            return;
+        }
+
+        var queuedIndex = QueueUpdateNoLock(update);
+        NoteRowScopesNoLock(update.Component, queuedIndex);
+    }
+
+    private static bool TryGetSingleReplacedKey(ServerCollectionChangeUIUpdate update, [NotNullWhen(true)] out string? key)
+    {
+        if (update.Action == CollectionUpdateAction.Replace
+            && update.Items.Length == 1
+            && (update.Items[0].OldKey ?? update.Items[0].Key) is { Length: > 0 } singleKey)
+        {
+            key = singleKey;
+            return true;
+        }
+
+        key = null;
+        return false;
+    }
+
+    private void SupersedePendingAtNoLock(int index)
+    {
+        if ((uint)index < (uint)_pendingUpdates.Count && _pendingUpdates[index].Update is not null)
+        {
+            _pendingUpdates[index] = default;
+            _pendingUpdateCount--;
+        }
+    }
+
+    private void NoteRowScopesNoLock(UIComponentAddress address, int index)
+    {
+        var parameters = address.DynamicParameters;
+
+        if (parameters.Length == 0)
+            return;
+
+        IReadOnlyList<UIComponentId> scopes = View.Graph.GetItemScopes(address.Id);
+        var limit = Math.Min(scopes.Count, parameters.Length);
+
+        for (var depth = 0; depth < limit; depth++)
+        {
+            if (parameters[depth] is not string rowKey
+                || !View.Graph.TryGet(scopes[depth], out UIComponentNode? root)
+                || root.ParentId is not UIComponentId hostId)
+            {
+                continue;
+            }
+
+            if (!_rowChildUpdateIndices.TryGetValue((hostId, rowKey), out List<int>? indices))
+            {
+                indices = [];
+                _rowChildUpdateIndices.Add((hostId, rowKey), indices);
+            }
+
+            indices.Add(index);
+        }
+    }
+
+    /// <summary>Withdraws child updates queued inside a single row of <paramref name="hostId"/> without scanning the whole queue.</summary>
+    private void WithdrawChildUpdatesOfRowNoLock(UIComponentId hostId, object?[] ownerParameters, string rowKey)
+    {
+        if (!_rowChildUpdateIndices.TryGetValue((hostId, rowKey), out List<int>? indices))
+            return;
+
+        if (ownerParameters.Length == 0)
+        {
+            for (var i = 0; i < indices.Count; i++)
+                SupersedePendingAtNoLock(indices[i]);
+
+            _ = _rowChildUpdateIndices.Remove((hostId, rowKey));
+            return;
+        }
+
+        var kept = 0;
+
+        for (var i = 0; i < indices.Count; i++)
+        {
+            var index = indices[i];
+
+            if ((uint)index >= (uint)_pendingUpdates.Count || _pendingUpdates[index].Update is not { } existing)
+                continue;
+
+            if (IsHostsUpdate(existing, hostId, ownerParameters, out var existingKey) && existingKey is string key && string.Equals(key, rowKey, StringComparison.Ordinal))
+                SupersedePendingAtNoLock(index);
+            else
+                indices[kept++] = index;
+        }
+
+        if (kept == 0)
+            _ = _rowChildUpdateIndices.Remove((hostId, rowKey));
+        else
+            indices.RemoveRange(kept, indices.Count - kept);
+    }
+
+    /// <summary>Restores saved updates back into the queue and rebuilds the coalescing indexes.</summary>
+    private void RestorePendingUpdatesNoLock(List<PendingUpdate> updates)
+    {
+        for (var i = 0; i < updates.Count; i++)
+        {
+            PendingUpdate pending = updates[i];
+
+            if (pending.Update is not { } update)
+                continue;
+
+            var index = _pendingUpdates.Count;
+            _pendingUpdates.Add(pending);
+            _pendingUpdateCount++;
+
+            if (update is ServerValueUIUpdate value)
+            {
+                _queuedValueIndices[value.Address] = index;
+                NoteRowScopesNoLock(value.Address.Component, index);
+            }
+            else if (update is ServerCollectionChangeUIUpdate collection)
+            {
+                if (TryGetSingleReplacedKey(collection, out var key))
+                    _queuedRowReplaces[(collection.Component, key)] = index;
+
+                NoteRowScopesNoLock(collection.Component, index);
+            }
+        }
     }
 
     /// <summary>Withdraws, in one pass over the queue, everything queued for a host: its own list's updates and its rows'.</summary>
     private void WithdrawHostNoLock(UIComponentId hostId, object?[] ownerParameters)
     {
-        var kept = 0;
-
         for (var i = 0; i < _pendingUpdates.Count; i++)
         {
-            PendingUpdate pending = _pendingUpdates[i];
-
-            if (IsHostsUpdate(pending.Update, hostId, ownerParameters, out _))
-                continue;
-
-            _pendingUpdates[kept++] = pending;
+            if (_pendingUpdates[i].Update is { } existing && IsHostsUpdate(existing, hostId, ownerParameters, out _))
+                SupersedePendingAtNoLock(i);
         }
-
-        _pendingUpdates.RemoveRange(kept, _pendingUpdates.Count - kept);
     }
 
     /// <summary>
@@ -107,7 +235,15 @@ internal sealed partial class UIRuntime
             return false;
 
         if (parameters.Length == ownerParameters.Length)
-            return update is ServerCollectionChangeUIUpdate && address.Id.Equals(hostId);
+        {
+            if (update is not ServerCollectionChangeUIUpdate hostCollection || !address.Id.Equals(hostId))
+                return false;
+
+            if (TryGetSingleReplacedKey(hostCollection, out var singleKey))
+                rowKey = singleKey;
+
+            return true;
+        }
 
         if (!IsComponentInside(address.Id, hostId))
             return false;
@@ -133,25 +269,21 @@ internal sealed partial class UIRuntime
         // A few keys are compared in place; a range's many are looked up.
         HashSet<string>? lookup = keys.Count > 8 ? new(keys, StringComparer.Ordinal) : null;
         var held = 0;
-        var kept = 0;
 
         for (var i = 0; i < _pendingUpdates.Count; i++)
         {
-            PendingUpdate pending = _pendingUpdates[i];
+            if (_pendingUpdates[i].Update is not { } existing)
+                continue;
 
-            if (IsHostsUpdate(pending.Update, hostId, ownerParameters, out var rowKey))
+            if (IsHostsUpdate(existing, hostId, ownerParameters, out var rowKey))
             {
                 held++;
 
                 // A key carried as anything but text names no row (a forged address), and is no row of these.
                 if (rowKey is string key && (lookup?.Contains(key) ?? Contains(keys, key)))
-                    continue;
+                    SupersedePendingAtNoLock(i);
             }
-
-            _pendingUpdates[kept++] = pending;
         }
-
-        _pendingUpdates.RemoveRange(kept, _pendingUpdates.Count - kept);
 
         return held > CrowdedHostUpdates && held > CountRows(collectionPath);
     }

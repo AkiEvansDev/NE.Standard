@@ -99,6 +99,7 @@
     width: @ui-glyph-xxxl;
     height: @ui-glyph-xxxl;
     font-size: @ui-glyph-xxxl;
+    transition: color @ui-motion-fast @ui-motion-ease;
 }
 
     .ui-image-input:not(@{ui-image-shown}) > .ui-image-input__surface > .ui-image-input__placeholder,
@@ -169,6 +170,7 @@
 .ui-image-input--picture > .ui-image-input__surface {
     flex: 1 1 12rem;
     min-height: 0;
+    max-width: 100%;
     .ui-responsive-property(width, --ui-width, 100%);
     .ui-responsive-property(border-radius, --ui-border-radius, var(--ui-radius-input));
 }
@@ -259,9 +261,12 @@
         margin-right: 0;
     }
 
-.ui-input--ghost.ui-image-input--inline > .ui-image-input__surface {
+.ui-input--ghost.ui-image-input:not(.ui-image-input--multiple) > .ui-image-input__surface {
     border-color: transparent;
     background: none;
+}
+
+.ui-input--ghost.ui-image-input--inline > .ui-image-input__surface {
     min-height: @ui-button-height-sm;
     padding-left: @ui-space-2;
     padding-right: @ui-space-2;
@@ -306,8 +311,8 @@
 @ui-image-edge-hover: ~":not(@{ui-validation-marked}) > .ui-image-input__surface@{ui-image-surface-live}:not(@{ui-field-focus}):hover";
 
 @media @{ui-can-hover} {
-    // Ghost's row: the hover wash of the field it is, as a text field's ghost row shows (ui-input.less).
-    .ui-image-input--inline.ui-input--ghost@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
+    // Ghost's surface: the hover wash of the field it is, as a text field's ghost row shows (ui-input.less).
+    .ui-input--ghost.ui-image-input:not(.ui-image-input--multiple)@{ui-field-live}:not([data-ui-image-dragging])@{ui-image-edge-hover} {
         background: var(--ui-wash-hover);
     }
 
@@ -388,11 +393,13 @@
 }
 
     @media @{ui-can-hover} {
+        .ui-image-input@{ui-field-live}:not(.ui-image-input--multiple) > .ui-image-input__surface@{ui-image-surface-live}:hover > .ui-image-input__placeholder,
         .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}:hover > .ui-image-input__pick {
             color: var(--ui-color-on-surface);
         }
     }
 
+    .ui-image-input@{ui-field-live}:not(.ui-image-input--multiple) > .ui-image-input__surface@{ui-image-surface-live}@{ui-keyboard-focus} > .ui-image-input__placeholder,
     .ui-image-input@{ui-field-live} > .ui-image-input__surface@{ui-image-surface-live}@{ui-keyboard-focus} > .ui-image-input__pick {
         color: var(--ui-color-on-surface);
     }

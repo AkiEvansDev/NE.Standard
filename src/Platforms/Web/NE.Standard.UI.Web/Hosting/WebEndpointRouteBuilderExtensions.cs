@@ -81,7 +81,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
 
-        MapServerCoreEndpoints(endpoints, group, options);
+        MapServerCoreEndpoints(endpoints, group, options, mapClientViewEndpoint: options.EnableClientViewEndpoint);
         WebManifestEndpoint.Map(group);
         RequireAuthorization(group.MapGet("/{**route}", RenderAsync), options);
 
@@ -100,14 +100,15 @@ public static partial class WebEndpointRouteBuilderExtensions
         RouteGroupBuilder group = endpoints.MapGroup(string.Empty).AddEndpointFilter(AddNoSniffHeaderAsync);
         WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
 
-        MapServerCoreEndpoints(endpoints, group, options);
+        MapServerCoreEndpoints(endpoints, group, options, mapClientViewEndpoint: true);
 
         return Task.FromResult(endpoints);
     }
 
-    private static void MapServerCoreEndpoints(IEndpointRouteBuilder endpoints, RouteGroupBuilder group, WebEndpointOptions options)
+    private static void MapServerCoreEndpoints(IEndpointRouteBuilder endpoints, RouteGroupBuilder group, WebEndpointOptions options, bool mapClientViewEndpoint)
     {
-        WebViewEndpoint.Map(group, options);
+        if (mapClientViewEndpoint)
+            WebViewEndpoint.Map(group, options);
         WebFileEndpoints.Map(group);
         WebValueEndpoint.Map(group);
         WebSessionKeyEndpoint.Map(group);
@@ -556,7 +557,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         if (query.Count == 0)
             return null;
 
-        Dictionary<string, object?> parameters = new(StringComparer.Ordinal);
+        Dictionary<string, object?> parameters = [with(StringComparer.Ordinal)];
 
         foreach (KeyValuePair<string, StringValues> pair in query)
         {

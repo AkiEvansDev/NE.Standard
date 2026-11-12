@@ -55,4 +55,10 @@ public sealed class WebEndpointOptions
     /// application — the only way an iPhone shows a page's notifications; none by default.
     /// </summary>
     public WebManifestOptions? Manifest { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether <c>GET /_ne/view</c> is mapped alongside browser rendering so non-HTML clients (<c>NE.Standard.UI.Client</c>)
+    /// can connect to this web host. Off by default on <c>MapStandardUIWebAsync</c>; always mapped on <c>MapStandardUIServerAsync</c>.
+    /// </summary>
+    public bool EnableClientViewEndpoint { get; set; }
 }

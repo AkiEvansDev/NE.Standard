@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Interaction;
@@ -53,4 +54,22 @@ public abstract partial class InputTemplatedComponentBase<TComponent, TItem, TVa
 
     /// <inheritdoc/>
     public virtual UISize? CaptionRowBox(UIResponsiveTier tier) => InputCaptionRow.Box(this, tier);
+
+    /// <inheritdoc/>
+    protected override Action? SnapshotAuthoredState()
+    {
+        Action? restoreBase = base.SnapshotAuthoredState();
+
+        if (_validations.Count == 0)
+            return restoreBase;
+
+        UIValidationRule[] ownValidations = [.. _validations];
+        _validations.Clear();
+
+        return () =>
+        {
+            restoreBase?.Invoke();
+            InputValidationDefaults.MergeAuthored(_validations, ownValidations);
+        };
+    }
 }

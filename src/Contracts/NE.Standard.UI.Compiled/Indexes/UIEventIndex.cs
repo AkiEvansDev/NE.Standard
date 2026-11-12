@@ -32,8 +32,8 @@ public sealed class UIEventIndex
 
         _all = [.. events];
 
-        Dictionary<UIEventId, CompiledUIEvent> byId = new(events.Length);
-        Dictionary<CompiledUIEventAddress, CompiledUIEvent> byAddress = new(events.Length);
+        Dictionary<UIEventId, CompiledUIEvent> byId = [with(events.Length)];
+        Dictionary<CompiledUIEventAddress, CompiledUIEvent> byAddress = [with(events.Length)];
         Dictionary<UIComponentId, List<CompiledUIEvent>> byComponent = [];
 
         for (var i = 0; i < events.Length; i++)
@@ -119,7 +119,7 @@ public sealed class UIEventIndex
 
         ArgumentException.ThrowIfNullOrWhiteSpace(compiledEvent.Address.EventName);
 
-        HashSet<string> argumentNames = new(StringComparer.Ordinal);
+        HashSet<string> argumentNames = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < compiledEvent.Arguments.Length; i++)
         {

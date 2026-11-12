@@ -1,5 +1,5 @@
 // `.ts` on the value import: `node --test` runs this module directly.
-import { ComponentSelector, EmptyPlaceholderAttribute, GroupHeaderAttribute, HiddenClass, ItemsEmptyAttribute, NonItemAttribute, WindowSpacerAttribute } from "./dom-attributes.ts";
+import { ComponentSelector, EmptyPlaceholderAttribute, GroupHeaderAttribute, HiddenClass, ItemsEmptyAttribute, ItemsNoMatchAttribute, ItemsQueryAttribute, NonItemAttribute, WindowSpacerAttribute } from "./dom-attributes.ts";
 
 type EmptyTemplateSource = {
     getEmptyTemplate(componentId: number): HTMLTemplateElement | undefined;
@@ -38,8 +38,11 @@ export function findEmptyPlaceholder(host: Element): Element | null {
 
 // Counts visible items, so a filter (a class toggle) runs first; a virtualized host passes its own answer, since it draws less than it holds.
 // The host and its component root wear the mark while the placeholder stands in it, as the server writes it; a host emptied wholesale (a reset) is put right here.
-export function ensureEmptyState<TStack>(host: Element, componentId: number, templates: EmptyTemplateSource, renderer: EmptyTemplateRenderer<TStack>, hasItems?: boolean): void {
-    hasItems ??= getRealItemElements(host).some(item => !item.classList.contains(HiddenClass));
+export function ensureEmptyState<TStack>(host: Element, componentId: number, templates: EmptyTemplateSource, renderer: EmptyTemplateRenderer<TStack>, hasItems?: boolean, hasAnyItems?: boolean): void {
+    const realItems = hasItems === undefined || hasAnyItems === undefined ? getRealItemElements(host) : undefined;
+
+    hasItems ??= realItems!.some(item => !item.classList.contains(HiddenClass));
+    hasAnyItems ??= realItems !== undefined ? realItems.length > 0 : hasItems;
     const placeholder = findEmptyPlaceholder(host);
     const root = host.closest(ComponentSelector);
 
@@ -47,6 +50,7 @@ export function ensureEmptyState<TStack>(host: Element, componentId: number, tem
         placeholder?.remove();
         host.toggleAttribute(ItemsEmptyAttribute, false);
         root?.toggleAttribute(ItemsEmptyAttribute, false);
+        root?.toggleAttribute(ItemsNoMatchAttribute, false);
         return;
     }
 
@@ -54,6 +58,42 @@ export function ensureEmptyState<TStack>(host: Element, componentId: number, tem
 
     host.toggleAttribute(ItemsEmptyAttribute, empty);
     root?.toggleAttribute(ItemsEmptyAttribute, empty);
+    root?.toggleAttribute(ItemsNoMatchAttribute, empty && (hasAnyItems || hasActiveItemsQuery(host, root)));
+}
+
+function hasActiveItemsQuery(host: Element, root: Element | null): boolean {
+    const carrier = queryCarrier(host, root);
+    const text = carrier?.getAttribute(ItemsQueryAttribute) ?? null;
+
+    if (text === null || text.length === 0)
+        return false;
+
+    try {
+        const parsed = JSON.parse(text) as { filters?: unknown[]; search?: string | null };
+
+        return (parsed.filters?.length ?? 0) > 0 || (parsed.search?.trim().length ?? 0) > 0;
+    }
+    catch {
+        return false;
+    }
+}
+
+function queryCarrier(host: Element, root: Element | null): Element | null {
+    if (host.hasAttribute(ItemsQueryAttribute))
+        return host;
+
+    if (root === null)
+        return null;
+
+    if (root.hasAttribute(ItemsQueryAttribute))
+        return root;
+
+    for (const child of root.children) {
+        if (child.hasAttribute(ItemsQueryAttribute))
+            return child;
+    }
+
+    return null;
 }
 
 /** Draws the empty template into the host and answers whether there was one to draw. */

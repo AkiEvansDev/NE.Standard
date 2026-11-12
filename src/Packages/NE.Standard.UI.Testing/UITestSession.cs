@@ -77,7 +77,57 @@ public sealed class UITestSession
     }
 
     /// <summary>Whether anything was said about the session; an untouched one is issued by the application as a first visit's is.</summary>
-    internal bool IsDescribed => UserId is not null || Language is not null;
+    internal bool IsDescribed => UserId is not null || Language is not null || TimeZone is not null;
+
+    internal static UITestSession FromCurrent(UserSessionState? stored, UITestSession previous, UINotificationPermission notificationPermission, bool claimsIdentity)
+    {
+        UITestSession session = new()
+        {
+            Language = stored?.Language ?? previous.Language,
+            TimeZone = stored?.TimeZone ?? previous.TimeZone,
+            NotificationPermission = notificationPermission
+        };
+
+        if (claimsIdentity)
+        {
+            session.UserId = previous.UserId;
+            session.Roles = previous.Roles;
+            session.Permissions = previous.Permissions;
+        }
+        else if (stored is { IsAuthenticated: true, UserId: { Length: > 0 } userId })
+        {
+            session.UserId = userId;
+            session.Roles = stored.Roles;
+            session.Permissions = stored.Permissions;
+        }
+
+        return session;
+    }
+
+    internal static UITestSession FromContext(IUserSessionContext current, UITestSession previous, UINotificationPermission notificationPermission, bool claimsIdentity)
+    {
+        UITestSession session = new()
+        {
+            Language = current.Language,
+            TimeZone = current.TimeZone ?? previous.TimeZone,
+            NotificationPermission = notificationPermission
+        };
+
+        if (claimsIdentity)
+        {
+            session.UserId = previous.UserId;
+            session.Roles = previous.Roles;
+            session.Permissions = previous.Permissions;
+        }
+        else if (current is { IsAuthenticated: true, UserId: { Length: > 0 } userId })
+        {
+            session.UserId = userId;
+            session.Roles = current.Roles;
+            session.Permissions = current.Permissions;
+        }
+
+        return session;
+    }
 
     /// <summary>The session as the store keeps it, under a new id.</summary>
     internal UserSessionState ToState(string defaultLanguage)

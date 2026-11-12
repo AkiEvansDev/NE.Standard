@@ -2,8 +2,9 @@
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import {
-    CellFocusAttribute, ExpanderHeaderClass, RowFocusAttribute, TabCaptionClass, TextBodyClass, TextClass, TextHeaderClass,
-    TextRenamableAttribute, TextRenameClass, TextRenamedTitleAttribute, TextTitleAttribute, TextTitleClass, UnrenamableAttribute
+    CardClass, CellFocusAttribute, ExpanderHeaderClass, RowFocusAttribute, SurfaceClass, SurfaceClickableClass, TabCaptionClass,
+    TabItemCaptionClass, TabsRenamableAttribute, TabsViewClass, TextBodyClass, TextClass, TextHeaderClass, TextRenamableAttribute,
+    TextRenameClass, TextRenamedTitleAttribute, TextTitleAttribute, TextTitleClass, UnrenamableAttribute
 } from "../addressing/dom-attributes.ts";
 import type { EffectRunner } from "../addressing/dom-registry.ts";
 import type { PropertyPatchEngine, PropertyValueChange } from "../updates/property-patch-engine.ts";
@@ -11,7 +12,7 @@ import { isFieldKey } from "./caret-fields.ts";
 import { isInRenameField, openInlineRename } from "./inline-rename.ts";
 import { isInert, isItemRefused } from "./interactive-state.ts";
 import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
-import { focusAsLastInput } from "./popup-focus.ts";
+import { focusAsLastInput, isTouchLast } from "./popup-focus.ts";
 import { SelectionRowSelector } from "./row-selection.ts";
 
 export type TextRenameEngineOptions = {
@@ -56,7 +57,7 @@ export class TextRenameEngine {
         const title = domEvent.target.closest<HTMLElement>(`.${TextTitleClass}`);
         const text = title?.closest<HTMLElement>(`.${TextClass}[${TextRenamableAttribute}]`) ?? null;
 
-        if (text !== null && title === this.titleOf(text) && !isInert(text) && !isRenameRefused(text))
+        if (!isTouchLast() && text !== null && title === this.titleOf(text) && !isInert(text) && !isRenameRefused(text))
             domEvent.preventDefault();
     }
 
@@ -66,7 +67,7 @@ export class TextRenameEngine {
 
         const text = domEvent.target.closest<HTMLElement>(`.${TextClass}[${TextRenamableAttribute}]`);
 
-        if (text === null)
+        if (text === null || managedByTabsView(text))
             return;
 
         if (this.startRename(text))
@@ -87,9 +88,9 @@ export class TextRenameEngine {
         const direct = target.closest<HTMLElement>(`.${TextClass}[${TextRenamableAttribute}]`);
 
         if (direct !== null)
-            return direct;
+            return managedByTabsView(direct) ? null : direct;
 
-        if (target.classList.contains(ExpanderHeaderClass) || target.classList.contains(TabCaptionClass))
+        if (target.classList.contains(ExpanderHeaderClass) || target.classList.contains(TabCaptionClass) || target.classList.contains(SurfaceClickableClass) || target.matches(`a.${SurfaceClass}, a.${CardClass}`))
             return target.querySelector<HTMLElement>(`.${TextClass}[${TextRenamableAttribute}]`);
 
         const cell = target.querySelector<HTMLElement>(`[${CellFocusAttribute}]`);
@@ -101,7 +102,9 @@ export class TextRenameEngine {
             ? target
             : target.querySelector<HTMLElement>(`[${RowFocusAttribute}]`);
 
-        return row?.querySelector<HTMLElement>(`.${TextClass}[${TextRenamableAttribute}]`) ?? null;
+        const candidate = row?.querySelector<HTMLElement>(`.${TextClass}[${TextRenamableAttribute}]`) ?? null;
+
+        return candidate !== null && managedByTabsView(candidate) ? null : candidate;
     }
 
     private startRename(text: HTMLElement): boolean {
@@ -197,6 +200,10 @@ export class TextRenameEngine {
         return text.querySelector<HTMLElement>(`:scope > .${TextBodyClass} > .${TextHeaderClass} > .${TextTitleClass}`)
             ?? text.querySelector<HTMLElement>(`.${TextTitleClass}`);
     }
+}
+
+function managedByTabsView(text: Element): boolean {
+    return (text.closest(`.${TabItemCaptionClass}`)?.closest(`.${TabsViewClass}[${TabsRenamableAttribute}]`) ?? null) !== null;
 }
 
 function isRenameRefused(text: Element): boolean {

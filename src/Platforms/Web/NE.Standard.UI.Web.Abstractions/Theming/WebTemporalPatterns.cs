@@ -144,7 +144,7 @@ public sealed record WebTemporalPatterns(string Date, string ShortTime, string L
 
             if (current is '\'' or '"')
             {
-                var close = pattern.IndexOf(current, index + 1);
+                var close = pattern.IndexOf(current, index + 1, StringComparison.Ordinal);
 
                 // The shared formatter has no quoting: a literal that holds a token's letter would be read as the token.
                 if (close < 0 || HasTokenLetter(pattern.AsSpan(index + 1, close - index - 1)))

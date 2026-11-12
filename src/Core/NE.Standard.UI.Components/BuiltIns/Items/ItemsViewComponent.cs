@@ -165,22 +165,30 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     /// </summary>
     protected ItemsViewComponent(string? id = null) : base(id)
     {
-        _ = SetTemplate(new DefaultTextTemplate(binds: true));
-        _ = SetEmptyTemplate(new DefaultEmptyTemplate());
-        _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
+        SetDefaultTemplate(new DefaultTextTemplate(binds: true));
+        SetDefaultEmptyTemplate(new DefaultEmptyTemplate());
+        SetDefaultGroupTemplate(new DefaultGroupTemplate(binds: true));
     }
 
     /// <summary>
     /// Configures the built-in default text template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultTemplate(Action<DefaultTextTemplate> configure)
-        => Self.ConfigureTemplate(Template as DefaultTextTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(Template as DefaultTextTemplate, configure, "template");
+        MarkTemplateAuthored();
+        return result;
+    }
 
     /// <summary>
     /// Configures the built-in default group template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)
-        => Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
+        MarkGroupTemplateAuthored();
+        return result;
+    }
 }
 
 /// <summary>

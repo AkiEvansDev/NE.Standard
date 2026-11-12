@@ -113,7 +113,7 @@ internal sealed partial class CatalogueController : UIControllerBase
     [UICommand]
     public UICommandResult WriteAddress()
     {
-        Dictionary<string, object?> parameters = new(StringComparer.Ordinal);
+        Dictionary<string, object?> parameters = [with(StringComparer.Ordinal)];
 
         if (!string.IsNullOrWhiteSpace(Search))
             parameters["q"] = Search.Trim();

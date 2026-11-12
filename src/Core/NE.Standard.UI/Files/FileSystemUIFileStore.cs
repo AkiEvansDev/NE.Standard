@@ -19,12 +19,12 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 {
     private sealed record StoredUpload(UIUploadFile File, string SelectionId, string Path, DateTime CreatedAtUtc);
 
-    private sealed record StoredDownload(string FileName, string ContentType, string Path, long Size, DateTime CreatedAtUtc);
+    private sealed record StoredDownload(string FileName, string ContentType, string Path, long Size, long Charged, DateTime CreatedAtUtc);
 
     /// <summary>One session's uploads by id, and what they are counted as against its allowance (<see cref="UIAllowanceCharge"/>).</summary>
     private sealed class SessionUploads
     {
-        public Dictionary<string, StoredUpload> Files { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, StoredUpload> Files { get; } = [with(StringComparer.Ordinal)];
 
         public long Charged { get; set; }
     }
@@ -33,11 +33,13 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
     // selection, its removal — walks its own uploads, never every session's. One lock: an upload is no hot path, and a session's
     // files and its count move together.
     private readonly Lock _uploadsSync = new();
-    private readonly Dictionary<string, SessionUploads> _uploads = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, SessionUploads> _uploads = [with(StringComparer.Ordinal)];
     private int _uploadCount;
     private long _uploadSize;
 
     private readonly ConcurrentDictionary<(string SessionId, string Token), StoredDownload> _downloads = new();
+    private readonly Lock _downloadsSync = new();
+    private readonly UIFileOptions _options;
 
     private readonly string _root;
 
@@ -62,7 +64,8 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
     {
         ArgumentNullException.ThrowIfNull(application);
 
-        _root = application.Files.StorageRoot ?? DefaultRoot();
+        _options = application.Files;
+        _root = _options.StorageRoot ?? DefaultRoot();
 
         _ = Directory.CreateDirectory(_root);
     }
@@ -232,13 +235,116 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
         ArgumentNullException.ThrowIfNull(content);
 
+        DateTime now = DateTime.UtcNow;
+        var overhead = UIAllowanceCharge.Overhead(fileName);
+        var allowedBytes = GetRemainingDownloadAllowance(sessionId, now) - overhead;
+
+        if (allowedBytes < 0)
+            throw new InvalidOperationException("Staged download limit exceeded.");
+
         var token = CreateId();
         var path = Path.Combine(_root, $"{token}.download");
-        var size = await CopyToNewFileAsync(content, path, cancellationToken).ConfigureAwait(false);
+        var size = await CopyToBoundedFileAsync(content, path, allowedBytes, cancellationToken).ConfigureAwait(false);
+        var charged = overhead + size;
 
-        _downloads[(sessionId, token)] = new StoredDownload(fileName, contentType, path, size, DateTime.UtcNow);
+        lock (_downloadsSync)
+        {
+            SweepExpiredDownloads(DateTime.UtcNow, _options.DownloadRetention);
+
+            if (ExceedsDownloadLimits(sessionId, charged))
+            {
+                Delete(path);
+                throw new InvalidOperationException("Staged download limit exceeded.");
+            }
+
+            _downloads[(sessionId, token)] = new StoredDownload(fileName, contentType, path, size, charged, DateTime.UtcNow);
+        }
 
         return token;
+    }
+
+    private long GetRemainingDownloadAllowance(string sessionId, DateTime utcNow)
+    {
+        SweepExpiredDownloads(utcNow, _options.DownloadRetention);
+
+        long sessionBytes = 0;
+        long totalBytes = 0;
+
+        foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> entry in _downloads)
+        {
+            totalBytes += entry.Value.Charged;
+
+            if (string.Equals(entry.Key.SessionId, sessionId, StringComparison.Ordinal))
+                sessionBytes += entry.Value.Charged;
+        }
+
+        var sessionRemaining = _options.MaxDownloadBytesPerSession - sessionBytes;
+
+        if (_options.MaxDownloadBytesTotal is > 0 and var maxTotal)
+            return Math.Min(sessionRemaining, maxTotal - totalBytes);
+
+        return sessionRemaining;
+    }
+
+    private bool ExceedsDownloadLimits(string sessionId, long addedBytes)
+    {
+        long sessionBytes = 0;
+        long totalBytes = 0;
+
+        foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> entry in _downloads)
+        {
+            totalBytes += entry.Value.Charged;
+
+            if (string.Equals(entry.Key.SessionId, sessionId, StringComparison.Ordinal))
+                sessionBytes += entry.Value.Charged;
+        }
+
+        if (sessionBytes + addedBytes > _options.MaxDownloadBytesPerSession)
+            return true;
+
+        return _options.MaxDownloadBytesTotal is > 0 and var maxTotal && totalBytes + addedBytes > maxTotal;
+    }
+
+    private void SweepExpiredDownloads(DateTime utcNow, TimeSpan downloadRetention)
+    {
+        foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> entry in _downloads)
+        {
+            if (entry.Value.CreatedAtUtc + downloadRetention <= utcNow && _downloads.TryRemove(entry))
+                Delete(entry.Value.Path);
+        }
+    }
+
+    private static async Task<long> CopyToBoundedFileAsync(Stream content, string path, long maxBytes, CancellationToken cancellationToken)
+    {
+        var buffer = new byte[16 * 1024];
+        long total = 0;
+
+        try
+        {
+            FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+
+            await using (destination.ConfigureAwait(false))
+            {
+                int read;
+
+                while ((read = await content.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    total += read;
+
+                    if (total > maxBytes)
+                        throw new InvalidOperationException("Staged download limit exceeded.");
+
+                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                }
+
+                return total;
+            }
+        }
+        catch
+        {
+            Delete(path);
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -422,7 +528,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
     /// </summary>
     private int SweepOrphans(DateTime utcNow, TimeSpan uploadRetention, TimeSpan downloadRetention)
     {
-        HashSet<string> claimed = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> claimed = [with(StringComparer.OrdinalIgnoreCase)];
 
         lock (_uploadsSync)
         {

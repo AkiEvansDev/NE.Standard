@@ -36,13 +36,14 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IReadOnlyLi
 
     private static readonly bool SupportsKeyLookup = typeof(IBindableItem).IsAssignableFrom(typeof(T));
     private static readonly PathSegment CountSegment = PathSegment.ForProperty(nameof(Count));
+    private static readonly RecursiveChange CountChange = RecursiveChange.Set(RecursivePath.Empty.Append(CountSegment));
 
     private readonly Lock _sync = new();
     private readonly List<T> _items = [];
-    private readonly Dictionary<T, int> _indicesByItem = new(ReferenceEqualityComparer.Instance);
-    private readonly Dictionary<T, ItemForwarder> _forwardersByItem = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<T, int> _indicesByItem = [with(ReferenceEqualityComparer.Instance)];
+    private readonly Dictionary<T, ItemForwarder> _forwardersByItem = [with(ReferenceEqualityComparer.Instance)];
     private readonly Dictionary<string, T>? _itemsById = SupportsKeyLookup
-        ? new Dictionary<string, T>(StringComparer.Ordinal)
+        ? [with(StringComparer.Ordinal)]
         : null;
 
     /// <summary>
@@ -286,7 +287,7 @@ public class RecursiveCollection<T> : RecursiveObservable, IList<T>, IReadOnlyLi
     }
 
     private void NotifyCountChanged()
-        => Notify(RecursiveChange.Set(RecursivePath.Empty.Append(CountSegment)));
+        => Notify(CountChange);
 
     /// <summary>
     /// Adds multiple items and emits a single collection add change.

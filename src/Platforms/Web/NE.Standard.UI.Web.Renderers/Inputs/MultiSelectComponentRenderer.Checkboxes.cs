@@ -36,7 +36,7 @@ public sealed partial class MultiSelectComponentRenderer
     {
         _ = root.Class(CheckboxesClassName);
 
-        RenderTooltip(context, root);
+        RenderTooltip(context, root, TextContentRendererBase.TooltipNameOperation);
         TextContentRendererBase.RenderInputSize(context, root);
         TextContentRendererBase.RenderInputHeader(context, root);
 

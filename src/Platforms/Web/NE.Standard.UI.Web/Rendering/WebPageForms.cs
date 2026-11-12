@@ -47,7 +47,7 @@ internal static class WebPageForms
         if (!state.TryGet(property, out CompiledUIPropertyValue? value) || value.IsBind || value.Value is not string formId || string.IsNullOrWhiteSpace(formId))
             return;
 
-        forms ??= new SortedDictionary<string, string>(StringComparer.Ordinal);
+        forms ??= [with(StringComparer.Ordinal)];
         _ = forms.TryAdd(WebForms.ElementId(formId), formId);
     }
 }

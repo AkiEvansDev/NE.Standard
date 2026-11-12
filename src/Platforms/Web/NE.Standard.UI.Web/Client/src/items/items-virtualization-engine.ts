@@ -13,10 +13,10 @@ import { areValuesEqual } from "../state/value-equality.ts";
 import type { ItemStackEntry, ItemValueStep } from "./binding-template-evaluator.ts";
 import { placeInOrder } from "./items-dom-order.ts";
 import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } from "../addressing/items-empty-renderer.ts";
-import { drawGroupHeader, markGroupHeader } from "./items-group-runs.ts";
+import { drawGroupHeader, markGroupEdges, markGroupHeader } from "./items-group-runs.ts";
 import { DefaultItemSize, resolveHostMode } from "../addressing/items-host-mode.ts";
 import { renderItemRow } from "./items-row-renderer.ts";
-import { BottomSpacer, TopSpacer, ensureSpacer, focusSpacer, groupOf, holdsFocus, holdTopLine, isColumn, isWrap, keepVirtualCursorShown, lineIndexOf, measureVirtualRows, pitchOfVirtualRow, projectVirtualHost, readGap, readPixels, refusesChoice, setElement, sum, tilesAcross, wrapLines } from "./items-spacers.ts";
+import { BottomSpacer, TopSpacer, bumpItemsVersion, ensureSpacer, focusSpacer, groupOf, holdsFocus, holdTopLine, isColumn, isWrap, keepVirtualCursorShown, lineIndexOf, measureVirtualRows, pitchOfVirtualRow, projectVirtualHost, readGap, readPixels, refusesChoice, setElement, sum, tilesAcross, wrapLines } from "./items-spacers.ts";
 import type { VirtualEntry, VirtualHostState } from "./items-spacers.ts";
 import { stampRowIndices } from "./table-row-indices.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
@@ -286,7 +286,7 @@ export class ItemsVirtualizationEngine {
 
         state.entries = next;
         state.byKey = byKey;
-        state.version++;
+        bumpItemsVersion(host, state);
 
         return renewed;
     }
@@ -345,7 +345,7 @@ export class ItemsVirtualizationEngine {
 
         state.entries.splice(at, 0, entry);
         state.byKey.set(key, entry);
-        state.version++;
+        bumpItemsVersion(host, state);
     }
 
     /** Takes the items of the keys out together: the values filtered once, and the cursor's next row decided past every row going. */
@@ -381,7 +381,7 @@ export class ItemsVirtualizationEngine {
             row.remove();
 
         state.entries = state.entries.filter(entry => !gone.has(entry));
-        state.version++;
+        bumpItemsVersion(host, state);
         restoreCursor?.();
     }
 
@@ -406,7 +406,7 @@ export class ItemsVirtualizationEngine {
         state.entries[state.entries.indexOf(old)] = entry;
         state.byKey.delete(oldKey);
         state.byKey.set(key, entry);
-        state.version++;
+        bumpItemsVersion(host, state);
     }
 
     public move(host: Element, key: string, newIndex: number | null): void {
@@ -420,7 +420,7 @@ export class ItemsVirtualizationEngine {
         const at = newIndex === null || newIndex > state.entries.length ? state.entries.length : newIndex;
 
         state.entries.splice(at, 0, entry);
-        state.version++;
+        bumpItemsVersion(host, state);
     }
 
     public reset(host: Element): void {
@@ -434,7 +434,7 @@ export class ItemsVirtualizationEngine {
 
         state.entries = [];
         state.byKey.clear();
-        state.version++;
+        bumpItemsVersion(host, state);
     }
 
     /** A patch to one item's value, drawn or not; returns whether the host holds that key. */
@@ -446,7 +446,7 @@ export class ItemsVirtualizationEngine {
             return false;
 
         entry.item = writeItemValuePath(entry.item, path, value);
-        state.version++;
+        bumpItemsVersion(host, state);
 
         // A whole new item is a new row; a property written into the old one already reached the drawn row through its own patch.
         if (path.length === 0)
@@ -699,7 +699,8 @@ export class ItemsVirtualizationEngine {
         placeInOrder(host, [...order, ...toNodes(findEmptyPlaceholder(host))]);
         ensureSpacer(host, TopSpacer, before > 0 ? before - gap : 0);
         ensureSpacer(host, BottomSpacer, after > 0 ? after - gap : 0);
-        ensureEmptyState(host, state.componentId, this.options.templates, this.options.renderer, total > 0);
+        ensureEmptyState(host, state.componentId, this.options.templates, this.options.renderer, total > 0, state.entries.length > 0);
+        markGroupEdges(host);
         stampRowIndices(host, placed, place + 1);
 
         if (changed || state.first !== first || state.last !== last) {

@@ -666,6 +666,8 @@ public sealed class UIApplicationBuilder
             MaxFilesPerSelection = source.MaxFilesPerSelection,
             MaxUploadBytesPerSession = source.MaxUploadBytesPerSession,
             MaxUploadBytesTotal = source.MaxUploadBytesTotal,
+            MaxDownloadBytesPerSession = source.MaxDownloadBytesPerSession,
+            MaxDownloadBytesTotal = source.MaxDownloadBytesTotal,
             UploadRetention = source.UploadRetention,
             DownloadRetention = source.DownloadRetention,
             CleanupInterval = source.CleanupInterval,

@@ -27,7 +27,7 @@ internal static class UICollectionRemoveMerge
         if (!HoldsTwoRemovesInARow(updates))
             return changes;
 
-        List<ServerUIUpdate> merged = new(updates.Length);
+        List<ServerUIUpdate> merged = [with(updates.Length)];
         Run? run = null;
         var any = false;
 
@@ -79,7 +79,7 @@ internal static class UICollectionRemoveMerge
     {
         private readonly int _slot;
         private readonly ServerCollectionChangeUIUpdate _first;
-        private readonly HashSet<string> _keys = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _keys = [with(StringComparer.Ordinal)];
         private List<ServerCollectionItemChange>? _items;
 
         // The range taken, as the list stood before the run's first remove.

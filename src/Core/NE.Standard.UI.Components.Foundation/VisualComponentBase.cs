@@ -35,11 +35,11 @@ internal static class ComponentIdGenerator
 /// <summary>
 /// Base class for visual components with layout, binding, interaction, and event authoring support.
 /// </summary>
-public abstract partial class VisualComponentBase<TComponent>(string? id = null) : IVisualComponent, IDialogOwnerComponent, IPropertyBindingComponent
+public abstract partial class VisualComponentBase<TComponent>(string? id = null) : IVisualComponent, IDialogOwnerComponent, IPropertyBindingComponent, ITemplateEventTarget
     where TComponent : VisualComponentBase<TComponent>, IUIComponentDefinition
 {
     private readonly Dictionary<UIProperty, int> _bindingIndexes = [];
-    private readonly Dictionary<string, int> _eventIndexes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _eventIndexes = [with(StringComparer.Ordinal)];
 
     private readonly List<UIBinding> _bindings = [];
     private readonly List<UIInteraction> _interactions = [];
@@ -321,6 +321,10 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     protected bool HasBinding(UIProperty property)
         => _bindingIndexes.ContainsKey(property);
 
+    /// <summary>Gets whether <paramref name="property"/> has a non-optional authored property binding on this component.</summary>
+    protected bool HasNonOptionalBinding(UIProperty property)
+        => _bindingIndexes.TryGetValue(property, out var index) && !_bindings[index].Optional;
+
     private UIPropertyDefinition GetBindableDefinition(UIProperty property)
     {
         EnsurePropertiesRegistered();
@@ -412,83 +416,177 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         if (rules.IsEmpty)
             return;
 
+        CapturedComponentState captured = CaptureComponentState(definitions);
+
+        if (rules.Length == 1)
+        {
+            rules[0].Apply(this);
+            RestoreComponentState(definitions, in captured);
+            return;
+        }
+
+        CapturedComponentState[] layers = new CapturedComponentState[rules.Length - 1];
+
+        for (var i = rules.Length - 1; i >= 1; i--)
+        {
+            rules[i].Apply(this);
+            layers[i - 1] = CaptureComponentState(definitions);
+        }
+
+        rules[0].Apply(this);
+
+        for (var i = 0; i < layers.Length; i++)
+            RestoreComponentState(definitions, in layers[i]);
+
+        RestoreComponentState(definitions, in captured);
+    }
+
+    private CapturedComponentState CaptureComponentState(ReadOnlySpan<UIPropertyDefinition> definitions)
+    {
+        Action? restoreAuthoredState = SnapshotAuthoredState();
         var ownValues = new object?[definitions.Length];
 
         for (var i = 0; i < definitions.Length; i++)
         {
+            if (definitions[i].Setter is null)
+                continue;
+
             ownValues[i] = definitions[i].Getter(this);
 
             // Cleared before ancestor rules run so a rule's setter is not refused by a sibling property the child set and will restore.
             if (ownValues[i] is not null)
-                definitions[i].Setter?.Invoke(this, null);
+                definitions[i].Setter!.Invoke(this, null);
         }
 
         UIBinding[] ownBindings = _bindings.Count > 0 ? [.. _bindings] : [];
         UIEvent[] ownEvents = _events.Count > 0 ? [.. _events] : [];
+        UIInteraction[] ownInteractions = _interactions.Count > 0 ? [.. _interactions] : [];
         UIBinding? ownContext = Context;
         IVisualComponent? ownContextMenu = ContextMenu;
         var ownIsContentTree = IsContentTree;
         HashSet<UIProperty>? ownContent = _content is { Count: > 0 } ? [.. _content] : null;
         UIPropertyReference? ownValidationTarget = this is IInputComponent inputBefore ? inputBefore.ValidationTarget : null;
 
-        for (var i = 0; i < rules.Length; i++)
-            rules[i].Apply(this);
+        for (var i = _bindings.Count - 1; i >= 0; i--)
+        {
+            if (!_bindings[i].Optional)
+                RemoveBinding(_bindings[i].Target);
+        }
 
+        _events.Clear();
+        _eventIndexes.Clear();
+        _interactions.Clear();
+        Context = null;
+        ContextMenu = null;
+        IsContentTree = false;
+        _content?.Clear();
+
+        if (ownValidationTarget is not null && this is IInputComponent clearedInput)
+            clearedInput.ValidationTarget = null;
+
+        return new CapturedComponentState(restoreAuthoredState, ownValues, ownBindings, ownEvents, ownInteractions, ownContext, ownContextMenu, ownIsContentTree, ownContent, ownValidationTarget);
+    }
+
+    /// <summary>Snapshots non-property authored state before ancestor <c>SetDefaults</c> rules run and returns a callback that restores it after.</summary>
+    protected virtual Action? SnapshotAuthoredState()
+        => null;
+
+    private void RestoreComponentState(ReadOnlySpan<UIPropertyDefinition> definitions, in CapturedComponentState captured)
+    {
         for (var i = 0; i < definitions.Length; i++)
         {
             UIPropertyDefinition definition = definitions[i];
-            var hadOwnBinding = ContainsBindingTarget(ownBindings, definition.Property);
 
-            if (ownValues[i] is not null)
+            if (definition.Setter is null)
+                continue;
+
+            var hadOwnBinding = ContainsNonOptionalBindingTarget(captured.OwnBindings, definition.Property);
+
+            if (captured.OwnValues[i] is not null)
             {
-                definition.Setter?.Invoke(this, ownValues[i]);
+                definition.Setter.Invoke(this, captured.OwnValues[i]);
 
                 if (!hadOwnBinding)
-                    RemoveBinding(definition.Property);
+                    RemoveNonOptionalBinding(definition.Property);
             }
             else if (hadOwnBinding && definition.Getter(this) is not null)
             {
-                definition.Setter?.Invoke(this, null);
+                definition.Setter.Invoke(this, null);
             }
         }
 
-        for (var i = 0; i < ownBindings.Length; i++)
-            SetOrReplaceBinding(ownBindings[i]);
+        for (var i = 0; i < captured.OwnBindings.Length; i++)
+            SetOrReplaceBinding(captured.OwnBindings[i]);
 
-        for (var i = 0; i < ownEvents.Length; i++)
-            AddOrReplaceEvent(ownEvents[i]);
+        for (var i = 0; i < captured.OwnEvents.Length; i++)
+            AddOrReplaceEvent(captured.OwnEvents[i]);
 
-        if (ownContext is not null)
-            Context = ownContext;
+        if (captured.OwnInteractions.Length > 0)
+            _interactions.AddRange(captured.OwnInteractions);
 
-        if (ownContextMenu is not null)
-            ContextMenu = ownContextMenu;
+        if (captured.OwnContext is not null)
+            Context = captured.OwnContext;
 
-        if (ownIsContentTree)
+        if (captured.OwnContextMenu is not null)
+            ContextMenu = captured.OwnContextMenu;
+
+        if (captured.OwnIsContentTree)
             IsContentTree = true;
 
-        if (ownValidationTarget is not null && this is IInputComponent inputAfter)
-            inputAfter.ValidationTarget = ownValidationTarget;
+        if (captured.OwnValidationTarget is not null && this is IInputComponent inputAfter)
+            inputAfter.ValidationTarget = captured.OwnValidationTarget;
 
-        if (ownContent is not null)
+        if (captured.OwnContent is not null)
         {
-            foreach (UIProperty property in ownContent)
+            foreach (UIProperty property in captured.OwnContent)
                 _ = (_content ??= []).Add(property);
         }
+
+        captured.RestoreAuthoredState?.Invoke();
     }
 
-    private static bool ContainsBindingTarget(UIBinding[] bindings, UIProperty target)
+    Action ITemplateEventTarget.SnapshotComponentState()
+    {
+        EnsurePropertiesRegistered();
+        UIPropertyDefinition[] definitions = UIPropertyRegister.GetProperties(TypeKey);
+        CapturedComponentState captured = CaptureComponentState(definitions);
+
+        return () => RestoreComponentState(definitions, in captured);
+    }
+
+    UIEvent[] ITemplateEventTarget.SnapshotEvents()
+        => _events.Count > 0 ? [.. _events] : [];
+
+    void ITemplateEventTarget.RestoreEvents(UIEvent[] events)
+    {
+        for (var i = 0; i < events.Length; i++)
+            AddOrReplaceEvent(events[i]);
+    }
+
+    private readonly record struct CapturedComponentState(Action? RestoreAuthoredState, object?[] OwnValues, UIBinding[] OwnBindings, UIEvent[] OwnEvents, UIInteraction[] OwnInteractions, UIBinding? OwnContext, IVisualComponent? OwnContextMenu, bool OwnIsContentTree, HashSet<UIProperty>? OwnContent, UIPropertyReference? OwnValidationTarget);
+
+    private static bool ContainsNonOptionalBindingTarget(UIBinding[] bindings, UIProperty target)
     {
         for (var i = 0; i < bindings.Length; i++)
         {
-            if (bindings[i].Target.Equals(target))
+            if (!bindings[i].Optional && bindings[i].Target.Equals(target))
                 return true;
         }
 
         return false;
     }
 
-    private void RemoveBinding(UIProperty target)
+    /// <summary>Removes any non-optional authored property binding targeting <paramref name="target"/>.</summary>
+    protected void RemoveNonOptionalBinding(UIProperty target)
+    {
+        if (!_bindingIndexes.TryGetValue(target, out var index) || _bindings[index].Optional)
+            return;
+
+        RemoveBinding(target);
+    }
+
+    /// <summary>Removes any authored property binding targeting <paramref name="target"/>.</summary>
+    protected void RemoveBinding(UIProperty target)
     {
         if (!_bindingIndexes.Remove(target, out var removedIndex))
             return;
@@ -993,7 +1091,7 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
         ArgumentNullException.ThrowIfNull(arguments);
 
-        Dictionary<string, UIActionArgument> mapped = new(StringComparer.Ordinal);
+        Dictionary<string, UIActionArgument> mapped = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < arguments.Length; i++)
         {

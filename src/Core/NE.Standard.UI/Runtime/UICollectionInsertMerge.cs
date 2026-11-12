@@ -30,7 +30,7 @@ internal static class UICollectionInsertMerge
         if (!HoldsTwoInserts(updates))
             return changes;
 
-        List<ServerUIUpdate> merged = new(updates.Length);
+        List<ServerUIUpdate> merged = [with(updates.Length)];
         List<Run> runs = [];
         var any = false;
 
@@ -112,7 +112,7 @@ internal static class UICollectionInsertMerge
     {
         private readonly int _slot;
         private readonly ServerCollectionChangeUIUpdate _first;
-        private readonly HashSet<string> _keys = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _keys = [with(StringComparer.Ordinal)];
         private List<ServerCollectionItemChange>? _items;
 
         // The index the next item must carry to continue the run; null where every item so far carried none, which appends.

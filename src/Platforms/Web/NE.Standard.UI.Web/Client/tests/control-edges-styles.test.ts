@@ -61,7 +61,7 @@ test("a Ghost field shows its focus's wash under the pointer and no edge, steps 
     assert.ok(!css.includes(":where(.ui-input--ghost:not(.ui-disabled):not(.ui-readonly)) > .ui-field-box:hover"), "every ghost box answers the pointer");
     assert.match(css, /:where\(\.ui-input--ghost[^{]*:hover :is\(\.ui-field, \.ui-select__trigger-content\)[^{]*\{\s*color: var\(--ui-text-selected\);/);
 
-    const pictureRow = /\.ui-image-input--inline\.ui-input--ghost[^{]*:hover \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const pictureRow = /\.ui-input--ghost\.ui-image-input:not\(\.ui-image-input--multiple\)[^{]*:hover \{([^}]*)\}/.exec(css)?.[1] ?? "";
 
     assert.match(pictureRow, wash);
     assert.doesNotMatch(css, /\.ui-key-value-action__value-input \.ui-input--ghost:not\([^{]*\):hover \{/);

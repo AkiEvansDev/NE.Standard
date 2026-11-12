@@ -15,7 +15,7 @@ internal static class UIViewValidation
         ArgumentNullException.ThrowIfNull(view.Title);
 
         var hasContent = false;
-        HashSet<string> dialogKeys = new(StringComparer.Ordinal);
+        HashSet<string> dialogKeys = [with(StringComparer.Ordinal)];
 
         foreach (UIRegion region in view.Regions)
         {

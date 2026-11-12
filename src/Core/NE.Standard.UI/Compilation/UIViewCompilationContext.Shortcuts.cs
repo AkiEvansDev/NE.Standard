@@ -34,7 +34,7 @@ internal sealed partial class UIViewCompilationContext
     /// </summary>
     private void ValidateShortcuts()
     {
-        Dictionary<string, ShortcutClaim> claims = new(StringComparer.Ordinal);
+        Dictionary<string, ShortcutClaim> claims = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < _componentOrder.Count; i++)
         {

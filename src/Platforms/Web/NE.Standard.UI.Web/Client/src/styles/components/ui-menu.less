@@ -129,8 +129,8 @@
     .ui-menu-entry-corners(@ui-list-entry-radius);
 }
 
-// A group whose flyout is open in a popup stays lit (wash + ink) while the pointer or keyboard explores its child flyout.
-:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) [data-ui-menu-group][data-ui-menu-open] > .ui-menu-item:not(.ui-menu-item--selected) {
+// A group whose flyout is open stays lit (wash + ink) while the pointer or keyboard explores its child flyout.
+:is(@{ui-menu-popups} [data-ui-menu-group], @{ui-menu-folded} [data-ui-menu-group], .ui-menu.ui-orientation--horizontal [data-ui-menu-group], [data-ui-menu-select])[data-ui-menu-open] > .ui-menu-item:not(.ui-menu-item--selected) {
     background-color: var(--ui-wash-hover);
     color: @ui-text-ink;
 }

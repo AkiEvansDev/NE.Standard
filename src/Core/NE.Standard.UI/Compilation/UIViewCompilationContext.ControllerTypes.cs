@@ -30,7 +30,7 @@ internal sealed partial class UIViewCompilationContext
     private static void EnsureStaticItemsAreBindable(IVisualComponent component, IItemsComponent itemsComponent)
     {
         IReadOnlyList<object?> items = itemsComponent.Items;
-        HashSet<string> ids = new(StringComparer.Ordinal);
+        HashSet<string> ids = [with(StringComparer.Ordinal)];
 
         for (var i = 0; i < items.Count; i++)
         {

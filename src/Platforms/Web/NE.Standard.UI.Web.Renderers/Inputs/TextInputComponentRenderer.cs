@@ -11,16 +11,6 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 public sealed class TextInputComponentRenderer : TextContentRendererBase
 {
-    // On a field with no caption: its root is a <label>, whose words would name it, the names of the buttons standing in it among
-    // them ("Attach Emoji Send"); its placeholder names it instead, as the page translates or patches it.
-    private const string PlaceholderNamesAttribute = "data-ui-placeholder-names";
-
-    private static readonly WebDomOperation[] PlaceholderOperations =
-    [
-        WebDomOperation.Attribute("placeholder", converter: WebDomConverters.PlaceholderText, convertsNull: true),
-        WebDomOperation.Attribute("aria-label", $"[{PlaceholderNamesAttribute}]", converter: WebDomConverters.NonEmptyText, optional: true)
-    ];
-
     // Every field registers these same lists, so they are built once rather than per field.
     private static readonly WebDomOperation[] TypeOperations = [WebDomOperation.Attribute("type", converter: WebDomConverters.TextInputTypeAttribute)];
     private static readonly WebDomOperation[] AutocompleteOperations = [WebDomOperation.Attribute("autocomplete", converter: WebDomConverters.NonBlankText)];
@@ -29,7 +19,6 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
     public override string ComponentTypeKey => TextInputComponent.ComponentTypeKey;
 
-    protected override string ElementName => "label";
     protected override string ClassName => WebClassNames.TextInput;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
@@ -37,10 +26,12 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
+        var fieldId = ComponentPartId(context, "field");
+
         RenderTooltip(context, root);
 
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root, titleCanGoInside: true);
+        RenderInputHeader(context, root, titleCanGoInside: true, labelForId: fieldId);
 
         NativeInputRendererBase.RenderClearable(context, root);
         NativeInputRendererBase.RenderTriggers(context, root);
@@ -56,7 +47,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
             // Before a caption inside too, as they stand.
             FieldActionsRenderer.RenderLeadingGroups(context, row, $"{ClassName}__action", $"{ClassName}__below");
 
-            RenderInputHeaderInside(context, root, row);
+            RenderInputHeaderInside(context, root, row, labelForId: fieldId);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
@@ -64,6 +55,9 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
 
             _ = row.Element("input", input =>
             {
+                if (fieldId is not null)
+                    _ = input.Attribute("id", fieldId);
+
                 _ = input.Class($"{ClassName}__field");
                 _ = input.Class(WebClassNames.Field);
 
@@ -93,16 +87,7 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
                         _ = target.Attribute("inputmode", WebClassNames.InputMode(mode));
                 }, InputModeOperations);
 
-                var namedByPlaceholder = !IsFieldNamed(context);
-
-                if (namedByPlaceholder)
-                    _ = input.Attribute(PlaceholderNamesAttribute);
-
-                _ = RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, namedByPlaceholder ? RenderNamingPlaceholder : RenderPlaceholder, PlaceholderOperations);
-
-                // A blank one where the author gave none, so :placeholder-shown says the field is empty and the clear goes.
-                if (string.IsNullOrEmpty(ReadRenderValue<string?>(context, IPlaceholderInputComponent.PlaceholderProperty, null)))
-                    _ = input.Attribute("placeholder", " ");
+                NativeInputRendererBase.RenderPlaceholder(context, input, marksEmpty: true);
 
                 NativeInputRendererBase.RenderIsReadOnly(context, root, input);
 
@@ -134,17 +119,5 @@ public sealed class TextInputComponentRenderer : TextContentRendererBase
         });
 
         RenderValidationMessage(context, root);
-    }
-
-    private static void RenderNamingPlaceholder(IHtmlElementBuilder target, string? value)
-    {
-        if (!string.IsNullOrEmpty(value))
-            _ = target.Attribute("placeholder", value).Attribute("aria-label", value);
-    }
-
-    private static void RenderPlaceholder(IHtmlElementBuilder target, string? value)
-    {
-        if (!string.IsNullOrEmpty(value))
-            _ = target.Attribute("placeholder", value);
     }
 }

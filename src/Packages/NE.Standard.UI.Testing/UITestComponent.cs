@@ -117,6 +117,10 @@ public sealed class UITestComponent
     public async Task<UITestCommandResult> SetAsync(UIProperty property, object? value, CancellationToken cancellationToken = default)
         => UITestCommandResult.From(await _component.SetAsync(property, value, cancellationToken).ConfigureAwait(false));
 
+    /// <summary>Commits <paramref name="title"/> as an inline rename on this component, writing <c>RenamedTitle</c> and raising <c>rename</c>.</summary>
+    public async Task<UITestCommandResult> RenameAsync(string title, CancellationToken cancellationToken = default)
+        => UITestCommandResult.From(await _component.RenameAsync(title, cancellationToken).ConfigureAwait(false));
+
     /// <summary>Presses the component: its click command — refused while its form has a field in error — or the interactions it drives.</summary>
     /// <exception cref="InvalidOperationException">The component is not shown, or is disabled or loading.</exception>
     public async Task<UITestCommandResult> ClickAsync(CancellationToken cancellationToken = default)

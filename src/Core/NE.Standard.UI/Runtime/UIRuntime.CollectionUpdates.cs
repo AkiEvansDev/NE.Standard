@@ -32,7 +32,8 @@ internal sealed partial class UIRuntime
         if (change.Index < 0 || change.Count <= 0)
             return;
 
-        IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(change.Path, out var materializedParameters);
+        if (!View.Bindings.TryGetControllerCollections(change.Path, out IReadOnlyList<CompiledUIBinding> collectionBindings, out var materializedParameters))
+            return;
 
         for (var bindingIndex = 0; bindingIndex < collectionBindings.Count; bindingIndex++)
         {
@@ -100,9 +101,8 @@ internal sealed partial class UIRuntime
 
         PathSegment itemSegment = path[row];
         RecursivePath collectionPath = path.Take(row);
-        IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(collectionPath, out var materializedParameters);
 
-        if (collectionBindings.Count == 0)
+        if (!View.Bindings.TryGetControllerCollections(collectionPath, out IReadOnlyList<CompiledUIBinding> collectionBindings, out var materializedParameters))
             return;
 
         object? item = null;
@@ -134,11 +134,7 @@ internal sealed partial class UIRuntime
             var itemKey = (itemSegment.Kind == PathSegmentKind.Key ? itemSegment.Key : TryGetItemKey(item))
                 ?? throw MissingItemKeyException();
 
-            if (WithdrawRowsNoLock(hostId, dynamicParameters, [itemKey], collectionPath))
-            {
-                AppendWholeCollectionNoLock(binding, collectionPath, dynamicParameters);
-                continue;
-            }
+            WithdrawChildUpdatesOfRowNoLock(hostId, dynamicParameters, itemKey);
 
             // Still needed: the item's position, since the addressing above is by key, not index.
             var itemIndex = itemSegment.Kind == PathSegmentKind.Index
@@ -203,7 +199,7 @@ internal sealed partial class UIRuntime
 
         for (var s = start; s < path.Count; s++)
         {
-            var dot = rule.IndexOf('.', at);
+            var dot = rule.IndexOf('.', at, StringComparison.Ordinal);
             var end = dot < 0 ? rule.Length : dot;
 
             if (path[s].Kind != PathSegmentKind.Property || !rule.AsSpan(at, end - at).Equals(path[s].Property, StringComparison.OrdinalIgnoreCase))
@@ -351,7 +347,9 @@ internal sealed partial class UIRuntime
             return;
 
         RecursivePath collectionPath = change.Path;
-        IReadOnlyList<CompiledUIBinding> collectionBindings = View.Bindings.GetControllerCollections(collectionPath, out var materializedParameters);
+
+        if (!View.Bindings.TryGetControllerCollections(collectionPath, out IReadOnlyList<CompiledUIBinding> collectionBindings, out var materializedParameters))
+            return;
 
         for (var i = 0; i < collectionBindings.Count; i++)
         {
@@ -406,11 +404,13 @@ internal sealed partial class UIRuntime
     }
 
     /// <summary>
-    /// Forgets the refusals shown in the rows of <paramref name="hostId"/> at <paramref name="hostKeys"/> that left — the one keyed
-    /// <paramref name="rowKey"/>, or every one where null: kept, they would count toward the bound until the runtime goes.
+    /// Forgets the refusals and opened inline renames in the rows of <paramref name="hostId"/> at <paramref name="hostKeys"/> that left —
+    /// the one keyed <paramref name="rowKey"/>, or every one where null: kept, they would linger after the row is gone.
     /// </summary>
     private void ForgetRejectionsInRowsNoLock(UIComponentId hostId, object?[] hostKeys, string? rowKey)
     {
+        ForgetOpenedRenamesInRowsNoLock(hostId, hostKeys, rowKey);
+
         if (_rejectedValueAddresses.Count == 0)
             return;
 
@@ -420,6 +420,26 @@ internal sealed partial class UIRuntime
 
             if (StandsInRowsOf(View.Graph, component.Id, hostId, hostKeys.Length) && IsUnder(component.DynamicParameters, hostKeys, rowKey))
                 _rejectedValueAddresses.RemoveAt(i);
+        }
+    }
+
+    private void ForgetOpenedRenamesInRowsNoLock(UIComponentId hostId, object?[] hostKeys, string? rowKey)
+    {
+        if (_openedRenames is null || _openedRenames.IsEmpty)
+            return;
+
+        if (rowKey is not null && TryCreateHostAddress(hostId, hostKeys, out UIComponentAddress hostAddress))
+            _ = _openedRenames.TryRemove((hostAddress, rowKey), out _);
+
+        foreach (KeyValuePair<(UIComponentAddress Host, string Key), byte> opened in _openedRenames)
+        {
+            UIComponentAddress target = opened.Key.Host;
+
+            if ((rowKey is null && target.Id.Equals(hostId) && target.DynamicParameters.AsSpan().SequenceEqual(hostKeys))
+                || (StandsInRowsOf(View.Graph, target.Id, hostId, hostKeys.Length) && IsUnder(target.DynamicParameters, hostKeys, rowKey)))
+            {
+                _ = _openedRenames.TryRemove(opened.Key, out _);
+            }
         }
     }
 

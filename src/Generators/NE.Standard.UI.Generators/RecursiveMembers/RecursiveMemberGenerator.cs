@@ -39,78 +39,78 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
             .Where(static diagnostic => diagnostic is not null)
             .Select(static (diagnostic, _) => diagnostic!);
 
-        IncrementalValueProvider<(ImmutableArray<RecursiveMemberModel> Members, ImmutableArray<DiagnosticInfo> Unannotated)> source = members
+        IncrementalValuesProvider<RecursiveOwnerWork> owners = members
             .Collect()
-            .Combine(unannotated.Collect())
+            .SelectMany(static (members, _) => GroupByOwner(members))
             .WithTrackingName(CollectedModelsStep);
 
-        context.RegisterSourceOutput(source, static (ctx, source) => Execute(ctx, source.Members, source.Unannotated));
+        context.RegisterSourceOutput(unannotated, static (ctx, diagnostic) => ctx.ReportDiagnostic(diagnostic.ToDiagnostic()));
+        context.RegisterSourceOutput(owners, static (ctx, work) => ExecuteOwner(ctx, work));
     }
 
-    private static void Execute(SourceProductionContext context, ImmutableArray<RecursiveMemberModel> members, ImmutableArray<DiagnosticInfo> unannotated)
+    private static void ExecuteOwner(SourceProductionContext context, RecursiveOwnerWork work)
     {
-        foreach (DiagnosticInfo diagnostic in unannotated)
-            context.ReportDiagnostic(diagnostic.ToDiagnostic());
+        RecursiveOwnerModel owner = work.Owner;
+        GeneratedTypeModel declaration = owner.Declaration;
+        var hasErrors = false;
 
-        if (members.IsDefaultOrEmpty)
+        if (!declaration.IsPartial)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(RecursiveMemberDiagnostics.OwnerMustBePartial, declaration.Location?.ToLocation(), declaration.DisplayName));
+
+            hasErrors = true;
+        }
+
+        if (!owner.IsOrdinaryClass)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(RecursiveMemberDiagnostics.OwnerMustBeOrdinaryClass, declaration.Location?.ToLocation(), declaration.DisplayName));
+
+            hasErrors = true;
+        }
+
+        if (!owner.InheritsRecursiveObservable)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(RecursiveMemberDiagnostics.OwnerMustInheritRecursiveObservable, declaration.Location?.ToLocation(), declaration.DisplayName));
+
+            hasErrors = true;
+        }
+
+        foreach (RecursiveMemberModel member in work.Members)
+        {
+            foreach (DiagnosticInfo diagnostic in member.Diagnostics)
+                context.ReportDiagnostic(diagnostic.ToDiagnostic());
+
+            hasErrors |= member.HasErrors;
+        }
+
+        if (hasErrors)
             return;
 
-        foreach ((RecursiveOwnerModel owner, List<RecursiveMemberModel> ownerMembers) in GroupByOwner(members))
-        {
-            GeneratedTypeModel declaration = owner.Declaration;
+        var source = GenerateType(owner, work.Members);
 
-            var hasErrors = false;
-
-            if (!declaration.IsPartial)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(RecursiveMemberDiagnostics.OwnerMustBePartial, declaration.Location?.ToLocation(), declaration.DisplayName));
-
-                hasErrors = true;
-            }
-
-            if (!owner.IsOrdinaryClass)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(RecursiveMemberDiagnostics.OwnerMustBeOrdinaryClass, declaration.Location?.ToLocation(), declaration.DisplayName));
-
-                hasErrors = true;
-            }
-
-            if (!owner.InheritsRecursiveObservable)
-            {
-                context.ReportDiagnostic(Diagnostic.Create(RecursiveMemberDiagnostics.OwnerMustInheritRecursiveObservable, declaration.Location?.ToLocation(), declaration.DisplayName));
-
-                hasErrors = true;
-            }
-
-            foreach (RecursiveMemberModel member in ownerMembers)
-            {
-                foreach (DiagnosticInfo diagnostic in member.Diagnostics)
-                    context.ReportDiagnostic(diagnostic.ToDiagnostic());
-
-                hasErrors |= member.HasErrors;
-            }
-
-            if (hasErrors)
-                continue;
-
-            var source = GenerateType(owner, ownerMembers);
-
-            context.AddSource(declaration.HintName, SourceText.From(source, Encoding.UTF8));
-        }
+        context.AddSource(declaration.HintName, SourceText.From(source, Encoding.UTF8));
     }
 
     /// <summary>The members by owning type, in the order the types first appear; a type is keyed by its hint name, one per type.</summary>
-    private static List<(RecursiveOwnerModel Owner, List<RecursiveMemberModel> Items)> GroupByOwner(ImmutableArray<RecursiveMemberModel> members)
+    private static ImmutableArray<RecursiveOwnerWork> GroupByOwner(ImmutableArray<RecursiveMemberModel> members)
     {
+        if (members.IsDefaultOrEmpty)
+            return [];
+
         HintNameGroups<RecursiveOwnerModel, RecursiveMemberModel> groups = new();
 
         foreach (RecursiveMemberModel member in members)
             groups.GetOrAdd(member.Owner, member.Owner.Declaration).Add(member);
 
-        return groups.Groups;
+        ImmutableArray<RecursiveOwnerWork>.Builder result = ImmutableArray.CreateBuilder<RecursiveOwnerWork>(groups.Groups.Count);
+
+        foreach ((RecursiveOwnerModel owner, List<RecursiveMemberModel> items) in groups.Groups)
+            result.Add(new RecursiveOwnerWork(owner, items.ToEquatableArray()));
+
+        return result.MoveToImmutable();
     }
 
-    private static string GenerateType(RecursiveOwnerModel owner, List<RecursiveMemberModel> members)
+    private static string GenerateType(RecursiveOwnerModel owner, EquatableArray<RecursiveMemberModel> members)
     {
         StringBuilder builder = new();
 
@@ -149,7 +149,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         return builder.ToString();
     }
 
-    private static void GenerateInitializationConstructor(StringBuilder builder, RecursiveOwnerModel owner, List<RecursiveMemberModel> members, ref bool hasContent)
+    private static void GenerateInitializationConstructor(StringBuilder builder, RecursiveOwnerModel owner, EquatableArray<RecursiveMemberModel> members, ref bool hasContent)
     {
         if (owner.ConstructorAccessibility is null || !HasDeferredRecursiveMember(members))
             return;
@@ -169,7 +169,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
             .AppendLine("    }");
     }
 
-    private static bool HasDeferredRecursiveMember(List<RecursiveMemberModel> members)
+    private static bool HasDeferredRecursiveMember(EquatableArray<RecursiveMemberModel> members)
     {
         foreach (RecursiveMemberModel member in members)
         {
@@ -243,7 +243,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         _ = builder.AppendLine("    }");
     }
 
-    private static void GeneratePropagateNotifier(StringBuilder builder, List<RecursiveMemberModel> members, ref bool hasContent)
+    private static void GeneratePropagateNotifier(StringBuilder builder, EquatableArray<RecursiveMemberModel> members, ref bool hasContent)
     {
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
 
@@ -289,7 +289,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         _ = builder.AppendLine("    }");
     }
 
-    private static void GenerateTryGetValueCore(StringBuilder builder, List<RecursiveMemberModel> members, ref bool hasContent)
+    private static void GenerateTryGetValueCore(StringBuilder builder, EquatableArray<RecursiveMemberModel> members, ref bool hasContent)
     {
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
 
@@ -411,7 +411,7 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
             .AppendLine("        }");
     }
 
-    private static void GenerateTrySetValueCore(StringBuilder builder, List<RecursiveMemberModel> members, ref bool hasContent)
+    private static void GenerateTrySetValueCore(StringBuilder builder, EquatableArray<RecursiveMemberModel> members, ref bool hasContent)
     {
         TypeDeclarationWriter.AppendMemberSeparator(builder, ref hasContent);
 
@@ -579,4 +579,6 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
             .AppendLine("            return true;")
             .AppendLine("        }");
     }
+
+    private readonly record struct RecursiveOwnerWork(RecursiveOwnerModel Owner, EquatableArray<RecursiveMemberModel> Members);
 }

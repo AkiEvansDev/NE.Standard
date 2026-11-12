@@ -13,7 +13,7 @@ internal sealed partial class UIRuntime
     /// <inheritdoc />
     public bool HasPendingWork
         => Controller.HasPendingChanges
-            || _pendingUpdates.Count > 0
+            || _pendingUpdateCount > 0
             || _dirtyItemWindows is { Count: > 0 }
             || Volatile.Read(ref _fullResyncRequested) == 1;
 

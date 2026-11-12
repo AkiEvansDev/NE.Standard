@@ -31,10 +31,15 @@ public static class NativeInputRendererBase
     /// </summary>
     public static WebDomOperation ClearableMarkOperation { get; } = WebDomOperation.ToggleAttribute(WebAttributes.Clearable, target: "root", condition: WebValueCondition.IsTrue);
 
+    /// <summary>
+    /// Names an uncaptioned field's control from its placeholder on live pushes and language switches.
+    /// </summary>
+    public static WebDomOperation PlaceholderNamesOperation { get; } = WebDomOperation.Attribute("aria-label", $"[{WebAttributes.PlaceholderNames}]", converter: WebDomConverters.NonEmptyText, optional: true);
+
     // One per attribute a form's id is written under, its writers built once: a form id is rendered on every field of the page.
     private static readonly ConcurrentDictionary<string, FormIdMark> FormIdMarks = new(StringComparer.Ordinal);
-    private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder", converter: WebDomConverters.NonEmptyText)];
-    private static readonly WebDomOperation[] EmptyMarkingPlaceholderOperations = [WebDomOperation.Attribute("placeholder", converter: WebDomConverters.PlaceholderText, convertsNull: true)];
+    private static readonly WebDomOperation[] PlaceholderOperations = [WebDomOperation.Attribute("placeholder", converter: WebDomConverters.NonEmptyText), PlaceholderNamesOperation];
+    private static readonly WebDomOperation[] EmptyMarkingPlaceholderOperations = [WebDomOperation.Attribute("placeholder", converter: WebDomConverters.PlaceholderText, convertsNull: true), PlaceholderNamesOperation];
     private static readonly WebDomOperation[] ClearableOperations = [ClearableMarkOperation];
     private static readonly WebDomOperation[] MaxLengthOperations = [WebDomOperation.Attribute("maxlength")];
     private static readonly DebounceMark InputDebounceMark = new(WebAttributes.InputDebounce);
@@ -185,18 +190,46 @@ public static class NativeInputRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(input);
 
+        var namedByPlaceholder = !TextContentRendererBase.IsFieldNamed(context);
+
+        if (namedByPlaceholder)
+            _ = input.Attribute(WebAttributes.PlaceholderNames);
+
+        var wrotePlaceholder = false;
+
         if (marksEmpty)
         {
-            _ = WebComponentRendererBase.RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, static (target, value)
-                => _ = target.Attribute("placeholder", string.IsNullOrEmpty(value) ? " " : value), EmptyMarkingPlaceholderOperations);
+            _ = WebComponentRendererBase.RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, (target, value) =>
+            {
+                wrotePlaceholder = true;
+
+                if (string.IsNullOrEmpty(value))
+                {
+                    _ = target.Attribute("placeholder", " ");
+                    return;
+                }
+
+                _ = target.Attribute("placeholder", value);
+
+                if (namedByPlaceholder)
+                    _ = target.Attribute("aria-label", value);
+            }, EmptyMarkingPlaceholderOperations);
+
+            if (!wrotePlaceholder)
+                _ = input.Attribute("placeholder", " ");
 
             return;
         }
 
-        _ = WebComponentRendererBase.RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, static (target, value) =>
+        _ = WebComponentRendererBase.RenderProperty<string?>(context, input, IPlaceholderInputComponent.PlaceholderProperty, (target, value) =>
         {
-            if (!string.IsNullOrEmpty(value))
-                _ = target.Attribute("placeholder", value);
+            if (string.IsNullOrEmpty(value))
+                return;
+
+            _ = target.Attribute("placeholder", value);
+
+            if (namedByPlaceholder)
+                _ = target.Attribute("aria-label", value);
         }, PlaceholderOperations);
     }
 

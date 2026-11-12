@@ -36,7 +36,7 @@ internal sealed partial class UIViewCompilationContext
 
     private Dictionary<string, UIResponsive<UIFieldBoxAlignment>> ImplyFieldBoxes()
     {
-        Dictionary<string, UIResponsive<UIFieldBoxAlignment>> implied = new(StringComparer.Ordinal);
+        Dictionary<string, UIResponsive<UIFieldBoxAlignment>> implied = [with(StringComparer.Ordinal)];
         FieldRowScratch scratch = new();
 
         foreach (IVisualComponent component in _componentOrder)

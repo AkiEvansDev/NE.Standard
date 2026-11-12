@@ -46,7 +46,7 @@ application writes against as global usings, so the code below needs no `using` 
 | [`NE.Standard.UI.Components`](https://www.nuget.org/packages/NE.Standard.UI.Components) | the built-in components and their default templates, over the foundation. |
 | [`NE.Standard.UI.Client`](https://www.nuget.org/packages/NE.Standard.UI.Client) | the platform-neutral C# client runtime (`UIClientPage`, `IUIClientTransport`, `InProcessUIClientTransport`, `RemoteUIClientSession`, `RemoteUIClientTransport`, `UIClientStore`) shared by `NE.Standard.UI.Testing` and native C# clients. |
 | [`NE.Standard.UI.Generators`](https://www.nuget.org/packages/NE.Standard.UI.Generators) | the two Roslyn source generators the stack is built on, usable by anything defining its own components or observable models. |
-| [`NE.Standard.UI.Server`](https://www.nuget.org/packages/NE.Standard.UI.Server) | the API-only ASP.NET Core host (`UIServerStartupBase<TStartup>`, `UIServerStartupBuilder`, `MapStandardUIServerAsync`) for remote C#/WPF clients without HTML shell rendering or Web assets. |
+| [`NE.Standard.UI.Server`](https://www.nuget.org/packages/NE.Standard.UI.Server) | the API-only ASP.NET Core host (`UIServerStartupBase<TStartup>`, `UIServerStartupBuilder`, `MapStandardUIServerAsync`) for remote C# clients without HTML shell rendering or Web assets. |
 | [`NE.Standard.UI.Web`](https://www.nuget.org/packages/NE.Standard.UI.Web) | the ASP.NET Core host: shell, SignalR channel, file transfer, and the embedded TypeScript client. |
 | [`NE.Standard.UI.Web.Abstractions`](https://www.nuget.org/packages/NE.Standard.UI.Web.Abstractions) | the render contracts an add-on implements to render a component of its own. |
 | [`NE.Standard.UI.Web.Renderers.Foundation`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers.Foundation) | the renderer base and the shared style, text and input helpers an add-on's own renderer builds on. |
@@ -65,7 +65,7 @@ extends the table, on `NE.Standard.UI.Web.Renderers`) — under the framework's 
 version at its number, each in a repository of its own:
 
 - [`NE.Standard.UI.CodeInput`](https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput) — a code editor with
-  syntax highlighting, line numbers, several carets and find and replace.
+  syntax highlighting, inline completions, custom mark and span styles, line numbers, several carets and find and replace, plus a Markdown display.
 - [`NE.Standard.UI.DataGrid`](https://github.com/AkiEvansDev/NE.Standard.UI.DataGrid) — a data grid over the
   table: typed columns, editing in place, filters, paging, totals, pinned columns, a detail row and CSV export.
 - [`NE.Standard.UI.Charts`](https://github.com/AkiEvansDev/NE.Standard.UI.Charts) — line, area, bar, pie,
@@ -149,7 +149,7 @@ dotnet run --project examples/DemoApp.Web    # http://localhost:5100
 
 ## Building
 
-Requires the .NET 10 SDK, 10.0.400 or a later 10.0.4xx patch (`global.json`; an older 10.0.1xx SDK's analyzers report false build errors), and
+Requires the .NET 11 SDK (`global.json`), and
 Node 24 or later for the TypeScript client — which builds **as part of** `dotnet build`, so
 a TypeScript type error fails the .NET build.
 

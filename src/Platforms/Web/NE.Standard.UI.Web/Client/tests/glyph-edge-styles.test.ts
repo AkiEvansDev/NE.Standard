@@ -105,6 +105,6 @@ test("a row on the edge passes it on to its own last child, as the tab in front'
         assert.match(rule.selector, /\)\):is\(\.ui-orientation--horizontal, \.ui-tabs__tab-actions\) > :nth-last-child\(1 of /);
 });
 
-test("a glyph-edge panel and any unframed clipping grid or stack around it leave a hung button's 24 px and the 8 px frame reach uncut", () => {
-    assert.match(css, /:is\(\.ui-container, \.ui-stack-panel\):not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\]\)\[data-ui-id\]\[style\*="overflow: clip"\],\s*\.ui-stack-panel:is\(\.ui-stack-panel--glyph-start, \.ui-stack-panel--glyph-end\)\[data-ui-id\] \{\s*overflow-clip-margin: 32px;/);
+test("a glyph-edge panel, a horizontal row on its edge, and any unframed clipping grid or stack around it leave a hung button's 24 px and the 8 px frame reach uncut", () => {
+    assert.match(css, /\[data-ui-id\]\[data-ui-clip-reach="glyph"\]:not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\], \[style\*="--ui-bg-image"\]\),\s*\.ui-stack-panel:is\(\.ui-stack-panel--glyph-start, \.ui-stack-panel--glyph-end\)\[data-ui-id\],\s*:is\(\.ui-stack-panel--glyph-start, :is\(\.ui-stack-panel--glyph-end, \.ui-card__header--content > \.ui-card__header-action, \.ui-tabs__actions\)\) > \.ui-stack-panel\.ui-orientation--horizontal\[data-ui-id\]:not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\], \[style\*="--ui-bg-image"\]\) \{\s*overflow-clip-margin: 32px;/);
 });

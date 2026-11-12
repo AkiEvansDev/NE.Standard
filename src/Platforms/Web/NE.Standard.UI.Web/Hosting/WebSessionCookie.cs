@@ -116,7 +116,7 @@ internal sealed partial class WebSessionCookie
             return;
 
         var prefix = $"{name}=";
-        List<string> kept = new(written.Count);
+        List<string> kept = [with(written.Count)];
 
         foreach (var cookie in written)
         {

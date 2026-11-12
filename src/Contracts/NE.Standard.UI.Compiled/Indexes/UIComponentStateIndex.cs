@@ -25,7 +25,7 @@ public sealed class UIComponentStateIndex
 
         _all = [.. states];
 
-        Dictionary<UIComponentId, UIComponentState> builder = new(states.Length);
+        Dictionary<UIComponentId, UIComponentState> builder = [with(states.Length)];
 
         for (var i = 0; i < states.Length; i++)
         {

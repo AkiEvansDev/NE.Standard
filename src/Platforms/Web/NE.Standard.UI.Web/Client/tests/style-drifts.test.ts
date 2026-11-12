@@ -133,7 +133,7 @@ test("an accordion shares its sections' edges and rounds its outer corners, a qu
     assert.ok(itemSectionRules.length >= 5);
 
     for (const rule of sectionRules)
-        assert.match(rule.selector, /\.ui-expander:not\(\.ui-expander--quiet\)(:[a-z-]+)?$/);
+        assert.match(rule.selector, /\.ui-expander(?::not\(\.ui-hidden, \[hidden\]\))?:not\(\.ui-expander--quiet\)(?::nth-(?:last-)?child\(1 of \.ui-expander:not\(\.ui-hidden, \[hidden\]\)\))*$/);
 
     for (const rule of itemSectionRules)
         assert.match(rule.selector, /\.ui-expander:not\(\.ui-expander--quiet\)$/);

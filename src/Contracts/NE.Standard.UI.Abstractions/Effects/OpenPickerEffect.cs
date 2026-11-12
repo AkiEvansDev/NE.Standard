@@ -12,8 +12,15 @@ namespace NE.Standard.UI.Abstractions.Effects;
 /// A browser opens a chooser only inside the reader's own gesture: raised by an interaction (<c>InteractOn("click", …)</c>) it
 /// runs in the press itself; returned from a command it runs after the round trip, which a browser may refuse to honour.
 /// </remarks>
-public sealed class OpenPickerEffect(UIComponentReference target) : TargetedClientEffect(target)
+public sealed class OpenPickerEffect : TargetedClientEffect
 {
+    /// <summary>
+    /// Creates an effect aimed at the given target component.
+    /// </summary>
+    public OpenPickerEffect(UIComponentReference target)
+        : base(target)
+    { }
+
     /// <summary>
     /// Creates an effect that opens the chooser of the input identified by <paramref name="targetComponentId"/>.
     /// </summary>
@@ -28,6 +35,15 @@ public sealed class OpenPickerEffect(UIComponentReference target) : TargetedClie
         : this(new UIComponentReference(targetComponent, dynamicParameters))
     { }
 
+    [JsonConstructor]
+    internal OpenPickerEffect(UIComponentAddress? resolvedTarget)
+        : base(resolvedTarget)
+    { }
+
+    private OpenPickerEffect(UIComponentAddress resolvedTarget, UIComponentReference target)
+        : base(resolvedTarget, target)
+    { }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.OpenPicker;
 
@@ -39,15 +55,6 @@ public sealed class OpenPickerEffect(UIComponentReference target) : TargetedClie
     public override ClientEffect Resolve(IUIReferenceResolver resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
-        return new CompiledOpenPickerEffect(resolver.ResolveComponent(Target));
+        return ResolvedTarget is not null ? this : new OpenPickerEffect(resolver.ResolveComponent(Target), Target);
     }
-}
-
-internal sealed class CompiledOpenPickerEffect(UIComponentAddress target) : CompiledTargetedClientEffect(target)
-{
-    public override string Kind => ClientEffectKinds.OpenPicker;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
 }

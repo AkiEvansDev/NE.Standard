@@ -23,7 +23,7 @@ internal sealed partial class ContainerGroupContext : DemoGroupContext
     public partial UIImageFit? BackgroundImageFit { get; set; }
 
     [RecursiveMember]
-    public partial UIOverflow? Overflow { get; set; }
+    public partial UIOverflow? Overflow { get; set; } = UIOverflow.Hidden;
 
     public ContainerGroupContext()
     {

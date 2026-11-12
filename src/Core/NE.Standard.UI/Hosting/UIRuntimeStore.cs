@@ -14,9 +14,9 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
 {
     private readonly Lock _sync = new();
     private readonly Dictionary<UIRuntimeKey, UIRuntimeEntry> _entries = [];
-    private readonly Dictionary<string, UIRuntimeKey> _instanceKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UIRuntimeKey> _instanceKeys = [with(StringComparer.Ordinal)];
     // Each session's keys, kept beside the entries so the cap and every per-session lookup read one session, not the whole store.
-    private readonly Dictionary<string, List<UIRuntimeKey>> _sessionKeys = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, List<UIRuntimeKey>> _sessionKeys = [with(StringComparer.Ordinal)];
     // Reused by the flush pass so an empty interval allocates nothing; guarded by its own lock rather than the scheduler's
     // one-at-a-time promise, since a second caller (e.g. a benchmark) could read a list mid-clear.
     private readonly Lock _flushSync = new();
@@ -59,9 +59,40 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
+    /// The entry <paramref name="handle"/> is attached to on <paramref name="route"/>, resolved from its instance id under the store's lock.
+    /// </summary>
+    public bool TryGetAttachedEntry(UIHandle handle, string route, [NotNullWhen(true)] out UIRuntimeEntry? entry)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentException.ThrowIfNullOrWhiteSpace(route);
+
+        handle.Instance.Validate();
+
+        var instanceId = handle.Instance.Id;
+        var windowId = handle.Instance.WindowId;
+
+        lock (_sync)
+        {
+            if (_instanceKeys.TryGetValue(instanceId, out UIRuntimeKey key)
+                && StringComparer.Ordinal.Equals(key.SessionId, handle.Session.SessionId)
+                && StringComparer.OrdinalIgnoreCase.Equals(key.Route, route)
+                && (key.WindowId is null || StringComparer.Ordinal.Equals(key.WindowId, windowId))
+                && _entries.TryGetValue(key, out UIRuntimeEntry? found)
+                && found.HasInstance(instanceId))
+            {
+                entry = found;
+                return true;
+            }
+
+            entry = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// The entry <paramref name="instanceId"/> is attached to — its runtime, and the per-entry session-activity throttle.
     /// </summary>
-    public bool TryGetAttachedEntry(UIRuntimeKey key, string instanceId, out UIRuntimeEntry? entry)
+    public bool TryGetAttachedEntry(UIRuntimeKey key, string instanceId, [NotNullWhen(true)] out UIRuntimeEntry? entry)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instanceId);
 
@@ -671,7 +702,7 @@ internal sealed class UIRuntimeStore : IDisposable, IAsyncDisposable
                 return [];
 
             UIRuntimeKey[] ended = [.. keys];
-            List<IUIRuntime> removed = new(ended.Length);
+            List<IUIRuntime> removed = [with(ended.Length)];
 
             for (var i = 0; i < ended.Length; i++)
             {

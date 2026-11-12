@@ -34,17 +34,19 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
     public override string ComponentTypeKey => TextAreaComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-text-area";
+    protected override string ClassName => WebClassNames.TextArea;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
+        var fieldId = ComponentPartId(context, "field");
+
         RenderTooltip(context, root);
 
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root);
+        RenderInputHeader(context, root, labelForId: fieldId);
         NativeInputRendererBase.RenderTriggers(context, root);
 
         // The author's buttons stand beside the text in one box, outside the text's own scroll; a bare area stays the box itself.
@@ -61,23 +63,26 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
 
                 FieldActionsRenderer.RenderLeadingGroups(context, box, $"{ClassName}__action", $"{ClassName}__below");
 
-                RenderField(context, root, box, boxed: true);
+                RenderField(context, root, box, boxed: true, fieldId);
 
                 FieldActionsRenderer.RenderTrailingGroups(context, box, $"{ClassName}__action", $"{ClassName}__below");
             });
         }
         else
         {
-            RenderField(context, root, root, boxed: false);
+            RenderField(context, root, root, boxed: false, fieldId);
         }
 
         RenderValidationMessage(context, root);
     }
 
-    private void RenderField(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent, bool boxed)
+    private void RenderField(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent, bool boxed, string? fieldId)
     {
         _ = parent.Element("textarea", textarea =>
         {
+            if (fieldId is not null)
+                _ = textarea.Attribute("id", fieldId);
+
             _ = textarea.Class($"{ClassName}__field");
 
             if (boxed)

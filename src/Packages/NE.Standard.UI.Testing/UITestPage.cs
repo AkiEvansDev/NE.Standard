@@ -21,13 +21,14 @@ public sealed class UITestPage
 {
     private readonly UITestApp _app;
     private readonly InProcessUIClientTransport _transport;
+    private readonly UITestSession _initialSession;
 
     internal UITestPage(UITestApp app, UIClientPage clientPage, InProcessUIClientTransport transport, UITestSession session)
     {
         _app = app;
         ClientPage = clientPage;
         _transport = transport;
-        Session = session;
+        _initialSession = session;
     }
 
     /// <summary>Gets the underlying platform-neutral client page.</summary>
@@ -57,8 +58,8 @@ public sealed class UITestPage
     /// <summary>Gets the language the page shows its words in: its session's.</summary>
     public string Language => ClientPage.Language;
 
-    /// <summary>Gets the session the page was opened in, as the test described it.</summary>
-    public UITestSession Session { get; }
+    /// <summary>Gets the session of this page, reflecting sign-in, sign-out, language, time zone and notification permission updates.</summary>
+    public UITestSession Session => _app.ReadCurrentSession(_transport, _initialSession, ClientState.NotificationPermission);
 
     /// <summary>The page's compiled view, for the component and row handles.</summary>
     internal CompiledView View => ClientPage.View;
@@ -109,6 +110,14 @@ public sealed class UITestPage
     /// <summary>Gets the effects of one type the page received, in order.</summary>
     public IReadOnlyList<TEffect> EffectsOf<TEffect>() where TEffect : ClientEffect
         => ClientPage.EffectsOf<TEffect>();
+
+    /// <summary>Clears the recorded client effects on this page.</summary>
+    public void ClearEffects()
+        => ClientPage.ClearEffects();
+
+    /// <summary>Clears the recorded file downloads on this page.</summary>
+    public void ClearDownloads()
+        => ClientPage.ClearDownloads();
 
     /// <summary>Gets whether the dialog <paramref name="key"/> is open.</summary>
     public bool IsDialogOpen(string key)
@@ -194,7 +203,7 @@ public sealed class UITestPage
     {
         ArgumentNullException.ThrowIfNull(navigation);
 
-        return _app.OpenAsync(navigation, _transport.SessionId, Session, cancellationToken);
+        return _app.OpenFromPageAsync(navigation, _transport.SessionId, _initialSession, ClientState.NotificationPermission, cancellationToken);
     }
 
     /// <summary>

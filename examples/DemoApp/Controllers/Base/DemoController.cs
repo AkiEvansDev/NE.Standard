@@ -17,7 +17,7 @@ namespace DemoApp.Controllers.Base;
 /// <remarks>The rows live here, not in the view, so the value column stays live off a bound collection.</remarks>
 internal partial class DemoGroupContext : RecursiveObservable
 {
-    private readonly Dictionary<string, DemoOption> _options = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DemoOption> _options = [with(StringComparer.Ordinal)];
 
     // Empty rather than a placeholder: the line stands under the group and reserves nothing, so a placeholder would only push the
     // groups below. A phrase, so a page of words can write its line in the reader's language; every other page writes plain text.

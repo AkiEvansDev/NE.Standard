@@ -35,13 +35,20 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     private const string NoChevronClassName = "ui-select--no-chevron";
 
     // The key that does the clear's work from the closed field (select-interaction-engine.ts), said on the control the reader stands on
-    // while the clear shows: a select's or a search's trigger, a multi-select's box or its free-text entry.
+    // while the clear shows: a select's or a search's trigger, a multi-select's box, its free-text entry, or its button trigger.
     private const string ClearKey = "Delete";
-    private const string ClearKeyTarget = $"[role=\"combobox\"]:is(.{WebClassNames.SelectTrigger}, .{WebClassNames.MultiSelectEntry})";
+    private const string ClearKeyTarget = $":is([role=\"combobox\"]:is(.{WebClassNames.SelectTrigger}, .{WebClassNames.MultiSelectEntry}), .{WebClassNames.SplitButtonMain})";
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.SelectValue, target: "root", converter: WebDomConverters.NonEmptyText)];
-    private static readonly WebDomOperation[] TextOperations = [WebDomOperation.Text()];
+
+    private static readonly WebDomOperation[] TextOperations =
+    [
+        new WebDomOperation { Kind = DefaultWordsOperationKind, Value = UIStrings.SelectPlaceholder },
+        new WebDomOperation { Kind = DefaultWordsOperationKind, Name = "aria-label", Target = $"[{WebAttributes.PlaceholderNames}]", Value = UIStrings.SelectPlaceholder, Optional = true }
+    ];
+
     private static readonly WebDomOperation[] PlacementOperations = [WebDomOperation.Attribute(WebAttributes.SelectPlacement, converter: WebDomConverters.SelectPlacementAttribute)];
+    internal static readonly WebDomOperation[] ButtonPlacementOperations = [WebDomOperation.Attribute(WebAttributes.SelectPlacement, converter: WebDomConverters.SplitPlacementAttribute)];
 
     private static readonly WebDomOperation[] ClearableOperations =
     [
@@ -86,6 +93,13 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     public static void RenderAdornmentState(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
+
+        RenderAdornmentState(context, root, context.Node.TypeKey, UIPopupPlacement.BottomStart, PlacementOperations);
+    }
+
+    internal static void RenderAdornmentState(WebRenderContext context, IHtmlElementBuilder root, string placementOwnerTypeKey, UIPopupPlacement defaultPlacement, WebDomOperation[] placementOperations)
+    {
+        ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
         NativeInputRendererBase.RenderClearable(context, root, ClearableOperations);
@@ -93,11 +107,11 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         RenderFlagClass(context, root, SelectComponent.ShowChevronProperty, NoChevronClassName, WebValueCondition.IsFalse);
 
         // Read by the list as it opens, so a bound placement moves the next opening.
-        _ = RenderProperty<UIPopupPlacement?>(context, root, IPopupPlacementComponent.PopupPlacementProperty, static (target, value) =>
+        _ = RenderProperty<UIPopupPlacement?>(context, root, placementOwnerTypeKey, IPopupPlacementComponent.PopupPlacementProperty, (target, value) =>
         {
-            if (value is UIPopupPlacement placement && placement != UIPopupPlacement.BottomStart)
+            if (value is UIPopupPlacement placement && placement != defaultPlacement)
                 _ = target.Attribute(WebAttributes.SelectPlacement, WebClassNames.PopupPlacement(placement));
-        }, PlacementOperations);
+        }, placementOperations);
     }
 
     /// <summary>
@@ -167,6 +181,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             // A select-only combobox: the caption is its name and the chosen option drawn inside it is its value.
             _ = trigger.Attribute("role", "combobox");
             TextContentRendererBase.RenderFieldLabel(context, trigger);
+            RenderComboboxPlaceholderName(context, trigger);
             RenderClearKey(context, trigger);
 
             // Before a caption inside too, as they stand.
@@ -211,6 +226,21 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         });
     }
 
+    internal static void RenderComboboxPlaceholderName(WebRenderContext context, IHtmlElementBuilder control)
+    {
+        if (TextContentRendererBase.IsFieldNamed(context))
+            return;
+
+        _ = control.Attribute(WebAttributes.PlaceholderNames);
+
+        var placeholder = ReadRenderValue<string?>(context, IPlaceholderInputComponent.PlaceholderProperty, null);
+
+        if (string.IsNullOrWhiteSpace(placeholder))
+            WebWords.Write(context, control, "aria-label", UIStrings.SelectPlaceholder);
+        else
+            _ = control.Attribute("aria-label", placeholder);
+    }
+
     /// <summary>What stands in the field while nothing is chosen: the author's placeholder, else the framework's word.</summary>
     public static void RenderPlaceholder(WebRenderContext context, IHtmlElementBuilder parent, bool hidden)
     {
@@ -227,7 +257,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             // The framework's word is marked, so a language switch writes it again; the author's is the property's own.
             _ = RenderProperty<string?>(context, placeholder, IPlaceholderInputComponent.PlaceholderProperty, (target, value) =>
             {
-                if (string.IsNullOrEmpty(value))
+                if (string.IsNullOrWhiteSpace(value))
                     WebWords.Write(context, target, null, UIStrings.SelectPlaceholder);
                 else
                     _ = target.Text(value);

@@ -50,10 +50,10 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         {
             field = value;
 
-            if (ReferenceEquals(Template, _variantTemplate))
+            if (!HasAuthoredTemplate && ReferenceEquals(Template, _variantTemplate))
             {
                 _variantTemplate = CreateVariantTemplate(value ?? UIMultiSelectVariant.Chips);
-                _ = SetTemplate(_variantTemplate);
+                SetDefaultTemplate(_variantTemplate);
             }
 
             if (value == UIMultiSelectVariant.Button && BadgeVariant is null && !HasBinding(ITextBaseComponent.BadgeVariantProperty))

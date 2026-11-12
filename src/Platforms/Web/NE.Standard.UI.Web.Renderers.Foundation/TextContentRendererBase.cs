@@ -180,7 +180,13 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             {
                 _ = header.Class($"{TextClassPrefix}__header");
 
-                _ = header.Element(TitleElementName(context, options.IncludeTextLayout), title => RenderTitle(context, root, title, options.NamesField, options.TooltipNamesHost, options.PartsShownOperation));
+                _ = header.Element(TitleElementName(context, options.IncludeTextLayout, options.LabelForId), title =>
+                {
+                    if (!options.IncludeTextLayout && !string.IsNullOrEmpty(options.LabelForId))
+                        _ = title.Attribute("for", options.LabelForId);
+
+                    RenderTitle(context, root, title, options.NamesField, options.TooltipNamesHost, options.PartsShownOperation, options.PropertyOwnerTypeKey);
+                });
 
                 options.Trailing?.Invoke(header);
 
@@ -192,10 +198,10 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         });
     }
 
-    private static string TitleElementName(WebRenderContext context, bool includeTextLayout)
+    private static string TitleElementName(WebRenderContext context, bool includeTextLayout, string? labelForId)
     {
         if (!includeTextLayout)
-            return "span";
+            return string.IsNullOrEmpty(labelForId) ? "span" : "label";
 
         _ = ResolveRenderValue(context, ITextComponent.HeadingLevelProperty, out int? level, out _);
 
@@ -265,14 +271,15 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         if (options.DefaultBadgePlacement is UITextBadgePlacement placement)
             _ = RenderProperty<UITextBadgePlacement?>(context, container, ITextBaseComponent.BadgePlacementProperty, (target, value) => _ = target.Class(WebClassNames.TextBadgePlacementHost(value ?? placement)), BadgePlacementOperations);
 
-        WebBadgeRenderOptions badgeOptions = options.NamesField ? CaptionBadgeOptions : TextBadgeOptions;
+        var captionBadge = options.NamesField || options.FieldHelpBadge;
+        WebBadgeRenderOptions badgeOptions = captionBadge ? CaptionBadgeOptions : TextBadgeOptions;
 
         if (options.PartsShownOperation is WebDomOperation then)
             badgeOptions = FollowedBadgeOptions.GetOrAdd((badgeOptions, then), static key => key.Options with { PartsShownOperation = key.Then });
 
         BadgeRenderer.RenderBadge(context, root, badge, badgeOptions, root, options.FallbackBadgeTitle);
 
-        if (!options.NamesField)
+        if (!captionBadge)
             return;
 
         if (IsHelpBadge(context))
@@ -352,7 +359,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// The label row every input draws above its field. A single-row field passes <paramref name="titleCanGoInside"/> true, and
     /// an inside caption is then <see cref="RenderInputHeaderInside"/>'s job.
     /// </summary>
-    public static void RenderInputHeader(WebRenderContext context, IHtmlElementBuilder root, bool titleCanGoInside = false)
+    public static void RenderInputHeader(WebRenderContext context, IHtmlElementBuilder root, bool titleCanGoInside = false, string? labelForId = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -363,7 +370,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             return;
         }
 
-        RenderInputHeaderElement(context, root, root, inside: false);
+        RenderInputHeaderElement(context, root, root, inside: false, labelForId);
     }
 
     private static bool IsTitleInside(WebRenderContext context)
@@ -373,11 +380,11 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         return placement == UIInputTitlePlacement.Inside;
     }
 
-    private static void RenderInputHeaderElement(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent, bool inside)
+    private static void RenderInputHeaderElement(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder parent, bool inside, string? labelForId)
     {
         _ = parent.Element("span", header =>
         {
-            _ = header.Class($"{InputClassPrefix}__header");
+            _ = header.Class(WebClassNames.InputHeader);
 
             RenderTextBody(context, root, header, new WebTextBodyOptions
             {
@@ -385,7 +392,8 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
                 Trailing = header => RenderRequiredInputMarker(context, header),
                 NamesField = true,
                 // Not in a caption inside the field's box: the box is one control, and a tab stop cannot stand inside it.
-                ReachableBadge = !inside
+                ReachableBadge = !inside,
+                LabelForId = labelForId
             });
         });
     }
@@ -433,6 +441,18 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         if (required && HasRequiredValidation(context))
             _ = field.Attribute("aria-required", "true");
 
+        RenderFieldValidationState(context, field);
+    }
+
+    /// <summary>
+    /// Marks <paramref name="field"/> described by its caption's help and its validation line, and invalid where the render already knows
+    /// the value was refused — without overwriting <c>aria-label</c> on a button trigger whose visible words include a chosen-count badge.
+    /// </summary>
+    public static void RenderFieldValidationState(WebRenderContext context, IHtmlElementBuilder field)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(field);
+
         // The caption's help (RenderHelpBadge) first, then the validation line.
         var helpId = IsHelpBadge(context) ? HelpDescriptionId(context) : null;
         var messageId = ValidationMessageId(context);
@@ -477,14 +497,14 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// The caption inside the field's own box, at its leading edge, for a field whose <see cref="IFieldInputComponent.TitlePlacement"/>
     /// is <see cref="UIInputTitlePlacement.Inside"/>; called first thing in the box, and nothing for a caption on top.
     /// </summary>
-    public static void RenderInputHeaderInside(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder field)
+    public static void RenderInputHeaderInside(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder field, string? labelForId = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(field);
 
         if (IsTitleInside(context))
-            RenderInputHeaderElement(context, root, field, inside: true);
+            RenderInputHeaderElement(context, root, field, inside: true, labelForId);
     }
 
     /// <summary>The word at either end of a value — a currency sign, a unit — for an <see cref="IAffixTextInputComponent"/>.</summary>
@@ -675,7 +695,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     private static WebDomOperation[] Followed(WebDomOperation[] operations, WebDomOperation? then)
         => then is null ? operations : FollowedOperations.GetOrAdd((operations, then), static key => [.. key.Operations, key.Then]);
 
-    protected static void RenderTitle(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder title, bool namesField = false, bool tooltipNamesHost = false, WebDomOperation? partsShown = null)
+    protected static void RenderTitle(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder title, bool namesField = false, bool tooltipNamesHost = false, WebDomOperation? partsShown = null, string? propertyOwnerTypeKey = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
@@ -685,7 +705,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
 
         // No type of its own: the body already wears TitleType (RenderTextBody); a role class here would block inherited
         // values like a button's step or a tab's weight from reaching the title.
-        _ = RenderProperty<string?>(context, title, ITextBaseComponent.TitleProperty, (target, value) =>
+        _ = RenderProperty<string?>(context, title, propertyOwnerTypeKey ?? context.Node.TypeKey, ITextBaseComponent.TitleProperty, (target, value) =>
         {
             if (!string.IsNullOrWhiteSpace(value))
             {

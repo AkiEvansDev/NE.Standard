@@ -2,7 +2,7 @@
 // package's mark — in the page's language: each kept as it came and written with its mark, so a language switch writes it again.
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
-import { ComponentSelector, cssAttributeValue, FormIdAttribute, InvalidClass as ErrorClass, PopupRoleSelector, ValidationMessageAttribute as MessageAttribute } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, ComponentSelector, cssAttributeValue, FormIdAttribute, HiddenClass, InvalidClass as ErrorClass, PopupRoleSelector, TemporalEndAttribute, ValidationMessageAttribute as MessageAttribute } from "../addressing/dom-attributes.ts";
 import type { ComponentResolveResult, DomRegistry } from "../addressing/dom-registry.ts";
 import { findOwningComponentAddress, readComponentId } from "../addressing/dom-registry.ts";
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
@@ -15,6 +15,7 @@ import { clientStrings, readTextWords } from "../rendering/client-strings.ts";
 import { isPhrase } from "../rendering/words.ts";
 import type { PropertyPatchTarget, PropertyValueChange } from "../state/property-state-store.ts";
 import { observeComponents } from "./dom-mutations.ts";
+import { isInSight } from "./element-visibility.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { applyPresentation, applyValidationState, boundRefusalOf, FieldControlSelector, isSameWords, markInvalid, MarkSeverity, messageWords, passesRule, readValidationMessage, RenderedSelector, renderedSeverity, SeverityRank, TooltipSeverity, toSeverityName } from "./validation-words.ts";
 import type { FieldMarkSeverity, FieldMarkWords, ValidationDisplay } from "./validation-words.ts";
@@ -24,9 +25,11 @@ export type { FieldMarkSeverity, FieldMarkWords };
 const ValidationPropertyName = "Validation";
 /** The property a field's rules judge, and a rule against another field reads (`IInputComponent.Value`). */
 const ValuePropertyName = "Value";
+const EndValuePropertyName = "EndValue";
 /** The properties a field's value stands in, and its bounds' (`IInputComponent.Value`, a period's end, `IBoundedInputComponent`). */
-const ValuePropertyNames: ReadonlySet<string> = new Set(["Value", "EndValue"]);
-const BoundPropertyNames: ReadonlySet<string> = new Set(["Min", "Max"]);
+const ValuePropertyNames: ReadonlySet<string> = new Set([ValuePropertyName, EndValuePropertyName]);
+const BoundPropertyNames: ReadonlySet<string> = new Set(["Min", "Max", "MinDistance"]);
+const HiddenSubmitSelector = `.${HiddenClass}, [hidden], [${CollapsedAttribute}], dialog:not([open])`;
 
 /** A package's own field marked through this engine: what the plugin surface hands out as `validation`. */
 export type FieldValidation = {
@@ -69,6 +72,8 @@ export type ValidationEngineOptions = {
     readonly valueReaders: ValueReaderRegistry;
     /** A field's value as its binding sends it — a number field's invariant text, whatever its culture shows; the readers' otherwise. */
     readonly readValue?: (element: Element) => unknown;
+    /** Told when a bound refusal clears (`commit` true when widened bounds brought the held value in range, false when a server value replaced it). */
+    readonly onBoundsSettled?: (component: Element, commit: boolean, propertyName?: string) => void;
 };
 
 /** The runtime's refusal, and the property whose value it refused: that property given again, the refusal no longer speaks. */
@@ -85,8 +90,8 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
     private readonly root: ParentNode;
     private readonly failingRulesByElement = new WeakMap<Element, Set<WebRenderValidationMetadata>>();
     private readonly refusalByElement = new WeakMap<Element, Refusal>();
-    /** A value the reader gave past its field's Min or Max, refused in words; the fields that hold one, for a language switch. */
-    private readonly boundRefusalByElement = new WeakMap<Element, ValidationDisplay>();
+    /** Values the reader gave past a field's Min, Max or MinDistance, keyed by property (`Value`, `EndValue`), and the fields holding any. */
+    private readonly boundRefusalByElement = new WeakMap<Element, Map<string, ValidationDisplay>>();
     private readonly boundRefused = new Set<Element>();
     private readonly boundMessageByElement = new WeakMap<Element, ValidationDisplay>();
     private readonly packageMarkByElement = new WeakMap<Element, ValidationDisplay>();
@@ -178,7 +183,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
     private forgetJudgement(element: Element): boolean {
         const judged = this.failingRulesByElement.delete(element);
         const refused = this.refusalByElement.delete(element);
-        const bounded = this.boundRefusalByElement.has(element);
+        const bounded = this.hasBoundRefusal(element);
 
         this.forgetBoundRefusal(element);
 
@@ -256,10 +261,10 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
         for (const element of change.components) {
             const stale = this.refusalByElement.get(element)?.property === change.propertyName;
-            const bounded = this.boundRefusalByElement.has(element);
+            const bounded = this.hasBoundRefusal(element);
 
             if (bounded && bounds) {
-                this.judgeBounds(readComponentId(element), element);
+                this.rejudgeHeldBounds(readComponentId(element), element);
                 continue;
             }
 
@@ -269,8 +274,14 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
             if (stale)
                 this.refusalByElement.delete(element);
 
-            if (value)
-                this.forgetBoundRefusal(element);
+            if (value) {
+                this.forgetPropertyBoundRefusal(element, change.propertyName);
+                this.options.onBoundsSettled?.(element, false, change.propertyName);
+
+                // A pushed start may bring a held end within MinDistance (or vice versa): re-judge whichever end still stands refused.
+                if (this.hasBoundRefusal(element))
+                    this.rejudgeHeldBounds(readComponentId(element), element);
+            }
 
             this.applyCurrentState(readComponentId(element), element);
         }
@@ -372,42 +383,121 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
     /** Whether the runtime refused this component's current value, or the page did for its bounds. */
     public isRefused(component: Element): boolean {
-        return this.refusalByElement.has(component) || this.boundRefusalByElement.has(component);
+        return this.refusalByElement.has(component) || this.hasBoundRefusal(component);
     }
 
     /**
-     * Judges the value the reader gave a field against its Min and Max: one past them is refused in words and stays the reader's —
-     * never pulled back to the bound, never sent — so the controller keeps the last one it took; answers whether it is refused.
+     * Judges the value the reader gave a field against its Min, Max and MinDistance: one past them is refused in words and stays the
+     * reader's — never pulled back to the bound, never sent — so the controller keeps the last one it took; answers whether it is refused.
      */
     public refusesBounds(field: Element): boolean {
         const resolved = this.options.dom.resolveNearestComponent(field, () => true);
 
-        return resolved !== null && this.judgeBounds(resolved.componentId, resolved.element);
+        if (resolved === null)
+            return false;
+
+        const property = field === resolved.element ? undefined : ValidationEngine.boundPropertyOf(field);
+
+        return this.judgeBounds(resolved.componentId, resolved.element, property);
     }
 
-    private judgeBounds(componentId: number, element: Element): boolean {
-        // A field the reader cannot change shows its value as it is: the bounds say what may be given, and nothing can be.
-        const words = isReadOnly(element) || isInert(element) ? null : boundRefusalOf(element, field => this.readValue(field));
-        const standing = this.boundRefusalByElement.get(element)?.message;
+    private static boundPropertyOf(field: Element): string {
+        return field.hasAttribute(TemporalEndAttribute) ? EndValuePropertyName : ValuePropertyName;
+    }
+
+    private hasBoundRefusal(element: Element): boolean {
+        return (this.boundRefusalByElement.get(element)?.size ?? 0) > 0;
+    }
+
+    private firstBoundRefusal(element: Element): ValidationDisplay | undefined {
+        const byProperty = this.boundRefusalByElement.get(element);
+
+        return byProperty?.get(ValuePropertyName) ?? byProperty?.get(EndValuePropertyName);
+    }
+
+    private judgeBounds(componentId: number, element: Element, property?: string): boolean {
+        const properties = property !== undefined
+            ? [property]
+            : element.querySelector(`[${TemporalEndAttribute}]`) !== null
+                ? [ValuePropertyName, EndValuePropertyName]
+                : [ValuePropertyName];
+
+        let changed = false;
+        let anyRefused = false;
+
+        for (const prop of properties) {
+            // A field the reader cannot change shows its value as it is: the bounds say what may be given, and nothing can be.
+            const words = isReadOnly(element) || isInert(element) ? null : boundRefusalOf(element, field => this.readValue(field), prop === EndValuePropertyName);
+
+            if (words !== null)
+                anyRefused = true;
+
+            if (this.setPropertyBoundRefusal(element, prop, words))
+                changed = true;
+        }
+
+        // Editing one end of a period into a valid spot may satisfy MinDistance for the other end held back earlier.
+        if (property !== undefined && !anyRefused && this.hasBoundRefusal(element))
+            this.rejudgeHeldBounds(componentId, element);
+
+        if (changed)
+            this.applyCurrentState(componentId, element);
+
+        return anyRefused;
+    }
+
+    private setPropertyBoundRefusal(element: Element, property: string, words: ReturnType<typeof boundRefusalOf>): boolean {
+        const byProperty = this.boundRefusalByElement.get(element);
+        const standing = byProperty?.get(property)?.message;
 
         if (isSameWords(standing, words))
-            return words !== null;
+            return false;
 
         if (words === null) {
-            this.forgetBoundRefusal(element);
+            this.forgetPropertyBoundRefusal(element, property);
+            return true;
         }
-        else {
-            this.boundRefusalByElement.set(element, { message: words, severity: "Error" });
-            this.boundRefused.add(element);
-            this.touchedElements.add(element);
 
-            // The runtime's refusal was of a value the reader has since replaced.
+        let map = byProperty;
+
+        if (map === undefined) {
+            map = new Map<string, ValidationDisplay>();
+            this.boundRefusalByElement.set(element, map);
+        }
+
+        map.set(property, { message: words, severity: "Error" });
+        this.boundRefused.add(element);
+        this.touchedElements.add(element);
+
+        // The runtime's refusal of that property was of a value the reader has since replaced.
+        if (this.refusalByElement.get(element)?.property === property)
             this.refusalByElement.delete(element);
+
+        return true;
+    }
+
+    private rejudgeHeldBounds(componentId: number, element: Element, settle = true): void {
+        const byProperty = this.boundRefusalByElement.get(element);
+
+        if (byProperty === undefined || byProperty.size === 0)
+            return;
+
+        let changed = false;
+
+        for (const prop of [...byProperty.keys()]) {
+            const words = isReadOnly(element) || isInert(element) ? null : boundRefusalOf(element, field => this.readValue(field), prop === EndValuePropertyName);
+
+            if (!this.setPropertyBoundRefusal(element, prop, words))
+                continue;
+
+            changed = true;
+
+            if (words === null && settle)
+                this.options.onBoundsSettled?.(element, true, prop);
         }
 
-        this.applyCurrentState(componentId, element);
-
-        return words !== null;
+        if (changed)
+            this.applyCurrentState(componentId, element);
     }
 
     private readValue(field: Element): unknown {
@@ -424,6 +514,16 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         return holder === null ? null : this.readValue(holder);
     }
 
+    private forgetPropertyBoundRefusal(element: Element, property: string): void {
+        const byProperty = this.boundRefusalByElement.get(element);
+
+        if (byProperty === undefined || !byProperty.delete(property))
+            return;
+
+        if (byProperty.size === 0)
+            this.forgetBoundRefusal(element);
+    }
+
     private forgetBoundRefusal(element: Element): void {
         this.boundRefusalByElement.delete(element);
         this.boundRefused.delete(element);
@@ -433,7 +533,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
     private rejudgeBounds(): void {
         for (const element of [...this.boundRefused]) {
             if (element.isConnected)
-                this.judgeBounds(readComponentId(element), element);
+                this.rejudgeHeldBounds(readComponentId(element), element, false);
             else
                 this.forgetBoundRefusal(element);
         }
@@ -525,7 +625,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         const rules = this.options.metadata.getValidationsForComponent(componentId);
 
         this.touchedElements.add(element);
-        this.judgeBounds(componentId, element);
+        this.judgeBounds(componentId, element, field === element ? undefined : ValidationEngine.boundPropertyOf(field));
 
         if (rules.length > 0)
             this.evaluateAndApply(componentId, element, rules, this.readRuleValue(element));
@@ -588,7 +688,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
     private resolveDisplay(componentId: number, element: Element): ValidationDisplay | undefined {
         const candidates: ValidationDisplay[] = [];
-        const outOfBounds = this.boundRefusalByElement.get(element);
+        const outOfBounds = this.firstBoundRefusal(element);
         const refusal = this.refusalByElement.get(element);
         const bound = this.boundMessageByElement.get(element);
         const packageMark = this.packageMarkByElement.get(element);
@@ -672,7 +772,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         const judged = new Set<Element>();
 
         for (const { component: resolved } of this.formFields(formId)) {
-            if (judged.has(resolved.element))
+            if (judged.has(resolved.element) || this.isSkippedOnSubmit(resolved.element))
                 continue;
 
             judged.add(resolved.element);
@@ -744,10 +844,10 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         }
     }
 
-    /** Whether any field of the form currently holds an error — from client rules, bounds, or a server refusal. */
+    /** Whether any active, visible field of the form currently holds an error — from client rules, bounds, or a server refusal. */
     public hasFormError(formId: string): boolean {
         for (const { component: resolved } of this.formFields(formId)) {
-            if (this.hasError(resolved.componentId, resolved.element))
+            if (!this.isSkippedOnSubmit(resolved.element) && this.hasError(resolved.componentId, resolved.element))
                 return true;
         }
 
@@ -760,11 +860,15 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
      */
     public focusFirstInvalid(formId: string): boolean {
         for (const { component: resolved } of this.formFields(formId)) {
-            if (resolved.element.classList.contains(ErrorClass) && this.focusField(resolved.element))
+            if (!this.isSkippedOnSubmit(resolved.element) && resolved.element.classList.contains(ErrorClass) && this.focusField(resolved.element))
                 return true;
         }
 
         return false;
+    }
+
+    private isSkippedOnSubmit(element: Element): boolean {
+        return isInert(element) || !isInSight(element) || element.closest(HiddenSubmitSelector) !== null;
     }
 
     /** Takes the reader to a field's own control the reader types into — not a hidden value input or a popup's — focused and brought into view. */
@@ -782,7 +886,7 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
     // A controller's or a package's message gates no submit: its author judged the value and will judge it again.
     private hasError(componentId: number, element: Element): boolean {
-        if (this.boundRefusalByElement.has(element) || this.refusalByElement.get(element)?.severity === "Error")
+        if (this.hasBoundRefusal(element) || this.refusalByElement.get(element)?.severity === "Error")
             return true;
 
         const failing = this.failingRulesByElement.get(element);

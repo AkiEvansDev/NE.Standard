@@ -79,7 +79,7 @@ public static class UINavigationAddress
         if (query < 0)
             return new UINavigationRequest { Route = path };
 
-        Dictionary<string, object?> parameters = new(StringComparer.Ordinal);
+        Dictionary<string, object?> parameters = [with(StringComparer.Ordinal)];
 
         foreach (var pair in path[(query + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries))
         {

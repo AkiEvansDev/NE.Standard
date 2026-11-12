@@ -7,4 +7,6 @@ public sealed class ExpanderHeaderRegionRenderer : TextRegionRendererBase
     public override string ComponentTypeKey => ExpanderHeaderRegion.ComponentTypeKey;
 
     protected override string ClassName => "ui-expander__header-region";
+
+    protected override bool InsideFocusableControl => true;
 }

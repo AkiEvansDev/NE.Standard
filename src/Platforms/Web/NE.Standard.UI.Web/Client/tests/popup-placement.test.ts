@@ -312,8 +312,8 @@ test("a submenu aligned by its entries stands with its first entry level with th
     // Its last entry's row ends where the entry's does: down by its bottom padding and border.
     assert.deepEqual(placedAt(up.submenu), { side: "right-end", left: 300, top: 135 - 120 + 7 });
 
-    // When the parent popup has a 1 px border, a docked submenu overlaps that 1 px seam on whichever side it lands; `docked: false`
-    // (an on-page surface wrapping a menu) keeps `PopupGap` outside the surface instead.
+    // When the parent popup or menu surface has a 1 px border, a docked submenu overlaps that 1 px seam on whichever side it lands;
+    // `docked: false` keeps `PopupGap` outside the surface instead.
     const borderedRight = submenuParts();
 
     boxStyles.set(borderedRight.menu, { borderRightWidth: "1px", borderLeftWidth: "1px" });

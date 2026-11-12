@@ -45,6 +45,15 @@ public sealed class UIFileOptions
     /// <remarks>Short on purpose: the client fetches it immediately, so anything left here was never collected.</remarks>
     public TimeSpan DownloadRetention { get; set; } = TimeSpan.FromMinutes(5);
 
+    /// <summary>Gets or sets how many bytes of uncollected staged downloads one session may hold at once.</summary>
+    public long MaxDownloadBytesPerSession { get; set; } = 256 * 1024 * 1024;
+
+    /// <summary>
+    /// Gets or sets how many bytes of uncollected staged downloads every session together may hold at once; zero or
+    /// <see langword="null"/> is no such limit.
+    /// </summary>
+    public long? MaxDownloadBytesTotal { get; set; } = 4L * 1024 * 1024 * 1024;
+
     /// <summary>
     /// Gets or sets how often staged content is swept.
     /// </summary>
@@ -72,6 +81,12 @@ public sealed class UIFileOptions
 
         if (MaxUploadBytesTotal < 0)
             throw new InvalidOperationException("Maximum upload bytes in total must not be negative.");
+
+        if (MaxDownloadBytesPerSession <= 0)
+            throw new InvalidOperationException("Maximum download bytes per session must be greater than zero.");
+
+        if (MaxDownloadBytesTotal < 0)
+            throw new InvalidOperationException("Maximum download bytes in total must not be negative.");
 
         if (UploadRetention <= TimeSpan.Zero || DownloadRetention <= TimeSpan.Zero)
             throw new InvalidOperationException("File retention must be greater than zero.");

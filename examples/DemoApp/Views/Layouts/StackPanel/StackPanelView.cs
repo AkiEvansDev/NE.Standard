@@ -30,6 +30,7 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
             .BindOrientation<StackPanelController>(static x => x.StackGroup.Orientation)
             .BindSpacing<StackPanelController>(static x => x.StackGroup.Spacing)
             .BindWrap<StackPanelController>(static x => x.StackGroup.Wrap)
+            .BindOverflow<StackPanelController>(static x => x.StackGroup.Overflow)
             .AddChildren(DemoUI.CreateTiles(5))
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 300);

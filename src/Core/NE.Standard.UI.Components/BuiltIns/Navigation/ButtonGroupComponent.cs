@@ -40,7 +40,7 @@ public abstract partial class ButtonGroupComponent<T> : ItemsComponentBase<T, IB
     /// </summary>
     protected ButtonGroupComponent(string? id = null) : base(id)
     {
-        _ = SetTemplate(new DefaultButtonTemplate(binds: true).SetVariant(UIButtonVariant.Ghost));
+        SetDefaultTemplate(new DefaultButtonTemplate(binds: true).SetVariant(UIButtonVariant.Ghost));
     }
 
     /// <summary>

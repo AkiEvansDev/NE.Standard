@@ -2,20 +2,25 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
+using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
+using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Serialization;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Updates.Server;
@@ -25,13 +30,126 @@ namespace NE.Standard.UI.Client;
 /// <summary>A row a host holds: its key and the item the change set carried.</summary>
 public sealed record UIClientRowEntry(string Key, object? Item);
 
+internal sealed class UIClientRowBuffer
+{
+    private Dictionary<string, int>? _indexByKey;
+
+    public List<UIClientRowEntry> Items { get; } = [];
+
+    public void Clear()
+    {
+        Items.Clear();
+        _indexByKey?.Clear();
+    }
+
+    public void ResetFrom(List<UIClientRowEntry> rows)
+    {
+        Items.Clear();
+        Items.AddRange(rows);
+        _indexByKey = null;
+    }
+
+    public void InsertAt(int index, UIClientRowEntry entry)
+    {
+        var clamped = Math.Clamp(index, 0, Items.Count);
+
+        if (clamped == Items.Count)
+        {
+            Items.Add(entry);
+            _indexByKey?[entry.Key] = Items.Count - 1;
+            return;
+        }
+
+        Items.Insert(clamped, entry);
+        _indexByKey = null;
+    }
+
+    public void RemoveAt(int index)
+    {
+        Items.RemoveAt(index);
+        _indexByKey = null;
+    }
+
+    public void ReplaceAt(int index, UIClientRowEntry entry)
+    {
+        var previousKey = Items[index].Key;
+        Items[index] = entry;
+
+        if (_indexByKey is not null)
+        {
+            if (!string.Equals(previousKey, entry.Key, StringComparison.Ordinal))
+                _ = _indexByKey.Remove(previousKey);
+
+            _indexByKey[entry.Key] = index;
+        }
+    }
+
+    public void Move(int oldIndex, int newIndex)
+    {
+        UIClientRowEntry entry = Items[oldIndex];
+        Items.RemoveAt(oldIndex);
+        Items.Insert(Math.Clamp(newIndex, 0, Items.Count), entry);
+        _indexByKey = null;
+    }
+
+    public int IndexOf(string? key, int? index)
+    {
+        if (key is not null)
+            return TryGetIndexByKey(key, out var found) ? found : -1;
+
+        return index is int at && at >= 0 && at < Items.Count ? at : -1;
+    }
+
+    public bool TryGetByKey(string key, [NotNullWhen(true)] out UIClientRowEntry? entry)
+    {
+        if (TryGetIndexByKey(key, out var at))
+        {
+            entry = Items[at];
+            return true;
+        }
+
+        entry = null;
+        return false;
+    }
+
+    private bool TryGetIndexByKey(string key, out int index)
+    {
+        if (Items.Count <= 8)
+        {
+            for (var i = 0; i < Items.Count; i++)
+            {
+                if (string.Equals(Items[i].Key, key, StringComparison.Ordinal))
+                {
+                    index = i;
+                    return true;
+                }
+            }
+
+            index = -1;
+            return false;
+        }
+
+        if (_indexByKey is null)
+        {
+            _indexByKey = new Dictionary<string, int>(Items.Count, StringComparer.Ordinal);
+            for (var i = 0; i < Items.Count; i++)
+                _indexByKey[Items[i].Key] = i;
+        }
+
+        return _indexByKey.TryGetValue(key, out index);
+    }
+}
+
 public sealed partial class UIClientPage
 {
     private static readonly JsonSerializerOptions ItemJsonOptions = new(JsonSerializerDefaults.Web);
 
     /// <summary>Takes the attached transport and applies the snapshot a connecting page starts from: every binding's value and every list.</summary>
-    public Task StartAsync(CancellationToken cancellationToken = default)
-        => StartCoreAsync(keepNavigation: false, cancellationToken);
+    public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        await StartCoreAsync(keepNavigation: false, cancellationToken).ConfigureAwait(false);
+        NotifyIfChanged();
+    }
 
     private async Task StartCoreAsync(bool keepNavigation, CancellationToken cancellationToken)
     {
@@ -52,28 +170,116 @@ public sealed partial class UIClientPage
         UIBindingId[] bindings = [.. View.Bindings.All.Where(static binding => binding.Kind == CompiledUIBindingKind.ComponentProperty).Select(static binding => binding.Id)];
         ServerChangeSet snapshot = await Transport.BuildAttachChangesAsync(bindings, cancellationToken).ConfigureAwait(false);
 
-        Receive(snapshot);
+        ApplyReceivedChanges(snapshot);
     }
 
     /// <summary>Applies a change set the page was sent: an answer, a push or the flush.</summary>
     public void Receive(ServerChangeSet changes)
     {
+        ArgumentNullException.ThrowIfNull(changes);
+
+        bool scheduled;
+
+        lock (_sync)
+        {
+            ApplyNoLock(changes.For(Transport.InstanceId));
+            scheduled = ScheduleReactionDrainNoLock();
+        }
+
+        if (!scheduled)
+            NotifyIfChanged();
+    }
+
+    /// <summary>Applies a change set pushed to the page and awaits any resync or deferred reactions it triggers.</summary>
+    internal async Task ReceivePushedAsync(ServerChangeSet changes, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(changes);
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
         lock (_sync)
             ApplyNoLock(changes.For(Transport.InstanceId));
 
+        await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
+        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
         NotifyIfChanged();
     }
 
     /// <summary>Applies a result pushed to the page — a background command's, a session's switch — and runs its effects.</summary>
     public void Receive(UICommandExecutionResult result)
     {
+        ArgumentNullException.ThrowIfNull(result);
+
+        bool scheduled;
+
+        lock (_sync)
+        {
+            ApplyNoLock(result.Changes.For(Transport.InstanceId));
+            ApplyEffectsNoLock(result.Command.Effects);
+            scheduled = ScheduleReactionDrainNoLock();
+        }
+
+        if (!scheduled)
+            NotifyIfChanged();
+    }
+
+    /// <summary>Applies a result pushed to the page and awaits any resync or effects reactions it triggers.</summary>
+    internal async Task ReceivePushedAsync(UICommandExecutionResult result, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
         lock (_sync)
         {
             ApplyNoLock(result.Changes.For(Transport.InstanceId));
             ApplyEffectsNoLock(result.Command.Effects);
         }
 
+        await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
+        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
         NotifyIfChanged();
+    }
+
+    internal void ApplyReceivedChanges(ServerChangeSet changes)
+    {
+        lock (_sync)
+            ApplyNoLock(changes.For(Transport.InstanceId));
+    }
+
+    internal Task DrainPendingReactionsAsync(CancellationToken cancellationToken)
+    {
+        Task pending;
+
+        lock (_sync)
+            pending = _pendingReactionDrain;
+
+        return pending.IsCompletedSuccessfully ? Task.CompletedTask : pending.WaitAsync(cancellationToken);
+    }
+
+    private bool ScheduleReactionDrainNoLock()
+    {
+        if (!_resync && _reactions.Count == 0)
+            return false;
+
+        Task previous = _pendingReactionDrain;
+        _pendingReactionDrain = Task.Run(() => DrainPushedReactionsAsync(previous), CancellationToken.None);
+        return true;
+    }
+
+    private async Task DrainPushedReactionsAsync(Task previous)
+    {
+        try
+        {
+            await previous.ConfigureAwait(false);
+            await ResyncIfAskedAsync(CancellationToken.None).ConfigureAwait(false);
+            await RunReactionsAsync(CancellationToken.None).ConfigureAwait(false);
+            NotifyIfChanged();
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+        {
+            // Page or runtime closed while a background push's reaction was draining.
+        }
     }
 
     /// <summary>Keeps a file the application sent the page to save.</summary>
@@ -154,25 +360,52 @@ public sealed partial class UIClientPage
         // Bounds that moved judge the reader's value again.
         if (address.Property == IInputComponent.ValueProperty || address.Property == IPeriodInputComponent.EndValueProperty)
         {
-            field.BoundRefusal = null;
-            _ = _changedValidations.Add(address.Component);
+            _ = field.WithheldByBounds.Remove(address.Property);
+            _ = _serverValues.Remove(address);
+            RejudgeBoundsNoLock(address.Component, field);
         }
-        else if (field.BoundRefusal is not null && (address.Property == IBoundedInputComponent.MinProperty || address.Property == IBoundedInputComponent.MaxProperty))
+        else if (address.Property == IBoundedInputComponent.MinProperty || address.Property == IBoundedInputComponent.MaxProperty || address.Property == IPeriodInputComponent.MinDistanceProperty)
         {
-            field.BoundRefusal = BoundRefusalNoLock(address.Component);
-            _ = _changedValidations.Add(address.Component);
+            if (field.BoundRefusal is not null || field.WithheldByBounds.Count > 0 || HasHeldComponentValueNoLock(address.Component))
+                RejudgeBoundsNoLock(address.Component, field);
+        }
+    }
+
+    private bool HasHeldComponentValueNoLock(UIComponentAddress component)
+        => _held.ContainsKey(new UIPropertyAddress(component, IInputComponent.ValueProperty))
+            || _held.ContainsKey(new UIPropertyAddress(component, IPeriodInputComponent.EndValueProperty));
+
+    private void RejudgeBoundsNoLock(UIComponentAddress component, UIClientField field)
+    {
+        field.BoundRefusal = BoundRefusalNoLock(component);
+        _ = _changedValidations.Add(component);
+
+        if (field.BoundRefusal is null && field.WithheldByBounds.Count > 0)
+        {
+            List<UIClientWrite> deferred = [with(field.WithheldByBounds.Count)];
+
+            foreach (UIProperty withheld in field.WithheldByBounds)
+            {
+                UIPropertyAddress withheldAddress = new(component, withheld);
+                _ = _serverValues.Remove(withheldAddress);
+                deferred.Add(new UIClientWrite(withheldAddress, ReadNoLock(component.Id, component.DynamicParameters, withheld)));
+            }
+
+            field.WithheldByBounds.Clear();
+            _reactions.Add(new UIClientReaction(DeferredWrites: deferred));
         }
     }
 
     private void ClearShadowedRowValuesNoLock(UIPropertyAddress outer)
     {
+        if (!_scopedValues.TryGetValue((outer.Component.Id, outer.Property), out HashSet<UIPropertyAddress>? candidates))
+            return;
+
         List<UIPropertyAddress>? shadowed = null;
 
-        foreach (UIPropertyAddress held in _values.Keys)
+        foreach (UIPropertyAddress held in candidates)
         {
-            if (held.Component.Id == outer.Component.Id
-                && held.Property == outer.Property
-                && held.Component.DynamicParameters.Length > outer.Component.DynamicParameters.Length
+            if (held.Component.DynamicParameters.Length > outer.Component.DynamicParameters.Length
                 && !_held.ContainsKey(held)
                 && HasRowKeyPrefix(held.Component.DynamicParameters, outer.Component.DynamicParameters))
             {
@@ -185,10 +418,100 @@ public sealed partial class UIClientPage
 
         for (var i = 0; i < shadowed.Count; i++)
         {
-            _ = _values.Remove(shadowed[i]);
+            _ = RemoveValueEntryNoLock(shadowed[i]);
             _ = _changedProperties.Add(shadowed[i]);
         }
     }
+
+    internal bool RemoveValueEntryNoLock(UIPropertyAddress address)
+    {
+        if (!_values.Remove(address))
+            return false;
+
+        _visibleRowsStamp++;
+
+        if (address.Component.DynamicParameters.Length == 0)
+            return true;
+
+        (UIComponentId Id, UIProperty Property) propKey = (address.Component.Id, address.Property);
+
+        if (_scopedValues.TryGetValue(propKey, out HashSet<UIPropertyAddress>? byProp))
+        {
+            _ = byProp.Remove(address);
+            if (byProp.Count == 0)
+                _ = _scopedValues.Remove(propKey);
+        }
+
+        IReadOnlyList<UIComponentId> scopes = View.Graph.GetItemScopes(address.Component.Id);
+        var count = Math.Min(scopes.Count, address.Component.DynamicParameters.Length);
+
+        for (var i = 0; i < count; i++)
+        {
+            UIComponentAddress host = new(HostOf(scopes[i]), address.Component.DynamicParameters[..i]);
+            var rowKey = KeyString(address.Component.DynamicParameters[i]);
+
+            if (_valuesByRow.TryGetValue((host, rowKey), out HashSet<UIPropertyAddress>? byRow))
+            {
+                _ = byRow.Remove(address);
+                if (byRow.Count == 0)
+                {
+                    _ = _valuesByRow.Remove((host, rowKey));
+                    if (_rowKeysByHost.TryGetValue(host, out HashSet<string>? keys) && keys.Remove(rowKey) && keys.Count == 0)
+                        _ = _rowKeysByHost.Remove(host);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    internal void SetValueEntryNoLock(UIPropertyAddress address, object? value)
+    {
+        var isNew = !_values.ContainsKey(address);
+        _values[address] = value;
+        _visibleRowsStamp++;
+
+        if (!isNew || address.Component.DynamicParameters.Length == 0)
+            return;
+
+        (UIComponentId Id, UIProperty Property) propKey = (address.Component.Id, address.Property);
+
+        if (!_scopedValues.TryGetValue(propKey, out HashSet<UIPropertyAddress>? byProp))
+        {
+            byProp = [];
+            _scopedValues.Add(propKey, byProp);
+        }
+
+        _ = byProp.Add(address);
+
+        IReadOnlyList<UIComponentId> scopes = View.Graph.GetItemScopes(address.Component.Id);
+        var count = Math.Min(scopes.Count, address.Component.DynamicParameters.Length);
+
+        for (var i = 0; i < count; i++)
+        {
+            UIComponentAddress host = new(HostOf(scopes[i]), address.Component.DynamicParameters[..i]);
+            var rowKey = KeyString(address.Component.DynamicParameters[i]);
+
+            if (!_valuesByRow.TryGetValue((host, rowKey), out HashSet<UIPropertyAddress>? byRow))
+            {
+                byRow = [];
+                _valuesByRow.Add((host, rowKey), byRow);
+            }
+
+            _ = byRow.Add(address);
+
+            if (!_rowKeysByHost.TryGetValue(host, out HashSet<string>? keys))
+            {
+                keys = [with(StringComparer.Ordinal)];
+                _rowKeysByHost.Add(host, keys);
+            }
+
+            _ = keys.Add(rowKey);
+        }
+    }
+
+    private static string KeyString(object? key)
+        => key as string ?? Convert.ToString(key, CultureInfo.InvariantCulture) ?? string.Empty;
 
     /// <summary>
     /// The inserts right after a reset on the same host — a controller's <c>Clear()</c> and its <c>Add</c>s — read as one "the list is now
@@ -211,10 +534,10 @@ public sealed partial class UIClientPage
     /// </summary>
     private void RefillNoLock(UIComponentAddress host, List<ServerCollectionChangeUIUpdate> inserts)
     {
-        List<UIClientRowEntry> rows = RowsForChangeNoLock(host);
-        Dictionary<string, UIClientRowEntry> previous = new(StringComparer.Ordinal);
+        UIClientRowBuffer buffer = RowsForChangeNoLock(host);
+        Dictionary<string, UIClientRowEntry> previous = new(buffer.Items.Count, StringComparer.Ordinal);
 
-        foreach (UIClientRowEntry row in rows)
+        foreach (UIClientRowEntry row in buffer.Items)
             previous[row.Key] = row;
 
         List<UIClientRowEntry> refilled = [];
@@ -244,8 +567,8 @@ public sealed partial class UIClientPage
         foreach (var gone in previous.Keys)
             DropRowNoLock(host, gone);
 
-        rows.Clear();
-        rows.AddRange(refilled);
+        buffer.ResetFrom(refilled);
+        _visibleRowsStamp++;
         _ = _changedCollections.Add(host);
     }
 
@@ -255,7 +578,7 @@ public sealed partial class UIClientPage
 
     private void ApplyCollectionNoLock(ServerCollectionChangeUIUpdate update)
     {
-        List<UIClientRowEntry> rows = RowsForChangeNoLock(update.Component);
+        UIClientRowBuffer rows = RowsForChangeNoLock(update.Component);
 
         switch (update.Action)
         {
@@ -268,19 +591,19 @@ public sealed partial class UIClientPage
                 {
                     UIClientRowEntry row = new(change.Key ?? KeyOf(change.Item), change.Item);
 
-                    rows.Insert(Math.Clamp(change.Index ?? rows.Count, 0, rows.Count), row);
+                    rows.InsertAt(change.Index ?? rows.Items.Count, row);
                 }
 
                 break;
             case CollectionUpdateAction.Remove:
                 foreach (ServerCollectionItemChange change in update.Items)
                 {
-                    var at = IndexOf(rows, change.Key, change.Index);
+                    var at = rows.IndexOf(change.Key, change.Index);
 
                     if (at < 0)
                         continue;
 
-                    DropRowNoLock(update.Component, rows[at].Key);
+                    DropRowNoLock(update.Component, rows.Items[at].Key);
                     rows.RemoveAt(at);
                 }
 
@@ -288,33 +611,30 @@ public sealed partial class UIClientPage
             case CollectionUpdateAction.Replace:
                 foreach (ServerCollectionItemChange change in update.Items)
                 {
-                    var at = IndexOf(rows, change.OldKey ?? change.Key, change.Index);
+                    var at = rows.IndexOf(change.OldKey ?? change.Key, change.Index);
                     UIClientRowEntry row = new(change.Key ?? KeyOf(change.Item), change.Item);
 
                     // A row it replaces no longer there is drawn where the change places it, as an insert is.
                     if (at < 0)
                     {
-                        rows.Insert(Math.Clamp(change.Index ?? rows.Count, 0, rows.Count), row);
+                        rows.InsertAt(change.Index ?? rows.Items.Count, row);
                         continue;
                     }
 
-                    DropRowNoLock(update.Component, rows[at].Key);
-                    rows[at] = row;
+                    DropRowNoLock(update.Component, rows.Items[at].Key);
+                    rows.ReplaceAt(at, row);
                 }
 
                 break;
             case CollectionUpdateAction.Move:
                 foreach (ServerCollectionMoveChange move in update.Moves)
                 {
-                    var at = IndexOf(rows, move.Key, move.OldIndex);
+                    var at = rows.IndexOf(move.Key, move.OldIndex);
 
                     if (at < 0)
                         continue;
 
-                    UIClientRowEntry row = rows[at];
-
-                    rows.RemoveAt(at);
-                    rows.Insert(Math.Clamp(move.NewIndex ?? rows.Count, 0, rows.Count), row);
+                    rows.Move(at, move.NewIndex ?? rows.Items.Count);
                 }
 
                 break;
@@ -322,15 +642,17 @@ public sealed partial class UIClientPage
                 break;
         }
 
+        _visibleRowsStamp++;
         _ = _changedCollections.Add(update.Component);
     }
 
     /// <summary>The rows a change applies to: the ones the page holds, else — a list nested in a row — those its row's item carried.</summary>
-    private List<UIClientRowEntry> RowsForChangeNoLock(UIComponentAddress host)
+    private UIClientRowBuffer RowsForChangeNoLock(UIComponentAddress host)
     {
-        if (!_rows.TryGetValue(host, out List<UIClientRowEntry>? rows))
+        if (!_rows.TryGetValue(host, out UIClientRowBuffer? rows))
         {
-            rows = [.. ReadSourceRowsNoLock(host)];
+            rows = new UIClientRowBuffer();
+            rows.ResetFrom(ReadSourceRowsNoLock(host));
             _rows.Add(host, rows);
         }
 
@@ -340,8 +662,8 @@ public sealed partial class UIClientPage
     /// <summary>The source rows a host holds before client-side filtering or sorting: those the page holds, else the list its binding reads off its row's item or its own static items.</summary>
     private List<UIClientRowEntry> ReadSourceRowsNoLock(UIComponentAddress host)
     {
-        if (_rows.TryGetValue(host, out List<UIClientRowEntry>? held))
-            return held;
+        if (_rows.TryGetValue(host, out UIClientRowBuffer? held))
+            return held.Items;
 
         if (ReadNoLock(host.Id, host.DynamicParameters, IItemsComponent.ItemsProperty) is not IEnumerable items || items is string)
             return [];
@@ -355,6 +677,24 @@ public sealed partial class UIClientPage
         }
 
         return rows;
+    }
+
+    internal bool TryGetSourceRowNoLock(UIComponentAddress host, string key, [NotNullWhen(true)] out UIClientRowEntry? entry)
+    {
+        if (_rows.TryGetValue(host, out UIClientRowBuffer? held))
+            return held.TryGetByKey(key, out entry);
+
+        foreach (UIClientRowEntry candidate in ReadSourceRowsNoLock(host))
+        {
+            if (string.Equals(candidate.Key, key, StringComparison.Ordinal))
+            {
+                entry = candidate;
+                return true;
+            }
+        }
+
+        entry = null;
+        return false;
     }
 
     private static string KeyOf(object? item)
@@ -378,45 +718,151 @@ public sealed partial class UIClientPage
         return false;
     }
 
-    private static int IndexOf(List<UIClientRowEntry> rows, string? key, int? index)
-    {
-        if (key is not null)
-            return rows.FindIndex(row => string.Equals(row.Key, key, StringComparison.Ordinal));
-
-        return index is int at && at < rows.Count ? at : -1;
-    }
-
     /// <summary>Forgets what the page held under a row that went, or under every row of a host that was reset: values, lists and fields.</summary>
     private void DropRowNoLock(UIComponentAddress host, string? key)
     {
-        foreach (UIPropertyAddress address in _values.Keys.ToArray())
+        DropRowValuesNoLock(host, key);
+
+        if (_held.Count > 0)
         {
-            if (IsUnderRow(address.Component, host, key) && _values.Remove(address))
+            List<UIPropertyAddress>? droppedHeld = null;
+
+            foreach (UIPropertyAddress address in _held.Keys)
+            {
+                if (IsUnderRow(address.Component, host, key))
+                    (droppedHeld ??= []).Add(address);
+            }
+
+            if (droppedHeld is not null)
+            {
+                for (var i = 0; i < droppedHeld.Count; i++)
+                    _ = _held.Remove(droppedHeld[i]);
+            }
+        }
+
+        if (_serverValues.Count > 0)
+        {
+            List<UIPropertyAddress>? droppedServer = null;
+
+            foreach (UIPropertyAddress address in _serverValues.Keys)
+            {
+                if (IsUnderRow(address.Component, host, key))
+                    (droppedServer ??= []).Add(address);
+            }
+
+            if (droppedServer is not null)
+            {
+                for (var i = 0; i < droppedServer.Count; i++)
+                    _ = _serverValues.Remove(droppedServer[i]);
+            }
+        }
+
+        if (_rows.Count > 0)
+        {
+            List<UIComponentAddress>? droppedLists = null;
+
+            foreach (UIComponentAddress list in _rows.Keys)
+            {
+                if (IsUnderRow(list, host, key))
+                    (droppedLists ??= []).Add(list);
+            }
+
+            if (droppedLists is not null)
+            {
+                for (var i = 0; i < droppedLists.Count; i++)
+                {
+                    if (_rows.Remove(droppedLists[i]))
+                        _ = _changedCollections.Add(droppedLists[i]);
+                }
+            }
+        }
+
+        if (_visibleRowsCache.Count > 0)
+        {
+            _ = _visibleRowsCache.Remove(host);
+
+            List<UIComponentAddress>? droppedVisible = null;
+
+            foreach (UIComponentAddress cached in _visibleRowsCache.Keys)
+            {
+                if (IsUnderRow(cached, host, key))
+                    (droppedVisible ??= []).Add(cached);
+            }
+
+            if (droppedVisible is not null)
+            {
+                for (var i = 0; i < droppedVisible.Count; i++)
+                    _ = _visibleRowsCache.Remove(droppedVisible[i]);
+            }
+        }
+
+        if (_fields.Count > 0)
+        {
+            List<UIComponentAddress>? droppedFields = null;
+
+            foreach (UIComponentAddress field in _fields.Keys)
+            {
+                if (IsUnderRow(field, host, key))
+                    (droppedFields ??= []).Add(field);
+            }
+
+            if (droppedFields is not null)
+            {
+                for (var i = 0; i < droppedFields.Count; i++)
+                {
+                    if (_fields.Remove(droppedFields[i]))
+                        _ = _changedValidations.Add(droppedFields[i]);
+                }
+            }
+        }
+
+        if (_openedRenames.Count > 0)
+        {
+            List<UIComponentAddress>? droppedRenames = null;
+
+            foreach (UIComponentAddress rename in _openedRenames)
+            {
+                if (IsUnderRow(rename, host, key))
+                    (droppedRenames ??= []).Add(rename);
+            }
+
+            if (droppedRenames is not null)
+            {
+                for (var i = 0; i < droppedRenames.Count; i++)
+                    _ = _openedRenames.Remove(droppedRenames[i]);
+            }
+        }
+    }
+
+    private void DropRowValuesNoLock(UIComponentAddress host, string? key)
+    {
+        if (key is not null)
+        {
+            DropSingleRowValuesNoLock(host, key);
+            return;
+        }
+
+        if (!_rowKeysByHost.Remove(host, out HashSet<string>? keys))
+            return;
+
+        foreach (var rowKey in keys)
+            DropSingleRowValuesNoLock(host, rowKey);
+    }
+
+    private void DropSingleRowValuesNoLock(UIComponentAddress host, string key)
+    {
+        if (!_valuesByRow.TryGetValue((host, key), out HashSet<UIPropertyAddress>? bucket) || bucket.Count == 0)
+            return;
+
+        UIPropertyAddress[] addresses = [.. bucket];
+
+        for (var i = 0; i < addresses.Length; i++)
+        {
+            UIPropertyAddress address = addresses[i];
+            _ = _redirectedTargets.Remove(address);
+
+            if (RemoveValueEntryNoLock(address))
                 _ = _changedProperties.Add(address);
-        }
-
-        foreach (UIPropertyAddress address in _held.Keys.ToArray())
-        {
-            if (IsUnderRow(address.Component, host, key))
-                _ = _held.Remove(address);
-        }
-
-        foreach (UIPropertyAddress address in _serverValues.Keys.ToArray())
-        {
-            if (IsUnderRow(address.Component, host, key))
-                _ = _serverValues.Remove(address);
-        }
-
-        foreach (UIComponentAddress list in _rows.Keys.ToArray())
-        {
-            if (IsUnderRow(list, host, key) && _rows.Remove(list))
-                _ = _changedCollections.Add(list);
-        }
-
-        foreach (UIComponentAddress field in _fields.Keys.ToArray())
-        {
-            if (IsUnderRow(field, host, key) && _fields.Remove(field))
-                _ = _changedValidations.Add(field);
         }
     }
 
@@ -469,7 +915,7 @@ public sealed partial class UIClientPage
     /// once the act is done — an address effect rewrites the address and history, a discard lets a form's held edits go, and a language
     /// or theme the session does not hold yet is told to the session.
     /// </summary>
-    private void ApplyEffectsNoLock(IReadOnlyList<ClientEffect> effects)
+    private void ApplyEffectsNoLock(IReadOnlyList<ClientEffect> effects, UIComponentAddress? source = null, int depth = 0, List<UIClientWrite>? writes = null)
     {
         foreach (ClientEffect effect in effects)
         {
@@ -519,14 +965,27 @@ public sealed partial class UIClientPage
                     }
                     else
                     {
-                        _navigation = UINavigationAddress.Parse(back.Fallback);
-                        _history[0] = _navigation;
-                        _navigationChanged = true;
+                        UINavigationRequest fallback = UINavigationAddress.Parse(back.Fallback);
+
+                        if (IsSameRoute(fallback.Route, Route))
+                        {
+                            UINavigationRequest origin = _navigation;
+                            _navigation = fallback;
+                            _history[0] = fallback;
+                            _navigationChanged = true;
+                            _reactions.Add(new UIClientReaction(NavigateInPlace: fallback.Parameters, HasNavigateInPlace: true, FallbackOrigin: origin));
+                        }
                     }
 
                     break;
                 case DiscardFormEffect discard:
                     DiscardFormNoLock(discard.FormId);
+                    break;
+                case InsertTextEffect { ResolvedTarget: { } insertTarget } insert:
+                    ApplyInsertTextNoLock(insert, insertTarget, source, depth, writes);
+                    break;
+                case RenameItemEffect { ResolvedTarget: { } renameTarget } rename:
+                    OpenRenameNoLock(rename, renameTarget, source);
                     break;
                 case SetLanguageEffect or SetThemeEffect or SetThemeColorsEffect when !Transport.SessionHolds(effect):
                     _reactions.Add(new UIClientReaction(Setting: effect));
@@ -535,6 +994,128 @@ public sealed partial class UIClientPage
                     break;
             }
         }
+    }
+
+    private static bool IsSameRoute(string left, string right)
+        => string.Equals(UIRoutePath.Normalize(left), UIRoutePath.Normalize(right), StringComparison.OrdinalIgnoreCase);
+
+    private void ApplyInsertTextNoLock(InsertTextEffect insert, UIComponentAddress target, UIComponentAddress? source, int depth, List<UIClientWrite>? writes)
+    {
+        var text = ResolveInsertTextNoLock(insert, source);
+
+        if (string.IsNullOrEmpty(text))
+            return;
+
+        UIComponentId targetId = target.Id;
+
+        if (!View.Graph.TryGet(targetId, out _))
+            return;
+
+        var scopeDepth = View.Graph.GetItemScopes(targetId).Count;
+        var targetKeys = target.DynamicParameters.Length > 0
+            ? target.DynamicParameters
+            : source is UIComponentAddress src && src.DynamicParameters.Length >= scopeDepth
+                ? src.DynamicParameters[..scopeDepth]
+                : [];
+
+        if (targetKeys.Length < scopeDepth)
+            return;
+
+        if (!IsShownNoLock(targetId, targetKeys) || !IsEnabledNoLock(targetId, targetKeys) || ReadNoLock(targetId, targetKeys, IInputComponent.IsReadOnlyProperty) is true)
+            return;
+
+        var current = ReadNoLock(targetId, targetKeys, IInputComponent.ValueProperty)?.ToString() ?? string.Empty;
+        var next = current + text;
+
+        if (ReadNoLock(targetId, targetKeys, ITextLengthComponent.MaxLengthProperty) is int maxLength and >= 0 && next.Length > maxLength)
+            return;
+
+        UIPropertyAddress address = new(new UIComponentAddress(targetId, targetKeys), IInputComponent.ValueProperty);
+        CompiledUIBinding? binding = BindingOf(targetId, IInputComponent.ValueProperty);
+        UIClientField field = FieldNoLock(address.Component);
+
+        field.Touched = true;
+        _ = _changedValidations.Add(address.Component);
+
+        if (binding is { Mode: UIBindingMode.OnSubmit } && !_held.ContainsKey(address))
+            _serverValues[address] = ReadNoLock(targetId, targetKeys, IInputComponent.ValueProperty);
+
+        List<UIClientWrite> targetWrites = writes ?? [];
+        WriteValueNoLock(address, next, local: true, depth + 1, targetWrites);
+        var outOfBounds = JudgeBoundsNoLock(address.Component);
+
+        if (binding is { Mode: UIBindingMode.OnSubmit })
+        {
+            _held[address] = next;
+        }
+        else if (binding is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource })
+        {
+            if (outOfBounds)
+            {
+                _ = field.WithheldByBounds.Add(IInputComponent.ValueProperty);
+            }
+            else
+            {
+                _ = field.WithheldByBounds.Remove(IInputComponent.ValueProperty);
+                targetWrites.Add(new UIClientWrite(address, next));
+            }
+        }
+
+        if (writes is null && targetWrites.Count > 0)
+            _reactions.Add(new UIClientReaction(DeferredWrites: targetWrites));
+    }
+
+    private string? ResolveInsertTextNoLock(InsertTextEffect insert, UIComponentAddress? source)
+    {
+        if (insert.ItemKey)
+            return source is { DynamicParameters: { Length: > 0 } keys } && keys[^1] is { } key ? KeyString(key) : null;
+
+        if (!insert.ItemValue)
+            return insert.Text;
+
+        if (source is not UIComponentAddress src)
+            return null;
+
+        List<UIDynamicParameterScope> scopes = ScopesNoLock(src.Id, src.DynamicParameters);
+
+        if (scopes.Count > 0)
+        {
+            var rowItem = scopes[^1].Item;
+
+            if (rowItem is IMenuItemModel { Value: UIPhrase modelValue } && Words(modelValue)?.Trim() is { Length: > 0 } trimmedModel)
+                return trimmedModel;
+
+            if (ItemContext.TryReadProperty(rowItem, nameof(IMenuItemModel.Value), out var rawValue) && Words(rawValue)?.Trim() is { Length: > 0 } trimmedWire)
+                return trimmedWire;
+
+            if (Words(ReadNoLock(src.Id, src.DynamicParameters, ITextBaseComponent.TitleProperty))?.Trim() is { Length: > 0 } sourceTitle)
+                return sourceTitle;
+
+            if (ItemContext.TryReadProperty(rowItem, nameof(IMenuItemModel.Title), out var itemTitle) && Words(itemTitle)?.Trim() is { Length: > 0 } rowTitle)
+                return rowTitle;
+
+            return null;
+        }
+
+        return Words(ReadNoLock(src.Id, src.DynamicParameters, ITextBaseComponent.TitleProperty))?.Trim() is { Length: > 0 } title ? title : null;
+    }
+
+    private void OpenRenameNoLock(RenameItemEffect rename, UIComponentAddress target, UIComponentAddress? source)
+    {
+        var scopeDepth = View.Graph.GetItemScopes(target.Id).Count;
+        var targetKeys = target.DynamicParameters.Length > 0
+            ? target.DynamicParameters
+            : source is UIComponentAddress src && src.DynamicParameters.Length >= scopeDepth
+                ? src.DynamicParameters[..scopeDepth]
+                : [];
+
+        if (targetKeys.Length < scopeDepth)
+            return;
+
+        if (rename.Key is { Length: > 0 } itemKey)
+            _ = _openedRenames.Add(new UIComponentAddress(target.Id, [.. targetKeys, itemKey]));
+        else
+            _ = _openedRenames.Add(new UIComponentAddress(target.Id, targetKeys));
     }
 
     /// <summary>A dialog the page's view declares; one it does not is refused, as the runtime drops it and the page finds nothing.</summary>
@@ -573,6 +1154,24 @@ public sealed partial class UIClientPage
                 }
             }
         }
+
+        foreach (UIPropertyAddress held in _held.Keys)
+        {
+            if (StandsUnder(held.Component.Id, dialog.RootComponentId) && IsInFormNoLock(held.Component, dialog.Key))
+            {
+                DiscardFormNoLock(dialog.Key);
+                return;
+            }
+        }
+
+        foreach (UIComponentAddress field in _fields.Keys)
+        {
+            if (StandsUnder(field.Id, dialog.RootComponentId) && IsInFormNoLock(field, dialog.Key))
+            {
+                DiscardFormNoLock(dialog.Key);
+                return;
+            }
+        }
     }
 
     private bool StandsUnder(UIComponentId componentId, UIComponentId root)
@@ -593,14 +1192,31 @@ public sealed partial class UIClientPage
     /// </summary>
     private void DiscardFormNoLock(string formId)
     {
-        foreach (UIPropertyAddress address in _held.Keys.ToArray())
+        HashSet<UIPropertyAddress>? discarded = null;
+
+        foreach (UIPropertyAddress address in _held.Keys)
         {
-            if (!IsInFormNoLock(address.Component, formId))
+            if (IsInFormNoLock(address.Component, formId))
+                _ = (discarded ??= []).Add(address);
+        }
+
+        foreach (KeyValuePair<UIComponentAddress, UIClientField> field in _fields)
+        {
+            if (field.Value.WithheldByBounds.Count == 0 || !IsInFormNoLock(field.Key, formId))
                 continue;
 
-            _ = _held.Remove(address);
-            _ = _serverValues.Remove(address, out var server);
-            WriteValueNoLock(address, server, local: false, depth: 0, writes: []);
+            foreach (UIProperty property in field.Value.WithheldByBounds)
+                _ = (discarded ??= []).Add(new UIPropertyAddress(field.Key, property));
+        }
+
+        if (discarded is not null)
+        {
+            foreach (UIPropertyAddress address in discarded)
+            {
+                _ = _held.Remove(address);
+                if (_serverValues.Remove(address, out var server))
+                    WriteValueNoLock(address, server, local: false, depth: 0, writes: []);
+            }
         }
 
         // After the values: their restore judged the fields again, and that goes too.
@@ -611,9 +1227,11 @@ public sealed partial class UIClientPage
 
             field.Value.Touched = false;
             field.Value.Failing.Clear();
+            field.Value.WithheldByBounds.Clear();
             field.Value.Refusal = null;
             field.Value.BoundRefusal = null;
             field.Value.GateRefused = false;
+            field.Value.LastEditedEnd = false;
             _ = _changedValidations.Add(field.Key);
         }
     }
@@ -628,17 +1246,19 @@ public sealed partial class UIClientPage
 
             _resync = false;
             _fullResyncOccurred = true;
-            _values.Clear();
+            ClearValueEntriesNoLock();
             _rows.Clear();
+            _openedRenames.Clear();
 
             // A held field keeps the reader's edit through the rebuild, as the page's input does; the snapshot's value waits aside.
             foreach (KeyValuePair<UIPropertyAddress, object?> held in _held)
-                _values[held.Key] = held.Value;
+                SetValueEntryNoLock(held.Key, held.Value);
 
             foreach (KeyValuePair<UIComponentAddress, UIClientField> field in _fields)
             {
                 if (!HasHeldPropertyNoLock(field.Key))
                 {
+                    field.Value.WithheldByBounds.Clear();
                     field.Value.Refusal = null;
                     field.Value.BoundRefusal = null;
                     field.Value.GateRefused = false;
@@ -647,6 +1267,17 @@ public sealed partial class UIClientPage
         }
 
         await StartCoreAsync(keepNavigation: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void ClearValueEntriesNoLock()
+    {
+        _values.Clear();
+        _scopedValues.Clear();
+        _valuesByRow.Clear();
+        _rowKeysByHost.Clear();
+        _redirectedTargets.Clear();
+        _visibleRowsCache.Clear();
+        _visibleRowsStamp++;
     }
 
     private bool HasHeldPropertyNoLock(UIComponentAddress component)

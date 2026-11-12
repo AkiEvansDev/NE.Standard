@@ -22,7 +22,7 @@ public sealed class UIComponentStateLayout
 
         _properties = new UIProperty[properties.Count];
 
-        Dictionary<UIProperty, int> slots = new(properties.Count);
+        Dictionary<UIProperty, int> slots = [with(properties.Count)];
 
         for (var i = 0; i < properties.Count; i++)
         {

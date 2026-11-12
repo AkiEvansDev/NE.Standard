@@ -35,7 +35,7 @@ const hosts: readonly (readonly [string, string])[] = [
 test("each host marked by ShowEmptyTemplate off hides its own empty state, through its host alone, and collapses when empty", () => {
     for (const [root, host] of hosts) {
         const selector = `${root}[data-ui-no-empty] > ${host} > [data-ui-empty-placeholder]`;
-        const rootSelector = `${root}[data-ui-no-empty][data-ui-items-empty]`;
+        const rootSelector = `${root}[data-ui-no-empty][data-ui-items-empty]:not([data-ui-items-no-match], [data-ui-window-pending], [data-ui-drop-target], [data-ui-tree-draggable])`;
 
         assert.match(declarations(selector) ?? "", /display: none;/, selector);
         assert.match(declarations(rootSelector) ?? "", /display: none;/, rootSelector);

@@ -89,7 +89,7 @@ public static class UIPluralRules
     /// <summary>The category a key's last segment names (<c>files.few</c> is <see cref="UIPluralCategory.Few"/>); false for any other key.</summary>
     internal static bool TryReadForm(string key, out string stem, out UIPluralCategory category)
     {
-        var dot = key.LastIndexOf('.');
+        var dot = key.LastIndexOf('.', StringComparison.Ordinal);
 
         if (dot > 0)
         {

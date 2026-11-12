@@ -31,16 +31,20 @@ public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase
     protected RadioGroupComponent(string? id = null) : base(id)
     {
         // Title, as a checkbox's: an option's dot stands on its title's line, and its glyph and badge beside it.
-        _ = SetTemplate(_optionTemplate);
-        _ = SetEmptyTemplate(new DefaultEmptyTemplate());
-        _ = SetGroupTemplate(new DefaultGroupTemplate(binds: true));
+        SetDefaultTemplate(_optionTemplate);
+        SetDefaultEmptyTemplate(new DefaultEmptyTemplate());
+        SetDefaultGroupTemplate(new DefaultGroupTemplate(binds: true));
     }
 
     /// <summary>
     /// Configures the built-in default group template, throwing if a different template has been set.
     /// </summary>
     public T ConfigureDefaultGroupTemplate(Action<DefaultGroupTemplate> configure)
-        => Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
+    {
+        T result = Self.ConfigureTemplate(GroupTemplate as DefaultGroupTemplate, configure, "template");
+        MarkGroupTemplateAuthored();
+        return result;
+    }
 
     /// <summary>
     /// Sets where an option's icon sits against its text: on the title's line (the default) or centred across title and description.
@@ -49,6 +53,7 @@ public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase
     public T SetIconAlignment(UITextIconAlignment alignment)
     {
         _ = _optionTemplate.SetIconAlignment(alignment);
+        MarkTemplateAuthored();
         return Self;
     }
 
@@ -59,6 +64,7 @@ public abstract partial class RadioGroupComponent<T> : OptionsInputComponentBase
     public T SetBadgeAlignment(UITextBadgeAlignment alignment)
     {
         _ = _optionTemplate.SetBadgeAlignment(alignment);
+        MarkTemplateAuthored();
         return Self;
     }
 }

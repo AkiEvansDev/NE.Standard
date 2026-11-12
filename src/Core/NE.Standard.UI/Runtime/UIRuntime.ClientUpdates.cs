@@ -490,21 +490,20 @@ internal sealed partial class UIRuntime
         if (_heldValues.Count == 0)
             return;
 
-        for (var i = 0; i < _pendingUpdates.Count; i++)
+        foreach (HeldValue held in _heldValues)
         {
-            if (_pendingUpdates[i].Update is not ServerValueUIUpdate { ExceptInstanceId: null } pending)
-                continue;
+            ClientValueUIUpdate update = held.Update;
 
-            foreach (HeldValue held in _heldValues)
+            if (!_queuedValueIndices.TryGetValue(update.Address, out var index)
+                || (uint)index >= (uint)_pendingUpdates.Count
+                || _pendingUpdates[index].Update is not ServerValueUIUpdate { ExceptInstanceId: null } pending
+                || !pending.Address.Equals(update.Address)
+                || !SameHeldValue(pending.Value, update.Value))
             {
-                ClientValueUIUpdate update = held.Update;
-
-                if (!pending.Address.Equals(update.Address) || !SameHeldValue(pending.Value, update.Value))
-                    continue;
-
-                _pendingUpdates[i] = _pendingUpdates[i] with { Update = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, Content = pending.Content, ExceptInstanceId = held.InstanceId } };
-                break;
+                continue;
             }
+
+            _pendingUpdates[index] = _pendingUpdates[index] with { Update = new ServerValueUIUpdate { Address = pending.Address, Value = pending.Value, Content = pending.Content, ExceptInstanceId = held.InstanceId } };
         }
 
         _heldValues.Clear();

@@ -25,7 +25,7 @@ internal sealed class WebGlyphMap
     // The class every glyph of the core's own face wears the start of: a target there is the core's face again, no pack's.
     private static readonly string CoreGlyphClassPrefix = WebIconClassName.FromIconName(UIGlyphs.Prefix);
 
-    private readonly Dictionary<string, string> _icons = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _icons = [with(StringComparer.Ordinal)];
 
     /// <summary>Maps <paramref name="glyph"/> to <paramref name="icon"/>; refuses a glyph that is not the framework's and a target no pack could draw.</summary>
     public void Add(string glyph, string icon)

@@ -319,8 +319,8 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         if (columns.Count == 0)
             return;
 
-        List<UIGridUnit> units = new(columns.Count);
-        List<UIGridUnit> tracks = new(columns.Count);
+        List<UIGridUnit> units = [with(columns.Count)];
+        List<UIGridUnit> tracks = [with(columns.Count)];
 
         for (var i = 0; i < columns.Count; i++)
         {
@@ -357,7 +357,7 @@ public class TableComponentRenderer : ItemsCollectionRendererBase
         {
             if (columns[i].Hidden && sized is null)
             {
-                sized = new List<UIGridUnit>(columns.Count);
+                sized = [with(columns.Count)];
 
                 for (var copy = 0; copy < i; copy++)
                     sized.Add(tracks[copy]);

@@ -123,6 +123,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                 .SetSpacing(16)
                 .AddChild(new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Surface)
+                    .SetPadding(UIThickness.Uniform(4))
                     .SetMaxWidth(UILayoutLength.Absolute(280))
                     .SetContent(new MenuComponent()
                         .BindItems<FiltersGroupContext>(static x => x.Entries, UIBindingScope.Relative)
@@ -154,6 +155,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Commands, and the keys that fire them",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Surface)
+                .SetPadding(UIThickness.Uniform(4))
                 // Room for the longest entry beside its shortcut: at 280 "Download the config" lost its end.
                 .SetWidth(UILayoutLength.Absolute(360))
                 .SetContent(new MenuComponent()
@@ -174,6 +176,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("A sidebar with sections",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Surface)
+                .SetPadding(UIThickness.Uniform(4))
                 .SetHorizontalAlignment(UIAlignment.Start)
                 .SetContent(new MenuComponent(SidebarId)
                     .SetShowCollapseToggle(true)

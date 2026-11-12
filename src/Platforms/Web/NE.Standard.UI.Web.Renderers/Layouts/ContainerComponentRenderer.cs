@@ -51,6 +51,7 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
+        LayoutClipReachRenderer.Render(context, root);
 
         // A variable rather than the grid property itself, so a splitter's tiers can sit over it in the stylesheet's chain.
         RenderTracks(context, root, ContainerComponent.ColumnsProperty, ColumnsVariable, WebAttributes.ColumnLimits);

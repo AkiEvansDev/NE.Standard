@@ -649,7 +649,7 @@ export const CardHeaderClass = "ui-card__header";
 export const CardHeaderEmptyClass = "ui-card__header--empty";
 // A list, table or tree whose scroll is switched off (`DisableScroll()`, `WebClassNames.ScrollY`): clipped with `hidden`, scrolling never.
 export const ScrollYDisabledClass = "ui-scroll-y--disabled";
-const TextInputClass = "ui-text-input";
+export const TextInputClass = "ui-text-input";
 export const InvalidClass = "ui-invalid";
 // A field's message, which the validation engine writes as a line or a mark; a package's cell may carry one to speak through.
 export const ValidationMessageAttribute = "data-ui-validation-message";
@@ -1352,6 +1352,20 @@ export const SelectActionClass = "ui-select__action";
 
 export const WindowFootEdgeAttribute = "data-ui-window-foot-edge";
 
+export const ItemsNoMatchAttribute = "data-ui-items-no-match";
+
+export const GroupStartAttribute = "data-ui-group-start";
+
+export const GroupEndAttribute = "data-ui-group-end";
+
+export const InputHeaderClass = "ui-input__header";
+
+export const PlaceholderNamesAttribute = "data-ui-placeholder-names";
+
+export const TextAreaClass = "ui-text-area";
+
+export const ItemsVersionAttribute = "data-ui-items-version";
+
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {
     componentId: ComponentIdAttribute,
@@ -1426,7 +1440,8 @@ export const pluginDomNames = {
     badgeTitle: BadgeTitleAttribute,
     badgeDangerClass: BadgeDangerClass,
     badgeWarningClass: BadgeWarningClass,
-    badgeSurfaceClass: BadgeSurfaceClass
+    badgeSurfaceClass: BadgeSurfaceClass,
+    itemsVersion: ItemsVersionAttribute
 } as const;
 
 /** A value as the inside of a quoted attribute selector: a quote, a backslash and a control character escaped. */

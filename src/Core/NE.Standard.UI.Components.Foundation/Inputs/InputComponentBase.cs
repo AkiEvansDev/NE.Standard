@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Interaction;
@@ -51,4 +52,50 @@ public abstract partial class InputComponentBase<TComponent, TValue>(string? id 
 
     /// <inheritdoc/>
     public virtual UISize? CaptionRowBox(UIResponsiveTier tier) => InputCaptionRow.Box(this, tier);
+
+    /// <inheritdoc/>
+    protected override Action? SnapshotAuthoredState()
+    {
+        Action? restoreBase = base.SnapshotAuthoredState();
+
+        if (_validations.Count == 0)
+            return restoreBase;
+
+        UIValidationRule[] ownValidations = [.. _validations];
+        _validations.Clear();
+
+        return () =>
+        {
+            restoreBase?.Invoke();
+            InputValidationDefaults.MergeAuthored(_validations, ownValidations);
+        };
+    }
+}
+
+internal static class InputValidationDefaults
+{
+    public static void MergeAuthored(List<UIValidationRule> target, UIValidationRule[] ownValidations)
+    {
+        UIValidationRule[] inherited = target.Count > 0 ? [.. target] : [];
+        target.Clear();
+
+        for (var i = 0; i < inherited.Length; i++)
+        {
+            var overridden = false;
+
+            for (var j = 0; j < ownValidations.Length; j++)
+            {
+                if (ownValidations[j].Operator == inherited[i].Operator && Nullable.Equals(ownValidations[j].ValueSource, inherited[i].ValueSource))
+                {
+                    overridden = true;
+                    break;
+                }
+            }
+
+            if (!overridden)
+                target.Add(inherited[i]);
+        }
+
+        target.AddRange(ownValidations);
+    }
 }

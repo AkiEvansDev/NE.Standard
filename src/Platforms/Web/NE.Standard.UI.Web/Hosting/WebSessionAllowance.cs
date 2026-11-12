@@ -16,7 +16,7 @@ namespace NE.Standard.UI.Web.Hosting;
 internal sealed class WebSessionAllowance
 {
     private readonly Lock _sync = new();
-    private readonly Dictionary<string, Session> _sessions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Session> _sessions = [with(StringComparer.Ordinal)];
 
     // The same two counts as a session's, over every session.
     private long _totalReserved;

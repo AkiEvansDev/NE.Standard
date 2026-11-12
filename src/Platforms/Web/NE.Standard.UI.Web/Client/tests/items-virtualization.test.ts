@@ -122,9 +122,11 @@ test("the items' version moves with every change to what the host holds or shows
     const { host, engine } = scene(200);
     const at = real<Element>(host);
     const versions: (number | null)[] = [engine.itemsVersion(at)];
+    const stamped: (string | null)[] = [host.getAttribute("data-ui-items-version")];
     const step = (change: () => void): void => {
         change();
         versions.push(engine.itemsVersion(at));
+        stamped.push(host.getAttribute("data-ui-items-version"));
     };
 
     // The reader scrolls: the engine lays the rows out again, as it does on every scroll event.
@@ -140,6 +142,7 @@ test("the items' version moves with every change to what the host holds or shows
     assert.equal(engine.itemsVersion(real<Element>(FakeElement.of("ui-items-view__host"))), null);
     assert.equal(host.children.some(child => child.getAttribute("data-ui-key") === "k100"), true);
     assert.deepEqual(versions.map((version, index) => index === 0 ? "start" : version === versions[index - 1] ? "same" : "moved"), ["start", "same", "moved", "moved", "moved", "moved"]);
+    assert.deepEqual(stamped, versions.map(version => String(version)));
 });
 
 test("a cursor row scrolled out takes its name off the list, which names the row again once it is drawn back", () => {

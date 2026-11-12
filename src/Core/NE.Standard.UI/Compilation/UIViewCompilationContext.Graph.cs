@@ -51,7 +51,9 @@ internal sealed partial class UIViewCompilationContext
         }
 
         UIPropertyRegister.EnsureRegistered(component.GetType());
-        ApplySubtreeDefaults(component, defaultsParentId ?? parentId);
+
+        if (_applyDefaults)
+            ApplySubtreeDefaults(component, defaultsParentId ?? parentId);
         UIEffectTargets.Learn(component);
         ValidateSplitButton(component);
         ValidateKeyValueEditing(component);

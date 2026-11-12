@@ -24,7 +24,7 @@ public sealed partial class OrdersController : UIControllerBase
 
 ## Commands and Arguments
 
-- Mark methods with `[UICommand]` (options: `ConcurrencyMode = UICommandConcurrency.Exclusive | Background`, `MaxConcurrent = n`).
+- Mark methods with `[UICommand]` (options: `ConcurrencyMode = UICommandConcurrencyMode.Exclusive | Background`, `MaxConcurrent = n`).
 - Allowed return types: `void`, `Task`, `UICommandResult`, `Task<UICommandResult>`.
 - Return effects via `UICommandResult.Ok(new ShowNotificationEffect(...))` or `UICommandResult.Fail("error", ...)`.
 - **Passing arguments from the view**:
@@ -48,9 +48,10 @@ public sealed partial class OrdersController : UIControllerBase
 - Prefer typed lambdas: `.BindValue<OrdersController>(c => c.Filter)` or inside a row `.BindTitle<OrderItem>(x => x.Name, scope: UIBindingScope.Relative)`.
 - Scopes:
   - `UIBindingScope.Root` (default for almost all properties).
-  - `UIBindingScope.Relative` (required inside item templates for row properties, except item capability bindings like `CanSelect`/`CanDrag`/`CanRemove`/`CanRename`/`Expanded` which default to `Relative`).
+  - `UIBindingScope.Relative` (required inside item templates for row properties, except row-owned properties like `CanSelect`/`CanDrag`/`CanRemove`/`CanRename`/`CanShowContextMenu`, tree node `ParentId`/`HasChildren`/`IsFolder`/`Expanded`/`DropTarget`, tab `Order`/`Pinned`, and `IRenamableComponent.RenamedTitle`, which default to `Relative`).
   - `UIBindingScope.Parent` (steps out one `BindContext` or item template level).
 - Modes: `OneWay`, `TwoWay` (default for input `Value`), `OneWayToSource`, `OnSubmit` (buffered in browser until form submit).
+- Inline rename (`.Editable()`, `.SetRenamable(true)` / `.BindRenamable(...)`, `OnRename*`, `OnItemRename*`, `UITabMenuEntries.Rename`, or `RenameItemEffect`) always requires a writable (`TwoWay`, `OneWayToSource`, or `OnSubmit`) `.BindRenamedTitle(...)` on the renamed component or item host, or view compilation fails.
 
 ## Validation and Forms
 

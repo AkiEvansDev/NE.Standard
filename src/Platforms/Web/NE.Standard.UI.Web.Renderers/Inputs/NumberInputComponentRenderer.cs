@@ -57,8 +57,10 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
 
         RenderFlagClass(context, root, NumberInputComponent.ShowStepperProperty, "ui-number-input--stepper");
 
+        var fieldId = ComponentPartId(context, "field");
+
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root, titleCanGoInside: true);
+        RenderInputHeader(context, root, titleCanGoInside: true, labelForId: fieldId);
         NativeInputRendererBase.RenderClearable(context, root);
 
         _ = root.Element("span", row =>
@@ -67,7 +69,7 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
 
             BorderStyleRenderer.RenderBorderStyle(context, row);
 
-            RenderInputHeaderInside(context, root, row);
+            RenderInputHeaderInside(context, root, row, labelForId: fieldId);
 
             _ = row.Element("span", icon => RenderInputAffixIcon(context, root, icon, suffix: false));
 
@@ -75,6 +77,9 @@ public sealed class NumberInputComponentRenderer : TextContentRendererBase
 
             _ = row.Element("input", input =>
             {
+                if (fieldId is not null)
+                    _ = input.Attribute("id", fieldId);
+
                 _ = input.Class($"{ClassName}__field");
                 _ = input.Class(WebClassNames.Field);
                 _ = input.Attribute("type", "text");

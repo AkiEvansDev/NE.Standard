@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 
@@ -22,7 +23,7 @@ public static class UIRoutePath
         route = route.TrimEnd('/');
 
         // Trimmed first, so a route of slashes alone ("//") is the root rather than nothing.
-        return route.StartsWith('/') ? route : "/" + route;
+        return route.StartsWith('/', StringComparison.Ordinal) ? route : "/" + route;
     }
 
     /// <summary>

@@ -24,7 +24,7 @@ public sealed class UIItemProjection
     {
         ArgumentNullException.ThrowIfNull(members);
 
-        Dictionary<string, UIItemProjectionMember> builder = new(StringComparer.Ordinal);
+        Dictionary<string, UIItemProjectionMember> builder = [with(StringComparer.Ordinal)];
 
         foreach (UIItemProjectionMember member in members)
         {

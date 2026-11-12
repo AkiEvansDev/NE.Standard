@@ -12,8 +12,8 @@ Full guides:
    ```csharp
    public sealed class AppStartup : UIStartupBase
    {
-       public override void ConfigureServices(IServiceCollection services) { ... }
-       public override void ConfigureApplication(UIApplicationBuilder app)
+       protected override void ConfigureServices(IServiceCollection services) { ... }
+       protected override void ConfigureApplication(UIApplicationBuilder app)
        {
            app.Route<HomeView, HomeController>("/");
            app.AddFrameworkWords();
@@ -24,7 +24,7 @@ Full guides:
    ```csharp
    public sealed class AppWebStartup : WebStartupBase<AppStartup>
    {
-       public override void ConfigureWebServices(IServiceCollection services)
+       protected override void ConfigureServices(IServiceCollection services)
        {
            services.AddStandardRenderers();
            // Add-ons: services.AddMaterialWebIcons(...); services.AddCharts(); services.AddDataGrid(); etc.
@@ -33,7 +33,7 @@ Full guides:
    ```
 3. **`Program.cs` pipeline order**:
    `WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services);`
-    then `app.UseStaticFiles();`, `app.UseRouting();`, `await app.MapStandardUIWebAsync();` (never `MapStaticAssets()`). For an API-only remote server without HTML/Web assets (`NE.Standard.UI.Server`), use `UIServerStartupBase<AppStartup>`, `UIServerStartupBuilder.Configure<AppServerStartup, AppStartup>(builder.Services)`, and `await app.MapStandardUIServerAsync();`.
+    then `app.UseStaticFiles();`, `app.UseRouting();`, `await app.MapStandardUIWebAsync();` (never `MapStaticAssets()`). Set `WebEndpointOptions.EnableClientViewEndpoint = true` when a browser web host also accepts remote `NE.Standard.UI.Client` connections via `GET /_ne/view`. For an API-only remote server without HTML/Web assets (`NE.Standard.UI.Server`), use `UIServerStartupBase<AppStartup>`, `UIServerStartupBuilder.Configure<AppServerStartup, AppStartup>(builder.Services)`, and `await app.MapStandardUIServerAsync();`.
 
 ## Routing & Authorization
 
@@ -49,8 +49,8 @@ Full guides:
 
 ## Uploads, Downloads, and Localization
 
-- **Uploads**: bind `SelectionId` / `SelectionIds` on `FileInputComponent` or `ImageInputComponent`; read bytes in the command via `await Context.Uploads.GetSelectionAsync(SelectionId, token)`. Set `.SetFormId(...)` so form submission waits for active uploads.
-- **Downloads**: `await Context.Downloads.DownloadAsync(Context.Handle, "report.csv", "text/csv", bytes, token);`.
+- **Uploads**: bind `SelectionId` / `SelectionIds` on `FileInputComponent` or `ImageInputComponent`; read selection metadata in the command via `await Context.Uploads.GetSelectionAsync(Context.Handle, SelectionId, token)` and open file streams via `await Context.Uploads.OpenAsync(Context.Handle, file.FileId, token)`. Set `.SetFormId(...)` so form submission waits for active uploads.
+- **Downloads**: `await Context.Downloads.DownloadAsync(Context.Handle, "report.csv", "text/csv", bytes, token);` (single-use staged downloads bounded by `UIFileOptions.MaxDownloadBytesPerSession` and `MaxDownloadBytesTotal`, configured alongside `MaxFileSize` and `MaxUploadBytes*` in `ConfigureFiles`).
 - **Localization (`UIPhrase`)**:
   - Every `[Translatable]` property treats plain strings as translation keys unless `.AsContent()` (or `IsContent = true` on items) is used.
   - Interpolated/pluralized translations use `UIPhrase.Of("items.count", ("count", count))` — never `string.Format`.
@@ -71,5 +71,5 @@ Assert.Equal("Priority", page.Controller<OrderController>().Notes);
 ```
 
 - Lookup methods: `page.Component(id)`, `page.ComponentBoundTo(c => c.Prop)`, `page.ComponentNamed(accessibleNameOrTitle)`, `list.Rows`, `list.Row(key)`, `row.ComponentBoundTo<TRow>(x => x.Prop)`.
-- Client capabilities (`NE.Standard.UI.Client`): `page.SetResponsiveTier(tier)` / `page.SetViewportWidth(px)`, `page.GoBackAsync()` / `page.GoForwardAsync()` (`CanGoBack`, `CanGoForward`), `list.RequestItemWindowAsync(anchor, count, mode)`, `page.Store` (`UIClientStore`), plain-host `FilterBy`/`SortBy`/`UIItemsQuery` evaluation on `list.Rows`, and row-field `OnSubmit` validation and submission.
+- Client capabilities (`NE.Standard.UI.Client`): `RenameAsync(title)` on `UITestComponent` and `UITestRow`, `ValidationInto` target evaluation, `page.Session`, `page.SetResponsiveTier(tier)` / `page.SetViewportWidth(px)`, `page.GoBackAsync()` / `page.GoForwardAsync()` (`CanGoBack`, `CanGoForward`), `list.RequestItemWindowAsync(anchor, count, mode)`, `page.Store` (`UIClientStore`), `page.ClearEffects()` / `page.ClearDownloads()`, plain-host `FilterBy`/`SortBy`/`UIItemsQuery` evaluation on `list.Rows`, and row-field `OnSubmit` validation and submission.
 - `OpenAsync` automatically verifies view compilation and fails on any binding/command compile warning unless `app.AllowsCompileWarnings = true`.

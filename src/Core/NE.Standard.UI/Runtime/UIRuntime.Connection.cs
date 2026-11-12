@@ -324,13 +324,13 @@ internal sealed partial class UIRuntime
     private sealed class ConnectionRegistry(string initialLanguage, UIThemeMode? initialThemeMode)
     {
         private readonly Lock _sync = new();
-        private readonly Dictionary<string, UIHandle> _handles = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, UIHandle> _handles = [with(StringComparer.Ordinal)];
         private string[] _instanceIdsSnapshot = [];
         private int _viewers;
         private int _visibleViewers;
         private bool _heardVisible;
-        private readonly Dictionary<string, long> _watermarks = new(StringComparer.Ordinal);
-        private readonly HashSet<string> _awaitingSnapshot = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, long> _watermarks = [with(StringComparer.Ordinal)];
+        private readonly HashSet<string> _awaitingSnapshot = [with(StringComparer.Ordinal)];
         private string? _navigatedPageId;
         private string _heardLanguage = initialLanguage;
         private UIThemeMode? _heardThemeMode = initialThemeMode;
@@ -345,7 +345,7 @@ internal sealed partial class UIRuntime
         {
             lock (_sync)
             {
-                List<UIHandle> viewers = new(_handles.Count);
+                List<UIHandle> viewers = [with(_handles.Count)];
 
                 foreach (UIHandle handle in _handles.Values)
                 {

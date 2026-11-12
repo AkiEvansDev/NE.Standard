@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Effects;
@@ -16,12 +15,12 @@ using NE.Standard.UI.Compilation;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
-using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
+using NE.Standard.UI.Components.Foundation;
+using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
-using NE.Standard.UI.Primitives.Json;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Runtime;
@@ -44,6 +43,7 @@ internal enum UIComponentGateKind
     ShowPalette,
     HostDraggable,
     HostRenamable,
+    TabPin,
     ShowClearButton,
 
     /// <summary>Not a closing value: one a check reads through the gate's binding — an input's bound, its marked days.</summary>
@@ -62,10 +62,11 @@ internal enum UIComponentGateKind
 internal sealed record UIComponentGate(UIComponentGateKind Kind, CompiledUIBinding? Binding, RecursivePath? FixedPath, int DynamicCount, IEnumerable? Declared = null);
 
 /// <summary>
-/// What a standalone text component's own inline rename answers to: its <c>Renamable</c> switch, and any interaction running
-/// <see cref="RenameItemEffect"/> directly on the text component.
+/// What a standalone text component's own inline rename answers to: its <c>Renamable</c> switch, any interaction running
+/// <see cref="RenameItemEffect"/> directly on the text component, and which commit steps (<c>RenamedTitle</c> write and/or <c>rename</c>
+/// command) it carries.
 /// </summary>
-internal sealed record UITextRenameGate(UIComponentId ComponentId, UIComponentGate? Renamable, bool HasUnscopedInteraction, FrozenSet<UIComponentAddress>? ScopedInteractions);
+internal sealed record UITextRenameGate(UIComponentId ComponentId, UIComponentGate? Renamable, bool HasUnscopedInteraction, FrozenSet<UIComponentAddress>? ScopedInteractions, byte Steps);
 
 /// <summary>
 /// A component's gates: its own and its ancestors' that close it whole, its own for a write or the value written, the check it
@@ -83,7 +84,7 @@ internal readonly record struct UIGateValue(object? Static, UIComponentGate? Bou
 /// <see cref="MaxSelected"/> distinct keys, and a number's sign and fraction while <see cref="AllowNegative"/> or
 /// <see cref="AllowDecimals"/> closes. One unset, or bound to what the server cannot read, holds nothing.
 /// </summary>
-internal sealed record UIValueChecks(Type ValueType, UIGateValue? Min, UIGateValue? Max, UIComponentGate? MarkedOnly, UIGateValue? MarkedDays, UIPeriodEnds? Ends, UIGateValue? Step, UIGateValue? MaxLength, UIGateValue? MaxSelected, UIComponentGate? AllowNegative, UIComponentGate? AllowDecimals, UIComponentGate? ShowOpacity = null, UIComponentGate? ShowPalette = null);
+internal sealed record UIValueChecks(Type ValueType, UIGateValue? Min, UIGateValue? Max, UIComponentGate? MarkedOnly, UIGateValue? MarkedDays, UIPeriodEnds? Ends, UIGateValue? Step, UIGateValue? MaxLength, UIGateValue? MaxSelected, UIComponentGate? AllowNegative, UIComponentGate? AllowDecimals, UIComponentGate? ShowOpacity = null, UIComponentGate? ShowPalette = null, UIGateValue? IsRange = null);
 
 /// <summary>
 /// A period's two ends as the controller holds them, and the least distance between them — a number for a slider, a
@@ -100,7 +101,7 @@ internal sealed record UIRowItems(UIComponentGate? Bound, IEnumerable? Declared)
 /// closed <c>Renamable</c> — a tab strip's bound <c>TabMenuEntries</c> offering <see cref="UITabMenuEntries.Rename"/>, or an interaction
 /// running <see cref="RenameItemEffect"/> on one of the host's items.
 /// </summary>
-internal sealed record UIHostRowGates(UIComponentId HostId, UIComponentGate? Draggable, UIComponentGate? Removable, UIComponentGate? Renamable, UIComponentGate? TabMenuEntries, FrozenSet<string>? InteractionKeys, FrozenSet<(UIComponentAddress Host, string Key)>? ScopedInteractionKeys);
+internal sealed record UIHostRowGates(UIComponentId HostId, UIComponentGate? Draggable, UIComponentGate? Removable, UIComponentGate? Renamable, UIComponentGate? TabMenuEntries, FrozenSet<string>? InteractionKeys, FrozenSet<(UIComponentAddress Host, string Key)>? ScopedInteractionKeys, UIComponentGate? TabPin = null);
 
 /// <summary>One ability a row may refuse: the kind its gate is, the template's key it reads and the item's own word for it.</summary>
 internal sealed record UIRowAbility(UIComponentGateKind Kind, UIProperty Property, Func<IItemAbilitiesModel, bool?> Read)
@@ -132,7 +133,7 @@ internal sealed record UIRowAbility(UIComponentGateKind Kind, UIProperty Propert
 /// <see cref="UIRowAbility.All"/>, by place (none where the template closes nothing), and where its own item — an
 /// <c>IItemAbilitiesModel</c> — is read by the row's key, the last of <see cref="RowParameterCount"/> keys.
 /// </summary>
-internal sealed record UIRowAbilities(int RowParameterCount, UIComponentGate?[] Gates, UIRowItems? Items, UIHostRowGates? Host = null)
+internal sealed record UIRowAbilities(int RowParameterCount, UIComponentGate?[] Gates, UIRowItems? Items, UIHostRowGates? Host = null, byte RenameSteps = 0)
 {
     public UIComponentGate? For(UIComponentGateKind ability)
     {
@@ -185,6 +186,9 @@ internal sealed class UIComponentGateIndex
 
     /// <summary>The step a range input with no <c>step</c> lands on in the browser, which the gate holds a slider to as well.</summary>
     public const decimal DefaultSliderStep = 1m;
+
+    public const byte RenameWriteStep = 1;
+    public const byte RenameCommandStep = 2;
 
     private readonly FrozenDictionary<UIComponentId, UIComponentGates> _components;
     private readonly FrozenDictionary<UIComponentId, UIRowGates> _rows;
@@ -343,11 +347,19 @@ internal sealed class UIComponentGateIndex
         if (!view.State.TryGetValue(componentId, IInputComponent.IsReadOnlyProperty, out _) || WrittenValueType(view, componentId) is not Type valueType)
             return null;
 
-        UIGateValue? min = CreateGateValue(view, componentId, IBoundedInputComponent.MinProperty, valueType, unset: null);
-        UIGateValue? max = CreateGateValue(view, componentId, IBoundedInputComponent.MaxProperty, valueType, unset: null);
+        var isSlider = valueType == typeof(decimal) && view.State.TryGetValue(componentId, IPeriodInputComponent.MinDistanceProperty, out _);
+        UIGateValue? min = CreateGateValue(view, componentId, IBoundedInputComponent.MinProperty, valueType, unset: isSlider ? IOrderedRangeComponent.DefaultMin : null);
+        UIGateValue? max = CreateGateValue(view, componentId, IBoundedInputComponent.MaxProperty, valueType, unset: isSlider ? IOrderedRangeComponent.DefaultMax : null);
         UIComponentGate? markedOnly = CreateGate(view, componentId, IMarkedDaysComponent.MarkedDaysOnlyProperty, UIComponentGateKind.MarkedDaysOnly);
         UIGateValue? markedDays = markedOnly is null ? null : CreateGateValue(view, componentId, IMarkedDaysComponent.MarkedDaysProperty, valueType: null, unset: Array.Empty<DateOnly>());
         UIPeriodEnds? ends = CreatePeriodEnds(view, componentId, valueType);
+        UIGateValue? isRange = view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, IPeriodInputComponent.EndValueProperty), out _) || ends is not null
+            ? CreateGateValue(view, componentId, IPeriodInputComponent.IsRangeProperty, typeof(bool), unset: false)
+            : null;
+
+        if (isRange is { Bound: null, Static: true })
+            isRange = null;
+
         UIGateValue? step = CreateStep(view, componentId, valueType);
         UIGateValue? maxLength = CreateGateValue(view, componentId, ITextLengthComponent.MaxLengthProperty, typeof(int), unset: null);
         UIGateValue? maxSelected = CreateGateValue(view, componentId, MultiSelectComponent.MaxSelectedProperty, typeof(int), unset: null);
@@ -356,9 +368,9 @@ internal sealed class UIComponentGateIndex
         UIComponentGate? showOpacity = CreateGate(view, componentId, ColorInputComponent.ShowOpacityProperty, UIComponentGateKind.ShowOpacity);
         UIComponentGate? showPalette = CreateGate(view, componentId, ColorInputComponent.ShowPaletteProperty, UIComponentGateKind.ShowPalette);
 
-        return min is null && max is null && markedDays is null && ends is null && step is null && maxLength is null && maxSelected is null && allowNegative is null && allowDecimals is null && showOpacity is null && showPalette is null
+        return min is null && max is null && markedDays is null && ends is null && isRange is null && step is null && maxLength is null && maxSelected is null && allowNegative is null && allowDecimals is null && showOpacity is null && showPalette is null
             ? null
-            : new UIValueChecks(valueType, min, max, markedOnly, markedDays, ends, step, maxLength, maxSelected, allowNegative, allowDecimals, showOpacity, showPalette);
+            : new UIValueChecks(valueType, min, max, markedOnly, markedDays, ends, step, maxLength, maxSelected, allowNegative, allowDecimals, showOpacity, showPalette, isRange);
     }
 
     /// <summary>
@@ -385,8 +397,7 @@ internal sealed class UIComponentGateIndex
     {
         if (!view.State.TryGetValue(componentId, IPeriodInputComponent.MinDistanceProperty, out _)
             || !view.State.TryGetValue(componentId, IPeriodInputComponent.IsRangeProperty, out CompiledUIPropertyValue? isRange)
-            || isRange.IsBind
-            || isRange.Value is not true)
+            || (!isRange.IsBind && isRange.Value is not true))
         {
             return null;
         }
@@ -438,7 +449,15 @@ internal sealed class UIComponentGateIndex
 
         UIComponentGate? bound = CreateBoundGate(view, componentId, property, UIComponentGateKind.Read);
 
-        return bound is null ? null : new UIGateValue(Static: null, bound);
+        if (bound is null)
+            return null;
+
+        var fallback = unset;
+
+        if (fallback is not null && valueType is not null && (!RecursiveValueCoercion.TryCoerce(fallback, valueType, out fallback) || fallback is null))
+            fallback = null;
+
+        return new UIGateValue(fallback, bound);
     }
 
     /// <summary>The check a component holds the page's writes to its own properties to; none for one that holds them to nothing.</summary>
@@ -460,13 +479,12 @@ internal sealed class UIComponentGateIndex
         if (rowRoots.ContainsKey(node.ComponentId) && node.ParentId is UIComponentId hostId && view.State.TryGetValue(hostId, IItemsHostAbilitiesComponent.RenamableProperty, out _))
             return null;
 
-        if (!view.Bindings.TryGetProperty(new UIPropertyAddress(node.ComponentId, IRenamableComponent.RenamedTitleProperty), out _)
-            && !view.Events.TryGet(new CompiledUIEventAddress(node.ComponentId, EventNames.Rename), out _))
-        {
-            return null;
-        }
+        var steps = ReadRenameSteps(view, node.ComponentId);
 
-        UIComponentGate? renamable = CreateGate(view, node.ComponentId, TextComponent.RenamableProperty, UIComponentGateKind.HostRenamable);
+        if (steps == 0)
+            return null;
+
+        UIComponentGate? renamable = CreateGate(view, node.ComponentId, IRenamableItemsComponent.RenamableProperty, UIComponentGateKind.HostRenamable);
 
         if (renamable is null)
             return null;
@@ -477,20 +495,36 @@ internal sealed class UIComponentGateIndex
 
         for (var i = 0; i < interactions.Count; i++)
         {
-            if (interactions[i].Effect is not CompiledTargetedClientEffect { Kind: ClientEffectKinds.RenameItem } rename
-                || rename.Target.Id != node.ComponentId
-                || ReadInteractionRenameKey(rename) is { Length: > 0 })
+            if (interactions[i].Effect is not RenameItemEffect { ResolvedTarget: { } target } rename
+                || target.Id != node.ComponentId
+                || rename.Key is { Length: > 0 })
             {
                 continue;
             }
 
-            if (rename.Target.DynamicParameters.Length == 0)
+            if (target.DynamicParameters.Length == 0)
                 hasUnscopedInteraction = true;
             else
-                _ = (scopedInteractions ??= []).Add(rename.Target);
+                _ = (scopedInteractions ??= []).Add(target);
         }
 
-        return new UITextRenameGate(node.ComponentId, renamable, hasUnscopedInteraction, scopedInteractions?.ToFrozenSet());
+        return new UITextRenameGate(node.ComponentId, renamable, hasUnscopedInteraction, scopedInteractions?.ToFrozenSet(), steps);
+    }
+
+    private static byte ReadRenameSteps(CompiledView view, UIComponentId componentId)
+    {
+        byte steps = 0;
+
+        if (view.Bindings.TryGetProperty(new UIPropertyAddress(componentId, IRenamableComponent.RenamedTitleProperty), out CompiledUIBinding? binding)
+            && binding.Mode is UIBindingMode.TwoWay or UIBindingMode.OneWayToSource or UIBindingMode.OnSubmit)
+        {
+            steps |= RenameWriteStep;
+        }
+
+        if (view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Rename), out _))
+            steps |= RenameCommandStep;
+
+        return steps;
     }
 
     /// <summary>
@@ -526,13 +560,15 @@ internal sealed class UIComponentGateIndex
 
         UIRowItems? items = CreateRowItems(view, host.ComponentId);
         UIHostRowGates? hostGates = CreateHostRowGates(view, host.ComponentId);
-        UIRowAbilities? fixedAbilities = fixedRoot is null ? null : CreateRowAbilities(view, fixedRoot, items, hostGates);
+        var fixedRenameSteps = fixedRoot is null ? (byte)0 : ReadRenameSteps(view, fixedRoot.ComponentId);
+        UIRowAbilities? fixedAbilities = fixedRoot is null ? null : CreateRowAbilities(view, fixedRoot, items, hostGates, fixedRenameSteps);
 
         foreach (UIComponentNode root in roots)
         {
+            var renameSteps = (byte)(fixedRenameSteps | ReadRenameSteps(view, root.ComponentId));
             UIRowAbilities? abilities = fixedAbilities is null
-                ? CreateRowAbilities(view, root, items, hostGates)
-                : fixedAbilities with { RowParameterCount = root.ContextParameterCount };
+                ? CreateRowAbilities(view, root, items, hostGates, renameSteps)
+                : fixedAbilities with { RowParameterCount = root.ContextParameterCount, RenameSteps = renameSteps };
 
             if (abilities is not null)
                 rowRoots[root.ComponentId] = abilities;
@@ -585,6 +621,7 @@ internal sealed class UIComponentGateIndex
         UIComponentGate? draggable = CreateGate(view, hostId, IDraggableItemsComponent.DraggableProperty, UIComponentGateKind.HostDraggable);
         UIComponentGate? removable = CreateGate(view, hostId, IItemsHostAbilitiesComponent.RemovableProperty, UIComponentGateKind.CanRemove);
         UIComponentGate? renamable = CreateGate(view, hostId, IItemsHostAbilitiesComponent.RenamableProperty, UIComponentGateKind.HostRenamable);
+        UIComponentGate? tabPin = CreateGate(view, hostId, TabsViewComponent.TabMenuEntriesProperty, UIComponentGateKind.TabPin);
         UIComponentGate? tabMenuEntries = null;
 
         if (renamable is not null && view.State.TryGetValue(hostId, TabsViewComponent.TabMenuEntriesProperty, out CompiledUIPropertyValue? entriesValue))
@@ -607,7 +644,7 @@ internal sealed class UIComponentGateIndex
             }
         }
 
-        if (draggable is null && removable is null && renamable is null)
+        if (draggable is null && removable is null && renamable is null && tabPin is null)
             return null;
 
         HashSet<string>? interactionKeys = null;
@@ -619,30 +656,24 @@ internal sealed class UIComponentGateIndex
 
             for (var i = 0; i < interactions.Count; i++)
             {
-                if (interactions[i].Effect is not CompiledTargetedClientEffect { Kind: ClientEffectKinds.RenameItem } rename
-                    || rename.Target.Id != hostId
-                    || ReadInteractionRenameKey(rename) is not { Length: > 0 } key)
+                if (interactions[i].Effect is not RenameItemEffect { ResolvedTarget: { } target, Key: { Length: > 0 } key }
+                    || target.Id != hostId)
                 {
                     continue;
                 }
 
-                if (rename.Target.DynamicParameters.Length == 0)
-                    _ = (interactionKeys ??= new HashSet<string>(StringComparer.Ordinal)).Add(key);
+                if (target.DynamicParameters.Length == 0)
+                    _ = (interactionKeys ??= [with(StringComparer.Ordinal)]).Add(key);
                 else
-                    _ = (scopedInteractionKeys ??= []).Add((rename.Target, key));
+                    _ = (scopedInteractionKeys ??= []).Add((target, key));
             }
         }
 
-        return new UIHostRowGates(hostId, draggable, removable, renamable, tabMenuEntries, interactionKeys?.ToFrozenSet(StringComparer.Ordinal), scopedInteractionKeys?.ToFrozenSet());
+        return new UIHostRowGates(hostId, draggable, removable, renamable, tabMenuEntries, interactionKeys?.ToFrozenSet(StringComparer.Ordinal), scopedInteractionKeys?.ToFrozenSet(), tabPin);
     }
 
-    private static string? ReadInteractionRenameKey(ClientEffect effect)
-        => JsonSerializer.SerializeToElement(effect).TryGetPropertyIgnoreCase("key", out JsonElement key) && key.ValueKind == JsonValueKind.String
-            ? key.GetString()
-            : null;
-
     /// <summary>What a row drawn from <paramref name="root"/> allows; none where neither its host, its template nor its item can refuse anything.</summary>
-    private static UIRowAbilities? CreateRowAbilities(CompiledView view, UIComponentNode root, UIRowItems? items, UIHostRowGates? hostGates)
+    private static UIRowAbilities? CreateRowAbilities(CompiledView view, UIComponentNode root, UIRowItems? items, UIHostRowGates? hostGates, byte renameSteps)
     {
         UIComponentGate?[] gates = new UIComponentGate?[UIRowAbility.All.Length];
         var closesAny = false;
@@ -653,7 +684,7 @@ internal sealed class UIComponentGateIndex
             closesAny |= gates[i] is not null;
         }
 
-        return !closesAny && items is null && hostGates is null ? null : new UIRowAbilities(root.ContextParameterCount, gates, items, hostGates);
+        return !closesAny && items is null && hostGates is null ? null : new UIRowAbilities(root.ContextParameterCount, gates, items, hostGates, renameSteps);
     }
 
     /// <summary>
@@ -723,6 +754,7 @@ internal sealed class UIComponentGateIndex
             UIComponentGateKind.MarkedDaysOnly => value is true,
             UIComponentGateKind.AllowNegative or UIComponentGateKind.AllowDecimals or UIComponentGateKind.ShowOpacity or UIComponentGateKind.ShowPalette => value is false,
             UIComponentGateKind.HostDraggable or UIComponentGateKind.HostRenamable or UIComponentGateKind.ShowClearButton => value is not true,
+            UIComponentGateKind.TabPin => value is not UITabMenuEntries entries || !entries.HasFlag(UITabMenuEntries.Pin),
             UIComponentGateKind.Visibility => IsHiddenEverywhere(value),
             _ => false
         };

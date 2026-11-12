@@ -1,7 +1,9 @@
 using System;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Startup;
 
@@ -19,7 +21,7 @@ internal static class UITestHostBuilder
     public static UITestBuiltHost Build<TStartup>(Action<IServiceCollection>? beforeStartup, Action<IServiceCollection>? configureServices, Action<UIApplicationBuilder>? configureApplication)
         where TStartup : UIStartupBase, new()
     {
-        ServiceCollection services = new();
+        ServiceCollection services = [];
 
         // Ahead of the startup, whose check for the services a platform brings would otherwise refuse an application that has none.
         beforeStartup?.Invoke(services);
@@ -40,6 +42,9 @@ internal static class UITestHostBuilder
         _ = services.AddLogging();
 
         configureServices?.Invoke(services);
+
+        // Only the routes a test opens need compiling unless the startup or test set its own mode.
+        services.TryAddSingleton(new UIPlatformDefaults { DefaultViewCompilationMode = UIViewCompilationMode.Lazy });
 
         ServiceProvider provider = services.BuildServiceProvider(validateScopes: true);
 

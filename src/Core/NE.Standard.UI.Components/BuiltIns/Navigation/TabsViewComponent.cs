@@ -11,6 +11,7 @@ using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Navigation;
@@ -54,9 +55,10 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
     /// </summary>
     protected TabsViewComponent(string? id = null) : base(id)
     {
-        _ = SetTemplate(new DefaultTabItemTemplate(binds: true));
-        _ = SetEmptyTemplate(new DefaultEmptyTemplate());
-        _ = SortBy(nameof(ITabItemModel.Order));
+        SetDefaultTemplate(new DefaultTabItemTemplate(binds: true));
+        SetDefaultEmptyTemplate(new DefaultEmptyTemplate());
+        AddDefaultSort(nameof(ITabItemModel.Pinned), UIItemsSortDirection.Descending);
+        AddDefaultSort(nameof(ITabItemModel.Order));
 
         TabMenu = new MenuComponent();
         ComposeTabMenu();
@@ -171,6 +173,7 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
         ArgumentNullException.ThrowIfNull(page);
 
         _ = RequiredTemplate.SetPage(page);
+        MarkTemplateAuthored();
         return Self;
     }
 

@@ -56,6 +56,7 @@ internal sealed partial class WebUIHub : Hub
         /// <summary>The runtime the page's last attach was answered with, on any attach after its first.</summary>
         public string? Runtime { get; init; }
 
+        [JsonConverter(typeof(WebNavigationParametersJsonConverter))]
         public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
 
         /// <summary>The time zone the browser reports it is in (<c>Intl.DateTimeFormat().resolvedOptions().timeZone</c>).</summary>
@@ -155,6 +156,7 @@ internal sealed partial class WebUIHub : Hub
     internal sealed class WebUIAddressRequest
     {
         /// <summary>The query of the history entry the reader went back or forward to, read as an attach reads it.</summary>
+        [JsonConverter(typeof(WebNavigationParametersJsonConverter))]
         public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
     }
 
@@ -361,7 +363,7 @@ internal sealed partial class WebUIHub : Hub
         {
             result = await AttachOrSwitchAsync(request).ConfigureAwait(false);
         }
-        catch
+        catch when (!Context.ConnectionAborted.IsCancellationRequested)
         {
             _metrics.Attached("failed");
             throw;
@@ -751,7 +753,7 @@ internal sealed partial class WebUIHub : Hub
 
         ITranslator translator = _application.Translator;
         UIWordTable table = translator.ListWords(request.Language);
-        Dictionary<string, string> words = new(StringComparer.Ordinal);
+        Dictionary<string, string> words = [with(StringComparer.Ordinal)];
 
         foreach (var key in request.Keys)
         {
@@ -870,7 +872,7 @@ internal sealed partial class WebUIHub : Hub
             addresses[i] = ReadAddress(handle, request.Updates[i]);
 
             // Two updates naming one token would pass the check and then fail on the second take, the first's value spent.
-            if (request.Updates[i].ValueToken is string token && !(tokens ??= new(StringComparer.Ordinal)).Add(token))
+            if (request.Updates[i].ValueToken is string token && !(tokens ??= [with(StringComparer.Ordinal)]).Add(token))
                 throw new InvalidOperationException("A staged value is taken once; the change set names it twice.");
         }
 

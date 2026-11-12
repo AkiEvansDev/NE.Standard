@@ -74,6 +74,19 @@ public sealed class RenameItemEffect : TargetedClientEffect
     public static RenameItemEffect Of(IBindableComponent targetComponent, params object?[]? dynamicParameters)
         => new(new UIComponentReference(targetComponent, dynamicParameters));
 
+    [JsonConstructor]
+    internal RenameItemEffect(UIComponentAddress? resolvedTarget, string? key = null)
+        : base(resolvedTarget)
+    {
+        Key = key;
+    }
+
+    private RenameItemEffect(UIComponentAddress resolvedTarget, UIComponentReference target, string? key)
+        : base(resolvedTarget, target)
+    {
+        Key = key;
+    }
+
     /// <inheritdoc />
     public override string Kind => ClientEffectKinds.RenameItem;
 
@@ -92,18 +105,6 @@ public sealed class RenameItemEffect : TargetedClientEffect
     {
         ArgumentNullException.ThrowIfNull(resolver);
 
-        return new CompiledRenameItemEffect(resolver.ResolveComponent(Target), Key);
+        return ResolvedTarget is not null ? this : new RenameItemEffect(resolver.ResolveComponent(Target), Target, Key);
     }
-}
-
-internal sealed class CompiledRenameItemEffect(UIComponentAddress target, string? key) : CompiledTargetedClientEffect(target)
-{
-    public override string Kind => ClientEffectKinds.RenameItem;
-
-    /// <inheritdoc />
-    [JsonIgnore]
-    public override bool CanRunInInteraction => true;
-
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Key { get; } = key;
 }

@@ -98,9 +98,7 @@ internal sealed partial class UIRuntime
     /// </summary>
     private bool AppendDescendantCollectionUpdatesNoLock(RecursivePath path)
     {
-        IReadOnlyList<CompiledUIBinding> bindings = View.Bindings.GetControllerDescendantCollections(path, out var baseParameters);
-
-        if (bindings.Count == 0)
+        if (!View.Bindings.TryGetControllerDescendantCollections(path, out IReadOnlyList<CompiledUIBinding> bindings, out var baseParameters))
             return false;
 
         for (var i = 0; i < bindings.Count; i++)
@@ -400,7 +398,7 @@ internal sealed partial class UIRuntime
     }
 
     // The paths of the Sets and Resets a compaction has kept so far, from the newest; empty between compactions.
-    private readonly HashSet<PathPrefix> _coveringPaths = new(PathPrefixComparer.Instance);
+    private readonly HashSet<PathPrefix> _coveringPaths = [with(PathPrefixComparer.Instance)];
 
     /// <summary>
     /// The round's changes without the ones a later <c>Set</c> or <c>Reset</c> supersedes — of the same path, or of one above it — in

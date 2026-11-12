@@ -565,7 +565,7 @@ public static partial class UIStrings
                 if (!package.Translations.TryGetValue(language, out IReadOnlyDictionary<string, string>? shipped))
                     continue;
 
-                words ??= new Dictionary<string, string>(StringComparer.Ordinal);
+                words ??= [with(StringComparer.Ordinal)];
 
                 foreach (KeyValuePair<string, string> word in shipped)
                 {
@@ -576,7 +576,7 @@ public static partial class UIStrings
             }
         }
 
-        return words is null ? FrozenDictionary<string, string>.Empty : words.ToFrozenDictionary(StringComparer.Ordinal);
+        return words is null ? [] : words.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
     /// <summary>

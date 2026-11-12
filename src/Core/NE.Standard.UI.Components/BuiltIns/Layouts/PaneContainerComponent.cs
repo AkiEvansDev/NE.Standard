@@ -21,7 +21,7 @@ namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 public abstract partial class PaneContainerComponent<T>(string? id = null) : ContainerComponent<T>(id), IRegionContainerComponent
     where T : PaneContainerComponent<T>, IUIComponentDefinition
 {
-    private readonly Dictionary<string, IVisualComponent> _panes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IVisualComponent> _panes = [with(StringComparer.Ordinal)];
     private readonly List<UIPanePlace> _places = [];
 
     /// <summary>

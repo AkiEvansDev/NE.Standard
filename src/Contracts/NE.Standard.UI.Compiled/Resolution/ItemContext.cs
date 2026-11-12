@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Reflection;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Recursive;
@@ -16,7 +17,9 @@ namespace NE.Standard.UI.Compiled.Resolution;
 /// </summary>
 public sealed class ItemContext(object? item)
 {
-    private static readonly ConcurrentDictionary<(Type Type, string Name), PropertyInfo?> PropertyCache = new();
+    private readonly record struct CachedProperty(PropertyInfo Property, Func<object, object?> Getter);
+
+    private static readonly ConcurrentDictionary<(Type Type, string Name), CachedProperty?> PropertyCache = new();
 
     /// <summary>
     /// Gets the item templates are resolved against.
@@ -241,7 +244,7 @@ public sealed class ItemContext(object? item)
 
         while (true)
         {
-            var dot = path.IndexOf('.', start);
+            var dot = path.IndexOf('.', start, StringComparison.Ordinal);
             var end = dot < 0 ? path.Length : dot;
 
             if (path.AsSpan(start, end - start).IsWhiteSpace() || !TryReadProperty(value, start == 0 && dot < 0 ? path : path[start..end], out value))
@@ -291,13 +294,11 @@ public sealed class ItemContext(object? item)
             return true;
         }
 
-        PropertyInfo? property = ResolveProperty(item.GetType(), propertyName);
-
-        if (property is null)
+        if (ResolveCachedProperty(item.GetType(), propertyName) is not { } cached)
             return false;
 
         // A text property's whole value as the page is handed it: an author's text as its plain string, as its JSON carries it.
-        value = UIPhrase.AsValue(property.GetValue(item));
+        value = UIPhrase.AsValue(cached.Getter(item));
         return true;
     }
 
@@ -341,7 +342,26 @@ public sealed class ItemContext(object? item)
 
     /// <summary>Caches the reflection lookup per (type, name); it runs once per bound property, per item, per render.</summary>
     internal static PropertyInfo? ResolveProperty(Type type, string propertyName)
-        => PropertyCache.GetOrAdd((type, propertyName), static key => FindProperty(key.Type, key.Name));
+        => ResolveCachedProperty(type, propertyName)?.Property;
+
+    private static CachedProperty? ResolveCachedProperty(Type type, string propertyName)
+        => PropertyCache.GetOrAdd((type, propertyName), static key => FindProperty(key.Type, key.Name) is { } property ? new CachedProperty(property, CreateGetter(property)) : null);
+
+    private static Func<object, object?> CreateGetter(PropertyInfo property)
+    {
+        if (property.DeclaringType is { ContainsGenericParameters: false } declaringType && property.GetMethod is { IsStatic: false })
+        {
+            ParameterExpression target = Expression.Parameter(typeof(object), "target");
+            Expression instance = declaringType.IsValueType
+                ? Expression.Unbox(target, declaringType)
+                : Expression.Convert(target, declaringType);
+            UnaryExpression body = Expression.Convert(Expression.Property(instance, property), typeof(object));
+
+            return Expression.Lambda<Func<object, object?>>(body, target).Compile();
+        }
+
+        return property.GetValue;
+    }
 
     /// <summary>
     /// The public instance property of that name: the exact name first, else the one name it matches ignoring case — none where two
