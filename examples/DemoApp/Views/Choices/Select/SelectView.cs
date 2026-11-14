@@ -16,8 +16,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     private const string ValueGroup = nameof(SelectController.ValueGroup);
     private const string FieldGroup = nameof(SelectController.FieldGroup);
     private const string OptionsGroup = nameof(SelectController.OptionsGroup);
-    private const string ContentGroup = nameof(SelectController.ContentGroup);
-    private const string BadgeGroup = nameof(SelectController.BadgeGroup);
+    private const string LabelGroup = nameof(SelectController.LabelGroup);
     private const string BorderGroup = nameof(SelectController.BorderGroup);
     private const string ActionRegionId = "demo-select-action-region";
 
@@ -34,15 +33,14 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
             .BindItems<SelectController>(static x => x.OptionsGroup.Options)
             .BindValue<SelectController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<SelectController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<SelectController>(static x => x.ValueGroup.Size)
+            .BindSize<SelectController>(static x => x.FieldGroup.Size)
             .BindAppearance<SelectController>(static x => x.FieldGroup.Appearance)
             .BindPlaceholder<SelectController>(static x => x.FieldGroup.Placeholder)
             .BindPrefixIcon<SelectController>(static x => x.FieldGroup.PrefixIcon)
             .BindSuffixIcon<SelectController>(static x => x.FieldGroup.SuffixIcon)
             .BindShowClearButton<SelectController>(static x => x.FieldGroup.ShowClearButton)
             .BindShowChevron<SelectController>(static x => x.FieldGroup.ShowChevron)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
@@ -53,8 +51,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
             DemoUI.CreateOptionSection(OptionsGroup, "Options"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 

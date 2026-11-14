@@ -16,7 +16,10 @@ namespace DemoApp.Views.Items.Table;
 internal sealed class TableView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
-    private const string TableGroup = nameof(TableController.TableGroup);
+    private const string AppearanceGroup = nameof(TableController.AppearanceGroup);
+    private const string ColumnsGroup = nameof(TableController.ColumnsGroup);
+    private const string SelectionGroup = nameof(TableController.SelectionGroup);
+    private const string ReorderGroup = nameof(TableController.ReorderGroup);
     private const string ItemsGroup = nameof(TableController.ItemsGroup);
     private const string BorderGroup = nameof(TableController.BorderGroup);
     private const string ActionGroup = nameof(TableController.ActionGroup);
@@ -35,38 +38,36 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(new TableComponent("deployments")
             .BindItems<TableController>(static x => x.ItemsGroup.Items)
-            .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), UIGridUnit.Auto(min: 112))
-            .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), UIGridUnit.Auto(min: 88))
-            .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(110), UITextAlignment.End)
-            .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(120))
-            // Sideways on a phone, rather than the name and the region squeezed to nothing beside the two fixed columns.
-            .SetHorizontalScroll(UIScrollMode.Auto)
+            .AddTextColumn("Service", nameof(DemoDeploymentRow.Service), UIGridUnit.Auto(min: 112), key: "service")
+            .AddTextColumn("Region", nameof(DemoDeploymentRow.Region), UIGridUnit.Auto(min: 88), key: "region")
+            .AddTextColumn("Replicas", nameof(DemoDeploymentRow.Replicas), UIGridUnit.Absolute(110), UITextAlignment.End, key: "replicas")
+            .AddTextColumn("Status", nameof(DemoDeploymentRow.Status), UIGridUnit.Absolute(120), key: "status")
             .BindStandard()
-            .BindSurface<TableController>(static x => x.TableGroup.Surface)
-            .BindShowHeader<TableController>(static x => x.TableGroup.ShowHeader)
-            .BindStriped<TableController>(static x => x.TableGroup.Striped)
-            .BindShowColumnSeparators<TableController>(static x => x.TableGroup.ShowColumnSeparators)
-            .BindShowRowSeparators<TableController>(static x => x.TableGroup.ShowRowSeparators)
-            .BindRowHoverable<TableController>(static x => x.TableGroup.RowHoverable)
-            .BindResizableColumns<TableController>(static x => x.TableGroup.ResizableColumns)
-            .BindVerticalScroll<TableController>(static x => x.TableGroup.VerticalScroll)
-            .BindSelectionMode<TableController>(static x => x.TableGroup.SelectionMode)
-            .BindSelectedKey<TableController>(static x => x.TableGroup.SelectedKey)
-            .BindSelectedKeys<TableController>(static x => x.TableGroup.SelectedKeys)
-            .BindSelectionStyle<TableController>(static x => x.TableGroup.SelectionStyle)
-            .BindDraggable<TableController>(static x => x.TableGroup.Draggable)
-            .BindDragHandle<TableController>(static x => x.TableGroup.DragHandle)
-            .BindDragHandlePlacement<TableController>(static x => x.TableGroup.DragHandlePlacement)
+            .BindSurface<TableController>(static x => x.AppearanceGroup.Surface)
+            .BindShowHeader<TableController>(static x => x.AppearanceGroup.ShowHeader)
+            .BindStriped<TableController>(static x => x.AppearanceGroup.Striped)
+            .BindShowColumnSeparators<TableController>(static x => x.AppearanceGroup.ShowColumnSeparators)
+            .BindShowRowSeparators<TableController>(static x => x.AppearanceGroup.ShowRowSeparators)
+            .BindRowHoverable<TableController>(static x => x.AppearanceGroup.RowHoverable)
+            .BindResizableColumns<TableController>(static x => x.ColumnsGroup.ResizableColumns)
+            .BindReorderableColumns<TableController>(static x => x.ColumnsGroup.ReorderableColumns)
+            .BindHorizontalScroll<TableController>(static x => x.ColumnsGroup.HorizontalScroll)
+            .BindVerticalScroll<TableController>(static x => x.ColumnsGroup.VerticalScroll)
+            .BindSelection(SelectionGroup)
+            .BindReorder(ReorderGroup)
             .OnItemMoveWithItemKey(nameof(TableController.MoveRow))
             .BindBorder(BorderGroup)
-            .SetMaxHeight(UILayoutLength.Absolute(228))
+            .SetMaxHeight(UILayoutLength.Absolute(200))
             .SetPlacement(1, 1, 24, 1)
-        ), contentMinHeight: 320);
+        ), contentMinHeight: 280);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(TableGroup, "Table"),
+            DemoUI.CreateOptionSection(AppearanceGroup, "Appearance"),
+            DemoUI.CreateOptionSection(ColumnsGroup, "Columns & Scroll"),
+            DemoUI.CreateOptionSection(SelectionGroup, "Selection"),
+            DemoUI.CreateOptionSection(ReorderGroup, "Reorder"),
             DemoUI.CreateOptionSection(ItemsGroup, "Rows"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
@@ -150,7 +151,7 @@ internal sealed class TableView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreatePressedGroup()
     {
-        return DemoUI.CreateExample("Expandable detail rows",
+        return DemoUI.CreateExample("Row click & keyboard grid navigation",
             new TableComponent()
                 .SetHorizontalScroll(UIScrollMode.Auto)
                 .SetItems(DemoDeploymentRow.CreateDeployments().GetRange(0, 5))

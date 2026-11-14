@@ -14,9 +14,9 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(SliderController.ValueGroup);
+    private const string BoundsGroup = nameof(SliderController.BoundsGroup);
     private const string TrackGroup = nameof(SliderController.TrackGroup);
-    private const string ContentGroup = nameof(SliderController.ContentGroup);
-    private const string BadgeGroup = nameof(SliderController.BadgeGroup);
+    private const string LabelGroup = nameof(SliderController.LabelGroup);
 
     public static string ViewKey => "demo.choices.slider";
 
@@ -37,26 +37,25 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindValue<SliderController>(static x => x.ValueGroup.Value)
             .BindEndValue<SliderController>(static x => x.ValueGroup.EndValue)
-            .BindMinDistance<SliderController>(static x => x.ValueGroup.MinDistance)
-            .BindMin<SliderController>(static x => x.ValueGroup.Min)
-            .BindMax<SliderController>(static x => x.ValueGroup.Max)
-            .BindStep<SliderController>(static x => x.ValueGroup.Step)
+            .BindMinDistance<SliderController>(static x => x.BoundsGroup.MinDistance)
+            .BindMin<SliderController>(static x => x.BoundsGroup.Min)
+            .BindMax<SliderController>(static x => x.BoundsGroup.Max)
+            .BindStep<SliderController>(static x => x.BoundsGroup.Step)
             .BindIsReadOnly<SliderController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<SliderController>(static x => x.ValueGroup.Size)
+            .BindSize<SliderController>(static x => x.TrackGroup.Size)
             .BindOrientation<SliderController>(static x => x.TrackGroup.Orientation)
             .BindShowValue<SliderController>(static x => x.TrackGroup.ShowValue)
             .BindShowRange<SliderController>(static x => x.TrackGroup.ShowRange)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(ValueGroup, "Value", note: "EndValue and MinDistance are the band's: moving one end past the other moves the other out of its way."),
+            DemoUI.CreateOptionSection(ValueGroup, "Value", note: "EndValue is the band's upper handle; moving either handle past the other pushes the other out of its way."),
+            DemoUI.CreateOptionSection(BoundsGroup, "Range & Step"),
             DemoUI.CreateOptionSection(TrackGroup, "Track"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge")
+            DemoUI.CreateOptionSection(LabelGroup, "Label")
         );
 
     protected override IVisualComponent[] CreateExamples()
@@ -234,7 +233,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
             UILayout.Row(32)
                 .AddChild(DemoUI.CreateLabelled("Slider — the share of traffic", new SliderComponent()
                     .SetTitle("Traffic to the new release")
-                    .SetWidth(UILayoutLength.Absolute(320))
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(320)))
                     .SetRange(0, 100)
                     .SetStep(5)
                     .SetValue(25)
@@ -244,7 +243,7 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
                 )
                 .AddChild(DemoUI.CreateLabelled("Number input — the exact percentage", new NumberInputComponent()
                     .SetTitle("Traffic to the new release")
-                    .SetWidth(UILayoutLength.Absolute(320))
+                    .SetWidth(UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(320)))
                     .SetRange(0, 100)
                     .SetStep(5)
                     .SetValue(25)

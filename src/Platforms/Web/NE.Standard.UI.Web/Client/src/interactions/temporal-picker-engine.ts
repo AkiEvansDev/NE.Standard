@@ -1,9 +1,10 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { CalendarBodyClass, CalendarClass, cssAttributeValue, PlaceholderNamesAttribute, TemporalCellAttribute, TemporalCentredAttribute, TemporalDayAttribute, TemporalInputClass, TemporalInputDayClass, TemporalInputFieldClass, TemporalInputMonthClass, TemporalInputOpenClass, TemporalInputPopupClass, TemporalInputTimeCellClass, TemporalInputTimeColumnClass, TemporalNavAttribute, TemporalToggleAttribute, TemporalUnitAttribute } from "../addressing/dom-attributes.ts";
+import { CalendarBodyClass, CalendarClass, cssAttributeValue, PlaceholderNamesAttribute, TemporalCellAttribute, TemporalCentredAttribute, TemporalDayAttribute, TemporalEndAttribute, TemporalInputClass, TemporalInputDayClass, TemporalInputFieldClass, TemporalInputMonthClass, TemporalInputOpenClass, TemporalInputPopupClass, TemporalInputSegmentClass, TemporalInputSegmentsClass, TemporalInputTimeCellClass, TemporalInputTimeColumnClass, TemporalNavAttribute, TemporalToggleAttribute, TemporalUnitAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
 import { formatTemporal, isDigitFormat, temporalPlaceholder } from "../rendering/temporal-format.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
 import type { PropertyPatchTarget } from "../state/property-state-store.ts";
+import { placesAsSheet } from "./anchored-popup.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
@@ -62,7 +63,9 @@ export class TemporalPickerEngine {
             this.wheelTurns.clear();
             popup.removeEventListener("wheel", this.onColumnWheel);
             owner.classList.remove(TemporalInputOpenClass);
-        }
+        },
+        sheetOnPhone: true,
+        sheetSwipeHandleOnly: true
     });
 
     // One settle per clock column: a flick across two columns must commit both, not let the second cancel the first.
@@ -343,13 +346,20 @@ export class TemporalPickerEngine {
     }
 
     private handleFieldFocus(domEvent: Event): void {
-        if (!(domEvent.target instanceof HTMLElement) || !domEvent.target.classList.contains(TemporalInputFieldClass))
+        if (!(domEvent.target instanceof HTMLElement))
             return;
 
-        const picker = domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}`);
+        const part = domEvent.target.classList.contains(TemporalInputFieldClass)
+            ? domEvent.target
+            : domEvent.target.closest<HTMLElement>(`.${TemporalInputSegmentsClass}`);
+
+        if (part === null)
+            return;
+
+        const picker = part.closest<HTMLElement>(`.${TemporalInputClass}`);
 
         if (picker !== null && isRange(picker))
-            this.getState(picker).activeEnd = isEndPart(domEvent.target) ? "end" : "start";
+            this.getState(picker).activeEnd = isEndPart(part) ? "end" : "start";
     }
 
     private handleDayHover(domEvent: Event): void {
@@ -415,6 +425,17 @@ export class TemporalPickerEngine {
         if (toggle !== null) {
             domEvent.preventDefault();
             this.toggle(toggle.closest<HTMLElement>(`.${TemporalInputClass}`));
+            return;
+        }
+
+        const phoneRow = placesAsSheet() && typeof matchMedia === "function" && matchMedia("(hover: none)").matches
+            ? domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}__row--phone-picker`)
+            : null;
+
+        if (phoneRow !== null) {
+            const segmentGroup = domEvent.target.closest<HTMLElement>(`.${TemporalInputSegmentsClass}`);
+            domEvent.preventDefault();
+            this.toggle(phoneRow.closest<HTMLElement>(`.${TemporalInputClass}`), segmentGroup !== null && isEndPart(segmentGroup) ? "end" : undefined);
             return;
         }
 
@@ -675,7 +696,8 @@ export class TemporalPickerEngine {
     private toggle(picker: HTMLElement | null, activeEnd?: PeriodEnd): void {
         const popup = picker?.querySelector<HTMLElement>(`.${TemporalInputPopupClass}`) ?? null;
 
-        if (picker === null || popup === null)
+        // TimeInput edits inline on desktop and opens a wheel sheet on phones alone.
+        if (picker === null || popup === null || (readMode(picker) === "time" && !placesAsSheet()))
             return;
 
         if (this.openPicker === picker) {
@@ -715,8 +737,11 @@ export class TemporalPickerEngine {
             anchor: row ?? picker,
             placement: { placement: "bottom-end" },
             openers: toggle === null ? [] : [toggle],
-            namedBy: row?.getAttribute("role") === "group" ? row : fieldOf(picker, false),
-            returnFocus: () => fieldOf(picker, this.getState(picker).activeEnd === "end")
+            namedBy: row?.getAttribute("role") === "group" ? row : (fieldOf(picker, false) ?? segmentsOf(picker, false)),
+            returnFocus: () => {
+                const end = this.getState(picker).activeEnd === "end";
+                return fieldOf(picker, end) ?? segmentsOf(picker, end)?.querySelector<HTMLElement>(`.${TemporalInputSegmentClass}`) ?? null;
+            }
         });
     }
 
@@ -766,10 +791,11 @@ export class TemporalPickerEngine {
             // The panes go in their own box: as a sibling of them the footer counted into the popup's shrink-to-fit width.
             const panes = element("div", `${TemporalInputClass}__panes`);
 
-            // The clock goes to the right of the calendar; only DateInput and DateTimeInput reach the popup at all.
-            panes.append(renderCalendar(picker, state, culture, value));
+            // The clock goes beside the calendar on DateTimeInput, or stands alone on a phone's TimeInput sheet.
+            if (mode !== "time")
+                panes.append(renderCalendar(picker, state, culture, value));
 
-            if (mode === "date-time")
+            if (mode === "date-time" || mode === "time")
                 panes.append(renderTimePane(picker, value, range && state.activeEnd === "end"));
 
             const footer = renderFooter(mode);
@@ -783,14 +809,22 @@ export class TemporalPickerEngine {
         // A month chosen from the month pane is gone after the rebuild, and a page button that reached a bound is disabled, so the focus
         // of either falls to the day like any other.
         const navTarget = focusedNav === null ? null : surface.querySelector<HTMLElement>(`[${TemporalNavAttribute}="${cssAttributeValue(focusedNav)}"]:not(:disabled)`);
+        const shouldMoveFocus = moveFocus || (focusWasInside && focusedUnit === null && navTarget === null);
 
-        applyRovingDay(surface, state, value, moveFocus || (focusWasInside && focusedUnit === null && navTarget === null));
+        applyRovingDay(surface, state, value, shouldMoveFocus);
         applyPeriodPreview(picker, state);
 
         if (!inline) {
             fitTimeColumns(surface);
             centreTimeColumns(surface);
             restoreTimeFocus(surface, focusedUnit);
+
+            if (mode === "time" && shouldMoveFocus) {
+                const dialCell = surface.querySelector<HTMLElement>(`.${TemporalInputTimeCellClass}[tabindex="0"]`);
+
+                if (dialCell !== null)
+                    focusAsLastInput(dialCell);
+            }
         }
 
         if (navTarget !== null)
@@ -800,4 +834,10 @@ export class TemporalPickerEngine {
         if (!inline)
             this.popups.reposition(picker);
     }
+}
+
+function segmentsOf(picker: HTMLElement, end: boolean): HTMLElement | null {
+    return picker.querySelector<HTMLElement>(end
+        ? `.${TemporalInputSegmentsClass}[${TemporalEndAttribute}]`
+        : `.${TemporalInputSegmentsClass}:not([${TemporalEndAttribute}])`);
 }

@@ -4,9 +4,9 @@ using DemoApp.Controllers.Base;
 namespace DemoApp.Controllers.Inputs.TextInput;
 
 /// <summary>
-/// The single-line field's own group: its prefix/suffix adornments, its native input type and the keyboard it asks a phone for.
+/// The single-line field's own group: its appearance, size, native input type, phone keyboard mode and clear button.
 /// </summary>
-internal sealed partial class TextInputFieldGroupContext : AffixedFieldGroupContext
+internal sealed partial class TextInputFieldGroupContext : ClearableFieldGroupContext
 {
     [RecursiveMember]
     public partial UITextInputType? Type { get; set; } = UITextInputType.Text;
@@ -14,21 +14,14 @@ internal sealed partial class TextInputFieldGroupContext : AffixedFieldGroupCont
     [RecursiveMember]
     public partial UIInputMode? InputMode { get; set; }
 
-    [RecursiveMember]
-    public partial string? PrefixText { get; set; }
-
-    [RecursiveMember]
-    public partial string? SuffixText { get; set; }
-
-    public TextInputFieldGroupContext() : base("service-name", DemoIcons.Link, DemoIcons.Search)
+    public TextInputFieldGroupContext() : base("service-name")
     {
         AddAppearanceOption();
+        AddSizeOption();
         AddPlaceholderOption();
         AddOption(nameof(Type), CycleType, () => Type);
         AddOption(nameof(InputMode), CycleInputMode, () => InputMode);
-        AddOption(nameof(PrefixText), TogglePrefixText, () => PrefixText);
-        AddOption(nameof(SuffixText), ToggleSuffixText, () => SuffixText);
-        AddAffixIconOptions();
+        AddClearButtonOption();
     }
 
     // Each control cycles one property and records what it changed.
@@ -37,12 +30,6 @@ internal sealed partial class TextInputFieldGroupContext : AffixedFieldGroupCont
 
     public void CycleInputMode()
         => SetLastChange(nameof(InputMode), InputMode = CycleEnum(InputMode));
-
-    public void TogglePrefixText()
-        => SetLastChange(nameof(PrefixText), PrefixText = CycleValue(PrefixText, null, "https://orvane.example"));
-
-    public void ToggleSuffixText()
-        => SetLastChange(nameof(SuffixText), SuffixText = CycleValue(SuffixText, null, "seconds"));
 }
 
 /// <summary>
@@ -153,10 +140,10 @@ internal sealed partial class TextInputController() : DemoStandardController
     public partial TextInputFieldGroupContext FieldGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new();
+    public partial TextAffixesGroupContext AffixesGroup { get; set; } = new("https://orvane.example", "seconds", DemoIcons.Link, DemoIcons.Search);
 
     [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

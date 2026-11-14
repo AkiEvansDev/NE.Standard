@@ -20,9 +20,10 @@ export function swipeCloses(offset: number, height: number, speed: number): bool
 
 /**
  * Lets `sheet` be swiped down, `close` running when a swipe lets it go far or fast enough; `scroller` is the box whose scroll must be
- * at its top for a drag to start, the sheet itself where it scrolls. Answers the detach.
+ * at its top for a drag to start, the sheet itself where it scrolls, and `handleOnly` keeps touch drags below the handle band to the
+ * sheet's own controls (a colour square, a clock column). Answers the detach.
  */
-export function followSwipeDown(sheet: HTMLElement, scroller: HTMLElement, close: () => void): () => void {
+export function followSwipeDown(sheet: HTMLElement, scroller: HTMLElement, close: () => void, handleOnly = false): () => void {
     sheet.style.removeProperty(DragProperty);
     sheet.removeAttribute(SheetDraggingAttribute);
 
@@ -31,7 +32,7 @@ export function followSwipeDown(sheet: HTMLElement, scroller: HTMLElement, close
         oneWay: true,
         // A finger moving down at the top of the scroll is the sheet's, not the page's overscroll or a pull to refresh.
         holdsTouch: true,
-        begins: domEvent => scroller.scrollTop <= 0 && (domEvent.pointerType === "touch" || domEvent.clientY - sheet.getBoundingClientRect().top <= HandleBand),
+        begins: domEvent => scroller.scrollTop <= 0 && ((!handleOnly && domEvent.pointerType === "touch") || domEvent.clientY - sheet.getBoundingClientRect().top <= HandleBand),
         start: domEvent => {
             sheet.setAttribute(SheetDraggingAttribute, "");
             capture(sheet, domEvent.pointerId);

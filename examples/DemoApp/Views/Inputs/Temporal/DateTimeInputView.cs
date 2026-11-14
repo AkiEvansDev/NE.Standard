@@ -18,8 +18,7 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(DateTimeInputController.ValueGroup);
     private const string FieldGroup = nameof(DateTimeInputController.FieldGroup);
-    private const string ContentGroup = nameof(DateTimeInputController.ContentGroup);
-    private const string BadgeGroup = nameof(DateTimeInputController.BadgeGroup);
+    private const string LabelGroup = nameof(DateTimeInputController.LabelGroup);
     private const string BorderGroup = nameof(DateTimeInputController.BorderGroup);
     private static readonly DateTimeOffset Cutover = new(2026, 8, 12, 2, 30, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset WindowOpens = new(2026, 8, 12, 1, 0, 0, TimeSpan.Zero);
@@ -45,13 +44,12 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
             .BindMin<DateTimeInputController>(static x => x.ValueGroup.Min)
             .BindMax<DateTimeInputController>(static x => x.ValueGroup.Max)
             .BindIsReadOnly<DateTimeInputController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<DateTimeInputController>(static x => x.ValueGroup.Size)
             .BindDisplayFormat<DateTimeInputController>(static x => x.FieldGroup.DisplayFormat)
             .BindAppearance<DateTimeInputController>(static x => x.FieldGroup.Appearance)
+            .BindSize<DateTimeInputController>(static x => x.FieldGroup.Size)
             .BindPrefixIcon<DateTimeInputController>(static x => x.FieldGroup.PrefixIcon)
             .BindSuffixIcon<DateTimeInputController>(static x => x.FieldGroup.SuffixIcon)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .BindEndValue<DateTimeInputController>(static x => x.ValueGroup.EndValue)
             .BindMinDistance<DateTimeInputController>(static x => x.ValueGroup.MinDistance)
@@ -62,8 +60,7 @@ internal sealed class DateTimeInputView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value", note: "EndValue and MinDistance are the period's: an end nearer the other than the distance is not on offer."),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 

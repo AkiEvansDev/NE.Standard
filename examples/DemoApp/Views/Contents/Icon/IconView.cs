@@ -49,6 +49,7 @@ internal sealed class IconView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Icon property vs standalone IconComponent",
             UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(360))
+                .SetMaxWidth(UILayoutLength.Fill())
                 .AddChild(UIText.Label("As a text body's property"))
                 .AddChild(new TextComponent()
                     .SetIcon(DemoIcons.Outline(DemoIcons.Check))

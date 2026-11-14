@@ -18,8 +18,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(DateInputController.ValueGroup);
     private const string FieldGroup = nameof(DateInputController.FieldGroup);
-    private const string ContentGroup = nameof(DateInputController.ContentGroup);
-    private const string BadgeGroup = nameof(DateInputController.BadgeGroup);
+    private const string LabelGroup = nameof(DateInputController.LabelGroup);
     private const string BorderGroup = nameof(DateInputController.BorderGroup);
     private static readonly DateOnly Release = new(2026, 8, 12);
     private static readonly DateOnly QuarterStart = new(2026, 7, 1);
@@ -46,13 +45,12 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
             .BindMin<DateInputController>(static x => x.ValueGroup.Min)
             .BindMax<DateInputController>(static x => x.ValueGroup.Max)
             .BindIsReadOnly<DateInputController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<DateInputController>(static x => x.ValueGroup.Size)
             .BindDisplayFormat<DateInputController>(static x => x.FieldGroup.DisplayFormat)
             .BindAppearance<DateInputController>(static x => x.FieldGroup.Appearance)
+            .BindSize<DateInputController>(static x => x.FieldGroup.Size)
             .BindPrefixIcon<DateInputController>(static x => x.FieldGroup.PrefixIcon)
             .BindSuffixIcon<DateInputController>(static x => x.FieldGroup.SuffixIcon)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .BindEndValue<DateInputController>(static x => x.ValueGroup.EndValue)
             .BindMinDistance<DateInputController>(static x => x.ValueGroup.MinDistance)
@@ -63,8 +61,7 @@ internal sealed class DateInputView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value", note: "EndValue and MinDistance are the period's: an end nearer the other than the distance is not on offer."),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 

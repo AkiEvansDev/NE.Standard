@@ -42,6 +42,11 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
                     .BindBadgeTitle<TabsController>(static x => x.TabsGroup.ActivityBadge),
                 CreateActivityPage()
             )
+            .AddTab(TabsGroupContext.DeploymentsKey, "Deployments", CreateNotePage("48 releases rolled out across eu-west and us-east in the last seven days."))
+            .AddTab(TabsGroupContext.MetricsKey, "Metrics", CreateNotePage("p95 latency 18 ms · CPU 42 % · Memory 61 %."))
+            .AddTab(TabsGroupContext.AlertsKey, "Alerts", CreateNotePage("No active paging alerts. Last resolved 12 days ago."))
+            .AddTab(TabsGroupContext.SnapshotsKey, "Snapshots", CreateNotePage("Nightly volume snapshots retained for 30 days in object storage."))
+            .AddTab(TabsGroupContext.AuditKey, "Audit log", CreateNotePage("Every configuration write signed and retained for 365 days."))
             .AddTab(TabsGroupContext.SettingsKey,
                 new TabCaptionComponent()
                     .SetTitle("Settings")
@@ -81,6 +86,10 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
             .SetDescriptionType(UITextAppearance.Caption)
             .SetDescriptionColor(UIThemeColor.Muted);
 
+    private static StackPanelComponent CreateNotePage(string summary)
+        => TabsDemo.CreatePage()
+            .AddChild(new ParagraphComponent().SetDescription(summary).SetDescriptionType(UITextAppearance.Body));
+
     /// <summary>The knobs a deploy has: inputs, so the page holds state of its own across a switch.</summary>
     private static StackPanelComponent CreateSettingsPage()
         => TabsDemo.CreatePage()
@@ -105,7 +114,7 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("A settings page",
             new SurfaceComponent()
-                .SetWidth(UILayoutLength.Absolute(460))
+                .SetMaxWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsComponent()
                     // A profile's fields, outlined as a settings form's are.
                     .AddTab("profile", "Profile", UILayout.Stack(10)
@@ -140,7 +149,7 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Trailing tab-strip actions",
             new SurfaceComponent()
-                .SetWidth(UILayoutLength.Absolute(460))
+                .SetMaxWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsComponent()
                     .AddTab("deploys", "Deploys", UILayout.Stack(10)
                         .AddChild(new TextComponent().SetIcon(DemoIcons.Outline(DemoIcons.Upload)).SetTitle("billing #482 to production").SetDescription("Today at 09:41 · Sam Ortega").SetDescriptionType(UITextAppearance.Caption).SetDescriptionColor(UIThemeColor.Muted))
@@ -184,7 +193,7 @@ internal sealed class TabsView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Badges & counters on tabs",
             new SurfaceComponent()
-                .SetWidth(UILayoutLength.Absolute(460))
+                .SetMaxWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsComponent()
                     .AddTab("inbox",
                         new TabCaptionComponent().SetTitle("Inbox").SetBadgeTitle("3").SetBadgeVariant(UIBadgeVariant.Danger),

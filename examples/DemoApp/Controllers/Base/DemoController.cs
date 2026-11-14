@@ -74,11 +74,35 @@ internal partial class DemoGroupContext : RecursiveObservable
     {
         null => "(none)",
         bool flag => flag ? "true" : "false",
+        UISelectionStyle style => DescribeSelectionStyle(style),
         _ => value.ToString() is { Length: > 0 } text ? text : "(empty)"
     };
 
+    private static string DescribeSelectionStyle(UISelectionStyle style)
+    {
+        List<string> parts = [];
+
+        if (style.Background is UIThemeColor background)
+            parts.Add(style.Foreground is not null ? $"{background} fill" : $"{background} ground");
+        else if (style.Foreground is UIThemeColor foreground)
+            parts.Add($"{foreground} text");
+
+        if (style.Mark is UISelectionMark mark)
+        {
+            if (mark != UISelectionMark.None)
+                parts.Add(style.MarkColor is UIThemeColor markColor ? $"{mark} mark ({markColor})" : $"{mark} mark");
+            else if (parts.Count == 0)
+                parts.Add("No mark");
+        }
+
+        if (style.Bold is bool bold)
+            parts.Add(parts.Count == 0 ? (bold ? "Bold" : "Regular") : (bold ? "bold" : "regular"));
+
+        return parts.Count > 0 ? string.Join(", ", parts) : "(default)";
+    }
+
     protected void SetLastChange<T>(string property, T value)
-        => Message = $"{property} -> {value}";
+        => Message = $"{property} -> {Describe(value)}";
 
     /// <summary>Writes a timestamped line under the group, for what happened rather than what changed.</summary>
     internal void LogEvent(string message)
@@ -174,7 +198,14 @@ internal abstract partial class TooltipGroupContext : DemoGroupContext
 
     // All twelve, walked whole: a placement is a side plus an end, easier to see than to read.
     public void CycleTooltipPlacement()
-        => SetLastChange(nameof(TooltipPlacement), TooltipPlacement = CycleEnum(TooltipPlacement));
+    {
+        TooltipPlacement = CycleEnum(TooltipPlacement);
+
+        if (TooltipPlacement is not null)
+            Tooltip ??= _sample;
+
+        SetLastChange(nameof(TooltipPlacement), TooltipPlacement);
+    }
 }
 
 /// <summary>What one option row does when pressed, and how its current value reads.</summary>

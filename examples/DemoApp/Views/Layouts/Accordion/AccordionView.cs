@@ -82,6 +82,7 @@ internal sealed class AccordionView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("One open at a time",
             new AccordionComponent()
                 .SetWidth(UILayoutLength.Absolute(380))
+                .SetMaxWidth(UILayoutLength.Fill())
                 .AddChild(new ExpanderComponent()
                     .SetExpanded(true)
                     .ConfigureDefaultHeader(header => header.SetTitle("Disk"))
@@ -121,6 +122,7 @@ internal sealed class AccordionView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Headers that say what is inside",
             new AccordionComponent()
                 .SetWidth(UILayoutLength.Absolute(420))
+                .SetMaxWidth(UILayoutLength.Fill())
                 .AddChild(new ExpanderComponent()
                     .SetExpanded(true)
                     .ConfigureDefaultHeader(header => header

@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { OrientationVerticalClass, SliderBubbleClass, SliderClass, SliderInputClass, SliderInputEndClass, SliderInputHeldClass, SliderMinDistanceAttribute, SliderRangeClass, SliderThumbAnchorClass, SliderTrackClass, SliderValueClass } from "../addressing/dom-attributes.ts";
+import { OrientationVerticalClass, SliderBubbleClass, SliderClass, SliderInputClass, SliderInputEndClass, SliderInputHeldClass, SliderInputHoveredClass, SliderMinDistanceAttribute, SliderRangeClass, SliderThumbAnchorClass, SliderTrackClass, SliderValueClass } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
 import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
@@ -47,6 +47,7 @@ export class RangeValueEngine {
     // The ranges a pushed bound may have clamped, with the value the server holds: reported once the change set is applied, since a
     // report raised inside it would hold the set's own Value push out of the field.
     private readonly owedReports = new Map<HTMLInputElement, unknown>();
+    private hoveredHandle: HTMLInputElement | null = null;
 
     public constructor(options: RangeValueEngineOptions = {}) {
         this.options = options;
@@ -64,6 +65,8 @@ export class RangeValueEngine {
         (this.root === document ? window : this.root).addEventListener("change", domEvent => this.refuseCancelledChange(domEvent), true);
         this.root.addEventListener("focusin", domEvent => this.placeBubble(domEvent.target), true);
         this.root.addEventListener("focusout", domEvent => this.releaseBubble(domEvent.target), true);
+        this.root.addEventListener("pointermove", domEvent => this.handleTrackHover(domEvent), true);
+        this.root.addEventListener("pointerout", domEvent => this.handleTrackOut(domEvent), true);
 
         // Two handles on one track take the pointer through the track: the handle a press lands nearer to is the one it moves, which two
         // native ranges stacked could not tell apart where they meet.
@@ -214,8 +217,63 @@ export class RangeValueEngine {
         this.writeReadings(input);
     }
 
+    /** Lights the handle a press on a range slider's track would take, since its inputs pass pointer events through to the track. */
+    private handleTrackHover(domEvent: Event): void {
+        if (!(domEvent instanceof PointerEvent) || domEvent.pointerType !== "mouse" || domEvent.buttons !== 0)
+            return;
+
+        const track = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${SliderRangeClass} .${SliderTrackClass}`) : null;
+
+        if (track === null) {
+            this.clearHoveredHandle();
+            return;
+        }
+
+        const start = track.querySelector<HTMLInputElement>(`.${SliderInputClass}:not(.${SliderInputEndClass})`);
+        const end = track.querySelector<HTMLInputElement>(`.${SliderInputEndClass}`);
+
+        if (start === null || end === null || isFixed(start)) {
+            this.clearHoveredHandle();
+            return;
+        }
+
+        const hovered = valueAtFraction(trackFraction(track.getBoundingClientRect(), { x: domEvent.clientX, y: domEvent.clientY }, isVertical(track), handleSize(track)), readRangeBounds(start));
+        const handle = chooseHandle(hovered, Number(start.value), Number(end.value));
+
+        this.setHoveredHandle(handle === "end" ? end : start);
+    }
+
+    private handleTrackOut(domEvent: Event): void {
+        if (this.hoveredHandle === null || !(domEvent instanceof PointerEvent))
+            return;
+
+        const track = this.hoveredHandle.closest(`.${SliderTrackClass}`);
+
+        if (track === null || !(domEvent.relatedTarget instanceof Node) || !track.contains(domEvent.relatedTarget))
+            this.clearHoveredHandle();
+    }
+
+    private setHoveredHandle(input: HTMLInputElement): void {
+        if (this.hoveredHandle === input)
+            return;
+
+        this.clearHoveredHandle();
+        this.hoveredHandle = input;
+        input.classList.add(SliderInputHoveredClass);
+    }
+
+    private clearHoveredHandle(): void {
+        if (this.hoveredHandle === null)
+            return;
+
+        this.hoveredHandle.classList.remove(SliderInputHoveredClass);
+        this.hoveredHandle = null;
+    }
+
     /** A press on a band's track: the nearer handle takes it, at once, and the keyboard with it; a read-only band only takes the focus. */
     private beginBandDrag(track: HTMLElement, point: { readonly x: number; readonly y: number }): BandDrag | null {
+        this.clearHoveredHandle();
+
         const start = track.querySelector<HTMLInputElement>(`.${SliderInputClass}:not(.${SliderInputEndClass})`);
         const end = track.querySelector<HTMLInputElement>(`.${SliderInputEndClass}`);
 

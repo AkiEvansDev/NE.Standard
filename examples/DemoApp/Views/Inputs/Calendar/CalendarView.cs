@@ -16,7 +16,8 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string DaysGroup = nameof(CalendarController.DaysGroup);
-    private const string ContentGroup = nameof(CalendarController.ContentGroup);
+    private const string BoundsGroup = nameof(CalendarController.BoundsGroup);
+    private const string LabelGroup = nameof(CalendarController.LabelGroup);
     private const string PickGroup = nameof(CalendarController.PickGroup);
     private static readonly DateOnly Release = new(2026, 8, 12);
     private static readonly DateOnly QuarterStart = new(2026, 7, 1);
@@ -44,20 +45,21 @@ internal sealed class CalendarView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindValue<CalendarController>(static x => x.DaysGroup.Value)
             .BindEndValue<CalendarController>(static x => x.DaysGroup.EndValue)
-            .BindMinDistance<CalendarController>(static x => x.DaysGroup.MinDistance)
-            .BindMin<CalendarController>(static x => x.DaysGroup.Min)
-            .BindMax<CalendarController>(static x => x.DaysGroup.Max)
             .BindMarkedDays<CalendarController>(static x => x.DaysGroup.MarkedDays)
-            .BindMarkedDaysOnly<CalendarController>(static x => x.DaysGroup.MarkedDaysOnly)
             .BindIsReadOnly<CalendarController>(static x => x.DaysGroup.IsReadOnly)
-            .BindTextContent(ContentGroup)
+            .BindMin<CalendarController>(static x => x.BoundsGroup.Min)
+            .BindMax<CalendarController>(static x => x.BoundsGroup.Max)
+            .BindMinDistance<CalendarController>(static x => x.BoundsGroup.MinDistance)
+            .BindMarkedDaysOnly<CalendarController>(static x => x.BoundsGroup.MarkedDaysOnly)
+            .BindLabel(LabelGroup)
             .SetPlacement(1, 1, 24, 1);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(DaysGroup, "Days", note: "Turning MarkedDaysOnly on, or moving a bound, moves the day and the period's end onto a day still on offer. MinDistance takes the days too near the start off offer for the end."),
-            DemoUI.CreateOptionSection(ContentGroup, "Content")
+            DemoUI.CreateOptionSection(DaysGroup, "Days"),
+            DemoUI.CreateOptionSection(BoundsGroup, "Bounds", note: "Turning MarkedDaysOnly on, or moving a bound, moves the day and the period's end onto a day still on offer. MinDistance takes the days too near the start off offer for the end."),
+            DemoUI.CreateOptionSection(LabelGroup, "Label")
         );
 
     protected override IVisualComponent[] CreateExamples()

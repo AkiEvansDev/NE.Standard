@@ -12,6 +12,7 @@ internal sealed partial class MultiSelectFieldGroupContext : OptionsFieldGroupCo
     public MultiSelectFieldGroupContext() : base("Pick regions", DemoIcons.Navigation, DemoIcons.Filter)
     {
         AddAppearanceOption();
+        AddSizeOption();
         AddPlaceholderOption();
         AddAffixIconOptions();
         AddAdornmentOptions();
@@ -30,6 +31,9 @@ internal sealed partial class MultiSelectVariantGroupContext : DemoGroupContext
     public partial UIMultiSelectVariant Variant { get; set; }
 
     [RecursiveMember]
+    public partial UIButtonVariant? ButtonVariant { get; set; }
+
+    [RecursiveMember]
     public partial UIVisibility ChipsVisibility { get; set; }
 
     [RecursiveMember]
@@ -37,6 +41,9 @@ internal sealed partial class MultiSelectVariantGroupContext : DemoGroupContext
 
     [RecursiveMember]
     public partial UIVisibility CheckboxesVisibility { get; set; } = UIVisibility.Collapsed;
+
+    [RecursiveMember]
+    public partial UIVisibility ButtonVisibility { get; set; } = UIVisibility.Collapsed;
 
     [RecursiveMember]
     public partial UIOrientation? Orientation { get; set; } = UIOrientation.Vertical;
@@ -47,18 +54,34 @@ internal sealed partial class MultiSelectVariantGroupContext : DemoGroupContext
     public MultiSelectVariantGroupContext()
     {
         AddOption(nameof(Variant), CycleVariant, () => Variant);
+        AddOption(nameof(ButtonVariant), CycleButtonVariant, () => ButtonVariant);
         AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
     }
 
     public void CycleVariant()
     {
-        Variant = CycleEnum(Variant);
+        SetVariant(CycleEnum(Variant));
+        SetLastChange(nameof(Variant), Variant);
+    }
+
+    public void CycleButtonVariant()
+    {
+        ButtonVariant = CycleEnum(ButtonVariant);
+
+        if (ButtonVariant is not null && Variant != UIMultiSelectVariant.Button)
+            SetVariant(UIMultiSelectVariant.Button);
+
+        SetLastChange(nameof(ButtonVariant), ButtonVariant);
+    }
+
+    private void SetVariant(UIMultiSelectVariant variant)
+    {
+        Variant = variant;
         ChipsVisibility = Shown(UIMultiSelectVariant.Chips);
         BadgesVisibility = Shown(UIMultiSelectVariant.Badges);
         CheckboxesVisibility = Shown(UIMultiSelectVariant.Checkboxes);
-
-        SetLastChange(nameof(Variant), Variant);
+        ButtonVisibility = Shown(UIMultiSelectVariant.Button);
     }
 
     private UIVisibility Shown(UIMultiSelectVariant variant)
@@ -123,10 +146,7 @@ internal sealed partial class MultiSelectController() : DemoStandardController
     public partial MultiSelectOptionsGroupContext OptionsGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Regions");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Regions");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

@@ -13,6 +13,11 @@ internal sealed partial class TabsGroupContext : DemoGroupContext
 {
     public const string OverviewKey = "overview";
     public const string ActivityKey = "activity";
+    public const string DeploymentsKey = "deployments";
+    public const string MetricsKey = "metrics";
+    public const string AlertsKey = "alerts";
+    public const string SnapshotsKey = "snapshots";
+    public const string AuditKey = "audit";
     public const string SettingsKey = "settings";
 
     [RecursiveMember]
@@ -44,7 +49,7 @@ internal sealed partial class TabsGroupContext : DemoGroupContext
     }
 
     public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, OverviewKey, ActivityKey, SettingsKey));
+        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, OverviewKey, ActivityKey, DeploymentsKey, MetricsKey, AlertsKey, SnapshotsKey, AuditKey, SettingsKey));
 
     // A tab's own look is a semibold caption over a primary line; the cycle takes the weight off, then recolours the line.
     public void CycleSelectionStyle()
@@ -95,12 +100,18 @@ internal sealed partial class TabsViewGroupContext : DemoGroupContext
     public const string IncidentKey = "incident";
     public const string HealthKey = "health";
     public const string ServerKey = "server";
+    public const string PipelineKey = "pipeline";
+    public const string AlertsKey = "alerts";
+    public const string RunbookKey = "runbook";
 
     private readonly RecursiveCollection<DemoDocumentItem> _documents;
     private readonly List<DemoDocumentItem> _closed = [];
 
     [RecursiveMember]
     public partial string? SelectedKey { get; set; } = IncidentKey;
+
+    [RecursiveMember]
+    public partial UISelectionStyle? SelectionStyle { get; set; }
 
     [RecursiveMember]
     public partial bool Renamable { get; set; } = true;
@@ -122,6 +133,7 @@ internal sealed partial class TabsViewGroupContext : DemoGroupContext
         _documents = documents;
 
         AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
+        AddOption(nameof(SelectionStyle), CycleSelectionStyle, () => SelectionStyle);
         AddOption(nameof(Renamable), ToggleRenamable, () => Renamable);
         AddOption(nameof(Draggable), ToggleDraggable, () => Draggable);
         AddOption(nameof(TabMenuEntries), CycleTabMenuEntries, () => TabMenuEntries);
@@ -131,7 +143,10 @@ internal sealed partial class TabsViewGroupContext : DemoGroupContext
     }
 
     public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, IncidentKey, HealthKey, ServerKey));
+        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, IncidentKey, HealthKey, ServerKey, PipelineKey, AlertsKey, RunbookKey));
+
+    public void CycleSelectionStyle()
+        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, new UISelectionStyle(null, null, null, null, Bold: false), UISelectionStyle.Marked(UISelectionMark.Bottom, UIThemeColor.Accent), new UISelectionStyle(null, UIThemeColor.FromStyle(UIColorStyle.Primary), null, null, Bold: true)));
 
     public void ToggleRenamable()
         => SetLastChange(nameof(Renamable), Renamable = !Renamable);

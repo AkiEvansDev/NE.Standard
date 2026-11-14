@@ -488,6 +488,8 @@ export const BoxedEditorAttribute = "data-ui-boxed-editor";
  * pointer (`@ui-row-live`). The render writes it, `row-idle.ts` keeps it.
  */
 export const RowIdleAttribute = "data-ui-row-idle";
+/** On an items view's, a table's, a tree's or a key-value list's row whose press raises `click` (`WebAttributes.RowClick`, `items-row-renderer.ts`). */
+export const RowClickAttribute = "data-ui-row-click";
 /** On a breadcrumbs step's wrapper: the tiers its step is collapsed in, and those no shown step follows it in (`WebAttributes.StepCollapsed`, `StepEnd`). */
 export const StepCollapsedAttribute = "data-ui-step-collapsed";
 export const StepEndAttribute = "data-ui-step-end";
@@ -1365,6 +1367,8 @@ export const PlaceholderNamesAttribute = "data-ui-placeholder-names";
 export const TextAreaClass = "ui-text-area";
 
 export const ItemsVersionAttribute = "data-ui-items-version";
+
+export const SliderInputHoveredClass = "ui-slider__input--hovered";
 
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {

@@ -4,7 +4,7 @@ import { resolveWritableBinding, ValueSyncEventNames } from "../addressing/dom-r
 import type { DomRegistry, EffectRunner } from "../addressing/dom-registry.ts";
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
-import { getIdValue, getInteractionActionKind, rowKeysText } from "../metadata/metadata-index.ts";
+import { getIdValue, getInteractionActionKind, isRowsOwn, rowKeysText } from "../metadata/metadata-index.ts";
 import type {
     ClientEffect,
     InsertTextClientEffect,
@@ -294,19 +294,6 @@ function hasRowKey(interaction: WebRenderInteractionMetadata): boolean {
     const rowKey = interaction.sourceEvent?.rowKey;
 
     return rowKey !== null && rowKey !== undefined;
-}
-
-/**
- * Whether an event raised with these keys fires the interaction: any row's for one that names none, else only the row it names — any
- * key in the row's scope chain, so a submenu's key matches its entries too; a key sent as a number and read off the DOM as digits is one row.
- */
-function isRowsOwn(interaction: WebRenderInteractionMetadata, dynamicParameters: readonly unknown[]): boolean {
-    const rowKey = interaction.sourceEvent?.rowKey;
-
-    if (rowKey === null || rowKey === undefined)
-        return true;
-
-    return dynamicParameters.some(key => key !== null && key !== undefined && String(key) === rowKey);
 }
 
 /** What a copy writes: the source's value, or the target's authored one (`falseValue`) while the source holds nothing or blank text. */

@@ -250,7 +250,7 @@ export class WebUIRuntime {
             registerRuntimeEffects(this.effects, this.transport, propertyPatchEngine, valueBinding, validationEngine, this.sessionKey, this.leaveGuard, (language, href) => this.switchLanguageAsync(language, href));
 
             this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine, dialogs: this.dialogs, heldRows: this.virtualization };
-            this.numberInputs = startCoreComponentEngines(this.engineContext, this.metadata, propertyState, itemsRenderer, this.virtualization, interactionEngine, this.engineDisposers);
+            this.numberInputs = startCoreComponentEngines(this.engineContext, this.metadata, propertyState, itemsRenderer, this.virtualization, this.engineDisposers);
 
             const { eventPipeline, tables, windows } = createEventPipelineAndWindows(this.root, this.metadata, this.dom, this.dispatcher, interactionEngine, interactionIndex, this.extensions, this.effects, options.events, validationEngine, valueBinding, this.transport, this.failures, this.updateProcessor, this.engineContext, this.rowMenus, this.virtualization, this.engineDisposers);
             this.eventPipeline = eventPipeline;

@@ -8,8 +8,14 @@ namespace DemoApp.Controllers.Base;
 /// </summary>
 internal sealed partial class DemoServiceItem : TextItem, IBindableGroup
 {
+    public const string RowTemplate = "row";
+    public const string AccordionTemplate = "accordion";
+
     [RecursiveMember]
     public partial string? Group { get; set; }
+
+    [RecursiveMember]
+    public partial string TemplateKind { get; set; } = RowTemplate;
 
     /// <summary>Where the service runs — what the group is set back to after it has been cleared.</summary>
     [RecursiveMember(false)]
@@ -17,12 +23,10 @@ internal sealed partial class DemoServiceItem : TextItem, IBindableGroup
 }
 
 /// <summary>
-/// A template over a collection, and the properties that say how the copies are laid out and scrolled.
+/// How an items view lays out its copies: stack, wrap, or accordion, along an axis with spacing, padding, and row wash.
 /// </summary>
-internal sealed partial class ItemsViewGroupContext : DraggableSelectionGroupContext
+internal sealed partial class ItemsViewLayoutGroupContext : DemoGroupContext
 {
-    private int _added;
-
     [RecursiveMember]
     public partial UIItemsLayoutType? LayoutType { get; set; }
 
@@ -36,39 +40,22 @@ internal sealed partial class ItemsViewGroupContext : DraggableSelectionGroupCon
     public partial UIResponsive<UIThickness>? Padding { get; set; }
 
     [RecursiveMember]
-    public partial UIScrollMode? HorizontalScroll { get; set; }
+    public partial bool RowHoverable { get; set; }
 
     [RecursiveMember]
-    public partial UIScrollMode? VerticalScroll { get; set; }
+    public partial bool RowBleed { get; set; }
 
-    [RecursiveMember]
-    public partial UIScrollSnapMode? ScrollSnap { get; set; }
-
-    [RecursiveMember]
-    public partial UIScrollAnchor? ScrollAnchor { get; set; }
-
-    [RecursiveMember(false)]
-    public RecursiveCollection<DemoServiceItem> Items { get; } = [.. DemoSamples.Services()];
-
-    public ItemsViewGroupContext()
-        : base(["billing", "dns"], [["panel", "mail-relay"], ["scheduler"]])
+    public ItemsViewLayoutGroupContext()
     {
         AddOption(nameof(LayoutType), CycleLayoutType, () => LayoutType);
         AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
         AddOption(nameof(Padding), CyclePadding, () => Padding);
-        AddOption(nameof(HorizontalScroll), CycleHorizontalScroll, () => HorizontalScroll);
-        AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
-        AddOption(nameof(ScrollSnap), CycleScrollSnap, () => ScrollSnap);
-        AddOption(nameof(ScrollAnchor), CycleScrollAnchor, () => ScrollAnchor);
-        AddSelectionOptions();
-        AddDragOptions();
-        AddOption("Add", AddService, () => Items.Count);
-        AddOption("Remove", RemoveService, () => Items.Count);
-        AddOption("Grouped", ToggleGrouped, () => Items.Count > 0 && Items[0].Group is not null);
+        AddOption(nameof(RowHoverable), ToggleRowHoverable, () => RowHoverable);
+        AddOption(nameof(RowBleed), ToggleRowBleed, () => RowBleed);
     }
 
-    // Stack is one line of copies along the orientation; Wrap places them on the twenty-four-column grid.
+    // Stack is one line of copies along the orientation; Wrap places them on the twenty-four-column grid; Accordion stacks expander rows.
     public void CycleLayoutType()
         => SetLastChange(nameof(LayoutType), LayoutType = CycleEnum(LayoutType));
 
@@ -81,6 +68,46 @@ internal sealed partial class ItemsViewGroupContext : DraggableSelectionGroupCon
     // Inside the scroll: the rows run on through it, so the last one ends that far above the view's foot.
     public void CyclePadding()
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(8), UIThickness.All(0, 0, 0, 48), null));
+
+    public void ToggleRowHoverable()
+        => SetLastChange(nameof(RowHoverable), RowHoverable = !RowHoverable);
+
+    // Read with RowHoverable on: row content stands flush at 0 px while the hover/selection pill bleeds -8 px into parent padding.
+    public void ToggleRowBleed()
+    {
+        RowBleed = !RowBleed;
+
+        if (RowBleed)
+            RowHoverable = true;
+
+        SetLastChange(nameof(RowBleed), RowBleed);
+    }
+}
+
+/// <summary>
+/// How an items view scrolls, snaps, and anchors new entries.
+/// </summary>
+internal sealed partial class ItemsViewScrollingGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial UIScrollMode? HorizontalScroll { get; set; }
+
+    [RecursiveMember]
+    public partial UIScrollMode? VerticalScroll { get; set; }
+
+    [RecursiveMember]
+    public partial UIScrollSnapMode? ScrollSnap { get; set; }
+
+    [RecursiveMember]
+    public partial UIScrollAnchor? ScrollAnchor { get; set; }
+
+    public ItemsViewScrollingGroupContext()
+    {
+        AddOption(nameof(HorizontalScroll), CycleHorizontalScroll, () => HorizontalScroll);
+        AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
+        AddOption(nameof(ScrollSnap), CycleScrollSnap, () => ScrollSnap);
+        AddOption(nameof(ScrollAnchor), CycleScrollAnchor, () => ScrollAnchor);
+    }
 
     public void CycleHorizontalScroll()
         => SetLastChange(nameof(HorizontalScroll), HorizontalScroll = CycleEnum(HorizontalScroll));
@@ -95,6 +122,33 @@ internal sealed partial class ItemsViewGroupContext : DraggableSelectionGroupCon
     // Read against the Add row: with End, a copy appended while the viewer is at the bottom stays in sight.
     public void CycleScrollAnchor()
         => SetLastChange(nameof(ScrollAnchor), ScrollAnchor = CycleEnum(ScrollAnchor));
+}
+
+/// <summary>
+/// Live collection mutations and grouping on the items view preview.
+/// </summary>
+internal sealed partial class ItemsViewItemsGroupContext : DemoGroupContext
+{
+    private int _added;
+    private string _templateKind = DemoServiceItem.RowTemplate;
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<DemoServiceItem> Items { get; } = [.. DemoSamples.Services()];
+
+    public ItemsViewItemsGroupContext()
+    {
+        AddOption("Add", AddService, () => Items.Count);
+        AddOption("Remove", RemoveService, () => Items.Count);
+        AddOption("Grouped", ToggleGrouped, () => Items.Count > 0 && Items[0].Group is not null);
+    }
+
+    public void SetTemplateKind(string kind)
+    {
+        _templateKind = kind;
+
+        for (var i = 0; i < Items.Count; i++)
+            Items[i].TemplateKind = kind;
+    }
 
     public void MoveService(string id, int index)
         => MoveByKey(Items, id, index);
@@ -102,8 +156,10 @@ internal sealed partial class ItemsViewGroupContext : DraggableSelectionGroupCon
     public void AddService()
     {
         var id = string.Create(CultureInfo.InvariantCulture, $"service-{++_added}");
+        DemoServiceItem item = DemoSamples.Service(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added while the page was open", "Added", "New", UIBadgeVariant.Info, DemoIcons.Star);
+        item.TemplateKind = _templateKind;
 
-        Items.Add(DemoSamples.Service(id, string.Create(CultureInfo.InvariantCulture, $"Service {_added}"), "added while the page was open", "Added", "New", UIBadgeVariant.Info, DemoIcons.Star));
+        Items.Add(item);
     }
 
     public void RemoveService()

@@ -18,7 +18,6 @@ internal sealed partial class ColorValueGroupContext : InputValueGroupContext
     {
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(TextFormat), CycleTextFormat, () => TextFormat);
-        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -30,12 +29,15 @@ internal sealed partial class ColorValueGroupContext : InputValueGroupContext
 }
 
 /// <summary>
-/// How the control presents itself: the field's surface, and what its popup offers.
+/// How the control presents itself: the field's surface, size, and what its popup offers.
 /// </summary>
 internal sealed partial class ColorFieldGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Filled;
+
+    [RecursiveMember]
+    public partial UISize? Size { get; set; } = UISize.Medium;
 
     [RecursiveMember]
     public partial bool ShowPalette { get; set; } = true;
@@ -46,12 +48,16 @@ internal sealed partial class ColorFieldGroupContext : DemoGroupContext
     public ColorFieldGroupContext()
     {
         AddOption(nameof(Appearance), CycleAppearance, () => Appearance);
+        AddOption(nameof(Size), CycleSize, () => Size);
         AddOption(nameof(ShowPalette), ToggleShowPalette, () => ShowPalette);
         AddOption(nameof(ShowOpacity), ToggleShowOpacity, () => ShowOpacity);
     }
 
     public void CycleAppearance()
         => SetLastChange(nameof(Appearance), Appearance = CycleEnum(Appearance));
+
+    public void CycleSize()
+        => SetLastChange(nameof(Size), Size = CycleEnum(Size));
 
     public void ToggleShowPalette()
         => SetLastChange(nameof(ShowPalette), ShowPalette = !ShowPalette);
@@ -69,10 +75,7 @@ internal sealed partial class ColorInputController() : DemoStandardController
     public partial ColorFieldGroupContext FieldGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new();
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Brand color");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

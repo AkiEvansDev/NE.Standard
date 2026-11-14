@@ -24,21 +24,6 @@ internal sealed partial class CardSurfaceGroupContext : DemoGroupContext
     public partial UIThemeColor? Background { get; set; }
 
     [RecursiveMember]
-    public partial string? BackgroundImage { get; set; }
-
-    [RecursiveMember]
-    public partial UIImageFit? BackgroundImageFit { get; set; }
-
-    [RecursiveMember]
-    public partial double? BackgroundImageDim { get; set; }
-
-    [RecursiveMember]
-    public partial UIBackgroundDimMode? BackgroundImageDimMode { get; set; }
-
-    [RecursiveMember]
-    public partial double? BackgroundImageBlur { get; set; }
-
-    [RecursiveMember]
     public partial UIOverflow? Overflow { get; set; } = UIOverflow.Hidden;
 
     public CardSurfaceGroupContext()
@@ -47,11 +32,6 @@ internal sealed partial class CardSurfaceGroupContext : DemoGroupContext
         AddOption(nameof(Clickable), ToggleClickable, () => Clickable);
         AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddOption(nameof(Background), CycleBackground, () => Background);
-        AddOption(nameof(BackgroundImage), CycleBackgroundImage, () => BackgroundImage);
-        AddOption(nameof(BackgroundImageFit), CycleBackgroundImageFit, () => BackgroundImageFit);
-        AddOption(nameof(BackgroundImageDim), CycleBackgroundImageDim, () => BackgroundImageDim);
-        AddOption(nameof(BackgroundImageDimMode), CycleBackgroundImageDimMode, () => BackgroundImageDimMode);
-        AddOption(nameof(BackgroundImageBlur), CycleBackgroundImageBlur, () => BackgroundImageBlur);
         AddOption(nameof(Overflow), CycleOverflow, () => Overflow);
     }
 
@@ -68,25 +48,86 @@ internal sealed partial class CardSurfaceGroupContext : DemoGroupContext
     public void CycleBackground()
         => SetLastChange(nameof(Background), Background = CycleValue(Background, UIThemeColor.FromStyle(UIColorStyle.Surface), UIThemeColor.FromStyle(UIColorStyle.Info), null));
 
+    public void CycleOverflow()
+        => SetLastChange(nameof(Overflow), Overflow = CycleEnum(Overflow));
+}
+
+/// <summary>
+/// Picture over a surface's fill, with fit, dim, vignette, and blur controls.
+/// </summary>
+internal sealed partial class BackgroundImageGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial string? BackgroundImage { get; set; }
+
+    [RecursiveMember]
+    public partial UIImageFit? BackgroundImageFit { get; set; }
+
+    [RecursiveMember]
+    public partial double? BackgroundImageDim { get; set; }
+
+    [RecursiveMember]
+    public partial UIBackgroundDimMode? BackgroundImageDimMode { get; set; }
+
+    [RecursiveMember]
+    public partial double? BackgroundImageBlur { get; set; }
+
+    public BackgroundImageGroupContext()
+    {
+        AddOption(nameof(BackgroundImage), CycleBackgroundImage, () => BackgroundImage);
+        AddOption(nameof(BackgroundImageFit), CycleBackgroundImageFit, () => BackgroundImageFit);
+        AddOption(nameof(BackgroundImageDim), CycleBackgroundImageDim, () => BackgroundImageDim);
+        AddOption(nameof(BackgroundImageDimMode), CycleBackgroundImageDimMode, () => BackgroundImageDimMode);
+        AddOption(nameof(BackgroundImageBlur), CycleBackgroundImageBlur, () => BackgroundImageBlur);
+    }
+
     // A picture over the fill: the fit says how much of it the surface shows.
     public void CycleBackgroundImage()
         => SetLastChange(nameof(BackgroundImage), BackgroundImage = CycleValue(BackgroundImage, DemoImages.HarbourSky, DemoImages.Mark, null));
 
     public void CycleBackgroundImageFit()
-        => SetLastChange(nameof(BackgroundImageFit), BackgroundImageFit = CycleEnum(BackgroundImageFit));
+    {
+        BackgroundImageFit = CycleEnum(BackgroundImageFit);
+
+        if (BackgroundImageFit is not null)
+            BackgroundImage ??= DemoImages.HarbourSky;
+
+        SetLastChange(nameof(BackgroundImageFit), BackgroundImageFit);
+    }
 
     // The browser draws the dim and the blur over the picture it already has.
     public void CycleBackgroundImageDim()
-        => SetLastChange(nameof(BackgroundImageDim), BackgroundImageDim = CycleValue(BackgroundImageDim, 0.3, 0.6, 0.9, null));
+    {
+        BackgroundImageDim = CycleValue(BackgroundImageDim, 0.3, 0.6, 0.9, null);
+
+        if (BackgroundImageDim is not null)
+            BackgroundImage ??= DemoImages.HarbourSky;
+
+        SetLastChange(nameof(BackgroundImageDim), BackgroundImageDim);
+    }
 
     public void CycleBackgroundImageDimMode()
-        => SetLastChange(nameof(BackgroundImageDimMode), BackgroundImageDimMode = CycleEnum(BackgroundImageDimMode));
+    {
+        BackgroundImageDimMode = CycleEnum(BackgroundImageDimMode);
+
+        if (BackgroundImageDimMode is not null)
+        {
+            BackgroundImage ??= DemoImages.HarbourSky;
+            BackgroundImageDim ??= 0.6;
+        }
+
+        SetLastChange(nameof(BackgroundImageDimMode), BackgroundImageDimMode);
+    }
 
     public void CycleBackgroundImageBlur()
-        => SetLastChange(nameof(BackgroundImageBlur), BackgroundImageBlur = CycleValue(BackgroundImageBlur, 4d, 12d, 32d, null));
+    {
+        BackgroundImageBlur = CycleValue(BackgroundImageBlur, 4d, 12d, 32d, null);
 
-    public void CycleOverflow()
-        => SetLastChange(nameof(Overflow), Overflow = CycleEnum(Overflow));
+        if (BackgroundImageBlur is not null)
+            BackgroundImage ??= DemoImages.HarbourSky;
+
+        SetLastChange(nameof(BackgroundImageBlur), BackgroundImageBlur);
+    }
 }
 
 /// <summary>
@@ -164,6 +205,9 @@ internal sealed partial class CardController() : DemoStandardController
 
     [RecursiveMember]
     public partial CardSurfaceGroupContext CardGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial BackgroundImageGroupContext BackgroundImageGroup { get; set; } = new();
 
     // The header is a TextComponent, so it takes the same three contexts a field's label does.
     [RecursiveMember]

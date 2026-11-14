@@ -56,6 +56,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Inline component badges & UIText.WithBadges",
             UILayout.Stack(12)
                 .SetWidth(UILayoutLength.Absolute(400))
+                .SetMaxWidth(UILayoutLength.Fill())
                 .AddChild(new CardComponent()
                     .ConfigureDefaultHeader(header => header
                         .SetIcon(DemoIcons.FileText)
@@ -125,8 +126,10 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
             // On a panel: the pills only read as one column of verdicts sharing a right edge and a ground.
             new SurfaceComponent()
                 .SetHorizontalAlignment(UIAlignment.Start)
+                .SetMaxWidth(UILayoutLength.Fill())
                 .SetContent(UILayout.Stack(4)
                     .SetWidth(UILayoutLength.Absolute(360))
+                    .SetMaxWidth(UILayoutLength.Fill())
                     .AddChild(UILayout.Ends(
                         new TextComponent()
                             .SetTitle("Error rate")
@@ -251,6 +254,7 @@ internal sealed class BadgeView : DemoComponentView, IUIViewDefinition
             // The head of a server's page, which is where a row of tags actually lives.
             new CardComponent()
                 .SetWidth(UILayoutLength.Absolute(420))
+                .SetMaxWidth(UILayoutLength.Fill())
                 .ConfigureDefaultHeader(header => header
                     .SetTitle("db-us-east-2")
                     .SetDescription("Pinecrest Clinic's primary database")

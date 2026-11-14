@@ -13,6 +13,9 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
     public partial UISize? Size { get; set; }
 
     [RecursiveMember]
+    public partial UITextAlignment? TextAlignment { get; set; }
+
+    [RecursiveMember]
     public partial UIResponsive<UIThickness>? Padding { get; set; }
 
     [RecursiveMember]
@@ -28,6 +31,7 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
     {
         AddOption(nameof(Variant), CycleVariant, () => Variant);
         AddOption(nameof(Size), CycleSize, () => Size);
+        AddOption(nameof(TextAlignment), CycleTextAlignment, () => TextAlignment);
         AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddOption(nameof(Background), CycleBackground, () => Background);
         AddOption(nameof(Overflow), CycleOverflow, () => Overflow);
@@ -39,6 +43,9 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
 
     public void CycleSize()
         => SetLastChange(nameof(Size), Size = CycleEnum(Size));
+
+    public void CycleTextAlignment()
+        => SetLastChange(nameof(TextAlignment), TextAlignment = CycleEnum(TextAlignment));
 
     public void CyclePadding()
         => SetLastChange(nameof(Padding), Padding = CycleValue(Padding, UIThickness.Uniform(4), UIThickness.Uniform(20), null));

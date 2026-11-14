@@ -56,6 +56,7 @@ internal sealed class StackPanelView : DemoComponentView, IUIViewDefinition
                 .SetSurface(UISurfaceStyle.Surface)
                 .SetPadding(UIThickness.Uniform(16))
                 .SetWidth(UILayoutLength.Absolute(360))
+                .SetMaxWidth(UILayoutLength.Fill())
                 .SetContent(UILayout.Stack(12)
                     .AddChild(new ContainerComponent()
                         .SetColumn(24, UIGridUnit.Auto())

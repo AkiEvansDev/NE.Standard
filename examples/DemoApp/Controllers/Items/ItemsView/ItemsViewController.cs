@@ -1,5 +1,7 @@
 using System;
 using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 using DemoApp.Controllers.Base;
 
 namespace DemoApp.Controllers.Items.ItemsView;
@@ -531,7 +533,19 @@ internal sealed partial class BoardGroupContext : DemoGroupContext
 internal sealed partial class ItemsViewController() : DemoStandardController
 {
     [RecursiveMember]
-    public partial ItemsViewGroupContext ItemsGroup { get; set; } = new();
+    public partial ItemsViewLayoutGroupContext LayoutGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial ItemsViewScrollingGroupContext ScrollingGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial SelectionGroupContext SelectionGroup { get; set; } = new(["billing", "dns"], [["panel", "mail-relay"], ["scheduler"]]);
+
+    [RecursiveMember]
+    public partial ReorderGroupContext ReorderGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial ItemsViewItemsGroupContext ItemsGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial RowMenusGroupContext RowMenusGroup { get; set; } = new();
@@ -544,6 +558,14 @@ internal sealed partial class ItemsViewController() : DemoStandardController
 
     [RecursiveMember]
     public partial BoardGroupContext BoardGroup { get; set; } = new();
+
+    protected override Task OnOptionCycledAsync(string group, string id, CancellationToken cancellationToken)
+    {
+        if (group == nameof(LayoutGroup) && id == nameof(ItemsViewLayoutGroupContext.LayoutType))
+            ItemsGroup.SetTemplateKind(LayoutGroup.LayoutType == UIItemsLayoutType.Accordion ? DemoServiceItem.AccordionTemplate : DemoServiceItem.RowTemplate);
+
+        return Task.CompletedTask;
+    }
 
     [UICommand]
     public void MoveItem(string id, int index)

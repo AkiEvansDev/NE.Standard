@@ -52,7 +52,7 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("A folder browser",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Surface)
-                .SetWidth(UILayoutLength.Absolute(360))
+                .SetMaxWidth(UILayoutLength.Absolute(360))
                 .SetContent(UILayout.Stack(8)
                     .AddChild(new BreadcrumbsComponent()
                         .BindItems<FolderBrowserContext>(static x => x.Path, UIBindingScope.Relative)
@@ -85,7 +85,7 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("A page header",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Surface)
-                .SetWidth(UILayoutLength.Absolute(300))
+                .SetMaxWidth(UILayoutLength.Absolute(300))
                 .SetContent(UILayout.Stack(12)
                     .AddChild(new BreadcrumbsComponent().SetItems(
                     [
@@ -114,7 +114,7 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Breadcrumbs vs standalone links",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Surface)
-                .SetWidth(UILayoutLength.Absolute(340))
+                .SetMaxWidth(UILayoutLength.Absolute(340))
                 .SetContent(UILayout.Stack(12)
                     .AddChild(UIText.Label("Three links — three places"))
                     .AddChild(new StackPanelComponent()
@@ -160,7 +160,7 @@ internal sealed class BreadcrumbsView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Entity hierarchy trail",
             new SurfaceComponent()
                 .SetSurface(UISurfaceStyle.Surface)
-                .SetWidth(UILayoutLength.Absolute(360))
+                .SetMaxWidth(UILayoutLength.Absolute(360))
                 .SetContent(UILayout.Stack(12)
                     .AddChild(new BreadcrumbsComponent().SetItems(
                     [

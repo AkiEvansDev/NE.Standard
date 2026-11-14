@@ -338,6 +338,9 @@ internal sealed partial class MenuController() : DemoStandardController
     public partial MenuGroupContext MenuGroup { get; set; } = new();
 
     [RecursiveMember]
+    public partial MenuEntriesGroupContext EntriesGroup { get; set; } = new();
+
+    [RecursiveMember]
     public partial BarsGroupContext BarsGroup { get; set; } = new();
 
     [RecursiveMember]
@@ -366,7 +369,7 @@ internal sealed partial class MenuController() : DemoStandardController
     /// </summary>
     [UICommand]
     public void Choose(string id)
-        => MenuGroup.LogEvent($"'{id}' chosen");
+        => EntriesGroup.LogEvent($"'{id}' chosen");
 
     [UICommand]
     public void Navigate(string id)

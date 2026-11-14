@@ -36,6 +36,21 @@ internal static class DemoBindings
             .Bind(ITooltipComponent.TooltipProperty, $"{group}.{nameof(TextContentGroupContext.Tooltip)}")
             .Bind(ITooltipComponent.TooltipPlacementProperty, $"{group}.{nameof(TextContentGroupContext.TooltipPlacement)}");
 
+    /// <summary>Binds the compact caption (<see cref="TextLabelGroupContext"/>) to an input, choice, or action control.</summary>
+    public static TComponent BindLabel<TComponent>(this VisualComponentBase<TComponent> component, string group, bool hasDescription = false)
+        where TComponent : VisualComponentBase<TComponent>, ITextBaseComponent, IUIComponentDefinition
+    {
+        _ = component
+            .Bind(ITextBaseComponent.TitleProperty, $"{group}.{nameof(TextLabelGroupContext.Title)}")
+            .Bind(ITextBaseComponent.IconProperty, $"{group}.{nameof(TextLabelGroupContext.Icon)}")
+            .Bind(ITextBaseComponent.BadgeTitleProperty, $"{group}.{nameof(TextLabelGroupContext.BadgeTitle)}")
+            .Bind(ITooltipComponent.TooltipProperty, $"{group}.{nameof(TextLabelGroupContext.Tooltip)}");
+
+        return hasDescription
+            ? component.Bind(ITextComponent.DescriptionProperty, $"{group}.{nameof(TextLabelGroupContext.Description)}")
+            : (TComponent)component;
+    }
+
     /// <summary>Binds every badge property to a <see cref="TextBadgeGroupContext"/> named <paramref name="group"/>.</summary>
     public static TComponent BindBadge<TComponent>(this VisualComponentBase<TComponent> component, string group)
         where TComponent : VisualComponentBase<TComponent>, ITextBaseComponent, IUIComponentDefinition
@@ -51,6 +66,23 @@ internal static class DemoBindings
             .Bind(ITextBaseComponent.BadgeTitleTypeProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeTitleType)}")
             .Bind(ITextBaseComponent.BadgeTooltipProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeTooltip)}")
             .Bind(ITextBaseComponent.BadgeTooltipPlacementProperty, $"{group}.{nameof(TextBadgeGroupContext.BadgeTooltipPlacement)}");
+
+    /// <summary>Binds row selection mode, chosen key(s), and selection style to a <see cref="SelectionGroupContext"/> named <paramref name="group"/>.</summary>
+    public static TComponent BindSelection<TComponent>(this VisualComponentBase<TComponent> component, string group)
+        where TComponent : VisualComponentBase<TComponent>, ISelectableItemsComponent, ISelectionStyleComponent, IUIComponentDefinition
+        => component
+            .Bind(ISelectableItemsComponent.SelectionModeProperty, $"{group}.{nameof(SelectionGroupContext.SelectionMode)}")
+            .Bind(ISelectedKeyComponent.SelectedKeyProperty, $"{group}.{nameof(SelectionGroupContext.SelectedKey)}")
+            .Bind(ISelectableItemsComponent.SelectedKeysProperty, $"{group}.{nameof(SelectionGroupContext.SelectedKeys)}")
+            .Bind(ISelectionStyleComponent.SelectionStyleProperty, $"{group}.{nameof(SelectionGroupContext.SelectionStyle)}");
+
+    /// <summary>Binds row drag-reordering and grip placement to a <see cref="ReorderGroupContext"/> named <paramref name="group"/>.</summary>
+    public static TComponent BindReorder<TComponent>(this VisualComponentBase<TComponent> component, string group)
+        where TComponent : VisualComponentBase<TComponent>, IDraggableRowsComponent, IUIComponentDefinition
+        => component
+            .Bind(IDraggableItemsComponent.DraggableProperty, $"{group}.{nameof(ReorderGroupContext.Draggable)}")
+            .Bind(IDraggableRowsComponent.DragHandleProperty, $"{group}.{nameof(ReorderGroupContext.DragHandle)}")
+            .Bind(IDraggableRowsComponent.DragHandlePlacementProperty, $"{group}.{nameof(ReorderGroupContext.DragHandlePlacement)}");
 
     /// <summary>Binds the edge's colour, thickness and corners to a <see cref="BorderGroupContext"/> named <paramref name="group"/>.</summary>
     /// <remarks>No contract constraint: the selects and the search carry an edge without <see cref="IBorderedComponent"/>.</remarks>

@@ -15,8 +15,7 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
     private const string ValueGroup = nameof(MultiSelectController.ValueGroup);
     private const string FieldGroup = nameof(MultiSelectController.FieldGroup);
     private const string OptionsGroup = nameof(MultiSelectController.OptionsGroup);
-    private const string ContentGroup = nameof(MultiSelectController.ContentGroup);
-    private const string BadgeGroup = nameof(MultiSelectController.BadgeGroup);
+    private const string LabelGroup = nameof(MultiSelectController.LabelGroup);
     private const string BorderGroup = nameof(MultiSelectController.BorderGroup);
 
     public static string ViewKey => "demo.choices.multi-select";
@@ -30,6 +29,7 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
             .AddChild(CreateVariantPane(UIMultiSelectVariant.Chips, nameof(MultiSelectVariantGroupContext.ChipsVisibility)))
             .AddChild(CreateVariantPane(UIMultiSelectVariant.Badges, nameof(MultiSelectVariantGroupContext.BadgesVisibility)))
             .AddChild(CreateVariantPane(UIMultiSelectVariant.Checkboxes, nameof(MultiSelectVariantGroupContext.CheckboxesVisibility)))
+            .AddChild(CreateVariantPane(UIMultiSelectVariant.Button, nameof(MultiSelectVariantGroupContext.ButtonVisibility)))
         );
 
     /// <summary>One variant, shown while the Variant row names it: <c>Variant</c> is decided at render, so each is its own instance on the same rows.</summary>
@@ -39,12 +39,13 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
             .SetPlacement(1, 1, 24, 1)
             .AddChild(new MultiSelectComponent()
                 .SetVariant(variant)
+                .BindButtonVariant<MultiSelectController>(static x => x.VariantGroup.ButtonVariant)
                 .BindStandard()
                 .BindItems<MultiSelectController>(static x => x.OptionsGroup.Options)
                 .BindValue<MultiSelectController>(static x => x.ValueGroup.Value)
                 .BindMaxSelected<MultiSelectController>(static x => x.ValueGroup.MaxSelected)
                 .BindIsReadOnly<MultiSelectController>(static x => x.ValueGroup.IsReadOnly)
-                .BindSize<MultiSelectController>(static x => x.ValueGroup.Size)
+                .BindSize<MultiSelectController>(static x => x.FieldGroup.Size)
                 .BindOrientation<MultiSelectController>(static x => x.VariantGroup.Orientation)
                 .BindSpacing<MultiSelectController>(static x => x.VariantGroup.Spacing)
                 .BindAppearance<MultiSelectController>(static x => x.FieldGroup.Appearance)
@@ -53,8 +54,7 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
                 .BindSuffixIcon<MultiSelectController>(static x => x.FieldGroup.SuffixIcon)
                 .BindShowClearButton<MultiSelectController>(static x => x.FieldGroup.ShowClearButton)
                 .BindShowChevron<MultiSelectController>(static x => x.FieldGroup.ShowChevron)
-                .BindTextContent(ContentGroup)
-                .BindBadge(BadgeGroup)
+                .BindLabel(LabelGroup)
                 .BindBorder(BorderGroup)
                 .SetPlacement(1, 1, 24, 1)
             );
@@ -62,12 +62,11 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(VariantGroup, "Variant", "Variant is decided at render: the row shows the preview drawn as chips, as badges or as checkboxes. Orientation and Spacing lay out the checkboxes alone."),
+            DemoUI.CreateOptionSection(VariantGroup, "Variant", "Variant is decided at render: the row shows the preview drawn as chips, badges, checkboxes or a compact filter button. Orientation and Spacing lay out the checkboxes alone."),
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
             DemoUI.CreateOptionSection(FieldGroup, "Field", "The field's own rows; the checkboxes have no field and read none of them."),
             DemoUI.CreateOptionSection(OptionsGroup, "Options", "Each region carries its code as a badge: the badges variant chooses the badge, the others show it beside the name."),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -236,17 +235,26 @@ internal sealed class MultiSelectView : DemoComponentView, IUIViewDefinition
                             new TextInputComponent()
                                 .SetPlaceholder("Search tickets")
                                 .SetPrefixIcon(DemoIcons.Search),
-                            new MultiSelectComponent()
-                                .SetVariant(UIMultiSelectVariant.Badges)
-                                .SetPlaceholder("Filter by label")
-                                .SetPrefixIcon(DemoIcons.Filter)
-                                .SetOptions(BadgeTicketLabels())
-                                .SetValue(["outage"])
-                                .SetShowClearButton()
+                            UILayout.Row(8,
+                                new MultiSelectComponent()
+                                    .SetVariant(UIMultiSelectVariant.Button)
+                                    .SetButtonVariant(UIButtonVariant.Outline)
+                                    .SetIcon(DemoIcons.Outline(DemoIcons.Filter))
+                                    .SetTitle("Labels")
+                                    .SetOptions(BadgeTicketLabels())
+                                    .SetValue(["outage", "docs"]),
+                                new MultiSelectComponent()
+                                    .SetVariant(UIMultiSelectVariant.Button)
+                                    .SetButtonVariant(UIButtonVariant.Ghost)
+                                    .SetIcon(DemoIcons.Outline(DemoIcons.Cloud))
+                                    .SetTitle("Region")
+                                    .SetOptions(CloudRegions())
+                                    .SetValue(["eu-west"])
+                            )
                         )
                     )
                 )),
-            note: "Unmatched free-text tags (such as `design agency`) render as neutral surface badges alongside styled preset badges."
+            note: "Unmatched free-text tags (such as `design agency`) render as neutral surface badges, while `UIMultiSelectVariant.Button` compresses filter pickers into compact toolbar buttons with a live selected-count badge."
         );
     }
 

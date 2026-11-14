@@ -54,8 +54,7 @@ internal sealed partial class BreadcrumbsGroupContext : DemoGroupContext
     // A step in the middle: the mark goes with the step it belongs to, which the first and last cannot show.
     public void ToggleHiddenStep()
     {
-        if (Steps.Count < 4)
-            CycleSteps();
+        EnsureSteps(4);
 
         BreadcrumbItem step = Steps[2];
 
@@ -64,12 +63,22 @@ internal sealed partial class BreadcrumbsGroupContext : DemoGroupContext
 
     public void ToggleDisabledStep()
     {
-        if (Steps.Count < 2)
-            CycleSteps();
+        EnsureSteps(2);
 
         BreadcrumbItem step = Steps[1];
 
         step.Enabled = step.Enabled == false;
+    }
+
+    private void EnsureSteps(int minCount)
+    {
+        if (Steps.Count >= minCount)
+            return;
+
+        Steps.Clear();
+
+        foreach (BreadcrumbItem step in CreateTrail())
+            Steps.Add(step);
     }
 
     public void CycleLastIcon()

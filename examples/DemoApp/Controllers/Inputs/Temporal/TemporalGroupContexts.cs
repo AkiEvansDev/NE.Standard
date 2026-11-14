@@ -19,6 +19,7 @@ internal sealed partial class TemporalFieldGroupContext : AffixedFieldGroupConte
 
         AddOption(nameof(DisplayFormat), CycleDisplayFormat, () => DisplayFormat);
         AddAppearanceOption();
+        AddSizeOption();
         AddAffixIconOptions();
     }
 

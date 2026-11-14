@@ -17,7 +17,6 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string SwitcherGroup = nameof(LanguageSwitcherController.SwitcherGroup);
     private const string BorderGroup = nameof(LanguageSwitcherController.BorderGroup);
-    private const string FieldGroup = nameof(LanguageSwitcherController.FieldGroup);
 
     public static string ViewKey => "demo.actions.language-switcher";
 
@@ -51,8 +50,8 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
     private static LanguageSwitcherComponent CreateField()
         => BindStandard(new LanguageSwitcherComponent().AsField())
             .BindIcon<LanguageSwitcherController>(static x => x.SwitcherGroup.Icon)
-            .BindFieldVariant<LanguageSwitcherController>(static x => x.FieldGroup.FieldVariant)
-            .SetWidth(UILayoutLength.Absolute(280))
+            .BindFieldVariant<LanguageSwitcherController>(static x => x.SwitcherGroup.FieldVariant)
+            .SetMaxWidth(UILayoutLength.Absolute(280))
             .SetPlacement(1, 1, 24, 1);
 
     private static LanguageSwitcherComponent BindStandard(LanguageSwitcherComponent switcher)
@@ -71,8 +70,7 @@ internal sealed class LanguageSwitcherView : DemoComponentView, IUIViewDefinitio
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(SwitcherGroup, "Language switcher"),
-            DemoUI.CreateOptionSection(BorderGroup, "Border"),
-            DemoUI.CreateOptionSection(FieldGroup, "Field")
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // The head across the page, as a head is; the sign-in card beside the form, the two about as tall.

@@ -12,7 +12,4 @@ internal sealed partial class ThemeSwitcherController() : DemoStandardController
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
-
-    [RecursiveMember]
-    public partial SwitcherFieldGroupContext FieldGroup { get; set; } = new();
 }

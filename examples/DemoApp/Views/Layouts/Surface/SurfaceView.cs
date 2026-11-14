@@ -14,6 +14,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string SurfaceGroup = nameof(SurfaceController.SurfaceGroup);
+    private const string BackgroundImageGroup = nameof(SurfaceController.BackgroundImageGroup);
     private const string BorderGroup = nameof(SurfaceController.BorderGroup);
 
     public static string ViewKey => "demo.layouts.surface";
@@ -30,8 +31,11 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
             .BindClickable<SurfaceController>(static x => x.SurfaceGroup.Clickable)
             .BindPadding<SurfaceController>(static x => x.SurfaceGroup.Padding)
             .BindBackground<SurfaceController>(static x => x.SurfaceGroup.Background)
-            .BindBackgroundImage<SurfaceController>(static x => x.SurfaceGroup.BackgroundImage)
-            .BindBackgroundImageFit<SurfaceController>(static x => x.SurfaceGroup.BackgroundImageFit)
+            .BindBackgroundImage<SurfaceController>(static x => x.BackgroundImageGroup.BackgroundImage)
+            .BindBackgroundImageFit<SurfaceController>(static x => x.BackgroundImageGroup.BackgroundImageFit)
+            .BindBackgroundImageDim<SurfaceController>(static x => x.BackgroundImageGroup.BackgroundImageDim)
+            .BindBackgroundImageDimMode<SurfaceController>(static x => x.BackgroundImageGroup.BackgroundImageDimMode)
+            .BindBackgroundImageBlur<SurfaceController>(static x => x.BackgroundImageGroup.BackgroundImageBlur)
             .BindOverflow<SurfaceController>(static x => x.SurfaceGroup.Overflow)
             .BindBorder(BorderGroup)
             // Set rather than bound: it is what the surface holds rather than something about the surface.
@@ -48,6 +52,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(SurfaceGroup, "Surface"),
+            DemoUI.CreateOptionSection(BackgroundImageGroup, "Background image"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -266,7 +271,7 @@ internal sealed class SurfaceView : DemoComponentView, IUIViewDefinition
                         .SetTextAlignment(UITextAlignment.Center)
                         .SetDescription("Releases older than **thirty days** are archived and hidden by default.")
                         .SetDescriptionColor(UIThemeColor.Muted)
-                        .SetWidth(UILayoutLength.Absolute(320))
+                        .SetMaxWidth(UILayoutLength.Absolute(320))
                     )
                     .AddChild(new ButtonComponent()
                         .SetVariant(UIButtonVariant.Ghost)

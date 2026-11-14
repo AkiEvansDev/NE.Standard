@@ -59,6 +59,7 @@ export class TimeSegmentEngine {
         // Min/Max change nothing drawn, but a patched format changes which segments exist at all.
         observeComponents(this.root, `.${TemporalInputClass}`, { attributeFilter: [...PickerAttributes] }, roots => this.applyAll(roots));
 
+        this.root.addEventListener("change", domEvent => this.handleValueChange(domEvent));
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
         this.root.addEventListener("focusin", domEvent => this.handleFocusIn(domEvent), true);
@@ -113,6 +114,16 @@ export class TimeSegmentEngine {
             element.tabIndex = isInert(root) ? -1 : 0;
             writeAria(element, unit as SegmentUnit, value, isReadOnly(root));
         }
+    }
+
+    private handleValueChange(domEvent: Event): void {
+        if (!(domEvent.target instanceof HTMLInputElement))
+            return;
+
+        const root = domEvent.target.closest<HTMLElement>(`.${TemporalInputClass}`);
+
+        if (root !== null && readMode(root) === "time")
+            this.applySegments(root);
     }
 
     private handleKeydown(domEvent: Event): void {

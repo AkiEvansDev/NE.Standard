@@ -540,7 +540,8 @@
 
 // Choosing a row, as an items view's; a host whose rows are chosen by its own control (a grid's checkboxes) promises no press.
 .ui-table[data-ui-selection="one"]:not([data-ui-no-row-select]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live},
-.ui-table[data-ui-selection="many"]:not([data-ui-no-row-select]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live} {
+.ui-table[data-ui-selection="many"]:not([data-ui-no-row-select]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live},
+.ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-click]@{ui-row-live} {
     cursor: pointer;
 }
 

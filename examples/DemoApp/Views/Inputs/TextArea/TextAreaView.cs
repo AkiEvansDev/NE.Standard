@@ -14,8 +14,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(TextAreaController.ValueGroup);
     private const string FieldGroup = nameof(TextAreaController.FieldGroup);
-    private const string ContentGroup = nameof(TextAreaController.ContentGroup);
-    private const string BadgeGroup = nameof(TextAreaController.BadgeGroup);
+    private const string LabelGroup = nameof(TextAreaController.LabelGroup);
     private const string BorderGroup = nameof(TextAreaController.BorderGroup);
     private const string CommentsGroup = nameof(TextAreaController.CommentsGroup);
     private const string TriggersGroup = nameof(TextAreaController.TriggersGroup);
@@ -33,16 +32,15 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindValue<TextAreaController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<TextAreaController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<TextAreaController>(static x => x.ValueGroup.Size)
             .BindMaxLength<TextAreaController>(static x => x.ValueGroup.MaxLength)
             .BindTrimInput<TextAreaController>(static x => x.ValueGroup.TrimInput)
             .BindAppearance<TextAreaController>(static x => x.FieldGroup.Appearance)
+            .BindSize<TextAreaController>(static x => x.FieldGroup.Size)
             .BindPlaceholder<TextAreaController>(static x => x.FieldGroup.Placeholder)
             .BindRows<TextAreaController>(static x => x.FieldGroup.Rows)
             .BindMaxRows<TextAreaController>(static x => x.FieldGroup.MaxRows)
             .BindResize<TextAreaController>(static x => x.FieldGroup.Resize)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
@@ -52,8 +50,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 

@@ -5,8 +5,8 @@ namespace DemoApp.Views.Base;
 /// each sample with its source, then the page where it is composed into something larger.
 /// </summary>
 /// <remarks>
-/// The options stand above the examples: the preview gives the component at a glance and the accordion starts closed, so the
-/// examples are a short scroll away.
+/// The options stand above the examples: the preview gives the component at a glance and only the first subject section starts open, so the
+/// examples remain a short scroll away.
 /// </remarks>
 internal abstract class DemoComponentView : DemoView
 {

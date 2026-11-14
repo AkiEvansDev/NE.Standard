@@ -65,13 +65,7 @@ internal sealed partial class SplitButtonController() : DemoStandardController
     public partial ButtonGroupContext ButtonGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Restart", "Graceful restart of api-eu-west-1");
-
-    [RecursiveMember]
-    public partial TextLayoutGroupContext LayoutGroup { get; set; } = new();
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Restart", "Graceful restart of api-eu-west-1");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

@@ -10,7 +10,7 @@
 // and goes as a cancelled press's does when the hold is let go. Under reduced motion, or a theme without the ripple, the hold shows
 // the wash alone: the wave drawn whole, unmoving.
 
-import { ActionClass, ButtonClass, ComponentIdAttribute, ExpanderHeaderClass, KeyValueActionRowClass, LanguageSwitcherChoiceClass, LongPressHoldEndEventName, LongPressHoldEventName, MenuItemClass, NoRowSelectAttribute, PagerSizeChoiceClass, PopupRoleSelector, PressHeldClass, PressingClass, PressPlacedClass, PressWaveClass, PressWaveInkClass, RowEditingAttribute, SelectionAttribute, SelectOptionClass, SplitButtonClass, SplitButtonMainClass, SplitButtonToggleClass, SplitModeAttribute, TabCaptionClass, TabItemCaptionClass, TabItemCloseClass, TabItemRenameClass, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
+import { ActionClass, ButtonClass, ComponentIdAttribute, ExpanderHeaderClass, KeyValueActionRowClass, LanguageSwitcherChoiceClass, LongPressHoldEndEventName, LongPressHoldEventName, MenuItemClass, NoRowSelectAttribute, PagerSizeChoiceClass, PopupRoleSelector, PressHeldClass, PressingClass, PressPlacedClass, PressWaveClass, PressWaveInkClass, RowClickAttribute, RowEditingAttribute, SelectionAttribute, SelectOptionClass, SplitButtonClass, SplitButtonMainClass, SplitButtonToggleClass, SplitModeAttribute, TabCaptionClass, TabItemCaptionClass, TabItemCloseClass, TabItemRenameClass, TreeRowClass, UnselectableAttribute } from "../addressing/dom-attributes.ts";
 import { motion, prefersReducedMotion } from "../rendering/motion.ts";
 import { isInert, isItemDisabled, isItemRefused } from "./interactive-state.ts";
 import type { LongPressHoldDetail, LongPressHoldEndDetail } from "./long-press.ts";
@@ -217,6 +217,9 @@ export class PressRippleEngine {
 
     /** Whether a component between the press and the row, the row's own included, raises a click. */
     private raisesClick(row: Element, target: Element): boolean {
+        if (row.hasAttribute(RowClickAttribute))
+            return true;
+
         for (let current: Element | null = target; current !== null; current = current.parentElement) {
             if (current.hasAttribute(ComponentIdAttribute) && this.clicks(current))
                 return true;

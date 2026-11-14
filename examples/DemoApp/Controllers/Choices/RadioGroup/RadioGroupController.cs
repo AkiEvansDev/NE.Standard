@@ -12,16 +12,23 @@ internal sealed partial class RadioOptionsGroupContext : OptionListGroupContext
     public partial UIOrientation? Orientation { get; set; } = UIOrientation.Vertical;
 
     [RecursiveMember]
+    public partial UISize? Size { get; set; } = UISize.Medium;
+
+    [RecursiveMember]
     public partial UIResponsive<double>? Spacing { get; set; }
 
     public RadioOptionsGroupContext()
     {
         AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
+        AddOption(nameof(Size), CycleSize, () => Size);
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
     }
 
     public void CycleOrientation()
         => SetLastChange(nameof(Orientation), Orientation = CycleEnum(Orientation));
+
+    public void CycleSize()
+        => SetLastChange(nameof(Size), Size = CycleEnum(Size));
 
     // Unset is the stylesheet's own gap for the orientation; the rest are what an author would write.
     public void CycleSpacing()
@@ -40,8 +47,5 @@ internal sealed partial class RadioGroupController() : DemoStandardController
     public partial RadioOptionsGroupContext OptionsGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Deploy target");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Deploy target");
 }

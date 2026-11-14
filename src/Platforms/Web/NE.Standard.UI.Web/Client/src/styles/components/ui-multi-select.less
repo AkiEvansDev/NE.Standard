@@ -46,7 +46,8 @@
     cursor: default;
 }
 
-.ui-multi-select__chip-label {
+// A badge chip's label is `.ui-badge__title`, which trims to `cap alphabetic` and clips across only (`ui-badge.less`).
+.ui-multi-select__chip-label:not(.ui-badge__title) {
     min-width: 0;
     .ui-text-nowrap();
 }
@@ -181,6 +182,11 @@
         border-radius: 0;
         opacity: 0.64;
         transition: opacity @ui-motion-fast @ui-motion-ease;
+
+        // Kept inside the badge's 16 px clip so its hit target neither inflates scrollHeight/scrollWidth nor makes the badge focus-scrollable.
+        &::after {
+            inset: -1px -0.375em -1px -0.125rem;
+        }
 
         @media @{ui-can-hover} {
             &@{ui-adornment-live}:hover {

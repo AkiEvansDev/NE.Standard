@@ -94,15 +94,18 @@ internal sealed class ButtonGroupView : DemoComponentView, IUIViewDefinition
                         new ButtonItem { Id = "year", Title = "Year", Enabled = false, Tooltip = "Not enough history yet" }
                     ])
                 )
-                .AddChild(new ButtonGroupComponent()
-                    .SetSize(UISize.Large)
-                    .SetSelectedKey("staging")
-                    .SetSelectionStyle(UISelectionStyle.Ground(UIThemeColor.Accent))
-                    .SetItems([
-                        new ButtonItem { Id = "dev", Icon = DemoIcons.Outline(DemoIcons.Edit), Title = "Development" },
-                        new ButtonItem { Id = "staging", Icon = DemoIcons.Outline(DemoIcons.Cloud), Title = "Staging" },
-                        new ButtonItem { Id = "prod", Icon = DemoIcons.Outline(DemoIcons.Shield), Title = "Production" }
-                    ])
+                .AddChild(new ScrollContainerComponent()
+                    .HorizontalScrollOnly()
+                    .AddChild(new ButtonGroupComponent()
+                        .SetSize(UISize.Large)
+                        .SetSelectedKey("staging")
+                        .SetSelectionStyle(UISelectionStyle.Ground(UIThemeColor.Accent))
+                        .SetItems([
+                            new ButtonItem { Id = "dev", Icon = DemoIcons.Outline(DemoIcons.Edit), Title = "Development" },
+                            new ButtonItem { Id = "staging", Icon = DemoIcons.Outline(DemoIcons.Cloud), Title = "Staging" },
+                            new ButtonItem { Id = "prod", Icon = DemoIcons.Outline(DemoIcons.Shield), Title = "Production" }
+                        ])
+                    )
                 ),
             note: "The first at the ordinary size with a disabled year; the second large, with the accent as the chosen ground."
         );

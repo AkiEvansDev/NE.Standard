@@ -3,18 +3,10 @@ using System;
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
-/// A list of places to go: which way it runs, how much air is between the entries, whether it is folded to
-/// its icons — and the four things one entry may say about itself.
+/// A list of places to go: which way it runs, how much air is between the entries, whether it is folded to its icons, and how chosen items mark themselves.
 /// </summary>
-/// <remarks>The entries live here because the last rows step them rather than the menu.</remarks>
 internal sealed partial class MenuGroupContext : DemoGroupContext
 {
-    private const string OverviewId = "overview";
-    private const string DeploysId = "deploys";
-    private const string LogsId = "logs";
-    private const string SettingsId = "settings";
-    private const string SampleShortcut = "Ctrl+L";
-
     [RecursiveMember]
     public partial UIOrientation? Orientation { get; set; }
 
@@ -27,28 +19,12 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UISelectionStyle? SelectionStyle { get; set; }
 
-    [RecursiveMember(false)]
-    public RecursiveCollection<MenuItem> Entries { get; } =
-    [
-        new() { Id = "panel", Kind = UIMenuItemKind.Header, Title = "Panel" },
-        new() { Id = OverviewId, Title = "Overview", Icon = DemoIcons.Outline(DemoIcons.LayoutDashboard), Selected = true },
-        new() { Id = DeploysId, Title = "Deploys", Icon = DemoIcons.Outline(DemoIcons.Upload), BadgeTitle = "3" },
-        new() { Id = LogsId, Title = "Logs", Icon = DemoIcons.Outline(DemoIcons.FileText), Shortcut = SampleShortcut },
-        new() { Id = "rule", Kind = UIMenuItemKind.Separator },
-        new() { Id = SettingsId, Title = "Settings", Icon = DemoIcons.Outline(DemoIcons.Settings) }
-    ];
-
     public MenuGroupContext()
     {
         AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
         AddOption(nameof(Expanded), ToggleExpanded, () => Expanded);
         AddOption(nameof(SelectionStyle), CycleSelectionStyle, () => SelectionStyle);
-        AddOption("Deploys selected", ToggleDeploysSelected, () => Entry(DeploysId).Selected);
-        AddOption("Deploys badge", CycleDeploysBadge, () => Entry(DeploysId).BadgeTitle);
-        AddOption("Logs enabled", ToggleLogsEnabled, () => Entry(LogsId).Enabled);
-        AddOption("Logs shortcut", ToggleLogsShortcut, () => Entry(LogsId).Shortcut);
-        AddOption("Settings visible", ToggleSettingsVisible, () => Entry(SettingsId).Visibility?.Base);
     }
 
     public void CycleOrientation()
@@ -64,6 +40,38 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
     // The mark moved to the other edge, taken away, and a ground with its own ink in place of the wash.
     public void CycleSelectionStyle()
         => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Right, UIThemeColor.Accent), UISelectionStyle.Marked(UISelectionMark.None), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null), new UISelectionStyle(null, null, null, null, Bold: true)));
+}
+
+/// <summary>
+/// Bound entries of the menu preview and the per-item properties stepped from the options pane.
+/// </summary>
+internal sealed partial class MenuEntriesGroupContext : DemoGroupContext
+{
+    private const string OverviewId = "overview";
+    private const string DeploysId = "deploys";
+    private const string LogsId = "logs";
+    private const string SettingsId = "settings";
+    private const string SampleShortcut = "Ctrl+L";
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<MenuItem> Entries { get; } =
+    [
+        new() { Id = "panel", Kind = UIMenuItemKind.Header, Title = "Panel" },
+        new() { Id = OverviewId, Title = "Overview", Icon = DemoIcons.Outline(DemoIcons.LayoutDashboard), Selected = true },
+        new() { Id = DeploysId, Title = "Deploys", Icon = DemoIcons.Outline(DemoIcons.Upload), BadgeTitle = "3" },
+        new() { Id = LogsId, Title = "Logs", Icon = DemoIcons.Outline(DemoIcons.FileText), Shortcut = SampleShortcut },
+        new() { Id = "rule", Kind = UIMenuItemKind.Separator },
+        new() { Id = SettingsId, Title = "Settings", Icon = DemoIcons.Outline(DemoIcons.Settings) }
+    ];
+
+    public MenuEntriesGroupContext()
+    {
+        AddOption("Deploys selected", ToggleDeploysSelected, () => Entry(DeploysId).Selected);
+        AddOption("Deploys badge", CycleDeploysBadge, () => Entry(DeploysId).BadgeTitle);
+        AddOption("Logs enabled", ToggleLogsEnabled, () => Entry(LogsId).Enabled);
+        AddOption("Logs shortcut", ToggleLogsShortcut, () => Entry(LogsId).Shortcut);
+        AddOption("Settings visible", ToggleSettingsVisible, () => Entry(SettingsId).Visibility?.Base);
+    }
 
     // Marking one clears the other: the menu enforces nothing, the current page is the controller's fact.
     public void ToggleDeploysSelected()
@@ -117,16 +125,11 @@ internal sealed partial class MenuGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// A row of things to press: which way it runs, whether it wraps when the row is longer than the room, how
-/// much air is between the buttons — and what one button may say about itself.
+/// A row of things to press: which way it runs, whether it wraps when the row is longer than the room, how much air is between the buttons, and how groups divide.
 /// </summary>
 /// <remarks><c>Wrap</c> is read against the frame's own width, so the Standard section's <c>Width</c> row is its other half.</remarks>
 internal sealed partial class CommandBarGroupContext : DemoGroupContext
 {
-    private const string SaveId = "save";
-    private const string DeleteId = "delete";
-    private const string ExportId = "export";
-
     [RecursiveMember]
     public partial UIOrientation? Orientation { get; set; }
 
@@ -139,27 +142,12 @@ internal sealed partial class CommandBarGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UIGroupSeparator? GroupSeparator { get; set; }
 
-    // Three groups, so the separator row has boundaries to draw; one primary, one danger, ghosts between, as a toolbar reads.
-    [RecursiveMember(false)]
-    public RecursiveCollection<ButtonItem> Commands { get; } =
-    [
-        new() { Id = SaveId, Title = "Save", Icon = DemoIcons.Outline(DemoIcons.Check), Variant = UIButtonVariant.Primary, Group = "draft" },
-        new() { Id = "discard", Title = "Discard", Icon = DemoIcons.Outline(DemoIcons.Undo), Variant = UIButtonVariant.Ghost, Group = "draft" },
-        new() { Id = "duplicate", Title = "Duplicate", Icon = DemoIcons.Outline(DemoIcons.Copy), Variant = UIButtonVariant.Ghost, Group = "copy" },
-        new() { Id = ExportId, Title = "Export", Icon = DemoIcons.Outline(DemoIcons.Download), Variant = UIButtonVariant.Ghost, Enabled = false, Group = "copy" },
-        new() { Id = DeleteId, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close), Variant = UIButtonVariant.Danger, Group = "danger" }
-    ];
-
     public CommandBarGroupContext()
     {
         AddOption(nameof(Orientation), CycleOrientation, () => Orientation);
         AddOption(nameof(Wrap), ToggleWrap, () => Wrap);
         AddOption(nameof(Spacing), CycleSpacing, () => Spacing);
         AddOption(nameof(GroupSeparator), CycleGroupSeparator, () => GroupSeparator);
-        AddOption($"Save {nameof(ButtonItem.Variant)}", CycleSaveVariant, () => Command(SaveId).Variant);
-        AddOption($"Save {nameof(ButtonItem.Size)}", CycleSaveSize, () => Command(SaveId).Size);
-        AddOption($"Export {nameof(ButtonItem.Enabled)}", ToggleExportEnabled, () => Command(ExportId).Enabled);
-        AddOption($"Delete {nameof(ButtonItem.Visibility)}", ToggleDeleteVisible, () => Command(DeleteId).Visibility?.Base);
     }
 
     public void CycleOrientation()
@@ -173,6 +161,35 @@ internal sealed partial class CommandBarGroupContext : DemoGroupContext
 
     public void CycleGroupSeparator()
         => SetLastChange(nameof(GroupSeparator), GroupSeparator = CycleEnum(GroupSeparator));
+}
+
+/// <summary>
+/// Bound buttons on the command bar preview and the per-item properties stepped from the options pane.
+/// </summary>
+internal sealed partial class CommandBarItemsGroupContext : DemoGroupContext
+{
+    private const string SaveId = "save";
+    private const string DeleteId = "delete";
+    private const string ExportId = "export";
+
+    // Three groups, so the separator row has boundaries to draw; one primary, one danger, ghosts between, as a toolbar reads.
+    [RecursiveMember(false)]
+    public RecursiveCollection<ButtonItem> Commands { get; } =
+    [
+        new() { Id = SaveId, Title = "Save", Icon = DemoIcons.Outline(DemoIcons.Check), Variant = UIButtonVariant.Primary, Group = "draft" },
+        new() { Id = "discard", Title = "Discard", Icon = DemoIcons.Outline(DemoIcons.Undo), Variant = UIButtonVariant.Ghost, Group = "draft" },
+        new() { Id = "duplicate", Title = "Duplicate", Icon = DemoIcons.Outline(DemoIcons.Copy), Variant = UIButtonVariant.Ghost, Group = "copy" },
+        new() { Id = ExportId, Title = "Export", Icon = DemoIcons.Outline(DemoIcons.Download), Variant = UIButtonVariant.Ghost, Enabled = false, Group = "copy" },
+        new() { Id = DeleteId, Title = "Delete", Icon = DemoIcons.Outline(DemoIcons.Close), Variant = UIButtonVariant.Danger, Group = "danger" }
+    ];
+
+    public CommandBarItemsGroupContext()
+    {
+        AddOption($"Save {nameof(ButtonItem.Variant)}", CycleSaveVariant, () => Command(SaveId).Variant);
+        AddOption($"Save {nameof(ButtonItem.Size)}", CycleSaveSize, () => Command(SaveId).Size);
+        AddOption($"Export {nameof(ButtonItem.Enabled)}", ToggleExportEnabled, () => Command(ExportId).Enabled);
+        AddOption($"Delete {nameof(ButtonItem.Visibility)}", ToggleDeleteVisible, () => Command(DeleteId).Visibility?.Base);
+    }
 
     // Stepped on one button rather than on the bar: the bar has no variant of its own.
     public void CycleSaveVariant()

@@ -21,7 +21,6 @@ internal sealed partial class ImageValueGroupContext : InputValueGroupContext
     {
         AddOption(nameof(Value), CycleValue, () => Value);
         AddOption(nameof(SelectionId), ClearSelectionId, () => SelectionId);
-        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -37,7 +36,7 @@ internal sealed partial class ImageValueGroupContext : InputValueGroupContext
 }
 
 /// <summary>
-/// What the control accepts and shows around the picture: the file types, the glyph without a picture, the row's text, the fit, the row's appearance.
+/// What the control accepts and shows around the picture: the file types, the glyph without a picture, the row's text, the fit, the row's appearance and size.
 /// </summary>
 internal sealed partial class ImagePictureGroupContext : DemoGroupContext
 {
@@ -56,6 +55,9 @@ internal sealed partial class ImagePictureGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Filled;
 
+    [RecursiveMember]
+    public partial UISize? Size { get; set; } = UISize.Medium;
+
     public ImagePictureGroupContext()
     {
         AddOption(nameof(Accept), CycleAccept, () => Accept);
@@ -63,6 +65,7 @@ internal sealed partial class ImagePictureGroupContext : DemoGroupContext
         AddOption(nameof(Placeholder), CyclePlaceholder, () => Placeholder);
         AddOption(nameof(Fit), CycleFit, () => Fit);
         AddOption(nameof(Appearance), CycleAppearance, () => Appearance);
+        AddOption(nameof(Size), CycleSize, () => Size);
     }
 
     public void CycleAccept()
@@ -79,6 +82,9 @@ internal sealed partial class ImagePictureGroupContext : DemoGroupContext
 
     public void CycleAppearance()
         => SetLastChange(nameof(Appearance), Appearance = CycleEnum(Appearance));
+
+    public void CycleSize()
+        => SetLastChange(nameof(Size), Size = CycleEnum(Size));
 }
 
 internal sealed partial class ImageInputController() : DemoStandardController
@@ -90,10 +96,7 @@ internal sealed partial class ImageInputController() : DemoStandardController
     public partial ImagePictureGroupContext ImageGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Profile picture");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Profile picture");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

@@ -36,7 +36,4 @@ internal sealed partial class LanguageSwitcherController() : DemoStandardControl
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
-
-    [RecursiveMember]
-    public partial SwitcherFieldGroupContext FieldGroup { get; set; } = new();
 }

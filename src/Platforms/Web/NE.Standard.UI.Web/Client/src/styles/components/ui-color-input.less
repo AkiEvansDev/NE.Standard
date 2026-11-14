@@ -339,16 +339,25 @@
     &::-moz-range-track {
         box-shadow: inset 0 0 0 1px var(--ui-color-border);
     }
+}
 
-    // Through the mixin's own guard, which its hover spells: without it the mixin's primary halo outranks this one.
-    @media @{ui-can-hover} {
-        &@{ui-range-live}:hover::-webkit-slider-thumb {
-            .ui-range-halo();
-        }
+.ui-color-input__popup[data-ui-sheet][popover] {
+    .ui-color-input__tab {
+        min-height: 2rem;
+        padding: 0 @ui-space-3;
+    }
 
-        &@{ui-range-live}:hover::-moz-range-thumb {
-            .ui-range-halo();
-        }
+    .ui-color-input__hue {
+        width: 1.5rem;
+    }
+
+    .ui-color-input__slider-input {
+        height: 2rem;
+    }
+
+    .ui-color-input__field-input {
+        min-height: 2.25rem;
+        padding: 0 @ui-space-2;
     }
 }
 

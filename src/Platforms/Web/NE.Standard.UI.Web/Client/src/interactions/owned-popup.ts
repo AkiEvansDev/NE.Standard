@@ -68,10 +68,12 @@ export type OwnedPopupsOptions = {
      */
     readonly closesOnTab?: boolean | ((opening: OwnedPopupOpening) => boolean);
     /**
-     * A list on a phone: below the small breakpoint it opens as one sheet from the bottom, modal, over a veil, rather than beside its
-     * anchor — every popup of the engine, or those the function names. Default false: a picker or a panel stays anchored.
+     * A list or a picker on a phone: below the small breakpoint it opens as one sheet from the bottom, modal, over a veil, rather than
+     * beside its anchor — every popup of the engine, or those the function names. Default false: a panel stays anchored.
      */
     readonly sheetOnPhone?: boolean | ((opening: OwnedPopupOpening) => boolean);
+    /** Restricts a phone sheet's swipe-down dismissal to its top handle band so vertical touch drags inside a picker stay its own. */
+    readonly sheetSwipeHandleOnly?: boolean;
 };
 
 type OpenPopup = {
@@ -329,7 +331,12 @@ export class OwnedPopups {
         const { opening } = entry;
 
         if (entry.sheet) {
-            presentSheet(opening.popup, { anchor: opening.anchor, close: () => this.close(opening.owner, "escape"), trapsTab: !named(this.options.closesOnTab, opening) });
+            presentSheet(opening.popup, {
+                anchor: opening.anchor,
+                close: () => this.close(opening.owner, "escape"),
+                trapsTab: !named(this.options.closesOnTab, opening),
+                handleSwipeOnly: this.options.sheetSwipeHandleOnly === true
+            });
             return;
         }
 

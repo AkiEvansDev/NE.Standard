@@ -33,7 +33,6 @@ internal sealed partial class DateValueGroupContext : InputValueGroupContext
         AddOption(nameof(MinDistance), CycleMinDistance, () => MinDistance);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
-        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -125,7 +124,6 @@ internal sealed partial class TimeValueGroupContext : InputValueGroupContext
         AddOption(nameof(MinDistance), CycleMinDistance, () => MinDistance);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
-        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -217,7 +215,6 @@ internal sealed partial class DateTimeValueGroupContext : InputValueGroupContext
         AddOption("Offset", CycleOffset, () => Value?.Offset);
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
-        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -312,10 +309,7 @@ internal sealed partial class DateInputController() : DemoStandardController
     public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("dd.MM.yyyy", "d MMMM yyyy");
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Release date");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Release date");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
@@ -333,10 +327,7 @@ internal sealed partial class TimeInputController() : DemoStandardController
     public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("h:mm tt", "HH:mm:ss");
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Deploy window opens");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Deploy window opens");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
@@ -354,10 +345,7 @@ internal sealed partial class DateTimeInputController() : DemoStandardController
     public partial TemporalFieldGroupContext FieldGroup { get; set; } = new("dd.MM.yyyy HH:mm", "d MMMM yyyy, HH:mm");
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Scheduled for");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Scheduled for");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

@@ -279,6 +279,12 @@ public static class WebAttributes
     /// </summary>
     public const string RowIdle = "data-ui-row-idle";
 
+    /// <summary>
+    /// An item's row in an items view, table, tree or key-value list whose press raises <c>click</c>: the stylesheet gives it a pointer
+    /// cursor even when <c>SelectionMode</c> is <c>None</c>. The client stamps the same mark on rows it builds (<c>items-row-renderer.ts</c>).
+    /// </summary>
+    public const string RowClick = "data-ui-row-click";
+
     /// <summary>On a breadcrumbs step's wrapper: the tiers its step is collapsed in — <c>base sm md xl xxl</c> — where the wrapper goes too.</summary>
     public const string StepCollapsed = "data-ui-step-collapsed";
 

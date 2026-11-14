@@ -268,7 +268,7 @@ calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `
   `OnItemOpenWithItem`, `OnItemOpenWithItemKey`, `OnItemOpenWith`) on the hosts that raise it, a composite host named by
   `SetAccessibleName`, drag and drop between lists, virtualized hosting, the empty template
   (`ConfigureDefaultEmptyTemplate` on every items host, putting the built-in one in where there is none,
-  `ConfigureDefaultGroupTemplate`, `SetShowEmptyTemplate(false)` — collapses the host root when empty so nested tag or attachment lists leave no parent gap; not on a select or a search, whose open list always answers —, `UIItemsLayoutType.Accordion` on `ItemsViewComponent` (single-expand coordination and connected borders across visible `ExpanderComponent` rows),
+  `ConfigureDefaultGroupTemplate`, `SetShowEmptyTemplate(false)` — collapses the host root when empty so nested tag or attachment lists leave no parent gap; not on a select or a search, whose open list always answers —, `UIItemsLayoutType.Accordion` on `ItemsViewComponent` (single-expand coordination and connected borders across visible `ExpanderComponent` rows), `SetRowBleed(true)` on `ItemsViewComponent` (bleeds hover/selection pills `-8px` into parent `Padding >= 8` so row content stands flush at `0px` with sibling labels/fields),
   or `SetEmptyTemplate(UIPage.Empty(...))`, centred in a list
   given the region's height), a
   navigation rail per breakpoint (`SetDisplay(UIMenuDisplay.Rail, xl: UIMenuDisplay.List)`: one menu, a list in a phone's drawer

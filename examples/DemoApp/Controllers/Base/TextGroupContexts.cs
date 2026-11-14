@@ -306,17 +306,35 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
     }
 
     public void CycleBadgePlacement()
-        => SetLastChange(nameof(BadgePlacement), BadgePlacement = CycleEnum(BadgePlacement));
+    {
+        CheckBadge();
+        SetLastChange(nameof(BadgePlacement), BadgePlacement = CycleEnum(BadgePlacement));
+    }
+
+    private void CheckBadge()
+    {
+        if (string.IsNullOrEmpty(BadgeTitle) && string.IsNullOrEmpty(BadgeIcon))
+            BadgeTitle = SampleBadgeTitle;
+    }
 
     public void CycleBadgeVariant()
-        => SetLastChange(nameof(BadgeVariant), BadgeVariant = CycleEnum(BadgeVariant));
+    {
+        CheckBadge();
+        SetLastChange(nameof(BadgeVariant), BadgeVariant = CycleEnum(BadgeVariant));
+    }
 
     // Set, it wins over BadgeVariant above.
     public void CycleBadgeColor()
-        => SetLastChange(nameof(BadgeColor), BadgeColor = CycleValue(BadgeColor, null, UIThemeColor.FromStyle(UIColorStyle.Success), UIThemeColor.FromColorVariant(ColorName.NebulaRose)));
+    {
+        CheckBadge();
+        SetLastChange(nameof(BadgeColor), BadgeColor = CycleValue(BadgeColor, null, UIThemeColor.FromStyle(UIColorStyle.Success), UIThemeColor.FromColorVariant(ColorName.NebulaRose)));
+    }
 
     public void CycleBadgeFill()
-        => SetLastChange(nameof(BadgeFill), BadgeFill = CycleEnum(BadgeFill));
+    {
+        CheckBadge();
+        SetLastChange(nameof(BadgeFill), BadgeFill = CycleEnum(BadgeFill));
+    }
 
     public void CycleBadgeIcon()
         => SetLastChange(nameof(BadgeIcon), BadgeIcon = CycleIconValue(BadgeIcon, DemoIcons.Clock));
@@ -359,7 +377,77 @@ internal sealed partial class TextBadgeGroupContext : DemoGroupContext
         => SetLastChange(nameof(BadgeTooltip), BadgeTooltip = CycleValue(BadgeTooltip, null, "Artifacts are kept for 30 days."));
 
     public void CycleBadgeTooltipPlacement()
-        => SetLastChange(nameof(BadgeTooltipPlacement), BadgeTooltipPlacement = CycleEnum(BadgeTooltipPlacement));
+    {
+        BadgeTooltipPlacement = CycleEnum(BadgeTooltipPlacement);
+
+        if (BadgeTooltipPlacement is not null)
+        {
+            CheckBadge();
+            BadgeTooltip ??= "Artifacts are kept for 30 days.";
+        }
+
+        SetLastChange(nameof(BadgeTooltipPlacement), BadgeTooltipPlacement);
+    }
+}
+
+/// <summary>
+/// The compact caption a control carries beside or above itself: title, optional description, icon, badge, and tooltip.
+/// </summary>
+internal sealed partial class TextLabelGroupContext : DemoGroupContext
+{
+    private const string SampleBadgeTitle = "30 days";
+    private const string SampleTooltip = "Shown on hover **and** on focus — see [the docs](https://docs.orvane.example).";
+
+    private readonly string _sampleTitle;
+    private readonly string? _sampleDescription;
+
+    [RecursiveMember]
+    public partial string? Title { get; set; }
+
+    [RecursiveMember]
+    public partial string? Description { get; set; }
+
+    [RecursiveMember]
+    public partial string? Icon { get; set; }
+
+    [RecursiveMember]
+    public partial string? BadgeTitle { get; set; }
+
+    [RecursiveMember]
+    public partial string? Tooltip { get; set; }
+
+    public TextLabelGroupContext(string sampleTitle = "Snapshot before every resize", string? sampleDescription = null, string? initialIcon = DemoIcons.BadgeCheck)
+    {
+        _sampleTitle = sampleTitle;
+        _sampleDescription = sampleDescription;
+        Title = sampleTitle;
+        Description = sampleDescription;
+        Icon = initialIcon;
+
+        AddOption(nameof(Title), ToggleTitle, () => Title);
+
+        if (_sampleDescription is not null)
+            AddOption(nameof(Description), ToggleDescription, () => Description);
+
+        AddOption(nameof(Icon), CycleIcon, () => Icon);
+        AddOption(nameof(BadgeTitle), ToggleBadgeTitle, () => BadgeTitle);
+        AddOption(nameof(Tooltip), ToggleTooltip, () => Tooltip);
+    }
+
+    public void ToggleTitle()
+        => SetLastChange(nameof(Title), Title = CycleValue(Title, null, _sampleTitle));
+
+    public void ToggleDescription()
+        => SetLastChange(nameof(Description), Description = CycleValue(Description, null, _sampleDescription));
+
+    public void CycleIcon()
+        => SetLastChange(nameof(Icon), Icon = CycleIconValue(Icon, DemoIcons.BadgeCheck));
+
+    public void ToggleBadgeTitle()
+        => SetLastChange(nameof(BadgeTitle), BadgeTitle = CycleValue(BadgeTitle, null, SampleBadgeTitle));
+
+    public void ToggleTooltip()
+        => SetLastChange(nameof(Tooltip), Tooltip = CycleValue(Tooltip, null, SampleTooltip));
 }
 
 /// <summary>

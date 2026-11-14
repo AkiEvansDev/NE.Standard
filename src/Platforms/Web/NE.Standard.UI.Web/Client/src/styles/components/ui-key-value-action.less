@@ -89,6 +89,10 @@
 // The keyboard's row: the list is a row host whose cursor's row holds the focus, the host's one Tab stop (row-cursor.ts).
 .ui-row-cursor-on-row(~".ui-key-value-action", ~".ui-key-value-action__row");
 
+.ui-key-value-action > .ui-key-value-action__host > .ui-key-value-action__row[data-ui-row-click]:not([data-ui-row-editing])@{ui-row-live} {
+    cursor: pointer;
+}
+
 // With no edge of its own — no border, no fill — the list stands in its holder's inset, so its keys line up with what is beside them
 // in a card or an expander; the separators stay. The fill is read off the inline Background, the one place it is written. Surface
 // Background is not an edge: every list carries it by default, and its ground is the page's own. A list whose rows wash under the

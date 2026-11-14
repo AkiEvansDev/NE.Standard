@@ -1145,6 +1145,10 @@
         "value":  "data-ui-row-idle"
     },
     {
+        "constant":  "RowClickAttribute",
+        "value":  "data-ui-row-click"
+    },
+    {
         "constant":  "StepCollapsedAttribute",
         "value":  "data-ui-step-collapsed"
     },
@@ -2759,6 +2763,11 @@
     {
         "constant":  "SliderInputHeldClass",
         "value":  "ui-slider__input--held",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "SliderInputHoveredClass",
+        "value":  "ui-slider__input--hovered",
         "clientOnly":  true
     },
     {

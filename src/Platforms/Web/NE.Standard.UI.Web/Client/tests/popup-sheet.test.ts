@@ -5,7 +5,7 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 let phone = true;
 
@@ -25,7 +25,7 @@ installFakeDom({
 
 const { createPopups } = await import("../src/interactions/popup-service.ts");
 const { hideAround } = await import("../src/interactions/popup-sheet.ts");
-const { swipeCloses } = await import("../src/interactions/sheet-swipe.ts");
+const { followSwipeDown, swipeCloses } = await import("../src/interactions/sheet-swipe.ts");
 
 const popups = createPopups({ findEveryComponent: () => [] });
 
@@ -184,4 +184,37 @@ test("a swipe closes past a third of the sheet's height or on a flick, and sprin
     assert.equal(swipeCloses(120, 400, 0.1), false);
     assert.equal(swipeCloses(40, 400, 0.9), true);
     assert.equal(swipeCloses(4, 400, 0.9), false);
+});
+
+test("handleOnly restricts a touch swipe-down to the top handle band so drags inside a picker stay its own", () => {
+    const sheet = new FakeElement();
+    sheet.rect = { left: 0, top: 200, width: 390, height: 300 };
+    let closed = 0;
+
+    const pointer = (type: string, y: number, timeStamp: number): FakeEvent => Object.assign(new FakeEvent(type), {
+        isPrimary: true,
+        button: 0,
+        pointerId: 1,
+        pointerType: "touch",
+        clientX: 100,
+        clientY: y,
+        timeStamp
+    });
+
+    const detach = followSwipeDown(real(sheet), real(sheet), () => closed++, true);
+
+    // Touch drag starting 80 px below top (inside HSV square / clock wheel) does not drag the sheet.
+    sheet.dispatchEvent(pointer("pointerdown", 280, 0));
+    sheet.dispatchEvent(pointer("pointermove", 450, 50));
+    sheet.dispatchEvent(pointer("pointerup", 450, 100));
+    assert.equal(closed, 0);
+    assert.equal(sheet.style["--ui-sheet-drag"], undefined);
+
+    // Touch drag starting 12 px below top (inside the 24 px handle band) drags and closes the sheet.
+    sheet.dispatchEvent(pointer("pointerdown", 212, 200));
+    sheet.dispatchEvent(pointer("pointermove", 340, 260));
+    sheet.dispatchEvent(pointer("pointerup", 340, 320));
+    assert.equal(closed, 1);
+
+    detach();
 });

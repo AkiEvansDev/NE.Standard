@@ -28,6 +28,7 @@ import type {
     WebRenderBindingParameterKind,
     WebRenderBindingParameterKindName,
     WebRenderEventMetadata,
+    WebRenderInteractionMetadata,
     WebRenderItemValue,
     WebRenderItemValuesMetadata,
     WebRenderItemsFilterSortMetadata,
@@ -80,6 +81,7 @@ export const ClientEffectKinds = {
 
 // One answer for a component with no rules: the lookups run on every keystroke and every pushed value.
 const NoValidations: readonly WebRenderValidationMetadata[] = Object.freeze([]);
+const NoInteractions: readonly WebRenderInteractionMetadata[] = Object.freeze([]);
 
 export class MetadataIndex {
     private readonly propertyDefinitionsById = new Map<string, WebRenderPropertyDefinitionMetadata>();
@@ -89,6 +91,7 @@ export class MetadataIndex {
     private readonly eventsByComponentAndName = new Map<string, WebRenderEventMetadata>();
     private readonly eventNames = new Set<string>();
     private readonly eventComponentIdsByName = new Map<string, Set<number>>();
+    private readonly eventInteractions = new Map<string, WebRenderInteractionMetadata[]>();
     private readonly itemsTemplatesByComponentId = new Map<number, WebRenderItemsTemplateMetadata>();
     private readonly itemsFilterSortByComponentId = new Map<number, WebRenderItemsFilterSortMetadata>();
     private readonly itemValuesByAddress = new Map<string, WebRenderItemValuesMetadata>();
@@ -111,6 +114,9 @@ export class MetadataIndex {
 
         for (const event of metadata.events)
             this.addEvent(event);
+
+        for (const interaction of metadata.interactions ?? [])
+            this.addInteraction(interaction);
 
         for (const itemsTemplate of metadata.items)
             this.addItemsTemplate(itemsTemplate);
@@ -194,6 +200,15 @@ export class MetadataIndex {
         return this.eventComponentIdsByName.get(normalizeEventName(eventName))?.has(componentId) === true;
     }
 
+    public hasEventForRow(eventName: string, componentId: number, dynamicParameters: readonly unknown[]): boolean {
+        return this.hasServerEventForComponent(eventName, componentId)
+            || this.getEventInteractions(componentId, eventName).some(interaction => isRowsOwn(interaction, dynamicParameters));
+    }
+
+    private getEventInteractions(componentId: number, eventName: string): readonly WebRenderInteractionMetadata[] {
+        return this.eventInteractions.get(createComponentEventKey(componentId, eventName)) ?? NoInteractions;
+    }
+
     public getItemsTemplateMetadata(componentId: number): WebRenderItemsTemplateMetadata | undefined {
         return this.itemsTemplatesByComponentId.get(componentId);
     }
@@ -269,6 +284,19 @@ export class MetadataIndex {
         componentIds.add(componentId);
     }
 
+    private addInteraction(interaction: WebRenderInteractionMetadata): void {
+        if (getInteractionSourceKind(interaction.sourceKind) !== "Event")
+            return;
+
+        const componentId = getIdValue(interaction.sourceEvent?.componentId);
+        const eventName = normalizeEventName(interaction.sourceEvent?.eventName);
+
+        if (componentId <= 0 || eventName.length === 0)
+            return;
+
+        addGrouped(this.eventInteractions, createComponentEventKey(componentId, eventName), interaction);
+    }
+
     private addItemsTemplate(itemsTemplate: WebRenderItemsTemplateMetadata): void {
         const componentId = getIdValue(itemsTemplate.componentId);
 
@@ -310,13 +338,26 @@ export class MetadataIndex {
 }
 
 /** Adds a rule to the list its key holds, starting the list where there is none. */
-function addGrouped(groups: Map<number, WebRenderValidationMetadata[]>, key: number, validation: WebRenderValidationMetadata): void {
+function addGrouped<TKey, TValue>(groups: Map<TKey, TValue[]>, key: TKey, value: TValue): void {
     const group = groups.get(key);
 
     if (group === undefined)
-        groups.set(key, [validation]);
+        groups.set(key, [value]);
     else
-        group.push(validation);
+        group.push(value);
+}
+
+/**
+ * Whether an event raised with these keys fires the interaction: any row's for one that names none, else only the row it names — any
+ * key in the row's scope chain, so a submenu's key matches its entries too; a key sent as a number and read off the DOM as digits is one row.
+ */
+export function isRowsOwn(interaction: WebRenderInteractionMetadata, dynamicParameters: readonly unknown[]): boolean {
+    const rowKey = interaction.sourceEvent?.rowKey;
+
+    if (rowKey === null || rowKey === undefined)
+        return true;
+
+    return dynamicParameters.some(key => key !== null && key !== undefined && String(key) === rowKey);
 }
 
 function resolveEnumName<TName extends string>(value: TName | number | null | undefined, names: readonly TName[]): TName | "Unknown" {

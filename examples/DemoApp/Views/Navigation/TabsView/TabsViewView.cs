@@ -18,6 +18,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string TabsViewGroup = nameof(TabsViewController.TabsViewGroup);
     private const string FirstTabGroup = nameof(TabsViewController.FirstTabGroup);
+    private const string BrowserGroup = nameof(TabsViewController.BrowserGroup);
     private const string EmptyGroup = nameof(TabsViewController.EmptyGroup);
     private const string DriveGroup = nameof(TabsViewController.DriveGroup);
 
@@ -32,6 +33,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreatePreview(frame => frame.AddChild(new TabsViewComponent()
             .BindStandard()
             .BindSelectedKey<TabsViewController>(static x => x.TabsViewGroup.SelectedKey)
+            .BindSelectionStyle<TabsViewController>(static x => x.TabsViewGroup.SelectionStyle)
             .BindRenamable<TabsViewController>(static x => x.TabsViewGroup.Renamable)
             .BindDraggable<TabsViewController>(static x => x.TabsViewGroup.Draggable)
             .BindTabMenuEntries<TabsViewController>(static x => x.TabsViewGroup.TabMenuEntries)
@@ -63,18 +65,14 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateBrowserGroup()
     {
-        DemoDocumentItem[] pages =
-        [
-            CreateDocument("docs", DemoIcons.FileText, "Getting started", 1, "docs.orvane.example/start", "Create a server, pick a plan and a region, and point your domain at it."),
-            CreateDocument("api", DemoIcons.Link, "API reference", 2, "docs.orvane.example/api", "Every call the public API takes, and the key each one needs."),
-            CreateDocument("status", DemoIcons.Alert, "Status", 3, "status.orvane.example", "All systems operational. Last incident 12 days ago.")
-        ];
-
         return DemoUI.CreateExample("Dynamic closable & reorderable tabs",
             new SurfaceComponent()
-                .SetWidth(UILayoutLength.Absolute(460))
+                .SetMaxWidth(UILayoutLength.Absolute(460))
                 .SetContent(new TabsViewComponent()
-                    .SetItems(pages)
+                    .BindItems<BrowserTabsGroupContext>(static x => x.Pages, UIBindingScope.Relative)
+                    .SetDraggable(true)
+                    .SetRemovable(true)
+                    .OnItemRemoveWithItemKey(nameof(TabsViewController.CloseBrowserPage))
                     .SetPageTemplate(UILayout.Stack(8)
                         .SetMargin(UIThickness.All(0, 4, 0, 0))
                         .AddChild(new TextComponent()
@@ -88,25 +86,17 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
                             .SetDescriptionType(UITextAppearance.Body)
                         )
                     )
-                )
+                ),
+            note: "Drag captions to reorder them (`Order` writes back automatically), or press `×` to close a tab and reopen all closed tabs below.",
+            context: BrowserGroup,
+            controlsBelow: true,
+            initControls: controls => DemoUI.InitControls(controls, new Dictionary<string, string>
+            {
+                ["Restore closed tabs"] = nameof(TabsViewController.ReopenBrowserPages)
+            })
         );
     }
 
-    private static DemoDocumentItem CreateDocument(string id, string icon, string title, double order, string address, string body)
-        => new()
-        {
-            Id = id,
-            Icon = DemoIcons.Outline(icon),
-            Title = title,
-            Address = address,
-            Order = order,
-            CanRemove = false,
-            Body = body
-        };
-
-    /// <summary>
-    /// A card whose faces come from data: one incident, and a page per section the runbook has — the postmortem's off until it is written.
-    /// </summary>
     private static ContainerComponent CreateCardGroup()
     {
         DemoDocumentItem postmortem = CreateDocument("postmortem", DemoIcons.Edit, "Postmortem", 4, string.Empty, "Written once the incident is closed.");
@@ -124,7 +114,7 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
 
         return DemoUI.CreateExample("Inside a card",
             new CardComponent()
-                .SetWidth(UILayoutLength.Absolute(460))
+                .SetMaxWidth(UILayoutLength.Absolute(460))
                 .ConfigureDefaultHeader(header => header
                     .SetIcon(DemoIcons.Alert)
                     .SetTitle("INC-4812 · Elevated errors in eu-west")
@@ -143,6 +133,18 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
         );
     }
 
+    private static DemoDocumentItem CreateDocument(string id, string icon, string title, double order, string address, string body)
+        => new()
+        {
+            Id = id,
+            Icon = DemoIcons.Outline(icon),
+            Title = title,
+            Address = address,
+            Order = order,
+            CanRemove = false,
+            Body = body
+        };
+
     /// <summary>
     /// A strip with nothing in it is a list's empty state, drawn where the first tab will go.
     /// </summary>
@@ -152,12 +154,27 @@ internal sealed class TabsViewView : DemoComponentView, IUIViewDefinition
             new SurfaceComponent()
                 .SetContent(new TabsViewComponent()
                     .BindItems<EmptyStripGroupContext>(static x => x.Documents, UIBindingScope.Relative)
-                    .ConfigureDefaultEmptyTemplate(template => _ = template
-                        .SetIcon(DemoIcons.Outline(DemoIcons.File))
-                        .SetTitle("No documents open")
-                        .SetDescription("Open one from the tree.")
-                        .SetDescriptionType(UITextAppearance.Caption)
-                        .SetDescriptionColor(UIThemeColor.Muted)
+                    .SetRemovable(true)
+                    .OnItemRemoveWithItemKey(nameof(TabsViewController.CloseEmptyDocument))
+                    .SetEmptyTemplate(UILayout.Stack(12)
+                        .SetPadding(UIThickness.Uniform(20))
+                        .SetHorizontalAlignment(UIAlignment.Center)
+                        .AddChild(new TextComponent()
+                            .SetIcon(DemoIcons.Outline(DemoIcons.File))
+                            .SetTitle("No documents open")
+                            .SetDescription("Open one below or from the side button.")
+                            .SetDescriptionType(UITextAppearance.Caption)
+                            .SetDescriptionColor(UIThemeColor.Muted)
+                            .SetTextAlignment(UITextAlignment.Center)
+                        )
+                        .AddChild(new ButtonComponent()
+                            .SetVariant(UIButtonVariant.Outline)
+                            .SetSize(UISize.Small)
+                            .SetHorizontalAlignment(UIAlignment.Center)
+                            .SetIcon(DemoIcons.Outline(DemoIcons.Add))
+                            .SetTitle("Open notes.md")
+                            .OnClick(nameof(TabsViewController.ToggleEmptyDocument))
+                        )
                     )
                     .SetPageTemplate(new ParagraphComponent().BindDescription<DemoDocumentItem>(static x => x.Body, UIBindingScope.Relative))
                 ),

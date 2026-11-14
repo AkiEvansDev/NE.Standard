@@ -11,7 +11,7 @@ internal sealed partial class LinkController() : DemoStandardController
     public partial LinkGroupContext LinkGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("The rollout plan");
+    public partial LinkIconGroupContext IconGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();

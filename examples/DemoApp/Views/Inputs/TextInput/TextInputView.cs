@@ -13,8 +13,8 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(TextInputController.ValueGroup);
     private const string FieldGroup = nameof(TextInputController.FieldGroup);
-    private const string ContentGroup = nameof(TextInputController.ContentGroup);
-    private const string BadgeGroup = nameof(TextInputController.BadgeGroup);
+    private const string AffixesGroup = nameof(TextInputController.AffixesGroup);
+    private const string LabelGroup = nameof(TextInputController.LabelGroup);
     private const string BorderGroup = nameof(TextInputController.BorderGroup);
     private const string LabelsGroup = nameof(TextInputController.LabelsGroup);
     private const string TriggersGroup = nameof(TextInputController.TriggersGroup);
@@ -36,20 +36,19 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindValue<TextInputController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<TextInputController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<TextInputController>(static x => x.ValueGroup.Size)
             .BindMaxLength<TextInputController>(static x => x.ValueGroup.MaxLength)
             .BindTrimInput<TextInputController>(static x => x.ValueGroup.TrimInput)
-            .BindShowClearButton<TextInputController>(static x => x.ValueGroup.ShowClearButton)
             .BindAppearance<TextInputController>(static x => x.FieldGroup.Appearance)
+            .BindSize<TextInputController>(static x => x.FieldGroup.Size)
             .BindPlaceholder<TextInputController>(static x => x.FieldGroup.Placeholder)
             .BindType<TextInputController>(static x => x.FieldGroup.Type)
             .BindInputMode<TextInputController>(static x => x.FieldGroup.InputMode)
-            .BindPrefixIcon<TextInputController>(static x => x.FieldGroup.PrefixIcon)
-            .BindSuffixIcon<TextInputController>(static x => x.FieldGroup.SuffixIcon)
-            .BindPrefixText<TextInputController>(static x => x.FieldGroup.PrefixText)
-            .BindSuffixText<TextInputController>(static x => x.FieldGroup.SuffixText)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindShowClearButton<TextInputController>(static x => x.FieldGroup.ShowClearButton)
+            .BindPrefixIcon<TextInputController>(static x => x.AffixesGroup.PrefixIcon)
+            .BindSuffixIcon<TextInputController>(static x => x.AffixesGroup.SuffixIcon)
+            .BindPrefixText<TextInputController>(static x => x.AffixesGroup.PrefixText)
+            .BindSuffixText<TextInputController>(static x => x.AffixesGroup.SuffixText)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
@@ -59,8 +58,8 @@ internal sealed class TextInputView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(AffixesGroup, "Affixes"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 

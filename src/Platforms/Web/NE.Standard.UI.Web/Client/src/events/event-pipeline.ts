@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ComponentSelector, eventSuppressAttribute, FormIdAttribute, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentIdAttribute, ComponentSelector, eventSuppressAttribute, FormIdAttribute, ItemsViewItemClass, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
 import { isInert, ValueSettleEventNames } from "../addressing/dom-registry.ts";
 import type { DomRegistry, EffectRunner, FormValues, PressedForm } from "../addressing/dom-registry.ts";
 import type { CommandDispatcher } from "../transport/command-dispatcher.ts";
@@ -209,8 +209,12 @@ export class EventPipeline {
         if (registration === undefined)
             return;
 
+        // An items view's row wrapper carries the row's inset and wash around its template root: a click on that inset is the template root's.
+        const target = domEvent.type === "click" && domEvent.target.classList.contains(ItemsViewItemClass)
+            ? firstChildComponent(domEvent.target) ?? domEvent.target
+            : domEvent.target;
         const resolved = this.options.dom.resolveNearestComponent(
-            domEvent.target,
+            target,
             (componentId, element) => this.shouldHandleComponent(eventName, componentId, element)
         );
 
@@ -220,12 +224,12 @@ export class EventPipeline {
         if (isInnerBoundaryCrossing(domEvent, resolved.element))
             return;
 
-        if (isBehindEventBoundary(domEvent.target, resolved.element))
+        if (isBehindEventBoundary(target, resolved.element))
             return;
 
         // The component the target stands in, not the target itself: an engine raises a component's own event on a part of it — a
         // tab's label, a grid's query element, a canvas's value element — and a component nested in it is another one's.
-        if (this.options.eventCatalog.get(eventName)?.ownTarget === true && domEvent.target.closest(ComponentSelector) !== resolved.element)
+        if (this.options.eventCatalog.get(eventName)?.ownTarget === true && target.closest(ComponentSelector) !== resolved.element)
             return;
 
         const serverEvent = this.options.metadata.getEvent(resolved.componentId, eventName);
@@ -260,8 +264,8 @@ export class EventPipeline {
 
     /** The command the event stands for, from the request to its answer; what it came to is what the registration is told. */
     private async runAsync(eventName: string, registration: RegisteredEvent, element: Element, context: EventDispatchContext): Promise<EventOutcome> {
-        // A disabled or loading component raises nothing, whatever raised the event inside it — an engine's own click included.
-        if (context.domEvent.target instanceof Element && isInert(context.domEvent.target))
+        // A disabled or loading component raises nothing, whatever raised the event inside it — an engine's own click or a row wrapper's inset included.
+        if (isInert(element) || (context.domEvent.target instanceof Element && isInert(context.domEvent.target)))
             return Refused;
 
         this.applyDomPolicy(registration, context);
@@ -485,6 +489,15 @@ function shouldApplyPolicy(
         return false;
 
     return typeof policy === "function" ? policy(context) : policy;
+}
+
+function firstChildComponent(row: Element): Element | null {
+    for (const child of row.children) {
+        if (child.hasAttribute(ComponentIdAttribute))
+            return child;
+    }
+
+    return null;
 }
 
 /** Whether a captured mouseenter/mouseleave is a move between descendants rather than a crossing of the component's own edge. */

@@ -17,7 +17,6 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string SwitcherGroup = nameof(ThemeSwitcherController.SwitcherGroup);
     private const string BorderGroup = nameof(ThemeSwitcherController.BorderGroup);
-    private const string FieldGroup = nameof(ThemeSwitcherController.FieldGroup);
 
     public static string ViewKey => "demo.actions.theme-switcher";
 
@@ -49,8 +48,8 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
 
     private static ThemeSwitcherComponent CreateField()
         => BindStandard(new ThemeSwitcherComponent().AsField())
-            .BindFieldVariant<ThemeSwitcherController>(static x => x.FieldGroup.FieldVariant)
-            .SetWidth(UILayoutLength.Absolute(280))
+            .BindFieldVariant<ThemeSwitcherController>(static x => x.SwitcherGroup.FieldVariant)
+            .SetMaxWidth(UILayoutLength.Absolute(280))
             .SetPlacement(1, 1, 24, 1);
 
     private static ThemeSwitcherComponent BindStandard(ThemeSwitcherComponent switcher)
@@ -69,8 +68,7 @@ internal sealed class ThemeSwitcherView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(SwitcherGroup, "Theme switcher"),
-            DemoUI.CreateOptionSection(BorderGroup, "Border"),
-            DemoUI.CreateOptionSection(FieldGroup, "Field")
+            DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
     // The head across the page, as a head is; the sidebar's foot beside the form, the two about as tall.

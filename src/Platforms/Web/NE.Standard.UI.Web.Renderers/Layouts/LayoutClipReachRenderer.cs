@@ -165,6 +165,9 @@ internal static class LayoutClipReachRenderer
 
         if (typeKey == ItemsViewComponent.ComponentTypeKey)
         {
+            if (view.State.TryGetValue(childId, ItemsViewComponent.RowBleedProperty, out CompiledUIPropertyValue? rowBleed) && (rowBleed.IsBind || rowBleed.Value is true))
+                return Contour;
+
             UIScrollMode hx = TryGetStatic(view, childId, IScrollableComponent.HorizontalScrollProperty, out UIScrollMode? horizontal) && horizontal is UIScrollMode h ? h : UIScrollMode.Disabled;
             UIScrollMode vy = TryGetStatic(view, childId, IScrollableComponent.VerticalScrollProperty, out UIScrollMode? vertical) && vertical is UIScrollMode v ? v : UIScrollMode.Auto;
             return hx == UIScrollMode.Disabled && vy == UIScrollMode.Disabled ? Contour : None;

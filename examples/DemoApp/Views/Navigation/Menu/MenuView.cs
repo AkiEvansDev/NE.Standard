@@ -18,6 +18,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string MenuGroup = nameof(MenuController.MenuGroup);
+    private const string EntriesGroup = nameof(MenuController.EntriesGroup);
 
     /// <summary>The set pane's id, which keys its collapsed state and open group in the browser.</summary>
     private const string SetMenuId = "demo-menu-preview";
@@ -41,7 +42,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(600,
             ("Bound entries", frame => frame.AddChild(Bind(new MenuComponent())
-                .BindItems<MenuController>(static x => x.MenuGroup.Entries)
+                .BindItems<MenuController>(static x => x.EntriesGroup.Entries)
                 .OnItemClickWithItemKey(nameof(MenuController.Choose))
                 .SetPlacement(1, 1, 24, 1)
             )),
@@ -102,7 +103,8 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(MenuGroup, "Menu")
+            DemoUI.CreateOptionSection(MenuGroup, "Menu"),
+            DemoUI.CreateOptionSection(EntriesGroup, "Entries")
         );
 
     protected override IVisualComponent[] CreateExamples()
@@ -157,7 +159,7 @@ internal sealed class MenuView : DemoComponentView, IUIViewDefinition
                 .SetSurface(UISurfaceStyle.Surface)
                 .SetPadding(UIThickness.Uniform(4))
                 // Room for the longest entry beside its shortcut: at 280 "Download the config" lost its end.
-                .SetWidth(UILayoutLength.Absolute(360))
+                .SetMaxWidth(UILayoutLength.Absolute(360))
                 .SetContent(new MenuComponent()
                     .BindItems<MenuListGroupContext>(static x => x.Entries, UIBindingScope.Relative)
                     .OnItemClickWithItemKey(nameof(MenuController.Run))

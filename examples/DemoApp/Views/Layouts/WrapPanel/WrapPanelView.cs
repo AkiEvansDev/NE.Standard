@@ -45,7 +45,7 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateColumnsGroup()
     {
-        return DemoUI.CreateExample("24-column responsive spans",
+        return DemoUI.CreateExample("Equal fractional column shares",
             new WrapPanelComponent()
                 .SetSpacing(16)
                 .SetLineSpacing(8)
@@ -70,7 +70,7 @@ internal sealed class WrapPanelView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreatePlansGroup()
     {
-        return DemoUI.CreateExample("Equal fractional column shares",
+        return DemoUI.CreateExample("24-column responsive spans",
             new WrapPanelComponent()
                 .SetSpacing(16)
                 .AddChild(new CardComponent()

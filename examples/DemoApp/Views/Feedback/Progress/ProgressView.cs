@@ -52,6 +52,7 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
             new SurfaceComponent()
                 .SetContent(UILayout.Stack(16)
                     .SetWidth(UILayoutLength.Absolute(360))
+                .SetMaxWidth(UILayoutLength.Fill())
                     .AddChild(UILayout.Stack(6)
                         .AddChild(new TextComponent()
                             .SetTitle("Bandwidth")
@@ -105,6 +106,7 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Custom Min & Max ranges",
             UILayout.Stack(16)
                 .SetWidth(UILayoutLength.Absolute(360))
+                .SetMaxWidth(UILayoutLength.Fill())
                 .AddChild(UILayout.Stack(6)
                     .AddChild(UIText.Label("0 to 100"))
                     .AddChild(new ProgressComponent()
@@ -143,6 +145,7 @@ internal sealed class ProgressView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Determinate vs indeterminate (null Value)",
             UILayout.Stack(16)
                 .SetWidth(UILayoutLength.Absolute(360))
+                .SetMaxWidth(UILayoutLength.Fill())
                 .AddChild(UIText.Label("Known — the value is a number"))
                 .AddChild(new ProgressComponent()
                     .SetValue(62)

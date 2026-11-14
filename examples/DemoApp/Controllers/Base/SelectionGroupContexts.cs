@@ -5,11 +5,13 @@ using System.Linq;
 namespace DemoApp.Controllers.Base;
 
 /// <summary>
-/// A section whose host chooses rows: the mode, the chosen key or keys, and how a chosen row looks. A page registers the rows
-/// where its own order puts them (<see cref="AddSelectionOptions"/>).
+/// Row or node selection options: the mode, the chosen key or keys, and how a chosen row looks.
 /// </summary>
-internal abstract partial class SelectionGroupContext(string[] keySteps, string[][] keysSteps) : DemoGroupContext
+internal sealed partial class SelectionGroupContext : DemoGroupContext
 {
+    private readonly string[] _keySteps;
+    private readonly string[][] _keysSteps;
+
     [RecursiveMember]
     public partial UISelectionMode? SelectionMode { get; set; }
 
@@ -22,8 +24,13 @@ internal abstract partial class SelectionGroupContext(string[] keySteps, string[
     [RecursiveMember]
     public partial UISelectionStyle? SelectionStyle { get; set; }
 
-    protected void AddSelectionOptions()
+    public SelectionGroupContext(string[] keySteps, string[][] keysSteps, UISelectionMode? selectionMode = null, string? selectedKey = null)
     {
+        _keySteps = keySteps;
+        _keysSteps = keysSteps;
+        SelectionMode = selectionMode;
+        SelectedKey = selectedKey;
+
         AddOption(nameof(SelectionMode), CycleSelectionMode, () => SelectionMode);
         AddOption(nameof(SelectedKey), CycleSelectedKey, () => SelectedKey);
         AddOption(nameof(SelectedKeys), CycleSelectedKeys, () => SelectedKeys is null ? null : string.Join(", ", SelectedKeys));
@@ -36,31 +43,60 @@ internal abstract partial class SelectionGroupContext(string[] keySteps, string[
         => SetLastChange(nameof(SelectionMode), SelectionMode = CycleEnum(SelectionMode));
 
     public void CycleSelectedKey()
-        => SetLastChange(nameof(SelectedKey), SelectedKey = CycleValue(SelectedKey, [null, .. keySteps]));
+    {
+        SelectedKey = CycleValue(SelectedKey, [null, .. _keySteps]);
+
+        if (SelectedKey is not null && SelectionMode != UISelectionMode.One)
+            SelectionMode = UISelectionMode.One;
+
+        SetLastChange(nameof(SelectedKey), SelectedKey);
+    }
 
     public void CycleSelectedKeys()
-        => SetLastChange(nameof(SelectedKeys), SelectedKeys = NextSelectedKeys(SelectedKeys));
+    {
+        SelectedKeys = NextSelectedKeys(SelectedKeys);
+
+        if (SelectedKeys is not null && SelectionMode != UISelectionMode.Many)
+            SelectionMode = UISelectionMode.Many;
+
+        SetLastChange(nameof(SelectedKeys), SelectedKeys is null ? null : string.Join(", ", SelectedKeys));
+    }
 
     // By what a step holds, not by reference: a list is a new one on every write, the view's own as the viewer chooses included.
     private string[]? NextSelectedKeys(IReadOnlyList<string>? current)
     {
         if (current is null)
-            return keysSteps[0];
+            return _keysSteps[0];
 
-        var index = Array.FindIndex(keysSteps, step => step.SequenceEqual(current));
+        var index = Array.FindIndex(_keysSteps, step => step.SequenceEqual(current));
 
-        return index < 0 ? keysSteps[0] : index + 1 < keysSteps.Length ? keysSteps[index + 1] : null;
+        return index < 0 ? _keysSteps[0] : index + 1 < _keysSteps.Length ? _keysSteps[index + 1] : null;
     }
 
     // A mark on the left, a solid ground, and a ground with its own ink: the three shapes the object has.
     public void CycleSelectionStyle()
-        => SetLastChange(nameof(SelectionStyle), SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null)));
+    {
+        SelectionStyle = CycleValue(SelectionStyle, null, UISelectionStyle.Marked(UISelectionMark.Left), UISelectionStyle.Ground(UIThemeColor.Accent), new UISelectionStyle(UIThemeColor.Primary, UIThemeColor.OnPrimary, UISelectionMark.None, null));
+
+        if (SelectionStyle is not null)
+        {
+            if (SelectionMode is null or UISelectionMode.None)
+                SelectionMode = UISelectionMode.One;
+
+            if (SelectionMode == UISelectionMode.One && SelectedKey is null && _keySteps.Length > 0)
+                SelectedKey = _keySteps[0];
+            else if (SelectionMode == UISelectionMode.Many && (SelectedKeys is null || SelectedKeys.Count == 0) && _keysSteps.Length > 0)
+                SelectedKeys = _keysSteps[0];
+        }
+
+        SetLastChange(nameof(SelectionStyle), SelectionStyle);
+    }
 }
 
 /// <summary>
-/// A selection section whose host also lets its rows be dragged into another order (<see cref="AddDragOptions"/>).
+/// Row drag-reordering options: whether rows move by dragging, whether only a grip drags them, and which side the grip stands on.
 /// </summary>
-internal abstract partial class DraggableSelectionGroupContext(string[] keySteps, string[][] keysSteps) : SelectionGroupContext(keySteps, keysSteps)
+internal sealed partial class ReorderGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial bool Draggable { get; set; }
@@ -71,7 +107,7 @@ internal abstract partial class DraggableSelectionGroupContext(string[] keySteps
     [RecursiveMember]
     public partial UIDragHandlePlacement? DragHandlePlacement { get; set; }
 
-    protected void AddDragOptions()
+    public ReorderGroupContext()
     {
         AddOption(nameof(Draggable), ToggleDraggable, () => Draggable);
         AddOption(nameof(DragHandle), ToggleDragHandle, () => DragHandle);
@@ -82,11 +118,28 @@ internal abstract partial class DraggableSelectionGroupContext(string[] keySteps
     public void ToggleDraggable()
         => SetLastChange(nameof(Draggable), Draggable = !Draggable);
 
-    // Read with Draggable: the grip is shown only while both are on.
+    // Read with Draggable: turning the grip on turns dragging on with it.
     public void ToggleDragHandle()
-        => SetLastChange(nameof(DragHandle), DragHandle = !DragHandle);
+    {
+        DragHandle = !DragHandle;
 
-    // Where the grip stands, End unset; read with DragHandle on.
+        if (DragHandle)
+            Draggable = true;
+
+        SetLastChange(nameof(DragHandle), DragHandle);
+    }
+
+    // Where the grip stands, End unset; setting a placement brings DragHandle and Draggable on with it.
     public void CycleDragHandlePlacement()
-        => SetLastChange(nameof(DragHandlePlacement), DragHandlePlacement = CycleEnum(DragHandlePlacement));
+    {
+        DragHandlePlacement = CycleEnum(DragHandlePlacement);
+
+        if (DragHandlePlacement is not null)
+        {
+            Draggable = true;
+            DragHandle = true;
+        }
+
+        SetLastChange(nameof(DragHandlePlacement), DragHandlePlacement);
+    }
 }

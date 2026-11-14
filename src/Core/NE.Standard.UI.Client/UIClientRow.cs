@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Serialization;
@@ -113,7 +114,7 @@ public sealed class UIClientRow
         if (chosen is { Succeeded: false })
             return chosen;
 
-        if (Page.HasEvent(Page.RowTemplate(Host.ComponentId, HostKeys, Entry.Item), EventNames.Click) || chosen is null)
+        if ((root.HasEvent(EventNames.Click) && root.Get<bool?>(IClickableComponent.ClickableProperty) is not false) || chosen is null)
             return await root.ClickAsync(cancellationToken).ConfigureAwait(false);
 
         return chosen;

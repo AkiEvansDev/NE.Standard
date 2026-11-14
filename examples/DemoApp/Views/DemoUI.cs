@@ -782,12 +782,15 @@ internal static class DemoUI
     }
 
     /// <summary>
-    /// The options half: every bindable property of the component, in sections, one open at a time.
+    /// The options half: every bindable property of the component, in sections, one open at a time, with the first subject section open.
     /// </summary>
     /// <remarks>No scroller of its own: one open section is short enough to scroll with the page.</remarks>
     public static ContainerComponent CreateOptions(params ExpanderComponent[] sections)
     {
         ArgumentNullException.ThrowIfNull(sections);
+
+        if (sections.Length > 0)
+            _ = sections[sections.Length > 1 ? 1 : 0].SetExpanded(true);
 
         // One section open at a time is the accordion's own rule, so nothing is compiled into the view.
         AccordionComponent accordion = new AccordionComponent()
@@ -819,7 +822,7 @@ internal static class DemoUI
             .OnItemClick(nameof(DemoController.CycleOption), UIAction.Arg("group", context), UIAction.ArgCurrentItemKey("id"))
             .SetPlacement(1, 1, 24, 1);
 
-        // Closed to start with: the list reads as a table of contents until a section is asked for.
+        // Closed by default; CreateOptions opens the component's first own section and leaves Standard closed.
         return new ExpanderComponent()
             .SetCollapsed()
             .ConfigureDefaultHeader(header => _ = header

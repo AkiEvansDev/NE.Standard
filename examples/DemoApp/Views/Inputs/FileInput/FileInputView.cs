@@ -13,9 +13,7 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(FileInputController.ValueGroup);
     private const string FileGroup = nameof(FileInputController.FileGroup);
-    private const string UploadGroup = nameof(FileInputController.UploadGroup);
-    private const string ContentGroup = nameof(FileInputController.ContentGroup);
-    private const string BadgeGroup = nameof(FileInputController.BadgeGroup);
+    private const string LabelGroup = nameof(FileInputController.LabelGroup);
     private const string BorderGroup = nameof(FileInputController.BorderGroup);
     private const long Megabyte = 1024 * 1024;
 
@@ -31,17 +29,16 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindValue<FileInputController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<FileInputController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<FileInputController>(static x => x.ValueGroup.Size)
             .BindSelectionId<FileInputController>(static x => x.ValueGroup.SelectionId)
             .BindAccept<FileInputController>(static x => x.FileGroup.Accept)
             .BindMaxFileSize<FileInputController>(static x => x.FileGroup.MaxFileSize)
             .BindMultiple<FileInputController>(static x => x.FileGroup.Multiple)
             .BindAppearance<FileInputController>(static x => x.FileGroup.Appearance)
+            .BindSize<FileInputController>(static x => x.FileGroup.Size)
             .BindPlaceholder<FileInputController>(static x => x.FileGroup.Placeholder)
             .BindPrefixIcon<FileInputController>(static x => x.FileGroup.PrefixIcon)
             .BindSuffixIcon<FileInputController>(static x => x.FileGroup.SuffixIcon)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
@@ -49,11 +46,9 @@ internal sealed class FileInputView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(ValueGroup, "Value"),
+            DemoUI.CreateOptionSection(ValueGroup, "Value", "Read selection performs a server round trip and reports the files uploaded under SelectionId."),
             DemoUI.CreateOptionSection(FileGroup, "File"),
-            DemoUI.CreateOptionSection(UploadGroup, "Upload", "A server round trip, not a property: what the last upload reported."),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 

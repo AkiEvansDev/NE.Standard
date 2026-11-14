@@ -12,9 +12,9 @@ const PressedPropertyName = "Pressed";
 const SelectedKeyPropertyName = "SelectedKey";
 
 export class InteractionIndex {
-    private readonly eventInteractions = new Map<string, WebRenderInteractionMetadata[]>();
     private readonly eventNames = new Set<string>();
     private readonly eventComponentIdsByName = new Map<string, Set<number>>();
+    private readonly eventInteractions = new Map<string, WebRenderInteractionMetadata[]>();
     private readonly propertyInteractions = new Map<string, WebRenderInteractionMetadata[]>();
     private readonly valueInteractions = new Map<number, WebRenderInteractionMetadata[]>();
     private readonly endValueInteractions = new Map<number, WebRenderInteractionMetadata[]>();
@@ -76,14 +76,6 @@ export class InteractionIndex {
             const eventName = normalizeEventName(interaction.sourceEvent?.eventName);
 
             if (componentId > 0 && eventName.length > 0) {
-                let bucket = this.eventInteractions.get(createEventKey(componentId, eventName));
-
-                if (bucket === undefined) {
-                    bucket = [];
-                    this.eventInteractions.set(createEventKey(componentId, eventName), bucket);
-                }
-
-                bucket.push(interaction);
                 this.eventNames.add(eventName);
 
                 let componentIds = this.eventComponentIdsByName.get(eventName);
@@ -94,6 +86,15 @@ export class InteractionIndex {
                 }
 
                 componentIds.add(componentId);
+
+                let bucket = this.eventInteractions.get(createEventKey(componentId, eventName));
+
+                if (bucket === undefined) {
+                    bucket = [];
+                    this.eventInteractions.set(createEventKey(componentId, eventName), bucket);
+                }
+
+                bucket.push(interaction);
             }
 
             return;

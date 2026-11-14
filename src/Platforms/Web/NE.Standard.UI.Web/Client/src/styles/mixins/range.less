@@ -69,6 +69,24 @@
         .ui-range-thumb();
     }
 
+    @media @{ui-can-hover} {
+        &@{ui-range-live}:hover::-webkit-slider-thumb {
+            .ui-range-halo();
+        }
+
+        &@{ui-range-live}:hover::-moz-range-thumb {
+            .ui-range-halo();
+        }
+    }
+
+    &@{ui-range-live}:active::-webkit-slider-thumb {
+        .ui-range-halo();
+    }
+
+    &@{ui-range-live}:active::-moz-range-thumb {
+        .ui-range-halo();
+    }
+
     // Where the keyboard stands: the handle's halo, matching pointer hover; on the handle, so a band's two tell the arrows' one
     // apart. One prefix per rule, since a browser drops a rule naming a pseudo-element it lacks.
     &@{ui-keyboard-focus}::-webkit-slider-thumb {

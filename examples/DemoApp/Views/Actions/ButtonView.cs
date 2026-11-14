@@ -16,9 +16,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ButtonGroup = nameof(ButtonController.ButtonGroup);
-    private const string ContentGroup = nameof(ButtonController.ContentGroup);
-    private const string LayoutGroup = nameof(ButtonController.LayoutGroup);
-    private const string BadgeGroup = nameof(ButtonController.BadgeGroup);
+    private const string LabelGroup = nameof(ButtonController.LabelGroup);
     private const string BorderGroup = nameof(ButtonController.BorderGroup);
 
     public static string ViewKey => "demo.actions.button";
@@ -30,7 +28,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(
-            DemoButtonBindings.Bind(new ButtonComponent(), ButtonGroup, ContentGroup, LayoutGroup, BadgeGroup, BorderGroup)
+            DemoButtonBindings.Bind(new ButtonComponent(), ButtonGroup, LabelGroup, BorderGroup)
                 .SetPlacement(1, 1, 24, 1)
         ));
 
@@ -38,9 +36,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ButtonGroup, "Button"),
-            DemoUI.CreateOptionSection(LayoutGroup, "Layout"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -56,9 +52,8 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Primary & secondary button pairs",
             // On a panel at one width: the rule only reads when the three pairs share a right edge.
             new SurfaceComponent()
-                .SetHorizontalAlignment(UIAlignment.Start)
+                .SetMaxWidth(UILayoutLength.Absolute(368))
                 .SetContent(UILayout.Stack(16)
-                    .SetWidth(UILayoutLength.Absolute(340))
                     .AddChild(DemoUI.CreateLabelled("Saving something", UIButtons.Pair(UIButtons.Ghost("Cancel"), UIButtons.Primary("Save changes"))))
                     .AddChild(DemoUI.CreateLabelled("Throwing something away", UIButtons.Pair(
                         UIButtons.Ghost("Keep it"),
@@ -85,7 +80,7 @@ internal sealed class ButtonView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Icons, descriptions & badges on buttons",
             UILayout.Stack(8)
-                .SetWidth(UILayoutLength.Absolute(380))
+                .SetMaxWidth(UILayoutLength.Absolute(380))
                 .AddChild(new ButtonComponent()
                     .SetVariant(UIButtonVariant.Outline)
                     .SetHorizontalAlignment(UIAlignment.Stretch)

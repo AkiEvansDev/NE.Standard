@@ -144,7 +144,8 @@
 .ui-row-bar(~".ui-tree", ~".ui-tree__row");
 
 .ui-tree[data-ui-selection="one"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live},
-.ui-tree[data-ui-selection="many"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live} {
+.ui-tree[data-ui-selection="many"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live},
+.ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-click]@{ui-row-live} {
     cursor: pointer;
 }
 

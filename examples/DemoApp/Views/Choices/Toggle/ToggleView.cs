@@ -11,8 +11,7 @@ internal abstract class ToggleView : DemoComponentView
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(ToggleController.ValueGroup);
-    private const string ContentGroup = nameof(ToggleController.ContentGroup);
-    private const string BadgeGroup = nameof(ToggleController.BadgeGroup);
+    private const string LabelGroup = nameof(ToggleController.LabelGroup);
     private const string BorderGroup = nameof(ToggleController.BorderGroup);
 
     protected sealed override ContainerComponent CreateOptions()
@@ -20,8 +19,7 @@ internal abstract class ToggleView : DemoComponentView
         return DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
     }
@@ -37,11 +35,7 @@ internal abstract class ToggleView : DemoComponentView
             .BindValue<ToggleController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<ToggleController>(static x => x.ValueGroup.IsReadOnly)
             .BindSize<ToggleController>(static x => x.ValueGroup.Size)
-            .BindTextContent(ContentGroup)
-            .BindDescription<ToggleController>(static x => x.ContentGroup.Description)
-            .BindDescriptionType<ToggleController>(static x => x.ContentGroup.DescriptionType)
-            .BindDescriptionColor<ToggleController>(static x => x.ContentGroup.DescriptionColor)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup, hasDescription: true)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);
     }

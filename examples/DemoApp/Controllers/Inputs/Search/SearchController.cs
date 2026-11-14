@@ -55,42 +55,9 @@ internal sealed partial class SearchTermGroupContext : DemoGroupContext
 }
 
 /// <summary>
-/// The value a search holds — the selected option's key, not the term.
+/// The value a search holds — the selected option's key, not the term — and the matched list the search fills.
 /// </summary>
 internal sealed partial class SearchValueGroupContext : InputValueGroupContext
-{
-    [RecursiveMember]
-    public partial string? Value { get; set; }
-
-    public SearchValueGroupContext()
-    {
-        AddOption(nameof(Value), CycleValue, () => Value);
-        AddSizeOption();
-        AddReadOnlyOption();
-    }
-
-    public void CycleValue()
-        => SetLastChange(nameof(Value), Value = CycleValue(Value, null, "eu-west", "ap-south"));
-}
-
-/// <summary>
-/// The field the term is typed into.
-/// </summary>
-internal sealed partial class SearchFieldGroupContext : OptionsFieldGroupContext
-{
-    public SearchFieldGroupContext() : base("Search regions", DemoIcons.Search, DemoIcons.Filter)
-    {
-        AddAppearanceOption();
-        AddPlaceholderOption();
-        AddAffixIconOptions();
-        AddAdornmentOptions();
-    }
-}
-
-/// <summary>
-/// The list the search fills; it has no rows of its own, because the search command is what moves it.
-/// </summary>
-internal sealed partial class SearchResultsGroupContext : DemoGroupContext
 {
     private static readonly (string Id, string Title, string Group)[] Catalogue =
     [
@@ -101,15 +68,23 @@ internal sealed partial class SearchResultsGroupContext : DemoGroupContext
         ("ap-south", "Singapore", "Asia Pacific"),
     ];
 
+    [RecursiveMember]
+    public partial string? Value { get; set; }
+
     [RecursiveMember(false)]
     public RecursiveCollection<OptionItem> Options { get; } = [];
 
-    public SearchResultsGroupContext()
+    public SearchValueGroupContext()
     {
         Apply(null);
 
+        AddOption(nameof(Value), CycleValue, () => Value);
         AddOption("Matches", ResetResults, () => Options.Count);
+        AddReadOnlyOption();
     }
+
+    public void CycleValue()
+        => SetLastChange(nameof(Value), Value = CycleValue(Value, null, "eu-west", "ap-south"));
 
     /// <summary>
     /// Puts the unfiltered catalogue back, which is the state a search starts from.
@@ -129,6 +104,21 @@ internal sealed partial class SearchResultsGroupContext : DemoGroupContext
 
         Options.Clear();
         Options.AddRange(matches.Select(entry => new OptionItem { Id = entry.Id, Title = entry.Title, Group = entry.Group }));
+    }
+}
+
+/// <summary>
+/// The field the term is typed into.
+/// </summary>
+internal sealed partial class SearchFieldGroupContext : OptionsFieldGroupContext
+{
+    public SearchFieldGroupContext() : base("Search regions", DemoIcons.Search, DemoIcons.Filter)
+    {
+        AddAppearanceOption();
+        AddSizeOption();
+        AddPlaceholderOption();
+        AddAffixIconOptions();
+        AddAdornmentOptions();
     }
 }
 
@@ -201,13 +191,7 @@ internal sealed partial class SearchController() : DemoStandardController
     public partial SearchFieldGroupContext FieldGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial SearchResultsGroupContext ResultsGroup { get; set; } = new();
-
-    [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Region");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Region");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
@@ -232,7 +216,7 @@ internal sealed partial class SearchController() : DemoStandardController
     /// </summary>
     [UICommand]
     public void Search()
-        => ResultsGroup.Apply(TermGroup.SearchText);
+        => ValueGroup.Apply(TermGroup.SearchText);
 
     /// <summary>
     /// One command for every example box, told which list to answer for by a literal argument; the term arrives through the two-way

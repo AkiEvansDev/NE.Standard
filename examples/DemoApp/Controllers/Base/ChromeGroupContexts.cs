@@ -21,11 +21,15 @@ internal abstract partial class SwitcherButtonGroupContext : TooltipGroupContext
     [RecursiveMember]
     public partial UIThemeColor? Background { get; set; }
 
-    /// <summary>The button's rows, after the switcher's glyphs.</summary>
+    [RecursiveMember]
+    public partial UIInputAppearance? FieldVariant { get; set; }
+
+    /// <summary>The button's and field's rows, after the switcher's glyphs.</summary>
     protected void AddButtonOptions(string sampleTooltip)
     {
         AddOption(nameof(IconSize), CycleIconSize, () => IconSize);
         AddOption(nameof(ButtonVariant), CycleButtonVariant, () => ButtonVariant);
+        AddOption(nameof(FieldVariant), CycleFieldVariant, () => FieldVariant);
         AddOption(nameof(Size), CycleSize, () => Size);
         AddOption(nameof(Padding), CyclePadding, () => Padding);
         AddTooltipOptions(sampleTooltip);
@@ -37,6 +41,9 @@ internal abstract partial class SwitcherButtonGroupContext : TooltipGroupContext
 
     public void CycleButtonVariant()
         => SetLastChange(nameof(ButtonVariant), ButtonVariant = CycleEnum(ButtonVariant));
+
+    public void CycleFieldVariant()
+        => SetLastChange(nameof(FieldVariant), FieldVariant = CycleEnum(FieldVariant));
 
     // The box, where IconSize is the glyph inside it — the two rows read together.
     public void CycleSize()
@@ -77,25 +84,4 @@ internal sealed partial class ThemeSwitcherGroupContext : SwitcherButtonGroupCon
 
     public void CycleDarkIcon()
         => SetLastChange(nameof(DarkIcon), DarkIcon = CycleValue(DarkIcon, DemoIcons.Outline(DemoIcons.DarkMode), DemoIcons.DarkMode, DemoImages.Mask(DemoImages.Mark), null));
-}
-
-/// <summary>
-/// A switcher drawn as a settings form's field, the theme's or the language's: the box's appearance, an input's.
-/// </summary>
-/// <remarks>
-/// The button's rows stay with the button: its type, size, padding and glyphs are no field's. The caption is decided at render, so it
-/// is no row: the pane shows the framework's own word, in the page's language.
-/// </remarks>
-internal sealed partial class SwitcherFieldGroupContext : DemoGroupContext
-{
-    [RecursiveMember]
-    public partial UIInputAppearance? FieldVariant { get; set; }
-
-    public SwitcherFieldGroupContext()
-    {
-        AddOption(nameof(FieldVariant), CycleFieldVariant, () => FieldVariant);
-    }
-
-    public void CycleFieldVariant()
-        => SetLastChange(nameof(FieldVariant), FieldVariant = CycleEnum(FieldVariant));
 }

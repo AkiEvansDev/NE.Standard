@@ -130,13 +130,18 @@ internal sealed class PaneContainerView : DemoComponentView, IUIViewDefinition
     private static ContainerComponent CreateKeptGroup()
     {
         return DemoUI.CreateExample("Fixed-width pane (keepsSize)",
-            new PaneContainerComponent("demo-panes-kept")
-                .SetColumn(UIGridPlacement.GridColumns, UIGridUnit.Absolute(240))
-                .AddRow(UIGridUnit.Auto())
-                .SetSpacing(8)
-                .SetHeight(UILayoutLength.Absolute(220))
-                .AddPane("document", UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 1, 24, 1), md: UIGridPlacement.At(1, 1, 23, 2)), BoardPane("Release notes", "The page you write"))
-                .AddPane("outline", UIResponsive<UIGridPlacement>.Create(UIGridPlacement.At(1, 2, 24, 1), md: UIGridPlacement.At(24, 1, 1, 2)), BoardPane("Outline", "240 px on either side"), keepsSize: true),
+            new ScrollContainerComponent()
+                .HorizontalScrollOnly()
+                .AddChild(new PaneContainerComponent("demo-panes-kept")
+                    .SetWidth(UILayoutLength.Fill())
+                    .SetMinWidth(UILayoutLength.Absolute(480))
+                    .SetColumn(UIGridPlacement.GridColumns, UIGridUnit.Absolute(240))
+                    .AddRow(UIGridUnit.Auto())
+                    .SetSpacing(8)
+                    .SetHeight(UILayoutLength.Absolute(220))
+                    .AddPane("document", UIGridPlacement.At(1, 1, 23, 2), BoardPane("Release notes", "The page you write"))
+                    .AddPane("outline", UIGridPlacement.At(24, 1, 1, 2), BoardPane("Outline", "240 px on either side"), keepsSize: true)
+                ),
             columns: 24,
             note: "The outline is added with `keepsSize: true`: drag it by its grip onto the document and it stays 240 px on the other side, the document as wide as before."
         );

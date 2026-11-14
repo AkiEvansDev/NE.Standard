@@ -18,6 +18,10 @@ namespace DemoApp.Views.Items.ItemsView;
 internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
+    private const string LayoutGroup = nameof(ItemsViewController.LayoutGroup);
+    private const string ScrollingGroup = nameof(ItemsViewController.ScrollingGroup);
+    private const string SelectionGroup = nameof(ItemsViewController.SelectionGroup);
+    private const string ReorderGroup = nameof(ItemsViewController.ReorderGroup);
     private const string ItemsGroup = nameof(ItemsViewController.ItemsGroup);
     private const string ServicesGroup = nameof(ItemsViewController.ServicesGroup);
     private const string RowMenusGroup = nameof(ItemsViewController.RowMenusGroup);
@@ -43,35 +47,49 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
     protected override (string Route, string Title)? ComposedIn => ("/mechanisms/lists", "demo.nav.mechanisms.lists");
 
     protected override ContainerComponent CreatePreview()
-        => DemoUI.CreatePreview(frame => frame.AddChild(new ItemsViewComponent()
-            .BindStandard()
-            .BindItems<ItemsViewController>(static x => x.ItemsGroup.Items)
-            .BindLayoutType<ItemsViewController>(static x => x.ItemsGroup.LayoutType)
-            .BindOrientation<ItemsViewController>(static x => x.ItemsGroup.Orientation)
-            .BindSpacing<ItemsViewController>(static x => x.ItemsGroup.Spacing)
-            .BindPadding<ItemsViewController>(static x => x.ItemsGroup.Padding)
-            .BindHorizontalScroll<ItemsViewController>(static x => x.ItemsGroup.HorizontalScroll)
-            .BindVerticalScroll<ItemsViewController>(static x => x.ItemsGroup.VerticalScroll)
-            .BindScrollSnap<ItemsViewController>(static x => x.ItemsGroup.ScrollSnap)
-            .BindScrollAnchor<ItemsViewController>(static x => x.ItemsGroup.ScrollAnchor)
-            .BindSelectionMode<ItemsViewController>(static x => x.ItemsGroup.SelectionMode)
-            .BindSelectedKey<ItemsViewController>(static x => x.ItemsGroup.SelectedKey)
-            .BindSelectedKeys<ItemsViewController>(static x => x.ItemsGroup.SelectedKeys)
-            .BindSelectionStyle<ItemsViewController>(static x => x.ItemsGroup.SelectionStyle)
-            .BindDraggable<ItemsViewController>(static x => x.ItemsGroup.Draggable)
-            .BindDragHandle<ItemsViewController>(static x => x.ItemsGroup.DragHandle)
-            .BindDragHandlePlacement<ItemsViewController>(static x => x.ItemsGroup.DragHandlePlacement)
-            .OnItemMoveWithItemKey(nameof(ItemsViewController.MoveItem))
-            // One line per row: the properties are the exhibit here, the richer rows are in the examples below.
-            .SetTemplate(new TextComponent().SetTitleType(UITextAppearance.Body).BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative))
-            // Room for every row at the default spacing: at 240 the last row stood cut by four pixels, a scroll that read as a fault.
-            .SetMaxHeight(UILayoutLength.Absolute(264))
-            .SetPlacement(1, 1, 24, 1)
-        ), contentMinHeight: 320);
+        => DemoUI.CreatePreview(frame => _ = frame
+            .AddChild(new ItemsViewComponent()
+                .BindStandard()
+                .BindItems<ItemsViewController>(static x => x.ItemsGroup.Items)
+                .BindLayoutType<ItemsViewController>(static x => x.LayoutGroup.LayoutType)
+                .BindOrientation<ItemsViewController>(static x => x.LayoutGroup.Orientation)
+                .BindSpacing<ItemsViewController>(static x => x.LayoutGroup.Spacing)
+                .BindPadding<ItemsViewController>(static x => x.LayoutGroup.Padding)
+                .BindHorizontalScroll<ItemsViewController>(static x => x.ScrollingGroup.HorizontalScroll)
+                .BindVerticalScroll<ItemsViewController>(static x => x.ScrollingGroup.VerticalScroll)
+                .BindScrollSnap<ItemsViewController>(static x => x.ScrollingGroup.ScrollSnap)
+                .BindScrollAnchor<ItemsViewController>(static x => x.ScrollingGroup.ScrollAnchor)
+                .BindRowHoverable<ItemsViewController>(static x => x.LayoutGroup.RowHoverable)
+                .BindRowBleed<ItemsViewController>(static x => x.LayoutGroup.RowBleed)
+                .BindSelection(SelectionGroup)
+                .BindReorder(ReorderGroup)
+                .OnItemMoveWithItemKey(nameof(ItemsViewController.MoveItem))
+                .SetTemplateKeyProperty(nameof(DemoServiceItem.TemplateKind))
+                .SetFallbackTemplateKey(DemoServiceItem.RowTemplate)
+                // One line per row: the properties are the exhibit here, the richer rows are in the examples below.
+                .AddTemplateVariant(DemoServiceItem.RowTemplate, new TextComponent().SetTitleType(UITextAppearance.Body).BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative))
+                .AddTemplateVariant(DemoServiceItem.AccordionTemplate, new ExpanderComponent()
+                    .SetCollapsed()
+                    .ConfigureDefaultHeader(header => _ = header.BindTitle<TextItem>(static x => x.Title, UIBindingScope.Relative))
+                    .SetContent(new TextComponent()
+                        .BindTitle<TextItem>(static x => x.Description, UIBindingScope.Relative)
+                        .SetTitleType(UITextAppearance.Caption)
+                        .SetTitleColor(UIThemeColor.Muted)
+                    )
+                )
+                .SetMaxHeight(UILayoutLength.Absolute(180))
+                .SetPlacement(1, 1, 24, 1)
+            ),
+            contentMinHeight: 280
+        );
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(LayoutGroup, "Layout"),
+            DemoUI.CreateOptionSection(ScrollingGroup, "Scrolling"),
+            DemoUI.CreateOptionSection(SelectionGroup, "Selection"),
+            DemoUI.CreateOptionSection(ReorderGroup, "Reorder"),
             DemoUI.CreateOptionSection(ItemsGroup, "Items")
         );
 
@@ -92,7 +110,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                 .SetSpacing(12)
                 .SetTemplate(new SurfaceComponent()
                     .SetSurface(UISurfaceStyle.Surface)
-                    .SetWidth(UILayoutLength.Absolute(220))
+                    .SetWidth(UILayoutLength.Absolute(280))
                     .SetContent(new TextComponent()
                         .BindIcon<TextItem>(static x => x.Icon, UIBindingScope.Relative)
                         .SetIconColor(UIThemeColor.Default)
@@ -299,6 +317,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                 DemoUI.CreateLabelled("Actions over a row", new ItemsViewComponent()
                     .BindItems<RowMenusGroupContext>(static x => x.Files, UIBindingScope.Relative)
                     .SetRowHoverable(true)
+                    .SetRowBleed(true)
                     .SetSpacing(2)
                     .OnItemClickWithItemKey(nameof(ItemsViewController.OpenFile))
                     .SetTemplate(new TextComponent()
@@ -308,7 +327,7 @@ internal sealed class ItemsViewView : DemoComponentView, IUIViewDefinition
                         .AsBody()
                         .BindDescription<TextItem>(static x => x.Description, UIBindingScope.Relative)
                         .SetDescriptionColor(UIThemeColor.Muted)
-                        .SetMargin(UIThickness.All(8, 6, 8, 6))
+                        .SetMargin(UIThickness.All(0, 2, 0, 2))
                         .SetContextMenu(new MenuComponent()
                             .SetItems(FileActions)
                             .OnItemClick(nameof(ItemsViewController.FileAction), UIAction.ArgCurrentItemKey("action"), UIAction.ArgParent("id", nameof(TextItem.Id)))

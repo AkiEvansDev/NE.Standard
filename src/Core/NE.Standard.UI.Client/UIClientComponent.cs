@@ -119,8 +119,7 @@ public sealed class UIClientComponent
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventName);
 
-        return Page.HasEvent(Node.ComponentId, eventName)
-            || Page.View.Interactions.GetBySource(new CompiledUIEventAddress(Node.ComponentId, eventName)).Count > 0;
+        return Page.HasEventOrInteraction(Node.ComponentId, _rowKeys, eventName);
     }
 
     /// <summary>Gets whether <paramref name="property"/> is bound to write back to the controller.</summary>

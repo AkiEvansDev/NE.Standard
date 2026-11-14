@@ -7,9 +7,12 @@
 
 // One clock reading, and the band that stands over the chosen one — the two have to agree to the pixel.
 @ui-temporal-cell-height: 1.75rem;
+@ui-temporal-sheet-cell-height: 2.25rem;
 @ui-temporal-cell-gap: @ui-list-entry-gap;
 // The chosen reading plus two either side: an odd number, since the selection band needs a middle row to sit on.
 @ui-temporal-visible-rows: 5;
+@ui-temporal-dial-row: var(--ui-temporal-dial-row, @ui-temporal-cell-height);
+@ui-temporal-dial-rows: var(--ui-temporal-dial-rows, @ui-temporal-visible-rows);
 
 .ui-temporal-input {
     position: relative;
@@ -73,6 +76,26 @@
         padding-inline-end: calc(1.5rem + 1px + @ui-field-padding-sm);
     }
 
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        .ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row.ui-temporal-input__row--phone-picker {
+            padding-inline-end: calc(1.5rem + 1px + 0.4em);
+        }
+
+        .ui-input--small.ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row.ui-temporal-input__row--phone-picker {
+            padding-inline-end: calc(1.5rem + 1px + @ui-field-padding-sm);
+        }
+
+        .ui-temporal-input__row--phone-picker > .ui-temporal-input__stepper {
+            display: none;
+        }
+    }
+
+    @media (min-width: @ui-breakpoint-sm) {
+        .ui-temporal-input__row--phone-picker > .ui-temporal-input__toggle {
+            display: none;
+        }
+    }
+
     .ui-temporal-input[data-ui-temporal-range] > .ui-temporal-input__row > .ui-temporal-input__toggle {
         position: absolute;
         inset-block: calc(@ui-space-1 - var(--ui-field-top-edge, var(--ui-border-width, 1px))) calc(@ui-space-1 - var(--ui-border-width, 1px));
@@ -112,9 +135,18 @@
 
 .ui-field-clear-host(~".ui-temporal-input"; ~".ui-temporal-input__clear"; ~".ui-temporal-input__field:placeholder-shown ~ .ui-temporal-input__clear");
 
-    // The library's own calendar, so the toggle needs no icon package.
+    // The library's own calendar, so the toggle needs no icon package; a time-only sheet toggle wears a select's chevron instead.
     .ui-temporal-input__toggle::before {
         .ui-calendar-glyph(@ui-glyph-sm);
+    }
+
+    .ui-time-input .ui-temporal-input__toggle::before {
+        .ui-chevron(@ui-glyph-sm);
+        .ui-chevron-down();
+    }
+
+    .ui-temporal-input--open.ui-time-input .ui-temporal-input__toggle::before {
+        .ui-chevron-up();
     }
 
 // TimeInput's row: one focusable span per clock unit, plus a stepper — no field and no popup toggle, the segments are the editor.
@@ -413,6 +445,28 @@
         padding-inline-start: @ui-space-1;
     }
 
+.ui-temporal-input__period-ends {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-inline-end: auto;
+    padding: 2px;
+    border: 1px solid var(--ui-color-mark);
+    border-radius: calc(@ui-list-entry-radius + 2px);
+    corner-shape: @ui-corner-shape;
+    background: var(--ui-color-background);
+
+    > .ui-temporal-input__nav {
+        padding: 0 @ui-space-2;
+        font-size: var(--ui-text-caption-font-size);
+    }
+}
+
+.ui-temporal-input__nav.ui-temporal-input__nav--selected {
+    .ui-selected-ground(var(--ui-wash-selected));
+    .ui-selected-ink(var(--ui-text-selected); @ui-chosen-weight);
+}
+
 .ui-temporal-input__months {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -441,7 +495,7 @@
     flex: 0 0 auto;
     // Centred against the calendar beside it, since it doesn't fill that height.
     margin: auto 0;
-    height: calc(@ui-temporal-visible-rows * @ui-temporal-cell-height + (@ui-temporal-visible-rows - 1) * @ui-temporal-cell-gap);
+    height: calc(@ui-temporal-dial-rows * @ui-temporal-dial-row + (@ui-temporal-dial-rows - 1) * @ui-temporal-cell-gap);
     justify-content: center;
     min-height: 0;
     gap: @ui-space-1;
@@ -453,7 +507,7 @@
         top: 50%;
         right: 0;
         left: 0;
-        height: @ui-temporal-cell-height;
+        height: @ui-temporal-dial-row;
         border-radius: @ui-list-entry-radius;
         corner-shape: @ui-corner-shape;
         background: var(--ui-wash-selected);
@@ -474,8 +528,8 @@
     // The wheel: the outermost reading at either end fades away, so the column reads as turning rather than as a list that stops.
     mask-image: linear-gradient(to bottom,
         transparent 0,
-        #000 @ui-temporal-cell-height,
-        #000 calc(100% - @ui-temporal-cell-height),
+        #000 @ui-temporal-dial-row,
+        #000 calc(100% - @ui-temporal-dial-row),
         transparent 100%);
     // No bar of its own: the cells above and below already say the column scrolls, and a scrollbar is most of its width.
     scrollbar-width: none;
@@ -492,7 +546,7 @@
 .ui-temporal-input__time-cell {
     flex: 0 0 auto;
     min-width: 2.75rem;
-    height: @ui-temporal-cell-height;
+    height: @ui-temporal-dial-row;
     // A 12-hour clock's hour carries its AM or PM beside it.
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -517,3 +571,42 @@
         padding: 0 @ui-space-2;
         font-size: var(--ui-text-caption-font-size);
     }
+
+.ui-temporal-input__popup[data-ui-sheet][popover] {
+    --ui-temporal-dial-row: @ui-temporal-sheet-cell-height;
+
+    .ui-temporal-input__panes {
+        flex-direction: column;
+    }
+
+    .ui-temporal-input__calendar {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .ui-temporal-input__calendar + .ui-temporal-input__time {
+        --ui-temporal-dial-rows: 3;
+        padding-top: @ui-space-2;
+        padding-left: 0;
+        border-top: 1px solid var(--ui-color-border);
+        border-left: none;
+    }
+
+    .ui-temporal-input__time-columns {
+        margin: 0;
+    }
+
+    .ui-temporal-input__time-cell {
+        min-width: 4rem;
+    }
+
+    .ui-temporal-input__day,
+    .ui-temporal-input__month {
+        min-height: @ui-temporal-sheet-cell-height;
+    }
+
+    .ui-temporal-input__popup-footer .ui-temporal-input__nav {
+        min-height: 2rem;
+        font-size: var(--ui-text-body-font-size);
+    }
+}

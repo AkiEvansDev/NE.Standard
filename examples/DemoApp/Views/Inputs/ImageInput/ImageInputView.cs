@@ -15,8 +15,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(ImageInputController.ValueGroup);
     private const string ImageGroup = nameof(ImageInputController.ImageGroup);
-    private const string ContentGroup = nameof(ImageInputController.ContentGroup);
-    private const string BadgeGroup = nameof(ImageInputController.BadgeGroup);
+    private const string LabelGroup = nameof(ImageInputController.LabelGroup);
     private const string BorderGroup = nameof(ImageInputController.BorderGroup);
 
     public static string ViewKey => "demo.inputs.image-input";
@@ -40,7 +39,6 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
             .BindValue<ImageInputController>(static x => x.ValueGroup.Value)
             .BindSelectionId<ImageInputController>(static x => x.ValueGroup.SelectionId)
             .BindIsReadOnly<ImageInputController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<ImageInputController>(static x => x.ValueGroup.Size)
             .OnChange(nameof(ImageInputController.TakePictureAsync))
             .SetMaxFileSize(DemoImages.MaxInlinePictureBytes)
             .BindAccept<ImageInputController>(static x => x.ImageGroup.Accept)
@@ -48,8 +46,8 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
             .BindPlaceholder<ImageInputController>(static x => x.ImageGroup.Placeholder)
             .BindFit<ImageInputController>(static x => x.ImageGroup.Fit)
             .BindAppearance<ImageInputController>(static x => x.ImageGroup.Appearance)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindSize<ImageInputController>(static x => x.ImageGroup.Size)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1);
 
@@ -58,8 +56,7 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value", "Value is the picture the controller shows; SelectionId is the handle the client writes once a chosen file is uploaded."),
             DemoUI.CreateOptionSection(ImageGroup, "Image", "Appearance dresses the inline row as it does a file input's; the picture and the avatar keep one look, whatever it says."),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -73,19 +70,21 @@ internal sealed class ImageInputView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateCoverGroup()
     {
+        UIResponsive<UILayoutLength> coverWidth = UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(480));
+
         return DemoUI.CreateExample("Cover dropzone (filled & empty)",
             UILayout.Row(24)
                 // Two to a row at the page's width: at 520 each the second wrapped under the first.
                 .AddChild(new ImageInputComponent()
                     .SetTitle("Chosen")
-                    .SetWidth(UILayoutLength.Absolute(480))
+                    .SetWidth(coverWidth)
                     .SetHeight(UILayoutLength.Absolute(180))
                     .SetValue(DemoImages.HarbourSky)
                     .SetFit(UIImageFit.Cover)
                 )
                 .AddChild(new ImageInputComponent()
                     .SetTitle("Nothing chosen yet")
-                    .SetWidth(UILayoutLength.Absolute(480))
+                    .SetWidth(coverWidth)
                     .SetHeight(UILayoutLength.Absolute(180))
                     .SetPlaceholder("Drop a picture here")
                     .SetBadgeTitle("optional")

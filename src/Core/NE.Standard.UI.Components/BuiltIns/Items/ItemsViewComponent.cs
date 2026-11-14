@@ -137,6 +137,13 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     public UIResponsive<double>? ContentMaxWidth { get; set; }
 
     /// <summary>
+    /// Gets or sets whether a vertical stack whose rows wear a hover or selection wash aligns its row content with the view's inline
+    /// edges and bleeds those washes 8 px into the parent's padding on each side; use inside a container padded at least 8 px.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = false)]
+    public bool? RowBleed { get; set; }
+
+    /// <summary>
     /// Gets the key of the row at the top of the view where the reader stands: the first row whose box shows below the scroll's top edge,
     /// past the view's <see cref="Padding"/> and a group header held over it. Written by the page once the reader's scroll settles, once
     /// after the first layout, and again as the rows under the top change; follow it in the bound property's setter.

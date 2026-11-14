@@ -29,6 +29,8 @@ export type SheetOpening = {
     readonly close: () => void;
     /** Keeps Tab inside it: a panel's. A list that closes on Tab lets the Tab close it. */
     readonly trapsTab: boolean;
+    /** Starts a swipe only from the top handle band, so vertical touch drags inside a picker stay its own. */
+    readonly handleSwipeOnly?: boolean;
 };
 
 type OpenSheet = {
@@ -90,7 +92,7 @@ export function presentSheet(popup: HTMLElement, opening: SheetOpening): void {
         parent,
         opening,
         hidden: [],
-        detachSwipe: followSwipeDown(popup, popup, () => closeOutward(popup))
+        detachSwipe: followSwipeDown(popup, popup, () => closeOutward(popup), opening.handleSwipeOnly === true)
     };
 
     sheets.push(sheet);

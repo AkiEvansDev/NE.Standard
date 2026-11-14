@@ -6,10 +6,11 @@ import { CalendarClass, TemporalCellAttribute, TemporalCentredAttribute, Tempora
 import { localDate, pad } from "../rendering/temporal-format.ts";
 import type { TemporalCulturePack } from "../rendering/temporal-format.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
+import { isSheet } from "./anchored-popup.ts";
 import { focusAsLastInput, focusByPointer } from "./popup-focus.ts";
 import { applyRovingTabIndex, isRovingCandidate, isRovingKey, moveRovingFocus, resolveRovingTarget } from "./roving-focus.ts";
 import { resolveRowTarget } from "./row-cursor.ts";
-import { clampToRange, defaultMoment, hourLabel, isDayOffered, isRange, isTimeCellDisabled, isTwelveHour, parseCanonical, readCulturePack, readDayOffer, readFormat, readPeriodDistance, readStep, readValue, readValueOf, stepFor, toCanonical, unitValue, writeValueOf } from "./temporal-dom.ts";
+import { clampToRange, defaultMoment, hourLabel, isDayOffered, isRange, isTimeCellDisabled, isTwelveHour, parseCanonical, readCulturePack, readDayOffer, readFormat, readMode, readPeriodDistance, readStep, readValue, readValueOf, stepFor, toCanonical, unitValue, writeValueOf } from "./temporal-dom.ts";
 import { chooseDay as choosePeriodDay, isChosenPeriodSpanning, isHeldApart, isWithinChosenPeriod, isWithinPeriod, startOfDay, withTime } from "./temporal-range.ts";
 import type { DayOffer, TemporalMode, TimeStep, TimeUnit } from "./temporal-dom.ts";
 import type { Period, PeriodChoice, PeriodDistance, PeriodEnd } from "./temporal-range.ts";
@@ -263,11 +264,27 @@ function monthMove(key: string, column: number): { readonly offset: number; read
     }
 }
 
-/** "Start" or "End": which end of the period the next click on the calendar sets — a start, in place, once the period is whole. */
+/** "Start" or "End": which end of the period the next click sets — two switchable buttons on a time-only sheet, a caption beside a calendar. */
 export function renderPeriodCaption(root: HTMLElement, state: CalendarState): HTMLElement {
+    const endActive = pressedEnd(root, state) === "end";
+
+    if (readMode(root) === "time") {
+        const ends = element("div", `${TemporalInputClass}__period-ends`);
+        const startButton = navButton("end:start", clientStrings.text("ui.picker.start"));
+        const endButton = navButton("end:end", clientStrings.text("ui.picker.end"));
+
+        startButton.setAttribute("aria-pressed", endActive ? "false" : "true");
+        endButton.setAttribute("aria-pressed", endActive ? "true" : "false");
+        startButton.classList.toggle(`${TemporalInputClass}__nav--selected`, !endActive);
+        endButton.classList.toggle(`${TemporalInputClass}__nav--selected`, endActive);
+        ends.append(startButton, endButton);
+
+        return ends;
+    }
+
     const caption = element("div", `${TemporalInputClass}__period-caption`);
 
-    caption.textContent = clientStrings.text(pressedEnd(root, state) === "end" ? "ui.picker.end" : "ui.picker.start");
+    caption.textContent = clientStrings.text(endActive ? "ui.picker.end" : "ui.picker.start");
 
     return caption;
 }
@@ -302,6 +319,14 @@ export function navigateCalendar(root: HTMLElement, state: CalendarState, action
             return true;
         case "pane":
             state.pane = state.pane === "days" ? "months" : "days";
+            return true;
+        case "end:start":
+            state.activeEnd = "start";
+            state.choosingEnd = false;
+            return true;
+        case "end:end":
+            state.activeEnd = "end";
+            state.choosingEnd = false;
             return true;
         default:
             return false;
@@ -588,12 +613,17 @@ function renderTimeColumn(picker: HTMLElement, unit: TimeUnit, increment: number
     return column;
 }
 
-/** Runs the clock to the calendar's measured height, which is five or six week rows depending on the month. */
+/** Runs the clock to the calendar's measured height when side by side; stacked on a phone sheet, the sheet's dial rows size it. */
 export function fitTimeColumns(popup: HTMLElement): void {
     const calendar = popup.querySelector<HTMLElement>(`.${TemporalInputClass}__calendar`);
     const columns = popup.querySelector<HTMLElement>(`.${TemporalInputClass}__time-columns`);
 
-    if (calendar !== null && columns !== null)
+    if (columns === null)
+        return;
+
+    if (isSheet(popup) || calendar === null)
+        columns.style.removeProperty("max-height");
+    else
         columns.style.maxHeight = `${calendar.clientHeight}px`;
 }
 

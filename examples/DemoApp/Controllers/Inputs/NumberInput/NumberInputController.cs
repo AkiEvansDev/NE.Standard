@@ -28,7 +28,6 @@ internal sealed partial class NumberValueGroupContext : InputValueGroupContext
         AddOption(nameof(Min), CycleMin, () => Min);
         AddOption(nameof(Max), CycleMax, () => Max);
         AddOption(nameof(Step), CycleStep, () => Step);
-        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -82,34 +81,21 @@ internal sealed partial class NumberValueGroupContext : InputValueGroupContext
 }
 
 /// <summary>
-/// The field itself: the two appearances, what stands at either end of the number, and the stepper.
+/// The field itself: the appearances, size, empty hint, clear button and stepper.
 /// </summary>
-internal sealed partial class NumberFieldGroupContext : AffixedFieldGroupContext
+internal sealed partial class NumberFieldGroupContext : ClearableFieldGroupContext
 {
-    [RecursiveMember]
-    public partial string? PrefixText { get; set; }
-
-    [RecursiveMember]
-    public partial string? SuffixText { get; set; }
-
     [RecursiveMember]
     public partial bool ShowStepper { get; set; }
 
-    public NumberFieldGroupContext() : base("0", DemoIcons.Clock, DemoIcons.Sliders)
+    public NumberFieldGroupContext() : base("0")
     {
         AddAppearanceOption();
+        AddSizeOption();
         AddPlaceholderOption();
-        AddOption(nameof(PrefixText), TogglePrefixText, () => PrefixText);
-        AddOption(nameof(SuffixText), ToggleSuffixText, () => SuffixText);
-        AddAffixIconOptions();
+        AddClearButtonOption();
         AddOption(nameof(ShowStepper), ToggleShowStepper, () => ShowStepper);
     }
-
-    public void TogglePrefixText()
-        => SetLastChange(nameof(PrefixText), PrefixText = CycleValue(PrefixText, null, "€"));
-
-    public void ToggleSuffixText()
-        => SetLastChange(nameof(SuffixText), SuffixText = CycleValue(SuffixText, null, "seconds"));
 
     public void ToggleShowStepper()
         => SetLastChange(nameof(ShowStepper), ShowStepper = !ShowStepper);
@@ -174,13 +160,13 @@ internal sealed partial class NumberInputController() : DemoStandardController
     public partial NumberFieldGroupContext FieldGroup { get; set; } = new();
 
     [RecursiveMember]
+    public partial TextAffixesGroupContext AffixesGroup { get; set; } = new("€", "seconds", DemoIcons.Clock, DemoIcons.Sliders);
+
+    [RecursiveMember]
     public partial NumberFormatGroupContext FormatGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Request timeout");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Request timeout");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

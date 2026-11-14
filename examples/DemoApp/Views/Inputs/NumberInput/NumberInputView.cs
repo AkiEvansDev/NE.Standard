@@ -13,9 +13,9 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(NumberInputController.ValueGroup);
     private const string FieldGroup = nameof(NumberInputController.FieldGroup);
+    private const string AffixesGroup = nameof(NumberInputController.AffixesGroup);
     private const string FormatGroup = nameof(NumberInputController.FormatGroup);
-    private const string ContentGroup = nameof(NumberInputController.ContentGroup);
-    private const string BadgeGroup = nameof(NumberInputController.BadgeGroup);
+    private const string LabelGroup = nameof(NumberInputController.LabelGroup);
     private const string BorderGroup = nameof(NumberInputController.BorderGroup);
 
     public static string ViewKey => "demo.inputs.number-input";
@@ -33,21 +33,21 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
             .BindMax<NumberInputController>(static x => x.ValueGroup.Max)
             .BindStep<NumberInputController>(static x => x.ValueGroup.Step)
             .BindIsReadOnly<NumberInputController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<NumberInputController>(static x => x.ValueGroup.Size)
             .BindAppearance<NumberInputController>(static x => x.FieldGroup.Appearance)
+            .BindSize<NumberInputController>(static x => x.FieldGroup.Size)
             .BindPlaceholder<NumberInputController>(static x => x.FieldGroup.Placeholder)
-            .BindPrefixText<NumberInputController>(static x => x.FieldGroup.PrefixText)
-            .BindSuffixText<NumberInputController>(static x => x.FieldGroup.SuffixText)
-            .BindPrefixIcon<NumberInputController>(static x => x.FieldGroup.PrefixIcon)
-            .BindSuffixIcon<NumberInputController>(static x => x.FieldGroup.SuffixIcon)
+            .BindShowClearButton<NumberInputController>(static x => x.FieldGroup.ShowClearButton)
             .BindShowStepper<NumberInputController>(static x => x.FieldGroup.ShowStepper)
+            .BindPrefixText<NumberInputController>(static x => x.AffixesGroup.PrefixText)
+            .BindSuffixText<NumberInputController>(static x => x.AffixesGroup.SuffixText)
+            .BindPrefixIcon<NumberInputController>(static x => x.AffixesGroup.PrefixIcon)
+            .BindSuffixIcon<NumberInputController>(static x => x.AffixesGroup.SuffixIcon)
             .BindDisplayFormat<NumberInputController>(static x => x.FormatGroup.DisplayFormat)
             .BindAllowDecimals<NumberInputController>(static x => x.FormatGroup.AllowDecimals)
             .BindAllowNegative<NumberInputController>(static x => x.FormatGroup.AllowNegative)
             .BindAllowThousandsSeparator<NumberInputController>(static x => x.FormatGroup.AllowThousandsSeparator)
             .BindTrimTrailingZeros<NumberInputController>(static x => x.FormatGroup.TrimTrailingZeros)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
@@ -57,9 +57,9 @@ internal sealed class NumberInputView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
+            DemoUI.CreateOptionSection(AffixesGroup, "Affixes"),
             DemoUI.CreateOptionSection(FormatGroup, "Format"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 

@@ -2,6 +2,7 @@ import {
     ComponentSelector, OverlayScrollbarsAttribute, pluginDomNames, PressRippleAttribute
 } from "../addressing/dom-attributes";
 import { DomRegistry, ownDescendants, readComponentId } from "../addressing/dom-registry";
+import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
 import { EffectRegistry } from "../effects/effect-registry";
 import { EventRegistration } from "../events/event-descriptor";
 import { EventPipeline } from "../events/event-pipeline";
@@ -257,7 +258,6 @@ export function startCoreComponentEngines(
     propertyState: PropertyStateStore,
     itemsRenderer: ItemsTemplateRenderer,
     virtualization: ItemsVirtualizationEngine,
-    interactionEngine: InteractionEngine,
     engineDisposers: (() => void)[]
 ): NumberInputEngine | null {
     let numberInputs: NumberInputEngine | null = null;
@@ -294,7 +294,7 @@ export function startCoreComponentEngines(
     // alone. Apart from the list: a row answers a press where its click is the view's, which the metadata knows.
     record(startEngine("press ripple", ({ root }) => new PressRippleEngine({
         root,
-        clicks: component => metadata.hasServerEventForComponent("click", readComponentId(component)) || interactionEngine.hasEventForComponent("click", readComponentId(component)),
+        clicks: component => metadata.hasEventForRow("click", readComponentId(component), collectDynamicParameters(component, readParameterCount(component))),
         waves: document.documentElement.hasAttribute(PressRippleAttribute)
     }), engineContext));
 

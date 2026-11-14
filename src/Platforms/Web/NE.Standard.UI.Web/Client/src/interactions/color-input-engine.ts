@@ -57,7 +57,9 @@ export class ColorInputEngine {
     // Waits for the click, not the press: a selection dragged out of a field is still work in the popup.
     private readonly popups = new OwnedPopups({
         show: ({ owner }) => owner.classList.add(ColorInputOpenClass),
-        hide: ({ owner }) => owner.classList.remove(ColorInputOpenClass)
+        hide: ({ owner }) => owner.classList.remove(ColorInputOpenClass),
+        sheetOnPhone: true,
+        sheetSwipeHandleOnly: true
     });
 
     public constructor(options: ColorInputEngineOptions = {}) {

@@ -18,6 +18,9 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string TreeGroup = nameof(TreeController.TreeGroup);
+    private const string EditingGroup = nameof(TreeController.EditingGroup);
+    private const string ScrollingGroup = nameof(TreeController.ScrollingGroup);
+    private const string SelectionGroup = nameof(TreeController.SelectionGroup);
     private const string NodesGroup = nameof(TreeController.NodesGroup);
     private const string BorderGroup = nameof(TreeController.BorderGroup);
     private const string FilesFilterId = "tree-examples-filter";
@@ -40,25 +43,29 @@ internal sealed class TreeView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindSurface<TreeController>(static x => x.TreeGroup.Surface)
             .BindIndent<TreeController>(static x => x.TreeGroup.Indent)
-            .BindRenamable<TreeController>(static x => x.TreeGroup.Renamable)
-            .BindRenameOnDoubleClick<TreeController>(static x => x.TreeGroup.RenameOnDoubleClick)
-            .BindRemovable<TreeController>(static x => x.TreeGroup.Removable)
             .BindShowChevron<TreeController>(static x => x.TreeGroup.ShowChevron)
             .BindRowHoverable<TreeController>(static x => x.TreeGroup.RowHoverable)
-            .BindVerticalScroll<TreeController>(static x => x.TreeGroup.VerticalScroll)
-            .BindSelectionMode<TreeController>(static x => x.TreeGroup.SelectionMode)
-            .BindSelectedKey<TreeController>(static x => x.TreeGroup.SelectedKey)
-            .BindSelectedKeys<TreeController>(static x => x.TreeGroup.SelectedKeys)
-            .BindSelectionStyle<TreeController>(static x => x.TreeGroup.SelectionStyle)
+            .BindRenamable<TreeController>(static x => x.EditingGroup.Renamable)
+            .BindRenameOnDoubleClick<TreeController>(static x => x.EditingGroup.RenameOnDoubleClick)
+            .BindRemovable<TreeController>(static x => x.EditingGroup.Removable)
+            .BindDraggable<TreeController>(static x => x.EditingGroup.Draggable)
+            .BindHorizontalScroll<TreeController>(static x => x.ScrollingGroup.HorizontalScroll)
+            .BindVerticalScroll<TreeController>(static x => x.ScrollingGroup.VerticalScroll)
+            .BindSelection(SelectionGroup)
+            .OnItemMoveWithItemKey(nameof(TreeController.MovePreviewNode))
+            .OnItemRemoveWithItemKey(nameof(TreeController.RemovePreviewNode))
             .BindBorder(BorderGroup)
-            .SetMaxHeight(UILayoutLength.Absolute(260))
+            .SetMaxHeight(UILayoutLength.Absolute(160))
             .SetPlacement(1, 1, 24, 1)
-        ), contentMinHeight: 320);
+        ), contentMinHeight: 260);
 
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(TreeGroup, "Tree"),
+            DemoUI.CreateOptionSection(EditingGroup, "Editing"),
+            DemoUI.CreateOptionSection(ScrollingGroup, "Scrolling"),
+            DemoUI.CreateOptionSection(SelectionGroup, "Selection"),
             DemoUI.CreateOptionSection(NodesGroup, "Nodes"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );

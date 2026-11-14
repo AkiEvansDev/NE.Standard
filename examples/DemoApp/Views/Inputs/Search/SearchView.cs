@@ -15,9 +15,7 @@ internal sealed class SearchView : DemoComponentView, IUIViewDefinition
     private const string ValueGroup = nameof(SearchController.ValueGroup);
     private const string TermGroup = nameof(SearchController.TermGroup);
     private const string FieldGroup = nameof(SearchController.FieldGroup);
-    private const string ResultsGroup = nameof(SearchController.ResultsGroup);
-    private const string ContentGroup = nameof(SearchController.ContentGroup);
-    private const string BadgeGroup = nameof(SearchController.BadgeGroup);
+    private const string LabelGroup = nameof(SearchController.LabelGroup);
     private const string BorderGroup = nameof(SearchController.BorderGroup);
     private const string ServicesList = nameof(SearchController.ServicesList);
     private const string PickList = nameof(SearchController.PickList);
@@ -35,23 +33,22 @@ internal sealed class SearchView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreatePreview(frame => frame.AddChild(new SearchComponent()
             .BindStandard()
             .OnSearch(nameof(SearchController.Search))
-            .BindItems<SearchController>(static x => x.ResultsGroup.Options)
+            .BindItems<SearchController>(static x => x.ValueGroup.Options)
             .BindValue<SearchController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<SearchController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<SearchController>(static x => x.ValueGroup.Size)
             .BindSearchText<SearchController>(static x => x.TermGroup.SearchText)
             .BindAutoSearch<SearchController>(static x => x.TermGroup.AutoSearch)
             .BindDebounceMilliseconds<SearchController>(static x => x.TermGroup.DebounceMilliseconds)
             .BindMinSearchLength<SearchController>(static x => x.TermGroup.MinSearchLength)
             .BindSearchFieldAppearance<SearchController>(static x => x.TermGroup.SearchFieldAppearance)
             .BindAppearance<SearchController>(static x => x.FieldGroup.Appearance)
+            .BindSize<SearchController>(static x => x.FieldGroup.Size)
             .BindPlaceholder<SearchController>(static x => x.FieldGroup.Placeholder)
             .BindPrefixIcon<SearchController>(static x => x.FieldGroup.PrefixIcon)
             .BindSuffixIcon<SearchController>(static x => x.FieldGroup.SuffixIcon)
             .BindShowClearButton<SearchController>(static x => x.FieldGroup.ShowClearButton)
             .BindShowChevron<SearchController>(static x => x.FieldGroup.ShowChevron)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .BindBorder(BorderGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
@@ -62,9 +59,7 @@ internal sealed class SearchView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
             DemoUI.CreateOptionSection(TermGroup, "Search"),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
-            DemoUI.CreateOptionSection(ResultsGroup, "Results", "The server's answer to the term, not a property: a reading of the list the search filled."),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 

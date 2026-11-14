@@ -104,6 +104,12 @@ html {
     initial-value: 0px;
 }
 
+@property --ui-scroll-room-bleed {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+
 // The room a container lends down from its end (ScrollbarAir), and what a scroller hangs of it past its box, which the engine reads.
 @property --ui-scroll-hang {
     syntax: "<length>";
@@ -181,6 +187,11 @@ html {
             > * {
                 --ui-scroll-hang: 0px;
             }
+        }
+
+        // A bleeding stack's rows already reach 8px into the air: only what the air has past that hangs as border.
+        [style*="--ui-scrollbar-air"] .ui-items-view--row-bleed.ui-items-view--stack.ui-orientation--vertical:is([data-ui-selection="one"], [data-ui-selection="many"], .ui-items-view--row-hover) > :is(.ui-items-view__host, [data-ui-items-host]):is(.ui-scroll-y--auto, .ui-scroll-y--always) {
+            --ui-scroll-hung: max(0px, calc(var(--ui-scroll-hang) - @ui-space-2));
         }
 
         // The grids and stacks between, which clip, let the hung room through; one protruding a contour or hung glyph (`LayoutClipReachRenderer`)

@@ -14,8 +14,7 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(RadioGroupController.ValueGroup);
     private const string OptionsGroup = nameof(RadioGroupController.OptionsGroup);
-    private const string ContentGroup = nameof(RadioGroupController.ContentGroup);
-    private const string BadgeGroup = nameof(RadioGroupController.BadgeGroup);
+    private const string LabelGroup = nameof(RadioGroupController.LabelGroup);
 
     public static string ViewKey => "demo.choices.radio-group";
 
@@ -29,12 +28,11 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindValue<RadioGroupController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<RadioGroupController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<RadioGroupController>(static x => x.ValueGroup.Size)
+            .BindSize<RadioGroupController>(static x => x.OptionsGroup.Size)
             .BindItems<RadioGroupController>(static x => x.OptionsGroup.Options)
             .BindOrientation<RadioGroupController>(static x => x.OptionsGroup.Orientation)
             .BindSpacing<RadioGroupController>(static x => x.OptionsGroup.Spacing)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
 
@@ -43,8 +41,7 @@ internal sealed class RadioGroupView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
             DemoUI.CreateOptionSection(OptionsGroup, "Options"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge")
+            DemoUI.CreateOptionSection(LabelGroup, "Label")
         );
 
     protected override IVisualComponent[] CreateExamples()

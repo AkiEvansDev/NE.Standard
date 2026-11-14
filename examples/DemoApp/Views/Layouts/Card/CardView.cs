@@ -14,6 +14,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string CardGroup = nameof(CardController.CardGroup);
+    private const string BackgroundImageGroup = nameof(CardController.BackgroundImageGroup);
     private const string HeaderGroup = nameof(CardController.HeaderGroup);
     private const string HeaderTextGroup = nameof(CardController.HeaderTextGroup);
     private const string HeaderBadgeGroup = nameof(CardController.HeaderBadgeGroup);
@@ -41,11 +42,11 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
             .BindClickable<CardController>(static x => x.CardGroup.Clickable)
             .BindPadding<CardController>(static x => x.CardGroup.Padding)
             .BindBackground<CardController>(static x => x.CardGroup.Background)
-            .BindBackgroundImage<CardController>(static x => x.CardGroup.BackgroundImage)
-            .BindBackgroundImageFit<CardController>(static x => x.CardGroup.BackgroundImageFit)
-            .BindBackgroundImageDim<CardController>(static x => x.CardGroup.BackgroundImageDim)
-            .BindBackgroundImageDimMode<CardController>(static x => x.CardGroup.BackgroundImageDimMode)
-            .BindBackgroundImageBlur<CardController>(static x => x.CardGroup.BackgroundImageBlur)
+            .BindBackgroundImage<CardController>(static x => x.BackgroundImageGroup.BackgroundImage)
+            .BindBackgroundImageFit<CardController>(static x => x.BackgroundImageGroup.BackgroundImageFit)
+            .BindBackgroundImageDim<CardController>(static x => x.BackgroundImageGroup.BackgroundImageDim)
+            .BindBackgroundImageDimMode<CardController>(static x => x.BackgroundImageGroup.BackgroundImageDimMode)
+            .BindBackgroundImageBlur<CardController>(static x => x.BackgroundImageGroup.BackgroundImageBlur)
             .BindOverflow<CardController>(static x => x.CardGroup.Overflow)
             .BindBorder(BorderGroup)
             .ConfigureDefaultHeader(BindHeader)
@@ -97,9 +98,10 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(CardGroup, "Card"),
-            DemoUI.CreateOptionSection(HeaderGroup, "Layout"),
-            DemoUI.CreateOptionSection(HeaderTextGroup, "Content"),
-            DemoUI.CreateOptionSection(HeaderBadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(BackgroundImageGroup, "Background image"),
+            DemoUI.CreateOptionSection(HeaderGroup, "Header layout"),
+            DemoUI.CreateOptionSection(HeaderTextGroup, "Header content"),
+            DemoUI.CreateOptionSection(HeaderBadgeGroup, "Header badge"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -288,7 +290,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                             .SetTitle("Inner action")
                         )
                     )
-                    .SetWidth(UILayoutLength.Absolute(380))
+                    .SetMaxWidth(UILayoutLength.Absolute(380))
                 )
                 .AddChild(new CardComponent()
                     .SetSurface(UISurfaceStyle.Surface)
@@ -299,7 +301,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         .SetTitle("Production database")
                         .SetDescription("Changes open during the release window only.")
                     )
-                    .SetWidth(UILayoutLength.Absolute(300))
+                    .SetMaxWidth(UILayoutLength.Absolute(300))
                 ),
             note: "Clicks stop at the innermost interactive target (`ButtonComponent` before `CardComponent`), while `Enabled = false` dims the card and removes its Tab stop.",
             context: PressGroup,
@@ -362,7 +364,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                         )
                     )
                 )
-                .SetWidth(UILayoutLength.Absolute(380)),
+                .SetMaxWidth(UILayoutLength.Absolute(380)),
             note: "`UIVisibility.Hidden` reserves layout height while invisible so revealing the buttons on hover never resizes the card.",
             context: HoverGroup
         );
@@ -397,7 +399,7 @@ internal sealed class CardView : DemoComponentView, IUIViewDefinition
                     .SetIcon(DemoIcons.Outline(DemoIcons.Refresh))
                     .SetTitle("Refresh")
                 )
-                .SetWidth(UILayoutLength.Absolute(300)),
+                .SetMaxWidth(UILayoutLength.Absolute(300)),
             note: "Binding `Loading` on `CardComponent` masks the entire panel while stale metrics are reloaded.",
             context: RefreshGroup
         );

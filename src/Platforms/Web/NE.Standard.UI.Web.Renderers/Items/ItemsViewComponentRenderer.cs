@@ -63,6 +63,7 @@ public sealed class ItemsViewComponentRenderer : ItemsCollectionRendererBase
 
         SelectionStyleRenderer.RenderSelectionStyle(context, root);
         RenderFlagClass(context, root, IRowHoverableComponent.RowHoverableProperty, "ui-items-view--row-hover");
+        RenderFlagClass(context, root, ItemsViewComponent.RowBleedProperty, "ui-items-view--row-bleed");
         RenderEmptyStateSwitch(context, root);
 
         // Read by the stylesheet, which draws the ring in the skeleton's place and says so to the window engine (`--ui-window-look`).

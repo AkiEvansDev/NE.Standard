@@ -17,6 +17,7 @@ internal sealed class CommandBarView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string BarGroup = nameof(CommandBarController.BarGroup);
+    private const string ItemsGroup = nameof(CommandBarController.ItemsGroup);
     private const string ToolbarGroup = nameof(CommandBarController.ToolbarGroup);
     private const string RailGroup = nameof(CommandBarController.RailGroup);
     private const string DeployGroup = nameof(CommandBarController.DeployGroup);
@@ -34,7 +35,7 @@ internal sealed class CommandBarView : DemoComponentView, IUIViewDefinition
             .BindWrap<CommandBarController>(static x => x.BarGroup.Wrap)
             .BindSpacing<CommandBarController>(static x => x.BarGroup.Spacing)
             .BindGroupSeparator<CommandBarController>(static x => x.BarGroup.GroupSeparator)
-            .BindItems<CommandBarController>(static x => x.BarGroup.Commands)
+            .BindItems<CommandBarController>(static x => x.ItemsGroup.Commands)
             .OnItemClickWithItemKey(nameof(CommandBarController.Press))
             .SetPlacement(1, 1, 24, 1)
         ), contentMinHeight: 300);
@@ -42,7 +43,8 @@ internal sealed class CommandBarView : DemoComponentView, IUIViewDefinition
     protected override ContainerComponent CreateOptions()
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
-            DemoUI.CreateOptionSection(BarGroup, "Command bar")
+            DemoUI.CreateOptionSection(BarGroup, "Command bar"),
+            DemoUI.CreateOptionSection(ItemsGroup, "Buttons")
         );
 
     protected override IVisualComponent[] CreateExamples()

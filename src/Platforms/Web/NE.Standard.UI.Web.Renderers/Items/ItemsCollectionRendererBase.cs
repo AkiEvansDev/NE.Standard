@@ -145,6 +145,18 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         return false;
     }
 
+    private static bool RaisesRowCommand(CompiledView view, UIComponentId componentId)
+        => HasRowEvent(view, componentId, EventNames.Click)
+            || HasRowEvent(view, componentId, EventNames.Open)
+            || HasRowEvent(view, componentId, EventNames.Remove);
+
+    private static bool HasRowEvent(CompiledView view, UIComponentId componentId, string eventName)
+    {
+        CompiledUIEventAddress address = new(componentId, eventName);
+
+        return view.Events.TryGet(address, out _) || view.Interactions.GetBySource(address).Count > 0;
+    }
+
     /// <summary>
     /// Marks a host whose row template raises <c>remove</c>: the Delete key raises only a removal the application wired, and is the
     /// page's where none is.
@@ -159,18 +171,13 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         foreach (UIComponentSlot slot in context.Node.Slots)
         {
             if (slot.Kind is UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant
-                && view.Events.TryGet(new CompiledUIEventAddress(slot.RootComponentId, EventNames.Remove), out _))
+                && HasRowEvent(view, slot.RootComponentId, EventNames.Remove))
             {
                 _ = root.Attribute(WebAttributes.RowsRemove);
                 return;
             }
         }
     }
-
-    private static bool RaisesRowCommand(CompiledView view, UIComponentId componentId)
-        => view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Click), out _)
-            || view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Open), out _)
-            || view.Events.TryGet(new CompiledUIEventAddress(componentId, EventNames.Remove), out _);
 
     /// <summary>Whether rows can be chosen, and so announce their selection; several at once also marks the host multi-selectable.</summary>
     protected static bool RenderSelectableRole(WebRenderContext context, IHtmlElementBuilder root)
@@ -761,6 +768,9 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
             context.Renderer.RenderComponent(itemContext.ForHtml(itemRoot), slot.RootComponentId);
             MarkRowIdle(itemContext, itemRoot, slot.RootComponentId);
 
+            if (itemClassName == WebClassNames.ItemsViewItem)
+                MarkRowClick(itemContext, itemRoot, slot.RootComponentId);
+
             appendItem?.Invoke(itemRoot, item, index);
         });
     }
@@ -783,6 +793,44 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
     /// <summary>The context a row's template root renders its own properties under: its node, the item's parameter, the row.</summary>
     private static WebRenderContext RowRootContext(WebRenderContext itemContext, IHtmlElementBuilder row, UIComponentId rootComponentId)
         => itemContext.ForNode(itemContext.ViewResolution.View.Graph.GetRequired(rootComponentId), row);
+
+    private static void MarkRowClick(WebRenderContext itemContext, IHtmlElementBuilder row, UIComponentId rootComponentId)
+    {
+        if (RaisesRowClick(itemContext.ViewResolution.View, rootComponentId, itemContext.Parameters))
+            _ = row.Attribute(WebAttributes.RowClick);
+    }
+
+    private static bool RaisesRowClick(CompiledView view, UIComponentId componentId, IReadOnlyList<UIDynamicParameterScope> parameters)
+    {
+        CompiledUIEventAddress address = new(componentId, EventNames.Click);
+
+        if (view.Events.TryGet(address, out _))
+            return true;
+
+        IReadOnlyList<CompiledUIInteraction> interactions = view.Interactions.GetBySource(address);
+
+        for (var i = 0; i < interactions.Count; i++)
+        {
+            if (MatchesRowKey(interactions[i].RowKey, parameters))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool MatchesRowKey(string? rowKey, IReadOnlyList<UIDynamicParameterScope> parameters)
+    {
+        if (rowKey is null)
+            return true;
+
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            if (string.Equals(parameters[i].Key, rowKey, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// A property of the template root an item's row renders, as that render reads it: for a mark a list writes on the row or itself from
@@ -923,6 +971,7 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         _ = existingRoot.Style("justify-self", "stretch");
 
         ApplyItemParameterAttributes(existingRoot, slotContext.Parameters[^1], item);
+        MarkRowClick(slotContext, existingRoot, slotContext.Node.ComponentId);
     }
 
     private static void ApplyItemParameterAttributes(IHtmlElementBuilder itemRoot, UIDynamicParameterScope parameter, object? item)

@@ -98,6 +98,9 @@ internal sealed partial class CommandBarController() : DemoStandardController
     public partial CommandBarGroupContext BarGroup { get; set; } = new();
 
     [RecursiveMember]
+    public partial CommandBarItemsGroupContext ItemsGroup { get; set; } = new();
+
+    [RecursiveMember]
     public partial CommandListGroupContext ToolbarGroup { get; set; } = new(
     [
         new ButtonItem { Id = "undo", Icon = DemoIcons.Outline(DemoIcons.Undo), Tooltip = "Undo", Variant = UIButtonVariant.Ghost, Size = UISize.Small, Group = "edit" },
@@ -127,7 +130,7 @@ internal sealed partial class CommandBarController() : DemoStandardController
     /// </summary>
     [UICommand]
     public void Press(string id)
-        => BarGroup.LogEvent($"'{id}' pressed");
+        => ItemsGroup.LogEvent($"'{id}' pressed");
 
     [UICommand]
     public void PressToolbar(string id)

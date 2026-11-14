@@ -14,8 +14,7 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ValueGroup = nameof(ColorInputController.ValueGroup);
     private const string FieldGroup = nameof(ColorInputController.FieldGroup);
-    private const string ContentGroup = nameof(ColorInputController.ContentGroup);
-    private const string BadgeGroup = nameof(ColorInputController.BadgeGroup);
+    private const string LabelGroup = nameof(ColorInputController.LabelGroup);
     private const string BorderGroup = nameof(ColorInputController.BorderGroup);
 
     public static string ViewKey => "demo.inputs.color-input";
@@ -32,13 +31,12 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
             .BindStandard()
             .BindValue<ColorInputController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<ColorInputController>(static x => x.ValueGroup.IsReadOnly)
-            .BindSize<ColorInputController>(static x => x.ValueGroup.Size)
             .BindTextFormat<ColorInputController>(static x => x.ValueGroup.TextFormat)
             .BindAppearance<ColorInputController>(static x => x.FieldGroup.Appearance)
+            .BindSize<ColorInputController>(static x => x.FieldGroup.Size)
             .BindShowPalette<ColorInputController>(static x => x.FieldGroup.ShowPalette)
             .BindShowOpacity<ColorInputController>(static x => x.FieldGroup.ShowOpacity)
-            .BindTextContent(ContentGroup)
-            .BindBadge(BadgeGroup)
+            .BindLabel(LabelGroup)
             .BindBorderColor<ColorInputController>(static x => x.BorderGroup.BorderColor)
             .BindBorderThickness<ColorInputController>(static x => x.BorderGroup.BorderThickness)
             .BindBorderRadius<ColorInputController>(static x => x.BorderGroup.BorderRadius);
@@ -48,8 +46,7 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ValueGroup, "Value"),
             DemoUI.CreateOptionSection(FieldGroup, "Field"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -138,31 +135,33 @@ internal sealed class ColorInputView : DemoComponentView, IUIViewDefinition
     /// <remarks>Written out rather than walked over the enum: the point is which reader wants which, not that there are two.</remarks>
     private static ContainerComponent CreateFormatGroup()
     {
+        UIResponsive<UILayoutLength> fieldWidth = UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(460));
+
         return DemoUI.CreateExample("Color string formats",
             // Two to a row, each format beside its own translucent form: four at 260 left the fourth alone on a row.
             UILayout.Row(24)
                 .AddChild(DemoUI.CreateLabelled("Hex — a stylesheet, a token file", new ColorInputComponent()
                     .SetTextFormat(UIColorTextFormat.Hex)
-                    .SetWidth(UILayoutLength.Absolute(460))
+                    .SetWidth(fieldWidth)
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold))
                 )
                 )
                 .AddChild(DemoUI.CreateLabelled("Hex, once it is not opaque", new ColorInputComponent()
                     .SetTextFormat(UIColorTextFormat.Hex)
-                    .SetWidth(UILayoutLength.Absolute(460))
+                    .SetWidth(fieldWidth)
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold, opacity: 153))
                     .SetShowOpacity(true)
                 )
                 )
                 .AddChild(DemoUI.CreateLabelled("Rgb — anything that parses channels", new ColorInputComponent()
                     .SetTextFormat(UIColorTextFormat.Rgb)
-                    .SetWidth(UILayoutLength.Absolute(460))
+                    .SetWidth(fieldWidth)
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold))
                 )
                 )
                 .AddChild(DemoUI.CreateLabelled("Rgb, once it is not opaque", new ColorInputComponent()
                     .SetTextFormat(UIColorTextFormat.Rgb)
-                    .SetWidth(UILayoutLength.Absolute(460))
+                    .SetWidth(fieldWidth)
                     .SetValue(UIThemeColor.FromColorVariant(ColorName.SolarGold, opacity: 153))
                     .SetShowOpacity(true)
                 )

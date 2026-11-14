@@ -1,4 +1,5 @@
 using DemoApp.Controllers.Base;
+using DemoApp.Controllers.Contents.Status;
 using DemoApp.Views.Base;
 
 namespace DemoApp.Views.Contents.Status;
@@ -6,10 +7,11 @@ namespace DemoApp.Views.Contents.Status;
 /// <summary>
 /// One status and every property that can be bound to it; then the states a page stands in for, with as many ways on as each has.
 /// </summary>
-/// <remarks>The mark, the words and the ways on are set once, so the preview binds the standard rows alone; a line the controller says is bound through <c>Words</c>, as the forbidden screen binds its own.</remarks>
+/// <remarks>The mark and the words are bound through <c>Mark</c> and <c>Words</c>, as the forbidden screen binds its own.</remarks>
 internal sealed class StatusView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
+    private const string StatusGroup = nameof(StatusController.StatusGroup);
 
     public static string ViewKey => "demo.contents.status";
 
@@ -19,13 +21,32 @@ internal sealed class StatusView : DemoComponentView, IUIViewDefinition
     protected override (string Route, string Title)? ComposedIn => ("/screens/forbidden", "demo.screens.forbidden.header");
 
     protected override ContainerComponent CreatePreview()
-        => DemoUI.CreatePreview(frame => frame.AddChild(UIPage.Status(DemoIcons.Outline(DemoIcons.Search), UIColorStyle.Info, "Nothing at this address", "The page was moved or the link was mistyped.", UIButtons.Primary("Go to the home page"))
+        => DemoUI.CreatePreview(frame => frame.AddChild(CreateStatus()), contentMinHeight: 280);
+
+    private static StatusComponent CreateStatus()
+    {
+        StatusComponent status = new(DemoIcons.Outline(DemoIcons.Search), UIColorStyle.Info);
+
+        _ = status.Mark
+            .BindIcon<StatusController>(static x => x.StatusGroup.Icon)
+            .BindColor<StatusController>(static x => x.StatusGroup.Color);
+
+        _ = status.Words
+            .BindTitle<StatusController>(static x => x.StatusGroup.Title)
+            .BindDescription<StatusController>(static x => x.StatusGroup.Description);
+
+        return status
+            .AddAction(UIButtons.Primary("Go to the home page"))
+            .BindSpacing<StatusController>(static x => x.StatusGroup.Spacing)
             .BindStandard()
-            .SetPlacement(1, 1, 24, 1)
-        ), contentMinHeight: 280);
+            .SetPlacement(1, 1, 24, 1);
+    }
 
     protected override ContainerComponent CreateOptions()
-        => DemoUI.CreateOptions(DemoUI.CreateOptionSection(MainGroup, "Standard"));
+        => DemoUI.CreateOptions(
+            DemoUI.CreateOptionSection(MainGroup, "Standard"),
+            DemoUI.CreateOptionSection(StatusGroup, "Status")
+        );
 
     protected override IVisualComponent[] CreateExamples()
         => DemoUI.CreateColumns([CreateNotFoundGroup(), CreateFailureGroup()], [CreateRefusalGroup(), CreateSuccessGroup()]);

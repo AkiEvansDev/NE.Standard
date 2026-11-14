@@ -359,13 +359,18 @@ public sealed partial class UIClientPage
         UIComponentId rootId = RowTemplate(host.ComponentId, hostKeys, entry.Item);
         _ = EnsureActionable(rootId, rowKeys, "choose");
 
-        if (Read(rootId, rowKeys, IItemAbilitiesComponent.CanSelectProperty) is false
-            || entry.Item is IItemAbilitiesModel { CanSelect: false }
-            || (entry.Item is IReadOnlyDictionary<string, object?> && ItemContext.TryReadProperty(entry.Item, nameof(IItemAbilitiesModel.CanSelect), out var canSelect) && canSelect is false))
-        {
+        if (SelectsRows(host.ComponentId, hostKeys) && !IsRowSelectable(rootId, rowKeys, entry.Item))
             throw new InvalidOperationException($"Row '{entry.Key}' of '{host.AuthoringId}' refuses selection.");
-        }
     }
+
+    private bool SelectsRows(UIComponentId hostId, object?[] hostKeys)
+        => !View.State.TryGetValue(hostId, ISelectableItemsComponent.SelectionModeProperty, out _)
+            || Read(hostId, hostKeys, ISelectableItemsComponent.SelectionModeProperty) is UISelectionMode.One or UISelectionMode.Many;
+
+    private bool IsRowSelectable(UIComponentId rootId, object?[] rowKeys, object? item)
+        => Read(rootId, rowKeys, IItemAbilitiesComponent.CanSelectProperty) is not false
+            && item is not IItemAbilitiesModel { CanSelect: false }
+            && !(item is IReadOnlyDictionary<string, object?> && ItemContext.TryReadProperty(item, nameof(IItemAbilitiesModel.CanSelect), out var canSelect) && canSelect is false);
 
     /// <summary>Commits an inline rename on a standalone renamable component or row template root, writing <c>RenamedTitle</c> and raising <c>rename</c>.</summary>
     internal async Task<UIClientCommandResult> RenameComponentAsync(UIComponentId componentId, object?[] rowKeys, string title, CancellationToken cancellationToken)
@@ -465,7 +470,7 @@ public sealed partial class UIClientPage
         if (!open)
             throw new InvalidOperationException($"{owner} is not renamable: a reader cannot rename it.");
 
-        UIComponentId eventTargetId = HasEventOrInteraction(rootId, EventNames.Rename) ? rootId : valueTargetId;
+        UIComponentId eventTargetId = HasEventOrInteraction(rootId, rowKeys, EventNames.Rename) ? rootId : valueTargetId;
 
         return await CommitRenameAsync(valueTargetId, eventTargetId, rowKeys, trimmed, owner, openedHostRow, cancellationToken).ConfigureAwait(false);
     }
@@ -482,8 +487,29 @@ public sealed partial class UIClientPage
             && ReadNoLock(valueTargetId, rowKeys, TextComponent.RenamableProperty) is true;
     }
 
-    private bool HasEventOrInteraction(UIComponentId componentId, string eventName)
-        => HasEvent(componentId, eventName) || View.Interactions.GetBySource(new CompiledUIEventAddress(componentId, eventName)).Count > 0;
+    internal bool HasEventOrInteraction(UIComponentId componentId, object?[] rowKeys, string eventName)
+    {
+        if (HasEvent(componentId, eventName))
+            return true;
+
+        IReadOnlyList<CompiledUIInteraction> interactions = View.Interactions.GetBySource(new CompiledUIEventAddress(componentId, eventName));
+
+        for (var i = 0; i < interactions.Count; i++)
+        {
+            if (IsRowsOwn(interactions[i], rowKeys))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Whether an event raised with these keys fires the interaction: any row's for one that names none, else the row it names — any
+    /// key in the row's scope chain, so a submenu's key matches its entries too (<c>interaction-engine.ts</c>).
+    /// </summary>
+    private static bool IsRowsOwn(CompiledUIInteraction interaction, object?[] rowKeys)
+        => interaction.RowKey is null
+            || Array.Exists(rowKeys, key => key is not null && string.Equals(Convert.ToString(key, CultureInfo.InvariantCulture), interaction.RowKey, StringComparison.Ordinal));
 
     private async Task<UIClientCommandResult> CommitRenameAsync(UIComponentId valueTargetId, UIComponentId eventTargetId, object?[] rowKeys, string trimmed, string owner, UIComponentAddress openedAddress, CancellationToken cancellationToken)
     {
@@ -569,7 +595,7 @@ public sealed partial class UIClientPage
             return UIClientCommandResult.Refused($"The server refused the rename of {owner}.");
         }
 
-        if (HasEventOrInteraction(eventTargetId, EventNames.Rename))
+        if (HasEventOrInteraction(eventTargetId, rowKeys, EventNames.Rename))
             return await DispatchCoreAsync(eventTargetId, rowKeys, EventNames.Rename, [], cancellationToken).ConfigureAwait(false);
 
         NotifyIfChanged();
@@ -1070,14 +1096,6 @@ public sealed partial class UIClientPage
 
         return false;
     }
-
-    /// <summary>
-    /// Whether an event raised with these keys fires the interaction: any row's for one that names none, else the row it names — any
-    /// key in the row's scope chain, so a submenu's key matches its entries too (<c>interaction-engine.ts</c>).
-    /// </summary>
-    private static bool IsRowsOwn(CompiledUIInteraction interaction, object?[] rowKeys)
-        => interaction.RowKey is null
-            || Array.Exists(rowKeys, key => key is not null && string.Equals(Convert.ToString(key, CultureInfo.InvariantCulture), interaction.RowKey, StringComparison.Ordinal));
 
     /// <summary>An interaction as the client runs it: its effect while the condition holds, else the value it writes to its target.</summary>
     private void ApplyInteractionNoLock(CompiledUIInteraction interaction, object?[] rowKeys, bool local, object? sourceValue, int depth, List<UIClientWrite> writes)

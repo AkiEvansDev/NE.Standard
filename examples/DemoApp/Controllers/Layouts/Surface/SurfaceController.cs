@@ -13,5 +13,8 @@ internal sealed partial class SurfaceController() : DemoStandardController
     public partial CardSurfaceGroupContext SurfaceGroup { get; set; } = new();
 
     [RecursiveMember]
+    public partial BackgroundImageGroupContext BackgroundImageGroup { get; set; } = new();
+
+    [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();
 }

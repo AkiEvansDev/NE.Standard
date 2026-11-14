@@ -9,8 +9,8 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 namespace NE.Standard.UI.Web.Renderers.Inputs;
 
 /// <summary>
-/// A clock edited in place: one focusable segment per display-format unit plus a stepper, no popup — the temporal row without a
-/// picker. The canonical string always carries seconds precision regardless of <c>Step</c>.
+/// A clock edited in place from the small breakpoint up — one focusable segment per display-format unit plus a stepper — and also
+/// offering a time-wheel bottom sheet on phones. The canonical string always carries seconds precision regardless of <c>Step</c>.
 /// </summary>
 public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeInputComponent, TimeOnly?>
 {
@@ -24,6 +24,8 @@ public sealed class TimeInputComponentRenderer : TemporalInputRendererBase<TimeI
     protected override string TemporalMode => "time";
 
     protected override bool HasPicker => false;
+
+    protected override bool HasPhonePicker => true;
 
     protected override string GetDefaultDisplayFormat(UITemporalStep? step, WebTemporalPatterns patterns)
         => patterns.Time(ReachesSeconds(step));

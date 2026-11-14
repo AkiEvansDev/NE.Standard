@@ -14,9 +14,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ButtonGroup = nameof(ActionController.ButtonGroup);
     private const string ActionGroup = nameof(ActionController.ActionGroup);
-    private const string ContentGroup = nameof(ActionController.ContentGroup);
-    private const string LayoutGroup = nameof(ActionController.LayoutGroup);
-    private const string BadgeGroup = nameof(ActionController.BadgeGroup);
+    private const string LabelGroup = nameof(ActionController.LabelGroup);
     private const string BorderGroup = nameof(ActionController.BorderGroup);
 
     public static string ViewKey => "demo.actions.action";
@@ -27,7 +25,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
 
     protected override ContainerComponent CreatePreview()
         => DemoUI.CreatePreview(frame => frame.AddChild(
-            DemoButtonBindings.Bind(new ActionComponent(), ButtonGroup, ContentGroup, LayoutGroup, BadgeGroup, BorderGroup)
+            DemoButtonBindings.Bind(new ActionComponent(), ButtonGroup, LabelGroup, BorderGroup)
                 .BindTrailingText<ActionController>(static x => x.ActionGroup.TrailingText)
                 .BindTrailingIcon<ActionController>(static x => x.ActionGroup.TrailingIcon)
                 .BindShowChevron<ActionController>(static x => x.ActionGroup.ShowChevron)
@@ -39,9 +37,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ButtonGroup, "Button"),
             DemoUI.CreateOptionSection(ActionGroup, "Action"),
-            DemoUI.CreateOptionSection(LayoutGroup, "Layout"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -53,13 +49,15 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateSettingsGroup()
     {
+        UIResponsive<UILayoutLength> columnWidth = UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(380));
+
         return DemoUI.CreateExample("A settings screen",
             // The sections run across rather than down: three columns of rows is a settings screen, one column is a list.
             UILayout.Row(32)
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetVerticalAlignment(UIAlignment.Start)
-                    .SetWidth(UILayoutLength.Absolute(380))
+                    .SetWidth(columnWidth)
                     .SetSpacing(4)
                     .AddChild(new TextComponent()
                         .SetTitle("Account")
@@ -91,7 +89,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetVerticalAlignment(UIAlignment.Start)
-                    .SetWidth(UILayoutLength.Absolute(380))
+                    .SetWidth(columnWidth)
                     .SetSpacing(4)
                     .AddChild(new TextComponent()
                         .SetTitle("Notifications")
@@ -119,7 +117,7 @@ internal sealed class ActionView : DemoComponentView, IUIViewDefinition
                 .AddChild(new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetVerticalAlignment(UIAlignment.Start)
-                    .SetWidth(UILayoutLength.Absolute(380))
+                    .SetWidth(columnWidth)
                     .SetSpacing(4)
                     .AddChild(new TextComponent()
                         .SetTitle("Danger zone")

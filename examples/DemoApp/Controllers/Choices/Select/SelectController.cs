@@ -11,6 +11,7 @@ internal sealed partial class SelectFieldGroupContext : OptionsFieldGroupContext
     public SelectFieldGroupContext() : base("Pick a region", DemoIcons.Navigation, DemoIcons.Filter)
     {
         AddAppearanceOption();
+        AddSizeOption();
         AddPlaceholderOption();
         AddAffixIconOptions();
         AddAdornmentOptions();
@@ -35,10 +36,7 @@ internal sealed partial class SelectController() : DemoStandardController
     public partial OptionListGroupContext OptionsGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Region");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Region");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

@@ -47,6 +47,10 @@
     .ui-range-input();
 }
 
+    .ui-slider:not(.ui-orientation--vertical) .ui-slider__input {
+        height: @ui-control-height;
+    }
+
     // Upright the filled end is the bottom, so the fill turns with the slider; min-height: 0 keeps the intrinsic size inside the track.
     .ui-slider.ui-orientation--vertical .ui-slider__track {
         height: 100%;
@@ -110,10 +114,11 @@
 
 .ui-slider__thumb-anchor {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: 50%;
     left: calc(var(--ui-slider-fraction, 0) * (100% - @ui-slider-thumb));
     width: @ui-slider-thumb;
+    height: @ui-slider-thumb;
+    translate: 0 -50%;
     pointer-events: none;
 }
 
@@ -124,6 +129,7 @@
         left: 0;
         width: auto;
         height: @ui-slider-thumb;
+        translate: none;
     }
 
     // A band's end handle stands at its own fraction.
@@ -230,7 +236,17 @@
     background: none;
 }
 
-// The handle the pointer holds wears the ring a single slider's wears under the pointer.
+// The handle the pointer approaches or holds wears the ring a single slider's wears under the pointer.
+@media @{ui-can-hover} {
+    .ui-slider__input--hovered::-webkit-slider-thumb {
+        .ui-range-halo();
+    }
+
+    .ui-slider__input--hovered::-moz-range-thumb {
+        .ui-range-halo();
+    }
+}
+
 .ui-slider__input--held::-webkit-slider-thumb {
     .ui-range-halo();
 }
@@ -282,7 +298,7 @@
     }
 
     .ui-slider.ui-input--small:not(.ui-orientation--vertical) .ui-slider__input {
-        height: 1rem;
+        height: @ui-control-height-sm;
     }
 
     .ui-slider.ui-input--small:not(.ui-orientation--vertical) .ui-slider__input::-webkit-slider-runnable-track {
@@ -320,7 +336,7 @@
     }
 
     .ui-slider.ui-input--large:not(.ui-orientation--vertical) .ui-slider__input {
-        height: 1.5rem;
+        height: @ui-control-height-lg;
     }
 
     .ui-slider.ui-input--large:not(.ui-orientation--vertical) .ui-slider__input::-webkit-slider-runnable-track {

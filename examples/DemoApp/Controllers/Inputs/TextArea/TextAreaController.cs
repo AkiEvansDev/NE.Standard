@@ -20,6 +20,7 @@ internal sealed partial class TextAreaFieldGroupContext : FieldChromeGroupContex
     public TextAreaFieldGroupContext() : base("What changed, and why")
     {
         AddAppearanceOption();
+        AddSizeOption();
         AddPlaceholderOption();
         AddOption(nameof(Rows), CycleRows, () => Rows);
         AddOption(nameof(MaxRows), CycleMaxRows, () => MaxRows);
@@ -145,10 +146,7 @@ internal sealed partial class TextAreaController() : DemoStandardController
     public partial TextAreaFieldGroupContext FieldGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new("Release notes");
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new("Release notes");
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

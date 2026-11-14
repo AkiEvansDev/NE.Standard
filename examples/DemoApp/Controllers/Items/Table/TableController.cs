@@ -60,9 +60,9 @@ internal sealed partial class DemoDeploymentRow : RecursiveObservable, IBindable
 }
 
 /// <summary>
-/// The properties that answer for the whole table: its chrome, how it scrolls, and which rows are chosen.
+/// Table surface, header, striping, separators, and row hover wash.
 /// </summary>
-internal sealed partial class TableGroupContext : DraggableSelectionGroupContext
+internal sealed partial class TableAppearanceGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial UISurfaceStyle? Surface { get; set; } = UISurfaceStyle.Background;
@@ -82,14 +82,7 @@ internal sealed partial class TableGroupContext : DraggableSelectionGroupContext
     [RecursiveMember]
     public partial bool RowHoverable { get; set; }
 
-    [RecursiveMember]
-    public partial bool ResizableColumns { get; set; } = true;
-
-    [RecursiveMember]
-    public partial UIScrollMode? VerticalScroll { get; set; }
-
-    public TableGroupContext()
-        : base(["billing", "dns"], [["panel", "mail-relay"], ["scheduler"]])
+    public TableAppearanceGroupContext()
     {
         AddOption(nameof(Surface), CycleSurface, () => Surface);
         AddOption(nameof(ShowHeader), ToggleShowHeader, () => ShowHeader);
@@ -97,10 +90,6 @@ internal sealed partial class TableGroupContext : DraggableSelectionGroupContext
         AddOption(nameof(ShowColumnSeparators), ToggleShowColumnSeparators, () => ShowColumnSeparators);
         AddOption(nameof(ShowRowSeparators), ToggleShowRowSeparators, () => ShowRowSeparators);
         AddOption(nameof(RowHoverable), ToggleRowHoverable, () => RowHoverable);
-        AddOption(nameof(ResizableColumns), ToggleResizableColumns, () => ResizableColumns);
-        AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
-        AddSelectionOptions();
-        AddDragOptions();
     }
 
     public void CycleSurface()
@@ -120,10 +109,42 @@ internal sealed partial class TableGroupContext : DraggableSelectionGroupContext
 
     public void ToggleRowHoverable()
         => SetLastChange(nameof(RowHoverable), RowHoverable = !RowHoverable);
+}
+
+/// <summary>
+/// Table column sizing, column reordering, and scroll modes.
+/// </summary>
+internal sealed partial class TableColumnsGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial bool ResizableColumns { get; set; } = true;
+
+    [RecursiveMember]
+    public partial bool ReorderableColumns { get; set; }
+
+    [RecursiveMember]
+    public partial UIScrollMode? HorizontalScroll { get; set; } = UIScrollMode.Auto;
+
+    [RecursiveMember]
+    public partial UIScrollMode? VerticalScroll { get; set; }
+
+    public TableColumnsGroupContext()
+    {
+        AddOption(nameof(ResizableColumns), ToggleResizableColumns, () => ResizableColumns);
+        AddOption(nameof(ReorderableColumns), ToggleReorderableColumns, () => ReorderableColumns);
+        AddOption(nameof(HorizontalScroll), CycleHorizontalScroll, () => HorizontalScroll);
+        AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
+    }
 
     // The widths a viewer drags are kept in the browser under the table's name, not here.
     public void ToggleResizableColumns()
         => SetLastChange(nameof(ResizableColumns), ResizableColumns = !ResizableColumns);
+
+    public void ToggleReorderableColumns()
+        => SetLastChange(nameof(ReorderableColumns), ReorderableColumns = !ReorderableColumns);
+
+    public void CycleHorizontalScroll()
+        => SetLastChange(nameof(HorizontalScroll), HorizontalScroll = CycleEnum(HorizontalScroll));
 
     // Read against the preview's height cap: with Auto the rows scroll under the header, which stays put.
     public void CycleVerticalScroll()
@@ -234,7 +255,16 @@ internal sealed partial class TableRolloutGroupContext : DemoGroupContext
 internal sealed partial class TableController() : DemoStandardController
 {
     [RecursiveMember]
-    public partial TableGroupContext TableGroup { get; set; } = new();
+    public partial TableAppearanceGroupContext AppearanceGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial TableColumnsGroupContext ColumnsGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial SelectionGroupContext SelectionGroup { get; set; } = new(["billing", "dns"], [["panel", "mail-relay"], ["scheduler"]]);
+
+    [RecursiveMember]
+    public partial ReorderGroupContext ReorderGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial TableRowsGroupContext ItemsGroup { get; set; } = new();

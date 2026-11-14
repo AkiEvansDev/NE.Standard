@@ -153,9 +153,9 @@ internal static class DemoStorageTree
 }
 
 /// <summary>
-/// The properties that answer for the whole tree: its step, its chrome, and which rows are chosen.
+/// Tree surface, indentation step, disclosure chevron, and row hover wash.
 /// </summary>
-internal sealed partial class TreeGroupContext : SelectionGroupContext
+internal sealed partial class TreeAppearanceGroupContext : DemoGroupContext
 {
     [RecursiveMember]
     public partial UISurfaceStyle? Surface { get; set; } = UISurfaceStyle.Background;
@@ -163,6 +163,39 @@ internal sealed partial class TreeGroupContext : SelectionGroupContext
     [RecursiveMember]
     public partial double? Indent { get; set; } = 16;
 
+    [RecursiveMember]
+    public partial bool ShowChevron { get; set; } = true;
+
+    [RecursiveMember]
+    public partial bool RowHoverable { get; set; } = true;
+
+    public TreeAppearanceGroupContext()
+    {
+        AddOption(nameof(Surface), CycleSurface, () => Surface);
+        AddOption(nameof(Indent), CycleIndent, () => Indent);
+        AddOption(nameof(ShowChevron), ToggleShowChevron, () => ShowChevron);
+        AddOption(nameof(RowHoverable), ToggleRowHoverable, () => RowHoverable);
+    }
+
+    public void CycleSurface()
+        => SetLastChange(nameof(Surface), Surface = CycleEnum(Surface));
+
+    public void CycleIndent()
+        => SetLastChange(nameof(Indent), Indent = CycleValue(Indent, 16d, 24d, 8d));
+
+    // Off, no chevron and no square for one: a folder folds from the keyboard, a click chooses it.
+    public void ToggleShowChevron()
+        => SetLastChange(nameof(ShowChevron), ShowChevron = !ShowChevron);
+
+    public void ToggleRowHoverable()
+        => SetLastChange(nameof(RowHoverable), RowHoverable = !RowHoverable);
+}
+
+/// <summary>
+/// Inline node rename, Delete removal, and drag-and-drop movement on the tree preview.
+/// </summary>
+internal sealed partial class TreeEditingGroupContext : DemoGroupContext
+{
     [RecursiveMember]
     public partial bool Renamable { get; set; } = true;
 
@@ -173,36 +206,15 @@ internal sealed partial class TreeGroupContext : SelectionGroupContext
     public partial bool Removable { get; set; } = true;
 
     [RecursiveMember]
-    public partial bool ShowChevron { get; set; } = true;
+    public partial bool Draggable { get; set; }
 
-    [RecursiveMember]
-    public partial bool RowHoverable { get; set; } = true;
-
-    [RecursiveMember]
-    public partial UIScrollMode? VerticalScroll { get; set; }
-
-    public TreeGroupContext()
-        : base(["manifest", "db-snapshot-21"], [["db-snapshot-21", "db-snapshot-22"], ["incident-report"]])
+    public TreeEditingGroupContext()
     {
-        SelectionMode = UISelectionMode.One;
-        SelectedKey = "manifest";
-
-        AddOption(nameof(Surface), CycleSurface, () => Surface);
-        AddOption(nameof(Indent), CycleIndent, () => Indent);
         AddOption(nameof(Renamable), ToggleRenamable, () => Renamable);
         AddOption(nameof(RenameOnDoubleClick), ToggleRenameOnDoubleClick, () => RenameOnDoubleClick);
         AddOption(nameof(Removable), ToggleRemovable, () => Removable);
-        AddOption(nameof(ShowChevron), ToggleShowChevron, () => ShowChevron);
-        AddOption(nameof(RowHoverable), ToggleRowHoverable, () => RowHoverable);
-        AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
-        AddSelectionOptions();
+        AddOption(nameof(Draggable), ToggleDraggable, () => Draggable);
     }
-
-    public void CycleSurface()
-        => SetLastChange(nameof(Surface), Surface = CycleEnum(Surface));
-
-    public void CycleIndent()
-        => SetLastChange(nameof(Indent), Indent = CycleValue(Indent, 16d, 24d, 8d));
 
     // F2 on the row the keyboard is on, or a menu entry that returns a RenameItemEffect.
     public void ToggleRenamable()
@@ -210,18 +222,42 @@ internal sealed partial class TreeGroupContext : SelectionGroupContext
 
     // With it on, a double click opens the field instead of raising open; Enter still opens.
     public void ToggleRenameOnDoubleClick()
-        => SetLastChange(nameof(RenameOnDoubleClick), RenameOnDoubleClick = !RenameOnDoubleClick);
+    {
+        RenameOnDoubleClick = !RenameOnDoubleClick;
+
+        if (RenameOnDoubleClick)
+            Renamable = true;
+
+        SetLastChange(nameof(RenameOnDoubleClick), RenameOnDoubleClick);
+    }
 
     // Off, the Delete key raises nothing on any node, whatever the node says.
     public void ToggleRemovable()
         => SetLastChange(nameof(Removable), Removable = !Removable);
 
-    // Off, no chevron and no square for one: a folder folds from the keyboard, a click chooses it.
-    public void ToggleShowChevron()
-        => SetLastChange(nameof(ShowChevron), ShowChevron = !ShowChevron);
+    public void ToggleDraggable()
+        => SetLastChange(nameof(Draggable), Draggable = !Draggable);
+}
 
-    public void ToggleRowHoverable()
-        => SetLastChange(nameof(RowHoverable), RowHoverable = !RowHoverable);
+/// <summary>
+/// Tree horizontal and vertical scroll modes.
+/// </summary>
+internal sealed partial class TreeScrollingGroupContext : DemoGroupContext
+{
+    [RecursiveMember]
+    public partial UIScrollMode? HorizontalScroll { get; set; }
+
+    [RecursiveMember]
+    public partial UIScrollMode? VerticalScroll { get; set; }
+
+    public TreeScrollingGroupContext()
+    {
+        AddOption(nameof(HorizontalScroll), CycleHorizontalScroll, () => HorizontalScroll);
+        AddOption(nameof(VerticalScroll), CycleVerticalScroll, () => VerticalScroll);
+    }
+
+    public void CycleHorizontalScroll()
+        => SetLastChange(nameof(HorizontalScroll), HorizontalScroll = CycleEnum(HorizontalScroll));
 
     // Read against the preview's height cap: with Auto the rows scroll inside the tree.
     public void CycleVerticalScroll()
@@ -281,6 +317,26 @@ internal sealed partial class TreeNodesGroupContext : DemoGroupContext
         var title = node.Title?.Key ?? string.Empty;
 
         node.Title = title.EndsWith('*', StringComparison.Ordinal) ? title.TrimEnd('*') : $"{title}*";
+    }
+
+    public void MoveNode(string id, int index)
+    {
+        if (DemoStorageTree.Move(Items, id, index) is string said)
+            LogEvent(said);
+    }
+
+    public void RemoveNode(string id)
+    {
+        TreeNode? node = DemoStorageTree.Find(Items, id);
+
+        if (node is null || node.CanRemove == false)
+            return;
+
+        for (var i = Items.Count - 1; i >= 0; i--)
+        {
+            if (Items[i] == node || DemoStorageTree.IsUnder(Items, Items[i], id))
+                Items.RemoveAt(i);
+        }
     }
 }
 
@@ -812,7 +868,16 @@ internal sealed partial class TreeController() : DemoStandardController
     public const string FilesTreeId = "examples-files-tree";
 
     [RecursiveMember]
-    public partial TreeGroupContext TreeGroup { get; set; } = new();
+    public partial TreeAppearanceGroupContext TreeGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial TreeEditingGroupContext EditingGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial TreeScrollingGroupContext ScrollingGroup { get; set; } = new();
+
+    [RecursiveMember]
+    public partial SelectionGroupContext SelectionGroup { get; set; } = new(["manifest", "db-snapshot-21"], [["db-snapshot-21", "db-snapshot-22"], ["incident-report"]], UISelectionMode.One, "manifest");
 
     [RecursiveMember]
     public partial TreeNodesGroupContext NodesGroup { get; set; } = new();
@@ -834,6 +899,14 @@ internal sealed partial class TreeController() : DemoStandardController
 
     [RecursiveMember]
     public partial TreeNotesGroupContext NotesGroup { get; set; } = new();
+
+    [UICommand]
+    public void MovePreviewNode(string id, int index)
+        => NodesGroup.MoveNode(id, index);
+
+    [UICommand]
+    public void RemovePreviewNode(string id)
+        => NodesGroup.RemoveNode(id);
 
     [UICommand]
     public void OpenNode(string id)

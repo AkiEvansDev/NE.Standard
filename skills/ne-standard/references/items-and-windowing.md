@@ -27,6 +27,7 @@ Full guide: https://akievansdev.github.io/NE.Standard/items.html
   - `.SortBy<OrderItem>(x => x.CreatedAt, UIItemsSortDirection.Descending)`.
   - `.AddItemReads<OrderItem>(x => x.ExtraField)` ensures custom properties needed by the client are projected.
 - Selection: `.SetSelectionMode(UISelectionMode.One | Many)` + `.BindSelectedKey(c => c.SelectedId)` / `.BindSelectedKeys(c => c.SelectedIds)`.
+- Clickable non-selectable rows & flush row bleed: `.OnItemClick*` (server command, client interaction, or per-key `.OnItemClick(key, effect)`) with `SelectionMode.None` automatically marks clickable rows (`cursor: pointer` and press ripple across `ItemsViewComponent`, `TableComponent`, `TreeComponent`, and `KeyValueActionComponent`; `OnItemOpen*` alone keeps `cursor: auto`). Inside a padded panel (`Padding >= 8`), `.SetRowBleed(true)` / `.BindRowBleed(...)` on a vertical `ItemsViewComponent` with `RowHoverable` or selection chrome aligns row content flush at `0px` with sibling labels/fields while bleeding hover/selection pills `-8px` into parent padding.
 - Standard row event blocks (`OnItemClick*`, `OnItemOpen*`, `OnItemRemove*`, `OnItemMove*`, `OnItemRename*`, `OnItemUnfold*`), each with 5 overloads (any inline rename via `.SetRenamable(true)`/`.BindRenamable(...)`, `OnItemRename*`, `UITabMenuEntries.Rename`, or `RenameItemEffect` also requires a writable `.BindRenamedTitle(...)`):
   - `OnItemOpen(command)`
   - `OnItemOpenLiteral(command, args...)`

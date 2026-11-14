@@ -76,9 +76,9 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ExpanderGroup, "Expander"),
-            DemoUI.CreateOptionSection(HeaderGroup, "Layout"),
-            DemoUI.CreateOptionSection(HeaderTextGroup, "Content"),
-            DemoUI.CreateOptionSection(HeaderBadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(HeaderGroup, "Header layout"),
+            DemoUI.CreateOptionSection(HeaderTextGroup, "Header content"),
+            DemoUI.CreateOptionSection(HeaderBadgeGroup, "Header badge"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -93,7 +93,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Questions and answers",
             UILayout.Stack(8)
-                .SetWidth(UILayoutLength.Absolute(420))
+                .SetMaxWidth(UILayoutLength.Absolute(420))
                 .AddChild(new ExpanderComponent()
                     .SetExpanded(true)
                     .ConfigureDefaultHeader(header => header.SetTitle("Can I change plan later?"))
@@ -131,7 +131,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Quiet form fold (UIPage.Fold)",
             UILayout.Stack(12)
-                .SetWidth(UILayoutLength.Absolute(380))
+                .SetMaxWidth(UILayoutLength.Absolute(380))
                 .AddChild(new TextInputComponent()
                     .SetTitle("Service name")
                     .SetValue("Billing")
@@ -170,7 +170,7 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
     {
         return DemoUI.CreateExample("Lazy content loading (OnExpand & OnCollapse)",
             UILayout.Stack(10)
-                .SetWidth(UILayoutLength.Absolute(420))
+                .SetMaxWidth(UILayoutLength.Absolute(420))
                 .AddChild(new ExpanderComponent()
                     .SetCollapsed()
                     .BindExpanded<ExpanderLoadGroupContext>(static x => x.Expanded, UIBindingScope.Relative)

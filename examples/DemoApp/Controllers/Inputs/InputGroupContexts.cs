@@ -15,25 +15,15 @@ internal abstract partial class InputValueGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial bool IsReadOnly { get; set; }
 
-    [RecursiveMember]
-    public partial UISize? Size { get; set; } = UISize.Medium;
-
     protected void AddReadOnlyOption()
         => AddOption(nameof(IsReadOnly), ToggleIsReadOnly, () => IsReadOnly);
 
-    // Every input takes a size, so the row stands in every value section, just before the read-only one that closes it.
-    protected void AddSizeOption()
-        => AddOption(nameof(Size), CycleSize, () => Size);
-
     public void ToggleIsReadOnly()
         => SetLastChange(nameof(IsReadOnly), IsReadOnly = !IsReadOnly);
-
-    public void CycleSize()
-        => SetLastChange(nameof(Size), Size = CycleEnum(Size));
 }
 
 /// <summary>
-/// What every field draws around what is typed into it: the appearance, and the hint shown while it is empty.
+/// What every field draws around what is typed into it: the appearance, the size, and the hint shown while it is empty.
 /// </summary>
 internal abstract partial class FieldChromeGroupContext(string? placeholder) : DemoGroupContext
 {
@@ -44,10 +34,16 @@ internal abstract partial class FieldChromeGroupContext(string? placeholder) : D
     public partial UIInputAppearance? Appearance { get; set; } = UIInputAppearance.Filled;
 
     [RecursiveMember]
+    public partial UISize? Size { get; set; } = UISize.Medium;
+
+    [RecursiveMember]
     public partial string? Placeholder { get; set; } = placeholder;
 
     protected void AddAppearanceOption()
         => AddOption(nameof(Appearance), CycleAppearance, () => Appearance);
+
+    protected void AddSizeOption()
+        => AddOption(nameof(Size), CycleSize, () => Size);
 
     protected void AddPlaceholderOption()
         => AddOption(nameof(Placeholder), TogglePlaceholder, () => Placeholder);
@@ -55,15 +51,33 @@ internal abstract partial class FieldChromeGroupContext(string? placeholder) : D
     public void CycleAppearance()
         => SetLastChange(nameof(Appearance), Appearance = CycleEnum(Appearance));
 
+    public void CycleSize()
+        => SetLastChange(nameof(Size), Size = CycleEnum(Size));
+
     // Only visible with the field empty, which is what the Value row's empty and unset steps are for.
     public void TogglePlaceholder()
         => SetLastChange(nameof(Placeholder), Placeholder = CycleValue(Placeholder, null, _placeholder));
 }
 
 /// <summary>
+/// A field that can carry a clear button beside its value.
+/// </summary>
+internal abstract partial class ClearableFieldGroupContext(string? placeholder) : FieldChromeGroupContext(placeholder)
+{
+    [RecursiveMember]
+    public partial bool ShowClearButton { get; set; }
+
+    protected void AddClearButtonOption()
+        => AddOption(nameof(ShowClearButton), ToggleShowClearButton, () => ShowClearButton);
+
+    public void ToggleShowClearButton()
+        => SetLastChange(nameof(ShowClearButton), ShowClearButton = !ShowClearButton);
+}
+
+/// <summary>
 /// A field with a glyph at either end; the glyphs are passed in because an affix says what the field is for.
 /// </summary>
-internal abstract partial class AffixedFieldGroupContext(string? placeholder, string prefixGlyph, string suffixGlyph) : FieldChromeGroupContext(placeholder)
+internal abstract partial class AffixedFieldGroupContext(string? placeholder, string prefixGlyph, string suffixGlyph) : ClearableFieldGroupContext(placeholder)
 {
     [RecursiveMember]
     public partial string? PrefixIcon { get; set; }
@@ -85,24 +99,66 @@ internal abstract partial class AffixedFieldGroupContext(string? placeholder, st
 }
 
 /// <summary>
+/// Prefix and suffix words and glyphs shared by single-line text and number fields.
+/// </summary>
+internal sealed partial class TextAffixesGroupContext : DemoGroupContext
+{
+    private readonly string _samplePrefix;
+    private readonly string _sampleSuffix;
+    private readonly string _prefixGlyph;
+    private readonly string _suffixGlyph;
+
+    [RecursiveMember]
+    public partial string? PrefixText { get; set; }
+
+    [RecursiveMember]
+    public partial string? SuffixText { get; set; }
+
+    [RecursiveMember]
+    public partial string? PrefixIcon { get; set; }
+
+    [RecursiveMember]
+    public partial string? SuffixIcon { get; set; }
+
+    public TextAffixesGroupContext(string samplePrefix, string sampleSuffix, string prefixGlyph, string suffixGlyph)
+    {
+        _samplePrefix = samplePrefix;
+        _sampleSuffix = sampleSuffix;
+        _prefixGlyph = prefixGlyph;
+        _suffixGlyph = suffixGlyph;
+
+        AddOption(nameof(PrefixText), TogglePrefixText, () => PrefixText);
+        AddOption(nameof(SuffixText), ToggleSuffixText, () => SuffixText);
+        AddOption(nameof(PrefixIcon), CyclePrefixIcon, () => PrefixIcon);
+        AddOption(nameof(SuffixIcon), CycleSuffixIcon, () => SuffixIcon);
+    }
+
+    public void TogglePrefixText()
+        => SetLastChange(nameof(PrefixText), PrefixText = CycleValue(PrefixText, null, _samplePrefix));
+
+    public void ToggleSuffixText()
+        => SetLastChange(nameof(SuffixText), SuffixText = CycleValue(SuffixText, null, _sampleSuffix));
+
+    public void CyclePrefixIcon()
+        => SetLastChange(nameof(PrefixIcon), PrefixIcon = CycleIconValue(PrefixIcon, _prefixGlyph));
+
+    public void CycleSuffixIcon()
+        => SetLastChange(nameof(SuffixIcon), SuffixIcon = CycleIconValue(SuffixIcon, _suffixGlyph));
+}
+
+/// <summary>
 /// A field that opens a list: the clear button and the chevron beside the affixes.
 /// </summary>
 internal abstract partial class OptionsFieldGroupContext(string? placeholder, string prefixGlyph, string suffixGlyph) : AffixedFieldGroupContext(placeholder, prefixGlyph, suffixGlyph)
 {
     [RecursiveMember]
-    public partial bool ShowClearButton { get; set; }
-
-    [RecursiveMember]
     public partial bool ShowChevron { get; set; } = true;
 
     protected void AddAdornmentOptions()
     {
-        AddOption(nameof(ShowClearButton), ToggleShowClearButton, () => ShowClearButton);
+        AddClearButtonOption();
         AddOption(nameof(ShowChevron), ToggleShowChevron, () => ShowChevron);
     }
-
-    public void ToggleShowClearButton()
-        => SetLastChange(nameof(ShowClearButton), ShowClearButton = !ShowClearButton);
 
     public void ToggleShowChevron()
         => SetLastChange(nameof(ShowChevron), ShowChevron = !ShowChevron);
@@ -150,22 +206,14 @@ internal partial class TextValueGroupContext : InputValueGroupContext
 }
 
 /// <summary>
-/// What the single-line field adds to the shared text value: the clear button.
+/// The text value as a single-line field holds it: the shared rows, closed by the read-only switch.
 /// </summary>
 internal sealed partial class TextInputValueGroupContext : TextValueGroupContext
 {
-    [RecursiveMember]
-    public partial bool ShowClearButton { get; set; }
-
     public TextInputValueGroupContext()
     {
-        AddOption(nameof(ShowClearButton), ToggleShowClearButton, () => ShowClearButton);
-        AddSizeOption();
         AddReadOnlyOption();
     }
-
-    public void ToggleShowClearButton()
-        => SetLastChange(nameof(ShowClearButton), ShowClearButton = !ShowClearButton);
 }
 
 /// <summary>
@@ -175,7 +223,6 @@ internal sealed partial class TextAreaValueGroupContext : TextValueGroupContext
 {
     public TextAreaValueGroupContext(string sample, string alternate) : base(sample, alternate)
     {
-        AddSizeOption();
         AddReadOnlyOption();
     }
 }
@@ -189,15 +236,21 @@ internal sealed partial class ToggleValueGroupContext : InputValueGroupContext
     [RecursiveMember]
     public partial bool? Value { get; set; } = true;
 
+    [RecursiveMember]
+    public partial UISize? Size { get; set; } = UISize.Medium;
+
     public ToggleValueGroupContext()
     {
         AddOption(nameof(Value), CycleValue, () => Value);
-        AddSizeOption();
+        AddOption(nameof(Size), CycleSize, () => Size);
         AddReadOnlyOption();
     }
 
     public void CycleValue()
         => SetLastChange(nameof(Value), Value = CycleValue(Value, true, false, null));
+
+    public void CycleSize()
+        => SetLastChange(nameof(Size), Size = CycleEnum(Size));
 }
 
 /// <summary>
@@ -212,7 +265,6 @@ internal sealed partial class OptionValueGroupContext : InputValueGroupContext
     public OptionValueGroupContext()
     {
         AddOption(nameof(Value), CycleValue, () => Value);
-        AddSizeOption();
         AddReadOnlyOption();
     }
 
@@ -248,7 +300,6 @@ internal sealed partial class OptionKeysValueGroupContext : InputValueGroupConte
 
         AddOption(nameof(Value), CycleValue, () => Value is null ? null : string.Join(", ", Value));
         AddOption(nameof(MaxSelected), CycleMaxSelected, () => MaxSelected);
-        AddSizeOption();
         AddReadOnlyOption();
     }
 

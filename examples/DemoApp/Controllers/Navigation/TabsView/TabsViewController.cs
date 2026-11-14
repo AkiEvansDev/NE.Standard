@@ -1,8 +1,58 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using DemoApp.Controllers.Base;
 
 namespace DemoApp.Controllers.Navigation.TabsView;
+
+/// <summary>
+/// Dynamic browser tabs that reorder by dragging and close into a reopenable stack.
+/// </summary>
+internal sealed partial class BrowserTabsGroupContext : DemoGroupContext
+{
+    private readonly List<DemoDocumentItem> _closed = [];
+
+    [RecursiveMember(false)]
+    public RecursiveCollection<DemoDocumentItem> Pages { get; } =
+    [
+        CreatePage("docs", DemoIcons.FileText, "Getting started", 1, "docs.orvane.example/start", "Create a server, pick a plan and a region, and point your domain at it."),
+        CreatePage("api", DemoIcons.Link, "API reference", 2, "docs.orvane.example/api", "Every call the public API takes, and the key each one needs."),
+        CreatePage("status", DemoIcons.Alert, "Status", 3, "status.orvane.example", "All systems operational. Last incident 12 days ago.")
+    ];
+
+    public void Close(string id)
+    {
+        DemoDocumentItem? page = Pages.FirstOrDefault(item => string.Equals(item.Id, id, StringComparison.Ordinal));
+
+        if (page is null)
+            return;
+
+        _ = Pages.Remove(page);
+        _closed.Add(page);
+        LogEvent($"{page.Title} closed");
+    }
+
+    public void ReopenAll()
+    {
+        if (_closed.Count == 0)
+        {
+            LogEvent("all tabs are already open");
+            return;
+        }
+
+        while (_closed.Count > 0)
+        {
+            DemoDocumentItem page = _closed[^1];
+            _closed.RemoveAt(_closed.Count - 1);
+            Pages.Add(page);
+        }
+
+        LogEvent("restored closed tabs");
+    }
+
+    private static DemoDocumentItem CreatePage(string id, string icon, string title, double order, string address, string body)
+        => new() { Id = id, Icon = DemoIcons.Outline(icon), Title = title, Address = address, Order = order, CanRemove = true, Body = body };
+}
 
 /// <summary>
 /// A strip the controller walks: four steps nobody closes or drags, driven by the server as readily as by a click.
@@ -67,10 +117,21 @@ internal sealed partial class EmptyStripGroupContext : DemoGroupContext
             Title = "notes.md",
             Icon = DemoIcons.Outline(DemoIcons.FileText),
             Order = 1,
-            CanRemove = false,
+            CanRemove = true,
             Body = "The first document open, and the strip that came with it."
         });
         LogEvent("notes.md opened, and the strip came with it");
+    }
+
+    public void Close(string id)
+    {
+        DemoDocumentItem? document = Documents.FirstOrDefault(item => string.Equals(item.Id, id, StringComparison.Ordinal));
+
+        if (document is null)
+            return;
+
+        _ = Documents.Remove(document);
+        LogEvent("the last document closed, and the strip with it");
     }
 }
 
@@ -109,6 +170,30 @@ internal sealed partial class TabsViewController : DemoStandardController
             Icon = DemoIcons.Outline(DemoIcons.Settings),
             Order = 3,
             Body = /*lang=json,strict*/ "{\n  \"plan\": \"standard\",\n  \"region\": \"eu-west\",\n  \"image\": \"orvane-base-2026.09\"\n}"
+        },
+        new()
+        {
+            Id = TabsViewGroupContext.PipelineKey,
+            Title = "deploy-pipeline.yml",
+            Icon = DemoIcons.Outline(DemoIcons.Upload),
+            Order = 4,
+            Body = "stages:\n  - staging-eu-west\n  - production-canary\n  - production-fleet"
+        },
+        new()
+        {
+            Id = TabsViewGroupContext.AlertsKey,
+            Title = "alerts-policy.json",
+            Icon = DemoIcons.Outline(DemoIcons.Bell),
+            Order = 5,
+            Body = /*lang=json,strict*/ "{\n  \"errorRateThreshold\": 0.02,\n  \"latencyP95Ms\": 250\n}"
+        },
+        new()
+        {
+            Id = TabsViewGroupContext.RunbookKey,
+            Title = "runbook-failover.md",
+            Icon = DemoIcons.Outline(DemoIcons.List),
+            Order = 6,
+            Body = "Drain eu-west traffic, promote the read replica in us-east, and verify DNS propagation."
         }
     ];
 
@@ -117,6 +202,9 @@ internal sealed partial class TabsViewController : DemoStandardController
 
     [RecursiveMember]
     public partial TabsViewItemGroupContext FirstTabGroup { get; set; }
+
+    [RecursiveMember]
+    public partial BrowserTabsGroupContext BrowserGroup { get; set; } = new();
 
     [RecursiveMember]
     public partial EmptyStripGroupContext EmptyGroup { get; set; } = new();
@@ -136,8 +224,20 @@ internal sealed partial class TabsViewController : DemoStandardController
         => TabsViewGroup.Close(id);
 
     [UICommand]
+    public void CloseBrowserPage(string id)
+        => BrowserGroup.Close(id);
+
+    [UICommand]
+    public void ReopenBrowserPages()
+        => BrowserGroup.ReopenAll();
+
+    [UICommand]
     public void ToggleEmptyDocument()
         => EmptyGroup.Toggle();
+
+    [UICommand]
+    public void CloseEmptyDocument(string id)
+        => EmptyGroup.Close(id);
 
     [UICommand]
     public void NextStep()

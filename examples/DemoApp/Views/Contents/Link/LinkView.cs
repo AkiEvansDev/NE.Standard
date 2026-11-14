@@ -12,7 +12,7 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string LinkGroup = nameof(LinkController.LinkGroup);
-    private const string ContentGroup = nameof(LinkController.ContentGroup);
+    private const string IconGroup = nameof(LinkController.IconGroup);
     private const string BadgeGroup = nameof(LinkController.BadgeGroup);
 
     public static string ViewKey => "demo.contents.link";
@@ -26,7 +26,14 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreatePreview(frame => frame.AddChild(new LinkComponent()
             .BindStandard()
             .BindUrl<LinkController>(static x => x.LinkGroup.Url)
-            .BindTextContent(ContentGroup)
+            .BindTitle<LinkController>(static x => x.LinkGroup.Title)
+            .BindTitleType<LinkController>(static x => x.LinkGroup.TitleType)
+            .BindTitleColor<LinkController>(static x => x.LinkGroup.TitleColor)
+            .BindIcon<LinkController>(static x => x.IconGroup.Icon)
+            .BindIconColor<LinkController>(static x => x.IconGroup.IconColor)
+            .BindIconSize<LinkController>(static x => x.IconGroup.IconSize)
+            .BindTooltip<LinkController>(static x => x.IconGroup.Tooltip)
+            .BindTooltipPlacement<LinkController>(static x => x.IconGroup.TooltipPlacement)
             .BindBadge(BadgeGroup)
             .SetPlacement(1, 1, 24, 1)
         ));
@@ -35,7 +42,7 @@ internal sealed class LinkView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(LinkGroup, "Link"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
+            DemoUI.CreateOptionSection(IconGroup, "Icon & Tooltip"),
             DemoUI.CreateOptionSection(BadgeGroup, "Badge")
         );
 

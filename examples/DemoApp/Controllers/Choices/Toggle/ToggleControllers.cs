@@ -13,10 +13,7 @@ internal abstract partial class ToggleController(string sampleTitle, string samp
     public partial ToggleValueGroupContext ValueGroup { get; set; } = new();
 
     [RecursiveMember]
-    public partial TextContentGroupContext ContentGroup { get; set; } = new(sampleTitle, sampleDescription);
-
-    [RecursiveMember]
-    public partial TextBadgeGroupContext BadgeGroup { get; set; } = new();
+    public partial TextLabelGroupContext LabelGroup { get; set; } = new(sampleTitle, sampleDescription);
 
     [RecursiveMember]
     public partial BorderGroupContext BorderGroup { get; set; } = new();

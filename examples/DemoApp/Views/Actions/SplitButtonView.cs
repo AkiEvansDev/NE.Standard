@@ -17,9 +17,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
 {
     private const string MainGroup = nameof(DemoStandardController.MainGroup);
     private const string ButtonGroup = nameof(SplitButtonController.ButtonGroup);
-    private const string ContentGroup = nameof(SplitButtonController.ContentGroup);
-    private const string LayoutGroup = nameof(SplitButtonController.LayoutGroup);
-    private const string BadgeGroup = nameof(SplitButtonController.BadgeGroup);
+    private const string LabelGroup = nameof(SplitButtonController.LabelGroup);
     private const string BorderGroup = nameof(SplitButtonController.BorderGroup);
     private const string TargetsGroup = nameof(SplitButtonController.TargetsGroup);
 
@@ -38,7 +36,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
 
     private static StackPanelComponent CreatePane(UISplitButtonMode mode)
     {
-        SplitButtonComponent button = DemoButtonBindings.Bind(new SplitButtonComponent(), ButtonGroup, ContentGroup, LayoutGroup, BadgeGroup, BorderGroup)
+        SplitButtonComponent button = DemoButtonBindings.Bind(new SplitButtonComponent(), ButtonGroup, LabelGroup, BorderGroup)
             .SetMode(mode)
             .SetItems(CreateEntries())
             .OnItemClickWithItemKey(nameof(SplitButtonController.RestartAs));
@@ -70,9 +68,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
         => DemoUI.CreateOptions(
             DemoUI.CreateOptionSection(MainGroup, "Standard"),
             DemoUI.CreateOptionSection(ButtonGroup, "Button"),
-            DemoUI.CreateOptionSection(LayoutGroup, "Layout"),
-            DemoUI.CreateOptionSection(ContentGroup, "Content"),
-            DemoUI.CreateOptionSection(BadgeGroup, "Badge"),
+            DemoUI.CreateOptionSection(LabelGroup, "Label"),
             DemoUI.CreateOptionSection(BorderGroup, "Border")
         );
 
@@ -201,12 +197,14 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
     /// </summary>
     private static ContainerComponent CreateFieldGroup()
     {
+        UIResponsive<UILayoutLength> fieldWidth = UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), sm: UILayoutLength.Absolute(460));
+
         return DemoUI.CreateExample("Split button paired with an input",
             UILayout.Row(32)
                 .AddChild(new TextInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
                     .SetTitle("API key")
-                    .SetWidth(UILayoutLength.Absolute(460))
+                    .SetWidth(fieldWidth)
                     .SetValue("orv_live_4f9c…d21e")
                     .SetIsReadOnly(true)
                     .SetTrailingAction(new ButtonComponent()
@@ -218,7 +216,7 @@ internal sealed class SplitButtonView : DemoComponentView, IUIViewDefinition
                 .AddChild(new TextInputComponent()
                     .SetAppearance(UIInputAppearance.Outline)
                     .SetTitle("Assignee")
-                    .SetWidth(UILayoutLength.Absolute(460))
+                    .SetWidth(fieldWidth)
                     .SetValue("Grace Kim")
                     .SetTrailingAction(new SplitButtonComponent()
                         .SetMode(UISplitButtonMode.Menu)

@@ -28,15 +28,26 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         WebDomOperation.ToggleAttribute("aria-disabled", target: $".{SharedClassName}__toggle", condition: WebValueCondition.IsTrue, value: "true")
     ];
 
+    private static readonly WebDomOperation[] SegmentReadOnlyOperations =
+    [
+        NativeInputRendererBase.ReadOnlyMarkOperation,
+        WebDomOperation.ToggleAttribute("aria-disabled", target: $".{SharedClassName}__toggle", condition: WebValueCondition.IsTrue, value: "true")
+    ];
+
     public override string ComponentTypeKey => TComponent.ComponentTypeKey;
 
     /// <summary>Which surfaces the popup opens with: <c>date</c>, <c>time</c> or <c>date-time</c>.</summary>
     protected abstract string TemporalMode { get; }
 
     /// <summary>
-    /// Whether this control opens a picker popup at all; one without edits its value in place — a clock's segments and a stepper.
+    /// Whether this control opens a picker popup at every width; one without edits its value in place — a clock's segments and a stepper.
     /// </summary>
     protected virtual bool HasPicker => true;
+
+    /// <summary>
+    /// Whether an in-place temporal control also offers a picker sheet below the small breakpoint.
+    /// </summary>
+    protected virtual bool HasPhonePicker => false;
 
     /// <summary>The display format used when the author set no <c>DisplayFormat</c>: this mode's, in the patterns the field falls back on.</summary>
     protected abstract string GetDefaultDisplayFormat(UITemporalStep? step, WebTemporalPatterns patterns);
@@ -80,7 +91,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
 
         RenderRow(context, root, culture, defaultDisplayFormat, fieldId);
 
-        if (HasPicker)
+        if (HasPicker || HasPhonePicker)
         {
             _ = root.Element("div", popup =>
             {
@@ -173,9 +184,11 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         {
             _ = row.Class($"{SharedClassName}__row");
 
-            // The row holding the calendar's toggle says so, which a period's row keeps the room at its end for.
+            // The row holding a toggle says so, which a period's row keeps the room at its end for.
             if (HasPicker)
                 _ = row.Class($"{SharedClassName}__row--picker");
+            else if (HasPhonePicker)
+                _ = row.Class($"{SharedClassName}__row--phone-picker");
 
             // A period's two parts are one answer to one caption: the row is the group the caption names.
             if (isRange)
@@ -213,16 +226,7 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             if (IsClearable(context))
                 NativeInputRendererBase.RenderClearButton(context, row, $"{SharedClassName}__clear");
 
-            if (HasPicker)
-            {
-                RenderPopupToggle(row, $"{SharedClassName}__toggle", WebAttributes.TemporalToggle, button =>
-                {
-                    toggle = button;
-                    _ = button.Attribute("tabindex", "-1");
-                    WebWords.Write(context, button, "aria-label", UIStrings.PickerOpen);
-                });
-            }
-            else
+            if (!HasPicker)
             {
                 _ = row.Element("span", stepper =>
                 {
@@ -232,6 +236,16 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
                     RenderStepButton(stepper, $"{SharedClassName}__step", WebAttributes.TemporalStepDirection, "down");
                 });
             }
+
+            if (HasPicker || HasPhonePicker)
+            {
+                RenderPopupToggle(row, $"{SharedClassName}__toggle", WebAttributes.TemporalToggle, button =>
+                {
+                    toggle = button;
+                    _ = button.Attribute("tabindex", "-1");
+                    WebWords.Write(context, button, "aria-label", UIStrings.PickerOpen);
+                });
+            }
         });
 
         // The tree is written out only once the whole component is built, so writing onto these after their own
@@ -239,10 +253,11 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
         IHtmlElementBuilder startDisplay = startPart!;
         IHtmlElementBuilder? endDisplay = endPart;
 
-        // Without a picker, read-only is the root's mark alone: the stepper and the segments both read it, and the segments stay in
-        // the tab order.
+        // Without a text field, read-only marks the root and disables any phone sheet toggle; the segments stay in the tab order.
         if (HasPicker)
             RenderFieldReadOnly(context, root, startDisplay, endDisplay, toggle!);
+        else if (HasPhonePicker)
+            RenderSegmentReadOnly(context, root, toggle!);
         else
             NativeInputRendererBase.RenderIsReadOnlyMark(context, root);
 
@@ -311,6 +326,18 @@ public abstract class TemporalInputRendererBase<TComponent, TValue> : TextConten
             _ = endField?.Attribute("readonly");
             _ = toggle.Attribute("aria-disabled", "true");
         }, ReadOnlyOperations);
+    }
+
+    private static void RenderSegmentReadOnly(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder toggle)
+    {
+        _ = RenderProperty<bool?>(context, root, IInputComponent.IsReadOnlyProperty, (target, value) =>
+        {
+            if (value != true)
+                return;
+
+            _ = target.Class(WebClassNames.ReadOnly);
+            _ = toggle.Attribute("aria-disabled", "true");
+        }, SegmentReadOnlyOperations);
     }
 
     /// <summary>Names the part a value is entered in: a period's start or end by its own word, a single value by the field's caption.</summary>
