@@ -141,3 +141,27 @@ test("a press in a popup a field's action opened is the popup's, and the field k
         assert.equal(area.selection, null);
     }
 });
+
+test("a press on a caption wrapped in a header row reaches the field while header actions keep their own press", () => {
+    const area = new FakeTextArea();
+
+    area.classes.add("ui-field");
+    area.value = "hello";
+
+    const icon = FakeElement.of("ui-text__icon");
+    const header = FakeElement.of("ui-input__header").append(icon);
+    const expand = FakeElement.of("ui-input__expand", {}, "button");
+    const headerRow = FakeElement.of("ui-input__header-row").append(header, FakeElement.of("ui-input__header-action").append(expand));
+    const box = FakeElement.of("ui-text-area__box ui-field-box").append(area);
+
+    root.children.length = 0;
+    root.append(FakeElement.of("ui-text-area", { "data-ui-id": "notes" }).append(headerRow, box));
+    fakeDocument.activeElement = fakeDocument.body;
+
+    assert.equal(press(expand).defaultPrevented, false);
+    assert.equal(fakeDocument.activeElement, fakeDocument.body);
+
+    assert.equal(press(icon).defaultPrevented, true);
+    assert.equal(fakeDocument.activeElement, area);
+    assert.deepEqual(area.selection, [5, 5]);
+});

@@ -250,7 +250,7 @@ The whole catalogue with a link per page is [components.md](components.md). In s
 (`TextComponent`, `ParagraphComponent`, `IconComponent`, `ImageComponent`, `BadgeComponent`, `LinkComponent`, `StatusComponent`,
 `TimestampComponent`, `FileTileComponent`, `KeyValueActionComponent`, `SeparatorComponent`), actions (`ButtonComponent`,
 `ActionComponent`, `SplitButtonComponent`, `CommandBarComponent`, `ThemeSwitcherComponent`, `LanguageSwitcherComponent`), inputs
-(`text`, `area`, `number`, `slider`, `switch`, `checkbox`, `radio`, `select`, `multi-select` — `Chips`, `Badges`, `Checkboxes`, or compact filter trigger `Button` — `search` — option picker or `SetAllowFreeText()` autocomplete —, `date`, `time`, `date-time`,
+(`SetHeaderAction`/`SetHeaderActions` on the `16 px` caption line without raising `Title`; `text`, `area` — `SetExpandable(expand => ...)` modal editor —, `number`, `slider`, `switch`, `checkbox`, `radio`, `select`, `multi-select` — `Chips`, `Badges`, `Checkboxes`, or compact filter trigger `Button` — `search` — option picker or `SetAllowFreeText()` autocomplete; `select`/`multi-select`/`search` take in-field `AddLeadingAction`/`AddTrailingAction`/`SetTrailingAction` before the rightmost divided chevron cell —, `date`, `time`, `date-time`,
 calendar, colour, file, image), items (`ItemsViewComponent`, `TableComponent`, `TreeComponent`, `PagerComponent`), navigation
 (`MenuComponent`, `TabsComponent`, `TabsViewComponent`, `BreadcrumbsComponent`, `StepsComponent`, `ButtonGroupComponent`), indicators
 (`ProgressComponent`, `SpinnerComponent`).
@@ -385,7 +385,7 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
 - **Icons** - `NE.Standard.UI.Icons.Material` / `.Web.Icons.Material`: `MaterialIcons.Save`, `MaterialIcons.Outlined(...)`;
   host `services.AddMaterialWebIcons(names...)` (or with an explicit `MaterialIconStyle` mask) - only registered names
   draw, a misspelt one fails at startup; `MapUIGlyph` draws the framework's own glyphs from the set.
-- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, `SetHeaderAction`/`SetHeaderActions`, full-height modal editor via `SetExpandable(expand => ...)` and `ExpandFieldEffect`, inline completions via `AddCompletion`/`SetCompletionItems`/`SetCompletionTriggers`, custom Markdown/token styles via `SetMarkStyle`/`AddSpanStyle`/`AddTokenStyle`, Ctrl+S raises `code-save`:
+- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, `SetHeaderAction`/`SetHeaderActions`, full-height modal editor via `SetExpandable(expand => ...)` — `UICodeExpandBuilder`: `SetLineNumbers`, `SetWrapLines`, `SetStatusBar`, `SetFormatBar`, `SetSearch`, `SetMultiCaret`, `SetCompletions`, `SetAppearance`, `SetWidth`, `SetShowButton` — and `ExpandFieldEffect`, inline completions via `AddCompletion`/`SetCompletionItems`/`SetCompletionTriggers`, custom Markdown/token styles via `SetMarkStyle`/`AddSpanStyle`/`AddTokenStyle`, Ctrl+S raises `code-save`:
   `OnSave`/`OnSaveLiteral`) and `MarkdownDisplayComponent` (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`); host `services.AddCodeInput()`.
 - **DataGrid** - `DataGridComponent` (a `TableComponent` with `AddTextColumn`, `AddEnumColumn<T>`, `AddNumberColumn`,
   `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, `AddColumn<TRow>` / `AddEditableColumn<TRow, TInput>`, `AddFilter<TRow>`, sorting, filters, editing, paging, totals, CSV export),
@@ -405,7 +405,7 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
 - An item template binds `UIBindingScope.Relative`; the default `Root` inside a row is almost never meant.
 - A view compiles once and is shared: per-request content goes through the controller, never by building the view differently.
 - Don't keep a page's state anywhere but the controller; don't hand-roll a busy flag, a confirm dialog, a toast, a list/detail
-  switch, a back button or an empty state - the presets and effects above are those.
+  switch, a back button, an empty state, a title-row button stack above an input (`SetHeaderAction`), or a duplicate modal editor (`SetExpandable`) - the presets, slots and effects above are those.
 - Change an item in place rather than rebuilding a collection, so a reader's selection and scroll survive a push.
 - Found a gap or a bug in the framework? Write down the workaround in the application and report it upstream rather than
   patching around it silently.

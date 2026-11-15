@@ -23,7 +23,7 @@ public sealed class OrdersView : UIViewBase, IUIViewDefinition
 ```
 
 - Regions (`protected virtual`, except `CreateContent` which is `protected abstract`): `CreateContent()` (required, returns `IVisualComponent`), `CreateHeader()`, `CreateFooter()`, `CreateLeftSide()`, `CreateRightSide()` (each returns `IVisualComponent?`).
-- `CreateDialogs()` (`protected virtual`) returns `IReadOnlyList<UIDialog>` (use `UIDialogs.Create`, `UIDialogs.Form`, `UIDialogs.Confirm`, or `new UIDialog(key, content) { TitleId = ..., CloseOnBackdrop = true, CloseOnEscape = true }.OnClose(command)`).
+- `CreateDialogs()` (`protected virtual`) returns `IReadOnlyList<UIDialog>` (use `UIDialogs.Create`, `UIDialogs.Fill`, `UIDialogs.Form`, `UIDialogs.Confirm`, or `new UIDialog(key, content) { TitleId = ..., CloseOnBackdrop = true, CloseOnEscape = true }.OnClose(command)`).
 - `CreateShortcuts()` (`protected virtual`) returns `IReadOnlyList<UIShortcut>` (`new UIShortcut("Ctrl+S", nameof(OrdersController.Save))`).
 - Authored IDs (`new StackPanelComponent("sidebar")`) persist reader state (splitter share, collapsed state, pane layout) across reloads.
 

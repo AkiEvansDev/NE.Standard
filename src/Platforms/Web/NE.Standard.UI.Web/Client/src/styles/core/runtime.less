@@ -186,9 +186,9 @@
 
 // Held by its top where it stands level, as a form row holds its fields: centred or stretched, a field growing its message would
 // drop it off the box. Its own alignment is no custom property, so per band by the tiers named, above the rule a field-aligned row
-// holds its children by (ui-stack-panel.less, 0,4,0).
+// holds its children by (ui-stack-panel.less, 0,4,0); not inside a vertical stack, where align-self is the horizontal axis.
 .ui-responsive-bands(base sm md xl xxl; {
-    [data-ui-id].ui-field-aligned.ui-field-aligned.ui-field-aligned[data-ui-field-aligned~="@{tier}"] {
+    :not(.ui-stack-panel.ui-orientation--vertical) > [data-ui-id].ui-field-aligned.ui-field-aligned.ui-field-aligned[data-ui-field-aligned~="@{tier}"] {
         align-self: start;
     }
 

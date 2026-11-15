@@ -87,8 +87,13 @@
     }
 
 // Grid, so the caption lines up on ui-text.less's tracks; a required marker alone opens no header, having nothing to stand beside.
-:is([data-ui-text-title], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-title]) > :is(.ui-input__header, .ui-input__header-row > .ui-input__header) {
-    display: grid;
+// Two branches from the root, not `> :is(.ui-input__header, .ui-input__header-row > .ui-input__header)`: CSS evaluates `:is(...)` on
+// the subject element first, so an outer `>` would still demand `[data-ui-text-*]` on `.ui-input__header`'s direct parent.
+:is([data-ui-text-title], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-title]) {
+    > .ui-input__header,
+    > .ui-input__header-row > .ui-input__header {
+        display: grid;
+    }
 }
 
 // The caption's row is one caption line, whatever stands in it: a badge taller than the line is centred on it and overflows it
@@ -98,17 +103,9 @@
     height: 1lh;
 }
 
-:not([data-ui-text-title]) > :is(.ui-input__header, .ui-input__header-row > .ui-input__header) .ui-input__required {
-    display: none;
-}
-
-// A caption inside the field's box (UIInputTitlePlacement.Inside) opens and marks the same way, one level further down.
+// A caption inside the field's box (UIInputTitlePlacement.Inside) opens the same way, one level further down.
 :is([data-ui-text-title], [data-ui-text-icon]) > :is(@{ui-input-field}) > .ui-input__header {
     display: grid;
-}
-
-:not([data-ui-text-title]) > :is(@{ui-input-field}) > .ui-input__header .ui-input__required {
-    display: none;
 }
 
 // The caption does not shrink (it would lose its letters first) and is inert, so a press reaches the field beneath it.
@@ -137,8 +134,19 @@
     color: var(--ui-text-muted);
 }
 
+// Hidden until the owning root shows a title: a `:not([data-ui-text-title]) > .ui-input__header` negation would match intermediate
+// `.ui-input__header-row` and inside-caption field wrappers and hide the marker even when the root carries a title.
 .ui-input__required {
+    display: none;
     .ui-required-marker();
+}
+
+[data-ui-text-title] {
+    > .ui-input__header .ui-input__required,
+    > .ui-input__header-row > .ui-input__header .ui-input__required,
+    > :is(@{ui-input-field}) > .ui-input__header .ui-input__required {
+        display: block;
+    }
 }
 
     // The title stops growing when it carries a required marker, or the marker lands at the far edge of a full-width field; the row

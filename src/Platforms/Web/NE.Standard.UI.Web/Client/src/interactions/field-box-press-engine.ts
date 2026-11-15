@@ -12,7 +12,7 @@ const OwnPartSelector = `${NativeControlSelector}, [tabindex], [contenteditable]
 // The box's text field: the framework's field class on a caret input or a multi-line field.
 const FieldSelector = `:scope > input.${FieldClass}, :scope > textarea.${FieldClass}`;
 const FieldRootSelector = `.${TextInputClass}, .${TextAreaClass}, .${NumberInputClass}, .${TemporalInputClass}`;
-const HeaderSelector = `:is(${FieldRootSelector}) > :is(.${InputHeaderClass}, .${InputHeaderRowClass} > .${InputHeaderClass})`;
+const HeaderSelector = `:is(${FieldRootSelector}) > .${InputHeaderClass}, :is(${FieldRootSelector}) > .${InputHeaderRowClass} > .${InputHeaderClass}`;
 
 export type FieldBoxPressEngineOptions = {
     readonly root?: ParentNode;

@@ -76,11 +76,11 @@ test("anything but a panel stands down by the line as its margin's default, and 
     assert.doesNotMatch(rule, /translate/);
 });
 
-test("in each tier it stands level in it is held by its top, above a field-aligned row's rule, and set onto the band's middle", () => {
+test("in each tier it stands level in it is held by its top outside a vertical stack, above a field-aligned row's rule, and set onto the band's middle", () => {
     for (const tier of ["base", "sm", "md", "xl", "xxl"]) {
         const level = `[data-ui-id].ui-field-aligned.ui-field-aligned.ui-field-aligned[data-ui-field-aligned~="${tier}"]`;
 
-        assert.match(declarations(level).join(""), /align-self: start;/, tier);
+        assert.match(declarations(`:not(.ui-stack-panel.ui-orientation--vertical) > ${level}`).join(""), /align-self: start;/, tier);
         assert.ok(declarations(`${level}:not(.ui-stack-panel)`).join("").includes(`translate: 0 max(0px, calc(${Box} / 2 - 50%));`), tier);
     }
 });

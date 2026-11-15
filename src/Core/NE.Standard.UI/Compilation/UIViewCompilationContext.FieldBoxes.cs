@@ -270,12 +270,26 @@ internal sealed partial class UIViewCompilationContext
             : Sets(child, IVisualComponent.MarginProperty, child.Margin) ? null : child;
     }
 
-    /// <summary>A control, or a panel holding at least one and words at most beside them; never a block of its own (a card, a list).</summary>
+    /// <summary>
+    /// A control, a row holding at least one and words at most beside them, or a column of one control and words under it (its note);
+    /// never a column of more controls (a form) or a block of its own (a card, a list).
+    /// </summary>
     private static bool StandsOnFieldBox(IVisualComponent component)
     {
         switch (component)
         {
             case IInputComponent or IButtonComponent or ISwitcherComponent or ButtonGroupComponent:
+                return true;
+            case StackPanelComponent panel when RunsDownEverywhere(panel):
+                if (panel.Children.Count == 0 || !StandsOnFieldBox(panel.Children[0]))
+                    return false;
+
+                for (var i = 1; i < panel.Children.Count; i++)
+                {
+                    if (panel.Children[i] is (not ITextComponent) or IInputComponent or IButtonComponent or ISwitcherComponent)
+                        return false;
+                }
+
                 return true;
             // The arrangements themselves, not a surface or a pane container built on them.
             case StackPanelComponent or ContainerComponent or WrapPanelComponent:
