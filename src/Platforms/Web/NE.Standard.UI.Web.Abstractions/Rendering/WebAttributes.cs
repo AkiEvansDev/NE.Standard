@@ -906,4 +906,19 @@ public static class WebAttributes
 
     /// <summary>On a language switcher's choice: the language it switches to.</summary>
     public const string Language = "data-ui-language";
+
+    /// <summary>Marks an input root whose value can be edited in a client-side full-height modal dialog (<c>SetExpandable</c>).</summary>
+    public const string FieldExpandable = "data-ui-field-expandable";
+
+    /// <summary>Marks the caption-row button that opens an expandable field's modal dialog.</summary>
+    public const string FieldExpand = "data-ui-field-expand";
+
+    /// <summary>JSON map of boolean DOM attributes toggled on an expandable field root while its modal dialog is open.</summary>
+    public const string FieldExpandAttrs = "data-ui-field-expand-attrs";
+
+    /// <summary>Appearance modifier class applied to an expandable field root while its modal dialog is open.</summary>
+    public const string FieldExpandAppearance = "data-ui-field-expand-appearance";
+
+    /// <summary>Responsive CSS width custom properties applied to an expandable field's modal dialog surface.</summary>
+    public const string FieldExpandWidth = "data-ui-field-expand-width";
 }

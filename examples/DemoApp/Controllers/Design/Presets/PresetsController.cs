@@ -20,6 +20,7 @@ internal sealed partial class PresetsController() : DemoController
     internal const string BoundFormKey = "presets-dialog-bound-form";
     internal const string BoundCreateKey = "presets-dialog-bound-create";
     internal const string BoundContentKey = "presets-dialog-bound-content";
+    internal const string FillKey = "presets-dialog-fill";
 
     private static readonly string[] Servers = ["api-eu-west-1", "db-us-east-2"];
 
@@ -162,6 +163,10 @@ internal sealed partial class PresetsController() : DemoController
     [UICommand]
     public UICommandResult OpenCreate()
         => Open(CreateKey);
+
+    [UICommand]
+    public UICommandResult OpenFill()
+        => Open(FillKey);
 
     [UICommand]
     public UICommandResult OpenContent()

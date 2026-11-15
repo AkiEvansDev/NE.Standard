@@ -254,8 +254,12 @@ public static class WebClassNames
 
     public const string ImageInputMultiple = "ui-image-input--multiple";
 
-    /// <summary>The input header class the client finds elements by too.</summary>
+    /// <summary>The input header classes the client finds elements by too.</summary>
     public const string InputHeader = "ui-input__header";
+
+    public const string InputHeaderAction = "ui-input__header-action";
+
+    public const string InputHeaderRow = "ui-input__header-row";
 
     /// <summary>The items view classes the client finds elements by too.</summary>
     public const string ItemsView = "ui-items-view";

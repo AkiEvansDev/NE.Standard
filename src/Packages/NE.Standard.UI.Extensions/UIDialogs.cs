@@ -103,6 +103,62 @@ public static class UIDialogs
             : new ScrollContainerComponent().SetScrollFade(true).AddChild(content);
 
     /// <summary>
+    /// A full-height dialog (<c>Height = UILayoutLength.Fill()</c>) with its header in an <c>Auto</c> row above <paramref name="content"/>
+    /// in a <c>Star(1)</c> row and no <see cref="ScrollContainerComponent"/> wrapper around it, for content that fills and scrolls itself
+    /// (a code editor, a data grid, a split pane). Fills the overlay's width too unless a <paramref name="width"/> column is named or
+    /// overridden with <c>with { Width = … }</c>.
+    /// </summary>
+    public static UIDialog Fill(string key, UIPhrase title, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
+        => FillDialog(key, Header(key, title, icon, trailing), content, width);
+
+    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
+    public static UIDialog BoundFill<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
+        => BoundFill(key, PresetBindings.Path(titlePath), content, icon, width, trailing);
+
+    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
+    public static UIDialog BoundFill(string key, string titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
+        => FillDialog(key, BoundHeader(key, titlePath, icon, trailing), content, width);
+
+    private static UIDialog FillDialog(string key, ContainerComponent header, IVisualComponent content, UIColumnWidth? width)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        // A one-cell grid, as UILayout.Panes uses: its unplaced child fills the Star row without mutating the child's own Placement or Height.
+        ContainerComponent cell = new ContainerComponent()
+            .SetPlacement(1, 2, 24, 1)
+            .AddChild(content);
+
+        ContainerComponent body = new ContainerComponent()
+            .SetHeight(UILayoutLength.Fill())
+            .SetSpacing(16)
+            .SetRow(1, UIGridUnit.Auto())
+            .AddRow(UIGridUnit.Star())
+            .AddChild(header.SetPlacement(1, 1, 24, 1))
+            .AddChild(cell);
+
+        if (width is not UIColumnWidth column)
+        {
+            return new UIDialog
+            {
+                Key = key,
+                TitleId = TitleId(key),
+                Width = UILayoutLength.Fill(),
+                Height = UILayoutLength.Fill(),
+                Content = body
+            };
+        }
+
+        return new UIDialog
+        {
+            Key = key,
+            TitleId = TitleId(key),
+            Width = ColumnDialogWidth(column),
+            Height = UILayoutLength.Fill(),
+            Content = body.SetWidth(ColumnContentWidth(column)).SetMaxWidth(UILayoutLength.Fill())
+        };
+    }
+
+    /// <summary>
     /// The header alone: the mark where one is given, the title, <paramref name="trailing"/> before the ×, and the × at the far end, on
     /// one line, the ×'s glyph on the content's edge. The title carries <see cref="TitleId"/>, so a dialog built around the header is
     /// named by it.

@@ -137,7 +137,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
     }
 
     /// <summary>
-    /// In-field leading and trailing action buttons and button-anchored flyouts inside the select trigger, behind a divider after the chevron.
+    /// In-field leading and trailing action buttons and button-anchored flyouts inside the select trigger, before the divided chevron.
     /// </summary>
     private static ContainerComponent CreateActionsGroup()
     {
@@ -181,7 +181,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                         )
                     )
                 ),
-            note: "`AddLeadingAction`, `AddTrailingAction` and `SetTrailingAction` place buttons or button-anchored `FlyoutComponent`s inside the trigger, with trailing actions separated from the clear and chevron by a divider, without toggling the dropdown when clicked."
+            note: "`AddLeadingAction`, `AddTrailingAction` and `SetTrailingAction` place buttons or button-anchored `FlyoutComponent`s inside the trigger — trailing actions stand between the clear button and the divided chevron with no extra divider of their own — without toggling the dropdown when clicked."
         );
     }
 

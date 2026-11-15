@@ -69,6 +69,7 @@ export const ClientEffectKinds = {
     InsertText: "InsertText",
     DiscardForm: "DiscardForm",
     OpenPicker: "OpenPicker",
+    ExpandField: "ExpandField",
     SetLanguage: "SetLanguage",
     ConfirmLeave: "ConfirmLeave",
     ReplaceAddress: "ReplaceAddress",

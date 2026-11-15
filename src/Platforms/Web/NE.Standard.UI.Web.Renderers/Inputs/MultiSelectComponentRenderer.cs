@@ -288,8 +288,8 @@ public sealed partial class MultiSelectComponentRenderer : ItemsCollectionRender
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: true));
 
             SelectComponentRenderer.RenderClear(context, trigger);
-            SelectComponentRenderer.RenderChevron(trigger);
             FieldActionsRenderer.RenderTrailingGroups(context, trigger, WebClassNames.SelectAction, $"{WebClassNames.Select}__below");
+            SelectComponentRenderer.RenderChevron(trigger);
         });
     }
 

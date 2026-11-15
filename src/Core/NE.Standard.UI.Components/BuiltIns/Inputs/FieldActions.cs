@@ -16,12 +16,12 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <see cref="RegionNames.TrailingBelowStartAction"/>, beside the text nearest it. A flyout among them stands in its region whole and
 /// is listed by the button it opens from.
 /// </summary>
-internal sealed class FieldActions
+internal sealed class FieldActions(IDictionary<string, IVisualComponent> regions)
 {
     // Whose actions a flyout's anchor is refused among.
     private const string Host = "a field's";
 
-    private readonly Dictionary<string, IVisualComponent> _regions = [with(StringComparer.Ordinal)];
+    private readonly IDictionary<string, IVisualComponent> _regions = regions;
     private readonly List<IButtonComponent> _leading = [];
     private readonly List<IButtonComponent> _trailing = [];
 
@@ -35,8 +35,6 @@ internal sealed class FieldActions
     private int _trailingButtonCount;
     private bool _hasLeadingInField;
     private bool _hasTrailingInField;
-
-    public IReadOnlyDictionary<string, IVisualComponent> Regions => _regions;
 
     public IReadOnlyList<IButtonComponent> Leading => _leading;
 

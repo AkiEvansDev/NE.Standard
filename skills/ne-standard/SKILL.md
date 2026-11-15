@@ -156,7 +156,7 @@ browser with no round trip; reach for them before a command that only flips a fl
   second press), a form's button `OnSubmitShowingLoading(formId, command)` (`OnSubmitShowingLoadingLiteral` with literal
   arguments). Never a hand-made busy flag for one command.
 - An interaction may run a client-only effect: `InteractOn(event, effect)`, `Interact(source, effect, ...)` - only effects with
-  `CanRunInInteraction` (focus, scroll, copy, insert text, theme, language, rename, picker, lightbox, back, announce, the
+  `CanRunInInteraction` (focus, scroll, copy, insert text, theme, language, rename, picker, expand field, lightbox, back, announce, the
   notification permission, a toast with no action, a form's discard, opening a dialog the view declares, the viewer's own close
   `CloseDialogEffect(key) { RaisesClose = true }`, whose answer in a dialog is `UIDialogs.CloseButton(key)`); a language switch names a language
   the application translates into, or the view does not compile.
@@ -178,9 +178,9 @@ Returned in `UICommandResult.Ok([...])`, pushed with `Context.SendEffectsAsync`,
 `ShowSystemNotificationEffect`, `RequestNotificationPermissionEffect` (from an interaction: a browser asks only inside a press),
 `AnnounceEffect` (screen reader only), `DownloadFileEffect`, `SetThemeEffect`,
 `SetThemeColorsEffect`, `SetLanguageEffect`, `RenameItemEffect` (a tree's node, a tab, a text or header region), `CopyToClipboardEffect`, `InsertTextEffect`,
-`OpenPickerEffect`, `ShowImageEffect` (lightbox; `OnClickShowImage` on a surface) — every targeted effect takes a component instance (`UIComponentReference`) or string id. `ClientEffectKinds` lists the kinds. A dialog
+`OpenPickerEffect`, `ExpandFieldEffect` (opens a `SetExpandable` text area's or code editor's modal dialog), `ShowImageEffect` (lightbox; `OnClickShowImage` on a surface) — every targeted effect takes a component instance (`UIComponentReference`) or string id. `ClientEffectKinds` lists the kinds. A dialog
 key the view does not declare is refused at compile from an interaction and dropped (logged as an error) from a command; so is an
-effect at a component it cannot act on (a picker at no file input, a row at no list, an insert at no `ICaretFieldComponent` - a
+effect at a component it cannot act on (a picker at no file input, an expand at no `IExpandableInputComponent`, a row at no list, an insert at no `ICaretFieldComponent` - a
 text input, a text area, a number input, a search, the code editor; a package's caret field implements it), and an address that is a
 query or a fragment alone throws (`ReplaceAddressEffect`/`PushAddressEffect`, `ScrollToEffect` do those). In Development the page's console says
 so (`DevelopmentReportEffect`). `CopyToClipboardEffect.ValueOf` of a component with no value copies the words it shows (a text's
@@ -235,12 +235,12 @@ rather than rebuilding the arrangement with your own widths and spacings. Each r
   its glyph or words on the edge, an icon by its own `IconSize`. `UIMessage` - `Create`, `BoundCreate` (words at paths),
   `Info`, `Success`, `Warning`, `Danger` (`UIColorStyle`): a message that stays while true; `dismissCommand` runs as its ×
   hides it, for one gone for good.
-- `UIDialogs` - `Create`/`BoundCreate` (a `UIColumnWidth` keeps its content to a column, optional `trailing` stands in the header before the ×, and `content` is wrapped in a `ScrollContainerComponent` with `ScrollFade = true` and `8px` horizontal bleed room automatically — do not wrap normal scrolling content in an extra `ScrollContainerComponent`, and for a `Height = UILayoutLength.Fill()` dialog whose child fills and scrolls itself use `new UIDialog` with `TitleId = UIDialogs.TitleId(key)` and a grid placing `UIDialogs.Header` in an `Auto` row and the self-scrolling child in a `Star(1)` row; `with { ... }` for the rest, `UIDialog`
-  being a record), `Header`/`BoundHeader`, `Content`/`BoundContent`, `Form`/`BoundForm` (a real form: the key is its fields' form
+- `UIDialogs` - `Create`/`BoundCreate` (a `UIColumnWidth` keeps its content to a column, optional `trailing` stands in the header before the ×, and `content` is wrapped in a `ScrollContainerComponent` with `ScrollFade = true` and `8px` horizontal bleed room automatically — do not wrap normal scrolling content in an extra `ScrollContainerComponent`; `with { ... }` for the rest, `UIDialog`
+  being a record), `Fill`/`BoundFill` (a full-height `Height = UILayoutLength.Fill()` dialog whose `Width` is `UILayoutLength.Fill()` unless a `UIColumnWidth` caps it, placing `Header` in an `Auto` row and self-scrolling `content` such as `CodeInputComponent`, `TextAreaComponent`, `TableComponent`, `DataGridComponent` or a `Graph` canvas directly in a `Star(1)` row with no outer `ScrollContainerComponent`), `Header`/`BoundHeader`, `Content`/`BoundContent`, `Form`/`BoundForm` (a real form: the key is its fields' form
   id and the primary its submit; the standard Cancel), `Confirm`, `BoundConfirm` (a written question, its words at a path), `CloseButton(key, action)` - the dialog's own
   Cancel, Close or Done, never written by hand. A dialog is named by the title it shows (`UIDialog.TitleId`; a hand-built one
   over a preset's header passes `UIDialogs.TitleId(key)`).
-- `StatePresetExtensions` (`ShownWhen`, `HiddenWhen`, `EnabledWhen`, `DisabledWhen`) and `ResponsivePresetExtensions` (`ShownFrom`, `ShownBelow`).
+- `StatePresetExtensions` (`ShownWhen`, `HiddenWhen`, `EnabledWhen`, `DisabledWhen`), `ResponsivePresetExtensions` (`ShownFrom`, `ShownBelow`), and `FieldExpandExtensions` (`SetWidth(UIColumnWidth)` on `SetExpandable` builders).
 
 ## Built-in components
 
@@ -385,7 +385,7 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
 - **Icons** - `NE.Standard.UI.Icons.Material` / `.Web.Icons.Material`: `MaterialIcons.Save`, `MaterialIcons.Outlined(...)`;
   host `services.AddMaterialWebIcons(names...)` (or with an explicit `MaterialIconStyle` mask) - only registered names
   draw, a misspelt one fails at startup; `MapUIGlyph` draws the framework's own glyphs from the set.
-- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, inline completions via `AddCompletion`/`SetCompletionItems`/`SetCompletionTriggers`, custom Markdown/token styles via `SetMarkStyle`/`AddSpanStyle`/`AddTokenStyle`, Ctrl+S raises `code-save`:
+- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, `SetHeaderAction`/`SetHeaderActions`, full-height modal editor via `SetExpandable(expand => ...)` and `ExpandFieldEffect`, inline completions via `AddCompletion`/`SetCompletionItems`/`SetCompletionTriggers`, custom Markdown/token styles via `SetMarkStyle`/`AddSpanStyle`/`AddTokenStyle`, Ctrl+S raises `code-save`:
   `OnSave`/`OnSaveLiteral`) and `MarkdownDisplayComponent` (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`); host `services.AddCodeInput()`.
 - **DataGrid** - `DataGridComponent` (a `TableComponent` with `AddTextColumn`, `AddEnumColumn<T>`, `AddNumberColumn`,
   `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, `AddColumn<TRow>` / `AddEditableColumn<TRow, TInput>`, `AddFilter<TRow>`, sorting, filters, editing, paging, totals, CSV export),

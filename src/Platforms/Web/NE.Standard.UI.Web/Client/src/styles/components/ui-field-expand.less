@@ -1,0 +1,105 @@
+@import "../core/tokens.less";
+@import "../mixins/glyphs.less";
+@import "../mixins/glyph-edge.less";
+@import "../mixins/responsive.less";
+
+// The caption-row button that opens an expandable TextArea or CodeInput in a full-height modal dialog.
+.ui-input__expand {
+    aspect-ratio: 1;
+    padding: @ui-space-1;
+    .ui-glyph-host();
+
+    &::before {
+        .ui-glyph(@ui-glyph-fullscreen; @ui-glyph-md);
+    }
+}
+
+.ui-field-expand-dialog > .ui-field-expand-dialog__surface {
+    display: flex;
+    flex-direction: column;
+    gap: @ui-space-4;
+    .ui-responsive-property(width, --ui-width, var(--ui-fill-width));
+    .ui-responsive-property(height, --ui-height, var(--ui-fill-height));
+    overflow: clip;
+}
+
+.ui-field-expand-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: @ui-space-2;
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+.ui-field-expand-dialog__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ui-field-expand-dialog__actions {
+    display: flex;
+    align-items: center;
+    gap: @ui-space-1;
+    flex: 0 0 auto;
+}
+
+.ui-field-expand-dialog__close {
+    --ui-glyph-inset: calc((@{ui-button-height-sm} - @{ui-glyph-md}) / 2);
+    aspect-ratio: 1;
+    padding: @ui-space-1;
+    .ui-glyph-hang-end();
+    .ui-cross-glyph(@ui-glyph-md);
+}
+
+.ui-field-expand-dialog__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    overflow: clip;
+    overflow-clip-margin: @ui-keyboard-frame-reach;
+}
+
+.ui-field-expand-dialog__body > [data-ui-field-expanded] {
+    flex: 1 1 auto;
+    align-self: stretch;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    margin: 0;
+}
+
+[data-ui-field-expanded] > .ui-input__header,
+[data-ui-field-expanded] > .ui-input__header-row {
+    display: none;
+}
+
+.ui-text-area[data-ui-field-expanded] > .ui-text-area__field,
+.ui-text-area[data-ui-field-expanded] > .ui-text-area__box {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+}
+
+.ui-text-area[data-ui-field-expanded] > .ui-text-area__field,
+.ui-text-area[data-ui-field-expanded] > .ui-text-area__box > .ui-text-area__field {
+    resize: none !important;
+}
+
+.ui-text-area[data-ui-field-expanded] > .ui-text-area__box > .ui-text-area__field {
+    align-self: stretch;
+    max-height: none;
+}
+
+.ui-field-expand__placeholder {
+    width: 100%;
+    pointer-events: none;
+}

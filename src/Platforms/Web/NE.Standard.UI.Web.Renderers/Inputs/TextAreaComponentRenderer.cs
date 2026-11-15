@@ -46,7 +46,8 @@ public sealed class TextAreaComponentRenderer : TextContentRendererBase
         RenderTooltip(context, root);
 
         RenderInputAppearance(context, root);
-        RenderInputHeader(context, root, labelForId: fieldId);
+        Action<IHtmlElementBuilder>? expandButton = RenderExpandableInput(context, root);
+        RenderInputHeader(context, root, titleCanGoInside: false, labelForId: fieldId, trailingHeaderAction: expandButton);
         NativeInputRendererBase.RenderTriggers(context, root);
 
         // The author's buttons stand beside the text in one box, outside the text's own scroll; a bare area stays the box itself.

@@ -90,3 +90,12 @@ test("a flyout among a field's actions has its anchor compacted as the field's o
 test("an icon-only split button's root keeps no padding: an icon-only button's own would outrank the root's zero and pad its parts twice", () => {
     assert.match(declarationsOf(".ui-split-button.ui-button[data-ui-text-icon]:not([data-ui-text-title])"), /padding: [^;]*var\(--ui-padding, 0\)\)/);
 });
+
+test("a select's chevron stays the rightmost divided cell after any trailing action group", () => {
+    const chevron = declarationsOf(".ui-select__trigger > .ui-select__chevron");
+
+    assert.match(chevron, /order:\s*2;/);
+    assert.match(chevron, /border-left:\s*1px solid var\(--ui-color-border\);/);
+    assert.doesNotMatch(declarationsOf(".ui-select__action"), /border-left/);
+    assert.equal(declarationsOf(".ui-select__trigger > .ui-select__action:not(.ui-select__action--leading)"), "");
+});

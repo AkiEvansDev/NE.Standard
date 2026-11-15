@@ -21,6 +21,11 @@ public abstract class RegionContainerComponentBase<TComponent>(string? id = null
     public bool HasRegions => _regions.Count > 0;
 
     /// <summary>
+    /// Mutable view of the component's named regions for subclasses whose own helpers maintain numbered or conditional region entries.
+    /// </summary>
+    protected IDictionary<string, IVisualComponent> RegionEntries => _regions;
+
+    /// <summary>
     /// Gets region content by name, or <see langword="null"/> when the region is not set.
     /// </summary>
     protected IVisualComponent? GetRegionOrDefault(string regionName)

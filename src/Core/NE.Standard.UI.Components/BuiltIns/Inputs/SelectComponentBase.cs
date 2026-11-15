@@ -21,11 +21,11 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(IPopupPlacementComponent))]
 [UIComponentPropertyBlock(typeof(IClearableInputComponent))]
-public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IBorderedComponent, IAffixedInputComponent, IPlaceholderInputComponent, IPopupPlacementComponent, IClearableInputComponent, IRegionContainerComponent
+public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInputComponentBase<T, TItem, TValue>, IBorderedComponent, IAffixedInputComponent, IPlaceholderInputComponent, IPopupPlacementComponent, IClearableInputComponent
     where T : SelectComponentBase<T, TItem, TValue>, IUIComponentDefinition
     where TItem : class, IOptionModel
 {
-    private readonly FieldActions _actions = new();
+    private readonly FieldActions _actions;
 
     /// <summary>
     /// Gets the first control at the end of the field — a copy, a create, a look-up, or a split button with a menu of them.
@@ -42,12 +42,6 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     /// </summary>
     public IReadOnlyList<IButtonComponent> TrailingActions => _actions.Trailing;
 
-    /// <inheritdoc/>
-    public IReadOnlyDictionary<string, IVisualComponent> Regions => _actions.Regions;
-
-    /// <inheritdoc/>
-    public bool HasRegions => _actions.Regions.Count > 0;
-
     /// <summary>
     /// Gets or sets whether the field draws the mark that says it opens a list.
     /// </summary>
@@ -59,6 +53,7 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
     /// </summary>
     protected SelectComponentBase(string? id = null) : base(id)
     {
+        _actions = new FieldActions(RegionEntries);
         SetDefaultTemplate(CreateOptionTemplate());
         SetDefaultEmptyTemplate(new DefaultEmptyTemplate());
         SetDefaultGroupTemplate(new DefaultGroupTemplate(binds: true));

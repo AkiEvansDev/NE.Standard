@@ -51,17 +51,10 @@
 
 .ui-field-clear-host(~".ui-select:not(.ui-multi-select)"; ~".ui-select__trigger .ui-select__clear"; ~".ui-select:not(.ui-multi-select):is(:not([data-ui-select-value]), [data-ui-select-value='']) .ui-select__trigger .ui-select__clear");
 
-// The author's buttons, sized like the adornments, and the leading group (`--leading`); a trailing group stands after the clear
-// and the chevron, behind a rule as a stepper or a file pick does.
+// The author's buttons, sized like the adornments, and the leading group (`--leading`); a trailing group stands inside the field
+// between the clear and the divided chevron cell at the end.
 .ui-select__action {
     .ui-field-actions();
-}
-
-.ui-select__trigger > .ui-select__action:not(.ui-select__action--leading) {
-    align-self: stretch;
-    margin: calc(@ui-space-1 - var(--ui-field-top-edge, var(--ui-border-width, 1px))) -@ui-space-2 calc(@ui-space-1 - var(--ui-border-width, 1px)) 0;
-    padding-left: @ui-space-1;
-    border-left: 1px solid var(--ui-color-border);
 }
 
 // Underline has no side padding to give back.
@@ -89,7 +82,8 @@
     transition: color @ui-motion-fast @ui-motion-ease;
 }
 
-.ui-select__chevron:last-child {
+.ui-select__trigger > .ui-select__chevron {
+    order: 2;
     box-sizing: content-box;
     width: 1.25rem;
     .ui-field-divided-end();

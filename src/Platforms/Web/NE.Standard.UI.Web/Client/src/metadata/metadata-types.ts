@@ -431,6 +431,7 @@ export type ClientEffectKindName =
     | "InsertText"
     | "DiscardForm"
     | "OpenPicker"
+    | "ExpandField"
     | "SetLanguage"
     | "ConfirmLeave"
     | "ReplaceAddress"

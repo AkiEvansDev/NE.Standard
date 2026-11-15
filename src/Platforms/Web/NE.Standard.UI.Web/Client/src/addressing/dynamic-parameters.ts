@@ -2,6 +2,37 @@
 import { ComponentKeyAttribute, ComponentParameterCountAttribute, GroupAnchorAttribute, ItemsHostAttribute } from "./dom-attributes.ts";
 import { logWarn } from "../metadata/logger.ts";
 
+const logicalParents = new WeakMap<Element, Element>();
+
+/** Gives a portaled element (an expanded field or its moved header action) the logical parent it left behind in the page's tree. */
+export function setLogicalParent(element: Element, parent: Element | null): void {
+    if (parent === null)
+        logicalParents.delete(element);
+    else
+        logicalParents.set(element, parent);
+}
+
+/** The element's logical parent when portaled, else its DOM `parentElement`. */
+export function logicalParentOf(element: Element): Element | null {
+    return logicalParents.get(element) ?? element.parentElement;
+}
+
+/** `element.closest(selector)` walking across `logicalParentOf` boundaries when a subtree is portaled into a modal overlay. */
+export function closestLogical<TElement extends Element = Element>(element: Element, selector: string): TElement | null {
+    let current: Element | null = element;
+
+    while (current !== null) {
+        const matched = typeof current.matches === "function" ? current.matches(selector) : current.closest(selector) === current;
+
+        if (matched)
+            return current as TElement;
+
+        current = logicalParentOf(current);
+    }
+
+    return null;
+}
+
 export function readParameterCount(element: Element): number {
     return readNumberAttribute(element, ComponentParameterCountAttribute);
 }
@@ -18,7 +49,7 @@ export function collectDynamicParameters(element: Element, expectedCount: number
         const parameter = readDynamicParameter(current);
 
         if (parameter !== undefined) {
-            const own = current.closest(ItemsHostSelector);
+            const own = closestLogical(current, ItemsHostSelector);
 
             if (own === null || own !== host)
                 parameters.push(parameter);
@@ -26,7 +57,7 @@ export function collectDynamicParameters(element: Element, expectedCount: number
             host = own;
         }
 
-        current = current.parentElement;
+        current = logicalParentOf(current);
     }
 
     parameters.reverse();
@@ -97,7 +128,7 @@ export function endsWithDynamicParameters(element: Element, keys: readonly unkno
         const key = readDynamicParameter(current);
 
         if (key !== undefined) {
-            const own = current.closest(ItemsHostSelector);
+            const own = closestLogical(current, ItemsHostSelector);
 
             if (own === null || own !== host) {
                 if (key !== String(keys[index] ?? ""))
@@ -109,7 +140,7 @@ export function endsWithDynamicParameters(element: Element, keys: readonly unkno
             host = own;
         }
 
-        current = current.parentElement;
+        current = logicalParentOf(current);
     }
 
     return index < 0;

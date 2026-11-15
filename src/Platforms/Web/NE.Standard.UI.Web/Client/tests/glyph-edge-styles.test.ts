@@ -60,9 +60,13 @@ test("the switchers hang too: the theme switcher by its glyph, the language swit
     assert.match(inset(".ui-language-switcher"), /--ui-glyph-inset: 0\.75rem;/);
 });
 
-test("the core's own bands are edges by default: a card header's far end, but not a header that is only a control, and a tab strip's actions", () => {
+test("the core's own bands are edges by default: a card header's far end, an input's header action, and a tab strip's actions", () => {
     for (const rule of endRules)
-        assert.match(rule.selector, /:is\(\.ui-stack-panel--glyph-end, \.ui-card__header--content > \.ui-card__header-action, \.ui-tabs__actions\)/);
+        assert.match(rule.selector, /:is\(\.ui-stack-panel--glyph-end, \.ui-card__header--content > \.ui-card__header-action, \.ui-input__header-action, \.ui-tabs__actions\)/);
+});
+
+test("an input's header action hangs by its compact 20 px box round its 16 px glyph, flush with the field's end and clear of its top rule", () => {
+    assert.match(css, /\.ui-input__header-action > :is\(\.ui-button\[data-ui-text-icon\]:not\(\[data-ui-text-title\]\), \.ui-theme-switcher, \.ui-language-switcher\):is\(\.ui-button--ghost, \.ui-button--link\),\n\.ui-input__header-action > \.ui-stack-panel\.ui-orientation--horizontal > [^{]*\{\s*--ui-glyph-box: 1\.25rem;\s*--ui-glyph-size: 1rem;/);
 });
 
 test("a tab strip's action hangs by a field action's small box round its glyph, whatever the button's size", () => {
@@ -106,5 +110,5 @@ test("a row on the edge passes it on to its own last child, as the tab in front'
 });
 
 test("a glyph-edge panel, a horizontal row on its edge, and any unframed clipping grid or stack around it leave a hung button's 24 px and the 8 px frame reach uncut", () => {
-    assert.match(css, /\[data-ui-id\]\[data-ui-clip-reach="glyph"\]:not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\], \[style\*="--ui-bg-image"\]\),\s*\.ui-stack-panel:is\(\.ui-stack-panel--glyph-start, \.ui-stack-panel--glyph-end\)\[data-ui-id\],\s*:is\(\.ui-stack-panel--glyph-start, :is\(\.ui-stack-panel--glyph-end, \.ui-card__header--content > \.ui-card__header-action, \.ui-tabs__actions\)\) > \.ui-stack-panel\.ui-orientation--horizontal\[data-ui-id\]:not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\], \[style\*="--ui-bg-image"\]\) \{\s*overflow-clip-margin: 32px;/);
+    assert.match(css, /\[data-ui-id\]\[data-ui-clip-reach="glyph"\]:not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\], \[style\*="--ui-bg-image"\]\),\s*\.ui-stack-panel:is\(\.ui-stack-panel--glyph-start, \.ui-stack-panel--glyph-end\)\[data-ui-id\],\s*:is\(\.ui-stack-panel--glyph-start, :is\(\.ui-stack-panel--glyph-end, \.ui-card__header--content > \.ui-card__header-action, \.ui-input__header-action, \.ui-tabs__actions\)\) > \.ui-stack-panel\.ui-orientation--horizontal\[data-ui-id\]:not\(\[style\*="--ui-border-thickness"\], \[style\*="--ui-surface-color"\], \[style\*="--ui-bg-image"\]\) \{\s*overflow-clip-margin: 32px;/);
 });

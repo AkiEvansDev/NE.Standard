@@ -27,6 +27,7 @@ export class DialogEngine {
     private readonly returnFocusByKey = new Map<string, HTMLElement>();
     // The swipe each open bottom sheet follows, detached as it closes.
     private readonly swipes = new Map<string, () => void>();
+    private readonly beforeCloseByKey = new Map<string, () => void>();
 
     public constructor(options: DialogEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -87,6 +88,8 @@ export class DialogEngine {
         if (dialog.hasAttribute("hidden"))
             return true;
 
+        this.beforeCloseByKey.get(key)?.();
+
         const returnFocus = this.returnFocusByKey.get(key);
 
         this.returnFocusByKey.delete(key);
@@ -106,6 +109,11 @@ export class DialogEngine {
         syncLiftedPopups();
 
         return true;
+    }
+
+    /** Registers a cleanup hook run right before `close(key)` restores focus and hides the dialog. */
+    public onBeforeClose(key: string, handler: () => void): void {
+        this.beforeCloseByKey.set(key, handler);
     }
 
     /** Closes every open dialog as the server's close does, raising nothing: the page went to another runtime, which opened none. */

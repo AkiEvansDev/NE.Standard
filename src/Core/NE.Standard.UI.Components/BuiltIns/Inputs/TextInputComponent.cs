@@ -25,13 +25,18 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextLengthComponent))]
 [UIComponentPropertyBlock(typeof(IClearableInputComponent))]
-public abstract partial class TextInputComponent<T>(string? id = null) : InputComponentBase<T, string?>(id), IBorderedComponent, IFieldInputComponent, IAffixedInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IRegionContainerComponent, IDebounceInputComponent, IClearableInputComponent, ITextLengthComponent, ICaretFieldComponent
+public abstract partial class TextInputComponent<T> : InputComponentBase<T, string?>, IBorderedComponent, IFieldInputComponent, IAffixedInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IDebounceInputComponent, IClearableInputComponent, ITextLengthComponent, ICaretFieldComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
     // UIStrings.SearchField: the Shell's key, written out, as the components reference no Shell.
     private const string SearchKey = "ui.search.field";
 
-    private readonly FieldActions _actions = new();
+    private readonly FieldActions _actions;
+
+    protected TextInputComponent(string? id = null) : base(id)
+    {
+        _actions = new FieldActions(RegionEntries);
+    }
 
     /// <summary>
     /// Gets the first control at the end of the row — a copy, a generate, a look-up, or a split button with a menu of them.
@@ -68,12 +73,6 @@ public abstract partial class TextInputComponent<T>(string? id = null) : InputCo
     /// <remarks>Render-time only. The same components move, so a flyout or a split button among them keeps its one popup.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public UIResponsiveTier? ActionsBelow { get; set; }
-
-    /// <inheritdoc/>
-    public IReadOnlyDictionary<string, IVisualComponent> Regions => _actions.Regions;
-
-    /// <inheritdoc/>
-    public bool HasRegions => _actions.Regions.Count > 0;
 
     /// <summary>
     /// Puts a button at the end of the row, in place of any there before; the field lays it in and dresses it as an adornment.

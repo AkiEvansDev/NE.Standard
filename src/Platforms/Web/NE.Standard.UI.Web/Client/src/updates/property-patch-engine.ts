@@ -3,7 +3,7 @@ import type { AddressResolver, BoundElement, ResolvedPropertyAddress } from "../
 import { ownMarkedElements, resolveOperationElements } from "../addressing/operation-targets.ts";
 import { ComponentKeyAttribute, ComponentSelector, IntoAttributePrefix, ValueBindingAttribute, toKebabCase } from "../addressing/dom-attributes.ts";
 import { readComponentId, resolveWritableBinding } from "../addressing/dom-registry.ts";
-import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters.ts";
+import { closestLogical, collectDynamicParameters, logicalParentOf, readParameterCount } from "../addressing/dynamic-parameters.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ConverterRegistry } from "../extensions/converters.ts";
 import type { WebDomOperation, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
@@ -246,7 +246,7 @@ export class PropertyPatchEngine {
      */
     public writeBoundValue(element: Element, value: unknown, bindingId = Number(element.getAttribute(ValueBindingAttribute))): boolean {
         const binding = this.addressResolver.getBindingById(bindingId);
-        const component = element.closest(ComponentSelector);
+        const component = closestLogical(element, ComponentSelector);
 
         if (binding === undefined || component === null)
             return false;
@@ -296,17 +296,18 @@ export class PropertyPatchEngine {
 /** The rows an element stands in, innermost first, each named as a collection update addresses it; none for a static element. */
 function rowsOf(element: Element | undefined): PropertyStateRow[] {
     const rows: PropertyStateRow[] = [];
-    let row = element?.closest(`[${ComponentKeyAttribute}]`) ?? null;
+    let row = element === undefined ? null : closestLogical(element, `[${ComponentKeyAttribute}]`);
 
     while (row !== null) {
-        const owner = row.parentElement?.closest(ComponentSelector) ?? null;
+        const parent = logicalParentOf(row);
+        const owner = parent === null ? null : closestLogical(parent, ComponentSelector);
         const host = owner === null ? 0 : readComponentId(owner);
         const key = row.getAttribute(ComponentKeyAttribute);
 
         if (owner !== null && host > 0 && key !== null)
             rows.push({ host, hostParameters: collectDynamicParameters(owner, readParameterCount(owner)), key });
 
-        row = row.parentElement?.closest(`[${ComponentKeyAttribute}]`) ?? null;
+        row = parent === null ? null : closestLogical(parent, `[${ComponentKeyAttribute}]`);
     }
 
     return rows;

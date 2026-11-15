@@ -2,6 +2,7 @@ using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.Foundation.Inputs;
@@ -11,7 +12,7 @@ public static class InputCaptionRow
 {
     /// <summary>
     /// The input's box size at <paramref name="tier"/> where a caption stands over it — a title, an icon or a badge, written or bound by a
-    /// binding that must resolve — or null: a title inside the box, or nothing to show. An optional binding (a template's) may resolve to
+    /// binding that must resolve, or a header action — or null: a title inside the box with no header action, or nothing to show. An optional binding (a template's) may resolve to
     /// nothing, and the caption's row is drawn only for words it has.
     /// </summary>
     public static UISize? Box<TInput>(TInput input, UIResponsiveTier tier)
@@ -25,11 +26,15 @@ public static class InputCaptionRow
     public static UISize? Box<TInput>(TInput input, UIResponsiveTier tier, bool honoursInside)
         where TInput : IInputComponent, ITextBaseComponent
     {
-        if (IsTitleInside(input, honoursInside) || !ShowsCaption(input))
+        if (!HasHeaderAction(input) && (IsTitleInside(input, honoursInside) || !ShowsCaption(input)))
             return null;
 
         return input is ISizedInputComponent { Size: UIResponsive<UISize> size } ? size.Resolve(tier) : UISize.Medium;
     }
+
+    private static bool HasHeaderAction(IInputComponent input)
+        => (input is IRegionContainerComponent { HasRegions: true } regions && regions.Regions.ContainsKey(RegionNames.HeaderAction))
+            || input is IExpandableInputComponent { Expandable: true, ShowExpandButton: not false };
 
     /// <summary>Whether the input's caption stands inside its box: asked for, by a box that takes one.</summary>
     private static bool IsTitleInside(IInputComponent input, bool honoursInside)

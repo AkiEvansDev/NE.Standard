@@ -56,6 +56,7 @@ export type ClientStringKey =
     | "ui.lightbox.counter"
     | "ui.action.close"
     | "ui.action.rename"
+    | "ui.input.expand"
     | "ui.notification.close"
     | "ui.shelf.remove"
     | "ui.select.remove"

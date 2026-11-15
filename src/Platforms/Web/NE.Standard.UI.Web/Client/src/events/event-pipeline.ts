@@ -1,6 +1,7 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
 import { ComponentIdAttribute, ComponentSelector, eventSuppressAttribute, FormIdAttribute, ItemsViewItemClass, SubmitFormIdAttribute } from "../addressing/dom-attributes.ts";
 import { isInert, ValueSettleEventNames } from "../addressing/dom-registry.ts";
+import { closestLogical } from "../addressing/dynamic-parameters.ts";
 import type { DomRegistry, EffectRunner, FormValues, PressedForm } from "../addressing/dom-registry.ts";
 import type { CommandDispatcher } from "../transport/command-dispatcher.ts";
 import type { EventCatalog } from "../extensions/events.ts";
@@ -229,7 +230,7 @@ export class EventPipeline {
 
         // The component the target stands in, not the target itself: an engine raises a component's own event on a part of it — a
         // tab's label, a grid's query element, a canvas's value element — and a component nested in it is another one's.
-        if (this.options.eventCatalog.get(eventName)?.ownTarget === true && target.closest(ComponentSelector) !== resolved.element)
+        if (this.options.eventCatalog.get(eventName)?.ownTarget === true && closestLogical(target, ComponentSelector) !== resolved.element)
             return;
 
         const serverEvent = this.options.metadata.getEvent(resolved.componentId, eventName);

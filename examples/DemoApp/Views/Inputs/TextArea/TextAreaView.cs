@@ -18,6 +18,8 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
     private const string BorderGroup = nameof(TextAreaController.BorderGroup);
     private const string CommentsGroup = nameof(TextAreaController.CommentsGroup);
     private const string TriggersGroup = nameof(TextAreaController.TriggersGroup);
+    private const string RunbookAreaId = "demo-text-area-runbook";
+    private const string PostmortemAreaId = "demo-text-area-postmortem";
     private const string Incident = "The scheduler stopped acknowledging heartbeats at 09:14 UTC. Three regions failed over cleanly; eu-west held its lease for another ninety seconds and served stale reads for the duration.";
 
     public static string ViewKey => "demo.inputs.text-area";
@@ -57,7 +59,7 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
     // Every group across the page: the two places side by side, then the growing box, then the three heights in thirds, then the thread
     // at a thread's width, then the actions at a composer's.
     protected override IVisualComponent[] CreateExamples()
-        => [CreateFormGroup(), CreateGrowGroup(), CreateHeightGroup(), CreateCommentsGroup(), CreateActionsGroup(), CreateTriggersGroup()];
+        => [CreateFormGroup(), CreateGrowGroup(), CreateHeightGroup(), CreateExpandGroup(), CreateCommentsGroup(), CreateActionsGroup(), CreateTriggersGroup()];
 
     /// <summary>
     /// The two places it lives: a labelled box of prose that is saved with the page, and a small box that is sent, kept small so the
@@ -147,6 +149,48 @@ internal sealed class TextAreaView : DemoComponentView, IUIViewDefinition
             ),
             columns: 24,
             note: "`Rows` is the height the box is drawn at, not where it stays; `Vertical` is the only resize a column survives, since the other two let the box push its neighbours out."
+        );
+    }
+
+    /// <summary>
+    /// Caption-row header actions and full-height modal expansion (<c>SetHeaderAction</c>, <c>SetExpandable</c>, <c>ExpandFieldEffect</c>):
+    /// top-row buttons keep the 16 px caption height, and expanding promotes the live field into a full-height dialog.
+    /// </summary>
+    private static ContainerComponent CreateExpandGroup()
+    {
+        return DemoUI.CreateExample("Header actions & full-height modal editor",
+            UILayout.Columns(24,
+                new TextAreaComponent(RunbookAreaId)
+                    .SetAppearance(UIInputAppearance.Filled)
+                    .SetTitle("Runbook notes")
+                    .SetRows(4)
+                    .SetAutoGrow(8)
+                    .SetValue(Incident)
+                    .SetHeaderAction(UIIconButtons.Copy()
+                        .SetSize(UISize.Small)
+                        .InteractOn(EventNames.Click, CopyToClipboardEffect.ValueOf(RunbookAreaId))
+                    )
+                    .SetExpandable(expand => expand
+                        .SetAppearance(UIInputAppearance.Outline)
+                        .SetWidth(UIColumnWidth.Wide)
+                    ),
+                UILayout.Stack(8,
+                    new TextAreaComponent(PostmortemAreaId)
+                        .SetAppearance(UIInputAppearance.Outline)
+                        .SetTitle("Post-mortem draft")
+                        .SetRows(4)
+                        .SetValue("Root cause: stale leader lease in eu-west.\nMitigation: shortened lease TTL from 90 s to 20 s.")
+                        .SetExpandable(expand => expand
+                            .SetShowButton(false)
+                            .SetWidth(UIColumnWidth.Reading)
+                        ),
+                    UIButtons.Ghost("Edit in full height", DemoIcons.Outline(DemoIcons.Edit))
+                        .SetHorizontalAlignment(UIAlignment.Start)
+                        .InteractOn(EventNames.Click, new ExpandFieldEffect(PostmortemAreaId))
+                )
+            ),
+            columns: 24,
+            note: "`SetHeaderAction` places quiet controls in the 16 px caption row without pushing the field box down; `SetExpandable` appends the `⤢` button (and moves authored header actions into the modal header while open), promoting the live editor into a full-height dialog with its own dialog width and appearance. `SetShowButton(false)` keeps expansion behind an external `ExpandFieldEffect`."
         );
     }
 

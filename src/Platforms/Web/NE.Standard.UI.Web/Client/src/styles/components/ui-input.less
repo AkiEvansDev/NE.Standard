@@ -1,5 +1,6 @@
 @import "../core/tokens.less";
 @import "../mixins/field.less";
+@import "../mixins/glyph-edge.less";
 @import "../mixins/loading-ring.less";
 
 // The label row every input draws above its field, hidden until there is something to show: a title, an icon or a badge.
@@ -9,6 +10,68 @@
     gap: @ui-space-1;
     min-width: 0;
 }
+
+// When the caption row also carries trailing controls (`HeaderAction` or an expandable field's button), the row stays one caption
+// line tall (`16px`) so a field with header controls stands at the exact same y-offset as a field without them.
+.ui-input__header-row {
+    display: flex;
+    align-items: center;
+    gap: @ui-space-2;
+    height: var(--ui-text-caption-line-height);
+    min-width: 0;
+
+    > .ui-input__header {
+        flex: 1 1 auto;
+    }
+}
+
+.ui-input__header-action {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: @ui-space-1;
+    margin-inline-start: auto;
+}
+
+    .ui-input__header-action,
+    .ui-input__header-action > .ui-stack-panel.ui-orientation--horizontal {
+        .ui-field-action-buttons();
+
+        > .ui-button,
+        > .ui-flyout > .ui-flyout__anchor > .ui-button {
+            .ui-responsive-property(min-height, --ui-min-height, 1.25rem);
+
+            &:not(.ui-split-button) {
+                .ui-responsive-property(padding, --ui-padding, 0.125rem 0.375rem);
+            }
+
+            &:not(.ui-split-button)[data-ui-text-icon]:not([data-ui-text-title]) {
+                .ui-responsive-property(padding, --ui-padding, 0.125rem);
+            }
+
+            > .ui-split-button__main {
+                .ui-responsive-property(padding, --ui-padding, 0.125rem 0.375rem);
+            }
+
+            &[data-ui-text-icon]:not([data-ui-text-title]) > .ui-split-button__main {
+                .ui-responsive-property(padding, --ui-padding, 0.125rem);
+            }
+
+            &[data-ui-text-icon]:not([data-ui-text-title]) .ui-text__icon:not(.ui-icon-size--small, .ui-icon-size--medium, .ui-icon-size--large) {
+                font-size: @ui-glyph-md;
+            }
+        }
+    }
+
+    // Compacted to a 20 px box round a 16 px glyph, the last quiet icon action hangs its 2 px inset past the edge so its glyph stands
+    // flush with the field box's right border while staying 2 px clear of the field box's top border.
+    .ui-input__header-action > @{ui-glyph-hung},
+    .ui-input__header-action > .ui-stack-panel.ui-orientation--horizontal > @{ui-glyph-hung},
+    .ui-input__header-action > .ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung},
+    .ui-input__header-action > .ui-stack-panel.ui-orientation--horizontal > .ui-flyout > .ui-flyout__anchor > @{ui-glyph-hung} {
+        --ui-glyph-box: 1.25rem;
+        --ui-glyph-size: @ui-glyph-md;
+    }
 
 // The word at either end of a value; hidden while empty so a bound affix can appear with the data.
 .ui-input__affix {
@@ -24,7 +87,7 @@
     }
 
 // Grid, so the caption lines up on ui-text.less's tracks; a required marker alone opens no header, having nothing to stand beside.
-:is([data-ui-text-title], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-title]) > .ui-input__header {
+:is([data-ui-text-title], [data-ui-text-icon], [data-ui-text-badge-icon], [data-ui-text-badge-title]) > :is(.ui-input__header, .ui-input__header-row > .ui-input__header) {
     display: grid;
 }
 
@@ -35,7 +98,7 @@
     height: 1lh;
 }
 
-:not([data-ui-text-title]) > .ui-input__header .ui-input__required {
+:not([data-ui-text-title]) > :is(.ui-input__header, .ui-input__header-row > .ui-input__header) .ui-input__required {
     display: none;
 }
 
@@ -488,8 +551,9 @@ input.ui-field {
         grid-column: 1 / -1;
     }
 
-    > .ui-input__header {
+    > :is(.ui-input__header, .ui-input__header-row) {
         grid-row: 1;
+        grid-column: 1 / -1;
     }
 
     > .ui-validation-message {
@@ -628,7 +692,7 @@ input.ui-field {
         // it. Not flex-visual beside it: Chrome walked a pair's display: contents groups after the field whatever their order.
         reading-flow: grid-rows;
 
-        > .ui-input__header {
+        > :is(.ui-input__header, .ui-input__header-row) {
             margin-bottom: @ui-space-1;
         }
 

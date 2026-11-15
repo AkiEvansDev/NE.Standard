@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
+using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
@@ -10,6 +13,7 @@ using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Primitives.Text;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -360,17 +364,127 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
     /// an inside caption is then <see cref="RenderInputHeaderInside"/>'s job.
     /// </summary>
     public static void RenderInputHeader(WebRenderContext context, IHtmlElementBuilder root, bool titleCanGoInside = false, string? labelForId = null)
+        => RenderInputHeader(context, root, titleCanGoInside, labelForId, trailingHeaderAction: null);
+
+    /// <summary>
+    /// <see cref="RenderInputHeader(WebRenderContext, IHtmlElementBuilder, bool, string?)"/> with an optional built-in control placed
+    /// at the far edge of the caption row after any authored <see cref="RegionNames.HeaderAction"/>.
+    /// </summary>
+    public static void RenderInputHeader(WebRenderContext context, IHtmlElementBuilder root, bool titleCanGoInside, string? labelForId, Action<IHtmlElementBuilder>? trailingHeaderAction)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        if (titleCanGoInside && IsTitleInside(context))
-        {
+        var insideCaption = titleCanGoInside && IsTitleInside(context);
+
+        if (insideCaption)
             _ = root.Class(TitleInsideClassName);
+
+        var hasHeaderAction = HasRegion(context, RegionNames.HeaderAction);
+
+        if (hasHeaderAction || trailingHeaderAction is not null)
+        {
+            _ = root.Element("div", headerRow =>
+            {
+                _ = headerRow.Class(WebClassNames.InputHeaderRow);
+
+                if (!insideCaption)
+                    RenderInputHeaderElement(context, root, headerRow, inside: false, labelForId);
+
+                _ = headerRow.Element("div", action =>
+                {
+                    _ = action.Class(WebClassNames.InputHeaderAction);
+
+                    if (hasHeaderAction)
+                        RenderRegion(context, action, RegionNames.HeaderAction);
+
+                    trailingHeaderAction?.Invoke(action);
+                });
+            });
+
             return;
         }
 
+        if (insideCaption)
+            return;
+
         RenderInputHeaderElement(context, root, root, inside: false, labelForId);
+    }
+
+    /// <summary>
+    /// Writes the modal expansion metadata of an <see cref="IExpandableInputComponent"/> onto <paramref name="root"/> and returns the
+    /// caption-row expand button action when <see cref="IExpandableInputComponent.ShowExpandButton"/> is on, or <see langword="null"/>.
+    /// </summary>
+    public static Action<IHtmlElementBuilder>? RenderExpandableInput(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyDictionary<string, bool>? expandedAttributes = null)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(root);
+
+        if (ReadRenderValue<bool?>(context, IExpandableInputComponent.ExpandableProperty, false) != true)
+            return null;
+
+        _ = root.Attribute(WebAttributes.FieldExpandable);
+
+        if (ReadRenderValue<UIInputAppearance?>(context, IExpandableInputComponent.ExpandedAppearanceProperty, null) is UIInputAppearance appearance)
+            _ = root.Attribute(WebAttributes.FieldExpandAppearance, WebClassNames.InputAppearance(appearance));
+
+        if (ReadRenderValue<UIResponsive<UILayoutLength>?>(context, IExpandableInputComponent.ExpandedWidthProperty, null) is UIResponsive<UILayoutLength> width
+            && FormatExpandedWidth(width) is { Length: > 0 } widthCss)
+        {
+            _ = root.Attribute(WebAttributes.FieldExpandWidth, widthCss);
+        }
+
+        if (expandedAttributes is { Count: > 0 })
+            _ = root.Attribute(WebAttributes.FieldExpandAttrs, JsonSerializer.Serialize(expandedAttributes, WebWireJson.Options));
+
+        if (ReadRenderValue<bool?>(context, IExpandableInputComponent.ShowExpandButtonProperty, true) == false)
+            return null;
+
+        return parent => RenderExpandButton(context, parent);
+    }
+
+    private static string FormatExpandedWidth(UIResponsive<UILayoutLength> width)
+    {
+        StringBuilder builder = new();
+        var hasPriorLength = false;
+
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (width.Get(tier) is not UILayoutLength tierValue)
+                continue;
+
+            var css = hasPriorLength && tierValue.Kind == UILayoutLengthKind.Auto
+                ? "auto"
+                : WebCssValues.ResponsiveSize(tierValue, UIOrientation.Horizontal);
+
+            if (css.Length == 0)
+                continue;
+
+            if (builder.Length > 0)
+                _ = builder.Append("; ");
+
+            _ = builder.Append(WebResponsiveCss.TierName(WebResponsiveCss.WidthVariable, tier)).Append(": ").Append(css);
+            hasPriorLength = tierValue.Kind != UILayoutLengthKind.Auto;
+        }
+
+        return builder.ToString();
+    }
+
+    private static void RenderExpandButton(WebRenderContext context, IHtmlElementBuilder parent)
+    {
+        _ = parent.Element("button", button =>
+        {
+            _ = button.Class($"{InputClassPrefix}__expand");
+            _ = button.Class(WebClassNames.Button);
+            _ = button.Class(WebClassNames.ButtonVariant(UIButtonVariant.Ghost));
+            _ = button.Class(WebClassNames.ButtonSize(UISize.Small));
+            _ = button.Attribute("type", "button");
+            _ = button.Attribute(WebAttributes.TextIcon);
+            _ = button.Attribute(WebAttributes.EventBoundary);
+            _ = button.Attribute(WebAttributes.FieldExpand);
+            WebWords.Write(context, button, "aria-label", UIStrings.InputExpand);
+            WebWords.Write(context, button, WebAttributes.Tooltip, UIStrings.InputExpand);
+        });
     }
 
     private static bool IsTitleInside(WebRenderContext context)

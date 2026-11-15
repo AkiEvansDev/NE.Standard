@@ -104,8 +104,11 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         if (AllowFreeText == true)
             ThrowIfFreeTextRefused(variant, nameof(variant));
 
-        if (HasRegions)
+        if (LeadingActions.Count > 0 || TrailingActions.Count > 0)
             ThrowIfActionsRefused(variant, nameof(variant));
+
+        if (HeaderAction is not null)
+            ThrowIfHeaderActionRefused(variant, nameof(variant));
 
         Variant = variant;
 
@@ -126,6 +129,13 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
             throw new ArgumentException("A multi-select drawn as checkboxes takes no field actions: it has no field box to place them in. Remove the actions, or draw it as Chips or Badges.", parameterName);
     }
 
+    /// <summary>Refuses a header action under <see cref="UIMultiSelectVariant.Button"/>, which draws no caption row above itself.</summary>
+    private static void ThrowIfHeaderActionRefused(UIMultiSelectVariant? variant, string parameterName)
+    {
+        if (variant == UIMultiSelectVariant.Button)
+            throw new ArgumentException("A multi-select drawn as a button takes no header action: it draws no caption row above itself.", parameterName);
+    }
+
     internal static void RequireButtonVariant(IMultiSelectComponent select, string host)
     {
         ArgumentNullException.ThrowIfNull(select);
@@ -137,6 +147,10 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
     /// <inheritdoc/>
     protected override void ValidateActionSupported(string parameterName)
         => ThrowIfActionsRefused(Variant, parameterName);
+
+    /// <inheritdoc/>
+    protected override void ValidateHeaderActionSupported(string parameterName)
+        => ThrowIfHeaderActionRefused(Variant, parameterName);
 
     private static DefaultTextTemplate CreateVariantTemplate(UIMultiSelectVariant variant) => variant switch
     {
@@ -216,8 +230,11 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         if (AllowFreeText == true)
             ThrowIfFreeTextRefused(Variant, nameof(AllowFreeText));
 
-        if (HasRegions)
+        if (LeadingActions.Count > 0 || TrailingActions.Count > 0)
             ThrowIfActionsRefused(Variant, nameof(Variant));
+
+        if (HeaderAction is not null)
+            ThrowIfHeaderActionRefused(Variant, nameof(Variant));
     }
 
     /// <summary>The checkboxes keep their caption on top whatever <c>TitlePlacement</c> asks, as their renderer draws it; the field honours it; a button has no caption row.</summary>

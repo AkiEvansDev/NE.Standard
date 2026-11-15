@@ -1370,6 +1370,38 @@ export const ItemsVersionAttribute = "data-ui-items-version";
 
 export const SliderInputHoveredClass = "ui-slider__input--hovered";
 
+export const InputHeaderRowClass = "ui-input__header-row";
+
+export const InputHeaderActionClass = "ui-input__header-action";
+
+export const FieldExpandableAttribute = "data-ui-field-expandable";
+
+export const FieldExpandAttribute = "data-ui-field-expand";
+
+export const FieldExpandAttrsAttribute = "data-ui-field-expand-attrs";
+
+export const FieldExpandAppearanceAttribute = "data-ui-field-expand-appearance";
+
+export const FieldExpandWidthAttribute = "data-ui-field-expand-width";
+
+export const FieldExpandedAttribute = "data-ui-field-expanded";
+
+export const FieldExpandDialogClass = "ui-field-expand-dialog";
+
+export const FieldExpandSurfaceClass = "ui-field-expand-dialog__surface";
+
+export const FieldExpandHeaderClass = "ui-field-expand-dialog__header";
+
+export const FieldExpandTitleClass = "ui-field-expand-dialog__title";
+
+export const FieldExpandActionsClass = "ui-field-expand-dialog__actions";
+
+export const FieldExpandCloseClass = "ui-field-expand-dialog__close";
+
+export const FieldExpandBodyClass = "ui-field-expand-dialog__body";
+
+export const FieldExpandPlaceholderClass = "ui-field-expand__placeholder";
+
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {
     componentId: ComponentIdAttribute,

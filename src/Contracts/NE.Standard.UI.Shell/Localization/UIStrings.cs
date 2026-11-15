@@ -138,6 +138,7 @@ public static partial class UIStrings
     public const string ColorOpacity = "ui.color.opacity";
     public const string ColorChoose = "ui.color.choose";
     public const string PickerOpen = "ui.picker.open";
+    public const string InputExpand = "ui.input.expand";
     public const string FileChoose = "ui.file.choose";
     public const string SplitterName = "ui.splitter.name";
 
@@ -398,6 +399,7 @@ public static partial class UIStrings
         [LightboxNext] = "Next picture",
         [LightboxCounter] = "{index} of {count}",
         [ItemsEmpty] = "Nothing to show.",
+        [InputExpand] = "Expand",
         [CollapseToggle] = "Expand or collapse",
         [SideOpen] = "Open the side panel",
         [LeftPanel] = "Left panel",

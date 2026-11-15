@@ -221,8 +221,8 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
             _ = trigger.Element("span", icon => TextContentRendererBase.RenderInputAffixIcon(context, root, icon, suffix: true));
 
             RenderClear(context, trigger);
-            RenderChevron(trigger);
             FieldActionsRenderer.RenderTrailingGroups(context, trigger, WebClassNames.SelectAction, $"{WebClassNames.Select}__below");
+            RenderChevron(trigger);
         });
     }
 

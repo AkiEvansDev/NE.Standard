@@ -44,6 +44,7 @@ const EffectTypes: Readonly<Record<string, string>> = {
     InsertText: "InsertTextClientEffect",
     DiscardForm: "DiscardFormClientEffect",
     OpenPicker: "TargetedClientEffect",
+    ExpandField: "TargetedClientEffect",
     ConfirmLeave: "ConfirmLeaveClientEffect",
     ReplaceAddress: "AddressClientEffect",
     PushAddress: "AddressClientEffect",

@@ -60,15 +60,15 @@ with the item models and the enums on their own pages beside it.
 
 ## Inputs
 
-All share `Value` (two-way), `Title` (the caption above), `SetHelp`, the validation rules and `OnChange`/`OnBlur` (with bound
+All share `Value` (two-way), `Title` (the caption above), `SetHelp`, `SetHeaderAction`/`SetHeaderActions` (compact buttons on the `16 px` caption line without raising the title or pushing the field box down), the validation rules and `OnChange`/`OnBlur` (with bound
 arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a box
 (`IFieldInputComponent`: text, number, select, date and time, file, colour, image) takes `Appearance`
 (`UIInputAppearance.Filled`/`Outline`/`Underline`/`Ghost`); a checkbox, a switch, a radio group, a slider and a calendar have none.
 
-- `TextInputComponent`, `TextAreaComponent` (inline `@`/`/` trigger suggestions and pill tokens via `AddTrigger`, `SetTriggerItems`/`BindTriggerItems` of `UITextTriggerItem`, `OnTriggerSearch`, `OnTriggerSelect` and `OnTriggerClick`), `NumberInputComponent`, `SliderComponent` (one value or a range; its value on `Step` from `Min`, 1 unless set).
+- `TextInputComponent`, `TextAreaComponent` (`SetExpandable(expand => ...)` + `ExpandFieldEffect` promotes the live area into a full-height modal dialog with its own `Appearance` and dialog `Width`; inline `@`/`/` trigger suggestions and pill tokens via `AddTrigger`, `SetTriggerItems`/`BindTriggerItems` of `UITextTriggerItem`, `OnTriggerSearch`, `OnTriggerSelect` and `OnTriggerClick`), `NumberInputComponent`, `SliderComponent` (one value or a range; its value on `Step` from `Min`, 1 unless set).
 - `CheckboxComponent`, `SwitchComponent`, `RadioGroupComponent` (`ItemMinWidth` stands its radios in even columns, as a wrap
   panel's children).
-- `SelectComponent`, `MultiSelectComponent`, `SearchComponent` (a select with a popup search field; `OnSearch` asks the server, and `SetAllowFreeText()` lets `Enter` in the popup search field commit a typed value not in `Options`; all three take in-field `AddLeadingAction`, `AddTrailingAction` and `SetTrailingAction` buttons or button-anchored `FlyoutComponent`s). A
+- `SelectComponent`, `MultiSelectComponent`, `SearchComponent` (a select with a popup search field; `OnSearch` asks the server, and `SetAllowFreeText()` lets `Enter` in the popup search field commit a typed value not in `Options`; all three take in-field `AddLeadingAction`, `AddTrailingAction` and `SetTrailingAction` buttons or button-anchored `FlyoutComponent`s, with trailing actions standing inside the field before the rightmost divided chevron cell). A
   multi-select's `SetVariant(UIMultiSelectVariant…)` draws it as `Chips` (the default), `Badges` (each option its badge, chosen
   into the field as the badge) or `Checkboxes` (a box per option in place, no list; `Orientation`/`Spacing`/`ItemMinWidth` as a radio group's;
   no free text or field actions) or `Button` (a compact button trigger with `ButtonVariant`, icon/title and an automatic chosen-count badge when `Value.Count > 0` that opens the multi-select popup and also fits in `TextInputComponent`/`TextAreaComponent` field actions; no free text or field actions of its own). `SetVariant` installs the variant's option template unless one of your own is set.
@@ -111,7 +111,7 @@ Built-in item models: `TextItem`, `TextBaseItem`, `ButtonItem`, `MenuItem`, `Tab
 Each add-on's README (on its repository, and in the NuGet cache next to the package) is its full reference.
 
 - CodeInput (https://github.com/AkiEvansDev/NE.Standard.UI.CodeInput): `CodeInputComponent` - a code editor field with
-  highlighting, inline completions (`AddCompletion`, `SetCompletionItems`, `SetCompletionTriggers`), custom mark/span/token styles (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`), find and replace; `MarkdownDisplayComponent` - a Markdown document as formatted text (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`).
+  highlighting, `SetHeaderAction`/`SetHeaderActions`, full-height modal expansion with separate inline and dialog parameters (`SetExpandable(expand => ...)`, `ExpandFieldEffect`), inline completions (`AddCompletion`, `SetCompletionItems`, `SetCompletionTriggers`), custom mark/span/token styles (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`), find and replace; `MarkdownDisplayComponent` - a Markdown document as formatted text (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`).
 - DataGrid (https://github.com/AkiEvansDev/NE.Standard.UI.DataGrid): `DataGridComponent` - a table with typed columns, sorting,
   filters (`AddFilter<TRow>`), editing, paging, totals and export; `DataGridCellComponent` - a typed column's cell; `DataGridFilterComponent` - one
   filter of a grid.

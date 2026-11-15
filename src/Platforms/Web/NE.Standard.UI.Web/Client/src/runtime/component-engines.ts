@@ -22,6 +22,7 @@ import { DialogEngine } from "../interactions/dialog-engine";
 import { observeComponents } from "../interactions/dom-mutations";
 import { observeSize } from "../interactions/element-size";
 import { FieldBoxPressEngine } from "../interactions/field-box-press-engine";
+import { FieldExpandEngine } from "../interactions/field-expand-engine";
 import { FieldEnterEvent, FieldKeysEngine } from "../interactions/field-keys-engine";
 import { FileInputEngine } from "../interactions/file-input-engine";
 import { FileTileEngine } from "../interactions/file-tile-engine";
@@ -200,6 +201,7 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["text trigger", ({ root, propertyPatchEngine }) => new TextTriggerEngine({ root, propertyPatchEngine })],
     ["field keys", ({ root, propertyPatchEngine }) => new FieldKeysEngine({ root, propertyPatchEngine })],
     ["field box press", ({ root }) => new FieldBoxPressEngine({ root })],
+    ["field expand", ({ root, dialogs }) => new FieldExpandEngine({ root, dialogs })],
     // Ahead of the engines reading a class it sets (an orientation, a size, a list's layout), so they read the width's.
     ["tier classes", ({ root }) => new TierClassEngine({ root })],
     ["image fallback", ({ root }) => new ImageFallbackEngine({ root })],

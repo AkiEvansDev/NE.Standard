@@ -1,6 +1,6 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
 import { BindingAttributePrefix, ComponentIdAttribute, ComponentSelector, DisabledClass, GroupHeaderAttribute, LoadingClass, ReadOnlyClass, ValueBindingAttribute, ensureElementId } from "./dom-attributes.ts";
-import { collectDynamicParameters, matchesDynamicParameters, readNumberAttribute, readParameterCount, startsWithDynamicParameters } from "./dynamic-parameters.ts";
+import { closestLogical, collectDynamicParameters, logicalParentOf, matchesDynamicParameters, readNumberAttribute, readParameterCount, startsWithDynamicParameters } from "./dynamic-parameters.ts";
 import { getBindingMode, rowKeysText } from "../metadata/metadata-index.ts";
 import type { ClientEffect, MetadataIndex, WebBindingMode, WebRenderBindingMetadata } from "../metadata/metadata-index.ts";
 
@@ -373,7 +373,7 @@ export class DomRegistry {
         let current: Element | null = start;
 
         while (current !== null) {
-            const component: Element | null = current.closest<Element>(ComponentSelector);
+            const component: Element | null = closestLogical<Element>(current, ComponentSelector);
 
             if (component === null || !containsNode(this.root, component))
                 return null;
@@ -390,7 +390,7 @@ export class DomRegistry {
                 };
             }
 
-            current = component.parentElement;
+            current = logicalParentOf(component);
         }
 
         return null;
@@ -402,7 +402,7 @@ export function readComponentId(element: Element): number {
 }
 
 export function findOwningComponentId(element: Element): number | null {
-    const owner = element.closest<Element>(ComponentSelector);
+    const owner = closestLogical<Element>(element, ComponentSelector);
     const componentId = owner === null ? 0 : readComponentId(owner);
 
     return componentId > 0 ? componentId : null;
@@ -410,7 +410,7 @@ export function findOwningComponentId(element: Element): number | null {
 
 /** The component an element stands in, and the keys of the rows that component stands in — its address, as the server names it. */
 export function findOwningComponentAddress(element: Element): { readonly componentId: number; readonly dynamicParameters: readonly unknown[] } | null {
-    const owner = element.closest<Element>(ComponentSelector);
+    const owner = closestLogical<Element>(element, ComponentSelector);
     const componentId = owner === null ? 0 : readComponentId(owner);
 
     return owner === null || componentId <= 0

@@ -10,7 +10,7 @@
 // action stands where its words' row ends — a header that is only a control is no band, its control's padding the inset —, a tab
 // strip's actions (ui-tabs.less), and a toast's close (ui-notification.less, by .ui-glyph-hang-end() as it is no child at an end).
 @ui-glyph-start-edge: ~".ui-stack-panel--glyph-start";
-@ui-glyph-end-edge: ~":is(.ui-stack-panel--glyph-end, .ui-card__header--content > .ui-card__header-action, .ui-tabs__actions)";
+@ui-glyph-end-edge: ~":is(.ui-stack-panel--glyph-end, .ui-card__header--content > .ui-card__header-action, .ui-input__header-action, .ui-tabs__actions)";
 
 // The first and the last child a glyph edge shows, at each width by that width's own Visibility (runtime.less bands it so): one
 // collapsed at a width, or hidden (a tab's actions behind another tab), leaves the next on the edge there alone. Nor is a drawer's own button the shell hides for its side's state

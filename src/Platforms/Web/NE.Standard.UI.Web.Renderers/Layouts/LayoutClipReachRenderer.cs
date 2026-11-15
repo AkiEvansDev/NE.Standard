@@ -139,6 +139,15 @@ internal static class LayoutClipReachRenderer
         // Every IInputComponent (built-in or add-on) carries IsReadOnly in View.State and draws a 2 px focus halo, toggle wash or thumb.
         if (view.State.TryGetValue(childId, IInputComponent.IsReadOnlyProperty, out _))
         {
+            if (view.Graph.TryGetSlot(childId, UIComponentSlotKind.Region, out _, RegionNames.HeaderAction))
+                return Glyph;
+
+            if (TryGetStatic(view, childId, IExpandableInputComponent.ExpandableProperty, out bool? expandable) && expandable == true
+                && (!TryGetStatic(view, childId, IExpandableInputComponent.ShowExpandButtonProperty, out bool? showButton) || showButton != false))
+            {
+                return Glyph;
+            }
+
             return TryGetStatic(view, childId, IFieldInputComponent.ShowFocusEdgeProperty, out bool? showFocusEdge) && showFocusEdge == false
                 ? None
                 : Contour;

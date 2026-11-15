@@ -12,6 +12,7 @@ import { firstFocusable, FocusableSelector } from "../interactions/popup-focus.t
 import { offeredAction, offeredActionId } from "../interactions/notification-engine.ts";
 import type { NotificationAction, NotificationEngine } from "../interactions/notification-engine.ts";
 import { dispatchOpenPicker } from "../interactions/picker-events.ts";
+import { expandField } from "../interactions/field-expand-engine.ts";
 import { isElsewhere, showSystemNotification } from "../interactions/system-notifications.ts";
 import type { SystemNotificationServices } from "../interactions/system-notifications.ts";
 import { holdAtEnd, isEndAnchored, releaseScrollHolds } from "../interactions/scroll-anchor-engine.ts";
@@ -368,6 +369,18 @@ export class EffectRegistry {
 
             if (element !== null && !dispatchOpenPicker(element))
                 logWarn("open picker effect names no file or image input.", context.effect);
+        });
+
+        this.register("ExpandField", context => {
+            if (this.dialogs === undefined) {
+                logWarn("expand field effect arrived but no dialog engine is wired up.", context.effect);
+                return;
+            }
+
+            const element = resolveTarget(context);
+
+            if (element !== null && !expandField(this.dialogs, element, context.dom.root ?? document))
+                logWarn("expand field effect names no expandable input.", context.effect);
         });
 
         this.register("OpenDialog", context => {

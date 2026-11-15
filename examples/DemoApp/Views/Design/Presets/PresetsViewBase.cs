@@ -44,11 +44,13 @@ internal abstract class PresetsViewBase : DemoView
     {
         UIDialog[] dialogs = CreatePresetDialogs().Dialogs;
 
-        // Their words are sample data, as the page's samples are: content for the unkeyed report. Every preset's content is a stack.
+        // Their words are sample data, as the page's samples are: content for the unkeyed report.
         foreach (UIDialog dialog in dialogs)
         {
             if (dialog.Content is StackPanelComponent stack)
                 _ = stack.AsContentTree();
+            else if (dialog.Content is ContainerComponent grid)
+                _ = grid.AsContentTree();
         }
 
         return dialogs;
@@ -67,6 +69,16 @@ internal abstract class PresetsViewBase : DemoView
                     UIButtons.Primary("Save").OnClickLiteral(nameof(PresetsController.SaveDialog), new KeyValuePair<string, object?>("key", PresetsController.CreateKey))
                 )
             ), DemoIcons.Outline(DemoIcons.Edit), UIColumnWidth.Form)
+            .OnClose(nameof(PresetsController.DialogClosed)),
+            UIDialogs.Fill(PresetsController.FillKey, "Edit provision.sh",
+                new TextAreaComponent()
+                    .SetAccessibleName("provision.sh")
+                    .SetAppearance(UIInputAppearance.Outline)
+                    .SetValue("#!/usr/bin/env bash\nset -euo pipefail\n\nsystemctl reload caddy\n"),
+                DemoIcons.Outline(DemoIcons.FileText),
+                UIColumnWidth.Wide,
+                UIIconButtons.Copy().SetSize(UISize.Small).OnClickLiteral(nameof(PresetsController.RunAction), new KeyValuePair<string, object?>("entry", "copy-script"))
+            )
             .OnClose(nameof(PresetsController.DialogClosed)),
             (UIDialogs.Create(PresetsController.ContentKey, "Resize db-us-east-2", UILayout.Stack(16,
                 UIText.Paragraph("The database restarts once, for about a minute, while its disk moves to the larger plan."),
@@ -782,9 +794,10 @@ internal abstract class PresetsViewBase : DemoView
         );
 
     protected static ContainerComponent CreateDialogsGroup()
-        => DemoUI.CreateExample("Create, Content, Header, Confirm, Form",
+        => DemoUI.CreateExample("Create, Fill, Content, Header, Confirm, Form",
             UILayout.Row(8,
                 UIButtons.Ghost("UIDialogs.Create", DemoIcons.Outline(DemoIcons.Edit)).OnClick(nameof(PresetsController.OpenCreate)),
+                UIButtons.Ghost("UIDialogs.Fill", DemoIcons.Outline(DemoIcons.FileText)).OnClick(nameof(PresetsController.OpenFill)),
                 UIButtons.Ghost("Create … with { }", DemoIcons.Outline(DemoIcons.Server)).OnClick(nameof(PresetsController.OpenContent)),
                 UIButtons.Ghost("UIDialogs.BoundCreate", DemoIcons.Outline(DemoIcons.Server)).OnClick(nameof(PresetsController.OpenBoundCreate)),
                 UIButtons.Ghost("UIDialogs.BoundContent", DemoIcons.Outline(DemoIcons.Server)).OnClick(nameof(PresetsController.OpenBoundContent)),

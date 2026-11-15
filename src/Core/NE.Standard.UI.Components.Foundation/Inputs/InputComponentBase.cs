@@ -6,6 +6,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.Foundation.Inputs;
@@ -21,7 +22,7 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 [UIComponentPropertyDefault(nameof(ITextBaseComponent.TitleType), nameof(DefaultTitleType))]
 [UIComponentPropertyDefault(nameof(ITextBaseComponent.BadgePlacement), nameof(DefaultBadgePlacement))]
 [UIComponentPropertyDefault(nameof(VerticalAlignment), nameof(DefaultVerticalAlignment))]
-public abstract partial class InputComponentBase<TComponent, TValue>(string? id = null) : VisualComponentBase<TComponent>(id), IInputComponent, ITextBaseComponent, IAccessibleNameComponent, ICaptionRowComponent
+public abstract partial class InputComponentBase<TComponent, TValue>(string? id = null) : RegionContainerComponentBase<TComponent>(id), IInputComponent, ITextBaseComponent, IAccessibleNameComponent, ICaptionRowComponent
     where TComponent : InputComponentBase<TComponent, TValue>, IUIComponentDefinition
 {
     private readonly List<UIValidationRule> _validations = [];
@@ -46,6 +47,30 @@ public abstract partial class InputComponentBase<TComponent, TValue>(string? id 
 
     /// <inheritdoc/>
     public IReadOnlyList<UIValidationRule> Validations => _validations;
+
+    /// <summary>
+    /// Gets the control the caption row carries at its far edge, or <see langword="null"/> when none is set.
+    /// </summary>
+    public virtual IVisualComponent? HeaderAction => GetRegionOrDefault(RegionNames.HeaderAction);
+
+    /// <summary>
+    /// Sets the control the caption row carries at its far edge, keeping the row at one caption line's height.
+    /// </summary>
+    public virtual TComponent SetHeaderAction(IVisualComponent action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        ValidateHeaderActionSupported(nameof(action));
+
+        SetRegion(RegionNames.HeaderAction, action);
+        return Self;
+    }
+
+    /// <summary>
+    /// Checks whether the input draws a header row that can hold a <see cref="HeaderAction"/>.
+    /// </summary>
+    protected virtual void ValidateHeaderActionSupported(string parameterName)
+    {
+    }
 
     /// <inheritdoc/>
     public void AddValidation(UIValidationRule rule) => _validations.Add(rule);

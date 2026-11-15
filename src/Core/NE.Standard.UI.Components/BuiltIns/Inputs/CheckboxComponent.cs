@@ -1,3 +1,4 @@
+using System;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
@@ -34,6 +35,10 @@ public abstract partial class CheckboxComponent<T>(string? id = null) : InputCom
 
     /// <summary>None: its words stand beside its box, not over it.</summary>
     public override UISize? CaptionRowBox(UIResponsiveTier tier) => null;
+
+    /// <inheritdoc/>
+    protected override void ValidateHeaderActionSupported(string parameterName)
+        => throw new ArgumentException("A checkbox or switch takes no header action: its words stand beside its box, not in a caption row above it.", parameterName);
 }
 
 /// <summary>

@@ -32,7 +32,8 @@ internal static class UIEffectTargets
         Rows = 2,
         ItemRename = 4,
         Text = 8,
-        InlineRename = 16
+        InlineRename = 16,
+        Expand = 32
     }
 
     /// <summary>
@@ -70,6 +71,7 @@ internal static class UIEffectTargets
             RenameItemEffect { Key: not null } when !takes.HasFlag(Takes.ItemRename) => "a host that renames its items in place (IItemRenameComponent: a tree, a tabs view), whose item it renames",
             RenameItemEffect { Key: null } when !takes.HasFlag(Takes.InlineRename) => "a text component (TextComponent), whose title it renames in place",
             InsertTextEffect when !takes.HasFlag(Takes.Text) => "a field the reader types into (ICaretFieldComponent), whose caret it inserts at",
+            ExpandFieldEffect when !takes.HasFlag(Takes.Expand) => "a multi-line field that expands into a dialog (IExpandableInputComponent: a text area, a code input)",
             _ => null
         };
 
@@ -99,6 +101,9 @@ internal static class UIEffectTargets
 
         if (DerivesFrom(type, typeof(TextComponent<>)) && !DerivesFrom(type, typeof(TreeNodeComponent<>)))
             takes |= Takes.InlineRename;
+
+        if (typeof(IExpandableInputComponent).IsAssignableFrom(type))
+            takes |= Takes.Expand;
 
         return takes;
     }

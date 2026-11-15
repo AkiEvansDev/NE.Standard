@@ -96,6 +96,29 @@
     --ui-field-inset: calc(@ui-space-2 + var(--ui-border-width, 1px));
 }
 
+@ui-text-area-dialog-fill: ~".ui-dialog__surface > .ui-container > .ui-container > .ui-text-area:not([style*='--ui-align-v: start'], [style*='--ui-align-v: center'], [style*='--ui-align-v: end'])";
+
+// Given an explicit height or filling a full-height dialog's cell (UIDialogs.Fill), the field or its action box fills the root's room.
+@{ui-text-area-dialog-fill}:not([style*="--ui-height"]) {
+    align-self: stretch;
+    height: auto;
+}
+
+:is(.ui-text-area[style*="--ui-height"], @{ui-text-area-dialog-fill}) > .ui-text-area__field:not([data-ui-text-area-grow]),
+:is(.ui-text-area[style*="--ui-height"], @{ui-text-area-dialog-fill}) > .ui-text-area__box {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+:is(.ui-text-area[style*="--ui-height"], @{ui-text-area-dialog-fill}) > .ui-text-area__box > .ui-text-area__field:not([data-ui-text-area-grow]) {
+    align-self: stretch;
+}
+
+@{ui-text-area-dialog-fill} > .ui-text-area__field,
+@{ui-text-area-dialog-fill} > .ui-text-area__box > .ui-text-area__field {
+    resize: none !important;
+}
+
 // A growing area follows its text from its rows to its most rows, then scrolls (text-area-grow-engine.ts sets the height where the
 // browser cannot size a field to its content). Never resized by hand: a height pulled by the reader would pin what the text follows.
 .ui-text-area__field[data-ui-text-area-grow] {

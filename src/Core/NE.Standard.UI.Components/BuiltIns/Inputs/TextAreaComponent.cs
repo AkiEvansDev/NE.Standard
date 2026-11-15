@@ -18,18 +18,24 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 [UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultVerticalAlignment))]
 [UIComponentPropertyBlock(typeof(IBorderedComponent))]
 [UIComponentPropertyBlock(typeof(IFieldInputComponent))]
+[UIComponentPropertyBlock(typeof(IExpandableInputComponent))]
 [UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
 [UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
 [UIComponentPropertyBlock(typeof(ITextLengthComponent))]
-public abstract partial class TextAreaComponent<T>(string? id = null) : InputComponentBase<T, string?>(id), IBorderedComponent, IFieldInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IRegionContainerComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent, IConfigurationValidatedComponent
+public abstract partial class TextAreaComponent<T> : InputComponentBase<T, string?>, IBorderedComponent, IFieldInputComponent, IExpandableInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IDebounceInputComponent, ITextLengthComponent, ICaretFieldComponent, IConfigurationValidatedComponent
     where T : TextAreaComponent<T>, IUIComponentDefinition
 {
     // Stretched, unlike the one-line fields it shares a base with: a box for longer text takes the height its track gives it.
     private static readonly UIResponsive<UIAlignment> DefaultVerticalAlignment = UIAlignment.Stretch;
     private const int DefaultRows = 3;
 
-    private readonly FieldActions _actions = new();
+    private readonly FieldActions _actions;
+
+    protected TextAreaComponent(string? id = null) : base(id)
+    {
+        _actions = new FieldActions(RegionEntries);
+    }
 
     /// <summary>
     /// Gets the controls at the start of the field, beside its text at the bottom edge, in the order they stand; a flyout among them
@@ -63,12 +69,6 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
     /// <remarks>Render-time only. The same components move, so a flyout or a split button among them keeps its one popup.</remarks>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public UIResponsiveTier? ActionsBelow { get; set; }
-
-    /// <inheritdoc/>
-    public IReadOnlyDictionary<string, IVisualComponent> Regions => _actions.Regions;
-
-    /// <inheritdoc/>
-    public bool HasRegions => _actions.Regions.Count > 0;
 
     /// <summary>
     /// Gets or sets the number of visible text rows; the least the area shows while it grows (<see cref="MaxRows"/>).
@@ -126,6 +126,28 @@ public abstract partial class TextAreaComponent<T>(string? id = null) : InputCom
     /// </summary>
     public T SetSubmitOnEnter()
         => SetSubmitOnEnter(true);
+
+    /// <summary>
+    /// Enables or disables opening the area in a full-height modal dialog.
+    /// </summary>
+    public T SetExpandable(bool expandable)
+    {
+        Expandable = expandable;
+        return Self;
+    }
+
+    /// <summary>
+    /// Enables opening the area in a full-height modal dialog and optionally configures its expanded presentation.
+    /// </summary>
+    public T SetExpandable(Action<UIExpandedTextAreaBuilder>? configure = null)
+    {
+        Expandable = true;
+
+        if (configure is not null)
+            configure(new UIExpandedTextAreaBuilder(this));
+
+        return Self;
+    }
 
     /// <summary>
     /// Adds a button at the start of the field, beside its text at the bottom edge, after those added before.
@@ -353,4 +375,45 @@ public sealed class TextAreaComponent(string? id = null) : TextAreaComponent<Tex
 {
     /// <inheritdoc/>
     public static string ComponentTypeKey => "standard.input.text-area";
+}
+
+/// <summary>
+/// Configures how a <see cref="TextAreaComponent"/> presents itself when expanded into a full-height modal dialog.
+/// </summary>
+public sealed class UIExpandedTextAreaBuilder : IUIExpandedFieldBuilder<UIExpandedTextAreaBuilder>
+{
+    private readonly IExpandableInputComponent _target;
+
+    internal UIExpandedTextAreaBuilder(IExpandableInputComponent target)
+    {
+        _target = target;
+    }
+
+    /// <inheritdoc/>
+    public UIExpandedTextAreaBuilder SetShowButton(bool showButton = true)
+    {
+        _target.ShowExpandButton = showButton;
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public UIExpandedTextAreaBuilder SetWidth(UILayoutLength width)
+    {
+        _target.ExpandedWidth = width;
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public UIExpandedTextAreaBuilder SetWidth(UIResponsive<UILayoutLength> width)
+    {
+        _target.ExpandedWidth = width;
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public UIExpandedTextAreaBuilder SetAppearance(UIInputAppearance appearance)
+    {
+        _target.ExpandedAppearance = appearance;
+        return this;
+    }
 }

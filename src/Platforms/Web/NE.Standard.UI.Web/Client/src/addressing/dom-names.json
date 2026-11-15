@@ -1465,6 +1465,10 @@
         "value":  "ui-input__header"
     },
     {
+        "constant":  "InputHeaderRowClass",
+        "value":  "ui-input__header-row"
+    },
+    {
         "constant":  "InvalidClass",
         "value":  "ui-invalid",
         "plugin":  "invalidClass"
@@ -3513,5 +3517,74 @@
     {
         "constant":  "TextAreaClass",
         "value":  "ui-text-area"
+    },
+    {
+        "constant":  "InputHeaderActionClass",
+        "value":  "ui-input__header-action"
+    },
+    {
+        "constant":  "FieldExpandableAttribute",
+        "value":  "data-ui-field-expandable"
+    },
+    {
+        "constant":  "FieldExpandAttribute",
+        "value":  "data-ui-field-expand"
+    },
+    {
+        "constant":  "FieldExpandAttrsAttribute",
+        "value":  "data-ui-field-expand-attrs"
+    },
+    {
+        "constant":  "FieldExpandAppearanceAttribute",
+        "value":  "data-ui-field-expand-appearance"
+    },
+    {
+        "constant":  "FieldExpandWidthAttribute",
+        "value":  "data-ui-field-expand-width"
+    },
+    {
+        "constant":  "FieldExpandedAttribute",
+        "value":  "data-ui-field-expanded",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldExpandDialogClass",
+        "value":  "ui-field-expand-dialog",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldExpandSurfaceClass",
+        "value":  "ui-field-expand-dialog__surface",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldExpandHeaderClass",
+        "value":  "ui-field-expand-dialog__header",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldExpandTitleClass",
+        "value":  "ui-field-expand-dialog__title",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldExpandActionsClass",
+        "value":  "ui-field-expand-dialog__actions",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldExpandCloseClass",
+        "value":  "ui-field-expand-dialog__close",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldExpandBodyClass",
+        "value":  "ui-field-expand-dialog__body",
+        "clientOnly":  true
+    },
+    {
+        "constant":  "FieldExpandPlaceholderClass",
+        "value":  "ui-field-expand__placeholder",
+        "clientOnly":  true
     }
 ]

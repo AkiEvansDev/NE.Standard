@@ -90,6 +90,7 @@ public sealed class ClientEffectJsonConverter : UIRuntimeTypeJsonConverter<Clien
         [ClientEffectKinds.InsertText] = typeof(InsertTextEffect),
         [ClientEffectKinds.DiscardForm] = typeof(DiscardFormEffect),
         [ClientEffectKinds.OpenPicker] = typeof(OpenPickerEffect),
+        [ClientEffectKinds.ExpandField] = typeof(ExpandFieldEffect),
         [ClientEffectKinds.ConfirmLeave] = typeof(ConfirmLeaveEffect),
         [ClientEffectKinds.ReplaceAddress] = typeof(ReplaceAddressEffect),
         [ClientEffectKinds.PushAddress] = typeof(PushAddressEffect),
