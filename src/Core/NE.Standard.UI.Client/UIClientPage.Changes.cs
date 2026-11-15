@@ -158,6 +158,7 @@ public sealed partial class UIClientPage
             lock (_sync)
             {
                 _navigation = Transport.InitialNavigation;
+                StandInAddress = NormalizeStandInAddress(Transport.InitialAddress, _navigation);
                 _history.Clear();
                 _history.Add(_navigation);
                 _historyIndex = 0;
@@ -938,6 +939,7 @@ public sealed partial class UIClientPage
                 case ReplaceAddressEffect replace:
                     UINavigationRequest replaced = new() { Route = _navigation.Route, Parameters = replace.Parameters };
                     _navigation = replaced;
+                    StandInAddress = null;
                     _history[_historyIndex] = replaced;
                     _navigationChanged = true;
                     break;
@@ -953,6 +955,7 @@ public sealed partial class UIClientPage
                     }
 
                     _navigation = pushed;
+                    StandInAddress = null;
                     _navigationChanged = true;
                     break;
                 case NavigateBackEffect back:
@@ -960,6 +963,7 @@ public sealed partial class UIClientPage
                     {
                         _historyIndex--;
                         _navigation = _history[_historyIndex];
+                        StandInAddress = null;
                         _navigationChanged = true;
                         _reactions.Add(new UIClientReaction(NavigateInPlace: _navigation.Parameters, HasNavigateInPlace: true));
                     }
@@ -971,6 +975,7 @@ public sealed partial class UIClientPage
                         {
                             UINavigationRequest origin = _navigation;
                             _navigation = fallback;
+                            StandInAddress = null;
                             _history[0] = fallback;
                             _navigationChanged = true;
                             _reactions.Add(new UIClientReaction(NavigateInPlace: fallback.Parameters, HasNavigateInPlace: true, FallbackOrigin: origin));
@@ -994,6 +999,23 @@ public sealed partial class UIClientPage
                     break;
             }
         }
+    }
+
+    private static string? NormalizeStandInAddress(string? initialAddress, UINavigationRequest navigation)
+    {
+        if (string.IsNullOrWhiteSpace(initialAddress))
+            return null;
+
+        UINavigationRequest requested = UINavigationAddress.Parse(initialAddress);
+        if (IsSameRoute(requested.Route, navigation.Route))
+            return null;
+
+        UINavigationRequest normalized = new()
+        {
+            Route = UIRoutePath.Normalize(requested.Route),
+            Parameters = requested.Parameters
+        };
+        return UINavigationAddress.Format(normalized);
     }
 
     private static bool IsSameRoute(string left, string right)

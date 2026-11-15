@@ -25,6 +25,9 @@ public interface IUIClientTransport
     /// <summary>Gets the route that answered when the page was opened.</summary>
     string Route { get; }
 
+    /// <summary>Gets the address initially requested before any in-place stand-in route answered, or <see langword="null"/> when unchanged.</summary>
+    string? InitialAddress => null;
+
     /// <summary>Gets the navigation the page opened at.</summary>
     UINavigationRequest InitialNavigation { get; }
 

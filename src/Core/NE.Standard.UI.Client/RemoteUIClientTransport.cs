@@ -68,6 +68,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         HubConnection hub,
         ConcurrentQueue<Task> incoming,
         string route,
+        string? initialAddress,
         UINavigationRequest initialNavigation,
         CompiledView view,
         bool hasController,
@@ -84,6 +85,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         _hub = hub;
         _incoming = incoming;
         Route = route;
+        InitialAddress = initialAddress;
         InitialNavigation = initialNavigation;
         View = view;
         HasController = hasController;
@@ -107,6 +109,9 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
     /// <inheritdoc />
     public string Route { get; }
+
+    /// <inheritdoc />
+    public string? InitialAddress { get; }
 
     /// <inheritdoc />
     public UINavigationRequest InitialNavigation { get; }
@@ -177,6 +182,10 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         if (root.TryGetProperty("words", out JsonElement wordsEl))
             translator.LoadWords(wordsEl);
 
+        var initialAddress = root.TryGetProperty("address", out JsonElement addrEl) && addrEl.ValueKind == JsonValueKind.String
+            ? addrEl.GetString()
+            : address;
+
         CompiledView view = CompiledViewWireSerializer.Read(root.GetProperty("view"));
 
         ConcurrentQueue<Task> incoming = new();
@@ -186,6 +195,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             hub,
             incoming,
             route,
+            initialAddress,
             navigation,
             view,
             hasController,

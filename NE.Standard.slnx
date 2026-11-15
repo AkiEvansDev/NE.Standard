@@ -29,6 +29,9 @@
   </Folder>
 
   <Folder Name="/src/Platforms/" />
+  <Folder Name="/src/Platforms/Desktop/">
+    <Project Path="src/Platforms/Desktop/NE.Standard.UI.Desktop/NE.Standard.UI.Desktop.csproj" />
+  </Folder>
   <Folder Name="/src/Platforms/Server/">
     <Project Path="src/Platforms/Server/NE.Standard.UI.Server/NE.Standard.UI.Server.csproj" />
   </Folder>
@@ -40,6 +43,7 @@
   </Folder>
 
   <Folder Name="/examples/">
+    <Project Path="examples/DemoApp.Desktop/DemoApp.Desktop.csproj" />
     <Project Path="examples/DemoApp.Web/DemoApp.Web.csproj" />
     <Project Path="examples/DemoApp/DemoApp.csproj" />
   </Folder>

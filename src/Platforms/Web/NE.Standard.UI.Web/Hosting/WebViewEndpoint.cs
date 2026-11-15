@@ -27,7 +27,7 @@ namespace NE.Standard.UI.Web.Hosting;
 
 /// <summary>
 /// Serves the compiled view descriptor, initial hydration snapshot, session metadata and words table at <c>GET /_ne/view</c>
-/// for non-HTML clients (<c>NE.Standard.UI.Client</c> and WPF).
+/// for non-HTML <c>NE.Standard.UI.Client</c> sessions.
 /// </summary>
 internal static partial class WebViewEndpoint
 {
@@ -80,6 +80,7 @@ internal static partial class WebViewEndpoint
             Route = requestedRoute,
             Parameters = parsed.Parameters
         };
+        var requestedAddress = UINavigationAddress.Format(navigation);
 
         UserSessionInitData session = new()
         {
@@ -101,7 +102,7 @@ internal static partial class WebViewEndpoint
 
         try
         {
-            return await WriteViewResultAsync(resolution, requestedRoute, application, host, sessionCookie, packageStrings, includeDiagnostics, http, cancellationToken).ConfigureAwait(false);
+            return await WriteViewResultAsync(resolution, requestedRoute, requestedAddress, application, host, sessionCookie, packageStrings, includeDiagnostics, http, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -137,7 +138,7 @@ internal static partial class WebViewEndpoint
             if (errorResolution.IssuedSecret is not null)
                 WebEndpointRouteBuilderExtensions.AppendSessionCookie(http, application.Sessions, sessionCookie, errorResolution);
 
-            return await WriteViewResultAsync(errorResolution, requestedRoute, application, host, sessionCookie, packageStrings, includeDiagnostics, http, cancellationToken).ConfigureAwait(false);
+            return await WriteViewResultAsync(errorResolution, requestedRoute, requestedAddress, application, host, sessionCookie, packageStrings, includeDiagnostics, http, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -150,6 +151,7 @@ internal static partial class WebViewEndpoint
     private static async Task<IResult> WriteViewResultAsync(
         UIViewResolution resolution,
         string requestedRoute,
+        string requestedAddress,
         UIApplication application,
         IUIHost host,
         WebSessionCookie sessionCookie,
@@ -176,6 +178,9 @@ internal static partial class WebViewEndpoint
         {
             writer.WriteStartObject();
             writer.WriteString("route", resolution.Route.Route);
+
+            if (standIn)
+                writer.WriteString("address", requestedAddress);
 
             writer.WritePropertyName("navigation");
             JsonSerializer.Serialize(writer, resolution.Navigation, WebWireJson.Options);

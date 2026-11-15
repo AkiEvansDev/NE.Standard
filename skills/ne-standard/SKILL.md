@@ -43,13 +43,14 @@ holds no application state and decides nothing; state survives a reload exactly 
   `NE.Standard.UI.Testing` in the test project. Host: `NE.Standard.UI.Web` + `NE.Standard.UI.Web.Renderers`. An add-on is the
   same two halves. `dotnet list App package --include-transitive` must show no `NE.Standard.UI.Web*` in the library.
 
-## Startup and the hosts (Web, Server)
+## Startup and the hosts (Web, Desktop, Server)
 
 - `AppStartup : UIStartupBase` - `ConfigureServices(services)` for the application's services, `ConfigureApplication(application)`
   for routes and options.
 - **Web host (`NE.Standard.UI.Web` + `NE.Standard.UI.Web.Renderers`)**: `AppWebStartup : WebStartupBase<AppStartup>` - `services.AddStandardRenderers()` and each add-on's
   `Add*()`. `Program.cs`: `WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services)`, then `app.UseStaticFiles()`,
   `app.UseRouting()`, `await app.MapStandardUIWebAsync()` - in that order, never `MapStaticAssets()`.
+- **Windows Desktop host (`NE.Standard.UI.Desktop` + `NE.Standard.UI.Web.Renderers`, `net11.0-windows`)**: `AppDesktopStartup : DesktopStartupBase<AppStartup>` - `ConfigureServices(services)` registers `services.AddStandardRenderers()` and any web add-on `Add*()`, `ConfigureHost(options)` configures `DesktopHostOptions` (`Mode = DesktopHostMode.InProcess | Remote`, `ServerUri`, `WindowTitle`, `WebRootPath`, `DownloadMode = DesktopDownloadMode.SaveDialog | Directory | BrowserDefault`). `[STAThread] Program.Main(args)` calls `DesktopStartupBuilder.Run<AppDesktopStartup, AppStartup>(args)` (supports `--server=<url>`, `--route=<path>`, `--devtools`).
 - **API-only Server host (`NE.Standard.UI.Server`)**: `AppServerStartup : UIServerStartupBase<AppStartup>` with `UIServerStartupBuilder.Configure<AppServerStartup, AppStartup>(builder.Services)` and `await app.MapStandardUIServerAsync()` — exposes `/_ne/view`, `/_ne/hub`, `/_ne/files`, `/_ne/content`, `/_ne/values`, `/_ne/words` and `/_ne/session/key` for remote C# clients without HTML rendering or Web assets.
 - `UIApplicationBuilder`: `Route`, `SignInView`, `ForbiddenView`, `NotFoundView`, `ErrorView`, `ConfigureSecurity`,
   `ConfigureSessions`, `ConfigurePersistence`, `ConfigureErrorHandling`, `ConfigureLocalization`, `AddLocalizationSource`,

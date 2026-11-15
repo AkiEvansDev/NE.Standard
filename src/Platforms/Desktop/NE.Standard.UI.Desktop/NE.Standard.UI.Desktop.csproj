@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version>$(DesktopVersion)</Version>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Desktop</PackageId>
+    <Description>The Windows desktop WebView2 host of the NE.Standard UI framework: runs the full NE.Standard.UI.Web experience inside a native desktop window over an in-process loopback server or a remote host.</Description>
+    <PackageTags>NE.Standard,UI,Platform,Desktop,WebView2</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Test.Standard.UI.Desktop</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Web\NE.Standard.UI.Web\NE.Standard.UI.Web.csproj" />
+    <!-- Analyzers pass through to the application, so the engine's generator reaches a project that installs only this host. -->
+    <ProjectReference Include="..\..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" PrivateAssets="contentfiles;build" />
+    <ProjectReference Include="..\..\..\Core\NE.Standard.UI.Components\NE.Standard.UI.Components.csproj" />
+    <ProjectReference Include="..\..\..\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

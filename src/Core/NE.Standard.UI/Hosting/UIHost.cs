@@ -364,7 +364,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
 
     private IUIViewFilter[] BuildFilterChain(UIRouteDefinition route)
     {
-        List<IUIViewFilter> filters = [new AuthorizationViewFilter(_authorization)];
+        List<IUIViewFilter> filters = [new AuthorizationViewFilter(_authorization, _resolveViewExceptionHandler)];
 
         filters.AddRange(_application.ViewFilters);
         filters.AddRange(route.ViewFilters);
@@ -375,7 +375,7 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
     /// <summary>
     /// Runs the route's authorization check as the first filter in the pipeline.
     /// </summary>
-    private sealed class AuthorizationViewFilter(IUIAuthorizationService authorization) : IUIViewFilter
+    private sealed class AuthorizationViewFilter(IUIAuthorizationService authorization, IResolveExceptionViewHandler exceptionHandler) : IUIViewFilter
     {
         public int Order => int.MinValue;
 
@@ -384,21 +384,25 @@ internal sealed partial class UIHost : IUIHost, IUISessions, IUISessionSignIn, I
             ArgumentNullException.ThrowIfNull(context);
             ArgumentNullException.ThrowIfNull(next);
 
-            EnsureAuthorized(context.Route, context.Session, authorization);
+            UIRouteAccessVerdict verdict = UIRouteAccess.Check(context.Route, context.Session, authorization);
+
+            if (verdict != UIRouteAccessVerdict.Pass)
+            {
+                if (exceptionHandler is StandardResolveExceptionViewHandler standardHandler
+                    && standardHandler.TryBuildRefusalRedirect(verdict, context.Route.Route, context.Navigation, out UINavigationRequest? refusalRedirect))
+                {
+                    context.Redirect(refusalRedirect);
+                    return Task.CompletedTask;
+                }
+
+                if (verdict == UIRouteAccessVerdict.SignIn)
+                    throw new UnauthorizedAccessException($"Route '{context.Route.Route}' requires authenticated session.");
+
+                throw new UIForbiddenAccessException($"Route '{context.Route.Route}' is not authorized.");
+            }
 
             return next();
         }
-    }
-
-    private static void EnsureAuthorized(UIRouteDefinition route, IUserSessionContext session, IUIAuthorizationService authorization)
-    {
-        UIRouteAccessVerdict verdict = UIRouteAccess.Check(route, session, authorization);
-
-        if (verdict == UIRouteAccessVerdict.SignIn)
-            throw new UnauthorizedAccessException($"Route '{route.Route}' requires authenticated session.");
-
-        if (verdict == UIRouteAccessVerdict.Forbidden)
-            throw new UIForbiddenAccessException($"Route '{route.Route}' is not authorized.");
     }
 
     private static UIViewResolution CreateViewResolution(UIRouteEntry entry, UIViewFilterContext context, ResolvedSession session)

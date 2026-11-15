@@ -6,7 +6,7 @@ using NE.Standard.UI.Web.Startup;
 namespace NE.Standard.UI.Server.Startup;
 
 /// <summary>
-/// Base startup class for headless API-only <c>NE.Standard</c> server hosts serving remote <c>NE.Standard.UI.Client</c> and WPF clients
+/// Base startup class for headless API-only <c>NE.Standard</c> server hosts serving remote <c>NE.Standard.UI.Client</c> applications
 /// without HTML shell rendering or browser asset tasks.
 /// </summary>
 public abstract class UIServerStartupBase<TStartup>

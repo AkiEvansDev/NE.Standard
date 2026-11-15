@@ -7,9 +7,10 @@ graph. The framework compiles that pair once into an immutable, indexed descript
 and then keeps the rendered surface in sync with the controller in both directions. The client never holds
 application state and never decides what to draw.
 
-Web is the platform implemented today: ASP.NET Core for the shell and the transport, SignalR for the live
-channel, and a TypeScript client that ships embedded in the assembly — there is no separate front-end deploy
-step.
+Web is the primary platform: ASP.NET Core for the shell and the transport, SignalR for the live channel, and a
+TypeScript client that ships embedded in the assembly — there is no separate front-end deploy step. On Windows,
+`NE.Standard.UI.Desktop` (preview) hosts that exact Web stack inside a native `WebView2` desktop window over an
+in-process loopback server (`127.0.0.1:0`) or a remote host.
 
 Documentation: [akievansdev.github.io/NE.Standard](https://akievansdev.github.io/NE.Standard).
 
@@ -51,6 +52,7 @@ application writes against as global usings, so the code below needs no `using` 
 | [`NE.Standard.UI.Web.Abstractions`](https://www.nuget.org/packages/NE.Standard.UI.Web.Abstractions) | the render contracts an add-on implements to render a component of its own. |
 | [`NE.Standard.UI.Web.Renderers.Foundation`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers.Foundation) | the renderer base and the shared style, text and input helpers an add-on's own renderer builds on. |
 | [`NE.Standard.UI.Web.Renderers`](https://www.nuget.org/packages/NE.Standard.UI.Web.Renderers) | the HTML renderers for the built-in components, over the foundation. |
+| [`NE.Standard.UI.Desktop`](https://www.nuget.org/packages/NE.Standard.UI.Desktop) | the Windows `WebView2` desktop host (preview): runs the full `NE.Standard.UI.Web` stack inside a native window over an in-process loopback server or a remote host, with Win32 DWM theme sync and native download dialogs. |
 | [`NE.Standard.UI.Extensions`](https://www.nuget.org/packages/NE.Standard.UI.Extensions) | presets over the components: a text in a role, a page's header band and sections, an inline message and a banner, a stack and a row, a button per type, a field with its hint, a read-only key-value list, and one interaction from another component's value. Server-only, nothing new to render. |
 | [`NE.Standard.UI.Testing`](https://www.nuget.org/packages/NE.Standard.UI.Testing) | an application's tests without a browser: its own startup booted with no platform under it, a page opened through the host's real path, its components found, written to and pressed, and what the page received read back. No test framework or assertion library. |
 
@@ -144,7 +146,8 @@ and one page per component — a preview beside every bindable property, each ro
 each with its source.
 
 ```
-dotnet run --project examples/DemoApp.Web    # http://localhost:5100
+dotnet run --project examples/DemoApp.Web        # http://localhost:5100
+dotnet run --project examples/DemoApp.Desktop    # Windows WebView2 desktop window
 ```
 
 ## Building

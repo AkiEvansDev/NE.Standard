@@ -6,7 +6,7 @@
 
   <PropertyGroup>
     <PackageId>NE.Standard.UI.Server</PackageId>
-    <Description>The headless ASP.NET Core server host of the NE.Standard UI framework: serves compiled view descriptors, the SignalR live channel, and file transfer over HTTP for remote NE.Standard.UI.Client and WPF clients without HTML shell rendering.</Description>
+    <Description>The headless ASP.NET Core server host of the NE.Standard UI framework: serves compiled view descriptors, the SignalR live channel, and file transfer over HTTP for remote NE.Standard.UI.Client applications without HTML shell rendering.</Description>
     <PackageTags>NE.Standard,UI,Platform,Server</PackageTags>
   </PropertyGroup>
 

@@ -7,6 +7,7 @@ using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Security;
+using NE.Standard.UI.Security;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Navigation;
 
@@ -64,20 +65,31 @@ internal sealed class StandardResolveExceptionViewHandler : IResolveExceptionVie
     /// Redirects to sign-in or to the forbidden page, depending on why access was refused.
     /// </summary>
     private bool TryBuildRefusalRedirect(ResolveExceptionViewContext context, [NotNullWhen(true)] out UINavigationRequest? request)
+        => TryBuildRefusalRedirect(
+            context.Exception is UIForbiddenAccessException ? UIRouteAccessVerdict.Forbidden : UIRouteAccessVerdict.SignIn,
+            context.Route?.Route,
+            context.Navigation,
+            out request
+        );
+
+    /// <summary>
+    /// Redirects an unauthorized or forbidden route verdict in-place without throwing through exception handling.
+    /// </summary>
+    internal bool TryBuildRefusalRedirect(UIRouteAccessVerdict verdict, string? route, UINavigationRequest navigation, [NotNullWhen(true)] out UINavigationRequest? request)
     {
-        if (context.Exception is UIForbiddenAccessException)
+        if (verdict == UIRouteAccessVerdict.Forbidden)
         {
             var forbiddenRoute = _application.Security.ForbiddenRoute;
 
             if (forbiddenRoute is not null
-                && !RouteEquals(context.Route?.Route, forbiddenRoute)
-                && TryBuildRedirect(_application, forbiddenRoute, "deniedUrl", UINavigationAddress.Format(context.Navigation), out request))
+                && !RouteEquals(route, forbiddenRoute)
+                && TryBuildRedirect(_application, forbiddenRoute, "deniedUrl", UINavigationAddress.Format(navigation), out request))
             {
                 return true;
             }
         }
 
-        return TryBuildSignIn(_application, context.Route?.Route, context.Navigation, out request);
+        return TryBuildSignIn(_application, route, navigation, out request);
     }
 
     /// <summary>

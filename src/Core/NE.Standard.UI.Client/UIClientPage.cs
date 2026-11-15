@@ -81,6 +81,7 @@ public sealed partial class UIClientPage
 
         Transport = transport;
         _navigation = transport.InitialNavigation;
+        StandInAddress = NormalizeStandInAddress(transport.InitialAddress, _navigation);
         _history.Add(_navigation);
         Store = new UIClientStore(transport.View, storage ?? new InMemoryUIClientStorageProvider());
     }
@@ -99,12 +100,14 @@ public sealed partial class UIClientPage
     public string Route => Transport.Route;
 
     /// <summary>Gets the address the page shows, as an address bar would after every address effect it received.</summary>
+    private string? StandInAddress { get; set; }
+
     public string Address
     {
         get
         {
             lock (_sync)
-                return UINavigationAddress.Format(_navigation);
+                return StandInAddress ?? UINavigationAddress.Format(_navigation);
         }
     }
 
@@ -253,6 +256,7 @@ public sealed partial class UIClientPage
 
             _historyIndex = nextIndex;
             _navigation = _history[nextIndex];
+            StandInAddress = null;
             _navigationChanged = true;
             parameters = _navigation.Parameters;
             mark = _effects.Count;

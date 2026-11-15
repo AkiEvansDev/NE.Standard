@@ -168,7 +168,7 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
         EnsureCompiledClean(view);
 
         UITestSession resolvedSession = UITestSession.FromContext(view.Session, session, session.NotificationPermission, Application.Security.IdentitySource == UIIdentitySource.Claims);
-        InProcessUIClientTransport transport = new(Host, Services, Application, instanceId, view, Client.Remove);
+        InProcessUIClientTransport transport = new(Host, Services, Application, instanceId, view, Client.Remove, UINavigationAddress.Format(navigation));
         UIClientPage clientPage = new(transport);
         UITestPage page = new(this, clientPage, transport, resolvedSession);
 

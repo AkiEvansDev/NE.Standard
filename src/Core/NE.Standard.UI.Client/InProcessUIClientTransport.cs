@@ -33,7 +33,7 @@ public sealed class InProcessUIClientTransport : IUIClientTransport
     private RuntimeResolution? _resolution;
 
     /// <summary>Initializes a new in-process transport for a resolved <see cref="UIViewResolution"/> prior to runtime attachment.</summary>
-    public InProcessUIClientTransport(IUIHost host, IServiceProvider services, UIApplication application, string instanceId, UIViewResolution view, Action<string>? onClose = null)
+    public InProcessUIClientTransport(IUIHost host, IServiceProvider services, UIApplication application, string instanceId, UIViewResolution view, Action<string>? onClose = null, string? initialAddress = null)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(services);
@@ -47,10 +47,11 @@ public sealed class InProcessUIClientTransport : IUIClientTransport
         InstanceId = instanceId;
         _view = view;
         _onClose = onClose;
+        InitialAddress = initialAddress;
     }
 
     /// <summary>Initializes a new in-process transport for an already attached <see cref="RuntimeResolution"/>.</summary>
-    public InProcessUIClientTransport(IUIHost host, IServiceProvider services, UIApplication application, string instanceId, RuntimeResolution resolution, Action<string>? onClose = null)
+    public InProcessUIClientTransport(IUIHost host, IServiceProvider services, UIApplication application, string instanceId, RuntimeResolution resolution, Action<string>? onClose = null, string? initialAddress = null)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(services);
@@ -64,6 +65,7 @@ public sealed class InProcessUIClientTransport : IUIClientTransport
         InstanceId = instanceId;
         _resolution = resolution;
         _onClose = onClose;
+        InitialAddress = initialAddress;
     }
 
     /// <summary>Gets the underlying attached runtime resolution.</summary>
@@ -80,6 +82,9 @@ public sealed class InProcessUIClientTransport : IUIClientTransport
 
     /// <inheritdoc />
     public string Route => _resolution is not null ? _resolution.Route.Route : _view!.Route.Route;
+
+    /// <inheritdoc />
+    public string? InitialAddress { get; }
 
     /// <inheritdoc />
     public UINavigationRequest InitialNavigation => _resolution is not null ? _resolution.Navigation : _view!.Navigation;

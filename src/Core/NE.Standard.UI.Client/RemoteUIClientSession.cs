@@ -11,8 +11,8 @@ using NE.Standard.UI.Shell.Runtime;
 namespace NE.Standard.UI.Client;
 
 /// <summary>
-/// Represents a remote client session (such as a desktop WPF window or test client) talking to an <c>NE.Standard.UI.Web</c>
-/// or <c>NE.Standard.UI.Server</c> host over HTTP and SignalR.
+/// Represents a remote C# client session talking to an <c>NE.Standard.UI.Web</c> or <c>NE.Standard.UI.Server</c>
+/// host over HTTP and SignalR.
 /// </summary>
 public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
 {

@@ -16,9 +16,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="NE.Standard.UI.Client" />
-    <InternalsVisibleTo Include="NE.Standard.UI.Wpf" />
-    <InternalsVisibleTo Include="NE.Standard.UI.Wpf.Renderers" />
-    <InternalsVisibleTo Include="NE.Standard.UI.Wpf.Renderers.Foundation" />
   </ItemGroup>
 
   <ItemGroup>

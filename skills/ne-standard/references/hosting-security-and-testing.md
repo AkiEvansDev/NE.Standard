@@ -34,6 +34,8 @@ Full guides:
 3. **`Program.cs` pipeline order**:
    `WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services);`
     then `app.UseStaticFiles();`, `app.UseRouting();`, `await app.MapStandardUIWebAsync();` (never `MapStaticAssets()`). Set `WebEndpointOptions.EnableClientViewEndpoint = true` when a browser web host also accepts remote `NE.Standard.UI.Client` connections via `GET /_ne/view`. For an API-only remote server without HTML/Web assets (`NE.Standard.UI.Server`), use `UIServerStartupBase<AppStartup>`, `UIServerStartupBuilder.Configure<AppServerStartup, AppStartup>(builder.Services)`, and `await app.MapStandardUIServerAsync();`.
+4. **Windows `WebView2` Desktop host (`NE.Standard.UI.Desktop` + `NE.Standard.UI.Web.Renderers`, `net11.0-windows` + `UseWPF=true`)**:
+   `AppDesktopStartup : DesktopStartupBase<AppStartup>` registers the exact same Web renderers and add-ons in `ConfigureServices` and window/host settings in `ConfigureHost(DesktopHostOptions options)` (`WindowTitle`, `InitialWidth`, `InitialHeight`, `WebRootPath`, `DownloadMode`, `Mode = DesktopHostMode.InProcess | Remote`, `ServerUri`); `[STAThread] static int Main(string[] args) => DesktopStartupBuilder.Run<AppDesktopStartup, AppStartup>(args);` runs an in-process `127.0.0.1:0` loopback host or connects to `--server <url>`.
 
 ## Routing & Authorization
 

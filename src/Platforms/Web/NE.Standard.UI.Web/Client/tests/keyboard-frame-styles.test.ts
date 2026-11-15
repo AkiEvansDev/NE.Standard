@@ -83,6 +83,7 @@ test("a quiet expander's header pulls its inline padding into the margin with ho
     assert.match(header, /margin: 0 -2px 0 -6px;/);
     assert.match(header, /padding: 0 2px 0 6px;/);
     assert.match(header, /border-radius: var\(--ui-radius-button\);/);
+    assert.match(rules(".ui-expander--quiet > .ui-expander__header > .ui-expander__chevron"), /margin-left: 0;/);
     assert.match(css, /\.ui-expander--quiet:not\(\.ui-disabled\):not\(\.ui-loading\):not\(:disabled\):where\(:not\(\[data-ui-popup-hover\]\)\) > \.ui-expander__header:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*background-color: var\(--ui-wash-hover\);\s*color: var\(--ui-faint-base, var\(--ui-color-on-surface\)\);/);
 });
 
