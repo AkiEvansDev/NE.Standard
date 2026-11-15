@@ -26,15 +26,21 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
     private volatile Uri? _baseUri;
     private bool _disposed;
 
-    private DesktopWebHost(DesktopHostOptions options, WebApplication? webApplication, ServiceProvider? remoteServices)
+    private DesktopWebHost(DesktopHostOptions options, WebApplication? webApplication, ServiceProvider? remoteServices, string contentRootPath, string webRootPath)
     {
         Options = options;
         _webApplication = webApplication;
         _remoteServices = remoteServices;
+        ContentRootPath = contentRootPath;
+        WebRootPath = webRootPath;
     }
 
     /// <summary>Gets the desktop host configuration options.</summary>
     public DesktopHostOptions Options { get; }
+
+    internal string ContentRootPath { get; }
+
+    internal string WebRootPath { get; }
 
     /// <summary>Gets the root service provider for the host.</summary>
     public IServiceProvider Services => _webApplication?.Services
@@ -43,6 +49,9 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
 
     /// <summary>Gets the active application theme.</summary>
     public UITheme ActiveTheme => Services.GetService<UIApplication>()?.Theme ?? Options.Theme;
+
+    /// <summary>Gets the configured icon specification (<see cref="DesktopHostOptions.Icon"/> or <see cref="UIApplication.Icon"/>); <see langword="null"/> uses the framework's default mark.</summary>
+    public string? ActiveIcon => Options.Icon ?? Services.GetService<UIApplication>()?.Icon;
 
     /// <summary>Gets whether the host has been started and <see cref="BaseUri"/> is ready.</summary>
     public bool IsStarted => _baseUri is not null;
@@ -54,6 +63,9 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(configureServices);
+
+        var contentRoot = ResolveContentRootPath(options);
+        var webRoot = ResolveWebRootPath(options, contentRoot);
 
         if (options.Mode == DesktopHostMode.Remote)
         {
@@ -67,11 +79,8 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             ServiceCollection services = new();
             _ = services.AddSingleton(options);
             configureServices(services);
-            return new DesktopWebHost(options, webApplication: null, services.BuildServiceProvider(validateScopes: true));
+            return new DesktopWebHost(options, webApplication: null, services.BuildServiceProvider(validateScopes: true), contentRoot, webRoot);
         }
-
-        var contentRoot = ResolveContentRootPath(options);
-        var webRoot = ResolveWebRootPath(options, contentRoot);
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -95,7 +104,7 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             _ = app.UseStaticFiles();
 
         _ = app.UseRouting();
-        return new DesktopWebHost(options, app, remoteServices: null);
+        return new DesktopWebHost(options, app, remoteServices: null, contentRoot, webRoot);
     }
 
     private static string ResolveContentRootPath(DesktopHostOptions options)

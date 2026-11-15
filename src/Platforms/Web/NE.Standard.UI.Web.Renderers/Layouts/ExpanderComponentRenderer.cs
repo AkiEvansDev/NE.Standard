@@ -1,4 +1,8 @@
 using System;
+using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
@@ -12,6 +16,7 @@ namespace NE.Standard.UI.Web.Renderers.Layouts;
 /// <summary>Renders an expander as a native <c>&lt;details&gt;</c>/<c>&lt;summary&gt;</c> pair.</summary>
 public sealed class ExpanderComponentRenderer : WebComponentRendererBase
 {
+    private const string HeaderLineHeightVariable = "--ui-expander-header-line-height";
     private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Class(converter: WebDomConverters.ExpanderVariantClass)];
 
     public override string ComponentTypeKey => ExpanderComponent.ComponentTypeKey;
@@ -26,8 +31,11 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
 
         SurfaceChromeRenderer.RenderChrome(context, root);
 
-        _ = RenderProperty<UIExpanderVariant?>(context, root, ExpanderComponent.VariantProperty, static (target, value) =>
+        UIExpanderVariant? renderedVariant = null;
+        _ = RenderProperty<UIExpanderVariant?>(context, root, ExpanderComponent.VariantProperty, (target, value) =>
         {
+            renderedVariant = value;
+
             if (value is UIExpanderVariant variant && WebClassNames.ExpanderVariant(variant) is { Length: > 0 } className)
                 _ = target.Class(className);
         }, VariantOperations);
@@ -38,7 +46,10 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
         var hasAction = HasRegion(context, RegionNames.HeaderAction);
 
         if (hasAction)
+        {
             _ = root.Class("ui-expander--has-action");
+            RenderHeaderLineHeight(context, root, renderedVariant);
+        }
 
         _ = root.Element("summary", header =>
         {
@@ -79,5 +90,41 @@ public sealed class ExpanderComponentRenderer : WebComponentRendererBase
                 RenderRegion(context, content, RegionNames.Content);
             });
         }
+    }
+
+    private static void RenderHeaderLineHeight(WebRenderContext context, IHtmlElementBuilder root, UIExpanderVariant? variant)
+    {
+        if (!context.ViewResolution.View.Graph.TryGetSlot(context.Node.ComponentId, UIComponentSlotKind.Region, out UIComponentSlot? slot, RegionNames.Header) || slot is null)
+            return;
+
+        UIComponentNode headerNode = context.ViewResolution.View.Graph.GetRequired(slot.RootComponentId);
+        UITextAppearance? appearance = ReadRenderValue<UITextAppearance?>(context.ForNode(headerNode, root), ITextBaseComponent.TitleTypeProperty, null);
+
+        if (HeaderLineHeightCss(appearance, variant) is { Length: > 0 } lineHeight)
+            _ = root.Style(HeaderLineHeightVariable, lineHeight);
+    }
+
+    private static string? HeaderLineHeightCss(UITextAppearance? appearance, UIExpanderVariant? variant)
+    {
+        if (appearance is not UITextAppearance value)
+            return null;
+
+        if (value.Size is not null)
+            return value.LineHeight is double pixels ? WebCssValues.Pixels(pixels) : null;
+
+        UITextType fallbackRole = variant == UIExpanderVariant.Quiet ? UITextType.Caption : UITextType.Title;
+        if (value.Role is not UITextType role || role == fallbackRole)
+            return null;
+
+        return role switch
+        {
+            UITextType.Display => "var(--ui-text-display-line-height)",
+            UITextType.Title => "var(--ui-text-title-line-height)",
+            UITextType.Subtitle => "var(--ui-text-subtitle-line-height)",
+            UITextType.Body => "var(--ui-text-body-line-height)",
+            UITextType.Caption => "var(--ui-text-caption-line-height)",
+            UITextType.Overline => "var(--ui-text-overline-line-height)",
+            _ => null
+        };
     }
 }

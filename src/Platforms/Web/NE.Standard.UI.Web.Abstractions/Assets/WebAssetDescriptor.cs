@@ -26,7 +26,10 @@ public enum UIWebAssetKind
     HeadScript = 5,
 
     /// <summary>A service worker's script: served at its own address and never linked, since the client registers it by that address.</summary>
-    ServiceWorker = 6
+    ServiceWorker = 6,
+
+    /// <summary>An SVG icon served at its own address and linked from the shell's <c>&lt;head&gt;</c> when no application icon overrides it.</summary>
+    Icon = 7
 }
 
 public enum UIWebAssetSourceKind

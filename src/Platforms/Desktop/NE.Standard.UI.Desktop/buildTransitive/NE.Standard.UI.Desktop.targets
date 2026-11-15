@@ -6,4 +6,8 @@
     <Using Include="@(NEStandardUIUsing)" Exclude="@(Using)" />
   </ItemGroup>
 
+  <PropertyGroup Condition="'$(OutputType)' == 'WinExe' and '$(ApplicationIcon)' == '' and Exists('$(MSBuildThisFileDirectory)icon.ico')">
+    <ApplicationIcon>$(MSBuildThisFileDirectory)icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
 </Project>

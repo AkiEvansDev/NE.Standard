@@ -35,7 +35,7 @@ public sealed class OrdersView : UIViewBase, IUIViewDefinition
 - Responsive values are phone-first (`base`, then `sm` ≥ 640 px, `md` ≥ 768 px, `xl` ≥ 1280 px, `xxl` ≥ 1536 px):
   `UIResponsive<T>.Create(baseValue, sm: ..., md: ..., xl: ..., xxl: ...)`.
 - `StackPanelComponent`: `SetOrientation(UIOrientation.Vertical, md: UIOrientation.Horizontal)`, `SetSpacing(12)`.
-- `GridSplitterComponent`: `BindPosition(c => c.SplitShare)` divides adjacent grid tracks and persists the reader's drag.
+- `GridSplitterComponent`: `BindPosition(c => c.SplitShare)` divides adjacent grid tracks and persists the reader's drag; `SetOrientation(UIOrientation.Horizontal, md: UIOrientation.Vertical)` switches axes across breakpoints when paired with responsive `SetPlacement` and per-tier `SetColumn(index, unit, md: ...)` / `SetRow(...)`.
 - `PaneContainerComponent`: `AddPane(key, title, content)`, `BindLayout(c => c.Layout)` lets the reader rearrange panes.
 
 ## Links, Clickable Surfaces, and Markup

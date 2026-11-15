@@ -32,26 +32,23 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Rejects a splitter on a track it can't own — shared star, an edge, or a track the container never defined — at compile
-    /// time, for every breakpoint, and one dividing another axis at another width: the tracks it moves are one axis's.
+    /// Rejects a splitter on a track it cannot own — a star track, an edge, a span wider than one track, or a track the container
+    /// never defined — at compile time, for every visible breakpoint tier against that tier's resolved orientation and tracks.
     /// </summary>
     private static void ValidateGridSplitter(IGridTracksComponent container, IGridSplitterComponent splitter)
     {
-        if (splitter.Orientation is UIResponsive<UIOrientation> orientation && !IsOneValue(orientation))
-            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' divides another axis at another width; a splitter moves one axis's tracks at every width, so give it one orientation.");
-
         if (splitter.Placement is not UIResponsive<UIGridPlacement> placement)
             return;
 
-        var vertical = (splitter.Orientation?.Base ?? UIOrientation.Vertical) == UIOrientation.Vertical;
-
-        if (!AllOneValue(vertical ? container.Columns : container.Rows))
-            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' divides the {(vertical ? "columns" : "rows")} of '{container.Id}', which change by width; a splitter moves one set of tracks, so give them one definition at every width.");
+        UIResponsive<UIOrientation> orientation = splitter.Orientation ?? UIOrientation.Vertical;
+        UIResponsive<UIVisibility>? visibility = splitter.Visibility;
 
         for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
         {
-            if (placement.Get(tier) is UIGridPlacement tierPlacement)
-                ValidateGridSplitterTrack(container, splitter, tierPlacement, vertical);
+            if (visibility is UIResponsive<UIVisibility> tierVisibility && tierVisibility.Resolve(tier) == UIVisibility.Collapsed)
+                continue;
+
+            ValidateGridSplitterTrack(container, splitter, tier, placement.Resolve(tier), orientation.Resolve(tier) == UIOrientation.Vertical);
         }
     }
 
@@ -67,19 +64,24 @@ internal sealed partial class UIViewCompilationContext
         return true;
     }
 
-    private static void ValidateGridSplitterTrack(IGridTracksComponent container, IGridSplitterComponent splitter, UIGridPlacement placement, bool vertical)
+    private static void ValidateGridSplitterTrack(IGridTracksComponent container, IGridSplitterComponent splitter, UIResponsiveTier tier, UIGridPlacement placement, bool vertical)
     {
         IReadOnlyList<UIResponsive<UIGridUnit>> tracks = vertical ? container.Columns : container.Rows;
         var index = vertical ? placement.Column : placement.Row;
+        var span = vertical ? placement.ColumnSpan : placement.RowSpan;
         var axis = vertical ? "column" : "row";
+        var atTier = tier == UIResponsiveTier.Base ? string.Empty : $" at {tier}";
 
         if (index < 1 || index > tracks.Count)
-            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' sits in {axis} {index} of '{container.Id}', which defines {tracks.Count} {axis}s.");
+            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' sits in {axis} {index} of '{container.Id}'{atTier}, which defines {tracks.Count} {axis}s.");
 
-        if (tracks[index - 1].Base.Unit == UIGridUnitType.Star)
-            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' sits in star {axis} {index} of '{container.Id}' and would share the room it divides; give it an Auto or Absolute {axis}.");
+        if (span != 1)
+            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' spans {span} {axis}s of '{container.Id}'{atTier}; a splitter occupies a single {axis}.");
+
+        if (tracks[index - 1].Resolve(tier).Unit == UIGridUnitType.Star)
+            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' sits in star {axis} {index} of '{container.Id}'{atTier} and would share the room it divides; give it an Auto or Absolute {axis}.");
 
         if (index == 1 || index == tracks.Count)
-            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' sits in the {(index == 1 ? "first" : "last")} {axis} of '{container.Id}' and has nothing to move on one side.");
+            throw new InvalidOperationException($"Grid splitter '{splitter.Id}' sits in the {(index == 1 ? "first" : "last")} {axis} of '{container.Id}'{atTier} and has nothing to move on one side.");
     }
 }

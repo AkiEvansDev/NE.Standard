@@ -3,7 +3,7 @@
 // focus is in a panel beside it, so a press in an emoji flyout inserts where the reader stopped.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { MenuItemValueClass } from "../addressing/dom-attributes.ts";
+import { InputDebounceAttribute, MenuItemValueClass } from "../addressing/dom-attributes.ts";
 import { isCaretField } from "../interactions/caret-fields.ts";
 import { isInert, isReadOnly } from "../interactions/interactive-state.ts";
 import { insertTextAsTyped } from "../interactions/legacy-commands.ts";
@@ -108,6 +108,10 @@ export function insertAtCaret(field: CaretField, text: string): boolean {
         field.value = value + text;
 
     field.dispatchEvent(new Event("input", { bubbles: true }));
+
+    // A field that could not take focus has no blur ahead of it to commit the insertion; one with a debounce commits on its timer.
+    if (document.activeElement !== field && !field.hasAttribute(InputDebounceAttribute))
+        field.dispatchEvent(new Event("change", { bubbles: true }));
 
     return true;
 }

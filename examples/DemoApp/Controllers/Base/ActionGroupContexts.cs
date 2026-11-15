@@ -27,8 +27,10 @@ internal sealed partial class ButtonGroupContext : DemoGroupContext
     [RecursiveMember]
     public partial string? Shortcut { get; set; }
 
-    public ButtonGroupContext()
+    public ButtonGroupContext(UITextAlignment? textAlignment = null)
     {
+        TextAlignment = textAlignment;
+
         AddOption(nameof(Variant), CycleVariant, () => Variant);
         AddOption(nameof(Size), CycleSize, () => Size);
         AddOption(nameof(TextAlignment), CycleTextAlignment, () => TextAlignment);

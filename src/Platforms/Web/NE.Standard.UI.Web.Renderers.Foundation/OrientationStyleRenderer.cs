@@ -1,5 +1,6 @@
 using System;
 using NE.Standard.UI.Abstractions.Binding.Properties;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -21,5 +22,13 @@ public static class OrientationStyleRenderer
         ArgumentNullException.ThrowIfNull(target);
 
         TierClassRenderer.Render(context, target, property, Family);
+    }
+
+    /// <summary>Writes a non-bindable responsive orientation's base class and tier list without registering patch operations.</summary>
+    public static void WriteOrientation(IHtmlElementBuilder target, UIResponsive<UIOrientation>? value)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        TierClassRenderer.Write(target, value, Family);
     }
 }

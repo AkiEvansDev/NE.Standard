@@ -74,6 +74,15 @@ test("limits are one-based on the attribute and land on the track", () => {
     assert.deepEqual(bounded[2], { kind: "star", value: 1, max: 300 });
 });
 
+test("tiered limits cascade from narrower tiers and clear where a wider tier drops bounds", () => {
+    assert.deepEqual(parseGridTrackLimits("|xl=1:180:420", "md"), []);
+    assert.deepEqual(parseGridTrackLimits("|xl=1:180:420", "xl"), [{ index: 0, min: 180, max: 420 }]);
+    assert.deepEqual(parseGridTrackLimits("|xl=1:180:420", "xxl"), [{ index: 0, min: 180, max: 420 }]);
+    assert.deepEqual(parseGridTrackLimits("3:80:280|xl=", "md"), [{ index: 2, min: 80, max: 280 }]);
+    assert.deepEqual(parseGridTrackLimits("3:80:280|xl=", "xl"), []);
+    assert.deepEqual(parseGridTrackLimits("3:80:280|xl=", "xxl"), []);
+});
+
 test("a run reaches the container's edge or the next splitter", () => {
     assert.deepEqual(resolveSplitRuns(1, [], 4), { before: [0], after: [2, 3] });
     assert.deepEqual(resolveSplitRuns(3, [1], 6), { before: [2], after: [4, 5] });

@@ -30,7 +30,7 @@ with the item models and the enums on their own pages beside it.
   it raises `OnExpand`/`OnCollapse`, a pushed `Expanded` neither.
 - `FlyoutComponent` - a popup anchored to another component; its panel is named by the anchor's button unless `AccessibleName`
   names it; `IsOpen` two-way, `OnClose` only for a person's dismissal (the anchor, a press outside, Escape), never the page's take-down.
-- `GridSplitterComponent` - a dragged track boundary; `BindPosition` keeps the share in the controller.
+- `GridSplitterComponent` - a dragged track boundary (`SetOrientation(UIOrientation.Horizontal, md: UIOrientation.Vertical)` supports cross-axis responsive splitters with per-tier `SetPlacement` and per-tier `SetColumn`/`SetRow`); `BindPosition` keeps the share in the controller.
 - `PaneContainerComponent` - panes the reader moves between places by a grip; `AddPane`, `BindLayout`.
 
 ## Contents

@@ -465,11 +465,32 @@ export function toGridTrackLimits(value: unknown): string | undefined {
     if (!Array.isArray(value) || value.length === 0)
         return undefined;
 
+    const baseLimits = gridTrackLimitsAtTier(value, "base");
+    let below = baseLimits;
+    let tiered: string | null = null;
+
+    for (let index = 1; index < responsiveTiers.length; index++) {
+        const tier = responsiveTiers[index];
+        const own = gridTrackLimitsAtTier(value, tier);
+
+        if (own === below)
+            continue;
+
+        tiered = `${tiered ?? baseLimits}|${tier}=${own}`;
+        below = own;
+    }
+
+    const result = tiered ?? baseLimits;
+
+    return result.length === 0 ? undefined : result;
+}
+
+function gridTrackLimitsAtTier(tracks: readonly unknown[], tier: ResponsiveTier): string {
     const parts: string[] = [];
 
-    for (let i = 0; i < value.length; i++) {
-        const track: unknown = value[i];
-        const resolved = isTiered(track) ? resolveResponsiveTier(track, "base") : track;
+    for (let i = 0; i < tracks.length; i++) {
+        const track: unknown = tracks[i];
+        const resolved = isTiered(track) ? resolveResponsiveTier(track, tier) : track;
 
         if (resolved === null || resolved === undefined || typeof resolved !== "object")
             continue;
@@ -482,7 +503,7 @@ export function toGridTrackLimits(value: unknown): string | undefined {
         parts.push(`${i + 1}:${unit.minValue ?? ""}:${unit.maxValue ?? ""}`);
     }
 
-    return parts.length === 0 ? undefined : parts.join(" ");
+    return parts.join(" ");
 }
 
 export function toSelectedKeysAttribute(value: unknown): string | undefined {

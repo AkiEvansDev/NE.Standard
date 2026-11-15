@@ -152,11 +152,15 @@ public sealed class PaneContainerComponentRenderer : WebComponentRendererBase
                 continue;
 
             _ = ResolveRenderValue(context.ForNode(node, root), IOrientationComponent.OrientationProperty, out UIResponsive<UIOrientation>? orientation, out _);
+            UIResponsive<UIOrientation> resolvedOrientation = orientation ?? UIOrientation.Vertical;
 
-            if ((orientation?.Base ?? UIOrientation.Vertical) == UIOrientation.Vertical)
-                columns = true;
-            else
-                rows = true;
+            for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+            {
+                if (resolvedOrientation.Resolve(tier) == UIOrientation.Vertical)
+                    columns = true;
+                else
+                    rows = true;
+            }
         }
 
         return (columns, rows);

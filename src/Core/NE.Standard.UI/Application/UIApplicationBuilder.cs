@@ -41,6 +41,7 @@ public sealed class UIApplicationBuilder
     private readonly List<string> _frameworkLanguages = [];
     private readonly UIApplicationThemeBuilder _theme = new();
 
+    private string? _icon;
     private string? _signInRoute;
     private string? _forbiddenRoute;
 
@@ -262,6 +263,29 @@ public sealed class UIApplicationBuilder
 
         configure(_theme);
         _ = _theme.Build();
+
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the application's icon — an asset path such as <c>/favicon.svg</c> or <c>/icon.ico</c>, a file path, or a <c>data:</c> URI —
+    /// replacing the framework's default mark unless a platform host overrides it.
+    /// </summary>
+    public UIApplicationBuilder SetIcon(string icon)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(icon);
+
+        _icon = icon;
+
+        return this;
+    }
+
+    /// <summary>
+    /// Suppresses the framework's default icon so the web shell links an empty <c>data:,</c> icon and the desktop window leaves its icon unset.
+    /// </summary>
+    public UIApplicationBuilder SetNoIcon()
+    {
+        _icon = UIApplication.NoIcon;
 
         return this;
     }
@@ -508,6 +532,7 @@ public sealed class UIApplicationBuilder
             [.. _commandFilters.OrderBy(static filter => filter.Order)]
         )
         {
+            Icon = _icon,
             ReportsToPage = services.GetService<UIPlatformDefaults>()?.ReportsToPage == true
         };
     }

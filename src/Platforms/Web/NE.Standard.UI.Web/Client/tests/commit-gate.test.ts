@@ -28,7 +28,10 @@ installFakeDom({
 });
 
 const { CommitGate } = await import("../src/interactions/commit-gate.ts");
-const { DebouncedCommitEngine } = await import("../src/interactions/debounced-commit-engine.ts");
+const { DebouncedCommitEngine, commitWaiting } = await import("../src/interactions/debounced-commit-engine.ts");
+const { DomRegistry, resolveWritableBinding } = await import("../src/addressing/dom-registry.ts");
+const { EventCatalog, registerBuiltInEvents } = await import("../src/extensions/events.ts");
+const { EventPipeline } = await import("../src/events/event-pipeline.ts");
 const { FieldKeysEngine } = await import("../src/interactions/field-keys-engine.ts");
 const { NumberInputEngine } = await import("../src/interactions/number-input-engine.ts");
 const { ValueBindingEngine } = await import("../src/updates/value-binding-engine.ts");
@@ -293,4 +296,193 @@ test("a number field's commit gate reads its invariant value across P0 edit text
 
     assert.deepEqual(changes, ["25"]);
     assert.equal(field.value, "2,500 %");
+});
+
+test("an un-debounced field edited from script commits once on blur, and reads custom value kinds such as code line endings", async () => {
+    const field = new FakeInput("text");
+    const component = FakeElement.of("ui-code-input", { "data-ui-id": "1" }).append(field);
+    const root = FakeElement.of("ui-root").append(component);
+    let ending = "\n";
+    const valueReaders = new ValueReaderRegistry();
+    valueReaders.register({ kind: "code", read: element => (element as HTMLInputElement).value.replace(/\n/g, ending) });
+
+    field.value = "a\nb";
+    field.setAttribute("data-ui-bind-value", "11");
+    field.setAttribute("data-ui-value-kind", "code");
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(root);
+    fakeDocument.activeElement = fakeDocument.body;
+
+    const sent: unknown[] = [];
+    let heard = 0;
+    const metadata = {
+        getBindingById: (id: number) => id === 11 ? { componentId: 1, propertyId: "field.value", mode: "TwoWay" } : undefined,
+        getPropertyDefinition: (propertyId: string) => ({ propertyId, propertyName: "Value" })
+    };
+    const dom = {
+        resolveNearestComponent: (start: FakeElement) => {
+            const element = start.closest("[data-ui-id]");
+
+            return element === null ? null : { element, componentId: 1, dynamicParameters: [] };
+        }
+    };
+    const transport = {
+        processChangeSetAsync: (request: { updates: { value?: unknown }[] }, before?: () => void) => {
+            sent.push(...request.updates.map(update => update.value));
+            before?.();
+
+            return Promise.resolve();
+        },
+        whenAttached: () => Promise.resolve()
+    };
+
+    new CommitGate({
+        root: real<ParentNode>(root),
+        readValue: target => target.hasAttribute("data-ui-value-kind") ? String(valueReaders.readBound(target) ?? "") : target.value
+    });
+    root.addEventListener("change", () => heard++);
+    new ValueBindingEngine({
+        root: real(root),
+        metadata: real(metadata),
+        dom: real(dom),
+        dispatcher: new ValueChangeDispatcher(real(transport)),
+        valueReaders,
+        recordSent: () => { }
+    });
+
+    field.focus();
+    // Scripted edit (e.g. CodeInput Tab/Enter or InsertTextEffect): raises input, but the browser raises no change on blur.
+    type(field, "a\n    b");
+    field.blur();
+    // Even if a browser also raised its own change for part of the edit, the gate stops the duplicate.
+    field.dispatchEvent(new FakeEvent("change"));
+    await settle();
+
+    assert.deepEqual(sent, ["a\n    b"]);
+    assert.equal(heard, 1);
+
+    // Switching the status bar's line ending to CRLF changes the bound code value while textarea.value stays LF.
+    field.focus();
+    field.blur();
+    ending = "\r\n";
+    field.dispatchEvent(new FakeEvent("change"));
+    await settle();
+
+    assert.deepEqual(sent, ["a\n    b", "a\r\n    b"]);
+    assert.equal(heard, 2);
+});
+
+test("a command pressed without blurring flushes dirty TwoWay fields ahead of the command, while leaving OnSubmit and package-held fields alone", async () => {
+    const twoWay = new FakeInput("text");
+    const onSubmit = new FakeInput("text");
+    const held = new FakeInput("text");
+    const button = FakeElement.of("ui-button", { "data-ui-id": "4" }, "button");
+    const root = FakeElement.of("ui-root").append(
+        FakeElement.of("ui-text-area", { "data-ui-id": "1" }).append(twoWay),
+        FakeElement.of("ui-text-input", { "data-ui-id": "2" }).append(onSubmit),
+        FakeElement.of("ui-text-input", { "data-ui-id": "3" }).append(held),
+        button
+    );
+
+    twoWay.setAttribute("data-ui-bind-value", "11");
+    onSubmit.setAttribute("data-ui-bind-value", "12");
+    onSubmit.setAttribute("data-ui-form-id", "form-1");
+    held.setAttribute("data-ui-bind-value", "13");
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(root);
+    fakeDocument.activeElement = fakeDocument.body;
+
+    const order: string[] = [];
+    const metadata = {
+        getBindingById: (id: number) => {
+            if (id === 11)
+                return { componentId: 1, propertyId: "p1", mode: "TwoWay" };
+            if (id === 12)
+                return { componentId: 2, propertyId: "p2", mode: "OnSubmit" };
+            if (id === 13)
+                return { componentId: 3, propertyId: "p3", mode: "TwoWay" };
+            return undefined;
+        },
+        getPropertyDefinition: (propertyId: string) => ({ propertyId, propertyName: "Value" }),
+        hasServerEvent: (name: string) => name === "click",
+        hasServerEventForComponent: (name: string, componentId: number) => name === "click" && componentId === 4,
+        getEvent: (componentId: number, name: string) => name === "click" && componentId === 4 ? { eventId: 40 } : undefined
+    };
+    const dom = new DomRegistry(real<ParentNode>(root));
+    const transport = {
+        processChangeSetAsync: (request: { updates: { componentId?: number; value?: unknown }[] }, before?: () => void) => {
+            for (const update of request.updates)
+                order.push(`value:${String(update.componentId)}:${String(update.value)}`);
+
+            before?.();
+            return Promise.resolve();
+        },
+        whenAttached: () => Promise.resolve()
+    };
+    const valueDispatcher = new ValueChangeDispatcher(real(transport));
+    const valueReaders = new ValueReaderRegistry();
+    const valueBinding = new ValueBindingEngine({
+        root: real(root),
+        metadata: real(metadata),
+        dom,
+        dispatcher: valueDispatcher,
+        valueReaders,
+        recordSent: () => { }
+    });
+    const commitGate = new CommitGate({
+        root: real<ParentNode>(root),
+        holdsCommit: target => valueBinding.isPackageHeld(target)
+    });
+    const catalog = new EventCatalog();
+    registerBuiltInEvents(catalog);
+
+    new EventPipeline({
+        root: real<ParentNode>(root),
+        metadata: real(metadata),
+        dom,
+        dispatcher: real({
+            isPending: () => false,
+            dispatchAsync: () => {
+                order.push("command:send");
+                return Promise.resolve({ command: { success: true } });
+            }
+        }),
+        interactionEngine: real({
+            hasEvent: () => false,
+            hasEventForComponent: () => false,
+            takesRowEvent: () => false,
+            applyEvent: () => undefined
+        }),
+        eventCatalog: catalog,
+        effects: real({ applyAll: () => undefined }),
+        valueBinding: real(valueBinding),
+        flushPendingValues: () => {
+            commitWaiting();
+            commitGate.commitDirty(target => {
+                const writable = resolveWritableBinding(target, real(metadata));
+
+                return writable !== null && !writable.buffered;
+            });
+        }
+    });
+
+    valueBinding.hold(real(held));
+
+    onSubmit.focus();
+    type(onSubmit, "draft");
+
+    held.focus();
+    type(held, "cell-edit");
+
+    twoWay.focus();
+    type(twoWay, "Hello 👋");
+
+    // A menu entry or non-focusing press keeps activeElement on twoWay while raising its command.
+    assert.equal(fakeDocument.activeElement, twoWay);
+    button.dispatchEvent(new FakeEvent("click"));
+    await settle();
+    await settle();
+
+    assert.deepEqual(order, ["value:1:Hello 👋", "command:send"]);
 });

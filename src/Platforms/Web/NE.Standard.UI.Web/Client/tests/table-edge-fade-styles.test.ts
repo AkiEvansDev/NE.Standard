@@ -106,7 +106,9 @@ test("a dialog preset's stack fits the dialog's max-height and lets its scroll c
     assert.match(css, new RegExp(`\\.ui-dialog__surface > \\.ui-stack-panel > \\.ui-scroll \\{\\s*flex: 0 1 auto;\\s*${minHeightZero}[\\s\\S]*?\\}`));
 });
 
-test("an expander's header action is positioned out of the header's height flow so opening the expander does not jump", () => {
-    assert.match(css, /\.ui-expander__header-action \{\s*position: absolute;/);
-    assert.match(css, /\.ui-expander--quiet > \.ui-expander__header-action \{\s*top: calc\(\(var\(--ui-text-caption-line-height, 1rem\) - 1\.75rem\) \/ 2\);\s*right: 0;\s*\}/);
+test("an expander's header action is positioned out of the header's height flow and centres on any header height", () => {
+    assert.match(css, /\.ui-expander\[open\]::details-content \{[\s\S]*?content-visibility 0s allow-discrete;/);
+    assert.match(css, /\.ui-expander__header-action \{\s*position: absolute;\s*top: calc\(0\.75rem \+ \(var\(--ui-expander-header-line-height, var\(--ui-text-title-line-height, 1\.75rem\)\) - 1\.75rem\) \/ 2\);/);
+    assert.match(css, /\.ui-expander--quiet > \.ui-expander__header-action \{\s*top: calc\(\(var\(--ui-expander-header-line-height, var\(--ui-text-caption-line-height, 1rem\)\) - 1\.75rem\) \/ 2\);\s*right: 0;\s*\}/);
+    assert.match(css, /@supports \(anchor-name: --ui-expander-header\) and \(align-self: anchor-center\) \{[\s\S]*?\.ui-expander--has-action > \.ui-expander__header-action \{\s*position-anchor: --ui-expander-header;\s*inset-block: -1rem;\s*align-self: anchor-center;\s*\}\s*\}/);
 });

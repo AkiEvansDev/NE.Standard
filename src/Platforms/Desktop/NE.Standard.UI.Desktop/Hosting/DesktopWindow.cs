@@ -31,6 +31,9 @@ public sealed class DesktopWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Content = ShellControl;
 
+        if (DesktopIconLoader.Resolve(host) is { } windowIcon)
+            Icon = windowIcon;
+
         ApplyWindowChrome();
 
         SourceInitialized += OnWindowSourceInitialized;

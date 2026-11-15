@@ -23,6 +23,7 @@ internal sealed class WebAssetRegistry : IWebAssetRegistry
         Add(builder, StandardWebAssetDescriptors.FontCss);
         Add(builder, StandardWebAssetDescriptors.Font);
         Add(builder, StandardWebAssetDescriptors.GlyphFont);
+        Add(builder, StandardWebAssetDescriptors.Icon);
         Add(builder, StandardWebAssetDescriptors.Css);
         Add(builder, StandardWebAssetDescriptors.Boot);
         Add(builder, StandardWebAssetDescriptors.JavaScript);

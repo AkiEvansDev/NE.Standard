@@ -59,6 +59,9 @@ export type EventPipelineOptions = {
 
     readonly valueBinding?: PipelineValueBinding;
 
+    /** Commits uncommitted unbuffered values (debounced pauses, dirty caret fields) ahead of a command that did not blur them. */
+    readonly flushPendingValues?: () => void;
+
     /** The pickers' uploads on their way, which a submit of their form waits for (docs/FILES.md §7). */
     readonly uploads?: { whenUploadedAsync(formId: string): Promise<ReadonlySet<Element>> };
 
@@ -144,6 +147,7 @@ export class EventPipeline {
 
         try {
             await turn.ahead;
+            this.options.flushPendingValues?.();
             await this.options.valueBinding?.whenSent();
 
             // Re-checked after the awaits, as an event's is: the same action pressed twice may have gone while this one waited.
@@ -379,6 +383,10 @@ export class EventPipeline {
 
         // Behind every command raised before it, then every value given before it, a large one still being staged included.
         await turn.ahead;
+
+        if (context.domEvent.type !== "input" && context.domEvent.type !== "change")
+            this.options.flushPendingValues?.();
+
         await this.options.valueBinding?.whenSent();
 
         // A value of the form weighed after a drop may have met another writer's on its way: the command would run without it.

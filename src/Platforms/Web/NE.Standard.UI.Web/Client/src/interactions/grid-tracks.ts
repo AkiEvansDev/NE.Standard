@@ -1,5 +1,8 @@
 // The arithmetic of a splitter, apart from the DOM: what a container's track list says, and what it says after a drag.
 
+import { resolveTier } from "../rendering/responsive-tier.ts";
+import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
+
 /** One track of a container's template, as the renderer or a previous drag wrote it. */
 export type GridTrack = {
     readonly kind: "star" | "px" | "auto";
@@ -144,14 +147,19 @@ function formatNumber(value: number): string {
     return String(Math.round(value * 1000) / 1000);
 }
 
-/** Reads `index:min:max` entries, 1-based as the container writes them. */
-export function parseGridTrackLimits(text: string | null): GridTrackLimit[] {
+/** Reads `index:min:max` entries at `tier`, 1-based as the container writes them (`base|tier=limits` when bounds differ by width). */
+export function parseGridTrackLimits(text: string | null, tier: ResponsiveTier = "base"): GridTrackLimit[] {
     if (text === null || text.length === 0)
+        return [];
+
+    const active = resolveTierTrackLimits(text, tier);
+
+    if (active.length === 0)
         return [];
 
     const limits: GridTrackLimit[] = [];
 
-    for (const entry of text.split(" ")) {
+    for (const entry of active.split(" ")) {
         const [index, min, max] = entry.split(":");
         const parsedIndex = Number(index);
 
@@ -166,6 +174,24 @@ export function parseGridTrackLimits(text: string | null): GridTrackLimit[] {
     }
 
     return limits;
+}
+
+function resolveTierTrackLimits(text: string, tier: ResponsiveTier): string {
+    if (!text.includes("|"))
+        return text;
+
+    const segments = text.split("|");
+    const byTier = new Map<string, string>([["base", segments[0]]]);
+
+    for (let index = 1; index < segments.length; index++) {
+        const segment = segments[index];
+        const separator = segment.indexOf("=");
+
+        if (separator > 0)
+            byTier.set(segment.slice(0, separator), segment.slice(separator + 1));
+    }
+
+    return resolveTier(tier, candidate => byTier.get(candidate)) ?? "";
 }
 
 /** Applies the container's limits to the tracks: the attribute is the whole truth, the template only what CSS held. */

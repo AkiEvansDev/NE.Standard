@@ -194,8 +194,8 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
     private sealed record TrackRender(Action<IHtmlElementBuilder, IReadOnlyList<UIResponsive<UIGridUnit>>?> Render, WebDomOperation[] Operations);
 
     /// <summary>
-    /// A track list as CSS: the base tier's template and a splitter's bounds (the compiler refuses a splitter over tracks that change by
-    /// width), and each wider tier's template where it differs from the one below, else null.
+    /// A track list as CSS: the base tier's template, a splitter's bounds across tiers, and each wider tier's template where it differs
+    /// from the one below, else null.
     /// </summary>
     private sealed class TrackCss
     {
@@ -204,7 +204,7 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
             UIGridUnit[] units = AtTier(tracks, UIResponsiveTier.Base);
 
             Template = ToCssGridTemplate(units);
-            Limits = WebCssValues.GridTrackLimits(units);
+            Limits = WebCssValues.ResponsiveGridTrackLimits(tracks);
             Tiers = new string?[(int)UIResponsiveTier.Xxl + 1];
 
             var below = Template;

@@ -28,6 +28,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="buildTransitive\icon.ico" LogicalName="NE.Standard.UI.Desktop.Assets.icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\Web\NE.Standard.UI.Web\NE.Standard.UI.Web.csproj" />
     <!-- Analyzers pass through to the application, so the engine's generator reaches a project that installs only this host. -->
     <ProjectReference Include="..\..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" PrivateAssets="contentfiles;build" />

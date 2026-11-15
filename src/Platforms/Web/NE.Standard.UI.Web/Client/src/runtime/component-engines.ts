@@ -1,12 +1,12 @@
 import {
-    ComponentSelector, OverlayScrollbarsAttribute, pluginDomNames, PressRippleAttribute
+    ComponentSelector, OverlayScrollbarsAttribute, pluginDomNames, PressRippleAttribute, ValueKindAttribute
 } from "../addressing/dom-attributes";
 import { DomRegistry, ownDescendants, readComponentId } from "../addressing/dom-registry";
 import { collectDynamicParameters, readParameterCount } from "../addressing/dynamic-parameters";
 import { EffectRegistry } from "../effects/effect-registry";
 import { EventRegistration } from "../events/event-descriptor";
 import { EventPipeline } from "../events/event-pipeline";
-import { ValueReading } from "../extensions/value-readers";
+import { ValueReaderRegistry, ValueReading } from "../extensions/value-readers";
 import { AccordionEngine } from "../interactions/accordion-engine";
 import { ActionBarEngine } from "../interactions/action-bar-engine";
 import { BreadcrumbsEngine } from "../interactions/breadcrumbs-engine";
@@ -260,9 +260,12 @@ export function startCoreComponentEngines(
     propertyState: PropertyStateStore,
     itemsRenderer: ItemsTemplateRenderer,
     virtualization: ItemsVirtualizationEngine,
+    valueReaders: ValueReaderRegistry,
+    valueBinding: ValueBindingEngine | undefined,
     engineDisposers: (() => void)[]
-): NumberInputEngine | null {
+): { readonly numberInputs: NumberInputEngine | null; readonly commitGate: CommitGate | null } {
     let numberInputs: NumberInputEngine | null = null;
+    let commitGate: CommitGate | null = null;
     const record = (dispose: (() => void) | null): void => {
         if (dispose !== null)
             engineDisposers.push(dispose);
@@ -270,11 +273,15 @@ export function startCoreComponentEngines(
 
     // Ahead of NumberInputEngine and ComponentEngines: its window capture listeners snapshot and gate a field's invariant value
     // before NumberInputEngine rewrites the field's text for the change event or any root listener hears it.
-    record(startEngine("commit gate", ({ root, propertyPatchEngine }) => new CommitGate({
-        root,
-        propertyPatchEngine,
-        readValue: field => numberInputs?.readValue(field) ?? field.value
-    }), engineContext));
+    record(startEngine("commit gate", ({ root, propertyPatchEngine }) => {
+        commitGate = new CommitGate({
+            root,
+            propertyPatchEngine,
+            readValue: field => numberInputs?.readValue(field) ?? (field.hasAttribute(ValueKindAttribute) ? String(valueReaders.readBound(field) ?? "") : field.value),
+            holdsCommit: field => valueBinding?.isPackageHeld(field) === true
+        });
+        return commitGate;
+    }, engineContext));
 
     // Ahead of ComponentEngines: its window focusin listener writes edit text before FieldKeysEngine snapshots the field, and the
     // plugin surface reads a number field's invariant value off this engine.
@@ -305,7 +312,7 @@ export function startCoreComponentEngines(
         ? new OverlayScrollbarEngine()
         : undefined, engineContext));
 
-    return numberInputs;
+    return { numberInputs, commitGate };
 }
 
 function registerBuiltInPipelineEvents(
@@ -570,6 +577,7 @@ export function createEventPipelineAndWindows(
     engineContext: EngineContext,
     rowMenus: RowMenus,
     virtualization: ItemsVirtualizationEngine,
+    flushPendingValues: () => void,
     engineDisposers: (() => void)[]
 ): {
     readonly eventPipeline: EventPipeline;
@@ -589,6 +597,7 @@ export function createEventPipelineAndWindows(
         events,
         validationEngine,
         valueBinding,
+        flushPendingValues,
         uploads: uploadsInFlight,
         isReattaching: () => transport.isReattaching,
         failed: error => failures.say(error)

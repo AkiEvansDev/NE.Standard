@@ -19,6 +19,9 @@ namespace NE.Standard.UI.Application;
 /// </summary>
 public sealed class UIApplication
 {
+    /// <summary>The icon value that suppresses the framework's default mark without triggering a browser <c>/favicon.ico</c> request.</summary>
+    public const string NoIcon = "data:,";
+
     internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, UILocalizationOptions localization, UITemporalOptions temporal, IUIMissingWords? missingWords, IUIContentAddressResolver? content, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
     {
         ArgumentNullException.ThrowIfNull(routes);
@@ -86,10 +89,11 @@ public sealed class UIApplication
     /// </summary>
     public IUIMissingWords? MissingWords { get; }
 
-    /// <summary>
-    /// Gets application theme tokens for both light and dark modes.
-    /// </summary>
+    /// <summary>Gets application theme tokens for both light and dark modes.</summary>
     public UITheme Theme { get; }
+
+    /// <summary>Gets the application icon configured via <see cref="UIApplicationBuilder.SetIcon"/> or <see cref="UIApplicationBuilder.SetNoIcon"/>; <see langword="null"/> uses the framework's default mark.</summary>
+    public string? Icon { get; init; }
 
     /// <summary>
     /// Gets the not-found/error route configuration used by <see cref="IResolveExceptionViewHandler"/>.

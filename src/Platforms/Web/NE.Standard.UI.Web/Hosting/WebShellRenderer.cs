@@ -28,9 +28,6 @@ public static class WebShellRenderer
     private const string LeftBarAttribute = "data-ui-left-bar";
     private const string DrawerBackdropClass = "ui-shell__drawer-backdrop";
 
-    // An icon of no bytes: the browser shows its own blank and fetches nothing.
-    private const string EmptyIcon = "data:,";
-
     /// <summary>The document as a string; a response is better served by <see cref="Render(WebShellContext, TextWriter)"/>.</summary>
     public static string Render(WebShellContext context)
     {
@@ -103,10 +100,17 @@ public static class WebShellRenderer
             _ = head.Element("title", title => title.Text(context.Title));
 
         // Always named: without a link a browser asks for /favicon.ico, which an application serving none answers with a 404.
+        var icon = string.IsNullOrWhiteSpace(context.Icon)
+            ? StandardWebAssetDescriptors.Icon.ResolveVersionedPublicPath()
+            : context.Icon;
+
         _ = head.Element("link", link =>
         {
             _ = link.Attribute("rel", "icon");
-            _ = link.Attribute("href", string.IsNullOrWhiteSpace(context.Icon) ? EmptyIcon : context.Icon);
+            _ = link.Attribute("href", icon);
+
+            if (IsSvgIcon(icon))
+                _ = link.Attribute("type", "image/svg+xml");
         });
 
         if (context.HasManifest)
@@ -181,6 +185,12 @@ public static class WebShellRenderer
         foreach (WebAssetDescriptor asset in EnumerateAssets(context, UIWebAssetKind.HeadScript))
             _ = head.Element("script", script => script.Attribute("src", ResolvePublicPath(asset)));
     }
+
+    private static bool IsSvgIcon(string href)
+        => href.StartsWith(StandardWebAssetDescriptors.Icon.PublicPath!, StringComparison.Ordinal)
+        || href.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
+        || href.Contains(".svg?", StringComparison.OrdinalIgnoreCase)
+        || href.StartsWith("data:image/svg+xml", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The assets of one kind, in the order the context holds them: the registry's, sorted once (<see cref="WebShellContext.Assets"/>).</summary>
     private static IEnumerable<WebAssetDescriptor> EnumerateAssets(WebShellContext context, UIWebAssetKind kind)

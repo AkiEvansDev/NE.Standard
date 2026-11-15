@@ -97,4 +97,19 @@ internal static class StandardWebAssetDescriptors
         PublicPath = "/_ne/css/ui-fonts.css",
         Order = -1
     };
+
+    /// <summary>
+    /// The framework's default mark, linked by the shell when neither <see cref="Hosting.WebEndpointOptions.Icon"/> nor
+    /// <c>UIApplication.Icon</c> names another.
+    /// </summary>
+    public static WebAssetDescriptor Icon { get; } = new()
+    {
+        Key = "icon.svg",
+        Kind = UIWebAssetKind.Icon,
+        SourceKind = UIWebAssetSourceKind.EmbeddedResource,
+        Source = "NE.Standard.UI.Web.Assets.icon.svg",
+        ResourceAssemblyName = "NE.Standard.UI.Web",
+        PublicPath = "/_ne/icon.svg",
+        Order = 0
+    };
 }

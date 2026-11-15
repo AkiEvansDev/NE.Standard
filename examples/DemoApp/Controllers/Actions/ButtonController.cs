@@ -8,7 +8,7 @@ namespace DemoApp.Controllers.Actions;
 internal sealed partial class ButtonController() : DemoStandardController
 {
     [RecursiveMember]
-    public partial ButtonGroupContext ButtonGroup { get; set; } = new();
+    public partial ButtonGroupContext ButtonGroup { get; set; } = new(UITextAlignment.Start);
 
     [RecursiveMember]
     public partial TextLabelGroupContext LabelGroup { get; set; } = new("Restart", "Graceful restart of api-eu-west-1");

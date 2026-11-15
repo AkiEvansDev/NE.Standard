@@ -85,7 +85,7 @@ internal sealed class GridSplitterView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        => [CreateSidebarGroup(), CreatePanesGroup(), CreateLogGroup()];
+        => [CreateSidebarGroup(), CreatePanesGroup(), CreateLogGroup(), CreateResponsiveGroup()];
 
     /// <summary>
     /// A fixed sidebar beside the work: the drag writes the sidebar's pixels, between the floor and the ceiling its track carries.
@@ -241,6 +241,55 @@ internal sealed class GridSplitterView : DemoComponentView, IUIViewDefinition
                         .AddChild(new TextComponent().SetTitle("12:09:02  old revision drained").SetTitleType(UITextAppearance.Caption))
                     )
                     .SetPlacement(1, 3, 24, 1)
+                ),
+            columns: 24
+        );
+    }
+
+    /// <summary>
+    /// One splitter that stacks its panes below <c>Xl</c> and places them side by side from <c>Xl</c> up, keeping each axis's split in its own band.
+    /// </summary>
+    private static ContainerComponent CreateResponsiveGroup()
+    {
+        return DemoUI.CreateExample("Stacked on tablet, side by side on desktop",
+            new ContainerComponent("demo-split-responsive")
+                .SetColumn(12, UIGridUnit.Star(), xl: UIGridUnit.Auto())
+                .SetColumn(24, UIGridUnit.Star(), xl: UIGridUnit.Auto())
+                .SetRow(1, UIGridUnit.Star())
+                .AddRow(UIGridUnit.Auto())
+                .AddRow(UIGridUnit.Star(), xl: UIGridUnit.Auto())
+                .SetHeight(UILayoutLength.Absolute(320), xl: UILayoutLength.Absolute(220))
+                .SetOverflow(UIOverflow.Hidden)
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Background)
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetBorderThickness(UIThickness.Uniform(0))
+                    .SetPadding(UIThickness.Uniform(12))
+                    .SetContent(new ParagraphComponent()
+                        .SetTitle("Canvas")
+                        .SetDescription("Above the inspector below 1280px, and beside it from 1280px up.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                        .SetWrapMode(UITextWrapMode.Wrap)
+                    )
+                    .SetPlacement(new UIGridPlacement(1, 1, 24, 1), xl: new UIGridPlacement(1, 1, 11, 1))
+                )
+                .AddChild(new GridSplitterComponent()
+                    .SetOrientation(UIOrientation.Horizontal, xl: UIOrientation.Vertical)
+                    .SetPlacement(new UIGridPlacement(1, 2, 24, 1), xl: new UIGridPlacement(12, 1, 1, 1))
+                )
+                .AddChild(new SurfaceComponent()
+                    .SetBackground(UIThemeColor.FromStyle(UIColorStyle.Surface))
+                    .SetVerticalAlignment(UIAlignment.Stretch)
+                    .SetBorderThickness(UIThickness.Uniform(0))
+                    .SetBorderRadius(UICornerRadius.Uniform(0))
+                    .SetPadding(UIThickness.Uniform(12))
+                    .SetContent(new ParagraphComponent()
+                        .SetTitle("Inspector")
+                        .SetDescription("Drag the bar at either width: each axis remembers its own division without bleeding across the breakpoint.")
+                        .SetDescriptionType(UITextAppearance.Body)
+                        .SetWrapMode(UITextWrapMode.Wrap)
+                    )
+                    .SetPlacement(new UIGridPlacement(1, 3, 24, 1), xl: new UIGridPlacement(13, 1, 11, 1))
                 ),
             columns: 24
         );

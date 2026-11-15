@@ -169,6 +169,41 @@ public static class WebCssValues
     }
 
     /// <summary>
+    /// A responsive track list's bounds for a splitter's clamp: the base tier's <see cref="GridTrackLimits"/>, followed by
+    /// <c>|tier=limits</c> for each wider tier whose bounds differ from the tier below, or an empty string when no tier carries bounds.
+    /// </summary>
+    public static string ResponsiveGridTrackLimits(IReadOnlyList<UIResponsive<UIGridUnit>> tracks)
+    {
+        ArgumentNullException.ThrowIfNull(tracks);
+
+        UIGridUnit[] units = new UIGridUnit[tracks.Count];
+
+        for (var i = 0; i < units.Length; i++)
+            units[i] = tracks[i].Base;
+
+        var baseLimits = GridTrackLimits(units);
+        var below = baseLimits;
+        StringBuilder? tiered = null;
+
+        for (UIResponsiveTier tier = UIResponsiveTier.Sm; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            for (var i = 0; i < units.Length; i++)
+                units[i] = tracks[i].Resolve(tier);
+
+            var own = GridTrackLimits(units);
+
+            if (string.Equals(own, below, StringComparison.Ordinal))
+                continue;
+
+            tiered ??= new StringBuilder(baseLimits);
+            _ = tiered.Append('|').Append(WebResponsiveCss.TierWord(tier)).Append('=').Append(own);
+            below = own;
+        }
+
+        return tiered?.ToString() ?? baseLimits;
+    }
+
+    /// <summary>
     /// A track list's bounds for a splitter's clamp — <c>index:min:max</c> per bounded track, 1-based, blanks for
     /// what is unset — or an empty string when no track carries one.
     /// </summary>

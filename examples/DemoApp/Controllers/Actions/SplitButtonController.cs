@@ -62,7 +62,7 @@ internal sealed partial class SplitButtonTargetsGroupContext : DemoGroupContext
 internal sealed partial class SplitButtonController() : DemoStandardController
 {
     [RecursiveMember]
-    public partial ButtonGroupContext ButtonGroup { get; set; } = new();
+    public partial ButtonGroupContext ButtonGroup { get; set; } = new(UITextAlignment.Start);
 
     [RecursiveMember]
     public partial TextLabelGroupContext LabelGroup { get; set; } = new("Restart", "Graceful restart of api-eu-west-1");

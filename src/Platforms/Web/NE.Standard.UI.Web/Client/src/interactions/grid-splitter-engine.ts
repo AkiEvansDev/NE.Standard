@@ -2,9 +2,10 @@
 // container's Columns/Rows are not bindable. A bound Position also gives the share to the controller and takes it from there.
 
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { BindPositionAttribute, ColumnLimitsAttribute, ContainerClass, GridSplitterClass, OrientationVerticalClass, RowLimitsAttribute, SplitEdgeAttribute, SplitFoldedAttribute, SplitterPositionAttribute, SplitterStepAttribute, writeAttribute } from "../addressing/dom-attributes.ts";
-import { currentResponsiveTier, resolveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier.ts";
+import { BindPositionAttribute, ColumnLimitsAttribute, ContainerClass, GridSplitterClass, HiddenClass, OrientationVerticalClass, RowLimitsAttribute, SplitEdgeAttribute, SplitFoldedAttribute, SplitterPositionAttribute, SplitterStepAttribute, TierOrientationAttribute, VisibilityTierAttributes, writeAttribute } from "../addressing/dom-attributes.ts";
+import { currentResponsiveTier, onTierChange, resolveTier, responsiveTiers, responsiveVariable } from "../rendering/responsive-tier.ts";
 import type { ResponsiveTier } from "../rendering/responsive-tier.ts";
+import { fitTierClasses } from "../rendering/tier-class.ts";
 import { OnceWarner } from "../metadata/logger.ts";
 import { ClientStore } from "../state/client-store.ts";
 import type { ClientBootPatch } from "../state/client-store.ts";
@@ -44,6 +45,8 @@ type SplitAxis = {
     readonly slot: "columns" | "rows";
     /** The authored template, `ContainerComponentRenderer`'s variable. */
     readonly authored: string;
+    /** The stylesheet's default template when no `--ui-<axis>` property is set (`ui-container.less`). */
+    readonly defaultTemplate: string;
     /** The viewer's family, one custom property per tier over the authored one in the stylesheet's chain. */
     readonly split: string;
     readonly limits: string;
@@ -58,6 +61,7 @@ type SplitAxis = {
 const Columns: SplitAxis = {
     slot: "columns",
     authored: "--ui-columns",
+    defaultTemplate: "repeat(24, minmax(0, 1fr))",
     split: "--ui-split-columns",
     limits: ColumnLimitsAttribute,
     computed: "gridTemplateColumns",
@@ -71,6 +75,7 @@ const Columns: SplitAxis = {
 const Rows: SplitAxis = {
     slot: "rows",
     authored: "--ui-rows",
+    defaultTemplate: "minmax(0, 1fr)",
     split: "--ui-split-rows",
     limits: RowLimitsAttribute,
     computed: "gridTemplateRows",
@@ -81,7 +86,7 @@ const Rows: SplitAxis = {
     increase: "ArrowDown"
 };
 
-/** The viewer's templates by tier, as stored: the shape the boot script writes back as styles. */
+/** The viewer's templates by tier, as stored: pure viewer divisions without wider-tier fence overrides. */
 type StoredSplit = Partial<Record<ResponsiveTier, string>>;
 
 /** What a splitter knows about its place when a gesture starts. */
@@ -93,8 +98,8 @@ type SplitContext = {
     readonly sizes: readonly number[];
     readonly runs: GridSplitRuns;
     readonly tier: ResponsiveTier;
-    /** The tier's own division as the gesture found it, empty for none: what Escape mid-drag puts back. */
-    readonly before: string;
+    /** The tier's own viewer division as the gesture found it: what Escape mid-drag puts back. */
+    readonly before: string | undefined;
 };
 
 export type GridSplitterEngineOptions = {
@@ -107,6 +112,7 @@ export class GridSplitterEngine {
 
     // Restored per container and axis, not per run: the store is the viewer's word, and it is applied once.
     private readonly restored = new WeakMap<Element, Set<string>>();
+    private readonly splits = new WeakMap<HTMLElement, { columns: StoredSplit; rows: StoredSplit }>();
     private readonly warner = new OnceWarner();
     private readonly drag: PointerDrag<SplitContext>;
 
@@ -148,25 +154,41 @@ export class GridSplitterEngine {
         // A share the controller pushed; none on a bound bar puts the authored tracks back.
         observeComponents(this.root, `.${GridSplitterClass}`, { attributeFilter: [SplitterPositionAttribute] }, splitters => this.takeEach(splitters));
 
-        // Another width may bring another tier's tracks: a folded pane is measured again, and given back once its tracks have room;
-        // a bound bar is placed on the new tier's tracks at its share.
+        // Another width may bring another tier's tracks or turn a cross-axis bar: a folded pane is measured again, and given back once
+        // its tracks have room; a bound bar is placed on the new tier's tracks at its share.
+        onTierChange(() => this.handleTierChange());
         window.addEventListener("resize", () => this.reportEach());
     }
 
     private prepareEach(splitters: Iterable<HTMLElement>): void {
+        const tier = currentResponsiveTier();
+
         for (const splitter of splitters) {
             const container = containerOf(splitter);
 
             if (container === null)
                 continue;
 
-            this.restore(container, axisOf(splitter));
+            syncSplitterOrientation(splitter, tier);
+
+            for (const axis of axesOf(splitter))
+                this.restore(container, axis);
+
             this.place(splitter);
             this.reportPosition(splitter);
         }
     }
 
-    /** Applies the viewer's stored division where the boot script did not — a first run after an update, a page with no head script. */
+    private handleTierChange(): void {
+        const tier = currentResponsiveTier();
+
+        for (const splitter of this.root.querySelectorAll<HTMLElement>(`.${GridSplitterClass}`))
+            syncSplitterOrientation(splitter, tier);
+
+        this.reportEach();
+    }
+
+    /** Applies the viewer's stored division where the boot script did not, and fences wider tiers whose tracks or axis change. */
     private restore(container: HTMLElement, axis: SplitAxis): void {
         let axes = this.restored.get(container);
 
@@ -180,18 +202,104 @@ export class GridSplitterEngine {
 
         axes.add(axis.slot);
 
+        const axisSplits = this.axisSplits(container, axis);
         const stored = this.store.readJson<StoredSplit>(container, axis.slot);
 
-        if (stored === null)
-            return;
+        if (stored !== null) {
+            for (const tier of responsiveTiers) {
+                const template = stored[tier];
+
+                if (typeof template === "string" && template.length > 0)
+                    axisSplits[tier] = template;
+            }
+        }
+        else {
+            for (const tier of responsiveTiers) {
+                const existing = container.style.getPropertyValue(responsiveVariable(axis.split, tier)).trim();
+
+                if (existing.length > 0)
+                    axisSplits[tier] = existing;
+            }
+        }
+
+        if (Object.keys(axisSplits).length > 0)
+            this.syncAxisStyles(container, axis);
+    }
+
+    private axisSplits(container: HTMLElement, axis: SplitAxis): StoredSplit {
+        let pair = this.splits.get(container);
+
+        if (pair === undefined) {
+            pair = { columns: {}, rows: {} };
+            this.splits.set(container, pair);
+        }
+
+        return pair[axis.slot];
+    }
+
+    /**
+     * Writes the viewer's divisions onto `container.style` and fences wider tiers that define new authored tracks or carry no active
+     * splitter on `axis`, so a narrow tier's split never leaks upward into a breakpoint with a different layout.
+     */
+    private syncAxisStyles(container: HTMLElement, axis: SplitAxis): void {
+        const splits = this.axisSplits(container, axis);
+        let inSplitChain: string | undefined;
+        let fenced = false;
 
         for (const tier of responsiveTiers) {
-            const template = stored[tier];
             const variable = responsiveVariable(axis.split, tier);
+            const own = splits[tier];
 
-            if (template !== undefined && container.style.getPropertyValue(variable).length === 0)
-                container.style.setProperty(variable, template);
+            if (own !== undefined) {
+                container.style.setProperty(variable, own);
+                inSplitChain = own;
+                fenced = false;
+                continue;
+            }
+
+            if (inSplitChain === undefined) {
+                container.style.removeProperty(variable);
+                continue;
+            }
+
+            const hasOwnAuthored = tier !== "base" && container.style.getPropertyValue(responsiveVariable(axis.authored, tier)).trim().length > 0;
+            const hasSplitter = ownSplitters(container, axis, tier).length > 0;
+
+            if (fenced || hasOwnAuthored || !hasSplitter) {
+                const authored = resolveAuthoredTemplate(container, axis, tier) ?? axis.defaultTemplate;
+
+                fenced = true;
+
+                if (authored !== inSplitChain) {
+                    container.style.setProperty(variable, authored);
+                    inSplitChain = authored;
+                }
+                else
+                    container.style.removeProperty(variable);
+            }
+            else
+                container.style.removeProperty(variable);
         }
+    }
+
+    /** Whether a viewer division applies at `tier` without an intervening authored track change or axis switch. */
+    private hasViewerSplit(container: HTMLElement, axis: SplitAxis, tier: ResponsiveTier): boolean {
+        const splits = this.axisSplits(container, axis);
+
+        for (let position = responsiveTiers.indexOf(tier); position >= 0; position--) {
+            const candidate = responsiveTiers[position];
+
+            if (splits[candidate] !== undefined)
+                return true;
+
+            if (candidate !== "base" && container.style.getPropertyValue(responsiveVariable(axis.authored, candidate)).trim().length > 0)
+                return false;
+
+            if (ownSplitters(container, axis, candidate).length === 0)
+                return false;
+        }
+
+        return false;
     }
 
     /**
@@ -220,7 +328,7 @@ export class GridSplitterEngine {
 
         this.placedTiers.set(splitter, context.tier);
 
-        if (!splitter.hasAttribute(BindPositionAttribute) && viewerTemplate(context.container, context.axis, context.tier) !== undefined)
+        if (!splitter.hasAttribute(BindPositionAttribute) && this.hasViewerSplit(context.container, context.axis, context.tier))
             return;
 
         const delta = shareDelta(context.sizes, context.runs, share);
@@ -328,8 +436,8 @@ export class GridSplitterEngine {
     }
 
     /**
-     * Puts the authored layout back on this axis, at every width, and forgets the viewer's division — an unbound bar's authored share
-     * included, which it then stands at again; a bound bar tells the controller, unless the controller is who said so.
+     * Puts the authored layout back on the active axis (or every axis a bound bar spans) and forgets the viewer's division — an unbound
+     * bar's authored share included, which it then stands at again; a bound bar tells the controller, unless the controller is who said so.
      */
     private reset(splitter: HTMLElement, tell = true): void {
         const container = containerOf(splitter);
@@ -337,20 +445,27 @@ export class GridSplitterEngine {
         if (container === null)
             return;
 
-        const axis = axisOf(splitter);
+        const bound = splitter.hasAttribute(BindPositionAttribute);
+        const axes = bound ? axesOf(splitter) : [axisOf(splitter)];
 
-        for (const tier of responsiveTiers)
-            container.style.removeProperty(responsiveVariable(axis.split, tier));
+        for (const axis of axes) {
+            const splits = this.axisSplits(container, axis);
 
-        this.store.write(container, axis.slot, null);
+            for (const key of Object.keys(splits) as ResponsiveTier[])
+                delete splits[key];
+
+            this.syncAxisStyles(container, axis);
+            this.store.write(container, axis.slot, null);
+        }
+
         this.placedTiers.delete(splitter);
 
-        if (!splitter.hasAttribute(BindPositionAttribute))
+        if (!bound)
             this.place(splitter);
 
         this.reportPosition(splitter);
 
-        if (tell && splitter.hasAttribute(BindPositionAttribute) && splitter.hasAttribute(SplitterPositionAttribute)) {
+        if (tell && bound && splitter.hasAttribute(SplitterPositionAttribute)) {
             splitter.removeAttribute(SplitterPositionAttribute);
             splitter.dispatchEvent(new Event("change", { bubbles: true }));
         }
@@ -389,13 +504,14 @@ export class GridSplitterEngine {
 
     /** Escape mid-drag: the division the drag found, nothing kept in the browser or told to the controller. */
     private putBack(splitter: HTMLElement, context: SplitContext): void {
-        const variable = responsiveVariable(context.axis.split, context.tier);
+        const splits = this.axisSplits(context.container, context.axis);
 
-        if (context.before.length === 0)
-            context.container.style.removeProperty(variable);
+        if (context.before === undefined)
+            delete splits[context.tier];
         else
-            context.container.style.setProperty(variable, context.before);
+            splits[context.tier] = context.before;
 
+        this.syncAxisStyles(context.container, context.axis);
         this.reportPosition(splitter);
     }
 
@@ -406,30 +522,29 @@ export class GridSplitterEngine {
         if (moved === null)
             return false;
 
-        context.container.style.setProperty(responsiveVariable(context.axis.split, context.tier), formatGridTracks(moved));
+        this.axisSplits(context.container, context.axis)[context.tier] = formatGridTracks(moved);
+        this.syncAxisStyles(context.container, context.axis);
 
         return true;
     }
 
-    /** Keeps every tier's division and the boot patch that paints it before the next page's first frame. */
+    /** Keeps every tier's viewer division and the boot patch (viewer divisions plus wider-tier fences) that paints it before the first frame. */
     private remember(context: SplitContext): void {
         const { container, axis } = context;
-        const stored: StoredSplit = {};
+        const splits = this.axisSplits(container, axis);
         const styles: Record<string, string> = {};
 
         for (const tier of responsiveTiers) {
             const variable = responsiveVariable(axis.split, tier);
             const template = container.style.getPropertyValue(variable).trim();
 
-            if (template.length > 0) {
-                stored[tier] = template;
+            if (template.length > 0)
                 styles[variable] = template;
-            }
         }
 
         const patch: ClientBootPatch = { styles };
 
-        this.store.write(container, axis.slot, Object.keys(stored).length === 0 ? null : JSON.stringify(stored), patch);
+        this.store.write(container, axis.slot, Object.keys(splits).length === 0 ? null : JSON.stringify(splits), patch);
     }
 
     /** Everything a gesture needs, read afresh: the tracks in force at this width, their laid-out sizes, and the runs either side. */
@@ -441,8 +556,15 @@ export class GridSplitterEngine {
             return null;
         }
 
-        const axis = axisOf(splitter);
         const tier = currentResponsiveTier();
+
+        if (splitterCollapsedAt(splitter, tier))
+            return null;
+
+        const axis = axisOf(splitter, tier);
+
+        this.restore(container, axis);
+
         const template = resolveTemplate(container, axis, tier);
         const parsed = template === null ? null : parseGridTracks(template);
 
@@ -451,7 +573,7 @@ export class GridSplitterEngine {
             return null;
         }
 
-        const tracks = applyGridTrackLimits(parsed, parseGridTrackLimits(container.getAttribute(axis.limits)));
+        const tracks = applyGridTrackLimits(parsed, parseGridTrackLimits(container.getAttribute(axis.limits), tier));
         const sizes = readSizes(container, axis);
         const index = readTrackIndex(splitter, axis);
 
@@ -463,7 +585,7 @@ export class GridSplitterEngine {
         if (tracks[index].kind === "star")
             this.warner.warn(splitter, "a grid splitter sits in a star track and shares the room it divides; give it an Auto or Absolute track.");
 
-        const siblings = ownSplitters(container, axis)
+        const siblings = ownSplitters(container, axis, tier)
             .map(sibling => readTrackIndex(sibling, axis))
             .filter((value): value is number => value !== null && value !== index);
         const runs = resolveSplitRuns(index, siblings, tracks.length);
@@ -473,7 +595,7 @@ export class GridSplitterEngine {
             return null;
         }
 
-        return { splitter, container, axis, tracks, sizes, runs, tier, before: container.style.getPropertyValue(responsiveVariable(axis.split, tier)) };
+        return { splitter, container, axis, tracks, sizes, runs, tier, before: this.axisSplits(container, axis)[tier] };
     }
 
     /**
@@ -486,16 +608,29 @@ export class GridSplitterEngine {
         if (container === null)
             return;
 
-        const axis = axisOf(splitter);
+        const tier = currentResponsiveTier();
+
+        syncSplitterOrientation(splitter, tier);
+
+        if (splitterCollapsedAt(splitter, tier)) {
+            writeAttribute(splitter, SplitEdgeAttribute, null);
+            foldEmptyPanes(container, null);
+            return;
+        }
+
+        const axis = axisOf(splitter, tier);
         const index = readTrackIndex(splitter, axis);
         const sizes = readSizes(container, axis);
-        const siblings = ownSplitters(container, axis)
+        const siblings = ownSplitters(container, axis, tier)
             .map(sibling => readTrackIndex(sibling, axis))
             .filter((value): value is number => value !== null && value !== index);
         const runs = index === null ? null : resolveSplitRuns(index, siblings, sizes.length);
 
-        if (runs === null)
+        if (runs === null) {
+            writeAttribute(splitter, SplitEdgeAttribute, null);
+            foldEmptyPanes(container, null);
             return;
+        }
 
         splitter.setAttribute("aria-valuemin", "0");
         splitter.setAttribute("aria-valuemax", "100");
@@ -521,8 +656,9 @@ function runIsEmpty(sizes: readonly number[], run: readonly number[]): boolean {
  * width gives its tracks room; a splitter only across its own axis, since its own track is as wide as the bar it shows.
  */
 function foldEmptyPanes(container: HTMLElement, narrow: { readonly axis: SplitAxis; readonly tracks: ReadonlySet<number> } | null): void {
+    const tier = currentResponsiveTier();
     const axes = [Columns, Rows]
-        .filter(axis => ownSplitters(container, axis).length > 0)
+        .filter(axis => ownSplitters(container, axis, tier).length > 0)
         .map(axis => ({ axis, sizes: readSizes(container, axis) }));
 
     for (const child of container.children) {
@@ -530,7 +666,7 @@ function foldEmptyPanes(container: HTMLElement, narrow: { readonly axis: SplitAx
             continue;
 
         const style = getComputedStyle(child);
-        const own = child.classList.contains(GridSplitterClass) ? axisOf(child) : null;
+        const own = child.classList.contains(GridSplitterClass) && !splitterCollapsedAt(child, tier) ? axisOf(child, tier) : null;
         const folded = axes.some(({ axis, sizes }) => axis !== own && coversNoRoom(style[axis.lineStart], style[axis.lineEnd], sizes, narrow?.axis === axis ? narrow.tracks : undefined));
 
         if (folded !== child.hasAttribute(SplitFoldedAttribute))
@@ -544,26 +680,52 @@ function containerOf(splitter: HTMLElement): HTMLElement | null {
     return parent !== null && parent.classList.contains(ContainerClass) ? parent : null;
 }
 
-/** The splitter's own class, not the nearest ancestor carrying it: `ui-orientation--vertical` is shared with the layout panels. */
-function axisOf(splitter: HTMLElement): SplitAxis {
+function syncSplitterOrientation(splitter: HTMLElement, tier: ResponsiveTier): void {
+    if (splitter.hasAttribute(TierOrientationAttribute))
+        fitTierClasses(splitter, tier);
+
+    splitter.setAttribute("aria-orientation", axisOf(splitter, tier) === Columns ? "vertical" : "horizontal");
+}
+
+function splitterCollapsedAt(splitter: HTMLElement, tier: ResponsiveTier): boolean {
+    return splitter.classList.contains(HiddenClass) || splitter.getAttribute(VisibilityTierAttributes[responsiveTiers.indexOf(tier)]) === "collapsed";
+}
+
+/** The splitter's axis at `tier`: read from `data-ui-tier-orientation` when tiered, else from its own class. */
+function axisOf(splitter: HTMLElement, tier: ResponsiveTier = currentResponsiveTier()): SplitAxis {
+    const classes = splitter.getAttribute(TierOrientationAttribute)?.split(" ").filter(name => name.length > 0);
+
+    if (classes !== undefined && classes.length === responsiveTiers.length)
+        return classes[responsiveTiers.indexOf(tier)] === OrientationVerticalClass ? Columns : Rows;
+
     return splitter.classList.contains(OrientationVerticalClass) ? Columns : Rows;
 }
 
-/** The template in force at this tier: the viewer's for this tier or the nearest narrower one, else the authored. */
+/** Every axis `splitter` can occupy across breakpoints. */
+function axesOf(splitter: HTMLElement): SplitAxis[] {
+    const classes = splitter.getAttribute(TierOrientationAttribute)?.split(" ").filter(name => name.length > 0);
+
+    if (classes === undefined || classes.length !== responsiveTiers.length)
+        return [axisOf(splitter)];
+
+    const axes = new Set<SplitAxis>(classes.map(name => name === OrientationVerticalClass ? Columns : Rows));
+
+    return [...axes];
+}
+
+/** The template in force at this tier: `--ui-split-<axis>` (including wider-tier fences), else the authored `--ui-<axis>` cascade. */
 function resolveTemplate(container: HTMLElement, axis: SplitAxis, tier: ResponsiveTier): string | null {
-    const own = viewerTemplate(container, axis, tier);
+    const own = resolveTier(tier, candidate => container.style.getPropertyValue(responsiveVariable(axis.split, candidate)).trim() || undefined);
 
     if (own !== undefined)
         return own;
 
-    const authored = container.style.getPropertyValue(axis.authored).trim();
-
-    return authored.length > 0 ? authored : null;
+    return resolveAuthoredTemplate(container, axis, tier);
 }
 
-/** The viewer's division in force at this tier — its own or the nearest narrower one's — or undefined where the authored is. */
-function viewerTemplate(container: HTMLElement, axis: SplitAxis, tier: ResponsiveTier): string | undefined {
-    return resolveTier(tier, candidate => container.style.getPropertyValue(responsiveVariable(axis.split, candidate)).trim() || undefined);
+/** The authored template in force at `tier`, resolved across `--ui-<axis>` tiers; null when none was written. */
+function resolveAuthoredTemplate(container: HTMLElement, axis: SplitAxis, tier: ResponsiveTier): string | null {
+    return resolveTier(tier, candidate => container.style.getPropertyValue(responsiveVariable(axis.authored, candidate)).trim() || undefined) ?? null;
 }
 
 /** Every track's laid-out size: a grid container's computed template is the used sizes, in pixels. */
@@ -578,11 +740,11 @@ function readTrackIndex(splitter: HTMLElement, axis: SplitAxis): number | null {
     return Number.isInteger(line) && line >= 1 ? line - 1 : null;
 }
 
-function ownSplitters(container: HTMLElement, axis: SplitAxis): HTMLElement[] {
+function ownSplitters(container: HTMLElement, axis: SplitAxis, tier: ResponsiveTier = currentResponsiveTier()): HTMLElement[] {
     const splitters: HTMLElement[] = [];
 
     for (const child of container.children) {
-        if (child instanceof HTMLElement && child.classList.contains(GridSplitterClass) && axisOf(child) === axis)
+        if (child instanceof HTMLElement && child.classList.contains(GridSplitterClass) && !splitterCollapsedAt(child, tier) && axisOf(child, tier) === axis)
             splitters.push(child);
     }
 

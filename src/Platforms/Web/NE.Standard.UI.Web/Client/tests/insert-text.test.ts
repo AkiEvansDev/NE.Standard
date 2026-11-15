@@ -125,6 +125,26 @@ test("the effect finds the component's own field and reads the row's key when it
     assert.equal(area.value, "Hi 👋!Full phrase textPlain title");
 });
 
+test("an insertion into a field that cannot take focus commits immediately unless debounced", () => {
+    const unfocusable = field("Hi ", 3);
+    const changes: string[] = [];
+
+    unfocusable.laidOut = false;
+    unfocusable.addEventListener("change", () => changes.push(unfocusable.value));
+
+    assert.equal(insertAtCaret(real<HTMLTextAreaElement>(unfocusable), "👋"), true);
+    assert.equal(fakeDocument.activeElement, fakeDocument.body);
+    assert.deepEqual(changes, ["Hi 👋"]);
+
+    const debounced = field("Hi ", 3);
+    debounced.laidOut = false;
+    debounced.setAttribute("data-ui-input-debounce", "250");
+    debounced.addEventListener("change", () => changes.push(`debounced:${debounced.value}`));
+
+    assert.equal(insertAtCaret(real<HTMLTextAreaElement>(debounced), "!"), true);
+    assert.deepEqual(changes, ["Hi 👋"]);
+});
+
 test("a row's press reaches a field outside its list, and one inside its own row", () => {
     const applied: { target: unknown; row: unknown }[] = [];
     const composer = FakeElement.of("", { "data-ui-id": "9" });

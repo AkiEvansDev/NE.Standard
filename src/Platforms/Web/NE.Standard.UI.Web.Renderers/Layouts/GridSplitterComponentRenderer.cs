@@ -27,11 +27,12 @@ public sealed class GridSplitterComponentRenderer : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        // Render-time only: which axis a bar divides is how the page is laid out, one at every width (the compiler refuses tiers).
+        // Render-time only: which axis a bar divides at each breakpoint is part of the compiled layout; tier-class.ts swaps the class by width.
         _ = ResolveRenderValue(context, IOrientationComponent.OrientationProperty, out UIResponsive<UIOrientation>? orientation, out _);
-        UIOrientation resolved = orientation?.Base ?? UIOrientation.Vertical;
+        UIResponsive<UIOrientation> responsiveOrientation = orientation ?? UIOrientation.Vertical;
+        UIOrientation resolved = responsiveOrientation.Base;
 
-        _ = root.Class(WebClassNames.Orientation(resolved));
+        OrientationStyleRenderer.WriteOrientation(root, responsiveOrientation);
         _ = root.Attribute("role", "separator");
         _ = root.Attribute("tabindex", "0");
         _ = root.Attribute("aria-orientation", resolved == UIOrientation.Vertical ? "vertical" : "horizontal");

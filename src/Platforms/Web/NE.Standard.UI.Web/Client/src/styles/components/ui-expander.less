@@ -20,9 +20,10 @@
 
 .ui-expander[open]::details-content {
     block-size: auto;
+    // content-visibility flips at 0s on open so ::details-content drops layout containment at once and never traps .ui-expander__header-action.
     transition:
         block-size @ui-motion-normal @ui-motion-enter,
-        content-visibility @ui-motion-normal allow-discrete;
+        content-visibility 0s allow-discrete;
 }
 
 // One shared height curve, @ui-motion-ease (the `linear` is content-visibility's step), so an opening and a closing section in an
@@ -131,6 +132,10 @@
         overflow-clip-margin: @ui-space-2;
     }
 
+    .ui-expander--quiet.ui-expander--has-action[data-ui-id] {
+        overflow-clip-margin: @ui-space-3;
+    }
+
     .ui-expander--quiet > .ui-expander__header {
         grid-template-columns: minmax(0, auto) auto;
         justify-content: start;
@@ -159,7 +164,7 @@
 
     .ui-expander__header-action {
         position: absolute;
-        top: calc(@ui-space-3 + (var(--ui-text-subtitle-line-height, 1.5rem) - @ui-button-height-sm) / 2);
+        top: calc(@ui-space-3 + (var(--ui-expander-header-line-height, var(--ui-text-title-line-height, 1.75rem)) - @ui-button-height-sm) / 2);
         right: calc(@ui-space-4 + @ui-glyph-md + @ui-space-2);
         min-height: @ui-button-height-sm;
         display: flex;
@@ -169,8 +174,26 @@
     }
 
     .ui-expander--quiet > .ui-expander__header-action {
-        top: calc((var(--ui-text-caption-line-height, 1rem) - @ui-button-height-sm) / 2);
+        top: calc((var(--ui-expander-header-line-height, var(--ui-text-caption-line-height, 1rem)) - @ui-button-height-sm) / 2);
         right: 0;
+    }
+
+    // Centres on the live summary box regardless of TitleType, multi-line description, or custom header, with no transform (keeps fixed popups anchored).
+    @supports (anchor-name: --ui-expander-header) and (align-self: anchor-center) {
+        .ui-expander--has-action {
+            anchor-scope: --ui-expander-header;
+        }
+
+        .ui-expander--has-action > .ui-expander__header {
+            anchor-name: --ui-expander-header;
+        }
+
+        .ui-expander--has-action > .ui-expander__header-action {
+            position-anchor: --ui-expander-header;
+            // Give anchor-center room past the expander's top edge so a 28px–32px action on a 16px quiet header is not clamped to 0.
+            inset-block: -@ui-space-4;
+            align-self: anchor-center;
+        }
     }
 
     @media @{ui-can-hover} {

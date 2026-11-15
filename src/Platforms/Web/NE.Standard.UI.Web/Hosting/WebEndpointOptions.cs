@@ -39,7 +39,8 @@ public sealed class WebEndpointOptions
 
     /// <summary>
     /// Gets or sets the page's icon: the <c>href</c> of the shell's <c>link rel="icon"</c> — an absolute path under the application's
-    /// static files, or a <c>data:</c> URL. Unset, the shell names an empty icon, so a browser asks for no <c>/favicon.ico</c>.
+    /// static files, a <c>data:</c> URL, or <c>data:,</c> to suppress any icon. Overrides <c>UIApplication.Icon</c>; unset, the shell
+    /// falls back to <c>UIApplication.Icon</c> and then to the framework's default mark (<c>/_ne/icon.svg</c>).
     /// </summary>
     public string? Icon { get; set; }
 

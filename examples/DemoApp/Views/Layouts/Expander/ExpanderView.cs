@@ -121,6 +121,24 @@ internal sealed class ExpanderView : DemoComponentView, IUIViewDefinition
                         .SetDescriptionColor(UIThemeColor.Muted)
                     )
                 )
+                .AddChild(new ExpanderComponent()
+                    .SetExpanded(true)
+                    .ConfigureDefaultHeader(header => header
+                        .SetTitle("Compact inspector card")
+                        .SetTitleType(UITextAppearance.Caption)
+                    )
+                    .SetHeaderAction(new ButtonComponent()
+                        .SetVariant(UIButtonVariant.Ghost)
+                        .SetSize(UISize.Small)
+                        .SetIcon(DemoIcons.Outline(DemoIcons.Copy))
+                        .SetTooltip("Copy endpoint")
+                    )
+                    .SetContent(new ParagraphComponent()
+                        .SetDescription("https://eu-central.storage.example.internal/snapshots")
+                        .SetDescriptionType(UITextAppearance.Caption)
+                        .SetDescriptionColor(UIThemeColor.Muted)
+                    )
+                )
         );
     }
 

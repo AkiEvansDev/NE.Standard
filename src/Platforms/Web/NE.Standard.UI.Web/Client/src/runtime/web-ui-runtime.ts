@@ -1,11 +1,12 @@
 import { AddressResolver } from "../addressing/address-resolver";
-import { DomRegistry } from "../addressing/dom-registry";
+import { DomRegistry, resolveWritableBinding } from "../addressing/dom-registry";
 import { AddressHistory } from "../effects/address-history";
 import { EffectRegistration, EffectRegistry } from "../effects/effect-registry";
 import { EventRegistration } from "../events/event-descriptor";
 import { EventPipeline } from "../events/event-pipeline";
 import { ValueConverterRegistration } from "../extensions/converters";
 import { resolveValueHolder, ValueReaderRegistration } from "../extensions/value-readers";
+import type { CommitGate } from "../interactions/commit-gate";
 import { commitWaiting } from "../interactions/debounced-commit-engine";
 import { DialogEngine } from "../interactions/dialog-engine";
 import { stopObservedSizes } from "../interactions/element-size";
@@ -219,8 +220,17 @@ export class WebUIRuntime {
 
             const valueChangeDispatcher = new ValueChangeDispatcher(this.transport, { whenCurrent: () => this.current });
             valueBinding = createValueBindingEngine(this.root, this.metadata, this.dom, valueChangeDispatcher, this.extensions, propertyPatchEngine, propertyState, this.ruleWatcher, this.failures, () => validationEngine);
-            this.settleValues = async () => {
+            let commitGate: CommitGate | null = null;
+            const flushPendingValues = (): void => {
                 commitWaiting();
+                commitGate?.commitDirty(field => {
+                    const writable = resolveWritableBinding(field, this.metadata);
+
+                    return writable !== null && !writable.buffered;
+                });
+            };
+            this.settleValues = async () => {
+                flushPendingValues();
                 await valueChangeDispatcher.whenAnsweredAsync();
             };
             this.readUnsaved = () => valueBinding?.unsavedValues() ?? [];
@@ -250,9 +260,11 @@ export class WebUIRuntime {
             registerRuntimeEffects(this.effects, this.transport, propertyPatchEngine, valueBinding, validationEngine, this.sessionKey, this.leaveGuard, (language, href) => this.switchLanguageAsync(language, href));
 
             this.engineContext = { root: this.root, dom: this.dom, propertyPatchEngine, effects: this.effects, validation: validationEngine, dialogs: this.dialogs, heldRows: this.virtualization };
-            this.numberInputs = startCoreComponentEngines(this.engineContext, this.metadata, propertyState, itemsRenderer, this.virtualization, this.engineDisposers);
+            const coreEngines = startCoreComponentEngines(this.engineContext, this.metadata, propertyState, itemsRenderer, this.virtualization, this.extensions.valueReaders, valueBinding, this.engineDisposers);
+            this.numberInputs = coreEngines.numberInputs;
+            commitGate = coreEngines.commitGate;
 
-            const { eventPipeline, tables, windows } = createEventPipelineAndWindows(this.root, this.metadata, this.dom, this.dispatcher, interactionEngine, interactionIndex, this.extensions, this.effects, options.events, validationEngine, valueBinding, this.transport, this.failures, this.updateProcessor, this.engineContext, this.rowMenus, this.virtualization, this.engineDisposers);
+            const { eventPipeline, tables, windows } = createEventPipelineAndWindows(this.root, this.metadata, this.dom, this.dispatcher, interactionEngine, interactionIndex, this.extensions, this.effects, options.events, validationEngine, valueBinding, this.transport, this.failures, this.updateProcessor, this.engineContext, this.rowMenus, this.virtualization, flushPendingValues, this.engineDisposers);
             this.eventPipeline = eventPipeline;
             this.tables = tables;
             this.windows = windows;

@@ -20,6 +20,9 @@ public sealed class DesktopHostOptions
     /// <summary>Gets or sets the fallback window title before a page sets its document title.</summary>
     public string WindowTitle { get; set; } = "NE.Standard";
 
+    /// <summary>Gets or sets the window icon — a file path, a path under <c>wwwroot</c> (such as <c>/favicon.ico</c> or <c>/icon.png</c>), a <c>data:</c> URI, or <c>data:,</c> to suppress the default <c>NE</c> icon. Overrides <c>UIApplication.Icon</c>.</summary>
+    public string? Icon { get; set; }
+
     /// <summary>Gets or sets the initial window width in device-independent pixels.</summary>
     public double InitialWidth { get; set; } = 1280;
 
@@ -62,7 +65,7 @@ public sealed class DesktopHostOptions
     private static bool DefaultEnableDevTools() => false;
 #endif
 
-    /// <summary>Applies command-line arguments (<c>--mode=inprocess|remote</c>, <c>--server=&lt;url&gt;</c>, <c>--route=&lt;path&gt;</c>, <c>--devtools</c>) to this options instance.</summary>
+    /// <summary>Applies command-line arguments (<c>--mode=inprocess|remote</c>, <c>--server=&lt;url&gt;</c>, <c>--route=&lt;path&gt;</c>, <c>--icon=&lt;path&gt;</c>, <c>--devtools</c>) to this options instance.</summary>
     public void ApplyCommandLine(IReadOnlyList<string>? args)
     {
         if (args is null || args.Count == 0)
@@ -89,6 +92,10 @@ public sealed class DesktopHostOptions
             else if (TryReadSwitch(arg, args, ref i, "--route", out var routeValue) && !string.IsNullOrWhiteSpace(routeValue))
             {
                 InitialRoute = routeValue;
+            }
+            else if (TryReadSwitch(arg, args, ref i, "--icon", out var iconValue) && !string.IsNullOrWhiteSpace(iconValue))
+            {
+                Icon = iconValue;
             }
             else if (string.Equals(arg, "--devtools", StringComparison.OrdinalIgnoreCase))
             {

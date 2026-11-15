@@ -157,7 +157,12 @@ internal static class LayoutClipReachRenderer
             return Contour;
 
         if (typeKey == ExpanderComponent.ComponentTypeKey)
-            return TryGetStatic(view, childId, ExpanderComponent.VariantProperty, out UIExpanderVariant? variant) && variant == UIExpanderVariant.Quiet ? Contour : None;
+        {
+            if (TryGetStatic(view, childId, ExpanderComponent.VariantProperty, out UIExpanderVariant? variant) && variant == UIExpanderVariant.Quiet)
+                return view.Graph.TryGetSlot(childId, UIComponentSlotKind.Region, out _, RegionNames.HeaderAction) ? Glyph : Contour;
+
+            return None;
+        }
 
         if (typeKey == LanguageSwitcherComponent.ComponentTypeKey || typeKey == ThemeSwitcherComponent.ComponentTypeKey)
             return TryGetStatic(view, childId, ISwitcherComponent.VariantProperty, out UISwitcherVariant? switcherVariant) && switcherVariant == UISwitcherVariant.Field ? Contour : None;

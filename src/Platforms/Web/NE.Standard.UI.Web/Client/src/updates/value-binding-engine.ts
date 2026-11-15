@@ -72,6 +72,9 @@ export class ValueBindingEngine {
     // Fields holding a value that waited out a drop and was not sent over another writer's, by their component, which wears the mark.
     private readonly conflicted = new Map<Element, Element>();
 
+    // Elements held explicitly by a package's own editor (`hold`/`release`), which decides when its field commits.
+    private readonly packageHeld = new WeakSet<Element>();
+
     // An attach's snapshot is being applied: a field the reader is typing in holds its words against it (`holdTypedDuring`).
     private holdingTyped = false;
 
@@ -191,6 +194,7 @@ export class ValueBindingEngine {
 
         for (const element of [...this.bufferedElements]) {
             this.bufferedElements.delete(element);
+            this.packageHeld.delete(element);
             this.refusedElements.delete(element);
             this.endConflict(element);
 
@@ -226,14 +230,21 @@ export class ValueBindingEngine {
     public hold(element: Element): void {
         this.pruneDetached();
         this.bufferedElements.add(element);
+        this.packageHeld.add(element);
     }
 
     /** Lets a held element go; true when it was held, for the caller to put the server's value back into it. */
     public release(element: Element): boolean {
         this.refusedElements.delete(element);
         this.endConflict(element);
+        this.packageHeld.delete(element);
 
         return this.bufferedElements.delete(element);
+    }
+
+    /** Whether a package's own editor currently holds `element` via `hold`. */
+    public isPackageHeld(element: Element): boolean {
+        return this.packageHeld.has(element);
     }
 
     /** Commits or forgets edits on `component` that were held back by a bound refusal when bounds widen (`commit`) or a server value replaces them. */
@@ -409,6 +420,7 @@ export class ValueBindingEngine {
 
         // A value sent is held no longer: a package held it only while it was unsent.
         this.bufferedElements.delete(domEvent.target);
+        this.packageHeld.delete(domEvent.target);
         await this.syncValueAsync(domEvent.target, writable.bindingId);
     }
 

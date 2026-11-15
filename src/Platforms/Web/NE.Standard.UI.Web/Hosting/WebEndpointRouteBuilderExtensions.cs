@@ -281,6 +281,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             UIWebAssetKind.TypeScript => "application/javascript",
             UIWebAssetKind.Less => "text/css",
             UIWebAssetKind.Font => "font/woff2",
+            UIWebAssetKind.Icon => "image/svg+xml",
             _ => "application/octet-stream"
         };
 
@@ -414,7 +415,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             Assets = assets.Assets,
             Language = resolution.Session.Language,
             Title = TranslateTitle(application.Translator, resolution),
-            Icon = endpointOptions.Icon,
+            Icon = endpointOptions.Icon ?? application.Icon,
             ServiceWorker = endpointOptions.ServiceWorker,
             HasManifest = endpointOptions.Manifest is not null,
             Content = content,

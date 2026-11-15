@@ -34,6 +34,10 @@ export function onTierChange(handler: () => void, tiers: readonly BreakpointTier
     // A listener of its own each: one handler that throws leaves the next its turn, the browser reporting it.
     const removals = withoutRuntimeCleanup(() => tiers.map(tier => {
         const watch = watchOf(tier);
+
+        if (typeof watch.addEventListener !== "function")
+            return () => {};
+
         const listener = (): void => handler();
 
         watch.addEventListener("change", listener);

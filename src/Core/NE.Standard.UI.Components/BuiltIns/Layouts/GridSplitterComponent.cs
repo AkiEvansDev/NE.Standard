@@ -26,9 +26,9 @@ public abstract partial class GridSplitterComponent<T>(string? id = null) : Visu
     private static readonly UIResponsive<UIOrientation> DefaultOrientation = UIOrientation.Vertical;
 
     /// <summary>
-    /// Gets or sets which way the bar runs: <c>Vertical</c> moves the columns either side, <c>Horizontal</c> the rows.
+    /// Gets or sets which way the bar runs per breakpoint: <c>Vertical</c> moves the columns either side, <c>Horizontal</c> the rows.
     /// </summary>
-    // Declared here, not by the block: it says whether the placement names a column or a row, checked once at compile, so it never binds.
+    // Declared here, not by the block: it says whether the placement names a column or a row at each tier, checked once at compile, so it never binds.
     [UIComponentProperty(Contract = typeof(IOrientationComponent), IsBindable = false, DefaultValueMember = nameof(DefaultOrientation))]
     public UIResponsive<UIOrientation>? Orientation { get; set; }
 
