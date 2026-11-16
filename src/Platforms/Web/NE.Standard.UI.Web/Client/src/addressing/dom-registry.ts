@@ -56,7 +56,10 @@ export class DomRegistry {
     private readonly staticComponentsById = new Map<number, Element>();
 
     // A templated component's instances by row-key text, built per id on first keyed lookup: a filter would walk ancestors per row.
-    private readonly keyedComponentsById = new Map<number, Map<string, Element[]>>();
+    // `exactDepth` is the uniform parameter depth of every live element in the bucket (null when mixed), so a miss at that depth on a
+    // verified bucket answers `[]` in O(1) without walking every live row.
+    private readonly keyedComponentsById = new Map<number, { readonly exactDepth: number | null; readonly byKey: Map<string, Element[]> }>();
+    private readonly unverifiedKeyedIds = new Set<number>();
 
     // Every element the index holds, so reading a changed subtree again adds only what it has not seen.
     private readonly indexed = new Set<Element>();
@@ -96,6 +99,7 @@ export class DomRegistry {
         this.componentsById.clear();
         this.staticComponentsById.clear();
         this.keyedComponentsById.clear();
+        this.unverifiedKeyedIds.clear();
         this.indexed.clear();
         this.changedScopes.clear();
         this.unsettledIds.clear();
@@ -179,17 +183,23 @@ export class DomRegistry {
             return settled !== undefined ? [settled] : [...live];
         }
 
-        const indexed = this.keyedComponents(componentId).get(rowKeysText(dynamicParameters)) ?? [];
+        const entry = this.keyedComponents(componentId);
+        const indexed = entry.byKey.get(rowKeysText(dynamicParameters)) ?? [];
 
         // Checked against the page, since an engine may move a row without invalidating the index; a miss reads the instances as they stand.
         if (indexed.length > 0 && indexed.every(candidate => this.holds(candidate) && matchesDynamicParameters(candidate, dynamicParameters)))
             return [...indexed];
+
+        if (indexed.length === 0 && entry.exactDepth !== null && dynamicParameters.length === entry.exactDepth && !this.unverifiedKeyedIds.has(componentId))
+            return [];
 
         const found = this.liveComponents(componentId).filter(candidate => startsWithDynamicParameters(candidate, dynamicParameters));
 
         // A stale hit, or exact instances the map does not know (a row that took another key): it is built again at the next keyed lookup.
         if (indexed.length > 0 || found.some(candidate => readParameterCount(candidate) === dynamicParameters.length))
             this.keyedComponentsById.delete(componentId);
+        else
+            this.unverifiedKeyedIds.delete(componentId);
 
         return found;
     }
@@ -242,6 +252,7 @@ export class DomRegistry {
         // in the subtree its map.
         if (this.indexed.has(element)) {
             this.unsettledIds.add(componentId);
+            this.unverifiedKeyedIds.add(componentId);
             return;
         }
 
@@ -251,6 +262,7 @@ export class DomRegistry {
         this.indexed.add(element);
         this.patchedSincePrune++;
         this.keyedComponentsById.delete(componentId);
+        this.unverifiedKeyedIds.delete(componentId);
 
         const bucket = this.componentsById.get(componentId);
 
@@ -305,6 +317,7 @@ export class DomRegistry {
         if (dropped) {
             bucket.length = kept;
             this.keyedComponentsById.delete(componentId);
+            this.unverifiedKeyedIds.delete(componentId);
         }
 
         if (unsettled && !isInDocumentOrder(bucket))
@@ -330,37 +343,57 @@ export class DomRegistry {
         this.staticComponentsById.delete(componentId);
     }
 
-    private keyedComponents(componentId: number): Map<string, Element[]> {
-        let keyed = this.keyedComponentsById.get(componentId);
+    private keyedComponents(componentId: number): { readonly exactDepth: number | null; readonly byKey: Map<string, Element[]> } {
+        const cached = this.keyedComponentsById.get(componentId);
 
-        if (keyed !== undefined)
-            return keyed;
+        if (cached !== undefined)
+            return cached;
 
-        keyed = new Map<string, Element[]>();
+        const byKey = new Map<string, Element[]>();
+        let exactDepth: number | null = 0;
+        let sawParameterized = false;
+        let sawRowless = false;
 
         for (const candidate of this.liveComponents(componentId)) {
             const count = readParameterCount(candidate);
 
-            if (count === 0)
+            if (count === 0) {
+                sawRowless = true;
+                if (sawParameterized)
+                    exactDepth = null;
+
                 continue;
+            }
+
+            if (!sawParameterized) {
+                exactDepth = sawRowless ? null : count;
+                sawParameterized = true;
+            } else if (exactDepth !== count) {
+                exactDepth = null;
+            }
 
             const parameters = collectDynamicParameters(candidate, count);
 
-            if (parameters.length !== count)
+            if (parameters.length !== count) {
+                exactDepth = null;
                 continue;
+            }
 
             const key = rowKeysText(parameters);
-            const bucket = keyed.get(key);
+            const bucket = byKey.get(key);
 
             if (bucket === undefined)
-                keyed.set(key, [candidate]);
+                byKey.set(key, [candidate]);
             else
                 bucket.push(candidate);
         }
 
-        this.keyedComponentsById.set(componentId, keyed);
+        const entry = { exactDepth: sawParameterized ? exactDepth : 0, byKey };
 
-        return keyed;
+        this.keyedComponentsById.set(componentId, entry);
+        this.unverifiedKeyedIds.delete(componentId);
+
+        return entry;
     }
 
     private holds(element: Element): boolean {

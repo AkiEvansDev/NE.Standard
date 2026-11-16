@@ -133,7 +133,7 @@ export class TabsViewEngine {
         observeComponents(
             this.root,
             `.${TabsViewClass}`,
-            { childList: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, UnremovableAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `.${TabItemPageClass}`, `.${TabsViewClass}`) },
+            { childList: true, addedOnly: true, attributeFilter: [TabsSelectedAttribute, TabsDraggableAttribute, UnremovableAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `.${TabItemPageClass}`, `.${TabsViewClass}`) },
             views => {
                 for (const view of views)
                     this.apply(view);

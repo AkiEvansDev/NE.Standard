@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,4 +22,17 @@ public interface IUIDownloadService
     /// Sends a byte array as a downloadable file.
     /// </summary>
     Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, byte[] content, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Streams downloadable content produced on demand without pre-allocating a full byte array in memory.
+    /// </summary>
+    async Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, Func<Stream, CancellationToken, ValueTask> writeAsync, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(writeAsync);
+
+        using MemoryStream buffer = new();
+        await writeAsync(buffer, cancellationToken).ConfigureAwait(false);
+        buffer.Position = 0;
+        return await DownloadAsync(handle, fileName, contentType, buffer, cancellationToken).ConfigureAwait(false);
+    }
 }

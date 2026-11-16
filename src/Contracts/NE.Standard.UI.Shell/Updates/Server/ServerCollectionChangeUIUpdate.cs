@@ -41,6 +41,13 @@ public sealed class ServerCollectionChangeUIUpdate : ServerUIUpdate
     public ServerCollectionItemChange[] Items { get; init; } = [];
 
     /// <summary>
+    /// Gets the token item changes too large to travel inline were staged under, fetched by the client in their place; null when
+    /// <see cref="Items"/> carries them.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ItemsToken { get; init; }
+
+    /// <summary>
     /// Gets moved item changes.
     /// </summary>
     public ServerCollectionMoveChange[] Moves { get; init; } = [];
@@ -75,6 +82,9 @@ public sealed class ServerCollectionChangeUIUpdate : ServerUIUpdate
             Moves[i].Validate();
         }
 
+        if (ItemsToken is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(ItemsToken);
+
         if (Trimmed && Action != CollectionUpdateAction.Remove)
             throw new InvalidOperationException($"Collection action '{Action}' cannot be a trim; only a remove is.");
 
@@ -83,8 +93,15 @@ public sealed class ServerCollectionChangeUIUpdate : ServerUIUpdate
             case CollectionUpdateAction.Insert:
             case CollectionUpdateAction.Remove:
             case CollectionUpdateAction.Replace:
-                if (Items.Length == 0)
+                if (ItemsToken is not null)
+                {
+                    if (Items.Length != 0)
+                        throw new InvalidOperationException($"Collection action '{Action}' must not provide inline item changes alongside ItemsToken.");
+                }
+                else if (Items.Length == 0)
+                {
                     throw new InvalidOperationException($"Collection action '{Action}' must provide item changes.");
+                }
 
                 if (Moves.Length != 0)
                     throw new InvalidOperationException($"Collection action '{Action}' must not provide move changes.");
@@ -94,12 +111,12 @@ public sealed class ServerCollectionChangeUIUpdate : ServerUIUpdate
                 if (Moves.Length == 0)
                     throw new InvalidOperationException("Move collection action must provide move changes.");
 
-                if (Items.Length != 0)
+                if (Items.Length != 0 || ItemsToken is not null)
                     throw new InvalidOperationException("Move collection action must not provide item changes.");
                 break;
 
             case CollectionUpdateAction.Reset:
-                if (Items.Length != 0)
+                if (Items.Length != 0 || ItemsToken is not null)
                     throw new InvalidOperationException("Reset collection action must not provide item changes.");
 
                 if (Moves.Length != 0)

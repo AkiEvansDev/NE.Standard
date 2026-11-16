@@ -16,13 +16,24 @@ const BrowserSource: ClientStateSource = {
     notificationPermission: browserNotificationPermission
 };
 
-/** Whether a page is on screen: anything but hidden, focus not counted — an unfocused window is usually still read. */
+type DesktopBridgeGlobals = {
+    readonly __neDesktopVisible?: boolean;
+    readonly __neDesktopShowNotification?: unknown;
+};
+
+/** Whether a page is on screen: anything but hidden, and in a desktop shell not minimized or behind another window. */
 export function isOnScreen(visibilityState: DocumentVisibilityState): boolean {
+    if ((globalThis as DesktopBridgeGlobals).__neDesktopVisible === false)
+        return false;
+
     return visibilityState !== "hidden";
 }
 
 /** What the browser lets the page show, or none where it shows no notifications. */
 export function browserNotificationPermission(): NotificationPermission | undefined {
+    if (typeof (globalThis as DesktopBridgeGlobals).__neDesktopShowNotification === "function")
+        return "granted";
+
     // A page that is not secure (plain http but for localhost) shows none, though Chromium names it `denied` there: a reader told to
     // unblock it in the settings would find nothing to unblock.
     return typeof Notification === "undefined" || !window.isSecureContext ? undefined : Notification.permission;

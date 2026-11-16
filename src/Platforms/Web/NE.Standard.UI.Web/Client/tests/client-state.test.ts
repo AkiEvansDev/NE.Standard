@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ClientState, ClientStateSource } from "../src/state/client-state.ts";
-import { ClientStateReporter, readClientState } from "../src/state/client-state.ts";
+import { browserNotificationPermission, ClientStateReporter, isOnScreen, readClientState } from "../src/state/client-state.ts";
 
 type Browser = { visibility: DocumentVisibilityState; permission: NotificationPermission | undefined };
 
@@ -69,4 +69,24 @@ test("a report lost with its connection fails nothing: the next attach carries t
     await settled();
 
     assert.deepEqual(reporter.forAttach(), { visible: false, notificationPermission: "default" });
+});
+
+test("a desktop shell bridge reports off-screen state when inactive or minimized and grants notifications", () => {
+    const host = globalThis as { __neDesktopVisible?: boolean; __neDesktopShowNotification?: unknown };
+
+    try {
+        host.__neDesktopVisible = false;
+        assert.equal(isOnScreen("visible"), false);
+        assert.deepEqual(readClientState(sourceOf({ visibility: "visible", permission: "granted" })), { visible: false, notificationPermission: "granted" });
+
+        host.__neDesktopVisible = true;
+        assert.equal(isOnScreen("visible"), true);
+
+        host.__neDesktopShowNotification = () => Promise.resolve(true);
+        assert.equal(browserNotificationPermission(), "granted");
+    }
+    finally {
+        delete host.__neDesktopVisible;
+        delete host.__neDesktopShowNotification;
+    }
 });

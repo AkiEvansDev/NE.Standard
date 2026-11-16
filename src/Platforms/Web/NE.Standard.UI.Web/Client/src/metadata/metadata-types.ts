@@ -369,6 +369,8 @@ export type ServerCollectionChangeUIUpdate = {
     readonly action: CollectionUpdateAction;
     readonly component: UIComponentAddress;
     readonly items?: readonly ServerCollectionItemChange[];
+    /** The token of item changes staged beside the hub when too large to travel inline. */
+    readonly itemsToken?: string;
     readonly moves?: readonly ServerCollectionMoveChange[];
     /** A remove that is a window's trim: the rows leave the page, not the source. */
     readonly trimmed?: boolean;

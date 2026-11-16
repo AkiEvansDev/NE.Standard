@@ -50,7 +50,18 @@ public sealed class UISessionSecret
         ArgumentException.ThrowIfNullOrWhiteSpace(secret);
 
         Span<byte> hash = stackalloc byte[SHA256.HashSizeInBytes];
-        _ = SHA256.HashData(Encoding.UTF8.GetBytes(secret), hash);
+        var maxBytes = Encoding.UTF8.GetMaxByteCount(secret.Length);
+
+        if (maxBytes <= 512)
+        {
+            Span<byte> utf8 = stackalloc byte[maxBytes];
+            var written = Encoding.UTF8.GetBytes(secret.AsSpan(), utf8);
+            _ = SHA256.HashData(utf8[..written], hash);
+        }
+        else
+        {
+            _ = SHA256.HashData(Encoding.UTF8.GetBytes(secret), hash);
+        }
 
         return Convert.ToHexStringLower(hash);
     }

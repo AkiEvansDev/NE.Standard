@@ -1,4 +1,6 @@
 using System;
+using System.Buffers;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -116,19 +118,115 @@ internal static partial class WebValueEndpoint
     private static IResult SessionFull(WebValueOptions options)
         => WebRequestGuards.TooLarge($"A session may have at most {options.MaxStagedBytesPerSession} bytes of values staged at once.");
 
-    /// <summary>The whole body, sized from its declared length up to <see cref="MaxPresizeBytes"/> so a small one is read into its array once.</summary>
+    /// <summary>
+    /// Reads the whole body without intermediate large-object-heap doublings: small declared bodies land straight in their final array,
+    /// while larger or undeclared streams accumulate in pooled <see cref="MaxPresizeBytes"/> chunks and copy once at the end.
+    /// </summary>
     private static async Task<byte[]> ReadBodyAsync(Stream body, long? contentLength, CancellationToken cancellationToken)
     {
-        using MemoryStream buffer = new(InitialCapacity(contentLength));
+        var initial = InitialCapacity(contentLength);
 
-        await body.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+        if (contentLength is long declared && declared > 0 && declared <= MaxPresizeBytes)
+        {
+            var exact = new byte[initial];
+            var filled = 0;
 
-        return buffer.Length == buffer.Capacity ? buffer.GetBuffer() : buffer.ToArray();
+            while (filled < exact.Length)
+            {
+                var read = await body.ReadAsync(exact.AsMemory(filled), cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                    break;
+
+                filled += read;
+            }
+
+            if (filled == exact.Length)
+            {
+                var probe = new byte[1];
+                if (await body.ReadAsync(probe, cancellationToken).ConfigureAwait(false) == 0)
+                    return exact;
+
+                return await ReadRemainingChunksAsync(body, exact, filled, probe[0], cancellationToken).ConfigureAwait(false);
+            }
+
+            return exact[..filled];
+        }
+
+        return await ReadRemainingChunksAsync(body, prefix: null, prefixLength: 0, extraByte: null, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The buffer a body starts in: its declared length, never more than <see cref="MaxPresizeBytes"/>.</summary>
     internal static int InitialCapacity(long? contentLength)
         => contentLength is long length and > 0 ? (int)Math.Min(length, MaxPresizeBytes) : 0;
+
+    private static async Task<byte[]> ReadRemainingChunksAsync(Stream body, byte[]? prefix, int prefixLength, byte? extraByte, CancellationToken cancellationToken)
+    {
+        List<(byte[] Buffer, int Count)> chunks = [];
+        var total = prefixLength;
+
+        try
+        {
+            var current = ArrayPool<byte>.Shared.Rent(MaxPresizeBytes);
+            var offset = 0;
+
+            if (extraByte is byte first)
+            {
+                current[0] = first;
+                offset = 1;
+                total++;
+            }
+
+            while (true)
+            {
+                var read = await body.ReadAsync(current.AsMemory(offset), cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    if (offset > 0)
+                        chunks.Add((current, offset));
+                    else
+                        ArrayPool<byte>.Shared.Return(current);
+
+                    break;
+                }
+
+                offset += read;
+                total += read;
+
+                if (offset == current.Length)
+                {
+                    chunks.Add((current, offset));
+                    current = ArrayPool<byte>.Shared.Rent(MaxPresizeBytes);
+                    offset = 0;
+                }
+            }
+
+            if (total == 0)
+                return [];
+
+            var result = new byte[total];
+            var written = 0;
+
+            if (prefix is not null && prefixLength > 0)
+            {
+                prefix.AsSpan(0, prefixLength).CopyTo(result);
+                written = prefixLength;
+            }
+
+            for (var i = 0; i < chunks.Count; i++)
+            {
+                (var chunk, var count) = chunks[i];
+                chunk.AsSpan(0, count).CopyTo(result.AsSpan(written));
+                written += count;
+            }
+
+            return result;
+        }
+        finally
+        {
+            for (var i = 0; i < chunks.Count; i++)
+                ArrayPool<byte>.Shared.Return(chunks[i].Buffer);
+        }
+    }
 
     /// <summary>Whether the bytes are one JSON value the hub's options read, walked token by token rather than built into objects.</summary>
     private static bool IsJson(ReadOnlySpan<byte> json, JsonSerializerOptions options)

@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using NE.Standard.UI.Application;
@@ -13,6 +15,60 @@ internal static class DesktopIconLoader
     private static readonly Lazy<byte[]> DefaultIconBytes = new(LoadEmbeddedDefaultBytes);
 
     public static ImageSource? Resolve(DesktopWebHost host)
+        => ResolveFrame(host);
+
+    public static string? EnsureToastIconFile(DesktopWebHost host, string directory)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        BitmapFrame? frame = ResolveLargestFrame(host);
+        if (frame is null)
+            return null;
+
+        var key = host.ActiveIcon ?? EmbeddedDefaultIcon;
+        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
+        var targetPath = Path.Combine(directory, $"toast-icon-{hash}.png");
+        if (File.Exists(targetPath))
+            return targetPath;
+
+        try
+        {
+            _ = Directory.CreateDirectory(directory);
+            PngBitmapEncoder encoder = new();
+            encoder.Frames.Add(BitmapFrame.Create(frame));
+            using FileStream output = File.Create(targetPath);
+            encoder.Save(output);
+            return targetPath;
+        }
+        catch (IOException)
+        {
+            return File.Exists(targetPath) ? targetPath : null;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static BitmapFrame? ResolveLargestFrame(DesktopWebHost host)
+    {
+        BitmapFrame? resolved = ResolveFrame(host);
+        if (resolved?.Decoder?.Frames is not { Count: > 1 } frames)
+            return resolved;
+
+        BitmapFrame best = resolved;
+        for (var i = 0; i < frames.Count; i++)
+        {
+            BitmapFrame candidate = frames[i];
+            if (candidate.PixelWidth > best.PixelWidth)
+                best = candidate;
+        }
+
+        return best;
+    }
+
+    private static BitmapFrame? ResolveFrame(DesktopWebHost host)
     {
         ArgumentNullException.ThrowIfNull(host);
 

@@ -40,4 +40,19 @@ public sealed class StandardDownloadStager : IUIDownloadStager
 
         return new DownloadFileEffect(_addresses.AddressOf(token), fileName);
     }
+
+    /// <inheritdoc />
+    public async Task<ClientEffect?> StageAsync(UIHandle handle, string fileName, string contentType, Func<Stream, CancellationToken, ValueTask> writeAsync, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(handle);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
+        ArgumentNullException.ThrowIfNull(writeAsync);
+
+        var token = await _store
+            .StageDownloadAsync(handle.Session.SessionId, fileName, contentType, writeAsync, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new DownloadFileEffect(_addresses.AddressOf(token), fileName);
+    }
 }

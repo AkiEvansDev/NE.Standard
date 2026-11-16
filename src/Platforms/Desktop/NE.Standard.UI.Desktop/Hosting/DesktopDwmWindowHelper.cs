@@ -30,6 +30,13 @@ internal static partial class DesktopDwmWindowHelper
         _ = DwmSetWindowAttribute(hwnd, DwmwaTextColor, ref textColorRef, sizeof(int));
     }
 
+    public static void BringToForeground(Window window)
+    {
+        var hwnd = new WindowInteropHelper(window).Handle;
+        if (hwnd != 0)
+            _ = SetForegroundWindow(hwnd);
+    }
+
     private static int ToColorRef(ColorVariant variant)
     {
         System.Drawing.Color color = variant.ToColor();
@@ -39,4 +46,9 @@ internal static partial class DesktopDwmWindowHelper
     [LibraryImport("dwmapi.dll")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     private static partial int DwmSetWindowAttribute(nint hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
+
+    [LibraryImport("user32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetForegroundWindow(nint hWnd);
 }

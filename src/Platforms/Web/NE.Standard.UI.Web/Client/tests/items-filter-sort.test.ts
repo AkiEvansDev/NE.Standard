@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { compareItems, compareValues, getActiveSorts, itemMatchesFilters, sortByActiveSorts } from "../src/items/items-filter-sort.ts";
 import type { ItemsQuery } from "../src/items/items-filter-sort.ts";
+import { writeItemValuePath } from "../src/items/items-template-renderer.ts";
 import type { PropertyStateStore } from "../src/state/property-state-store.ts";
 import type { WebRenderItemsSortMetadata } from "../src/metadata/metadata-index.ts";
 
@@ -152,6 +153,11 @@ test("query.search matches every word case-insensitively across text and number 
     assert.equal(itemMatchesFilters(undefined, row, noState, { search: "true" }), false);
     assert.equal(itemMatchesFilters(undefined, row, noState, { search: "false" }), false);
     assert.equal(itemMatchesFilters(undefined, row, noState, { search: "grid-demo" }), false);
+
+    // An in-place property patch invalidates the cached search text so updated fields match immediately.
+    writeItemValuePath(row, [{ kind: "property", name: "country" }], "France");
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "bramble france" }), true);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "bramble germany" }), false);
 });
 
 test("sortByActiveSorts precomputes nested paths once per item and matches compareItems across mixed ranks and ties", () => {

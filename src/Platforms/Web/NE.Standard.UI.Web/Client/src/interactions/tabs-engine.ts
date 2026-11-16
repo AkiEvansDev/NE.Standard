@@ -42,7 +42,7 @@ export class TabsEngine {
         observeComponents(
             this.root,
             `.${TabsClass}`,
-            { childList: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `[${TabPageAttribute}]`, `.${TabsClass}`) },
+            { childList: true, addedOnly: true, attributeFilter: [TabsSelectedAttribute, ...VisibilityTierAttributes], relevant: mutation => !happenedInside(mutation, `[${TabPageAttribute}]`, `.${TabsClass}`) },
             roots => this.applyAll(roots)
         );
     }

@@ -60,6 +60,29 @@ test("a staged value is fetched into its update, and the token is gone", async (
     }
 });
 
+test("staged collection items are fetched into their collection update, and itemsToken is gone", async () => {
+    const original = globalThis.fetch;
+    const asked: string[] = [];
+    const stagedItems = [{ key: "1", item: { title: "Row 1" } }, { key: "2", item: { title: "Row 2" } }];
+
+    globalThis.fetch = (async (url: string) => {
+        asked.push(url);
+        return new Response(JSON.stringify(stagedItems), { status: 200, headers: { "Content-Type": "application/json" } });
+    }) as typeof fetch;
+
+    try {
+        const changes = { updates: [{ kind: "CollectionChange", action: "Insert", component: { id: 7 }, items: [], itemsToken: "rows-token" }] };
+        const resolved = await fetchStagedValuesAsync(changes as never, "tab-1");
+
+        assert.equal(hasStagedValues(changes as never), true);
+        assert.deepEqual(asked, ["/_ne/values/rows-token?instance=tab-1"]);
+        assert.deepEqual(resolved?.updates, [{ kind: "CollectionChange", action: "Insert", component: { id: 7 }, items: stagedItems }]);
+    }
+    finally {
+        globalThis.fetch = original;
+    }
+});
+
 test("a staged value is fetched as the connection it was sent to, so the read is that tab's own", async () => {
     const original = globalThis.fetch;
     const asked: string[] = [];

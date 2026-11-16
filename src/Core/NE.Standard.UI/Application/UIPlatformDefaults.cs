@@ -1,4 +1,6 @@
+using System;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Shell.Files;
 
 namespace NE.Standard.UI.Application;
 
@@ -13,4 +15,7 @@ public sealed class UIPlatformDefaults
 
     /// <summary>Gets the default view compilation mode when neither the route nor the view attribute specifies one.</summary>
     public UIViewCompilationMode DefaultViewCompilationMode { get; init; } = UIViewCompilationMode.Startup;
+
+    /// <summary>Gets an optional platform callback that seeds default <see cref="UIFileOptions"/> before application overrides apply.</summary>
+    public Action<UIFileOptions>? ConfigureDefaultFiles { get; init; }
 }

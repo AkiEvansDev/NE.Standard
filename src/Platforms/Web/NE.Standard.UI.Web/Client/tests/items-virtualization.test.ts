@@ -252,3 +252,41 @@ test("a virtualized list's drawn rows say where each stands in the whole set, as
     assert.equal(first[1], String(Number(first[0].slice(1)) + 1));
     assert.ok(places().every(([, , size]) => size === "100"));
 });
+
+test("scrolling a 10,000-row virtualized list renders only the visible window and sizes spacers without scanning off-screen rows", () => {
+    let renderedCount = 0;
+    const items = Array.from({ length: 10000 }, (_, index) => ({ key: `k${index}`, item: { Id: `k${index}` } }));
+    const host = FakeElement.of("ui-items-view__host", { "data-ui-items-host": "", "data-ui-host-mode": "virtualized" });
+    const page = FakeElement.of("page").append(FakeElement.of("ui-items-view ui-items-view--stack ui-orientation--vertical", { "data-ui-id": "7" }).append(host));
+
+    host.rect = { left: 0, top: 0, width: 300, height: 320 };
+    fakeDocument.body.replaceChildren(page);
+
+    const engine = new ItemsVirtualizationEngine(real<ItemsVirtualizationEngineOptions>({
+        root: page,
+        metadata: { getItemValues: () => items, getItemsTemplateMetadata: () => undefined, getItemsFilterSortMetadata: () => undefined },
+        templates: { getGroupTemplate: () => undefined, getEmptyTemplate: () => undefined },
+        renderer: {
+            getAncestorStack: () => [],
+            renderItem: (_componentId: number, _item: unknown, key: string) => {
+                renderedCount++;
+                return FakeElement.of("ui-items-view__item", { "data-ui-key": key });
+            }
+        },
+        state: {},
+        dom: { invalidate: () => undefined }
+    }));
+
+    engine.sync(real<Element>(host));
+    renderedCount = 0;
+
+    // Scroll straight to row 5,000 (160,000 px): rows 4,994..5,015 (22 rows) are drawn.
+    host.scrollTop = 32 * 5000;
+    host.dispatchEvent(new FakeEvent("scroll"));
+
+    assert.equal(renderedCount, 22);
+    assert.equal(layoutOf(host)[0], `top ${32 * 4994}px`);
+    assert.equal(layoutOf(host)[1], "k4994");
+    assert.equal(layoutOf(host).at(-2), "k5015");
+    assert.equal(layoutOf(host).at(-1), `bottom ${32 * (10000 - 5016)}px`);
+});

@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,4 +21,17 @@ public interface IUIDownloadStager
     /// No <c>IProgress</c>: the server stages the content and the client fetches it, so the server cannot observe the download itself.
     /// </remarks>
     Task<ClientEffect?> StageAsync(UIHandle handle, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stages a streaming producer for the page <paramref name="handle"/> names without pre-buffering its output into memory.
+    /// </summary>
+    async Task<ClientEffect?> StageAsync(UIHandle handle, string fileName, string contentType, Func<Stream, CancellationToken, ValueTask> writeAsync, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(writeAsync);
+
+        using MemoryStream buffer = new();
+        await writeAsync(buffer, cancellationToken).ConfigureAwait(false);
+        buffer.Position = 0;
+        return await StageAsync(handle, fileName, contentType, buffer, cancellationToken).ConfigureAwait(false);
+    }
 }

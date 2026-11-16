@@ -83,6 +83,7 @@ export class ImageInputEngine {
     // picture's bytes, so one seen gone from the page — at the next pick, or the next mutation that touches an image input — has its
     // URLs revoked.
     private readonly holding = new Set<HTMLElement>();
+    private readonly pendingShelfPublishes = new Set<HTMLElement>();
 
     public constructor(options: ImageInputEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -95,9 +96,8 @@ export class ImageInputEngine {
         this.applyAll(this.root.querySelectorAll<HTMLElement>(`.${ImageInputClass}`));
 
         // The picture follows the root's source (a Value patch), outranked by a preview until it changes; a shelf follows its handles.
-        observeComponents(this.root, `.${ImageInputClass}`, { childList: true, attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => {
+        observeComponents(this.root, `.${ImageInputClass}`, { childList: true, addedOnly: true, removed: () => this.releaseDetached(), attributeFilter: [ImageSourceAttribute, ImageCaptionAttribute, SelectedKeysAttribute] }, roots => {
             this.applyAll(roots);
-            this.releaseDetached();
         });
 
         // The handle lives on a hidden input's value, which no mutation reports: the controller emptying it is heard as a value change.
@@ -555,7 +555,7 @@ export class ImageInputEngine {
 
                 tile.selectionId = uploaded.selectionId;
                 tile.element.classList.remove(LoadingClass);
-                this.publishShelf(root);
+                this.schedulePublishShelf(root);
             }
             catch (error) {
                 logWarn("picture upload failed.", error);
@@ -591,6 +591,20 @@ export class ImageInputEngine {
 
         tile.element.remove();
         markTiles(root, tiles ?? []);
+    }
+
+    private schedulePublishShelf(root: HTMLElement): void {
+        if (this.pendingShelfPublishes.has(root))
+            return;
+
+        this.pendingShelfPublishes.add(root);
+
+        queueMicrotask(() => {
+            this.pendingShelfPublishes.delete(root);
+
+            if (root.isConnected)
+                this.publishShelf(root);
+        });
     }
 
     /** The handles that have landed, in shelf order, on the hidden input the value engine reads; the root's copy is the controller's. */

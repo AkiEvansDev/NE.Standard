@@ -105,6 +105,7 @@ export function drawFace(element: HTMLElement, face: FileFace, source: string): 
     if (face.type.startsWith("image/")) {
         const picture = document.createElement("img");
 
+        picture.decoding = "async";
         picture.src = source;
         picture.alt = face.name;
         // Every square has a cross: each says which picture it takes away.

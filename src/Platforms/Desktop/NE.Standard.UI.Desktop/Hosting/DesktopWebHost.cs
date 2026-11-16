@@ -1,13 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -21,15 +23,18 @@ namespace NE.Standard.UI.Desktop.Hosting;
 public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
 {
     private readonly WebApplication? _webApplication;
+    private readonly X509Certificate2? _serverCertificate;
     private readonly ServiceProvider? _remoteServices;
     private readonly SemaphoreSlim _startGate = new(1, 1);
     private volatile Uri? _baseUri;
+    private volatile Uri? _browserBaseUri;
     private bool _disposed;
 
-    private DesktopWebHost(DesktopHostOptions options, WebApplication? webApplication, ServiceProvider? remoteServices, string contentRootPath, string webRootPath)
+    private DesktopWebHost(DesktopHostOptions options, WebApplication? webApplication, X509Certificate2? serverCertificate, ServiceProvider? remoteServices, string contentRootPath, string webRootPath)
     {
         Options = options;
         _webApplication = webApplication;
+        _serverCertificate = serverCertificate;
         _remoteServices = remoteServices;
         ContentRootPath = contentRootPath;
         WebRootPath = webRootPath;
@@ -56,8 +61,11 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
     /// <summary>Gets whether the host has been started and <see cref="BaseUri"/> is ready.</summary>
     public bool IsStarted => _baseUri is not null;
 
-    /// <summary>Gets the resolved base URI of the running loopback server or remote server.</summary>
+    /// <summary>Gets the resolved HTTP base URI of the running loopback server or remote server.</summary>
     public Uri BaseUri => _baseUri ?? throw new InvalidOperationException("Call StartAsync before reading BaseUri.");
+
+    /// <summary>Gets the HTTP/2-capable loopback HTTPS URI navigated to by the embedded browser when in-process, or <see cref="BaseUri"/> when remote.</summary>
+    public Uri BrowserBaseUri => _browserBaseUri ?? throw new InvalidOperationException("Call StartAsync before reading BrowserBaseUri.");
 
     internal static DesktopWebHost Create(DesktopHostOptions options, Action<IServiceCollection> configureServices)
     {
@@ -79,8 +87,10 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             ServiceCollection services = new();
             _ = services.AddSingleton(options);
             configureServices(services);
-            return new DesktopWebHost(options, webApplication: null, services.BuildServiceProvider(validateScopes: true), contentRoot, webRoot);
+            return new DesktopWebHost(options, webApplication: null, serverCertificate: null, services.BuildServiceProvider(validateScopes: true), contentRoot, webRoot);
         }
+
+        X509Certificate2 serverCertificate = DesktopLoopbackCertificate.Instance.CreateServerCertificate();
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -95,7 +105,19 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
         });
 
         _ = builder.Logging.ClearProviders();
-        _ = builder.WebHost.ConfigureKestrel(static kestrel => kestrel.Listen(IPAddress.Loopback, 0));
+        _ = builder.WebHost.ConfigureKestrel(kestrel =>
+        {
+            kestrel.Listen(IPAddress.Loopback, 0, static listen => listen.Protocols = HttpProtocols.Http1);
+            kestrel.Listen(
+                IPAddress.Loopback,
+                0,
+                listen =>
+                {
+                    listen.Protocols = HttpProtocols.Http1AndHttp2;
+                    _ = listen.UseHttps(serverCertificate);
+                }
+            );
+        });
         _ = builder.Services.AddSingleton(options);
         configureServices(builder.Services);
 
@@ -104,7 +126,7 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             _ = app.UseStaticFiles();
 
         _ = app.UseRouting();
-        return new DesktopWebHost(options, app, remoteServices: null, contentRoot, webRoot);
+        return new DesktopWebHost(options, app, serverCertificate, remoteServices: null, contentRoot, webRoot);
     }
 
     private static string ResolveContentRootPath(DesktopHostOptions options)
@@ -121,7 +143,7 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             ? Path.Combine(contentRoot, "wwwroot")
             : Path.GetFullPath(options.WebRootPath);
 
-    /// <summary>Starts the loopback server (when in-process) and resolves <see cref="BaseUri"/>.</summary>
+    /// <summary>Starts the loopback server (when in-process) and resolves <see cref="BaseUri"/> and <see cref="BrowserBaseUri"/>.</summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -134,7 +156,9 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
 
             if (_webApplication is null)
             {
-                _baseUri = EnsureTrailingSlash(Options.ServerUri!);
+                Uri remote = EnsureTrailingSlash(Options.ServerUri!);
+                _baseUri = remote;
+                _browserBaseUri = remote;
                 return;
             }
 
@@ -142,10 +166,25 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             await _webApplication.StartAsync(cancellationToken).ConfigureAwait(false);
 
             IServer server = _webApplication.Services.GetRequiredService<IServer>();
-            var boundAddress = server.Features.Get<IServerAddressesFeature>()?.Addresses.FirstOrDefault()
-                ?? throw new InvalidOperationException("The in-process loopback server started without a bound address.");
+            ICollection<string>? addresses = server.Features.Get<IServerAddressesFeature>()?.Addresses;
+            if (addresses is null || addresses.Count == 0)
+                throw new InvalidOperationException("The in-process loopback server started without bound addresses.");
 
-            _baseUri = EnsureTrailingSlash(new Uri(boundAddress, UriKind.Absolute));
+            Uri? httpUri = null;
+            Uri? httpsUri = null;
+            foreach (var address in addresses)
+            {
+                if (!Uri.TryCreate(address, UriKind.Absolute, out Uri? parsed))
+                    continue;
+
+                if (string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                    httpsUri ??= EnsureTrailingSlash(parsed);
+                else if (string.Equals(parsed.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
+                    httpUri ??= EnsureTrailingSlash(parsed);
+            }
+
+            _baseUri = httpUri ?? httpsUri ?? throw new InvalidOperationException("The in-process loopback server started without a valid HTTP address.");
+            _browserBaseUri = httpsUri ?? _baseUri;
         }
         finally
         {
@@ -161,13 +200,19 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
 
     /// <summary>Resolves a relative route against <see cref="BaseUri"/>.</summary>
     public Uri ResolveUri(string? route = null)
+        => ResolveAgainst(BaseUri, route);
+
+    /// <summary>Resolves a relative route against <see cref="BrowserBaseUri"/>.</summary>
+    public Uri ResolveBrowserUri(string? route = null)
+        => ResolveAgainst(BrowserBaseUri, route);
+
+    private static Uri ResolveAgainst(Uri root, string? route)
     {
-        Uri baseUri = BaseUri;
         if (string.IsNullOrWhiteSpace(route) || route == "/")
-            return baseUri;
+            return root;
 
         var trimmed = route[0] == '/' ? route[1..] : route;
-        return new Uri(baseUri, trimmed);
+        return new Uri(root, trimmed);
     }
 
     /// <inheritdoc />
@@ -185,6 +230,8 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             await _webApplication.DisposeAsync().ConfigureAwait(false);
         }
 
+        _serverCertificate?.Dispose();
+
         if (_remoteServices is not null)
             await _remoteServices.DisposeAsync().ConfigureAwait(false);
 
@@ -199,6 +246,7 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
 
         _disposed = true;
         ((IDisposable?)_webApplication)?.Dispose();
+        _serverCertificate?.Dispose();
         _remoteServices?.Dispose();
         _startGate.Dispose();
     }

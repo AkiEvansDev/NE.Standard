@@ -34,9 +34,8 @@ internal sealed class HtmlElementBuilder : HtmlChildrenBuilder, IHtmlElementBuil
 
     private const char NoQuote = '\0';
 
-    private readonly List<KeyValuePair<string, string?>> _attributes = [];
-
-    // Made on first use: most elements carry no inline style and many no class, and a page is tens of thousands of elements.
+    // Made on first use: most elements carry no inline style and many no class or attribute, and a page is tens of thousands of elements.
+    private List<KeyValuePair<string, string?>>? _attributes;
     private List<string>? _classes;
     private List<KeyValuePair<string, string>>? _styles;
 
@@ -73,17 +72,19 @@ internal sealed class HtmlElementBuilder : HtmlChildrenBuilder, IHtmlElementBuil
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        for (var i = 0; i < _attributes.Count; i++)
+        List<KeyValuePair<string, string?>> attributes = _attributes ??= [];
+
+        for (var i = 0; i < attributes.Count; i++)
         {
-            if (string.Equals(_attributes[i].Key, name, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(attributes[i].Key, name, StringComparison.OrdinalIgnoreCase))
             {
-                _attributes[i] = new KeyValuePair<string, string?>(name, value);
+                attributes[i] = new KeyValuePair<string, string?>(name, value);
 
                 return this;
             }
         }
 
-        _attributes.Add(new KeyValuePair<string, string?>(name, value));
+        attributes.Add(new KeyValuePair<string, string?>(name, value));
 
         return this;
     }
@@ -175,10 +176,13 @@ internal sealed class HtmlElementBuilder : HtmlChildrenBuilder, IHtmlElementBuil
         if (_classes is { Count: > 0 } classes)
             WriteClassAttribute(writer, classes);
 
-        for (var i = 0; i < _attributes.Count; i++)
+        if (_attributes is { Count: > 0 } attributes)
         {
-            KeyValuePair<string, string?> attribute = _attributes[i];
-            WriteAttribute(writer, attribute.Key, attribute.Value);
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                KeyValuePair<string, string?> attribute = attributes[i];
+                WriteAttribute(writer, attribute.Key, attribute.Value);
+            }
         }
 
         if (_styles is { Count: > 0 } styles)

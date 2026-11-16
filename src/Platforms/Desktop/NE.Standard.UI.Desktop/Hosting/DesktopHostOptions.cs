@@ -20,6 +20,9 @@ public sealed class DesktopHostOptions
     /// <summary>Gets or sets the fallback window title before a page sets its document title.</summary>
     public string WindowTitle { get; set; } = "NE.Standard";
 
+    /// <summary>Gets or sets the Windows Application User Model ID used for system toast notifications and taskbar grouping; unset derives a stable ID from the entry assembly or <see cref="WindowTitle"/>.</summary>
+    public string? AppUserModelId { get; set; }
+
     /// <summary>Gets or sets the window icon — a file path, a path under <c>wwwroot</c> (such as <c>/favicon.ico</c> or <c>/icon.png</c>), a <c>data:</c> URI, or <c>data:,</c> to suppress the default <c>NE</c> icon. Overrides <c>UIApplication.Icon</c>.</summary>
     public string? Icon { get; set; }
 

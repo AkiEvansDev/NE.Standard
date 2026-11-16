@@ -292,3 +292,26 @@ test("a row read again keeps the other rows' keyed lookups, and one that took an
     assert.equal(registry.findComponent(RowTitle, ["r1"]), real<Element>(second.children[0]));
     assertMatchesFresh(registry, root);
 });
+
+test("off-screen keyed lookups on a settled bucket answer empty without walking live rows", () => {
+    const { root, feedHost } = page(20);
+    const registry = new DomRegistry(real<ParentNode>(root));
+
+    assert.notEqual(registry.findComponent(RowTitle, ["r0"]), null);
+
+    const counts = { closest: 0 };
+
+    for (const row of rowsOf(feedHost)) {
+        const title = row.children[0];
+        const originalClosest = title.closest.bind(title);
+        title.closest = (selector: string): FakeElement | null => {
+            counts.closest++;
+            return originalClosest(selector);
+        };
+    }
+
+    for (let index = 100; index < 150; index++)
+        assert.deepEqual(registry.findAllComponents(RowTitle, [`offscreen-${index}`]), []);
+
+    assert.equal(counts.closest, 0);
+});

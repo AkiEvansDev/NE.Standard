@@ -1,9 +1,11 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
+using System.Text;
 using System.Text.Json;
+using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Primitives.Binding;
@@ -339,7 +341,7 @@ public static class WebShellRenderer
         if (!context.MetadataJson.IsEmpty)
             json = new Utf8HtmlContent(context.MetadataJson);
         else if (context.Metadata is not null)
-            json = new RawHtmlContent(SerializeMetadata(context.Metadata));
+            json = new Utf8HtmlContent(SerializeMetadataToUtf8(context.Metadata));
         else
             return;
 
@@ -385,222 +387,592 @@ public static class WebShellRenderer
     /// </summary>
     private static void RenderHydration(IHtmlElementBuilder body, WebShellContext context)
     {
-        if (string.IsNullOrWhiteSpace(context.HydrationJson))
+        IHtmlContent json;
+
+        if (!context.HydrationJsonUtf8.IsEmpty)
+            json = new Utf8HtmlContent(context.HydrationJsonUtf8);
+        else if (!string.IsNullOrWhiteSpace(context.HydrationJson))
+            json = new RawHtmlContent(context.HydrationJson);
+        else
             return;
 
         _ = body.Element("script", script =>
         {
             _ = script.Attribute("type", "application/json");
             _ = script.Attribute(WebAttributes.Hydration);
-            _ = script.Raw(context.HydrationJson);
+            _ = script.Content(json);
         });
     }
 
-    /// <summary>
-    /// A wire object carrying only the fields that have something in them; used for the framework's own shapes, never an author's items.
-    /// </summary>
-    private static Dictionary<string, object?> Written(params ReadOnlySpan<(string Name, object? Value)> fields)
-    {
-        Dictionary<string, object?> written = new(fields.Length, StringComparer.Ordinal);
-
-        foreach ((var name, var value) in fields)
-        {
-            if (value is not null)
-                written[name] = value;
-        }
-
-        return written;
-    }
-
+    /// <summary>Serializes render metadata as a JSON string.</summary>
     public static string SerializeMetadata(WebRenderMetadata metadata)
+        => Encoding.UTF8.GetString(SerializeMetadataToUtf8(metadata));
+
+    /// <summary>Serializes render metadata directly to UTF-8 JSON bytes without intermediate object graphs or strings.</summary>
+    public static byte[] SerializeMetadataToUtf8(WebRenderMetadata metadata)
     {
         ArgumentNullException.ThrowIfNull(metadata);
 
         metadata.Validate();
 
-        var model = new
-        {
-            propertyDefinitions = metadata.PropertyDefinitions.Select(static property => Written(
-                ("propertyId", property.PropertyId),
-                ("componentTypeKey", property.ComponentTypeKey),
-                ("propertyName", property.PropertyName),
-                ("operations", property.Operations.Select(static operation => Written(
-                    ("kind", operation.Kind),
-                    ("target", operation.Target),
-                    ("name", operation.Name),
-                    ("converter", operation.Converter),
-                    ("condition", operation.Condition?.ToString()),
-                    ("value", operation.Value),
-                    ("optional", operation.Optional ? true : null),
-                    ("convertsNull", operation.ConvertsNull ? true : null)
-                ))),
-                ("translatable", property.Translatable ? true : null)
-            )),
-            // No `kind`: nothing on the client reads it. `mode` only when it is not the default.
-            bindings = metadata.Bindings.Select(static binding => Written(
-                ("bindingId", binding.BindingId.Value),
-                ("componentId", binding.ComponentId.Value),
-                ("propertyId", binding.PropertyId),
-                ("mode", binding.Mode == UIBindingMode.OneWay ? null : binding.Mode.ToString()),
-                ("dynamicParameterComponentIds", binding.DynamicParameterComponentIds.Count == 0
-                    ? null
-                    : binding.DynamicParameterComponentIds.Select(static id => id.Value)),
-                ("itemTemplate", binding.ItemTemplate),
-                ("itemTemplateParameters", binding.ItemTemplateParameters?.Select(static parameter => Written(
-                    ("kind", parameter.Kind.ToString()),
-                    ("componentId", parameter.ComponentId?.Value),
-                    ("value", parameter.Value)
-                ))),
-                ("optional", binding.Optional ? true : null),
-                ("fallbackValue", binding.FallbackValue),
-                ("content", binding.Content ? true : null)
-            )),
-            items = metadata.ItemsTemplates.Select(static itemsTemplate => Written(
-                ("componentId", itemsTemplate.ComponentId.Value),
-                ("templateKeyPropertyName", itemsTemplate.TemplateKeyPropertyName),
-                ("fallbackTemplateKey", itemsTemplate.FallbackTemplateKey),
-                ("itemWrapperElementName", itemsTemplate.ItemWrapperElementName),
-                ("itemWrapperClassName", itemsTemplate.ItemWrapperClassName),
-                ("itemWrapperRole", itemsTemplate.ItemWrapperRole),
-                ("announcesSelection", itemsTemplate.AnnouncesSelection ? true : null),
-                ("rowDecorator", itemsTemplate.RowDecorator),
-                ("itemPaths", itemsTemplate.ItemPaths),
-                ("composite", itemsTemplate.Composite is null ? null : Written(
-                    ("itemElementName", itemsTemplate.Composite.ItemElementName),
-                    ("itemClassName", itemsTemplate.Composite.ItemClassName),
-                    ("itemRole", itemsTemplate.Composite.ItemRole),
-                    ("hostSlotVariantKey", itemsTemplate.Composite.HostSlotVariantKey),
-                    ("slots", itemsTemplate.Composite.Slots.Select(static slot => Written(
-                        ("variantKey", slot.VariantKey),
-                        ("wrapperElementName", slot.WrapperElementName),
-                        ("wrapperClassName", slot.WrapperClassName),
-                        ("wrapperRole", slot.WrapperRole),
-                        ("variantKeyPropertyName", slot.VariantKeyPropertyName),
-                        ("wrapperAttributes", slot.WrapperAttributes)
-                    )))
-                    )
-                )
-            )),
-            // `showsPending` only when a command turned the mark off.
-            events = metadata.Events.Select(static compiledEvent => Written(
-                ("eventId", compiledEvent.EventId.Value),
-                ("componentId", compiledEvent.Address.ComponentId.Value),
-                ("eventName", compiledEvent.Address.EventName),
-                ("dynamicParameterComponentIds", compiledEvent.DynamicParameterComponentIds.Select(static id => id.Value)),
-                ("showsPending", compiledEvent.ShowsPending ? null : false)
-            )),
-            interactions = metadata.Interactions.Select(static interaction => new
-            {
-                sourceKind = interaction.SourceKind.ToString(),
-                source = interaction.Source is null
-                    ? null
-                    : new
-                    {
-                        componentId = interaction.Source.ComponentId.Value,
-                        propertyId = interaction.Source.PropertyId,
-                        dynamicParameterComponentIds = interaction.Source.DynamicParameterComponentIds.Select(static id => id.Value)
-                    },
-                // A row's own interaction names its row with the event, and only then: every other event interaction stays its size.
-                sourceEvent = interaction.SourceEvent is null
-                    ? null
-                    : Written(
-                        ("componentId", interaction.SourceEvent.Value.ComponentId.Value),
-                        ("eventName", interaction.SourceEvent.Value.EventName),
-                        ("rowKey", interaction.RowKey)
-                    ),
-                target = interaction.Target is null
-                    ? null
-                    : new
-                    {
-                        componentId = interaction.Target.ComponentId.Value,
-                        propertyId = interaction.Target.PropertyId,
-                        dynamicParameterComponentIds = interaction.Target.DynamicParameterComponentIds.Select(static id => id.Value)
-                    },
-                actionKind = interaction.ActionKind.ToString(),
-                effect = interaction.Effect,
-                @operator = interaction.Operator.ToString(),
-                value = interaction.Value,
-                trueValue = interaction.TrueValue,
-                falseValue = interaction.FalseValue
-            }),
-            validations = metadata.Validations.Select(static validation => new
-            {
-                target = new
-                {
-                    componentId = validation.Target.ComponentId.Value,
-                    propertyId = validation.Target.PropertyId
-                },
-                trigger = validation.Trigger.ToString(),
-                @operator = validation.Operator.ToString(),
-                value = validation.Value,
-                valueSource = validation.ValueSource is { } source ? new { componentId = source.Value } : null,
-                severity = validation.Severity.ToString(),
-                message = validation.Message
-            }),
-            exposedProperties = metadata.ExposedProperties.Select(static property => Written(
-                ("componentId", property.ComponentId.Value),
-                ("propertyId", property.PropertyId),
-                ("content", property.Content ? true : null)
-            )),
-            validationTargets = metadata.ValidationTargets.Select(static target => new
-            {
-                componentId = target.ComponentId.Value,
-                message = new
-                {
-                    componentId = target.Message.ComponentId.Value,
-                    propertyId = target.Message.PropertyId
-                }
-            }),
-            // Each item written as a change carries it, so a row the page reconciles reads the same either way.
-            itemValues = metadata.ItemValues.Select(static itemValues => Written(
-                ("componentId", itemValues.ComponentId.Value),
-                ("dynamicParameters", itemValues.DynamicParameters.Count == 0 ? null : itemValues.DynamicParameters),
-                ("items", itemValues.Items)
-            )),
-            // The key as it came: a string, or a phrase in its own wire shape.
-            words = metadata.Words.Select(static word => Written(
-                ("componentId", word.ComponentId.Value),
-                ("propertyId", word.PropertyId),
-                ("dynamicParameters", word.DynamicParameters.Count == 0 ? null : word.DynamicParameters),
-                ("key", word.Key)
-            )),
-            compileWarnings = metadata.CompileWarnings.Count == 0 ? null : metadata.CompileWarnings,
-            itemsFilterSort = metadata.ItemsFilterSort.Select(static itemsFilterSort => new
-            {
-                componentId = itemsFilterSort.ComponentId.Value,
-                filters = itemsFilterSort.Filters.Select(static filter => new
-                {
-                    itemProperty = filter.ItemProperty,
-                    @operator = filter.Operator.ToString(),
-                    value = filter.Value,
-                    source = filter.Source is null
-                        ? null
-                        : new
-                        {
-                            componentId = filter.Source.ComponentId.Value,
-                            propertyId = filter.Source.PropertyId
-                        },
-                    activeOperator = filter.ActiveOperator.ToString(),
-                    activeValue = filter.ActiveValue
-                }),
-                sorts = itemsFilterSort.Sorts.Select(static sort => new
-                {
-                    itemProperty = sort.ItemProperty,
-                    direction = sort.Direction.ToString(),
-                    priority = sort.Priority,
-                    source = sort.Source is null
-                        ? null
-                        : new
-                        {
-                            componentId = sort.Source.ComponentId.Value,
-                            propertyId = sort.Source.PropertyId
-                        },
-                    activeOperator = sort.ActiveOperator.ToString(),
-                    activeValue = sort.ActiveValue
-                })
-            })
-        };
+        ArrayBufferWriter<byte> buffer = new(4096);
 
-        return JsonSerializer.Serialize(model, WebWireJson.Options);
+        using (Utf8JsonWriter writer = new(buffer))
+            WriteMetadata(writer, metadata);
+
+        return buffer.WrittenSpan.ToArray();
+    }
+
+    private static void WriteMetadata(Utf8JsonWriter writer, WebRenderMetadata metadata)
+    {
+        writer.WriteStartObject();
+
+        WritePropertyDefinitions(writer, metadata.PropertyDefinitions);
+        WriteBindings(writer, metadata.Bindings);
+        WriteItemsTemplates(writer, metadata.ItemsTemplates);
+        WriteEvents(writer, metadata.Events);
+        WriteInteractions(writer, metadata.Interactions);
+        WriteValidations(writer, metadata.Validations);
+        WriteExposedProperties(writer, metadata.ExposedProperties);
+        WriteValidationTargets(writer, metadata.ValidationTargets);
+        WriteItemValues(writer, metadata.ItemValues);
+        WriteWords(writer, metadata.Words);
+        WriteCompileWarnings(writer, metadata.CompileWarnings);
+        WriteItemsFilterSort(writer, metadata.ItemsFilterSort);
+
+        writer.WriteEndObject();
+    }
+
+    private static void WritePropertyDefinitions(Utf8JsonWriter writer, IReadOnlyList<WebRenderPropertyDefinitionMetadata> definitions)
+    {
+        writer.WriteStartArray("propertyDefinitions");
+
+        for (var i = 0; i < definitions.Count; i++)
+        {
+            WebRenderPropertyDefinitionMetadata property = definitions[i];
+
+            writer.WriteStartObject();
+            writer.WriteString("propertyId", property.PropertyId);
+            writer.WriteString("componentTypeKey", property.ComponentTypeKey);
+            writer.WriteString("propertyName", property.PropertyName);
+            WriteOperations(writer, property.Operations);
+
+            if (property.Translatable)
+                writer.WriteBoolean("translatable", true);
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteOperations(Utf8JsonWriter writer, IReadOnlyList<WebDomOperation> operations)
+    {
+        writer.WriteStartArray("operations");
+
+        for (var i = 0; i < operations.Count; i++)
+        {
+            WebDomOperation operation = operations[i];
+
+            writer.WriteStartObject();
+            writer.WriteString("kind", operation.Kind);
+            WriteOptionalString(writer, "target", operation.Target);
+            WriteOptionalString(writer, "name", operation.Name);
+            WriteOptionalString(writer, "converter", operation.Converter);
+
+            if (operation.Condition is { } condition)
+                writer.WriteString("condition", condition.ToString());
+
+            WriteOptionalString(writer, "value", operation.Value);
+
+            if (operation.Optional)
+                writer.WriteBoolean("optional", true);
+
+            if (operation.ConvertsNull)
+                writer.WriteBoolean("convertsNull", true);
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteOptionalString(Utf8JsonWriter writer, string propertyName, string? value)
+    {
+        if (value is not null)
+            writer.WriteString(propertyName, value);
+    }
+
+    private static void WriteBindings(Utf8JsonWriter writer, IReadOnlyList<WebRenderBindingMetadata> bindings)
+    {
+        // No `kind`: nothing on the client reads it. `mode` only when it is not the default.
+        writer.WriteStartArray("bindings");
+
+        for (var i = 0; i < bindings.Count; i++)
+        {
+            WebRenderBindingMetadata binding = bindings[i];
+
+            writer.WriteStartObject();
+            writer.WriteNumber("bindingId", binding.BindingId.Value);
+            writer.WriteNumber("componentId", binding.ComponentId.Value);
+            writer.WriteString("propertyId", binding.PropertyId);
+
+            if (binding.Mode != UIBindingMode.OneWay)
+                writer.WriteString("mode", binding.Mode.ToString());
+
+            if (binding.DynamicParameterComponentIds.Count > 0)
+            {
+                writer.WritePropertyName("dynamicParameterComponentIds");
+                WriteComponentIds(writer, binding.DynamicParameterComponentIds);
+            }
+
+            WriteOptionalString(writer, "itemTemplate", binding.ItemTemplate);
+
+            if (binding.ItemTemplateParameters is { } parameters)
+            {
+                writer.WriteStartArray("itemTemplateParameters");
+
+                for (var j = 0; j < parameters.Count; j++)
+                {
+                    WebRenderBindingParameterMetadata parameter = parameters[j];
+
+                    writer.WriteStartObject();
+                    writer.WriteString("kind", parameter.Kind.ToString());
+
+                    if (parameter.ComponentId is { } componentId)
+                        writer.WriteNumber("componentId", componentId.Value);
+
+                    if (parameter.Value is not null)
+                    {
+                        writer.WritePropertyName("value");
+                        WriteWireValue(writer, parameter.Value);
+                    }
+
+                    writer.WriteEndObject();
+                }
+
+                writer.WriteEndArray();
+            }
+
+            if (binding.Optional)
+                writer.WriteBoolean("optional", true);
+
+            if (binding.FallbackValue is not null)
+            {
+                writer.WritePropertyName("fallbackValue");
+                WriteWireValue(writer, binding.FallbackValue);
+            }
+
+            if (binding.Content)
+                writer.WriteBoolean("content", true);
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteComponentIds(Utf8JsonWriter writer, IReadOnlyList<UIComponentId> ids)
+    {
+        writer.WriteStartArray();
+
+        for (var i = 0; i < ids.Count; i++)
+            writer.WriteNumberValue(ids[i].Value);
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteWireValue(Utf8JsonWriter writer, object? value)
+    {
+        if (value is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        JsonSerializer.Serialize(writer, value, value.GetType(), WebWireJson.Options);
+    }
+
+    private static void WriteItemsTemplates(Utf8JsonWriter writer, IReadOnlyList<WebRenderItemsTemplateMetadata> templates)
+    {
+        writer.WriteStartArray("items");
+
+        for (var i = 0; i < templates.Count; i++)
+        {
+            WebRenderItemsTemplateMetadata itemsTemplate = templates[i];
+
+            writer.WriteStartObject();
+            writer.WriteNumber("componentId", itemsTemplate.ComponentId.Value);
+            WriteOptionalString(writer, "templateKeyPropertyName", itemsTemplate.TemplateKeyPropertyName);
+            WriteOptionalString(writer, "fallbackTemplateKey", itemsTemplate.FallbackTemplateKey);
+            WriteOptionalString(writer, "itemWrapperElementName", itemsTemplate.ItemWrapperElementName);
+            WriteOptionalString(writer, "itemWrapperClassName", itemsTemplate.ItemWrapperClassName);
+            WriteOptionalString(writer, "itemWrapperRole", itemsTemplate.ItemWrapperRole);
+
+            if (itemsTemplate.AnnouncesSelection)
+                writer.WriteBoolean("announcesSelection", true);
+
+            WriteOptionalString(writer, "rowDecorator", itemsTemplate.RowDecorator);
+
+            if (itemsTemplate.ItemPaths is { } itemPaths)
+            {
+                writer.WriteStartArray("itemPaths");
+
+                for (var j = 0; j < itemPaths.Count; j++)
+                    writer.WriteStringValue(itemPaths[j]);
+
+                writer.WriteEndArray();
+            }
+
+            if (itemsTemplate.Composite is { } composite)
+            {
+                writer.WriteStartObject("composite");
+                WriteOptionalString(writer, "itemElementName", composite.ItemElementName);
+                WriteOptionalString(writer, "itemClassName", composite.ItemClassName);
+                WriteOptionalString(writer, "itemRole", composite.ItemRole);
+                WriteOptionalString(writer, "hostSlotVariantKey", composite.HostSlotVariantKey);
+                writer.WriteStartArray("slots");
+
+                for (var j = 0; j < composite.Slots.Count; j++)
+                {
+                    WebRenderItemsCompositeSlotMetadata slot = composite.Slots[j];
+
+                    writer.WriteStartObject();
+                    WriteOptionalString(writer, "variantKey", slot.VariantKey);
+                    WriteOptionalString(writer, "wrapperElementName", slot.WrapperElementName);
+                    WriteOptionalString(writer, "wrapperClassName", slot.WrapperClassName);
+                    WriteOptionalString(writer, "wrapperRole", slot.WrapperRole);
+                    WriteOptionalString(writer, "variantKeyPropertyName", slot.VariantKeyPropertyName);
+
+                    if (slot.WrapperAttributes is { } attributes)
+                    {
+                        writer.WriteStartObject("wrapperAttributes");
+
+                        foreach (KeyValuePair<string, string> pair in attributes)
+                            writer.WriteString(pair.Key, pair.Value);
+
+                        writer.WriteEndObject();
+                    }
+
+                    writer.WriteEndObject();
+                }
+
+                writer.WriteEndArray();
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteEvents(Utf8JsonWriter writer, IReadOnlyList<WebRenderEventMetadata> events)
+    {
+        // `showsPending` only when a command turned the mark off.
+        writer.WriteStartArray("events");
+
+        for (var i = 0; i < events.Count; i++)
+        {
+            WebRenderEventMetadata compiledEvent = events[i];
+
+            writer.WriteStartObject();
+            writer.WriteNumber("eventId", compiledEvent.EventId.Value);
+            writer.WriteNumber("componentId", compiledEvent.Address.ComponentId.Value);
+            writer.WriteString("eventName", compiledEvent.Address.EventName);
+            writer.WritePropertyName("dynamicParameterComponentIds");
+            WriteComponentIds(writer, compiledEvent.DynamicParameterComponentIds);
+
+            if (!compiledEvent.ShowsPending)
+                writer.WriteBoolean("showsPending", false);
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteInteractions(Utf8JsonWriter writer, IReadOnlyList<WebRenderInteractionMetadata> interactions)
+    {
+        writer.WriteStartArray("interactions");
+
+        for (var i = 0; i < interactions.Count; i++)
+        {
+            WebRenderInteractionMetadata interaction = interactions[i];
+
+            writer.WriteStartObject();
+            writer.WriteString("sourceKind", interaction.SourceKind.ToString());
+            writer.WritePropertyName("source");
+            WritePropertyReferenceOrNull(writer, interaction.Source);
+
+            // A row's own interaction names its row with the event, and only then: every other event interaction stays its size.
+            if (interaction.SourceEvent is { } sourceEvent)
+            {
+                writer.WriteStartObject("sourceEvent");
+                writer.WriteNumber("componentId", sourceEvent.ComponentId.Value);
+                writer.WriteString("eventName", sourceEvent.EventName);
+
+                if (interaction.RowKey is not null)
+                {
+                    writer.WritePropertyName("rowKey");
+                    WriteWireValue(writer, interaction.RowKey);
+                }
+
+                writer.WriteEndObject();
+            }
+            else
+            {
+                writer.WriteNull("sourceEvent");
+            }
+
+            writer.WritePropertyName("target");
+            WritePropertyReferenceOrNull(writer, interaction.Target);
+            writer.WriteString("actionKind", interaction.ActionKind.ToString());
+            writer.WritePropertyName("effect");
+            WriteWireValue(writer, interaction.Effect);
+            writer.WriteString("operator", interaction.Operator.ToString());
+            writer.WritePropertyName("value");
+            WriteWireValue(writer, interaction.Value);
+            writer.WritePropertyName("trueValue");
+            WriteWireValue(writer, interaction.TrueValue);
+            writer.WritePropertyName("falseValue");
+            WriteWireValue(writer, interaction.FalseValue);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WritePropertyReferenceOrNull(Utf8JsonWriter writer, WebRenderPropertyMetadata? reference)
+    {
+        if (reference is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        writer.WriteStartObject();
+        writer.WriteNumber("componentId", reference.ComponentId.Value);
+        writer.WriteString("propertyId", reference.PropertyId);
+        writer.WritePropertyName("dynamicParameterComponentIds");
+        WriteComponentIds(writer, reference.DynamicParameterComponentIds);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteValidations(Utf8JsonWriter writer, IReadOnlyList<WebRenderValidationMetadata> validations)
+    {
+        writer.WriteStartArray("validations");
+
+        for (var i = 0; i < validations.Count; i++)
+        {
+            WebRenderValidationMetadata validation = validations[i];
+
+            writer.WriteStartObject();
+            writer.WriteStartObject("target");
+            writer.WriteNumber("componentId", validation.Target.ComponentId.Value);
+            writer.WriteString("propertyId", validation.Target.PropertyId);
+            writer.WriteEndObject();
+            writer.WriteString("trigger", validation.Trigger.ToString());
+            writer.WriteString("operator", validation.Operator.ToString());
+            writer.WritePropertyName("value");
+            WriteWireValue(writer, validation.Value);
+
+            if (validation.ValueSource is { } source)
+            {
+                writer.WriteStartObject("valueSource");
+                writer.WriteNumber("componentId", source.Value);
+                writer.WriteEndObject();
+            }
+            else
+            {
+                writer.WriteNull("valueSource");
+            }
+
+            writer.WriteString("severity", validation.Severity.ToString());
+            writer.WritePropertyName("message");
+            WriteWireValue(writer, validation.Message);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteExposedProperties(Utf8JsonWriter writer, IReadOnlyList<WebRenderPropertyMetadata> exposed)
+    {
+        writer.WriteStartArray("exposedProperties");
+
+        for (var i = 0; i < exposed.Count; i++)
+        {
+            WebRenderPropertyMetadata property = exposed[i];
+
+            writer.WriteStartObject();
+            writer.WriteNumber("componentId", property.ComponentId.Value);
+            writer.WriteString("propertyId", property.PropertyId);
+
+            if (property.Content)
+                writer.WriteBoolean("content", true);
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteValidationTargets(Utf8JsonWriter writer, IReadOnlyList<WebRenderValidationTargetMetadata> targets)
+    {
+        writer.WriteStartArray("validationTargets");
+
+        for (var i = 0; i < targets.Count; i++)
+        {
+            WebRenderValidationTargetMetadata target = targets[i];
+
+            writer.WriteStartObject();
+            writer.WriteNumber("componentId", target.ComponentId.Value);
+            writer.WriteStartObject("message");
+            writer.WriteNumber("componentId", target.Message.ComponentId.Value);
+            writer.WriteString("propertyId", target.Message.PropertyId);
+            writer.WriteEndObject();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteItemValues(Utf8JsonWriter writer, IReadOnlyList<WebRenderItemValuesMetadata> itemValues)
+    {
+        // Each item written as a change carries it, so a row the page reconciles reads the same either way.
+        writer.WriteStartArray("itemValues");
+
+        for (var i = 0; i < itemValues.Count; i++)
+        {
+            WebRenderItemValuesMetadata entry = itemValues[i];
+
+            writer.WriteStartObject();
+            writer.WriteNumber("componentId", entry.ComponentId.Value);
+
+            if (entry.DynamicParameters.Count > 0)
+            {
+                writer.WritePropertyName("dynamicParameters");
+                WriteWireValue(writer, entry.DynamicParameters);
+            }
+
+            writer.WritePropertyName("items");
+            WriteWireValue(writer, entry.Items);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteWords(Utf8JsonWriter writer, IReadOnlyList<WebRenderWordMetadata> words)
+    {
+        // The key as it came: a string, or a phrase in its own wire shape.
+        writer.WriteStartArray("words");
+
+        for (var i = 0; i < words.Count; i++)
+        {
+            WebRenderWordMetadata word = words[i];
+
+            writer.WriteStartObject();
+            writer.WriteNumber("componentId", word.ComponentId.Value);
+            writer.WriteString("propertyId", word.PropertyId);
+
+            if (word.DynamicParameters.Count > 0)
+            {
+                writer.WritePropertyName("dynamicParameters");
+                WriteWireValue(writer, word.DynamicParameters);
+            }
+
+            writer.WritePropertyName("key");
+            WriteWireValue(writer, word.Key);
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteCompileWarnings(Utf8JsonWriter writer, IReadOnlyList<string> warnings)
+    {
+        if (warnings.Count == 0)
+        {
+            writer.WriteNull("compileWarnings");
+            return;
+        }
+
+        writer.WriteStartArray("compileWarnings");
+
+        for (var i = 0; i < warnings.Count; i++)
+            writer.WriteStringValue(warnings[i]);
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteItemsFilterSort(Utf8JsonWriter writer, IReadOnlyList<WebRenderItemsFilterSortMetadata> list)
+    {
+        writer.WriteStartArray("itemsFilterSort");
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            WebRenderItemsFilterSortMetadata itemsFilterSort = list[i];
+
+            writer.WriteStartObject();
+            writer.WriteNumber("componentId", itemsFilterSort.ComponentId.Value);
+            writer.WriteStartArray("filters");
+
+            for (var j = 0; j < itemsFilterSort.Filters.Count; j++)
+            {
+                WebRenderItemsFilterMetadata filter = itemsFilterSort.Filters[j];
+
+                writer.WriteStartObject();
+                writer.WriteString("itemProperty", filter.ItemProperty);
+                writer.WriteString("operator", filter.Operator.ToString());
+                writer.WritePropertyName("value");
+                WriteWireValue(writer, filter.Value);
+                writer.WritePropertyName("source");
+                WriteSimplePropertyReferenceOrNull(writer, filter.Source);
+                writer.WriteString("activeOperator", filter.ActiveOperator.ToString());
+                writer.WritePropertyName("activeValue");
+                WriteWireValue(writer, filter.ActiveValue);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+            writer.WriteStartArray("sorts");
+
+            for (var j = 0; j < itemsFilterSort.Sorts.Count; j++)
+            {
+                WebRenderItemsSortMetadata sort = itemsFilterSort.Sorts[j];
+
+                writer.WriteStartObject();
+                writer.WriteString("itemProperty", sort.ItemProperty);
+                writer.WriteString("direction", sort.Direction.ToString());
+                writer.WriteNumber("priority", sort.Priority);
+                writer.WritePropertyName("source");
+                WriteSimplePropertyReferenceOrNull(writer, sort.Source);
+                writer.WriteString("activeOperator", sort.ActiveOperator.ToString());
+                writer.WritePropertyName("activeValue");
+                WriteWireValue(writer, sort.ActiveValue);
+                writer.WriteEndObject();
+            }
+
+            writer.WriteEndArray();
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+    }
+
+    private static void WriteSimplePropertyReferenceOrNull(Utf8JsonWriter writer, WebRenderPropertyMetadata? reference)
+    {
+        if (reference is null)
+        {
+            writer.WriteNullValue();
+            return;
+        }
+
+        writer.WriteStartObject();
+        writer.WriteNumber("componentId", reference.ComponentId.Value);
+        writer.WriteString("propertyId", reference.PropertyId);
+        writer.WriteEndObject();
     }
 }

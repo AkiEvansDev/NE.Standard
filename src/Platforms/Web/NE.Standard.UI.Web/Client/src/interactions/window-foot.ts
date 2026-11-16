@@ -12,6 +12,7 @@ import {
 } from "../addressing/dom-attributes.ts";
 import { findOpenModalDialog, findTopmostOpenDialog } from "./open-dialogs.ts";
 import { onSheetChange } from "./popup-sheet.ts";
+import { isPressWaveRecord } from "./press-wave.ts";
 
 const FootSelector = `[${WindowFootAttribute}]`;
 const EdgeSelector = `[${WindowFootEdgeAttribute}]`;
@@ -109,15 +110,23 @@ export class WindowFootEngine {
     private readonly onSchemeChange = (): void => this.schedule();
     private readonly onResize = (): void => this.schedule();
     private readonly onTransitionEnd = (event: Event): void => {
-        if (event instanceof TransitionEvent && event.propertyName === "background-color")
-            this.schedule();
+        if (!(event instanceof TransitionEvent) || event.propertyName !== "background-color")
+            return;
+
+        if (event.target instanceof Element && !affectsWindowFoot(event.target))
+            return;
+
+        this.schedule();
     };
     private probe: HTMLElement | null = null;
     private frame = 0;
 
     public constructor(options: WindowFootEngineOptions = {}) {
         this.root = options.root ?? document;
-        this.treeObserver = new MutationObserver(() => this.schedule());
+        this.treeObserver = new MutationObserver(mutations => {
+            if (!mutations.every(isPressWaveRecord))
+                this.schedule();
+        });
         this.treeObserver.observe(this.root, {
             childList: true,
             subtree: true,
@@ -331,4 +340,15 @@ function writeProperty(element: HTMLElement, name: string, value: string | null)
         element.style.removeProperty(name);
     else
         element.style.setProperty(name, value);
+}
+
+function affectsWindowFoot(target: Element): boolean {
+    return target === document.documentElement
+        || target === document.body
+        || target.hasAttribute(WindowFootAttribute)
+        || target.hasAttribute(SheetAttribute)
+        || target.hasAttribute(DrawerBackdropAttribute)
+        || target.hasAttribute(DialogBackdropAttribute)
+        || target.tagName === "DIALOG"
+        || target.querySelector(FootSelector) !== null;
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -17,9 +18,12 @@ namespace NE.Standard.UI.Files;
 /// </summary>
 internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 {
-    private sealed record StoredUpload(UIUploadFile File, string SelectionId, string Path, DateTime CreatedAtUtc);
+    private const int FileBufferSize = 64 * 1024;
+    private const FileOptions AsyncSequentialOptions = FileOptions.Asynchronous | FileOptions.SequentialScan;
 
-    private sealed record StoredDownload(string FileName, string ContentType, string Path, long Size, long Charged, DateTime CreatedAtUtc);
+    private sealed record StoredUpload(UIUploadFile File, string SelectionId, string Path, DateTime CreatedAtUtc, bool OwnsFile = true);
+
+    private sealed record StoredDownload(string FileName, string ContentType, string? Path, Func<Stream, CancellationToken, ValueTask>? Producer, long? MaxBytes, long Size, long Charged, DateTime CreatedAtUtc);
 
     /// <summary>One session's uploads by id, and what they are counted as against its allowance (<see cref="UIAllowanceCharge"/>).</summary>
     private sealed class SessionUploads
@@ -99,9 +103,41 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         file.Validate();
 
-        AddUpload(sessionId, fileId, new StoredUpload(file, selectionId, path, DateTime.UtcNow));
+        AddUpload(sessionId, fileId, new StoredUpload(file, selectionId, path, DateTime.UtcNow, OwnsFile: true));
 
         return file;
+    }
+
+    /// <inheritdoc />
+    public Task<UIUploadFile> RegisterLocalUploadAsync(string sessionId, string selectionId, string localFilePath, string? fileName = null, string? contentType = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(selectionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(localFilePath);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var fullPath = Path.GetFullPath(localFilePath);
+        FileInfo info = new(fullPath);
+        if (!info.Exists)
+            throw new FileNotFoundException("Local upload file does not exist.", fullPath);
+
+        var resolvedName = string.IsNullOrWhiteSpace(fileName) ? info.Name : fileName;
+        var fileId = CreateId();
+
+        UIUploadFile file = new()
+        {
+            FileId = fileId,
+            FileName = resolvedName,
+            ContentType = contentType,
+            Size = info.Length
+        };
+
+        file.Validate();
+
+        AddUpload(sessionId, fileId, new StoredUpload(file, selectionId, fullPath, DateTime.UtcNow, OwnsFile: false));
+
+        return Task.FromResult(file);
     }
 
     /// <summary>Copies content into a new file, answering its size, for an upload or a download not registered yet.</summary>
@@ -110,11 +146,11 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
     {
         try
         {
-            FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, FileBufferSize, AsyncSequentialOptions);
 
             await using (destination.ConfigureAwait(false))
             {
-                await content.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+                await content.CopyToAsync(destination, FileBufferSize, cancellationToken).ConfigureAwait(false);
 
                 return destination.Length;
             }
@@ -142,9 +178,11 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         }
 
         session.Files.Add(fileId, upload);
-        session.Charged += UIAllowanceCharge.Of(upload.File);
+        session.Charged += upload.OwnsFile ? UIAllowanceCharge.Of(upload.File) : UIAllowanceCharge.Overhead(upload.File.FileName);
         _uploadCount++;
-        _uploadSize += upload.File.Size;
+
+        if (upload.OwnsFile)
+            _uploadSize += upload.File.Size;
     }
 
     /// <inheritdoc />
@@ -219,7 +257,8 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         // Opened rather than checked first: the cleanup pass may delete the file between an exists check and the open.
         try
         {
-            return Task.FromResult<Stream?>(new FileStream(stored.Path, FileMode.Open, FileAccess.Read, FileShare.Read));
+            FileShare share = stored.OwnsFile ? FileShare.Read : FileShare.ReadWrite;
+            return Task.FromResult<Stream?>(new FileStream(stored.Path, FileMode.Open, FileAccess.Read, share, FileBufferSize, AsyncSequentialOptions));
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
@@ -257,10 +296,37 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
                 throw new InvalidOperationException("Staged download limit exceeded.");
             }
 
-            _downloads[(sessionId, token)] = new StoredDownload(fileName, contentType, path, size, charged, DateTime.UtcNow);
+            _downloads[(sessionId, token)] = new StoredDownload(fileName, contentType, path, Producer: null, MaxBytes: null, size, charged, DateTime.UtcNow);
         }
 
         return token;
+    }
+
+    /// <inheritdoc />
+    public Task<string> StageDownloadAsync(string sessionId, string fileName, string contentType, Func<Stream, CancellationToken, ValueTask> writeAsync, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
+        ArgumentNullException.ThrowIfNull(writeAsync);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var overhead = UIAllowanceCharge.Overhead(fileName);
+        var token = CreateId();
+
+        lock (_downloadsSync)
+        {
+            DateTime now = DateTime.UtcNow;
+            var allowedBytes = GetRemainingDownloadAllowance(sessionId, now) - overhead;
+
+            if (allowedBytes < 0 || ExceedsDownloadLimits(sessionId, overhead))
+                throw new InvalidOperationException("Staged download limit exceeded.");
+
+            _downloads[(sessionId, token)] = new StoredDownload(fileName, contentType, Path: null, Producer: writeAsync, MaxBytes: allowedBytes, Size: 0, Charged: overhead, now);
+        }
+
+        return Task.FromResult(token);
     }
 
     private long GetRemainingDownloadAllowance(string sessionId, DateTime utcNow)
@@ -309,19 +375,19 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
     {
         foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> entry in _downloads)
         {
-            if (entry.Value.CreatedAtUtc + downloadRetention <= utcNow && _downloads.TryRemove(entry))
-                Delete(entry.Value.Path);
+            if (entry.Value.CreatedAtUtc + downloadRetention <= utcNow && _downloads.TryRemove(entry) && entry.Value.Path is { } path)
+                Delete(path);
         }
     }
 
     private static async Task<long> CopyToBoundedFileAsync(Stream content, string path, long maxBytes, CancellationToken cancellationToken)
     {
-        var buffer = new byte[16 * 1024];
+        var buffer = ArrayPool<byte>.Shared.Rent(FileBufferSize);
         long total = 0;
 
         try
         {
-            FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            FileStream destination = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, FileBufferSize, AsyncSequentialOptions);
 
             await using (destination.ConfigureAwait(false))
             {
@@ -345,6 +411,10 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
             Delete(path);
             throw;
         }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     /// <inheritdoc />
@@ -359,6 +429,18 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         if (!_downloads.TryRemove((sessionId, token), out StoredDownload? stored))
             return Task.FromResult<UIStagedDownload?>(null);
 
+        if (stored.Producer is not null)
+        {
+            return Task.FromResult<UIStagedDownload?>(new UIStagedDownload
+            {
+                FileName = stored.FileName,
+                ContentType = stored.ContentType,
+                Content = Stream.Null,
+                WriteToAsync = stored.Producer,
+                MaxBytes = stored.MaxBytes
+            });
+        }
+
         // Opened rather than checked first, as an upload is: once its entry is gone the orphan sweep may delete the file meanwhile.
         try
         {
@@ -366,12 +448,87 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
             {
                 FileName = stored.FileName,
                 ContentType = stored.ContentType,
-                Content = new FileStream(stored.Path, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 4096, FileOptions.DeleteOnClose)
+                Content = new FileStream(stored.Path!, FileMode.Open, FileAccess.Read, FileShare.Read, FileBufferSize, AsyncSequentialOptions | FileOptions.DeleteOnClose)
             });
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException)
         {
             return Task.FromResult<UIStagedDownload?>(null);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> TryDeliverDownloadAsync(string sessionId, string token, string destinationPath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_downloads.TryRemove((sessionId, token), out StoredDownload? stored))
+            return false;
+
+        var fullDestination = Path.GetFullPath(destinationPath);
+        var directory = Path.GetDirectoryName(fullDestination);
+        if (!string.IsNullOrEmpty(directory))
+            _ = Directory.CreateDirectory(directory);
+
+        if (stored.Producer is not null)
+        {
+            try
+            {
+                FileStream destination = new(fullDestination, FileMode.Create, FileAccess.Write, FileShare.None, FileBufferSize, AsyncSequentialOptions);
+                await using (destination.ConfigureAwait(false))
+                {
+                    using BoundedWriteStream bounded = new(destination, stored.MaxBytes);
+                    await stored.Producer(bounded, cancellationToken).ConfigureAwait(false);
+                }
+
+                return true;
+            }
+            catch
+            {
+                Delete(fullDestination);
+                throw;
+            }
+        }
+
+        if (stored.Path is null)
+            return false;
+
+        try
+        {
+            File.Move(stored.Path, fullDestination, overwrite: true);
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            // Cross-volume destination: copy once with async sequential handles and delete the staged source.
+            try
+            {
+                FileStream source = new(stored.Path, FileMode.Open, FileAccess.Read, FileShare.Read, FileBufferSize, AsyncSequentialOptions);
+                await using (source.ConfigureAwait(false))
+                {
+                    FileStream destination = new(fullDestination, FileMode.Create, FileAccess.Write, FileShare.None, FileBufferSize, AsyncSequentialOptions);
+                    await using (destination.ConfigureAwait(false))
+                        await source.CopyToAsync(destination, FileBufferSize, cancellationToken).ConfigureAwait(false);
+                }
+
+                return true;
+            }
+            finally
+            {
+                Delete(stored.Path);
+            }
         }
     }
 
@@ -402,7 +559,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
 
         // Deleted outside the lock: a disk write never holds back another session's count.
         foreach (StoredUpload upload in removed)
-            Delete(upload.Path);
+            DeleteOwnedUpload(upload);
 
         return Task.CompletedTask;
     }
@@ -413,9 +570,11 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         if (!session.Files.Remove(fileId, out StoredUpload? removed))
             return;
 
-        session.Charged -= UIAllowanceCharge.Of(removed.File);
+        session.Charged -= removed.OwnsFile ? UIAllowanceCharge.Of(removed.File) : UIAllowanceCharge.Overhead(removed.File.FileName);
         _uploadCount--;
-        _uploadSize -= removed.File.Size;
+
+        if (removed.OwnsFile)
+            _uploadSize -= removed.File.Size;
 
         if (session.Files.Count == 0)
             _ = _uploads.Remove(sessionId);
@@ -432,7 +591,10 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         List<StoredUpload> removed = [.. session.Files.Values];
 
         foreach (StoredUpload upload in removed)
-            _uploadSize -= upload.File.Size;
+        {
+            if (upload.OwnsFile)
+                _uploadSize -= upload.File.Size;
+        }
 
         return removed;
     }
@@ -450,12 +612,12 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
             uploads = RemoveSessionUploadsNoLock(sessionId);
 
         foreach (StoredUpload upload in uploads)
-            Delete(upload.Path);
+            DeleteOwnedUpload(upload);
 
         foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> entry in _downloads)
         {
-            if (string.Equals(entry.Key.SessionId, sessionId, StringComparison.Ordinal) && _downloads.TryRemove(entry.Key, out StoredDownload? removed))
-                Delete(removed.Path);
+            if (string.Equals(entry.Key.SessionId, sessionId, StringComparison.Ordinal) && _downloads.TryRemove(entry.Key, out StoredDownload? removed) && removed.Path is { } path)
+                Delete(path);
         }
 
         return Task.CompletedTask;
@@ -507,7 +669,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         }
 
         foreach ((_, StoredUpload upload) in expired)
-            Delete(upload.Path);
+            DeleteOwnedUpload(upload);
 
         var removed = expired.Count;
 
@@ -515,7 +677,9 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         {
             if (entry.Value.CreatedAtUtc + downloadRetention <= utcNow && _downloads.TryRemove(entry))
             {
-                Delete(entry.Value.Path);
+                if (entry.Value.Path is { } path)
+                    Delete(path);
+
                 removed++;
             }
         }
@@ -535,12 +699,18 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
             foreach (SessionUploads session in _uploads.Values)
             {
                 foreach (StoredUpload upload in session.Files.Values)
-                    _ = claimed.Add(upload.Path);
+                {
+                    if (upload.OwnsFile)
+                        _ = claimed.Add(upload.Path);
+                }
             }
         }
 
         foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> entry in _downloads)
-            _ = claimed.Add(entry.Value.Path);
+        {
+            if (entry.Value.Path is { } path)
+                _ = claimed.Add(path);
+        }
 
         var removed = 0;
 
@@ -578,6 +748,12 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         return removed;
     }
 
+    private static void DeleteOwnedUpload(StoredUpload upload)
+    {
+        if (upload.OwnsFile)
+            Delete(upload.Path);
+    }
+
     private static void Delete(string path)
     {
         try
@@ -604,7 +780,7 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
             foreach (SessionUploads session in _uploads.Values)
             {
                 foreach (StoredUpload upload in session.Files.Values)
-                    Delete(upload.Path);
+                    DeleteOwnedUpload(upload);
             }
 
             _uploads.Clear();
@@ -613,8 +789,61 @@ internal sealed class FileSystemUIFileStore : IUIFileStore, IDisposable
         }
 
         foreach (KeyValuePair<(string SessionId, string Token), StoredDownload> entry in _downloads)
-            Delete(entry.Value.Path);
+        {
+            if (entry.Value.Path is { } path)
+                Delete(path);
+        }
 
         _downloads.Clear();
+    }
+
+    private sealed class BoundedWriteStream(Stream inner, long? maxBytes) : Stream
+    {
+        private long _written;
+
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => _written;
+        public override long Position
+        {
+            get => _written;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() => inner.Flush();
+
+        public override Task FlushAsync(CancellationToken cancellationToken) => inner.FlushAsync(cancellationToken);
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count)
+            => Write(buffer.AsSpan(offset, count));
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            EnsureAllowance(buffer.Length);
+            inner.Write(buffer);
+        }
+
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            EnsureAllowance(buffer.Length);
+            return inner.WriteAsync(buffer, cancellationToken);
+        }
+
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        private void EnsureAllowance(int count)
+        {
+            _written += count;
+            if (maxBytes is long limit && _written > limit)
+                throw new InvalidOperationException("Staged download limit exceeded.");
+        }
     }
 }

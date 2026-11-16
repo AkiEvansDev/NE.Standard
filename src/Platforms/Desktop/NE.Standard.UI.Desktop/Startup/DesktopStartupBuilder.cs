@@ -79,13 +79,21 @@ public static class DesktopStartupBuilder
         where TStartup : UIStartupBase, new()
     {
         using DesktopBuiltHost host = Build<TDesktopStartup, TStartup>(args, configureOptions, configureServices);
+
+        // Warm Kestrel and WebView2 environment in parallel while WPF creates and lays out the window HWND.
+        ObserveFault(host.StartAsync());
+
         System.Windows.Application app = System.Windows.Application.Current ?? new System.Windows.Application
         {
             ShutdownMode = ShutdownMode.OnMainWindowClose
         };
 
         DesktopWindow window = host.CreateWindow();
+        ObserveFault(window.ShellControl.WarmEnvironmentAsync());
         window.Loaded += async (_, _) => await window.ShellControl.OpenInitialPageAsync().ConfigureAwait(true);
         return app.Run(window);
     }
+
+    private static void ObserveFault(Task task)
+        => _ = task.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 }

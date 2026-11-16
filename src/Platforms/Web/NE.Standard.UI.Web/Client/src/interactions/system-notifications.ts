@@ -22,19 +22,26 @@ export type SystemNotificationRequest = {
     readonly action?: string;
 };
 
+type DesktopNotificationBridge = (request: SystemNotificationRequest, click: () => void) => Promise<boolean>;
+
 /** What the browser offers for it; a test stands in for the browser's own. */
 export type SystemNotificationServices = {
     readonly permission: () => NotificationPermission | undefined;
+    // The native desktop host's own system toast, where the page runs inside NE.Standard.UI.Desktop.
+    readonly desktop?: DesktopNotificationBridge;
     // The application's service worker that shows it, where one is registered: a phone's browser shows none without it.
     readonly registration: () => Promise<Pick<ServiceWorkerRegistration, "showNotification"> | undefined>;
     readonly create: (title: string, options: NotificationOptions) => Pick<Notification, "close" | "addEventListener">;
     readonly focus: () => void;
 };
 
-/** The browser's own, showing through `registration` where a service worker is registered, else through the page. */
+/** The browser's own, showing through the desktop host where present, else `registration` where a service worker is registered, else through the page. */
 export function browserNotifications(registration?: SystemNotificationServices["registration"]): SystemNotificationServices {
+    const desktop = (globalThis as { __neDesktopShowNotification?: DesktopNotificationBridge }).__neDesktopShowNotification;
+
     return {
         permission: browserNotificationPermission,
+        desktop: typeof desktop === "function" ? desktop : undefined,
         registration: registration ?? (() => Promise.resolve(undefined)),
         create: (title, options) => new Notification(title, options),
         focus: () => window.focus()
@@ -48,6 +55,15 @@ export function browserNotifications(registration?: SystemNotificationServices["
 export async function showSystemNotification(request: SystemNotificationRequest, click: () => void, services: SystemNotificationServices = browserNotifications()): Promise<boolean> {
     if (services.permission() !== "granted")
         return false;
+
+    if (services.desktop !== undefined) {
+        try {
+            return await services.desktop(request, click);
+        }
+        catch {
+            return false;
+        }
+    }
 
     const data: NotificationClickData = { address: request.address, windowId: request.windowId, bringTo: request.bringTo, action: request.action };
     // `renotify`, which the DOM's types leave out: one replacing another of its tag is shown and sounded again, not swapped in

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
+using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -59,32 +61,70 @@ internal sealed class WebOutgoingValues
 
         for (var i = 0; i < changes.Updates.Length; i++)
         {
-            if (changes.Updates[i] is not ServerValueUIUpdate update || MeasuredJson(update.Value) is not { } json)
-                continue;
+            switch (changes.Updates[i])
+            {
+                case ServerValueUIUpdate update when MeasuredJson(update.Value) is { } json:
+                    staged ??= [.. changes.Updates];
+                    staged[i] = json.Length > LargeValueBytes && _store.TryStageOutgoing(sessionId, json, readers, attachOf, out var token)
+                        ? new ServerValueUIUpdate { Address = update.Address, ValueToken = token, Content = update.Content, ExceptInstanceId = update.ExceptInstanceId }
+                        : new ServerValueUIUpdate { Address = update.Address, Value = new WebRawJsonValue(json), Content = update.Content, ExceptInstanceId = update.ExceptInstanceId };
+                    break;
 
-            staged ??= [.. changes.Updates];
-            staged[i] = json.Length > LargeValueBytes && _store.TryStageOutgoing(sessionId, json, readers, attachOf, out var token)
-                ? new ServerValueUIUpdate { Address = update.Address, ValueToken = token, Content = update.Content, ExceptInstanceId = update.ExceptInstanceId }
-                : new ServerValueUIUpdate { Address = update.Address, Value = new WebRawJsonValue(json), Content = update.Content, ExceptInstanceId = update.ExceptInstanceId };
+                case ServerCollectionChangeUIUpdate collection when MeasuredItemsJson(collection) is { } itemsJson
+                    && itemsJson.Length > LargeValueBytes
+                    && _store.TryStageOutgoing(sessionId, itemsJson, readers, attachOf, out var itemsToken):
+                    staged ??= [.. changes.Updates];
+                    staged[i] = new ServerCollectionChangeUIUpdate
+                    {
+                        Action = collection.Action,
+                        Component = collection.Component,
+                        Items = [],
+                        ItemsToken = itemsToken,
+                        Trimmed = collection.Trimmed
+                    };
+                    break;
+
+                default:
+                    break;
+            }
         }
 
         return staged is null ? changes : new ServerChangeSet { Updates = staged };
     }
 
     /// <summary>
-    /// The value's JSON when serializing was needed to measure it, or null; a scalar is never large, and a short text is judged
-    /// by length alone.
+    /// The value's JSON when serializing was needed to measure it, or null; a scalar or fixed-size struct is never large, and a short
+    /// text or simple phrase is judged by length alone.
     /// </summary>
     private byte[]? MeasuredJson(object? value)
     {
-        if (value is null or bool or char or Enum or DateTime or DateTimeOffset or TimeSpan or DateOnly or TimeOnly or Guid or decimal || value.GetType().IsPrimitive)
+        if (value is null or bool or char or Enum or DateTime or DateTimeOffset or TimeSpan or DateOnly or TimeOnly or Guid or decimal
+            or UIThickness or UICornerRadius or UIGridPlacement or UIGridUnit or UILayoutLength or UIThemeColor or UITextAppearance
+            or UISelectionStyle or UITemporalStep or UIFileSize or UIMoment
+            || value.GetType().IsPrimitive)
+        {
             return null;
+        }
 
         // A character is at most six bytes of JSON escaped: a text this short cannot pass the threshold.
         if (value is string text && text.Length * 6 <= LargeValueBytes)
             return null;
 
+        if (value is UIPhrase { Arguments: null or { Count: 0 } } phrase && phrase.Key.Length * 6 <= LargeValueBytes - 64)
+            return null;
+
         return JsonSerializer.SerializeToUtf8Bytes(value, value.GetType(), _options);
+    }
+
+    private byte[]? MeasuredItemsJson(ServerCollectionChangeUIUpdate collection)
+    {
+        if (collection.ItemsToken is not null || collection.Items.Length == 0)
+            return null;
+
+        if (collection.Action == CollectionUpdateAction.Remove && collection.Items.Length <= 32)
+            return null;
+
+        return JsonSerializer.SerializeToUtf8Bytes(collection.Items, _options);
     }
 
     /// <summary>A command's result with its changes staged.</summary>

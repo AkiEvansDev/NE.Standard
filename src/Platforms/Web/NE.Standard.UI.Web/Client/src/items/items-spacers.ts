@@ -23,6 +23,7 @@ export type VirtualEntry = {
     item: unknown;
     element: Element | null;
     height: number | null;
+    projectedIndex: number;
 };
 
 /** What the host would show top to bottom once the rules have run: rows, and a header over each group. */
@@ -36,7 +37,12 @@ export type VirtualHostState = {
     entries: VirtualEntry[];
     // The entries by key, kept with them: a patch to one item of thousands finds it without a walk.
     byKey: Map<string, VirtualEntry>;
+    // Entries with a live DOM row (`element !== null`), so scroll passes unmount off-screen rows in O(visible).
+    mounted: Set<VirtualEntry>;
     projected: ProjectedRow[];
+    // Header count before each projected index when grouped; null when ungrouped so row place is `i`.
+    headersBefore: Int32Array | null;
+    nonHeaderCount: number;
     // Moved by every change to the items or to what the rules leave of them (`itemsVersion`): a package totalling them reads them again.
     version: number;
     headers: Map<string, { element: Element | null; height: number | null }>;
@@ -45,6 +51,12 @@ export type VirtualHostState = {
     // Every height measured so far: an estimate from the rows in view alone swings, and every unmeasured row above with it.
     itemHeights: RunningMean;
     headerHeights: RunningMean;
+    // Cached prefix sums of column row pitches (`prefix[0..count]`), reused without allocation across scroll passes.
+    prefix: Float64Array;
+    lastPrefix: Float64Array;
+    prefixRows: readonly ProjectedRow[] | null;
+    prefixGap: number;
+    prefixValid: boolean;
     // The last pass's rows and the pitches of its lines — a row each down a column, several tiles each in a wrapping host — and how
     // many tiles a line held, so a scroll pass can hold the line at the viewport's top where it was.
     laidOut: readonly ProjectedRow[] | null;
@@ -176,25 +188,29 @@ export function addMeasured(mean: RunningMean, previous: number | null, size: nu
  */
 export function keepVirtualCursorShown(host: Element, state: VirtualHostState, before: readonly ProjectedRow[]): void {
     const root = rowCursorRoot(host);
-    const marked = state.entries.find(entry => entry.element?.hasAttribute(RowFocusAttribute) === true) ?? null;
+    let marked: VirtualEntry | null = null;
+
+    for (const entry of state.mounted) {
+        if (entry.element?.hasAttribute(RowFocusAttribute) === true) {
+            marked = entry;
+            break;
+        }
+    }
+
     const key = marked?.key ?? (root === null ? null : waitingCursorKey(root));
 
     if (root === null || key === null)
         return;
 
-    const shown = new Set<string>();
+    const current = state.byKey.get(key);
 
-    for (const row of state.projected) {
-        if (!row.header)
-            shown.add(row.entry.key);
-    }
-
-    if (shown.has(key))
+    if (current !== undefined && current.projectedIndex >= 0)
         return;
 
     const order = before.filter(row => !row.header).map(row => row.entry);
     const at = order.findIndex(entry => entry.key === key);
-    const target = at < 0 ? undefined : order.slice(at + 1).find(entry => shown.has(entry.key)) ?? order.slice(0, at).reverse().find(entry => shown.has(entry.key));
+    const isShown = (entry: VirtualEntry): boolean => (state.byKey.get(entry.key)?.projectedIndex ?? -1) >= 0;
+    const target = at < 0 ? undefined : order.slice(at + 1).find(isShown) ?? order.slice(0, at).reverse().find(isShown);
 
     marked?.element?.removeAttribute(RowFocusAttribute);
 
@@ -227,7 +243,11 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
 
     let entries = state.entries;
 
+    for (let i = 0; i < entries.length; i++)
+        entries[i].projectedIndex = -1;
+
     bumpItemsVersion(host, state);
+    state.prefixValid = false;
 
     if ((config !== undefined && config.filters.length > 0) || (query?.filters ?? []).length > 0 || (query?.search?.trim().length ?? 0) > 0)
         entries = entries.filter(entry => itemMatchesFilters(config, entry.item, options.state, query));
@@ -238,7 +258,18 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
         if (sorts.length > 0)
             entries = sortByActiveSorts(entries, sorts, entry => entry.item);
 
-        state.projected = entries.map(entry => ({ entry, header: false }));
+        const projected: ProjectedRow[] = new Array<ProjectedRow>(entries.length);
+
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+
+            entry.projectedIndex = i;
+            projected[i] = { entry, header: false };
+        }
+
+        state.projected = projected;
+        state.headersBefore = null;
+        state.nonHeaderCount = projected.length;
         return;
     }
 
@@ -260,7 +291,21 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
             projected.push({ entry, header: false });
     }
 
+    const headersBefore = new Int32Array(projected.length);
+    let headers = 0;
+
+    for (let i = 0; i < projected.length; i++) {
+        headersBefore[i] = headers;
+
+        if (projected[i].header)
+            headers++;
+        else
+            projected[i].entry.projectedIndex = i;
+    }
+
     state.projected = projected;
+    state.headersBefore = headersBefore;
+    state.nonHeaderCount = projected.length - headers;
 
     for (const group of [...state.headers.keys()]) {
         if (!buckets.has(group)) {
@@ -271,7 +316,10 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
 }
 
 export function measureVirtualRows(state: VirtualHostState, rows: readonly ProjectedRow[], first: number, last: number): void {
+    const oldItemEstimate = state.itemEstimate;
+    const oldHeaderEstimate = state.headerEstimate;
     let widest = 0;
+    let slotChanged = false;
 
     for (let i = first; i < last && i < rows.length; i++) {
         const row = rows[i];
@@ -285,6 +333,11 @@ export function measureVirtualRows(state: VirtualHostState, rows: readonly Proje
 
         if (box.height <= 0)
             continue;
+
+        const previous = slot.height ?? (row.header ? oldHeaderEstimate : oldItemEstimate);
+
+        if (Math.abs(box.height - previous) > 1e-6)
+            slotChanged = true;
 
         addMeasured(row.header ? state.headerHeights : state.itemHeights, slot.height, box.height);
         slot.height = box.height;
@@ -301,6 +354,111 @@ export function measureVirtualRows(state: VirtualHostState, rows: readonly Proje
 
     if (state.headerHeights.count > 0)
         state.headerEstimate = state.headerHeights.sum / state.headerHeights.count;
+
+    if (slotChanged || Math.abs(state.itemEstimate - oldItemEstimate) > 1e-6 || Math.abs(state.headerEstimate - oldHeaderEstimate) > 1e-6)
+        state.prefixValid = false;
+}
+
+export function ensureColumnPrefix(state: VirtualHostState, rows: readonly ProjectedRow[], gap: number): { readonly prefix: Float64Array; readonly previousPrefix: Float64Array | null } {
+    const needed = rows.length + 1;
+
+    if (state.prefixValid && state.prefixRows === rows && state.prefixGap === gap)
+        return { prefix: state.prefix, previousPrefix: null };
+
+    const hasPrevious = state.laidOut === rows && state.prefixRows === rows && state.prefix.length >= needed;
+
+    if (hasPrevious) {
+        const swap = state.lastPrefix;
+        state.lastPrefix = state.prefix;
+        state.prefix = swap;
+    }
+
+    if (state.prefix.length < needed)
+        state.prefix = new Float64Array(needed);
+
+    const prefix = state.prefix;
+
+    prefix[0] = 0;
+
+    for (let i = 0; i < rows.length; i++)
+        prefix[i + 1] = prefix[i] + pitchOfVirtualRow(state, rows[i]) + gap;
+
+    state.prefixRows = rows;
+    state.prefixGap = gap;
+    state.prefixValid = true;
+
+    return { prefix, previousPrefix: hasPrevious ? state.lastPrefix : null };
+}
+
+export function holdTopLineColumn(host: Element, state: VirtualHostState, rows: readonly ProjectedRow[], prefix: Float64Array, previousPrefix: Float64Array | null, count: number, across: number, top: number, inset: number): number {
+    if (previousPrefix === null || state.laidOut !== rows || state.laidAcross !== across || top <= 0)
+        return top;
+
+    const firstLine = Math.max(0, Math.min(count, state.firstLine));
+    const lastLine = Math.max(firstLine, Math.min(count, state.lastLine));
+    const drawnDelta = (prefix[lastLine] - prefix[firstLine]) - (previousPrefix[lastLine] - previousPrefix[firstLine]);
+    const shownAt = (index: number): number => {
+        if (index <= firstLine)
+            return previousPrefix[index];
+
+        if (index <= lastLine)
+            return previousPrefix[firstLine] + (prefix[index] - prefix[firstLine]);
+
+        return previousPrefix[index] + drawnDelta;
+    };
+
+    let low = 0;
+    let high = count;
+
+    while (low < high) {
+        const mid = (low + high + 1) >>> 1;
+
+        if (shownAt(mid) <= top)
+            low = mid;
+        else
+            high = mid - 1;
+    }
+
+    const shift = prefix[low] - shownAt(low);
+
+    if (Math.abs(shift) < 0.5)
+        return top;
+
+    scrollHostTo(host, top + shift + inset);
+
+    return top + shift;
+}
+
+export function firstColumnLine(prefix: Float64Array, count: number, top: number): number {
+    let low = 0;
+    let high = count;
+
+    while (low < high) {
+        const mid = (low + high) >>> 1;
+
+        if (prefix[mid + 1] > top)
+            high = mid;
+        else
+            low = mid + 1;
+    }
+
+    return low === count ? Math.max(0, count - 1) : low;
+}
+
+export function lastColumnLine(prefix: Float64Array, count: number, bottom: number): number {
+    let low = 0;
+    let high = count;
+
+    while (low < high) {
+        const mid = (low + high) >>> 1;
+
+        if (prefix[mid] >= bottom)
+            high = mid;
+        else
+            low = mid + 1;
+    }
+
+    return low;
 }
 
 export function pitchOfVirtualRow(state: VirtualHostState, row: ProjectedRow): number {
@@ -354,6 +512,12 @@ export function holdTopLine(host: Element, state: VirtualHostState, rows: readon
 export function setElement(state: VirtualHostState, row: ProjectedRow, element: Element | null): void {
     if (!row.header) {
         row.entry.element = element;
+
+        if (element !== null)
+            state.mounted.add(row.entry);
+        else
+            state.mounted.delete(row.entry);
+
         return;
     }
 

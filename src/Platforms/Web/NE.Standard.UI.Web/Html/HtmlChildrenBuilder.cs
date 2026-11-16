@@ -11,7 +11,7 @@ namespace NE.Standard.UI.Web.Html;
 /// <remarks>A base rather than a list held by each: a page is tens of thousands of elements, and composition is one more object per element.</remarks>
 public abstract class HtmlChildrenBuilder : IHtmlBuilder
 {
-    private readonly List<IHtmlContent> _children = [];
+    private List<IHtmlContent>? _children;
 
     private protected HtmlChildrenBuilder()
     {
@@ -21,7 +21,7 @@ public abstract class HtmlChildrenBuilder : IHtmlBuilder
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        _children.Add(new RawHtmlContent(value));
+        (_children ??= []).Add(new RawHtmlContent(value));
 
         return this;
     }
@@ -30,7 +30,7 @@ public abstract class HtmlChildrenBuilder : IHtmlBuilder
     {
         ArgumentNullException.ThrowIfNull(value);
 
-        _children.Add(new TextHtmlContent(value));
+        (_children ??= []).Add(new TextHtmlContent(value));
 
         return this;
     }
@@ -43,7 +43,7 @@ public abstract class HtmlChildrenBuilder : IHtmlBuilder
         HtmlElementBuilder element = new(tag);
         configure(element);
 
-        _children.Add(element);
+        (_children ??= []).Add(element);
 
         return this;
     }
@@ -52,7 +52,7 @@ public abstract class HtmlChildrenBuilder : IHtmlBuilder
     {
         ArgumentNullException.ThrowIfNull(content);
 
-        _children.Add(content);
+        (_children ??= []).Add(content);
 
         return this;
     }
@@ -60,7 +60,10 @@ public abstract class HtmlChildrenBuilder : IHtmlBuilder
     /// <summary>Writes the children in the order they were added.</summary>
     protected void WriteChildren(TextWriter writer)
     {
-        for (var i = 0; i < _children.Count; i++)
-            _children[i].WriteTo(writer);
+        if (_children is not { Count: > 0 } children)
+            return;
+
+        for (var i = 0; i < children.Count; i++)
+            children[i].WriteTo(writer);
     }
 }

@@ -96,11 +96,14 @@ export class ShortcutEngine {
         if (!(domEvent instanceof KeyboardEvent) || domEvent.defaultPrevented || isComposing(domEvent))
             return;
 
+        // A key the field keeps — typing, and a caret's chord such as Ctrl+Left — is not the page's.
+        if (isFieldKey(domEvent))
+            return;
+
         if (this.stale || this.laterVersion !== (this.options.laterChords?.version ?? -1))
             this.rebuild();
 
-        // A key the field keeps — typing, and a caret's chord such as Ctrl+Left — is not the page's.
-        if ((this.claims.size === 0 && this.entryShortcuts.size === 0) || isFieldKey(domEvent))
+        if (this.claims.size === 0 && this.entryShortcuts.size === 0)
             return;
 
         const modal = findOpenModalDialog(this.root);

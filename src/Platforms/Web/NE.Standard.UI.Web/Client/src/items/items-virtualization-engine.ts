@@ -16,7 +16,7 @@ import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } 
 import { drawGroupHeader, markGroupEdges, markGroupHeader } from "./items-group-runs.ts";
 import { DefaultItemSize, resolveHostMode } from "../addressing/items-host-mode.ts";
 import { renderItemRow } from "./items-row-renderer.ts";
-import { BottomSpacer, TopSpacer, bumpItemsVersion, ensureSpacer, focusSpacer, groupOf, holdsFocus, holdTopLine, isColumn, isWrap, keepVirtualCursorShown, lineIndexOf, measureVirtualRows, pitchOfVirtualRow, projectVirtualHost, readGap, readPixels, refusesChoice, setElement, sum, tilesAcross, wrapLines } from "./items-spacers.ts";
+import { BottomSpacer, TopSpacer, bumpItemsVersion, ensureColumnPrefix, ensureSpacer, firstColumnLine, focusSpacer, groupOf, holdsFocus, holdTopLine, holdTopLineColumn, isColumn, isWrap, keepVirtualCursorShown, lastColumnLine, lineIndexOf, measureVirtualRows, pitchOfVirtualRow, projectVirtualHost, readGap, readPixels, refusesChoice, setElement, sum, tilesAcross, wrapLines } from "./items-spacers.ts";
 import type { VirtualEntry, VirtualHostState } from "./items-spacers.ts";
 import { stampRowIndices } from "./table-row-indices.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
@@ -29,8 +29,8 @@ import { registerRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 // How many rows beyond the visible ones are kept drawn on each side, so a short scroll has nothing to do.
 const Overscan = 6;
 
-// Milliseconds between two passes over the same host.
-const PassInterval = 60;
+// Milliseconds between two passes over the same host (~1 frame at 60 Hz).
+const PassInterval = 16;
 
 /** Where along the viewport a row brought in by `reveal` stands: at its top, at its bottom, or wherever shows it with the least scroll. */
 export type RevealEdge = "start" | "end" | "nearest";
@@ -141,14 +141,25 @@ export class ItemsVirtualizationEngine {
      * (`CanSelect`): a Shift range; null for a host this engine does not hold, or a key it does not show.
      */
     public rangeKeysOf(host: Element, from: string, to: string): readonly string[] | null {
-        const rows = this.states.get(host)?.projected.filter(row => !row.header);
-        const start = rows?.findIndex(row => row.entry.key === from) ?? -1;
-        const end = rows?.findIndex(row => row.entry.key === to) ?? -1;
+        const state = this.states.get(host);
+        const start = state?.byKey.get(from)?.projectedIndex ?? -1;
+        const end = state?.byKey.get(to)?.projectedIndex ?? -1;
 
-        if (rows === undefined || start < 0 || end < 0)
+        if (state === undefined || start < 0 || end < 0)
             return null;
 
-        return rows.slice(Math.min(start, end), Math.max(start, end) + 1).filter(row => refusesChoice(row.entry) === false).map(row => row.entry.key);
+        const low = Math.min(start, end);
+        const high = Math.max(start, end);
+        const keys: string[] = [];
+
+        for (let i = low; i <= high; i++) {
+            const row = state.projected[i];
+
+            if (!row.header && !refusesChoice(row.entry))
+                keys.push(row.entry.key);
+        }
+
+        return keys;
     }
 
     /** The keys of the rows the host shows, top to bottom once its rules have run, drawn or not; null for a host this engine does not hold. */
@@ -191,26 +202,39 @@ export class ItemsVirtualizationEngine {
      */
     public reveal(host: Element, key: string, edge: RevealEdge): Element | null {
         const state = this.states.get(host);
-        const index = state === undefined ? -1 : state.projected.findIndex(row => !row.header && row.entry.key === key);
+        const entry = state?.byKey.get(key);
+        const index = entry?.projectedIndex ?? -1;
 
-        if (state === undefined || index < 0)
+        if (state === undefined || entry === undefined || index < 0)
             return null;
 
-        const entry = state.projected[index].entry;
+        const wrap = isWrap(host);
 
         // A horizontal host draws every row, which the browser scrolls to itself.
-        if (!isWrap(host) && !isColumn(host))
+        if (!wrap && !isColumn(host))
             return entry.element;
 
         const style = getComputedStyle(host);
         const gap = readGap(style);
-        const pitches = state.projected.map(row => pitchOfVirtualRow(state, row) + gap);
-        const lines = isWrap(host) ? wrapLines(state.projected, pitches, state.across) : null;
-        const line = lines === null ? index : lineIndexOf(lines.starts, index);
-        const linePitches = lines?.pitches ?? pitches;
         // In the host's coordinates: the view's Padding stands above the first row inside the scroll.
-        const top = readPixels(style.paddingTop) + sum(linePitches, 0, line);
-        const bottom = top + linePitches[line] - gap;
+        let top = readPixels(style.paddingTop);
+        let bottom: number;
+
+        if (wrap) {
+            const pitches = state.projected.map(row => pitchOfVirtualRow(state, row) + gap);
+            const lines = wrapLines(state.projected, pitches, state.across);
+            const line = lineIndexOf(lines.starts, index);
+
+            top += sum(lines.pitches, 0, line);
+            bottom = top + lines.pitches[line] - gap;
+        }
+        else {
+            const { prefix } = ensureColumnPrefix(state, state.projected, gap);
+
+            top += prefix[index];
+            bottom = top + (prefix[index + 1] - prefix[index]) - gap;
+        }
+
         const scroll = readHostScroll(host);
         const target = edge === "start" || (edge === "nearest" && top < scroll.top)
             ? top
@@ -257,6 +281,7 @@ export class ItemsVirtualizationEngine {
         const previous = new Map(state.byKey);
         const next: VirtualEntry[] = [];
         const byKey = new Map<string, VirtualEntry>();
+        const mounted = new Set<VirtualEntry>();
         const renewed: string[] = [];
 
         for (const { key, item } of items) {
@@ -267,13 +292,30 @@ export class ItemsVirtualizationEngine {
             if (kept !== undefined && areValuesEqual(kept.item, item)) {
                 next.push(kept);
                 byKey.set(key, kept);
+
+                if (kept.element !== null)
+                    mounted.add(kept);
+
                 continue;
             }
 
             if (kept !== undefined)
                 renewed.push(key);
 
-            const entry: VirtualEntry = { key, item, element: this.renewRow(host, kept?.element ?? null), height: kept?.height ?? null };
+            const element = this.renewRow(host, kept?.element ?? null);
+            const projectedIndex = kept?.projectedIndex ?? -1;
+            const entry: VirtualEntry = { key, item, element, height: kept?.height ?? null, projectedIndex };
+
+            if (kept !== undefined) {
+                kept.element = null;
+                kept.projectedIndex = -1;
+
+                if (projectedIndex >= 0 && state.projected[projectedIndex]?.entry === kept)
+                    state.projected[projectedIndex] = { entry, header: false };
+            }
+
+            if (element !== null)
+                mounted.add(entry);
 
             next.push(entry);
             byKey.set(key, entry);
@@ -281,11 +323,15 @@ export class ItemsVirtualizationEngine {
 
         for (const dropped of previous.values()) {
             dropped.element?.remove();
+            dropped.element = null;
+            dropped.projectedIndex = -1;
             renewed.push(dropped.key);
         }
 
         state.entries = next;
         state.byKey = byKey;
+        state.mounted = mounted;
+        state.prefixValid = false;
         bumpItemsVersion(host, state);
 
         return renewed;
@@ -337,14 +383,18 @@ export class ItemsVirtualizationEngine {
             if (oldIndex >= 0)
                 state.entries.splice(oldIndex, 1);
 
+            state.mounted.delete(existing);
             this.dropRow(host, existing.element);
+            existing.element = null;
+            existing.projectedIndex = -1;
         }
 
-        const entry: VirtualEntry = { key, item, element: null, height: null };
+        const entry: VirtualEntry = { key, item, element: null, height: null, projectedIndex: -1 };
         const at = index === null || index > state.entries.length ? state.entries.length : index;
 
         state.entries.splice(at, 0, entry);
         state.byKey.set(key, entry);
+        state.prefixValid = false;
         bumpItemsVersion(host, state);
     }
 
@@ -365,10 +415,14 @@ export class ItemsVirtualizationEngine {
                 continue;
 
             state.byKey.delete(key);
+            state.mounted.delete(entry);
+            entry.projectedIndex = -1;
             gone.add(entry);
 
-            if (entry.element !== null)
+            if (entry.element !== null) {
                 rows.add(entry.element);
+                entry.element = null;
+            }
         }
 
         if (gone.size === 0)
@@ -381,6 +435,7 @@ export class ItemsVirtualizationEngine {
             row.remove();
 
         state.entries = state.entries.filter(entry => !gone.has(entry));
+        state.prefixValid = false;
         bumpItemsVersion(host, state);
         restoreCursor?.();
     }
@@ -397,15 +452,29 @@ export class ItemsVirtualizationEngine {
             return;
         }
 
+        state.mounted.delete(old);
+
         // Under its own key it is the same row drawn anew; under another, another row.
-        const entry: VirtualEntry = { key, item, element: key === oldKey ? this.renewRow(host, old.element) : null, height: old.height };
+        const element = key === oldKey ? this.renewRow(host, old.element) : null;
+        const projectedIndex = key === oldKey ? old.projectedIndex : -1;
+        const entry: VirtualEntry = { key, item, element, height: old.height, projectedIndex };
 
         if (key !== oldKey)
             this.dropRow(host, old.element);
 
+        old.element = null;
+        old.projectedIndex = -1;
+
+        if (element !== null)
+            state.mounted.add(entry);
+
+        if (projectedIndex >= 0 && state.projected[projectedIndex]?.entry === old)
+            state.projected[projectedIndex] = { entry, header: false };
+
         state.entries[state.entries.indexOf(old)] = entry;
         state.byKey.delete(oldKey);
         state.byKey.set(key, entry);
+        state.prefixValid = false;
         bumpItemsVersion(host, state);
     }
 
@@ -420,6 +489,7 @@ export class ItemsVirtualizationEngine {
         const at = newIndex === null || newIndex > state.entries.length ? state.entries.length : newIndex;
 
         state.entries.splice(at, 0, entry);
+        state.prefixValid = false;
         bumpItemsVersion(host, state);
     }
 
@@ -429,11 +499,15 @@ export class ItemsVirtualizationEngine {
         if (state === null)
             return;
 
-        for (const entry of state.entries)
+        for (const entry of state.mounted) {
             entry.element?.remove();
+            entry.element = null;
+        }
 
+        state.mounted.clear();
         state.entries = [];
         state.byKey.clear();
+        state.prefixValid = false;
         bumpItemsVersion(host, state);
     }
 
@@ -449,8 +523,12 @@ export class ItemsVirtualizationEngine {
         bumpItemsVersion(host, state);
 
         // A whole new item is a new row; a property written into the old one already reached the drawn row through its own patch.
-        if (path.length === 0)
+        if (path.length === 0) {
             entry.element = this.renewRow(host, entry.element);
+
+            if (entry.element === null)
+                state.mounted.delete(entry);
+        }
 
         return true;
     }
@@ -525,20 +603,21 @@ export class ItemsVirtualizationEngine {
 
     private layout(host: Element, state: VirtualHostState): void {
         const rows = state.projected;
+        const total = rows.length;
         const style = getComputedStyle(host);
         const gap = readGap(style);
-        const pitches = rows.map(row => pitchOfVirtualRow(state, row) + gap);
-        const total = rows.length;
         const across = state.across;
-        const lines = isWrap(host) ? wrapLines(rows, pitches, across) : null;
-        const linePitches = lines?.pitches ?? pitches;
-        const count = linePitches.length;
-
+        const wrap = isWrap(host);
+        const column = !wrap && isColumn(host);
+        const lines = wrap ? wrapLines(rows, rows.map(row => pitchOfVirtualRow(state, row) + gap), across) : null;
+        const linePitches = lines?.pitches ?? [];
+        const count = lines !== null ? linePitches.length : total;
+        let columnPrefix: Float64Array | null = null;
         let firstLine = 0;
         let lastLine = count;
 
         // A horizontal host is not laid out down the page, so every row is drawn; the values still drive it.
-        if ((lines !== null || isColumn(host)) && count > 0) {
+        if (lines !== null && count > 0) {
             // In the rows' own coordinates: the view's Padding stands above the first of them inside the scroll.
             const inset = readPixels(style.paddingTop);
             const scroll = readHostScroll(host);
@@ -568,30 +647,37 @@ export class ItemsVirtualizationEngine {
             firstLine = Math.max(0, firstLine - Overscan);
             lastLine = Math.min(count, lastLine + Overscan);
         }
+        else if (column && count > 0) {
+            const { prefix, previousPrefix } = ensureColumnPrefix(state, rows, gap);
+            const inset = readPixels(style.paddingTop);
+            const scroll = readHostScroll(host);
+            const top = holdTopLineColumn(host, state, rows, prefix, previousPrefix, count, across, scroll.top - inset, inset);
+            const bottom = top + scroll.height;
+
+            columnPrefix = prefix;
+            firstLine = Math.max(0, firstColumnLine(prefix, count, top) - Overscan);
+            lastLine = Math.min(count, lastColumnLine(prefix, count, bottom) + Overscan);
+        }
 
         const first = lines === null ? firstLine : lines.starts[firstLine] ?? total;
         // The lines' range in rows: from the first line's first row to the row the line past the last starts at.
         const last = lines === null ? lastLine : lastLine < count ? lines.starts[lastLine] : total;
 
         const ancestors = this.options.renderer.getAncestorStack(host);
+        const headersBefore = state.headersBefore;
         const drawn: Element[] = [];
         // Each drawn row with its place among the rows alone, for a table's reader (table-row-indices.ts): a header is not a table row,
         // and a windowed host, which cannot count the headers of rows it never read, counts the rows alone too.
         const placed: (readonly [Element, number])[] = [];
-        let place = -1;
         let changed = false;
         // The row holding the focus stays drawn out of range, where it belongs between two spacers: dropped, a grid's open editor and
         // its draft would go with it. Let go at the first pass after the focus left it.
         const focused = document.activeElement;
         let held: { readonly element: Element; readonly line: number } | null = null;
 
-        for (let i = 0; i < total; i++) {
+        for (let i = first; i < last; i++) {
             const row = rows[i];
-
-            if (!row.header)
-                place++;
-
-            const inRange = i >= first && i < last;
+            const place = row.header ? -1 : (headersBefore === null ? i : i - headersBefore[i]);
             const slot = row.header ? state.headers.get(groupOf(row.entry)) ?? null : row.entry;
             let element = slot?.element ?? null;
             const holdsFocused = element !== null && focused !== null && element.contains(focused);
@@ -603,23 +689,6 @@ export class ItemsVirtualizationEngine {
                 setElement(state, row, null);
                 element = null;
                 changed = true;
-            }
-
-            if (!inRange) {
-                if (element !== null && !row.header && holdsFocused) {
-                    held = { element, line: lines === null ? i : lineIndexOf(lines.starts, i) };
-                    placed.push([element, place]);
-                    continue;
-                }
-
-                if (element !== null) {
-                    // A row scrolled away keeps the keyboard's cursor waiting for it, as a row drawn anew does.
-                    this.dropRow(host, element);
-                    setElement(state, row, null);
-                    changed = true;
-                }
-
-                continue;
             }
 
             if (element !== null) {
@@ -654,16 +723,37 @@ export class ItemsVirtualizationEngine {
 
         const kept = new Set(drawn);
 
-        if (held !== null)
-            kept.add(held.element);
+        // Off-screen or filtered-out entries with a live row either stay held for focus or drop their DOM node in O(mounted).
+        for (const entry of [...state.mounted]) {
+            const element = entry.element;
 
-        // An entry the rules left out lets its row go for good: kept, it would come back with the values it had when it left.
-        for (const entry of state.entries) {
-            if (entry.element !== null && !kept.has(entry.element)) {
-                this.dropRow(host, entry.element);
-                entry.element = null;
-                changed = true;
+            if (element === null) {
+                state.mounted.delete(entry);
+                continue;
             }
+
+            if (kept.has(element))
+                continue;
+
+            const holdsFocused = focused !== null && element.contains(focused);
+
+            if (!holdsFocused && this.keptAsDrawn.has(element))
+                this.keptAsDrawn.delete(element);
+
+            const rowIndex = entry.projectedIndex;
+
+            if (rowIndex >= 0 && holdsFocused && rows[rowIndex]?.entry === entry) {
+                held = { element, line: lines === null ? rowIndex : lineIndexOf(lines.starts, rowIndex) };
+                kept.add(element);
+                placed.push([element, headersBefore === null ? rowIndex : rowIndex - headersBefore[rowIndex]]);
+                continue;
+            }
+
+            // A row scrolled away keeps the keyboard's cursor waiting for it, as a row drawn anew does.
+            this.dropRow(host, element);
+            entry.element = null;
+            state.mounted.delete(entry);
+            changed = true;
         }
 
         // Anything drawn by nobody here — a server row past the range, a header of an old pass — goes.
@@ -674,9 +764,11 @@ export class ItemsVirtualizationEngine {
             }
         }
 
-        for (const header of host.querySelectorAll(`:scope > [${GroupHeaderAttribute}]`)) {
-            if (!kept.has(header)) {
-                header.remove();
+        for (let i = host.children.length - 1; i >= 0; i--) {
+            const child = host.children[i];
+
+            if (child.hasAttribute(GroupHeaderAttribute) && !kept.has(child)) {
+                child.remove();
                 changed = true;
             }
         }
@@ -689,9 +781,15 @@ export class ItemsVirtualizationEngine {
         // The held row splits the spacer on its side in two around its own line: the rows stay where the spacers say they are.
         const above = held !== null && held.line < firstLine ? held : null;
         const below = held !== null && held.line >= lastLine ? held : null;
-        const before = sum(linePitches, 0, above?.line ?? firstLine);
-        const after = sum(linePitches, below === null ? lastLine : below.line + 1, count);
-        const between = held === null ? 0 : above !== null ? sum(linePitches, above.line + 1, firstLine) : sum(linePitches, lastLine, held.line);
+        const beforeEnd = above?.line ?? firstLine;
+        const afterStart = below === null ? lastLine : below.line + 1;
+        const before = columnPrefix !== null ? columnPrefix[beforeEnd] : lines !== null ? sum(linePitches, 0, beforeEnd) : 0;
+        const after = columnPrefix !== null ? columnPrefix[count] - columnPrefix[afterStart] : lines !== null ? sum(linePitches, afterStart, count) : 0;
+        const between = held === null
+            ? 0
+            : above !== null
+                ? (columnPrefix !== null ? columnPrefix[firstLine] - columnPrefix[above.line + 1] : lines !== null ? sum(linePitches, above.line + 1, firstLine) : 0)
+                : (columnPrefix !== null ? columnPrefix[held.line] - columnPrefix[lastLine] : lines !== null ? sum(linePitches, lastLine, held.line) : 0);
         const spacer = focusSpacer(host, between > 0 ? between - gap : 0);
         const order = above !== null ? [above.element, ...toNodes(spacer), ...drawn] : below !== null ? [...drawn, ...toNodes(spacer), below.element] : drawn;
 
@@ -701,7 +799,7 @@ export class ItemsVirtualizationEngine {
         ensureSpacer(host, BottomSpacer, after > 0 ? after - gap : 0);
         ensureEmptyState(host, state.componentId, this.options.templates, this.options.renderer, total > 0, state.entries.length > 0);
         markGroupEdges(host);
-        stampRowIndices(host, placed, place + 1);
+        stampRowIndices(host, placed, state.nonHeaderCount);
 
         if (changed || state.first !== first || state.last !== last) {
             state.first = first;
@@ -771,25 +869,33 @@ export class ItemsVirtualizationEngine {
 
         if (published.length > 0) {
             for (const value of published)
-                entries.push({ key: value.key, item: value.item, element: drawn.get(value.key) ?? null, height: null });
+                entries.push({ key: value.key, item: value.item, element: drawn.get(value.key) ?? null, height: null, projectedIndex: -1 });
         }
         else {
             // Nothing published: the rows themselves are all the host knows, as for a bound host before its first change set.
             for (const [key, element] of drawn)
-                entries.push({ key, item: this.options.renderer.getItemValue(element), element, height: null });
+                entries.push({ key, item: this.options.renderer.getItemValue(element), element, height: null, projectedIndex: -1 });
         }
 
         const state: VirtualHostState = {
             componentId,
             entries,
             byKey: new Map(entries.map(entry => [entry.key, entry])),
+            mounted: new Set(entries.filter(entry => entry.element !== null)),
             projected: [],
+            headersBefore: null,
+            nonHeaderCount: 0,
             version: 0,
             headers: new Map(),
             itemEstimate: DefaultItemSize,
             headerEstimate: DefaultItemSize,
             itemHeights: { sum: 0, count: 0 },
             headerHeights: { sum: 0, count: 0 },
+            prefix: new Float64Array(0),
+            lastPrefix: new Float64Array(0),
+            prefixRows: null,
+            prefixGap: 0,
+            prefixValid: false,
             laidOut: null,
             pitches: [],
             laidAcross: 1,

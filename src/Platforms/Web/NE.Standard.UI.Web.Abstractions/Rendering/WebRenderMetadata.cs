@@ -52,8 +52,35 @@ public sealed class WebRenderMetadata
     // One entry per component, property and row keys: a value inside an item template renders once per row and says the same.
     private readonly HashSet<(UIComponentId Component, string PropertyId, string Keys)> _wordKeys = [];
 
+    private WebRenderPropertyDefinitionMetadata[]? _cachedPropertyDefinitions;
+    private int _cachedPropertyDefinitionsTotal = -1;
+    private int _cachedUsedPropertyIdsCount = -1;
+
     public IReadOnlyList<WebRenderPropertyDefinitionMetadata> PropertyDefinitions
-        => [.. _propertyDefinitions.Where(definition => _usedPropertyDefinitionIds.Contains(definition.PropertyId))];
+    {
+        get
+        {
+            if (_cachedPropertyDefinitions is not null
+                && _cachedPropertyDefinitionsTotal == _propertyDefinitions.Count
+                && _cachedUsedPropertyIdsCount == _usedPropertyDefinitionIds.Count)
+            {
+                return _cachedPropertyDefinitions;
+            }
+
+            List<WebRenderPropertyDefinitionMetadata> used = [with(_usedPropertyDefinitionIds.Count)];
+            for (var i = 0; i < _propertyDefinitions.Count; i++)
+            {
+                WebRenderPropertyDefinitionMetadata definition = _propertyDefinitions[i];
+                if (_usedPropertyDefinitionIds.Contains(definition.PropertyId))
+                    used.Add(definition);
+            }
+
+            _cachedPropertyDefinitions = [.. used];
+            _cachedPropertyDefinitionsTotal = _propertyDefinitions.Count;
+            _cachedUsedPropertyIdsCount = _usedPropertyDefinitionIds.Count;
+            return _cachedPropertyDefinitions;
+        }
+    }
 
     public IReadOnlyList<WebRenderBindingMetadata> Bindings => _bindings;
 
@@ -609,12 +636,19 @@ public sealed class WebRenderMetadata
 
     private void CompleteValidationTargetMetadata()
     {
-        foreach ((UIComponentId field, UIPropertyAddress message) in _pendingValidationTargets)
+        var remaining = 0;
+
+        for (var i = 0; i < _pendingValidationTargets.Count; i++)
         {
+            (UIComponentId field, UIPropertyAddress message) = _pendingValidationTargets[i];
+
             // A target that never rendered is left out rather than refused: the page still works, the words simply have
             // nowhere to go, and the client says so once.
             if (!TryCreatePropertyMetadata(message, out WebRenderPropertyMetadata? messageMetadata))
+            {
+                _pendingValidationTargets[remaining++] = (field, message);
                 continue;
+            }
 
             _validationTargets.Add(new WebRenderValidationTargetMetadata
             {
@@ -622,12 +656,17 @@ public sealed class WebRenderMetadata
                 Message = messageMetadata!
             });
         }
+
+        if (remaining < _pendingValidationTargets.Count)
+            _pendingValidationTargets.RemoveRange(remaining, _pendingValidationTargets.Count - remaining);
     }
 
     private void CompleteExposedPropertyMetadata()
     {
-        foreach (UIPropertyAddress address in _pendingExposedProperties)
+        for (var i = 0; i < _pendingExposedProperties.Count; i++)
         {
+            UIPropertyAddress address = _pendingExposedProperties[i];
+
             if (TryCreatePropertyMetadata(address, out WebRenderPropertyMetadata? metadata))
             {
                 _exposedProperties.Add(metadata!);
@@ -640,21 +679,41 @@ public sealed class WebRenderMetadata
             // Refused rather than left out: a package that exposes a property its component never renders would set nothing, silently.
             throw new InvalidOperationException($"Exposed property '{address.Component.Id.Value}.{address.Property.Name}' is not rendered by its component.");
         }
+
+        _pendingExposedProperties.Clear();
     }
 
     private void CompleteItemsFilterSortMetadata()
     {
-        foreach ((CompiledUIItemsFilter compiled, WebRenderItemsFilterMetadata metadata) in _pendingItemsFilters)
+        var remainingFilters = 0;
+
+        for (var i = 0; i < _pendingItemsFilters.Count; i++)
         {
+            (CompiledUIItemsFilter compiled, WebRenderItemsFilterMetadata metadata) = _pendingItemsFilters[i];
+
             if (compiled.Source.Source is UIPropertyAddress source && TryCreatePropertyMetadata(source, out WebRenderPropertyMetadata? sourceMetadata))
                 metadata.Source = sourceMetadata;
+            else if (compiled.Source.Source is UIPropertyAddress)
+                _pendingItemsFilters[remainingFilters++] = (compiled, metadata);
         }
 
-        foreach ((CompiledUIItemsSort compiled, WebRenderItemsSortMetadata metadata) in _pendingItemsSorts)
+        if (remainingFilters < _pendingItemsFilters.Count)
+            _pendingItemsFilters.RemoveRange(remainingFilters, _pendingItemsFilters.Count - remainingFilters);
+
+        var remainingSorts = 0;
+
+        for (var i = 0; i < _pendingItemsSorts.Count; i++)
         {
+            (CompiledUIItemsSort compiled, WebRenderItemsSortMetadata metadata) = _pendingItemsSorts[i];
+
             if (compiled.Source.Source is UIPropertyAddress source && TryCreatePropertyMetadata(source, out WebRenderPropertyMetadata? sourceMetadata))
                 metadata.Source = sourceMetadata;
+            else if (compiled.Source.Source is UIPropertyAddress)
+                _pendingItemsSorts[remainingSorts++] = (compiled, metadata);
         }
+
+        if (remainingSorts < _pendingItemsSorts.Count)
+            _pendingItemsSorts.RemoveRange(remainingSorts, _pendingItemsSorts.Count - remainingSorts);
     }
 
     private static WebRenderBindingParameterMetadata ToParameterMetadata(CompiledUIBindingParameter parameter)
@@ -681,13 +740,13 @@ public sealed class WebRenderMetadata
 
     private static bool OperationEquals(WebDomOperation left, WebDomOperation right)
         => left.Kind == right.Kind &&
+           left.Condition == right.Condition &&
+           left.Optional == right.Optional &&
+           left.ConvertsNull == right.ConvertsNull &&
            string.Equals(left.Target, right.Target, StringComparison.Ordinal) &&
            string.Equals(left.Name, right.Name, StringComparison.Ordinal) &&
            string.Equals(left.Converter, right.Converter, StringComparison.Ordinal) &&
-           string.Equals(left.Value, right.Value, StringComparison.Ordinal) &&
-           left.Condition == right.Condition &&
-           left.Optional == right.Optional &&
-           left.ConvertsNull == right.ConvertsNull;
+           string.Equals(left.Value, right.Value, StringComparison.Ordinal);
 
     private static UIComponentId[] GetDynamicParameterComponentIds(IReadOnlyList<CompiledUIActionArgument> arguments)
         => [.. arguments

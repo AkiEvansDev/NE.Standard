@@ -22,8 +22,8 @@ export type LeaveGuardOptions = {
     readonly ask: (target: string) => Promise<readonly ClientEffect[] | undefined>;
     /** Runs an answer's effects. */
     readonly apply: (effects: readonly ClientEffect[] | undefined) => void;
-    /** Asks in the framework's own dialog; `leave` runs on its Leave, and nothing on Stay. */
-    readonly confirm: (target: string, leave: () => void) => void;
+    /** Asks in the framework's own dialog; `leave` runs on its Leave, and `stay` on Stay, Escape or the backdrop. */
+    readonly confirm: (target: string, leave: () => void, stay?: () => void) => void;
     /** Whether the page has values the server has not answered yet: a field waiting out its pause, a value queued or on its way. */
     readonly pending: () => boolean;
     /** Commits what waits and resolves once every value given has its answer applied. */
@@ -119,6 +119,44 @@ export class LeaveGuard {
     /** The framework's own question, a controller's answer or the page's own when the controller cannot be asked. */
     public confirm(target: string): void {
         this.options.confirm(target, () => this.leave(target));
+    }
+
+    /**
+     * Asks whether to close the desktop window: settles values still on their way first, closes at once where nothing is held, and
+     * otherwise asks in the framework's own dialog (`ui.leave.*`), releasing the unload question on Leave.
+     */
+    public async confirmCloseAsync(): Promise<boolean> {
+        if (!this.asks)
+            return true;
+
+        if (!this.holds) {
+            try {
+                await this.options.settle();
+            }
+            catch {
+                if (!this.guards)
+                    return true;
+            }
+
+            if (!this.holds)
+                return true;
+        }
+
+        return await new Promise<boolean>(resolve => {
+            let settled = false;
+            const finish = (allowClose: boolean): void => {
+                if (settled)
+                    return;
+
+                settled = true;
+                if (allowClose)
+                    this.release();
+
+                resolve(allowClose);
+            };
+
+            this.options.confirm("", () => finish(true), () => finish(false));
+        });
     }
 
     /** Leaves for `url` by a decision already made: the browser is not asked again. */

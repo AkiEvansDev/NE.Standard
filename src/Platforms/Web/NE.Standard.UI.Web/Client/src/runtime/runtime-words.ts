@@ -717,7 +717,7 @@ export function createLeaveGuardOptions(
             effects.applyAll(answeredEffects, dom);
             getWindows().reconsider();
         },
-        confirm: (_target, leave) => showLeaveDialog(dialogs, leave),
+        confirm: (_target, leave, stay) => showLeaveDialog(dialogs, leave, stay),
         pending: () => hasWaitingCommits() || valueChangeDispatcher.isBusy,
         settle: settleValues,
         follow: followInPlace

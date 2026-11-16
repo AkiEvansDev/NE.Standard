@@ -14,9 +14,6 @@ import type { ItemsTemplateRegistry } from "./items-template-registry";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 import type { ItemsVirtualizationEngine } from "./items-virtualization-engine";
 
-// A tree's node rows its walk has not filtered out; a row of waiting stands only beside a node, so it is never counted.
-const ShownTreeRowSelector = `:scope > .${TreeRowClass}:not(.${TreeRowFilteredClass})`;
-
 export type ItemsHostSyncContext = {
     readonly metadata: MetadataIndex;
     readonly templates: ItemsTemplateRegistry;
@@ -59,8 +56,23 @@ function syncItemsHostNow(host: Element, componentId: number, context: ItemsHost
     // A tree runs its own walk (a filter keeps a match's ancestors); the plain pass would hide a folder whose child matches.
     if (host.parentElement?.classList.contains(TreeRootClass) === true) {
         host.dispatchEvent(new Event(TreeRulesEventName, { bubbles: true }));
+        let hasAnyTreeRow = false;
+        let hasShownTreeRow = false;
+
+        for (const child of host.children) {
+            if (!child.classList.contains(TreeRowClass))
+                continue;
+
+            hasAnyTreeRow = true;
+
+            if (!child.classList.contains(TreeRowFilteredClass)) {
+                hasShownTreeRow = true;
+                break;
+            }
+        }
+
         // After the walk, which marks what a filter leaves out: a tree with no node to show draws its empty state, as a list does.
-        ensureEmptyState(host, componentId, context.templates, context.renderer, host.querySelector(ShownTreeRowSelector) !== null, host.querySelector(`:scope > .${TreeRowClass}`) !== null);
+        ensureEmptyState(host, componentId, context.templates, context.renderer, hasShownTreeRow, hasAnyTreeRow);
         return;
     }
 

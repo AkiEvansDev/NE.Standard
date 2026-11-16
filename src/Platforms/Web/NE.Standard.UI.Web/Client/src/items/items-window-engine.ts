@@ -641,7 +641,10 @@ function writeSkeletonSizes(host: Element, state: WindowState): void {
     const rowText = `${roundedPixels(state.skeletonRow)}px`;
     const tileText = state.skeletonTile !== null && state.skeletonTile > 0 ? `${roundedPixels(state.skeletonTile)}px` : "";
 
-    for (const spacer of host.querySelectorAll<HTMLElement>(`:scope > [${WindowSpacerAttribute}]`)) {
+    for (const spacer of host.children) {
+        if (!(spacer instanceof HTMLElement) || !spacer.hasAttribute(WindowSpacerAttribute))
+            continue;
+
         const style = spacer.style;
 
         if (style.getPropertyValue(RowSizeProperty) !== rowText)

@@ -30,9 +30,11 @@ export function regroupWindow(host: Element, draw: (row: Element) => Element | n
         previous = group;
     }
 
-    for (const header of host.querySelectorAll(`:scope > [${GroupHeaderAttribute}]`)) {
-        if (!kept.has(header))
-            header.remove();
+    for (let index = host.children.length - 1; index >= 0; index--) {
+        const child = host.children[index];
+
+        if (child.hasAttribute(GroupHeaderAttribute) && !kept.has(child))
+            child.remove();
     }
 
     markGroupEdges(host);

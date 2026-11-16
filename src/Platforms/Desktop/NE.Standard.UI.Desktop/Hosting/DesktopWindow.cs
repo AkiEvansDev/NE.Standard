@@ -11,6 +11,8 @@ namespace NE.Standard.UI.Desktop.Hosting;
 /// <summary>Native Windows desktop window hosting a <see cref="DesktopShellControl"/> with theme-synchronized DWM window chrome.</summary>
 public sealed class DesktopWindow : Window
 {
+    private WindowState _restoreWindowState = WindowState.Normal;
+    private bool _hasActivatedOnce;
     private bool _closeConfirmed;
     private bool _checkingUnsavedClose;
 
@@ -37,12 +39,17 @@ public sealed class DesktopWindow : Window
         ApplyWindowChrome();
 
         SourceInitialized += OnWindowSourceInitialized;
+        Activated += OnWindowActivated;
+        Deactivated += OnWindowDeactivated;
+        StateChanged += OnWindowStateChanged;
+        IsVisibleChanged += OnWindowIsVisibleChanged;
         PreviewKeyDown += OnWindowPreviewKeyDown;
         Closing += OnWindowClosing;
         Closed += OnWindowClosed;
 
         ShellControl.TitleChanged += OnShellTitleChanged;
         ShellControl.ThemeChanged += OnShellThemeChanged;
+        ShellControl.WindowActivationRequested += OnShellWindowActivationRequested;
     }
 
     /// <summary>Gets the backing <see cref="DesktopWebHost"/>.</summary>
@@ -64,7 +71,35 @@ public sealed class DesktopWindow : Window
     }
 
     private void OnWindowSourceInitialized(object? sender, EventArgs e)
-        => ApplyWindowChrome();
+    {
+        ApplyWindowChrome();
+        SyncShellSurfaceVisibility();
+    }
+
+    private void SyncShellSurfaceVisibility()
+        => ShellControl.IsSurfaceVisible = IsVisible
+            && WindowState != WindowState.Minimized
+            && (IsActive || (!_hasActivatedOnce && !ShowActivated));
+
+    private void OnWindowActivated(object? sender, EventArgs e)
+    {
+        _hasActivatedOnce = true;
+        SyncShellSurfaceVisibility();
+    }
+
+    private void OnWindowDeactivated(object? sender, EventArgs e)
+        => SyncShellSurfaceVisibility();
+
+    private void OnWindowStateChanged(object? sender, EventArgs e)
+    {
+        if (WindowState != WindowState.Minimized)
+            _restoreWindowState = WindowState;
+
+        SyncShellSurfaceVisibility();
+    }
+
+    private void OnWindowIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        => SyncShellSurfaceVisibility();
 
     private void OnWindowPreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -95,15 +130,13 @@ public sealed class DesktopWindow : Window
             var hasUnsaved = await ShellControl.HasUnsavedWorkAsync().ConfigureAwait(true);
             if (hasUnsaved)
             {
-                MessageBoxResult answer = MessageBox.Show(
-                    this,
-                    "This page has unsaved changes. Are you sure you want to close the window?",
-                    Title,
-                    MessageBoxButton.OKCancel,
-                    MessageBoxImage.Warning
-                );
+                if (WindowState == WindowState.Minimized)
+                    WindowState = _restoreWindowState;
 
-                if (answer != MessageBoxResult.OK)
+                _ = ShellControl.WebView.Focus();
+
+                var allowClose = await ShellControl.ConfirmCloseAsync().ConfigureAwait(true);
+                if (!allowClose)
                 {
                     _checkingUnsavedClose = false;
                     return;
@@ -124,6 +157,7 @@ public sealed class DesktopWindow : Window
     {
         ShellControl.TitleChanged -= OnShellTitleChanged;
         ShellControl.ThemeChanged -= OnShellThemeChanged;
+        ShellControl.WindowActivationRequested -= OnShellWindowActivationRequested;
         ShellControl.Dispose();
     }
 
@@ -132,4 +166,22 @@ public sealed class DesktopWindow : Window
 
     private void OnShellThemeChanged(object? sender, EventArgs e)
         => ApplyWindowChrome();
+
+    private void OnShellWindowActivationRequested(object? sender, EventArgs e)
+    {
+        if (!IsVisible)
+            Show();
+
+        if (WindowState == WindowState.Minimized)
+            WindowState = _restoreWindowState;
+
+        if (ShowActivated)
+        {
+            _ = Activate();
+            DesktopDwmWindowHelper.BringToForeground(this);
+        }
+
+        SyncShellSurfaceVisibility();
+        _ = ShellControl.WebView.Focus();
+    }
 }

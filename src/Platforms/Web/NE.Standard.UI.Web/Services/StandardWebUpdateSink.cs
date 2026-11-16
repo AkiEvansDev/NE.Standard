@@ -65,9 +65,16 @@ internal sealed partial class StandardWebUpdateSink : IUIUpdateSink
         Log.SendingChanges(_logger, instanceIds.Count, handle.Instance.WindowId);
 
         // The runtime that sent it rides along: a page gone to another runtime over the same connection drops what this one still sends.
-        await _hub.Clients
-            .Clients([.. instanceIds])
-            .SendAsync("ui.changes", _outgoing.Stage(changes, handle.Session.SessionId, instanceIds), _stamps.Of(handle), cancellationToken)
+        ServerChangeSet staged = _outgoing.Stage(changes, handle.Session.SessionId, instanceIds);
+        var stamp = _stamps.Of(handle);
+        IReadOnlyList<string> recipients = instanceIds as IReadOnlyList<string> ?? [.. instanceIds];
+
+        IClientProxy proxy = recipients.Count == 1
+            ? _hub.Clients.Client(recipients[0])
+            : _hub.Clients.Clients(recipients);
+
+        await proxy
+            .SendAsync("ui.changes", staged, stamp, cancellationToken)
             .ConfigureAwait(false);
     }
 

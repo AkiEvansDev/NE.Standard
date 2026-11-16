@@ -343,16 +343,17 @@ internal sealed partial class UIRuntime
         if (_pendingFullResync)
             return;
 
-        IReadOnlyList<CompiledUIBinding> bindings = View.Bindings.GetControllerCollections(path, out var materializedParameters);
-
-        for (var i = 0; i < bindings.Count; i++)
+        if (View.Bindings.TryGetControllerCollections(path, out IReadOnlyList<CompiledUIBinding> bindings, out var materializedParameters))
         {
-            CompiledUIBinding binding = bindings[i];
+            for (var i = 0; i < bindings.Count; i++)
+            {
+                CompiledUIBinding binding = bindings[i];
 
-            if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
-                continue;
+                if (!TryAddressPush(binding, materializedParameters, out var dynamicParameters))
+                    continue;
 
-            AppendWholeCollectionNoLock(binding, path, dynamicParameters);
+                AppendWholeCollectionNoLock(binding, path, dynamicParameters);
+            }
         }
 
         _ = AppendDescendantCollectionUpdatesNoLock(path);

@@ -752,18 +752,36 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
         for (var i = 0; i < changes.Updates.Length; i++)
         {
-            if (changes.Updates[i] is not ServerValueUIUpdate { ValueToken: { } token } staged)
-                continue;
-
-            resolved ??= [.. changes.Updates];
-            var value = await FetchStagedValueAsync(token, cancellationToken).ConfigureAwait(false);
-            resolved[i] = new ServerValueUIUpdate
+            switch (changes.Updates[i])
             {
-                Address = staged.Address,
-                Value = value,
-                Content = staged.Content,
-                ExceptInstanceId = staged.ExceptInstanceId
-            };
+                case ServerValueUIUpdate { ValueToken: { } token } staged:
+                    resolved ??= [.. changes.Updates];
+                    var value = await FetchStagedValueAsync(token, cancellationToken).ConfigureAwait(false);
+                    resolved[i] = new ServerValueUIUpdate
+                    {
+                        Address = staged.Address,
+                        Value = value,
+                        Content = staged.Content,
+                        ExceptInstanceId = staged.ExceptInstanceId
+                    };
+                    break;
+
+                case ServerCollectionChangeUIUpdate { ItemsToken: { } itemsToken } stagedCollection:
+                    resolved ??= [.. changes.Updates];
+                    var bytes = await FetchStagedBytesAsync(itemsToken, cancellationToken).ConfigureAwait(false);
+                    ServerCollectionItemChange[] items = JsonSerializer.Deserialize<ServerCollectionItemChange[]>(bytes, WireOptions) ?? [];
+                    resolved[i] = new ServerCollectionChangeUIUpdate
+                    {
+                        Action = stagedCollection.Action,
+                        Component = stagedCollection.Component,
+                        Items = items,
+                        Trimmed = stagedCollection.Trimmed
+                    };
+                    break;
+
+                default:
+                    break;
+            }
         }
 
         return resolved is null ? changes : new ServerChangeSet { Updates = resolved };
@@ -771,13 +789,18 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
     private async Task<object?> FetchStagedValueAsync(string token, CancellationToken cancellationToken)
     {
+        var bytes = await FetchStagedBytesAsync(token, cancellationToken).ConfigureAwait(false);
+        using JsonDocument doc = JsonDocument.Parse(bytes);
+        return ObjectToInferredTypesConverter.ToInferredValue(doc.RootElement);
+    }
+
+    private async Task<byte[]> FetchStagedBytesAsync(string token, CancellationToken cancellationToken)
+    {
         var path = $"/_ne/values/{Uri.EscapeDataString(token)}?instance={Uri.EscapeDataString(InstanceId)}";
         using HttpResponseMessage response = await _session.HttpClient.GetAsync(new Uri(path, UriKind.Relative), cancellationToken).ConfigureAwait(false);
         _ = response.EnsureSuccessStatusCode();
 
-        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
-        using JsonDocument doc = JsonDocument.Parse(bytes);
-        return ObjectToInferredTypesConverter.ToInferredValue(doc.RootElement);
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<string> StageClientValueAsync(byte[] json, CancellationToken cancellationToken)

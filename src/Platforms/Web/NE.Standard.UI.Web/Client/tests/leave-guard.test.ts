@@ -97,7 +97,7 @@ type Guarded = {
     readonly window: FakeWindow;
     readonly guard: LeaveGuard;
     readonly asked: string[];
-    readonly confirmed: { target: string; leave: () => void }[];
+    readonly confirmed: { target: string; leave: () => void; stay?: () => void }[];
     answer: (target: string) => Promise<readonly ClientEffect[] | undefined>;
     /** Values still on their way; `values` answers them, the flag the answer carries set by the test meanwhile. */
     pending: boolean;
@@ -138,7 +138,7 @@ function guarded(): Guarded {
                     guard.confirm(String(effect.target));
             }
         },
-        confirm: (target, leave) => context.confirmed.push({ target, leave }),
+        confirm: (target, leave, stay) => context.confirmed.push({ target, leave, stay }),
         pending: () => context.pending,
         settle: async () => {
             context.settled++;
@@ -480,4 +480,32 @@ test("a press in a link's own menu or action bar is no leave, and the browser fo
     assert.deepEqual(asked, []);
     assert.deepEqual(followed, []);
     assert.deepEqual(window.assigned, []);
+});
+
+test("confirmCloseAsync settles pending values, closes unasked when nothing is held, and honours Stay and Leave when work is held", async () => {
+    const context = guarded();
+    const { window, guard, confirmed } = context;
+
+    assert.equal(await guard.confirmCloseAsync(), true);
+    assert.equal(confirmed.length, 0);
+
+    context.pending = true;
+    assert.equal(await guard.confirmCloseAsync(), true);
+    assert.equal(context.settled, 1);
+    assert.equal(confirmed.length, 0);
+
+    guard.set(true);
+    assert.equal(window.asksOnUnload(), true);
+
+    const stayDecision = guard.confirmCloseAsync();
+    assert.equal(confirmed.length, 1);
+    confirmed[0].stay?.();
+    assert.equal(await stayDecision, false);
+    assert.equal(window.asksOnUnload(), true);
+
+    const leaveDecision = guard.confirmCloseAsync();
+    assert.equal(confirmed.length, 2);
+    confirmed[1].leave();
+    assert.equal(await leaveDecision, true);
+    assert.equal(window.asksOnUnload(), false);
 });

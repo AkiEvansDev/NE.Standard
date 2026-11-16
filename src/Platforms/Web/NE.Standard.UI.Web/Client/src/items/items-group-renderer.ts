@@ -15,8 +15,12 @@ const headersByHost = new WeakMap<Element, Map<string, Element>>();
 
 function removeGroupHeaders(host: Element): void {
     // The host's own: a grouped list nested in a row keeps its headers.
-    for (const header of host.querySelectorAll(`:scope > [${GroupHeaderAttribute}]`))
-        header.remove();
+    for (let index = host.children.length - 1; index >= 0; index--) {
+        const child = host.children[index];
+
+        if (child.hasAttribute(GroupHeaderAttribute))
+            child.remove();
+    }
 }
 
 /** Buckets a host's rows by group, each under a header, in the order the groups first came; a window is headed between neighbours instead (`items-group-runs.ts`). */
@@ -78,9 +82,11 @@ export function regroupHost(host: Element, componentId: number, templates: Items
     // A header of a group gone, or one the server drew before any pass, goes; the rest move with their groups, the focus in them kept.
     const kept = new Set(headers.values());
 
-    for (const header of host.querySelectorAll(`:scope > [${GroupHeaderAttribute}]`)) {
-        if (!kept.has(header))
-            header.remove();
+    for (let index = host.children.length - 1; index >= 0; index--) {
+        const child = host.children[index];
+
+        if (child.hasAttribute(GroupHeaderAttribute) && !kept.has(child))
+            child.remove();
     }
 
     headersByHost.set(host, headers);

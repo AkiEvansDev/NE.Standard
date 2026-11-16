@@ -51,15 +51,104 @@ export function itemMatchesFilters(config: WebRenderItemsFilterSortMetadata | un
         && itemMatchesSearch(item, query?.search);
 }
 
-function itemMatchesSearch(item: unknown, search: string | null | undefined): boolean {
-    const trimmed = search?.trim() ?? "";
+const searchTextByItem = new WeakMap<object, string>();
+let cachedSearchRaw = "";
+let cachedSearchWords: readonly string[] = [];
 
-    if (trimmed.length === 0)
+/** Drops the cached lowercase search text of an object before an in-place patch mutates it. */
+export function forgetItemSearchText(item: unknown): void {
+    if (item !== null && typeof item === "object")
+        searchTextByItem.delete(item);
+}
+
+function itemMatchesSearch(item: unknown, search: string | null | undefined): boolean {
+    if (search === null || search === undefined || search.length === 0)
         return true;
 
-    const words = trimmed.toLowerCase().split(/\s+/);
+    const words = searchWordsOf(search);
+
+    if (words.length === 0)
+        return true;
+
+    if (item !== null && typeof item === "object" && !isPhrase(item) && !isAuthorText(item)) {
+        const text = searchTextOfObject(item);
+
+        for (let i = 0; i < words.length; i++) {
+            const word = words[i];
+
+            if (word.includes("\0") || !text.includes(word))
+                return false;
+        }
+
+        return true;
+    }
 
     return words.every(word => valueContainsWord(item, word));
+}
+
+function searchWordsOf(search: string): readonly string[] {
+    if (search === cachedSearchRaw)
+        return cachedSearchWords;
+
+    const trimmed = search.trim();
+
+    cachedSearchRaw = search;
+    cachedSearchWords = trimmed.length === 0 ? [] : trimmed.toLowerCase().split(/\s+/);
+
+    return cachedSearchWords;
+}
+
+function searchTextOfObject(item: object): string {
+    const cached = searchTextByItem.get(item);
+
+    if (cached !== undefined)
+        return cached;
+
+    const parts: string[] = [];
+
+    collectSearchParts(item, parts);
+
+    const text = parts.join("\0");
+
+    searchTextByItem.set(item, text);
+
+    return text;
+}
+
+function collectSearchParts(value: unknown, parts: string[]): void {
+    if (typeof value === "string") {
+        parts.push(value.toLowerCase());
+        return;
+    }
+
+    if (typeof value === "number") {
+        if (Number.isFinite(value))
+            parts.push(String(value).toLowerCase());
+
+        return;
+    }
+
+    if (isAuthorText(value)) {
+        parts.push(value.text.toLowerCase());
+        return;
+    }
+
+    if (isPhrase(value) || value === null || typeof value !== "object")
+        return;
+
+    if (Array.isArray(value)) {
+        for (let i = 0; i < value.length; i++)
+            collectSearchParts(value[i], parts);
+
+        return;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    for (const key in record) {
+        if (Object.hasOwn(record, key))
+            collectSearchParts(record[key], parts);
+    }
 }
 
 function valueContainsWord(value: unknown, word: string): boolean {

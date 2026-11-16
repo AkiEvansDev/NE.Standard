@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Shell.Sessions;
 
@@ -56,6 +57,18 @@ internal static class WebContentEndpoint
 
         var contentType = WebInertContent.Apply(http.Response, content.ContentType, http.RequestServices.GetRequiredService<IOptions<WebEndpointOptions>>().Value.InlinePassiveContent);
 
-        return Results.Stream(content.Content, contentType, content.FileName, enableRangeProcessing: true);
+        return Results.Stream(content.Content, contentType, content.FileName, content.LastModified, ParseEntityTag(content.ETag), enableRangeProcessing: true);
+    }
+
+    private static EntityTagHeaderValue? ParseEntityTag(string? etag)
+    {
+        if (string.IsNullOrWhiteSpace(etag))
+            return null;
+
+        if (EntityTagHeaderValue.TryParse(etag, out EntityTagHeaderValue? parsed))
+            return parsed;
+
+        var quoted = $"\"{etag.Replace("\"", string.Empty, StringComparison.Ordinal)}\"";
+        return EntityTagHeaderValue.TryParse(quoted, out parsed) ? parsed : null;
     }
 }

@@ -1,10 +1,10 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
-using System.Text;
+using System.IO.Pipelines;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -433,7 +433,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             MetadataJson = metadataJson,
             StringsJson = words.StringsJson,
             TemporalJson = words.TemporalJson,
-            HydrationJson = hydration.Json,
+            HydrationJsonUtf8 = hydration.JsonUtf8,
             StandInNavigation = string.Equals(UIRoutePath.Normalize(resolution.Navigation.Route), requestedRoute, StringComparison.Ordinal) ? null : resolution.Navigation
         };
 
@@ -697,7 +697,7 @@ public static partial class WebEndpointRouteBuilderExtensions
         WebCachedViewRender cached = new()
         {
             Html = RenderToUtf8(render.Content),
-            MetadataJson = Encoding.UTF8.GetBytes(WebShellRenderer.SerializeMetadata(render.Metadata)),
+            MetadataJson = WebShellRenderer.SerializeMetadataToUtf8(render.Metadata),
             InitBindingIds = initBindingIds
         };
 
@@ -710,8 +710,18 @@ public static partial class WebEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(content);
 
-        using StringWriter writer = new();
-        content.WriteTo(writer);
-        return Encoding.UTF8.GetBytes(writer.ToString());
+        Pipe pipe = new();
+
+        using (WebPipeTextWriter writer = new(pipe.Writer))
+        {
+            content.WriteTo(writer);
+            writer.Complete();
+        }
+
+        pipe.Writer.Complete();
+        _ = pipe.Reader.TryRead(out ReadResult read);
+        var bytes = read.Buffer.ToArray();
+        pipe.Reader.Complete();
+        return bytes;
     }
 }

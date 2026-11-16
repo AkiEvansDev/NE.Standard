@@ -78,8 +78,12 @@ internal sealed partial class WebSessionCookie
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return request.IsHttps ? _secureName : Name;
+        return NameForScheme(request.IsHttps);
     }
+
+    /// <summary>The cookie name for the transport scheme (<c>__Host-</c> prefixed over HTTPS, plain over HTTP).</summary>
+    public string NameForScheme(bool isHttps)
+        => isHttps ? _secureName : Name;
 
     /// <summary>Hands the client <paramref name="secret"/>: the one session cookie the response writes.</summary>
     public void Write(HttpContext http, UISessionOptions options, string secret)

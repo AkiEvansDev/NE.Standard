@@ -133,6 +133,8 @@ export type UploadedSelection = {
     readonly selectionId: string;
 };
 
+type DesktopUploadHandler = (files: readonly File[]) => Promise<UploadedSelection | null>;
+
 /**
  * Uploads the files once a sign-in's key is traded: an upload is kept under the session its cookie names, and the page's commands read
  * it under the session the server holds — once a sign-in moved it, the new id.
@@ -142,6 +144,17 @@ export async function uploadFilesAsync(files: Iterable<File>, onProgress: (perce
     const taken = [...files];
 
     await pageSessionKey.settled();
+
+    const desktopUpload = (globalThis as { __neDesktopUploadFiles?: DesktopUploadHandler }).__neDesktopUploadFiles;
+
+    if (desktopUpload !== undefined) {
+        const registered = await desktopUpload(taken);
+
+        if (registered !== null) {
+            onProgress(100);
+            return registered;
+        }
+    }
 
     return await sendFilesAsync(taken, onProgress);
 }

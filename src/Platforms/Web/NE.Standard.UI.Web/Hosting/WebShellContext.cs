@@ -125,6 +125,11 @@ public sealed class WebShellContext
     public string? HydrationJson { get; init; }
 
     /// <summary>
+    /// Gets <see cref="HydrationJson"/> already serialized as UTF-8; set, it is written directly without allocating a string.
+    /// </summary>
+    public ReadOnlyMemory<byte> HydrationJsonUtf8 { get; init; }
+
+    /// <summary>
     /// Gets the navigation the page was rendered for when it stands in for the one asked for — a sign-in, not-found or error
     /// page shown at the address that led there; null on a page that is what was asked for.
     /// </summary>

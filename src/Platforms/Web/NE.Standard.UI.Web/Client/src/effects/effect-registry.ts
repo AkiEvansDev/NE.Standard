@@ -435,15 +435,28 @@ export class EffectRegistry {
 
             // Once a sign-in's key is traded: a file staged for this page is the session's as the server holds it, the new id after a sign-in.
             pageSessionKey.load(() => {
-                const anchor = document.createElement("a");
+                const triggerBrowserDownload = (): void => {
+                    const anchor = document.createElement("a");
 
-                anchor.href = requestPath;
-                anchor.download = effect.fileName ?? "";
-                anchor.style.display = "none";
+                    anchor.href = requestPath;
+                    anchor.download = effect.fileName ?? "";
+                    anchor.style.display = "none";
 
-                document.body.appendChild(anchor);
-                anchor.click();
-                anchor.remove();
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    anchor.remove();
+                };
+                const desktopDownload = (globalThis as { __neDesktopDownloadFile?: (path: string, name: string) => Promise<boolean> }).__neDesktopDownloadFile;
+
+                if (desktopDownload !== undefined) {
+                    desktopDownload(requestPath, effect.fileName ?? "").then(handled => {
+                        if (!handled)
+                            triggerBrowserDownload();
+                    }, () => triggerBrowserDownload());
+                    return;
+                }
+
+                triggerBrowserDownload();
             });
         });
 

@@ -320,8 +320,8 @@ internal static partial class WebFileEndpoints
 
         var contentType = string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType;
 
-        // The session's own file: nothing between here and the browser may keep a copy.
-        http.Response.Headers.CacheControl = "no-store";
+        // Private to this browser session and immutable for its random file id: keeps shelf previews in memory cache without shared storage.
+        http.Response.Headers.CacheControl = "private, max-age=300, immutable";
 
         contentType = WebInertContent.Apply(http.Response, contentType, options.Value.InlinePassiveContent);
 
@@ -359,15 +359,79 @@ internal static partial class WebFileEndpoints
 
         // Saved, never shown: the option that shows a passive type inline has nothing to relax here.
         var contentType = WebInertContent.Apply(http.Response, staged.ContentType, inlinePassive: false);
+        ILogger logger = loggerFactory.CreateLogger(typeof(WebFileEndpoints));
+
+        if (staged.WriteToAsync is { } writeAsync)
+        {
+            return Results.Stream(
+                async output =>
+                {
+                    using StreamedDownloadSink sink = new(output, staged.MaxBytes);
+                    await writeAsync(sink, http.RequestAborted).ConfigureAwait(false);
+                    await output.FlushAsync(http.RequestAborted).ConfigureAwait(false);
+                    metrics.FileDownloaded(sink.BytesWritten);
+                    Log.Downloading(logger, sink.BytesWritten);
+                },
+                contentType
+            );
+        }
 
         // A stream that cannot say its length is counted as nothing rather than read twice.
         var bytes = staged.Content.CanSeek ? staged.Content.Length : 0;
-
-        ILogger logger = loggerFactory.CreateLogger(typeof(WebFileEndpoints));
 
         metrics.FileDownloaded(bytes);
         Log.Downloading(logger, bytes);
 
         return Results.Stream(staged.Content, contentType);
+    }
+
+    private sealed class StreamedDownloadSink(Stream inner, long? maxBytes) : Stream
+    {
+        public long BytesWritten { get; private set; }
+
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => BytesWritten;
+        public override long Position
+        {
+            get => BytesWritten;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() => inner.Flush();
+
+        public override Task FlushAsync(CancellationToken cancellationToken) => inner.FlushAsync(cancellationToken);
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count)
+            => Write(buffer.AsSpan(offset, count));
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            Count(buffer.Length);
+            inner.Write(buffer);
+        }
+
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            Count(buffer.Length);
+            return inner.WriteAsync(buffer, cancellationToken);
+        }
+
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        private void Count(int count)
+        {
+            BytesWritten += count;
+            if (maxBytes is long limit && BytesWritten > limit)
+                throw new InvalidOperationException("Staged download limit exceeded.");
+        }
     }
 }

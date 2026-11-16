@@ -557,6 +557,27 @@ export class WebUIRuntime {
         this.startPackageEngine(start);
     }
 
+    public hasUnsavedCloseWork(): boolean {
+        return !this.disposed && this.leaveGuard.asks;
+    }
+
+    public async confirmCloseAsync(): Promise<boolean> {
+        if (this.disposed)
+            return true;
+
+        const allowed = await this.leaveGuard.confirmCloseAsync();
+        if (!allowed)
+            return false;
+
+        if (this.inbound !== null) {
+            await this.inbound;
+            if (!this.disposed && this.leaveGuard.holdsUnsavedWork)
+                return await this.leaveGuard.confirmCloseAsync();
+        }
+
+        return true;
+    }
+
     public dispose(): void {
         if (this.disposed)
             return;

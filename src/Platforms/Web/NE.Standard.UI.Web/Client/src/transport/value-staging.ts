@@ -1,7 +1,7 @@
 // A value too large for the hub goes beside it both ways (docs/VALUES.md §2): posted as JSON and named by the returned token, or
 // arriving as a token and fetched before it is applied.
 
-import type { ServerChangeSet, ServerValueUIUpdate } from "../metadata/metadata-index";
+import type { ServerChangeSet, ServerCollectionChangeUIUpdate, ServerCollectionItemChange, ServerValueUIUpdate } from "../metadata/metadata-index";
 import { pageSessionKey } from "../state/session-key.ts";
 
 const StagePath = "/_ne/values";
@@ -28,15 +28,18 @@ export function largeValueBody(value: unknown): Uint8Array | null {
     return bytes.byteLength > LargeValueBytes ? bytes : null;
 }
 
-/** Whether a change set names a value the server staged, which has to be fetched before the change set can be applied. */
+/** Whether a change set names a value or collection slice the server staged, which has to be fetched before the change set can be applied. */
 export function hasStagedValues(changes: ServerChangeSet | undefined): boolean {
-    return changes?.updates?.some(update => typeof (update as ServerValueUIUpdate).valueToken === "string") === true;
+    return changes?.updates?.some(update =>
+        typeof (update as ServerValueUIUpdate).valueToken === "string"
+        || typeof (update as ServerCollectionChangeUIUpdate).itemsToken === "string"
+    ) === true;
 }
 
 /**
- * The change set with every staged value fetched into its update; the same change set when it names none. `instanceId` is the
- * connection the set arrived on: the server lets a value go once each connection it was sent to has read it, so a second read by one
- * tab never spends another's.
+ * The change set with every staged value or collection slice fetched into its update; the same change set when it names none.
+ * `instanceId` is the connection the set arrived on: the server lets a staged payload go once each connection it was sent to has
+ * read it, so a second read by one tab never spends another's.
  */
 export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefined, instanceId: string | null = null, timeoutMilliseconds = StagedValueTimeoutMilliseconds): Promise<ServerChangeSet | undefined> {
     if (changes === undefined || !hasStagedValues(changes))
@@ -45,22 +48,36 @@ export async function fetchStagedValuesAsync(changes: ServerChangeSet | undefine
     // Staged under the session as the server holds it: once a sign-in moved it, the new id, which only the traded cookie names.
     await pageSessionKey.settled();
 
-    // Only a value update carries a token, so the token alone says which updates to fetch.
+    const reader = instanceId === null ? "" : `?instance=${encodeURIComponent(instanceId)}`;
+
     const updates = await Promise.all((changes.updates ?? []).map(async update => {
-        const token = (update as ServerValueUIUpdate).valueToken;
+        const valueToken = (update as ServerValueUIUpdate).valueToken;
 
-        if (typeof token !== "string")
-            return update;
+        if (typeof valueToken === "string") {
+            const response = await fetch(`${StagePath}/${encodeURIComponent(valueToken)}${reader}`, { credentials: "same-origin", signal: AbortSignal.timeout(timeoutMilliseconds) });
 
-        const reader = instanceId === null ? "" : `?instance=${encodeURIComponent(instanceId)}`;
-        const response = await fetch(`${StagePath}/${encodeURIComponent(token)}${reader}`, { credentials: "same-origin", signal: AbortSignal.timeout(timeoutMilliseconds) });
+            if (!response.ok)
+                throw new Error(`Fetching a staged value failed with status ${response.status}.`);
 
-        if (!response.ok)
-            throw new Error(`Fetching a staged value failed with status ${response.status}.`);
+            const { valueToken: _, ...rest } = update as ServerValueUIUpdate;
 
-        const { valueToken: _, ...rest } = update as ServerValueUIUpdate;
+            return { ...rest, value: await response.json() as unknown };
+        }
 
-        return { ...rest, value: await response.json() as unknown };
+        const itemsToken = (update as ServerCollectionChangeUIUpdate).itemsToken;
+
+        if (typeof itemsToken === "string") {
+            const response = await fetch(`${StagePath}/${encodeURIComponent(itemsToken)}${reader}`, { credentials: "same-origin", signal: AbortSignal.timeout(timeoutMilliseconds) });
+
+            if (!response.ok)
+                throw new Error(`Fetching staged collection items failed with status ${response.status}.`);
+
+            const { itemsToken: _, ...rest } = update as ServerCollectionChangeUIUpdate;
+
+            return { ...rest, items: await response.json() as readonly ServerCollectionItemChange[] };
+        }
+
+        return update;
     }));
 
     return { ...changes, updates };

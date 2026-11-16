@@ -116,17 +116,25 @@ test("projectVirtualHost filters entries when query.search is active even with z
     const state: VirtualHostState = {
         componentId: 10,
         entries: [
-            { key: "a", item: { Id: "a", Title: "Alpha" }, element: null, height: 24 },
-            { key: "b", item: { Id: "b", Title: "Beta" }, element: null, height: 24 }
+            { key: "a", item: { Id: "a", Title: "Alpha" }, element: null, height: 24, projectedIndex: -1 },
+            { key: "b", item: { Id: "b", Title: "Beta" }, element: null, height: 24, projectedIndex: -1 }
         ],
         byKey: new Map(),
+        mounted: new Set(),
         projected: [],
+        headersBefore: null,
+        nonHeaderCount: 0,
         version: 0,
         headers: new Map(),
         itemEstimate: 24,
         headerEstimate: 24,
         itemHeights: { sum: 0, count: 0 },
         headerHeights: { sum: 0, count: 0 },
+        prefix: new Float64Array(0),
+        lastPrefix: new Float64Array(0),
+        prefixRows: null,
+        prefixGap: 0,
+        prefixValid: false,
         laidOut: null,
         pitches: [],
         laidAcross: 1,

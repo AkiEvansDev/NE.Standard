@@ -66,6 +66,16 @@ public sealed class UIContent : IAsyncDisposable, IDisposable
     /// </summary>
     public bool Immutable { get; init; }
 
+    /// <summary>
+    /// Gets an optional entity tag representing the current version of mutable content, enabling <c>304 Not Modified</c> revalidation.
+    /// </summary>
+    public string? ETag { get; init; }
+
+    /// <summary>
+    /// Gets an optional last-modified timestamp for conditional revalidation and range requests.
+    /// </summary>
+    public DateTimeOffset? LastModified { get; init; }
+
     /// <inheritdoc />
     public ValueTask DisposeAsync()
         => Content.DisposeAsync();

@@ -18,6 +18,7 @@ import {
     isContentItem, readItemPropertyPath, readsDrawnRow, resolveItemPropertyKey, tryReadCollectionItem, tryReadItemProperty, tryResolveItemTemplateValue, tryWriteCollectionItem
 } from "./binding-template-evaluator.ts";
 import type { ItemStackEntry, ItemValueStep } from "./binding-template-evaluator.ts";
+import { forgetItemSearchText } from "./items-filter-sort.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 
 type TemplateExtensions = {
@@ -469,6 +470,8 @@ export function writeItemValuePath(item: unknown, path: readonly ItemValueStep[]
     if (path.length === 0)
         return value;
 
+    forgetItemSearchText(item);
+
     let current: unknown = item;
 
     for (let i = 0; i < path.length - 1; i++) {
@@ -491,6 +494,7 @@ export function writeItemValuePath(item: unknown, path: readonly ItemValueStep[]
         }
 
         current = resolution.value;
+        forgetItemSearchText(current);
     }
 
     if (current === null || typeof current !== "object")

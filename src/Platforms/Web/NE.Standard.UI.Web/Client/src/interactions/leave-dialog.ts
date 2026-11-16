@@ -14,11 +14,11 @@ const CenteredDialogWidthCap = "560px";
 // Built once and kept: a page that took it off the body gets it back.
 let leaveDialog: HTMLElement | null = null;
 
-// The leave the open dialog asks about, and the engine that opened it: Leave runs it, and Stay, Escape and the backdrop never do.
-let pending: { readonly dialogs: DialogEngine; readonly leave: () => void } | null = null;
+// The leave the open dialog asks about, and the engine that opened it: Leave runs `leave`, and Stay, Escape and the backdrop run `stay`.
+let pending: { readonly dialogs: DialogEngine; readonly leave: () => void; readonly stay?: () => void } | null = null;
 
-/** Asks the reader whether to leave: Leave runs `leave`, Stay (first, where the focus lands) keeps the page. */
-export function showLeaveDialog(dialogs: DialogEngine, leave: () => void): void {
+/** Asks the reader whether to leave: Leave runs `leave`, Stay (first, where the focus lands), Escape and the backdrop run `stay`. */
+export function showLeaveDialog(dialogs: DialogEngine, leave: () => void, stay?: () => void): void {
     leaveDialog ??= buildDialog();
 
     const dialog = leaveDialog;
@@ -32,7 +32,13 @@ export function showLeaveDialog(dialogs: DialogEngine, leave: () => void): void 
     setText(dialog, "stay", clientStrings.text("ui.leave.stay"));
     setText(dialog, "leave", clientStrings.text("ui.leave.confirm"));
 
-    pending = { dialogs, leave };
+    if (pending !== null) {
+        const previous = pending;
+        pending = null;
+        previous.stay?.();
+    }
+
+    pending = { dialogs, leave, stay };
     dialogs.open(LeaveDialogKey);
 }
 
@@ -70,11 +76,16 @@ function buildDialog(): HTMLElement {
 
         if (choice === "leave")
             asked?.leave();
+        else
+            asked?.stay?.();
     });
 
     new MutationObserver(() => {
-        if (pending !== null && dialog.hasAttribute("hidden"))
+        if (pending !== null && dialog.hasAttribute("hidden")) {
+            const asked = pending;
             pending = null;
+            asked.stay?.();
+        }
     }).observe(dialog, { attributes: true, attributeFilter: ["hidden"] });
 
     return dialog;

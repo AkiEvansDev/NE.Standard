@@ -149,7 +149,7 @@ export class GridSplitterEngine {
 
         this.prepareEach(this.root.querySelectorAll<HTMLElement>(`.${GridSplitterClass}`));
 
-        observeComponents(this.root, `.${GridSplitterClass}`, { childList: true }, splitters => this.prepareEach(splitters));
+        observeComponents(this.root, `.${GridSplitterClass}`, { childList: true, addedOnly: true }, splitters => this.prepareEach(splitters));
 
         // A share the controller pushed; none on a bound bar puts the authored tracks back.
         observeComponents(this.root, `.${GridSplitterClass}`, { attributeFilter: [SplitterPositionAttribute] }, splitters => this.takeEach(splitters));

@@ -42,17 +42,29 @@ internal sealed class WebUIMetrics : IDisposable
         _filesTransferred = _meter.CreateCounter<long>("ne.ui.web.files.transferred", "By", "Bytes of files uploaded to and downloaded from the file endpoints.");
         _attaches = _meter.CreateCounter<long>("ne.ui.web.attaches", "{attach}", "Hub attaches by outcome: attached, fresh (its runtime gone, the page reloads), reload, or failed.");
 
-        _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held", () => ObserveHeld(services, static cache => cache.HeldCount), "{render}", "The renders the render cache holds in memory.");
-        _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held.size", () => ObserveHeld(services, static cache => cache.HeldBytes), "By", "The bytes the renders the render cache holds in memory take.");
+        _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held", () => ObserveHeldCount(services), "{render}", "The renders the render cache holds in memory.");
+        _ = _meter.CreateObservableUpDownCounter("ne.ui.web.render_cache.held.size", () => ObserveHeldBytes(services), "By", "The bytes the renders the render cache holds in memory take.");
         _ = _meter.CreateObservableCounter("ne.ui.web.render_cache.disk.io", () => ObserveDisk(services), "By", "Bytes the render cache read from and wrote to its folder.");
         _ = _meter.CreateObservableUpDownCounter("ne.ui.web.values.staged", () => values.Count, "{value}", "Values too large for the hub staged beside it now.");
         _ = _meter.CreateObservableUpDownCounter("ne.ui.web.values.staged.size", () => values.Size, "By", "The bytes the staged values hold now.");
     }
 
-    private static IEnumerable<Measurement<long>> ObserveHeld(IServiceProvider services, Func<FileSystemWebViewRenderCache, long> read)
+    private static IEnumerable<Measurement<long>> ObserveHeldCount(IServiceProvider services)
     {
-        if (services.GetService<IWebViewRenderCache>() is FileSystemWebViewRenderCache cache)
-            yield return new Measurement<long>(read(cache));
+        IWebViewRenderCache? cache = services.GetService<IWebViewRenderCache>();
+        if (cache is FileSystemWebViewRenderCache disk)
+            yield return new Measurement<long>(disk.HeldCount);
+        else if (cache is InMemoryWebViewRenderCache memory)
+            yield return new Measurement<long>(memory.HeldCount);
+    }
+
+    private static IEnumerable<Measurement<long>> ObserveHeldBytes(IServiceProvider services)
+    {
+        IWebViewRenderCache? cache = services.GetService<IWebViewRenderCache>();
+        if (cache is FileSystemWebViewRenderCache disk)
+            yield return new Measurement<long>(disk.HeldBytes);
+        else if (cache is InMemoryWebViewRenderCache memory)
+            yield return new Measurement<long>(memory.HeldBytes);
     }
 
     private static IEnumerable<Measurement<long>> ObserveDisk(IServiceProvider services)

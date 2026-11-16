@@ -33,6 +33,7 @@ public sealed class UIApplicationBuilder
     private readonly UISecurityOptions _security = new();
     private readonly UISessionOptions _sessions = new();
     private readonly UIFileOptions _files = new();
+    private readonly List<Action<UIFileOptions>> _fileConfigurations = [];
     private readonly List<IUIViewFilter> _viewFilters = [];
     private readonly List<IUICommandFilter> _commandFilters = [];
     private readonly UILocalizationOptions _localization = new();
@@ -91,6 +92,7 @@ public sealed class UIApplicationBuilder
 
         configure(_files);
         _files.Validate();
+        _fileConfigurations.Add(configure);
 
         return this;
     }
@@ -507,6 +509,9 @@ public sealed class UIApplicationBuilder
         _sessions.Validate();
         _files.Validate();
 
+        UIPlatformDefaults? platformDefaults = services.GetService<UIPlatformDefaults>();
+        UIFileOptions files = BuildFileOptions(platformDefaults);
+
         UILocalizationOptions localization = CloneLocalizationOptions(_localization);
         UIMissingWords? missingWords = BuildMissingWords(services, localization);
 
@@ -523,7 +528,7 @@ public sealed class UIApplicationBuilder
             CloneErrorHandlingOptions(_errorHandling),
             CloneSecurityOptions(_security),
             CloneSessionOptions(_sessions),
-            CloneFileOptions(_files),
+            files,
             localization,
             CloneTemporalOptions(_temporal),
             missingWords,
@@ -533,8 +538,23 @@ public sealed class UIApplicationBuilder
         )
         {
             Icon = _icon,
-            ReportsToPage = services.GetService<UIPlatformDefaults>()?.ReportsToPage == true
+            ReportsToPage = platformDefaults?.ReportsToPage == true
         };
+    }
+
+    private UIFileOptions BuildFileOptions(UIPlatformDefaults? platformDefaults)
+    {
+        if (platformDefaults?.ConfigureDefaultFiles is not { } seedDefaults)
+            return CloneFileOptions(_files);
+
+        UIFileOptions resolved = new();
+        seedDefaults(resolved);
+
+        for (var i = 0; i < _fileConfigurations.Count; i++)
+            _fileConfigurations[i](resolved);
+
+        resolved.Validate();
+        return CloneFileOptions(resolved);
     }
 
     /// <summary>
