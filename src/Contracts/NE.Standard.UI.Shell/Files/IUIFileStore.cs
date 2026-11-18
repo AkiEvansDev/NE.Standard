@@ -93,13 +93,29 @@ public interface IUIFileStore
             if (!string.IsNullOrEmpty(directory))
                 _ = Directory.CreateDirectory(directory);
 
-            FileStream destination = new(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await using (destination.ConfigureAwait(false))
+            try
             {
-                if (staged.WriteToAsync is not null)
-                    await staged.WriteToAsync(destination, cancellationToken).ConfigureAwait(false);
-                else
-                    await staged.Content.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+                FileStream destination = new(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                await using (destination.ConfigureAwait(false))
+                {
+                    if (staged.WriteToAsync is not null)
+                        _ = await staged.WriteBoundedToAsync(destination, cancellationToken).ConfigureAwait(false);
+                    else
+                        await staged.Content.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch
+            {
+                try
+                {
+                    if (File.Exists(destinationPath))
+                        File.Delete(destinationPath);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                }
+
+                throw;
             }
         }
 
@@ -157,6 +173,21 @@ public sealed class UIStagedDownload : IAsyncDisposable, IDisposable
     /// </summary>
     public long? MaxBytes { get; init; }
 
+    /// <summary>Streams <see cref="WriteToAsync"/> into <paramref name="destination"/> while enforcing <see cref="MaxBytes"/>, returning the bytes written.</summary>
+    public ValueTask<long> WriteBoundedToAsync(Stream destination, CancellationToken cancellationToken = default)
+        => WriteBoundedToAsync(WriteToAsync ?? throw new InvalidOperationException("The staged download carries no streaming producer."), MaxBytes, destination, cancellationToken);
+
+    /// <summary>Runs <paramref name="writeAsync"/> against <paramref name="destination"/> while enforcing <paramref name="maxBytes"/>, returning the bytes written.</summary>
+    public static async ValueTask<long> WriteBoundedToAsync(Func<Stream, CancellationToken, ValueTask> writeAsync, long? maxBytes, Stream destination, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(writeAsync);
+        ArgumentNullException.ThrowIfNull(destination);
+
+        using BoundedWriteStream bounded = new(destination, maxBytes);
+        await writeAsync(bounded, cancellationToken).ConfigureAwait(false);
+        return bounded.BytesWritten;
+    }
+
     /// <inheritdoc />
     public ValueTask DisposeAsync()
         => Content.DisposeAsync();
@@ -164,4 +195,59 @@ public sealed class UIStagedDownload : IAsyncDisposable, IDisposable
     /// <inheritdoc />
     public void Dispose()
         => Content.Dispose();
+
+    private sealed class BoundedWriteStream(Stream inner, long? maxBytes) : Stream
+    {
+        public long BytesWritten { get; private set; }
+
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => BytesWritten;
+        public override long Position
+        {
+            get => BytesWritten;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+            => inner.Flush();
+
+        public override Task FlushAsync(CancellationToken cancellationToken)
+            => inner.FlushAsync(cancellationToken);
+
+        public override int Read(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
+
+        public override long Seek(long offset, SeekOrigin origin)
+            => throw new NotSupportedException();
+
+        public override void SetLength(long value)
+            => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count)
+            => Write(buffer.AsSpan(offset, count));
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            EnsureAllowance(buffer.Length);
+            inner.Write(buffer);
+        }
+
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            EnsureAllowance(buffer.Length);
+            return inner.WriteAsync(buffer, cancellationToken);
+        }
+
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        private void EnsureAllowance(int count)
+        {
+            BytesWritten += count;
+            if (maxBytes is long limit && BytesWritten > limit)
+                throw new InvalidOperationException("Staged download limit exceeded.");
+        }
+    }
 }

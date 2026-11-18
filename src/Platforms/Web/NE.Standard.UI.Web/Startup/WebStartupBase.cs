@@ -1,29 +1,27 @@
 using System;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.ResponseCompression;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Configuration;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
-using NE.Standard.UI.Application;
-using NE.Standard.UI.Shell.Files;
-using NE.Standard.UI.Shell.Sessions;
-using NE.Standard.UI.Shell.Updates;
+using NE.Standard.UI.Abstractions.Styling.Theme;
+using NE.Standard.UI.Server.Startup;
+using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Startup;
 using NE.Standard.UI.Web.Abstractions.Assets;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Assets;
 using NE.Standard.UI.Web.Hosting;
 using NE.Standard.UI.Web.Rendering;
-using NE.Standard.UI.Web.Services;
 
 namespace NE.Standard.UI.Web.Startup;
 
+/// <summary>Base startup class for ASP.NET Core web hosts rendering HTML pages and serving live UI updates over SignalR.</summary>
 public abstract class WebStartupBase<TStartup>
     where TStartup : UIStartupBase, new()
 {
+    /// <summary>Configures the web host's services and the underlying <typeparamref name="TStartup"/> application.</summary>
     public void Configure(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -37,6 +35,7 @@ public abstract class WebStartupBase<TStartup>
         UIStartupBuilder.Configure<TStartup>(services);
     }
 
+    /// <summary>Configures additional host-specific services before the default web services are added.</summary>
     protected virtual void ConfigureServices(IServiceCollection services)
         => ArgumentNullException.ThrowIfNull(services);
 
@@ -46,84 +45,59 @@ public abstract class WebStartupBase<TStartup>
 
         WebServerRegistration.ConfigureDefaults(services);
 
+        services.TryAddSingleton<WebAssetCompression>();
         services.TryAddSingleton<IWebAssetRegistry, WebAssetRegistry>();
         services.TryAddSingleton<IWebRendererRegistry, WebRendererRegistry>();
         services.TryAddSingleton<IWebViewRenderer, WebViewRenderer>();
 
         services.TryAddSingleton<IWebViewRenderCache, FileSystemWebViewRenderCache>();
+        services.TryAddSingleton<IServerViewInitBindingsProvider, WebServerSeams>();
+        services.TryAddSingleton<IServerThemeColorsStylesheet, WebThemeColorsStylesheet>();
+        services.TryAddSingleton<IServerRenderCacheMetrics, WebRenderCacheMetrics>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebViewRenderCacheStartupTask>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebAssetCompressionStartupTask>());
     }
-}
 
-internal static class WebServerRegistration
-{
-    public static void ConfigureOptions(IServiceCollection services)
+    private sealed class WebServerSeams(IWebViewRenderCache renderCache, IWebViewRenderer renderer) : IServerViewInitBindingsProvider
     {
-        ArgumentNullException.ThrowIfNull(services);
+        public async ValueTask<IReadOnlyList<int>> GetInitBindingIdsAsync(UIViewResolution resolution, CancellationToken cancellationToken)
+        {
+            if (await renderCache.GetInitBindingIdsAsync(WebViewCacheKeys.Create(resolution), cancellationToken).ConfigureAwait(false) is { } cached)
+                return cached;
 
-        _ = services.AddOptions<WebEndpointOptions>();
-        _ = services.AddOptions<WebValueOptions>();
-        // Ahead of the application's own Configure, which so has the last word; a host with no configuration reads none.
-        _ = services.AddOptions<WebHubOptions>()
-            .Configure<IServiceProvider>(static (options, provider) => options.ReadConfiguration(provider.GetService<IConfiguration>()));
-        _ = services.AddOptions<WebResponseCompressionOptions>();
+            WebCachedViewRender render = await WebEndpointRouteBuilderExtensions.GetOrRenderViewAsync(resolution, renderer, renderCache, cancellationToken).ConfigureAwait(false);
+            return render.InitBindingIds ?? [];
+        }
     }
 
-    public static void ConfigureDefaults(IServiceCollection services)
+    private sealed class WebThemeColorsStylesheet : IServerThemeColorsStylesheet
     {
-        ArgumentNullException.ThrowIfNull(services);
+        public string BuildColorsCss(UITheme theme, UIThemeColors? colors)
+            => WebThemeColorsCss.For(theme, colors);
+    }
 
-        // Registered whether or not it is switched on: an unused registration costs nothing.
-        _ = services.AddResponseCompression();
-        _ = services.AddOptions<BrotliCompressionProviderOptions>()
-            .Configure<IOptions<WebResponseCompressionOptions>>(static (options, ui) => options.Level = ui.Value.Level);
-        _ = services.AddOptions<GzipCompressionProviderOptions>()
-            .Configure<IOptions<WebResponseCompressionOptions>>(static (options, ui) => options.Level = ui.Value.Level);
-        _ = services.AddOptions<ResponseCompressionOptions>()
-            .Configure<IOptions<WebResponseCompressionOptions>>(
-                static (options, ui) => options.EnableForHttps = ui.Value.EnableForHttps
-            );
+    private sealed class WebRenderCacheMetrics(IServiceProvider services) : IServerRenderCacheMetrics
+    {
+        public long HeldCount
+            => services.GetService<IWebViewRenderCache>() switch
+            {
+                FileSystemWebViewRenderCache disk => disk.HeldCount,
+                InMemoryWebViewRenderCache memory => memory.HeldCount,
+                _ => 0
+            };
 
-        // The limiter first, so a refused call never waits; the disconnect filter next, so a closed socket ends both the simulated wait
-        // and the hub method quietly rather than as a dispatcher error.
-        _ = services.AddSignalR(static options =>
-        {
-            options.AddFilter<WebHubCallLimiter>();
-            options.AddFilter<WebHubDisconnectFilter>();
-            options.AddFilter<WebHubLatency>();
-            // What a stateful reconnect replays: past it a push waits for the client's ack, so it holds about thirty messages at the
-            // 32 KB cap rather than SignalR's 100 KB, three — a push to a page whose socket blinked would stall the runtime's sends.
-            options.StatefulReconnectBufferSize = 1024 * 1024;
-        }).AddJsonProtocol();
-        _ = services.AddOptions<JsonHubProtocolOptions>()
-            .Configure<IServiceProvider>(static (options, provider) => WebHubProtocol.Configure(options, provider.GetService<UIApplication>()?.Security));
+        public long HeldBytes
+            => services.GetService<IWebViewRenderCache>() switch
+            {
+                FileSystemWebViewRenderCache disk => disk.HeldBytes,
+                InMemoryWebViewRenderCache memory => memory.HeldBytes,
+                _ => 0
+            };
 
-        services.TryAddSingleton<WebAssetCompression>();
-        services.TryAddSingleton(TimeProvider.System);
-        // The upload endpoint's count of bytes in flight per session; the value store keeps an allowance of its own.
-        services.TryAddSingleton<WebSessionAllowance>();
-        services.TryAddSingleton<WebSessionCookie>();
-        services.TryAddSingleton<WebValueStagingStore>();
-        services.TryAddSingleton<WebOutgoingValues>();
-        services.TryAddSingleton<WebRuntimeStamps>();
-        services.TryAddSingleton<WebHubCallLimiter>();
-        services.TryAddSingleton<WebHubDisconnectFilter>();
-        services.TryAddSingleton<WebHubLatency>();
-        services.TryAddSingleton<WebUIMetrics>();
-        services.TryAddSingleton<IUIUpdateSink, StandardWebUpdateSink>();
-        // A sign-in's new key reaches its page as a one-time token the page trades for the cookie.
-        services.TryAddSingleton<WebSessionKeys>();
-        services.TryAddSingleton<IUISessionKeyHandover>(static provider => provider.GetRequiredService<WebSessionKeys>());
-        services.TryAddSingleton<IUIDownloadAddressProvider, WebDownloadAddressProvider>();
-        services.TryAddSingleton<IUIContentAddressResolver>(new UIContentAddress(WebContentEndpoint.Prefix));
+        public long? DiskBytesRead
+            => services.GetService<IWebViewRenderCache>() is FileSystemWebViewRenderCache disk ? disk.DiskBytesRead : null;
 
-        // What depends on development is on there and off in production: missing words are reported where someone reads the log, and
-        // an author's mistake found as a page runs is told to that page's console too.
-        services.TryAddSingleton(static provider => new UIPlatformDefaults
-        {
-            ReportMissingWords = provider.GetService<IHostEnvironment>()?.IsDevelopment() == true,
-            ReportsToPage = provider.GetService<IHostEnvironment>()?.IsDevelopment() == true
-        });
+        public long? DiskBytesWritten
+            => services.GetService<IWebViewRenderCache>() is FileSystemWebViewRenderCache disk ? disk.DiskBytesWritten : null;
     }
 }

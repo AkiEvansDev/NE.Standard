@@ -1,3 +1,5 @@
+#pragma warning disable IDE0130 // Public Server entry point namespace while transport internals keep NE.Standard.UI.Web.Hosting.
+
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Routing;
@@ -13,5 +15,5 @@ public static class UIServerEndpointRouteBuilderExtensions
     /// and <c>/_ne/hub</c> without HTML page routes or browser assets.
     /// </summary>
     public static Task<IEndpointRouteBuilder> MapStandardUIServerAsync(this IEndpointRouteBuilder endpoints, CancellationToken cancellationToken = default)
-        => WebEndpointRouteBuilderExtensions.MapStandardUIServerCoreAsync(endpoints, cancellationToken);
+        => ServerEndpointCore.MapStandardUIServerCoreAsync(endpoints, cancellationToken);
 }

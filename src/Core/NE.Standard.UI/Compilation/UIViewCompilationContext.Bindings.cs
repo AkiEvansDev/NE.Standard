@@ -315,17 +315,5 @@ internal sealed partial class UIViewCompilationContext
         => component is IItemsHostComponent { HostMode: UIItemsHostMode.Windowed };
 
     private static bool TryGetItemsBinding(IItemsComponent component, out UIBinding binding)
-    {
-        foreach (UIBinding current in component.Bindings)
-        {
-            if (current.Target.Equals(IItemsComponent.ItemsProperty))
-            {
-                binding = current;
-                return true;
-            }
-        }
-
-        binding = default;
-        return false;
-    }
+        => component.TryGetBinding(IItemsComponent.ItemsProperty, out binding);
 }

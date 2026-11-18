@@ -1,6 +1,7 @@
 // With its extension: the node test runner loads this module as is, and the bundler takes either spelling.
 import { ItemsVersionAttribute, ItemsViewAccordionClass, ItemsViewStackClass, ItemsViewWrapClass, OrientationVerticalClass, RowCursorWaitsAttribute, RowFocusAttribute, TableScrollClass, WindowSpacerAttribute } from "../addressing/dom-attributes.ts";
 import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
+import { DefaultItemSize } from "../addressing/items-host-mode.ts";
 import { itemBox, scrollHostTo } from "../addressing/items-viewport.ts";
 import { forgetCursorName, rowCursorRoot, setRowFocus, waitingCursorKey } from "../interactions/row-cursor.ts";
 import type { MetadataIndex } from "../metadata/metadata-index.ts";
@@ -182,6 +183,14 @@ export function addMeasured(mean: RunningMean, previous: number | null, size: nu
     }
 }
 
+export function dropMeasured(mean: RunningMean, previous: number | null): void {
+    if (previous === null || mean.count <= 0)
+        return;
+
+    mean.count--;
+    mean.sum = mean.count === 0 ? 0 : Math.max(0, mean.sum - previous);
+}
+
 /**
  * A rule that left out the cursor's row — drawn, or waiting to be — moves the cursor to the nearest row it still shows, in the
  * order the reader last saw (`before`): the next below, else the last above.
@@ -309,10 +318,17 @@ export function projectVirtualHost(host: Element, state: VirtualHostState, optio
 
     for (const group of [...state.headers.keys()]) {
         if (!buckets.has(group)) {
-            state.headers.get(group)?.element?.remove();
+            const droppedHeader = state.headers.get(group);
+            droppedHeader?.element?.remove();
+            dropMeasured(state.headerHeights, droppedHeader?.height ?? null);
             state.headers.delete(group);
         }
     }
+
+    if (state.headerHeights.count > 0)
+        state.headerEstimate = state.headerHeights.sum / state.headerHeights.count;
+    else
+        state.headerEstimate = DefaultItemSize;
 }
 
 export function measureVirtualRows(state: VirtualHostState, rows: readonly ProjectedRow[], first: number, last: number): void {

@@ -1,3 +1,5 @@
+#pragma warning disable IDE0130 // Public Server entry point namespace while transport internals keep NE.Standard.UI.Web.Hosting.
+
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using NE.Standard.UI.Startup;

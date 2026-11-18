@@ -322,17 +322,39 @@ public abstract partial class MenuComponent<T> : ItemsComponentBase<T, IMenuItem
     protected override Action? SnapshotAuthoredState()
     {
         Action? restoreBase = base.SnapshotAuthoredState();
+        var defaultDepth = Nested == true ? 0 : DefaultSubmenuDepth;
+        var hadOwnDepth = _submenuDepth != defaultDepth;
+        var ownSubmenuDepth = _submenuDepth;
+        var hadToggleContent = _regions.TryGetValue(RegionNames.ToggleContent, out IVisualComponent? ownToggleContent);
+        var ownShowSearch = ShowSearch;
 
-        if (!_regions.TryGetValue(RegionNames.ToggleContent, out IVisualComponent? ownToggleContent))
+        if (!hadToggleContent && !hadOwnDepth)
             return restoreBase;
 
-        var ownShowSearch = ShowSearch;
+        Action? restoreToggleContent = SnapshotChildComponentState(ownToggleContent);
+
+        if (hadToggleContent)
+        {
+            _ = _regions.Remove(RegionNames.ToggleContent);
+            ShowSearch = null;
+        }
+
+        if (hadOwnDepth)
+            ConfigureSubmenuDepth(defaultDepth);
 
         return () =>
         {
             restoreBase?.Invoke();
-            _regions[RegionNames.ToggleContent] = ownToggleContent;
-            ShowSearch = ownShowSearch;
+
+            if (hadOwnDepth)
+                ConfigureSubmenuDepth(ownSubmenuDepth);
+
+            if (hadToggleContent)
+            {
+                _regions[RegionNames.ToggleContent] = ownToggleContent!;
+                ShowSearch = ownShowSearch;
+                restoreToggleContent?.Invoke();
+            }
         };
     }
 }

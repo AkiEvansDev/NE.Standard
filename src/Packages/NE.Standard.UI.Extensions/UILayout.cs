@@ -9,17 +9,15 @@ using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Primitives.Interaction;
-using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Extensions;
 
-/// <summary>
-/// The arrangements a page writes again and again: things down a column, things along a row, things in equal columns, and
-/// a main part with a side part. What stands side by side stands one under another where there is no room for it: two or three
-/// equal columns below the medium breakpoint (a phone), four or six and a side part below the extra-large one (a tablet, a
-/// laptop with a sidebar), where a third of the width is too narrow to read.
-/// </summary>
+/// <summary>Common responsive page layouts: vertical stacks, wrapping rows, equal columns, side splits, boards and list-detail panes.</summary>
+/// <remarks>
+/// Side-by-side arrangements stack vertically below the breakpoint where their columns become too narrow: two or three equal columns
+/// below <see cref="UIResponsiveTier.Md"/>, and four or six columns or a side split below <see cref="UIResponsiveTier.Xl"/>.
+/// </remarks>
 public static class UILayout
 {
     /// <summary>Things down a column, with the same air between each pair.</summary>
@@ -33,14 +31,10 @@ public static class UILayout
             .AddChildren(children);
     }
 
-    /// <summary>
-    /// Things along a row, wrapping onto the next when the row is narrower than they are. Beside a field with a caption over its box,
-    /// a thing with none (a button, a field without a title, words) stands level with the box on every line, a wrapped one included:
-    /// in a cell whose padding takes the caption's line, so what follows the row makes room for it.
-    /// </summary>
+    /// <summary>Arranges <paramref name="children"/> along a wrapping horizontal row, aligning uncaptioned controls with sibling field boxes.</summary>
     /// <remarks>
-    /// The row asks for it itself: a wrapping panel of the author's own implies nothing, since a wrapped line has no field beside it
-    /// the compiler can know of; a row accepts that line's air, as its cells always did.
+    /// Beside a field with a caption above its box, uncaptioned controls are wrapped in cells padded to the caption's height so wrapped
+    /// lines keep the same vertical alignment.
     /// </remarks>
     public static StackPanelComponent Row(double spacing = 8, params IVisualComponent[] children)
     {
@@ -228,13 +222,11 @@ public static class UILayout
             .AddChild(Place(Stack(spacing, end), 1, 2, 13, 12, spacing, wide: true, UIAlignment.Start));
     }
 
-    /// <summary>
-    /// Something at the start of a row and things at its far end — a title and its buttons, a line and its action, a search and its
-    /// Add: the end as wide as it is, never half the row, the start the rest, both on the row's middle, 12 px apart; beside a start
-    /// with a caption over its box (a titled field) the end stands level with the box, as a form row stands a control with no caption.
-    /// On a phone buttons with words stand under the start at the far end, as a page header's do; icons and the rest keep the row.
-    /// An icon or switcher at either end stands its glyph on the row's edge.
-    /// </summary>
+    /// <summary>Places <paramref name="start"/> on the leading edge and <paramref name="end"/> controls at the far edge of a row.</summary>
+    /// <remarks>
+    /// Aligns trailing controls with the input box when <paramref name="start"/> has a caption row, wraps word-carrying buttons onto a
+    /// row below <paramref name="start"/> on phones while keeping icon-only actions inline, and aligns edge glyphs flush with the row.
+    /// </remarks>
     public static ContainerComponent Ends(IVisualComponent start, params IVisualComponent[] end)
         => Ends(start, null, end, titleLine: false);
 
@@ -310,29 +302,51 @@ public static class UILayout
     private const double EndsAir = 12;
 
     /// <summary>
-    /// A list and the thing chosen in it side by side from the medium breakpoint — chats and a conversation, a tree and a note, mail
-    /// and a message — the list 280 px wide (200 to 480 with a <paramref name="splitter"/> between them) and 16 px of air, the list's scroller standing its overlay bar in that air (<see cref="ContainerComponent{T}.ScrollbarAir"/>), so its
-    /// rows end where a field over them does; with a splitter, the bar's room on either side of the splitter's track. Below the
-    /// breakpoint one at a time, the detail in the list's place once it is in front, with a Back of its own
-    /// (<c>UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md)</c>). The controller holds a <see cref="UIPanesState"/> at
-    /// <paramref name="statePath"/> and moves it by its <c>Show</c> calls; a <paramref name="placeholder"/> stands in the detail's
-    /// place while nothing is chosen (<see cref="UIPage.Empty(string, UIPhrase, UIPhrase, IVisualComponent[])"/>) — without one, start the state with something chosen. The splitter
-    /// writes the state's <see cref="UIPanesState.Share"/>. Give it the region's height where the panes scroll inside themselves.
+    /// A list and the thing chosen in it side by side from the medium breakpoint, driven by the <see cref="UIPanesState"/> at <paramref name="statePath"/>.
     /// </summary>
-    public static ContainerComponent Panes<TSource>(IVisualComponent list, IVisualComponent detail, Expression<Func<TSource, object?>> statePath, IVisualComponent? placeholder = null, bool splitter = false)
-        => Panes(list, detail, PresetBindings.Path(statePath), placeholder, splitter);
+    public static ContainerComponent Panes<TSource>(IVisualComponent list, IVisualComponent detail, Expression<Func<TSource, object?>> statePath, IVisualComponent? placeholder, bool splitter)
+        => Panes(list, detail, PresetBindings.Path(statePath), placeholder, splitter, stacked: false);
 
     /// <summary>
     /// A list and the thing chosen in it side by side from the medium breakpoint, driven by the <see cref="UIPanesState"/> at <paramref name="statePath"/>.
     /// </summary>
-    public static ContainerComponent Panes(IVisualComponent list, IVisualComponent detail, string statePath, IVisualComponent? placeholder = null, bool splitter = false)
+    public static ContainerComponent Panes(IVisualComponent list, IVisualComponent detail, string statePath, IVisualComponent? placeholder, bool splitter)
+        => Panes(list, detail, statePath, placeholder, splitter, stacked: false);
+
+    /// <summary>
+    /// A list and the thing chosen in it side by side from the medium breakpoint — or switching in one column at every width when
+    /// <paramref name="stacked"/> is <see langword="true"/> — driven by the <see cref="UIPanesState"/> at <paramref name="statePath"/>.
+    /// </summary>
+    public static ContainerComponent Panes<TSource>(IVisualComponent list, IVisualComponent detail, Expression<Func<TSource, object?>> statePath, IVisualComponent? placeholder = null, bool splitter = false, bool stacked = false)
+        => Panes(list, detail, PresetBindings.Path(statePath), placeholder, splitter, stacked);
+
+    /// <summary>
+    /// A list and the thing chosen in it side by side from the medium breakpoint — or switching in one column at every width when
+    /// <paramref name="stacked"/> is <see langword="true"/> — driven by the <see cref="UIPanesState"/> at <paramref name="statePath"/>.
+    /// </summary>
+    public static ContainerComponent Panes(IVisualComponent list, IVisualComponent detail, string statePath, IVisualComponent? placeholder = null, bool splitter = false, bool stacked = false)
     {
         ArgumentNullException.ThrowIfNull(list);
         ArgumentNullException.ThrowIfNull(detail);
         ArgumentException.ThrowIfNullOrWhiteSpace(statePath);
 
-        var detailColumn = splitter ? 3 : 2;
+        if (splitter && stacked)
+            throw new ArgumentException("Stacked panes stand one in the other's place and take no splitter.", nameof(splitter));
+
         UIGridPlacement whole = UIGridPlacement.At(1, 1, 24, 1);
+
+        if (stacked)
+        {
+            ContainerComponent stackedPanes = new ContainerComponent()
+                .AddChild(Pane(list, StatePath(statePath, nameof(UIPanesState.ListVisibility)), whole, UIThickness.Uniform(0)));
+
+            if (placeholder is not null)
+                _ = stackedPanes.AddChild(Pane(placeholder, StatePath(statePath, nameof(UIPanesState.PlaceholderVisibility)), whole, UIThickness.Uniform(0)));
+
+            return stackedPanes.AddChild(Pane(detail, StatePath(statePath, nameof(UIPanesState.DetailVisibility)), whole, UIThickness.Uniform(0)));
+        }
+
+        var detailColumn = splitter ? 3 : 2;
         UIResponsive<UIGridPlacement> listPlace = UIResponsive<UIGridPlacement>.Create(whole, md: UIGridPlacement.At(1, 1, 1, 1));
         UIResponsive<UIGridPlacement> detailPlace = UIResponsive<UIGridPlacement>.Create(whole, md: UIGridPlacement.At(detailColumn, 1, 25 - detailColumn, 1));
 
@@ -383,30 +397,53 @@ public static class UILayout
             .AddChild(child);
 
     /// <summary>
-    /// The list's visibility in <see cref="Panes"/>, as <see cref="UIPanesState"/> holds it: shown, but below the medium breakpoint hidden
-    /// while the detail is in front. Also for a part of the page that follows the list, such as a header over it.
+    /// The list's visibility in <see cref="Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/>: shown,
+    /// but below the medium breakpoint hidden while the detail is in front.
     /// </summary>
     public static UIResponsive<UIVisibility> PanesListVisibility(bool detailInFront)
-        => detailInFront ? UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible) : UIVisibility.Visible;
+        => PanesListVisibility(detailInFront, stacked: false);
 
     /// <summary>
-    /// The detail's visibility in <see cref="Panes"/>: below the medium breakpoint shown only while in front, from it beside the list
-    /// while something is <paramref name="chosen"/> — always, where no placeholder stands in for nothing.
+    /// The list's visibility in <see cref="Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/>, hidden at
+    /// every width while the detail is in front when <paramref name="stacked"/> is <see langword="true"/>.
     /// </summary>
-    public static UIResponsive<UIVisibility> PanesDetailVisibility(bool detailInFront, bool chosen = true)
+    public static UIResponsive<UIVisibility> PanesListVisibility(bool detailInFront, bool stacked = false)
+        => detailInFront
+            ? stacked ? UIVisibility.Collapsed : UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible)
+            : UIVisibility.Visible;
+
+    /// <summary>
+    /// The detail's visibility in <see cref="Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/>: below the
+    /// medium breakpoint shown only while in front, from it beside the list while something is <paramref name="chosen"/>.
+    /// </summary>
+    public static UIResponsive<UIVisibility> PanesDetailVisibility(bool detailInFront, bool chosen)
+        => PanesDetailVisibility(detailInFront, chosen, stacked: false);
+
+    /// <summary>
+    /// The detail's visibility in <see cref="Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/>, shown only
+    /// while in front at every width when <paramref name="stacked"/> is <see langword="true"/>.
+    /// </summary>
+    public static UIResponsive<UIVisibility> PanesDetailVisibility(bool detailInFront, bool chosen = true, bool stacked = false)
     {
         if (!chosen)
             return UIVisibility.Collapsed;
 
+        if (stacked)
+            return detailInFront ? UIVisibility.Visible : UIVisibility.Collapsed;
+
         return detailInFront ? UIVisibility.Visible : UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible);
     }
 
-    /// <summary>The placeholder's visibility in <see cref="Panes"/>: beside the list from the medium breakpoint while nothing is chosen.</summary>
+    /// <summary>The placeholder's visibility in <see cref="Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/>.</summary>
     public static UIResponsive<UIVisibility> PanesPlaceholderVisibility(bool chosen)
-        => chosen ? UIVisibility.Collapsed : UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible);
+        => PanesPlaceholderVisibility(chosen, stacked: false);
+
+    /// <summary>The placeholder's visibility in <see cref="Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/>.</summary>
+    public static UIResponsive<UIVisibility> PanesPlaceholderVisibility(bool chosen, bool stacked = false)
+        => chosen || stacked ? UIVisibility.Collapsed : UIResponsive<UIVisibility>.Create(UIVisibility.Collapsed, md: UIVisibility.Visible);
 
     /// <summary>
-    /// A band over the list of <see cref="Panes"/> — the list's header in the page's header region — as wide as the list from the medium
+    /// A band over the list of <see cref="Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/> — the list's header in the page's header region — as wide as the list from the medium
     /// breakpoint, its own side padding outside it, so its words stand over the list's and its far end over the list's end; the whole
     /// width below. Without a splitter: a list the viewer widens is wider than a band can know.
     /// </summary>

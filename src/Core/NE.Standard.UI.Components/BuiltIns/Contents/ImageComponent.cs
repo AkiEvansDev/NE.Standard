@@ -66,6 +66,12 @@ public abstract partial class ImageComponent<T>(string? id = null) : VisualCompo
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIShape? Shape { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the browser defers loading the image until it approaches the viewport; <see langword="false"/> loads it eagerly.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = true)]
+    public bool? Lazy { get; set; }
 }
 
 /// <summary>

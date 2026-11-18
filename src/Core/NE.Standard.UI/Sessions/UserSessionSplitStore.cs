@@ -156,7 +156,7 @@ public sealed class UserSessionSplitStore : IUserSessionStore, IDisposable
         try
         {
             // Removed or updated meanwhile — a session end or a fresh sign-in between the sign-out's read and this move — keeps the newer write.
-            if (await _signedIn.TryGetAsync(leaving.SessionId, CancellationToken.None).ConfigureAwait(false) is not UserSessionState current || !SameStoredStateIgnoringTouch(current, storedWhenLeaving))
+            if (await _signedIn.TryGetAsync(leaving.SessionId, CancellationToken.None).ConfigureAwait(false) is not UserSessionState current || !current.EqualsIgnoringTouch(storedWhenLeaving))
                 return;
 
             UserSessionState moved = current.LastSeenAtUtc > leaving.LastSeenAtUtc
@@ -171,20 +171,6 @@ public sealed class UserSessionSplitStore : IUserSessionStore, IDisposable
             _ = _moves.Release();
         }
     }
-
-    private static bool SameStoredStateIgnoringTouch(UserSessionState current, UserSessionState expected)
-        => string.Equals(current.SessionId, expected.SessionId, StringComparison.Ordinal)
-            && string.Equals(current.Language, expected.Language, StringComparison.Ordinal)
-            && current.ThemeMode == expected.ThemeMode
-            && Equals(current.ThemeColors, expected.ThemeColors)
-            && string.Equals(current.TimeZone, expected.TimeZone, StringComparison.Ordinal)
-            && current.IsAuthenticated == expected.IsAuthenticated
-            && string.Equals(current.UserId, expected.UserId, StringComparison.Ordinal)
-            && current.PendingIdRotation == expected.PendingIdRotation
-            && current.IsUnclaimed == expected.IsUnclaimed
-            && current.CreatedAtUtc == expected.CreatedAtUtc
-            && current.Roles.SetEquals(expected.Roles)
-            && current.Permissions.SetEquals(expected.Permissions);
 
     /// <inheritdoc />
     public async ValueTask<bool> TouchAsync(string sessionId, DateTime utcNow, CancellationToken cancellationToken = default)
@@ -202,17 +188,16 @@ public sealed class UserSessionSplitStore : IUserSessionStore, IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        // An anonymous session was never in the signed-in store: removing it costs that store nothing.
-        if (Anonymous.TryRead(sessionId, out UserSessionState? held) && !held.IsAuthenticated)
-        {
-            await Anonymous.RemoveAsync(sessionId, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        // After any move under way, which would otherwise put the session back where this took it from.
+        // Synchronized with _moves so an in-flight MoveToAnonymousAsync cannot still hold a copy in _signedIn after Anonymous.TryRead sees it.
         await _moves.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (Anonymous.TryRead(sessionId, out UserSessionState? held) && !held.IsAuthenticated)
+            {
+                await Anonymous.RemoveAsync(sessionId, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
             await Anonymous.RemoveAsync(sessionId, cancellationToken).ConfigureAwait(false);
             await _signedIn.RemoveAsync(sessionId, cancellationToken).ConfigureAwait(false);
         }

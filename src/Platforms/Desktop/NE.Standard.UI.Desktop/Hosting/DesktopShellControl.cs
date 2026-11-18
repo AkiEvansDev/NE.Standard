@@ -13,12 +13,8 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 using Microsoft.Win32;
 using NE.Standard.UI.Abstractions.Styling.Theme;
-using NE.Standard.UI.Application;
-using NE.Standard.UI.Files;
-using NE.Standard.UI.Primitives.Security;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Files;
-using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Web.Hosting;
 
 namespace NE.Standard.UI.Desktop.Hosting;
@@ -28,6 +24,7 @@ public sealed class DesktopShellControl : Border, IDisposable
 {
     private const string ThemeBridgeScript = """
         (() => {
+            if (window !== window.top) return;
             const media = window.matchMedia("(prefers-color-scheme: dark)");
             const report = () => {
                 const attr = document.documentElement?.getAttribute("data-ui-theme") ?? "auto";
@@ -46,6 +43,8 @@ public sealed class DesktopShellControl : Border, IDisposable
             media.addEventListener("change", report);
         })();
         """;
+
+    private static readonly TimeSpan CloseAckTimeout = TimeSpan.FromSeconds(4);
 
     private static readonly JsonSerializerOptions BridgeJsonOptions = new()
     {
@@ -66,11 +65,12 @@ public sealed class DesktopShellControl : Border, IDisposable
 
     private Task<CoreWebView2Environment>? _environmentTask;
     private Task? _initializationTask;
+    private CoreWebView2? _attachedCore;
     private TaskCompletionSource<bool>? _pendingNavigation;
     private PendingCloseRequest? _pendingCloseConfirmation;
     private DesktopToastNotifier? _toastNotifier;
     private int _nextHostRequestId;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     /// <summary>Initializes a new <see cref="DesktopShellControl"/> bound to <paramref name="host"/>.</summary>
     public DesktopShellControl(DesktopWebHost host)
@@ -151,6 +151,7 @@ public sealed class DesktopShellControl : Border, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(true);
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         TaskCompletionSource<bool> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource<bool>? previous = Interlocked.Exchange(ref _pendingNavigation, tcs);
@@ -168,6 +169,7 @@ public sealed class DesktopShellControl : Border, IDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(javaScript);
         await EnsureInitializedAsync().ConfigureAwait(true);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         return await WebView.CoreWebView2.ExecuteScriptAsync(javaScript).ConfigureAwait(true);
     }
 
@@ -200,16 +202,37 @@ public sealed class DesktopShellControl : Border, IDisposable
         if (!await HasUnsavedWorkAsync().ConfigureAwait(true))
             return true;
 
+        return await PromptConfirmCloseCoreAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    internal async Task<bool> PromptConfirmCloseCoreAsync(CancellationToken cancellationToken = default)
+    {
+        if (_disposed || WebView.CoreWebView2 is null)
+            return true;
+
         var requestId = Interlocked.Increment(ref _nextHostRequestId);
-        TaskCompletionSource<bool> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        PendingCloseRequest current = new(requestId, tcs);
+        TaskCompletionSource ack = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        PendingCloseRequest current = new(requestId, ack, completion);
         PendingCloseRequest? previous = Interlocked.Exchange(ref _pendingCloseConfirmation, current);
         _ = previous?.Completion.TrySetResult(false);
 
-        using CancellationTokenRegistration registration = cancellationToken.Register(static state => ((TaskCompletionSource<bool>)state!).TrySetResult(false), tcs);
+        using CancellationTokenRegistration registration = cancellationToken.Register(static state => ((TaskCompletionSource<bool>)state!).TrySetResult(false), completion);
 
         PostBridgeObject(new ConfirmCloseBridgeMessage("confirm-close", requestId));
-        return await tcs.Task.ConfigureAwait(true);
+
+        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        Task ackTimeout = Task.Delay(CloseAckTimeout, timeoutCts.Token);
+        Task first = await Task.WhenAny(ack.Task, completion.Task, ackTimeout).ConfigureAwait(true);
+
+        if (ReferenceEquals(first, ackTimeout))
+        {
+            _ = Interlocked.CompareExchange(ref _pendingCloseConfirmation, null, current);
+            return !cancellationToken.IsCancellationRequested;
+        }
+
+        await timeoutCts.CancelAsync().ConfigureAwait(true);
+        return await completion.Task.ConfigureAwait(true);
     }
 
     /// <inheritdoc />
@@ -221,7 +244,12 @@ public sealed class DesktopShellControl : Border, IDisposable
         _disposed = true;
         _ = _pendingNavigation?.TrySetCanceled();
         _ = Interlocked.Exchange(ref _pendingCloseConfirmation, null)?.Completion.TrySetResult(true);
+
+        if (Interlocked.Exchange(ref _attachedCore, null) is { } core)
+            DetachCoreHandlers(core);
+
         _toastNotifier?.Dispose();
+        _toastNotifier = null;
         WebView.Dispose();
     }
 
@@ -286,7 +314,12 @@ public sealed class DesktopShellControl : Border, IDisposable
         _ = hostStartTask.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
         CoreWebView2Environment environment = await WarmEnvironmentAsync().ConfigureAwait(true);
+        if (_disposed)
+            return;
+
         await WebView.EnsureCoreWebView2Async(environment).ConfigureAwait(true);
+        if (_disposed)
+            return;
 
         CoreWebView2 core = WebView.CoreWebView2;
         core.Profile.PreferredColorScheme = Host.Options.DefaultThemeMode switch
@@ -304,12 +337,53 @@ public sealed class DesktopShellControl : Border, IDisposable
         settings.IsPinchZoomEnabled = false;
         settings.AreDevToolsEnabled = Host.Options.EnableDevTools;
 
-        var userDataFolder = ResolveUserDataFolder(Host.Options);
-        _toastNotifier = new DesktopToastNotifier(Host, userDataFolder);
-
         _ = await core.AddScriptToExecuteOnDocumentCreatedAsync(ThemeBridgeScript).ConfigureAwait(true);
-        _ = await core.AddScriptToExecuteOnDocumentCreatedAsync(BuildDesktopBridgeScript(Host.Options.Mode == DesktopHostMode.InProcess, IsSurfaceVisible)).ConfigureAwait(true);
+        if (_disposed)
+            return;
 
+        _ = await core.AddScriptToExecuteOnDocumentCreatedAsync(BuildDesktopBridgeScript(Host.Options.Mode == DesktopHostMode.InProcess, IsSurfaceVisible)).ConfigureAwait(true);
+        if (_disposed)
+            return;
+
+        await hostStartTask.ConfigureAwait(true);
+        if (_disposed)
+            return;
+
+        SeedLoopbackAuthCookie(core);
+
+        await GrantNotificationPermissionsAsync(core).ConfigureAwait(true);
+        if (_disposed)
+            return;
+
+        var userDataFolder = ResolveUserDataFolder(Host.Options);
+        DesktopToastNotifier notifier = new(Host, userDataFolder);
+        AttachCoreHandlers(core);
+        _toastNotifier = notifier;
+        _attachedCore = core;
+
+        if (_disposed)
+        {
+            if (Interlocked.Exchange(ref _attachedCore, null) is { } racedCore)
+                DetachCoreHandlers(racedCore);
+
+            Interlocked.Exchange(ref _toastNotifier, null)?.Dispose();
+        }
+    }
+
+    private void SeedLoopbackAuthCookie(CoreWebView2 core)
+    {
+        if (Host.LoopbackAuthToken is not { } authToken)
+            return;
+
+        CoreWebView2Cookie cookie = core.CookieManager.CreateCookie(DesktopWebHost.LoopbackAuthCookieName, authToken, Host.BrowserBaseUri.Host, "/");
+        cookie.IsHttpOnly = true;
+        cookie.IsSecure = true;
+        cookie.SameSite = CoreWebView2CookieSameSiteKind.Strict;
+        core.CookieManager.AddOrUpdateCookie(cookie);
+    }
+
+    private void AttachCoreHandlers(CoreWebView2 core)
+    {
         core.NavigationStarting += OnNavigationStarting;
         core.NavigationCompleted += OnNavigationCompleted;
         core.NewWindowRequested += OnNewWindowRequested;
@@ -319,9 +393,21 @@ public sealed class DesktopShellControl : Border, IDisposable
         core.DownloadStarting += OnDownloadStarting;
         core.PermissionRequested += OnPermissionRequested;
         core.NotificationReceived += OnNotificationReceived;
+        core.ProcessFailed += OnProcessFailed;
+    }
 
-        await hostStartTask.ConfigureAwait(true);
-        await GrantNotificationPermissionsAsync(core).ConfigureAwait(true);
+    private void DetachCoreHandlers(CoreWebView2 core)
+    {
+        core.NavigationStarting -= OnNavigationStarting;
+        core.NavigationCompleted -= OnNavigationCompleted;
+        core.NewWindowRequested -= OnNewWindowRequested;
+        core.DocumentTitleChanged -= OnDocumentTitleChanged;
+        core.WebMessageReceived -= OnWebMessageReceived;
+        core.ContextMenuRequested -= OnContextMenuRequested;
+        core.DownloadStarting -= OnDownloadStarting;
+        core.PermissionRequested -= OnPermissionRequested;
+        core.NotificationReceived -= OnNotificationReceived;
+        core.ProcessFailed -= OnProcessFailed;
     }
 
     private static string BuildDesktopBridgeScript(bool includeLocalTransfers, bool initiallyVisible)
@@ -331,6 +417,7 @@ public sealed class DesktopShellControl : Border, IDisposable
 
         return $$"""
             (() => {
+                if (window !== window.top) return;
                 const webview = window.chrome?.webview;
                 if (!webview) return;
 
@@ -368,6 +455,7 @@ public sealed class DesktopShellControl : Border, IDisposable
                     }
 
                     if (data.type === "confirm-close" && typeof data.requestId === "number") {
+                        webview.postMessage(JSON.stringify({ type: "confirm-close-ack", requestId: data.requestId }));
                         const runtime = window.__neStandardUIRuntime;
                         if (!runtime || typeof runtime.confirmCloseAsync !== "function") {
                             const allowClose = window.dispatchEvent(new Event("beforeunload", { cancelable: true })) !== false;
@@ -485,7 +573,7 @@ public sealed class DesktopShellControl : Border, IDisposable
             .SetPermissionStateAsync(CoreWebView2PermissionKind.Notifications, Host.BrowserBaseUri.GetLeftPart(UriPartial.Authority), CoreWebView2PermissionState.Allow)
             .ConfigureAwait(true);
 
-        if (!MatchesOrigin(Host.BaseUri, Host.BrowserBaseUri))
+        if (!DesktopWebHost.MatchesOrigin(Host.BaseUri, Host.BrowserBaseUri))
         {
             await core.Profile
                 .SetPermissionStateAsync(CoreWebView2PermissionKind.Notifications, Host.BaseUri.GetLeftPart(UriPartial.Authority), CoreWebView2PermissionState.Allow)
@@ -506,23 +594,19 @@ public sealed class DesktopShellControl : Border, IDisposable
 
     private void OnNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
-        if (!e.IsUserInitiated || !Uri.TryCreate(e.Uri, UriKind.Absolute, out Uri? targetUri))
+        if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out Uri? targetUri))
             return;
 
         if (string.Equals(targetUri.Scheme, "about", StringComparison.OrdinalIgnoreCase) || IsSameOrigin(targetUri))
             return;
 
         e.Cancel = true;
-        OpenExternalUri(targetUri);
+        if (e.IsUserInitiated)
+            OpenExternalUri(targetUri);
     }
 
     private bool IsSameOrigin(Uri uri)
-        => Host.IsStarted && (MatchesOrigin(uri, Host.BrowserBaseUri) || MatchesOrigin(uri, Host.BaseUri));
-
-    private static bool MatchesOrigin(Uri candidate, Uri origin)
-        => string.Equals(candidate.Scheme, origin.Scheme, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(candidate.Host, origin.Host, StringComparison.OrdinalIgnoreCase)
-            && candidate.Port == origin.Port;
+        => Host.IsStarted && (DesktopWebHost.MatchesOrigin(uri, Host.BrowserBaseUri) || DesktopWebHost.MatchesOrigin(uri, Host.BaseUri));
 
     private static void OpenExternalUri(Uri uri)
     {
@@ -556,6 +640,12 @@ public sealed class DesktopShellControl : Border, IDisposable
             _ = pending.TrySetException(new InvalidOperationException($"WebView2 navigation failed with status '{e.WebErrorStatus}'."));
     }
 
+    private void OnProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
+    {
+        _ = Interlocked.Exchange(ref _pendingCloseConfirmation, null)?.Completion.TrySetResult(true);
+        _ = Interlocked.Exchange(ref _pendingNavigation, null)?.TrySetException(new InvalidOperationException($"WebView2 process failed with kind '{e.ProcessFailedKind}'."));
+    }
+
     private void OnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
     {
         e.Handled = true;
@@ -579,6 +669,9 @@ public sealed class DesktopShellControl : Border, IDisposable
     {
         try
         {
+            if (!Uri.TryCreate(e.Source, UriKind.Absolute, out Uri? sourceUri) || !IsSameOrigin(sourceUri))
+                return;
+
             var message = e.TryGetWebMessageAsString();
             if (string.IsNullOrWhiteSpace(message))
                 return;
@@ -595,12 +688,16 @@ public sealed class DesktopShellControl : Border, IDisposable
                 return;
             }
 
-            if (!Uri.TryCreate(e.Source, UriKind.Absolute, out Uri? sourceUri)
-                || !IsSameOrigin(sourceUri)
-                || !root.TryGetProperty("requestId", out JsonElement idProp)
+            if (!root.TryGetProperty("requestId", out JsonElement idProp)
                 || !idProp.TryGetInt32(out var requestId)
                 || requestId <= 0)
             {
+                return;
+            }
+
+            if (string.Equals(type, "confirm-close-ack", StringComparison.Ordinal))
+            {
+                HandleConfirmCloseAck(requestId);
                 return;
             }
 
@@ -621,7 +718,7 @@ public sealed class DesktopShellControl : Border, IDisposable
 
             if (string.Equals(type, "local-upload", StringComparison.Ordinal))
             {
-                if (!TryReadLocalUploadCandidates(root, e.AdditionalObjects, out List<LocalUploadCandidate>? candidates) || candidates is null)
+                if (!TryReadLocalUploadCandidates(root, e.AdditionalObjects, out List<WebFileEndpoints.LocalUploadCandidate>? candidates) || candidates is null)
                 {
                     PostBridgeReply(new BridgeReply(requestId, Handled: false));
                     return;
@@ -667,12 +764,22 @@ public sealed class DesktopShellControl : Border, IDisposable
         ThemeChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    private void HandleConfirmCloseAck(int requestId)
+    {
+        PendingCloseRequest? pendingClose = _pendingCloseConfirmation;
+        if (pendingClose is not null && pendingClose.RequestId == requestId)
+            _ = pendingClose.Acknowledged.TrySetResult();
+    }
+
     private void HandleConfirmCloseReply(int requestId, JsonElement root)
     {
         var allowClose = root.TryGetProperty("allowClose", out JsonElement allowProp) && allowProp.ValueKind == JsonValueKind.True;
         PendingCloseRequest? pendingClose = _pendingCloseConfirmation;
         if (pendingClose is not null && pendingClose.RequestId == requestId && Interlocked.CompareExchange(ref _pendingCloseConfirmation, null, pendingClose) == pendingClose)
+        {
+            _ = pendingClose.Acknowledged.TrySetResult();
             _ = pendingClose.Completion.TrySetResult(allowClose);
+        }
     }
 
     private void HandleSystemNotification(int requestId, JsonElement root)
@@ -750,7 +857,7 @@ public sealed class DesktopShellControl : Border, IDisposable
             _ = Dispatcher.InvokeAsync(action);
     }
 
-    private static bool TryReadLocalUploadCandidates(JsonElement root, IReadOnlyList<object>? additionalObjects, out List<LocalUploadCandidate>? candidates)
+    private static bool TryReadLocalUploadCandidates(JsonElement root, IReadOnlyList<object>? additionalObjects, out List<WebFileEndpoints.LocalUploadCandidate>? candidates)
     {
         candidates = null;
         if (additionalObjects is null
@@ -762,7 +869,7 @@ public sealed class DesktopShellControl : Border, IDisposable
             return false;
         }
 
-        List<LocalUploadCandidate> resolved = [with(additionalObjects.Count)];
+        List<WebFileEndpoints.LocalUploadCandidate> resolved = [with(additionalObjects.Count)];
         var index = 0;
         foreach (JsonElement item in filesProp.EnumerateArray())
         {
@@ -775,7 +882,7 @@ public sealed class DesktopShellControl : Border, IDisposable
 
             var rawName = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("name", out JsonElement nameProp) ? nameProp.GetString() : null;
             var rawType = item.ValueKind == JsonValueKind.Object && item.TryGetProperty("type", out JsonElement typeProp) ? typeProp.GetString() : null;
-            resolved.Add(new LocalUploadCandidate(coreFile.Path, rawName, rawType));
+            resolved.Add(new WebFileEndpoints.LocalUploadCandidate(coreFile.Path, rawName, rawType));
             index++;
         }
 
@@ -783,7 +890,7 @@ public sealed class DesktopShellControl : Border, IDisposable
         return true;
     }
 
-    private async Task HandleLocalUploadAsync(int requestId, Uri sourceUri, List<LocalUploadCandidate> candidates)
+    private async Task HandleLocalUploadAsync(int requestId, Uri sourceUri, List<WebFileEndpoints.LocalUploadCandidate> candidates)
     {
         try
         {
@@ -794,73 +901,11 @@ public sealed class DesktopShellControl : Border, IDisposable
                 return;
             }
 
-            UIApplication application = Host.Services.GetRequiredService<UIApplication>();
-            UIFileOptions limits = application.Files;
+            WebFileEndpoints.LocalUploadOutcome outcome = await WebFileEndpoints
+                .RegisterLocalUploadsAsync(Host.Services, sessionId, candidates, CancellationToken.None)
+                .ConfigureAwait(true);
 
-            if (candidates.Count > limits.MaxFilesPerSelection)
-            {
-                PostBridgeReply(new BridgeReply(requestId, Handled: true, Error: $"A selection carries at most {limits.MaxFilesPerSelection} files."));
-                return;
-            }
-
-            IUIFileStore store = Host.Services.GetRequiredService<IUIFileStore>();
-            WebSessionAllowance allowance = Host.Services.GetRequiredService<WebSessionAllowance>();
-            using WebSessionAllowance.Claim claim = allowance.Open(sessionId, limits.MaxUploadBytesPerSession, limits.MaxUploadBytesTotal ?? 0);
-
-            var storedSince = allowance.CommittedSince(DateTime.UtcNow - limits.UploadRetention - limits.CleanupInterval);
-            claim.HoldElsewhere(await store.GetUploadedBytesAsync(sessionId, CancellationToken.None).ConfigureAwait(true), storedSince);
-
-            var selectionId = Guid.NewGuid().ToString("N");
-            var totalBytes = 0L;
-            var registeredCount = 0;
-            var committed = false;
-
-            try
-            {
-                for (var i = 0; i < candidates.Count; i++)
-                {
-                    LocalUploadCandidate candidate = candidates[i];
-                    FileInfo info = new(candidate.Path);
-                    if (!info.Exists)
-                    {
-                        PostBridgeReply(new BridgeReply(requestId, Handled: false));
-                        return;
-                    }
-
-                    var fileLength = info.Length;
-                    if (fileLength > limits.MaxFileSize)
-                    {
-                        PostBridgeReply(new BridgeReply(requestId, Handled: true, Error: $"A file may be at most {limits.MaxFileSize} bytes."));
-                        return;
-                    }
-
-                    var fileName = WebFileEndpoints.ReduceFileName(candidate.Name) ?? WebFileEndpoints.ReduceFileName(info.Name) ?? "upload";
-                    if (!claim.TryReserve(UIAllowanceCharge.Overhead(fileName) + fileLength))
-                    {
-                        PostBridgeReply(new BridgeReply(requestId, Handled: true, Error: "Upload quota exceeded."));
-                        return;
-                    }
-
-                    var contentType = string.IsNullOrWhiteSpace(candidate.ContentType) ? null : candidate.ContentType;
-                    UIUploadFile uploaded = await store
-                        .RegisterLocalUploadAsync(sessionId, selectionId, candidate.Path, fileName, contentType, CancellationToken.None)
-                        .ConfigureAwait(true);
-
-                    registeredCount++;
-                    totalBytes += uploaded.Size;
-                }
-
-                claim.Commit();
-                committed = true;
-            }
-            finally
-            {
-                if (!committed && registeredCount > 0)
-                    await store.RemoveSelectionAsync(sessionId, selectionId, CancellationToken.None).ConfigureAwait(true);
-            }
-
-            Host.Services.GetService<WebUIMetrics>()?.FileUploaded(totalBytes);
-            PostBridgeReply(new BridgeReply(requestId, Handled: true, SelectionId: selectionId));
+            PostBridgeReply(new BridgeReply(requestId, Handled: outcome.Handled, SelectionId: outcome.SelectionId, Error: outcome.Error));
         }
         catch (Exception ex)
         {
@@ -873,99 +918,87 @@ public sealed class DesktopShellControl : Border, IDisposable
         if (_disposed || WebView.CoreWebView2 is not { } core)
             return null;
 
-        UIApplication application = Host.Services.GetRequiredService<UIApplication>();
-        if (application.Security.IdentitySource == UIIdentitySource.Claims)
+        List<CoreWebView2Cookie> rawCookies = await core.CookieManager.GetCookiesAsync(pageOrigin.GetLeftPart(UriPartial.Authority)).ConfigureAwait(true);
+        if (rawCookies.Count == 0)
             return null;
 
-        WebSessionCookie sessionCookie = Host.Services.GetRequiredService<WebSessionCookie>();
-        var expectedName = sessionCookie.NameForScheme(string.Equals(pageOrigin.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase));
-        List<CoreWebView2Cookie> cookies = await core.CookieManager.GetCookiesAsync(pageOrigin.GetLeftPart(UriPartial.Authority)).ConfigureAwait(true);
+        List<KeyValuePair<string, string>> cookies = [with(rawCookies.Count)];
+        for (var i = 0; i < rawCookies.Count; i++)
+            cookies.Add(new KeyValuePair<string, string>(rawCookies[i].Name, rawCookies[i].Value));
 
-        string? secret = null;
-        for (var i = 0; i < cookies.Count; i++)
-        {
-            if (string.Equals(cookies[i].Name, expectedName, StringComparison.Ordinal))
-            {
-                secret = cookies[i].Value;
-                break;
-            }
-        }
-
-        var sessionId = UISessionSecret.TryToSessionId(secret);
-        if (string.IsNullOrWhiteSpace(sessionId))
-            return null;
-
-        IUserSessionStore sessions = Host.Services.GetRequiredService<IUserSessionStore>();
-        UserSessionState? stored = await sessions.TryGetAsync(sessionId, cancellationToken).ConfigureAwait(true);
-        if (stored is null || stored.IsIdle(application.Sessions, DateTime.UtcNow))
-            return null;
-
-        return application.Security.DefaultPolicy == UIAuthorizationDefault.Authenticated && !stored.IsAuthenticated
-            ? null
-            : stored.SessionId;
+        return await WebSessionHttpContextExtensions
+            .ResolveAuthorizedSessionIdFromCookiesAsync(Host.Services, pageOrigin, cookies, cancellationToken)
+            .ConfigureAwait(true);
     }
 
     private async Task HandleLocalDownloadAsync(int requestId, Uri pageOrigin, Uri downloadUri, string token, string? fileName)
     {
-        var sessionId = await TryResolveAuthorizedSessionIdAsync(pageOrigin, CancellationToken.None).ConfigureAwait(true);
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            PostBridgeReply(new BridgeReply(requestId, Handled: false));
-            return;
-        }
-
-        var suggestedName = WebFileEndpoints.ReduceFileName(fileName) ?? "download";
-        var initialDirectory = ResolveDownloadsDirectory(Host.Options);
-        string? targetPath;
-
-        if (Host.Options.DownloadMode == DesktopDownloadMode.Directory)
-        {
-            _ = Directory.CreateDirectory(initialDirectory);
-            targetPath = ResolveUniqueFilePath(initialDirectory, suggestedName);
-        }
-        else
-        {
-            targetPath = ShowSaveFileDialog(initialDirectory, suggestedName);
-            if (string.IsNullOrWhiteSpace(targetPath))
-            {
-                IUIFileStore cancelledStore = Host.Services.GetRequiredService<IUIFileStore>();
-                if (await cancelledStore.TakeDownloadAsync(sessionId, token, CancellationToken.None).ConfigureAwait(true) is { } discarded)
-                    await discarded.DisposeAsync().ConfigureAwait(true);
-
-                PostBridgeReply(new BridgeReply(requestId, Handled: true));
-                return;
-            }
-        }
-
-        IUIFileStore store = Host.Services.GetRequiredService<IUIFileStore>();
-        var delivered = false;
         try
         {
-            delivered = await Task.Run(() => store.TryDeliverDownloadAsync(sessionId, token, targetPath, CancellationToken.None)).ConfigureAwait(true);
-        }
-        catch
-        {
-            delivered = false;
-        }
-
-        if (!delivered)
-        {
-            if (Host.Options.DownloadMode == DesktopDownloadMode.Directory)
+            var sessionId = await TryResolveAuthorizedSessionIdAsync(pageOrigin, CancellationToken.None).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(sessionId))
             {
                 PostBridgeReply(new BridgeReply(requestId, Handled: false));
                 return;
             }
 
+            var suggestedName = WebFileEndpoints.ReduceFileName(fileName) ?? "download";
+            var initialDirectory = ResolveDownloadsDirectory(Host.Options);
+            string? targetPath;
+
+            if (Host.Options.DownloadMode == DesktopDownloadMode.Directory)
+            {
+                _ = Directory.CreateDirectory(initialDirectory);
+                targetPath = ResolveUniqueFilePath(initialDirectory, suggestedName);
+            }
+            else
+            {
+                targetPath = ShowSaveFileDialog(initialDirectory, suggestedName);
+                if (string.IsNullOrWhiteSpace(targetPath))
+                {
+                    IUIFileStore cancelledStore = Host.Services.GetRequiredService<IUIFileStore>();
+                    if (await cancelledStore.TakeDownloadAsync(sessionId, token, CancellationToken.None).ConfigureAwait(true) is { } discarded)
+                        await discarded.DisposeAsync().ConfigureAwait(true);
+
+                    PostBridgeReply(new BridgeReply(requestId, Handled: true));
+                    return;
+                }
+            }
+
+            IUIFileStore store = Host.Services.GetRequiredService<IUIFileStore>();
+            var delivered = false;
+            try
+            {
+                delivered = await Task.Run(() => store.TryDeliverDownloadAsync(sessionId, token, targetPath, CancellationToken.None)).ConfigureAwait(true);
+            }
+            catch
+            {
+                delivered = false;
+            }
+
+            if (!delivered)
+            {
+                if (Host.Options.DownloadMode == DesktopDownloadMode.Directory)
+                {
+                    PostBridgeReply(new BridgeReply(requestId, Handled: false));
+                    return;
+                }
+
+                PostBridgeReply(new BridgeReply(requestId, Handled: true));
+                DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(downloadUri, targetPath, succeeded: false));
+                return;
+            }
+
+            if (Host.Services.GetService<WebUIMetrics>() is { } metrics && File.Exists(targetPath))
+                metrics.FileDownloaded(new FileInfo(targetPath).Length);
+
             PostBridgeReply(new BridgeReply(requestId, Handled: true));
-            DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(downloadUri, targetPath, succeeded: false));
-            return;
+            DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(downloadUri, targetPath, succeeded: true));
         }
-
-        if (Host.Services.GetService<WebUIMetrics>() is { } metrics && File.Exists(targetPath))
-            metrics.FileDownloaded(new FileInfo(targetPath).Length);
-
-        PostBridgeReply(new BridgeReply(requestId, Handled: true));
-        DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(downloadUri, targetPath, succeeded: true));
+        catch
+        {
+            PostBridgeReply(new BridgeReply(requestId, Handled: false));
+        }
     }
 
     private static string ResolveDownloadsDirectory(DesktopHostOptions options)
@@ -1079,14 +1112,17 @@ public sealed class DesktopShellControl : Border, IDisposable
 
     private void TrackDownload(CoreWebView2DownloadOperation operation, Uri sourceUri, string targetPath)
     {
-        operation.StateChanged += (_, _) =>
+        void OnStateChanged(object? sender, object args)
         {
             if (operation.State == CoreWebView2DownloadState.InProgress)
                 return;
 
+            operation.StateChanged -= OnStateChanged;
             var succeeded = operation.State == CoreWebView2DownloadState.Completed;
             DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(sourceUri, targetPath, succeeded));
-        };
+        }
+
+        operation.StateChanged += OnStateChanged;
     }
 
     private void PromptSaveDownload(CoreWebView2DownloadStartingEventArgs e, CoreWebView2Deferral deferral, Uri sourceUri, string initialDirectory, string suggestedName)
@@ -1144,6 +1180,13 @@ public sealed class DesktopShellControl : Border, IDisposable
         }
 
         var completed = 0;
+        Action? toastDismissRef = null;
+
+        void OnCloseRequested(object? closeSender, object closeArgs)
+        {
+            webNotification.CloseRequested -= OnCloseRequested;
+            toastDismissRef?.Invoke();
+        }
 
         void NotifyActivated()
         {
@@ -1152,6 +1195,7 @@ public sealed class DesktopShellControl : Border, IDisposable
 
             DispatchOnUi(() =>
             {
+                webNotification.CloseRequested -= OnCloseRequested;
                 if (_disposed)
                     return;
 
@@ -1168,6 +1212,7 @@ public sealed class DesktopShellControl : Border, IDisposable
 
             DispatchOnUi(() =>
             {
+                webNotification.CloseRequested -= OnCloseRequested;
                 if (!_disposed)
                     webNotification.ReportClosed();
             });
@@ -1180,8 +1225,9 @@ public sealed class DesktopShellControl : Border, IDisposable
             return;
         }
 
+        toastDismissRef = toastDismiss;
         webNotification.ReportShown();
-        webNotification.CloseRequested += (_, _) => toastDismiss();
+        webNotification.CloseRequested += OnCloseRequested;
 
         void ActivateProgrammatically()
         {
@@ -1192,8 +1238,6 @@ public sealed class DesktopShellControl : Border, IDisposable
         SystemNotificationShown?.Invoke(this, new DesktopNotificationShownEventArgs(title, body, tag, silent, requireInteraction, ActivateProgrammatically, toastDismiss));
     }
 
-    private sealed record LocalUploadCandidate(string Path, string? Name, string? ContentType);
-
     private sealed record BridgeReply(int RequestId, bool Handled, string? SelectionId = null, string? Error = null);
 
     private sealed record VisibilityBridgeMessage(string Type, bool Visible);
@@ -1202,5 +1246,5 @@ public sealed class DesktopShellControl : Border, IDisposable
 
     private sealed record NotificationEventBridgeMessage(string Type, int NotificationId);
 
-    private sealed record PendingCloseRequest(int RequestId, TaskCompletionSource<bool> Completion);
+    private sealed record PendingCloseRequest(int RequestId, TaskCompletionSource Acknowledged, TaskCompletionSource<bool> Completion);
 }

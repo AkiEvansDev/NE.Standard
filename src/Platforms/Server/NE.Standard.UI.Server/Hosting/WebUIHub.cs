@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
@@ -13,7 +12,6 @@ using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Styling;
@@ -25,211 +23,14 @@ using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Security;
 using NE.Standard.UI.Shell.Sessions;
+using NE.Standard.UI.Shell.Transport;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
-using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Hosting;
 
 internal sealed partial class WebUIHub : Hub
 {
-    internal sealed class WebUIAttachRequest
-    {
-        public required string ClientWindowId { get; init; }
-
-        public required string Route { get; init; }
-
-        /// <summary>
-        /// The id the shell render put in the page, when it prepared a runtime; presenting it hands that same runtime back.
-        /// </summary>
-        public string? PageId { get; init; }
-
-        /// <summary>The fingerprint of the compile the page was rendered from, when the page carries one.</summary>
-        public string? View { get; init; }
-
-        /// <summary>
-        /// The sequence the render wrote in the page, on the page's first attach: the runtime it prepared sends only what moved past it.
-        /// </summary>
-        public long? Since { get; init; }
-
-        /// <summary>The runtime the page's last attach was answered with, on any attach after its first.</summary>
-        public string? Runtime { get; init; }
-
-        [JsonConverter(typeof(WebNavigationParametersJsonConverter))]
-        public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
-
-        /// <summary>The time zone the browser reports it is in (<c>Intl.DateTimeFormat().resolvedOptions().timeZone</c>).</summary>
-        public string? TimeZone { get; init; }
-
-        /// <summary>What the page reports of itself as it attaches; none from a page that does not report.</summary>
-        public WebUIClientStateRequest? ClientState { get; init; }
-
-        /// <summary>
-        /// The page goes to another runtime of its route, its address now differing in a parameter the route keys runtimes by: it
-        /// leaves the one it holds and attaches to that one over the same connection.
-        /// </summary>
-        public bool SwitchRuntime { get; init; }
-    }
-
-    internal sealed class WebUIClientStateRequest
-    {
-        /// <summary>Whether the page is on screen now: <c>document.visibilityState</c> is <c>visible</c>.</summary>
-        public bool Visible { get; init; } = true;
-
-        /// <summary>What the browser lets the page show: <c>Notification.permission</c>, or unsupported where it has none.</summary>
-        public UINotificationPermission NotificationPermission { get; init; }
-
-        public UIClientState ToClientState()
-            => Enum.IsDefined(NotificationPermission)
-                ? new UIClientState(Visible, NotificationPermission)
-                : throw new InvalidOperationException($"Notification permission '{NotificationPermission}' is not one a page reports.");
-    }
-
-    internal sealed class WebUIAttachResult
-    {
-        public required ServerChangeSet InitialChanges { get; init; }
-
-        /// <summary>
-        /// The page was rendered from another compile of its view, or presented no session the store holds: it reloads rather than
-        /// applies anything.
-        /// </summary>
-        public bool Reload { get; init; }
-
-        /// <summary>The runtime the page attached to, which its later attaches present.</summary>
-        public string? Runtime { get; init; }
-
-        /// <summary>How long the runtime is kept for a page whose connection dropped: the page keeps reconnecting that long.</summary>
-        public long? RetentionMilliseconds { get; init; }
-
-        /// <summary>
-        /// The page held another runtime, which is gone — a restart, an eviction, a retention run out, another tab that rebuilt it — so
-        /// what it shows belongs to nothing: it reloads rather than applies anything, and carries no changes.
-        /// </summary>
-        public bool Fresh { get; init; }
-    }
-
-    internal sealed class WebUIValueChangeRequest
-    {
-        public required int ComponentId { get; init; }
-
-        public required string PropertyName { get; init; }
-
-        [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
-        public object?[] DynamicParameters { get; init; } = [];
-
-        /// <summary>
-        /// The value as the wire carried it, read into objects by the hub within the application's limits
-        /// (<see cref="ObjectToInferredTypesConverter.ToInferredValue(JsonElement, int, int)"/>), not by the protocol whatever its size.
-        /// </summary>
-        public JsonElement Value { get; init; }
-
-        /// <summary>The token of a value staged beside the hub, carried instead of <see cref="Value"/> when the value is large.</summary>
-        public string? ValueToken { get; init; }
-    }
-
-    /// <summary>
-    /// A command the page raised, as <see cref="UICommandRequest"/> carries it, or with its keys staged beside the hub when they are too
-    /// large for it (a drop of many rows): <see cref="DynamicParametersToken"/> in place of <see cref="DynamicParameters"/>.
-    /// </summary>
-    internal sealed class WebUICommandRequest
-    {
-        public UIEventId EventId { get; init; }
-
-        public string? Action { get; init; }
-
-        [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
-        public object?[] DynamicParameters { get; init; } = [];
-
-        /// <summary>The token of the command's keys staged beside the hub, carried instead of <see cref="DynamicParameters"/>.</summary>
-        public string? DynamicParametersToken { get; init; }
-
-        public int? RequestId { get; init; }
-    }
-
-    internal sealed class WebUILeaveRequest
-    {
-        /// <summary>The address of this site the reader starts to leave for, its query and fragment included.</summary>
-        public required string Target { get; init; }
-    }
-
-    internal sealed class WebUIAddressRequest
-    {
-        /// <summary>The query of the history entry the reader went back or forward to, read as an attach reads it.</summary>
-        [JsonConverter(typeof(WebNavigationParametersJsonConverter))]
-        public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
-    }
-
-    internal sealed class WebUISetThemeRequest
-    {
-        /// <summary>The theme the document is now in: <c>light</c>, <c>dark</c>, or <c>auto</c>.</summary>
-        public required string Theme { get; init; }
-    }
-
-    internal sealed class WebUISetThemeColorsRequest
-    {
-        /// <summary>The colours the page puts over the application's palette, or none for the application's.</summary>
-        public UIThemeColors? Colors { get; init; }
-    }
-
-    /// <summary>The stylesheet the reader's colours make, to follow the theme's; empty for the application's palette.</summary>
-    internal sealed class WebUIThemeColorsResult
-    {
-        public required string Css { get; init; }
-    }
-
-    internal sealed class WebUISetLanguageRequest
-    {
-        /// <summary>The language the page switches to; one the translator lists.</summary>
-        public required string Language { get; init; }
-    }
-
-    /// <summary>The language the page is now in, and the address of the words it translates by.</summary>
-    internal sealed class WebUILanguageResult
-    {
-        public required string Language { get; init; }
-
-        public required string Href { get; init; }
-    }
-
-    internal sealed class WebUITranslateRequest
-    {
-        public required string Language { get; init; }
-
-        public string[] Keys { get; init; } = [];
-    }
-
-    /// <summary>The words asked for that the translator has, with each key's plural forms; a key left out has none.</summary>
-    internal sealed class WebUITranslateResult
-    {
-        public required string Language { get; init; }
-
-        public required IReadOnlyDictionary<string, string> Words { get; init; }
-    }
-
-    internal sealed class WebUIChangeSetRequest
-    {
-        public required WebUIValueChangeRequest[] Updates { get; init; }
-    }
-
-    internal sealed class WebUIItemWindowRequest
-    {
-        public required int ComponentId { get; init; }
-
-        [JsonConverter(typeof(UIDynamicParametersJsonConverter))]
-        public object?[] DynamicParameters { get; init; } = [];
-
-        public required string Anchor { get; init; }
-
-        public int Offset { get; init; }
-
-        public string? Key { get; init; }
-
-        public required int Count { get; init; }
-
-        public bool Extend { get; init; }
-    }
-
     private static partial class Log
     {
         [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Web UI SignalR connection opened '{ConnectionId}'.")]
@@ -293,7 +94,7 @@ internal sealed partial class WebUIHub : Hub
     private const string HandleContextItemKey = "NE.Standard.UI.Web.Handle";
 
     // Shared: an answer that carries nothing but the reload.
-    private static readonly WebUIAttachResult ReloadResult = new()
+    private static readonly UIHubAttachResult ReloadResult = new()
     {
         InitialChanges = ServerChangeSet.Empty,
         Reload = true
@@ -304,8 +105,8 @@ internal sealed partial class WebUIHub : Hub
     private const int MaxTranslateKeyLength = 512;
 
     private readonly IUIHost _host;
-    private readonly IWebViewRenderCache? _renderCache;
-    private readonly IWebViewRenderer? _renderer;
+    private readonly IServerViewInitBindingsProvider? _initBindings;
+    private readonly IServerThemeColorsStylesheet? _themeColorsCss;
     private readonly UIApplication _application;
     private readonly WebSessionCookie _sessionCookie;
     private readonly IUserSessionStore _sessions;
@@ -316,7 +117,7 @@ internal sealed partial class WebUIHub : Hub
     private readonly IEnumerable<IUIStringsSource> _packageStrings;
     private readonly ILogger<WebUIHub> _logger;
 
-    public WebUIHub(IUIHost host, UIApplication application, WebSessionCookie sessionCookie, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebRuntimeStamps stamps, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger, IWebViewRenderCache? renderCache = null, IWebViewRenderer? renderer = null)
+    public WebUIHub(IUIHost host, UIApplication application, WebSessionCookie sessionCookie, IUserSessionStore sessions, WebValueStagingStore stagedValues, WebOutgoingValues outgoing, WebRuntimeStamps stamps, WebUIMetrics metrics, IEnumerable<IUIStringsSource> packageStrings, ILogger<WebUIHub> logger, IServerViewInitBindingsProvider? initBindings = null, IServerThemeColorsStylesheet? themeColorsCss = null)
     {
         ArgumentNullException.ThrowIfNull(host);
         ArgumentNullException.ThrowIfNull(application);
@@ -330,8 +131,8 @@ internal sealed partial class WebUIHub : Hub
         ArgumentNullException.ThrowIfNull(logger);
 
         _host = host;
-        _renderCache = renderCache;
-        _renderer = renderer;
+        _initBindings = initBindings;
+        _themeColorsCss = themeColorsCss;
         _application = application;
         _sessionCookie = sessionCookie;
         _sessions = sessions;
@@ -351,13 +152,13 @@ internal sealed partial class WebUIHub : Hub
         return base.OnConnectedAsync();
     }
 
-    public async Task<WebUIAttachResult> AttachAsync(WebUIAttachRequest request)
+    public async Task<UIHubAttachResult> AttachAsync(UIHubAttachRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ClientWindowId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Route);
 
-        WebUIAttachResult result;
+        UIHubAttachResult result;
 
         try
         {
@@ -374,7 +175,7 @@ internal sealed partial class WebUIHub : Hub
         return result;
     }
 
-    private async Task<WebUIAttachResult> AttachOrSwitchAsync(WebUIAttachRequest request)
+    private async Task<UIHubAttachResult> AttachOrSwitchAsync(UIHubAttachRequest request)
     {
         if (!request.SwitchRuntime)
             return await AttachCoreAsync(request).ConfigureAwait(false);
@@ -393,7 +194,7 @@ internal sealed partial class WebUIHub : Hub
         }
     }
 
-    private async Task<WebUIAttachResult> AttachCoreAsync(WebUIAttachRequest request)
+    private async Task<UIHubAttachResult> AttachCoreAsync(UIHubAttachRequest request)
     {
         var route = UIRoutePath.Normalize(request.Route);
         var started = Stopwatch.GetTimestamp();
@@ -475,7 +276,7 @@ internal sealed partial class WebUIHub : Hub
             Context.Items[HandleContextItemKey] = runtime.Handle;
             Log.RuntimeFresh(_logger, route, request.ClientWindowId);
 
-            return new WebUIAttachResult
+            return new UIHubAttachResult
             {
                 InitialChanges = ServerChangeSet.Empty,
                 Fresh = true
@@ -483,10 +284,9 @@ internal sealed partial class WebUIHub : Hub
         }
 
         // Gone after a restart cleared the cache while this page stayed open: rendered again, so its values are re-sent as on a load.
-        IReadOnlyList<int> initBindingIds = _renderCache is null || _renderer is null
+        IReadOnlyList<int> initBindingIds = _initBindings is null
             ? WebInitialChanges.FromView(view.View)
-            : await _renderCache.GetInitBindingIdsAsync(WebViewCacheKeys.Create(view), Context.ConnectionAborted).ConfigureAwait(false)
-                ?? await RenderInitBindingIdsAsync(view).ConfigureAwait(false);
+            : await _initBindings.GetInitBindingIdsAsync(view, Context.ConnectionAborted).ConfigureAwait(false);
 
         // The snapshot also marks this connection's starting point: nothing queued before it is pushed to it, everything after it is.
         ServerChangeSet initialChanges = runtime.Runtime is null
@@ -500,7 +300,7 @@ internal sealed partial class WebUIHub : Hub
 
         Log.Attached(_logger, route, request.ClientWindowId, Context.ConnectionId, runtime.Runtime is not null, elapsed.TotalMilliseconds, initialChanges.Updates.Length);
 
-        return new WebUIAttachResult
+        return new UIHubAttachResult
         {
             InitialChanges = _outgoing.StageAttach(initialChanges, runtime.Handle.Session.SessionId, Context.ConnectionId),
             Runtime = runtime.RuntimeId,
@@ -578,16 +378,9 @@ internal sealed partial class WebUIHub : Hub
     private string? ReadSessionId(HttpContext? http)
         => http is null ? null : WebClientRequest.ReadSessionId(http, _sessionCookie);
 
-    private async ValueTask<IReadOnlyList<int>> RenderInitBindingIdsAsync(UIViewResolution view)
-    {
-        WebCachedViewRender render = await WebEndpointRouteBuilderExtensions.GetOrRenderViewAsync(view, _renderer!, _renderCache!, Context.ConnectionAborted).ConfigureAwait(false);
-
-        return render.InitBindingIds ?? [];
-    }
-
     /// <summary>Records what the page reports of itself — on screen or not, its notification permission — on its connection.</summary>
     /// <remarks>What the client says: it steers whether a notification shows on the screen or the system's, never what is allowed.</remarks>
-    public Task ReportClientStateAsync(WebUIClientStateRequest request)
+    public Task ReportClientStateAsync(UIHubClientStateRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -604,14 +397,18 @@ internal sealed partial class WebUIHub : Hub
     /// Records the theme the client moved to, so the next page render starts in it; written straight to the
     /// session store since a page with no controller has no runtime.
     /// </summary>
-    public async Task SetThemeAsync(WebUISetThemeRequest request)
+    public async Task SetThemeAsync(UIHubSetThemeRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Theme);
 
-        UIThemeMode? mode = WebCssValues.TryReadThemeName(request.Theme, out UIThemeMode value)
-            ? value
-            : request.Theme == WebCssValues.RootThemeName(null) ? null : throw new InvalidOperationException($"Theme '{request.Theme}' is not light, dark or auto.");
+        UIThemeMode? mode = request.Theme switch
+        {
+            "light" => UIThemeMode.Light,
+            "dark" => UIThemeMode.Dark,
+            "auto" => null,
+            _ => throw new InvalidOperationException($"Theme '{request.Theme}' is not light, dark or auto.")
+        };
 
         var sessionId = await ReadLiveSessionIdAsync().ConfigureAwait(false);
         UserSessionState? written = sessionId is null
@@ -664,7 +461,7 @@ internal sealed partial class WebUIHub : Hub
     /// one a render of the session carries.
     /// </summary>
     /// <remarks>Answered whether or not a session stored them: the page wears them for as long as it lives, as it does a theme.</remarks>
-    public async Task<WebUIThemeColorsResult> SetThemeColorsAsync(WebUISetThemeColorsRequest request)
+    public async Task<UIHubThemeColorsResult> SetThemeColorsAsync(UIHubSetThemeColorsRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -686,9 +483,9 @@ internal sealed partial class WebUIHub : Hub
             await ApplyStoredSessionAsync(written).ConfigureAwait(false);
         }
 
-        return new WebUIThemeColorsResult
+        return new UIHubThemeColorsResult
         {
-            Css = WebThemeColorsCss.For(_application.Theme, request.Colors)
+            Css = _themeColorsCss?.BuildColorsCss(_application.Theme, request.Colors) ?? string.Empty
         };
     }
 
@@ -697,7 +494,7 @@ internal sealed partial class WebUIHub : Hub
     /// The next page renders in it. With a controller, this page's session is refreshed and the controller told as a command would;
     /// without one it switches all the same, as the theme does. Either way the session's other pages under a controller follow.
     /// </remarks>
-    public async Task<WebUILanguageResult> SetLanguageAsync(WebUISetLanguageRequest request)
+    public async Task<UIHubLanguageResult> SetLanguageAsync(UIHubSetLanguageRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Language);
@@ -723,7 +520,7 @@ internal sealed partial class WebUIHub : Hub
 
         WebWordsAsset words = WebWordsEndpoint.Resolve(_application, request.Language, _packageStrings);
 
-        return new WebUILanguageResult
+        return new UIHubLanguageResult
         {
             Language = words.Language,
             Href = words.Href
@@ -740,7 +537,7 @@ internal sealed partial class WebUIHub : Hub
     /// Answers the words a page's table lacked — a translator that cannot list them all, or a prefixed key missing where missing
     /// words are reported — with each key's plural forms; bounded per call, for a language the translator lists.
     /// </summary>
-    public Task<WebUITranslateResult> TranslateAsync(WebUITranslateRequest request)
+    public Task<UIHubTranslateResult> TranslateAsync(UIHubTranslateRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Language);
@@ -767,7 +564,7 @@ internal sealed partial class WebUIHub : Hub
             AddPluralForms(translator, table, request.Language, key, words);
         }
 
-        return Task.FromResult(new WebUITranslateResult
+        return Task.FromResult(new UIHubTranslateResult
         {
             Language = request.Language,
             Words = words
@@ -791,7 +588,7 @@ internal sealed partial class WebUIHub : Hub
         }
     }
 
-    public async Task<UICommandExecutionResult> ProcessEventAsync(WebUICommandRequest request)
+    public async Task<UICommandExecutionResult> ProcessEventAsync(UIHubCommandRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -809,7 +606,7 @@ internal sealed partial class WebUIHub : Hub
     }
 
     /// <summary>The command as the runtime takes it, its keys taken out of the staged value that carried them where they were too large.</summary>
-    private UICommandRequest CreateCommandRequest(UIHandle handle, WebUICommandRequest request)
+    private UICommandRequest CreateCommandRequest(UIHandle handle, UIHubCommandRequest request)
     {
         var parameters = request.DynamicParameters;
 
@@ -821,7 +618,7 @@ internal sealed partial class WebUIHub : Hub
     }
 
     /// <summary>A page holding unsaved work asks before it leaves: answered with what its controller does about it, never pushed.</summary>
-    public async Task<UICommandExecutionResult> RequestLeaveAsync(WebUILeaveRequest request)
+    public async Task<UICommandExecutionResult> RequestLeaveAsync(UIHubLeaveRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -838,7 +635,7 @@ internal sealed partial class WebUIHub : Hub
     /// The reader went back or forward to another entry of this page's route: its controller hears the entry's parameters on the same
     /// runtime, answered and never pushed. Counted in the connection's call budget as every call is.
     /// </summary>
-    public async Task<UICommandExecutionResult> NavigateInPlaceAsync(WebUIAddressRequest request)
+    public async Task<UICommandExecutionResult> NavigateInPlaceAsync(UIHubAddressRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -855,7 +652,7 @@ internal sealed partial class WebUIHub : Hub
     private UIHandle RequireHandle()
         => TryGetHandle(out UIHandle? handle) ? handle : throw new InvalidOperationException($"Web UI connection '{Context.ConnectionId}' is not attached.");
 
-    public async Task<ServerChangeSet> ProcessChangeSetAsync(WebUIChangeSetRequest request)
+    public async Task<ServerChangeSet> ProcessChangeSetAsync(UIHubChangeSetRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Updates);
@@ -889,7 +686,7 @@ internal sealed partial class WebUIHub : Hub
     }
 
     /// <summary>The field an update names, once its staged value, if it has one, is known to be there for the taking.</summary>
-    private UIPropertyAddress ReadAddress(UIHandle handle, WebUIValueChangeRequest update)
+    private UIPropertyAddress ReadAddress(UIHandle handle, UIHubValueChangeRequest update)
     {
         ArgumentNullException.ThrowIfNull(update);
         ArgumentException.ThrowIfNullOrWhiteSpace(update.PropertyName);
@@ -901,14 +698,16 @@ internal sealed partial class WebUIHub : Hub
         return new UIPropertyAddress(new UIComponentId(update.ComponentId), update.PropertyName, update.DynamicParameters);
     }
 
-    private ClientValueUIUpdate CreateClientValueUpdate(UIHandle handle, WebUIValueChangeRequest update, UIPropertyAddress address)
+    private ClientValueUIUpdate CreateClientValueUpdate(UIHandle handle, UIHubValueChangeRequest update, UIPropertyAddress address)
     {
         UISecurityOptions security = _application.Security;
         object? value;
 
         if (update.ValueToken is null)
         {
-            value = ObjectToInferredTypesConverter.ToInferredValue(update.Value, security.MaxClientValueElements, security.MaxClientValueDepth);
+            value = update.Value is JsonElement element
+                ? ObjectToInferredTypesConverter.ToInferredValue(element, security.MaxClientValueElements, security.MaxClientValueDepth)
+                : null;
         }
         else if (!_stagedValues.TryTake(handle.Session.SessionId, update.ValueToken, security.MaxClientValueElements, security.MaxClientValueDepth, out value))
         {
@@ -923,7 +722,7 @@ internal sealed partial class WebUIHub : Hub
         };
     }
 
-    public async Task<ServerChangeSet> RequestItemWindowAsync(WebUIItemWindowRequest request)
+    public async Task<ServerChangeSet> RequestItemWindowAsync(UIHubItemWindowRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -939,7 +738,7 @@ internal sealed partial class WebUIHub : Hub
     /// <summary>
     /// Reads the anchor by name; the wire carries the four fields flat since an anchor is a union of one meaningful member.
     /// </summary>
-    private static UIItemWindowClientRequest CreateItemWindowRequest(WebUIItemWindowRequest request)
+    private static UIItemWindowClientRequest CreateItemWindowRequest(UIHubItemWindowRequest request)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.Anchor);
 

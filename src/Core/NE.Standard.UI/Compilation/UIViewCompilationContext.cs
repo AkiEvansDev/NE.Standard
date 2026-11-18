@@ -11,6 +11,7 @@ using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Items;
 using NE.Standard.UI.Primitives.Constants;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Compilation;
 
@@ -32,9 +33,9 @@ internal sealed class UIViewCompilationResult(CompiledRegion[] regions, Compiled
     public UICompileWarning[] Warnings { get; } = warnings;
 }
 
-internal sealed partial class UIViewCompilationContext(Type? controllerType = null, bool applyDefaults = true) : IUIReferenceResolver
+internal sealed partial class UIViewCompilationContext(Type? controllerType = null, UIViewOptions? viewOptions = null) : IUIReferenceResolver
 {
-    private readonly bool _applyDefaults = applyDefaults;
+    private readonly UIViewOptions _viewOptions = viewOptions ?? UIViewOptions.Default;
     // What compiled but is not what the author meant; the host logs these, it does not stop for them.
     private readonly List<UICompileWarning> _warnings = [];
 
@@ -59,8 +60,6 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
     private readonly Dictionary<string, IVisualComponent> _components = [with(StringComparer.Ordinal)];
     private readonly List<IVisualComponent> _componentOrder = [];
     private readonly Dictionary<string, string?> _parentByComponentId = [with(StringComparer.Ordinal)];
-    private readonly Dictionary<string, string?> _defaultsParentByComponentId = [with(StringComparer.Ordinal)];
-    private readonly Dictionary<string, string> _dialogOwnerByContentId = [with(StringComparer.Ordinal)];
     private readonly Dictionary<string, List<UIComponentSlot>> _slotsByOwnerComponentId = [with(StringComparer.Ordinal)];
     private readonly Dictionary<string, UIComponentSlot> _slotByRootComponentId = [with(StringComparer.Ordinal)];
     private readonly Dictionary<string, UIComponentTypeState> _typeStates = [with(StringComparer.Ordinal)];
@@ -116,7 +115,7 @@ internal sealed partial class UIViewCompilationContext(Type? controllerType = nu
         ArgumentException.ThrowIfNullOrWhiteSpace(dialog.Key);
         ArgumentNullException.ThrowIfNull(dialog.Content);
 
-        AddComponent(dialog.Content, null, _dialogOwnerByContentId.GetValueOrDefault(dialog.Content.Id));
+        AddComponent(dialog.Content, null);
 
         _dialogs.Add(new CompiledDialog
         {

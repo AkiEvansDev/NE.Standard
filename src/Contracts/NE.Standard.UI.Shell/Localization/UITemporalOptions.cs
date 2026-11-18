@@ -3,23 +3,15 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Shell.Localization;
 
-/// <summary>
-/// The application's dates and times where a field says nothing of its own: whether they follow the culture, how a clock counts its
-/// hours, and a date or time pattern for every language. Unset, every field shows the framework's own <c>yyyy-MM-dd</c> and
-/// <c>HH:mm</c>; the page's language still supplies the month and day names, AM and PM, and the placeholder's letters.
-/// </summary>
+/// <summary>Configures default date and time formatting across temporal inputs and timestamps.</summary>
 /// <remarks>
-/// A temporal field's own <c>DisplayFormat</c> wins over all of it, and a field that names its own <c>Culture</c> follows that
-/// culture's patterns as <see cref="FollowCulture"/> would. A timestamp's day and time are written in the same patterns, in the
-/// reader's zone; only a relative one ("5 minutes ago") is the browser's own words for the page's language.
+/// Unset, fields use <c>yyyy-MM-dd</c> and <c>HH:mm</c> while taking month/day names, AM/PM and placeholder letters from the active
+/// language. A component's explicit <c>DisplayFormat</c> or <c>Culture</c> takes precedence.
 /// </remarks>
 public sealed class UITemporalOptions
 {
-    /// <summary>
-    /// Gets or sets whether a field with no pattern of its own shows its culture's date and time patterns (<c>dd.MM.yyyy</c> in
-    /// Russian, <c>M/d/yyyy</c> and <c>h:mm tt</c> in American English) rather than the framework's <c>yyyy-MM-dd</c> and
-    /// <c>HH:mm</c>; default <see langword="false"/>. <see cref="DateFormat"/> and <see cref="TimeFormat"/> still win where set.
-    /// </summary>
+    /// <summary>Gets or sets whether fields without an explicit pattern use the active culture's date and time formats instead of <c>yyyy-MM-dd</c> and <c>HH:mm</c>.</summary>
+    /// <remarks>Defaults to <see langword="false"/>; <see cref="DateFormat"/> and <see cref="TimeFormat"/> still take precedence when set.</remarks>
     public bool FollowCulture { get; set; }
 
     /// <summary>

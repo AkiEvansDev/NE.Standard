@@ -22,9 +22,12 @@ export function showLeaveDialog(dialogs: DialogEngine, leave: () => void, stay?:
     leaveDialog ??= buildDialog();
 
     const dialog = leaveDialog;
+    const host = dialogs.hostElement ?? document.body;
 
-    if (!dialog.isConnected)
-        document.body.append(dialog);
+    if (!dialog.isConnected || dialog.parentElement !== host) {
+        dialog.setAttribute("hidden", "");
+        host.append(dialog);
+    }
 
     // Written at every opening, so a language switched since shows in its words.
     setText(dialog, "title", clientStrings.text("ui.leave.title"));

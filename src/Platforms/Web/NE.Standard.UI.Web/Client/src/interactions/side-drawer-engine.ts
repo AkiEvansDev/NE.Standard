@@ -8,7 +8,7 @@
 // from the extra-large breakpoint up, kept in the browser under the first authored id in the side and written on the root as the parser
 // reaches that id (boot.ts): before the content after it paints, a right side's not before the content ahead of it.
 
-import { BottomBarAttribute, CollapsedAttribute, CollapseToggleAttribute, CollapsibleBarClass, CollapsibleClass, ComponentNameAttribute, cssAttributeValue, DrawerBackdropAttribute, DrawerModelessAttribute, DrawerOpenAttribute, DrawerPinAttribute, DrawerSwitchAttribute, DrawerSwitchRowAttribute, DrawerToggleAttribute, FocusHolderAttribute, MenuItemClass, MenuPopupSelector, pinnedAttribute, RegionAttribute, RootAttribute, SideLeftClass, SideRightClass, ValueKindAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, CollapsedAttribute, CollapseToggleAttribute, CollapsibleBarClass, CollapsibleClass, ComponentNameAttribute, ComponentSelector, cssAttributeValue, DrawerBackdropAttribute, DrawerModelessAttribute, DrawerOpenAttribute, DrawerPinAttribute, DrawerSwitchAttribute, DrawerSwitchRowAttribute, DrawerToggleAttribute, FocusHolderAttribute, MenuItemClass, MenuPopupSelector, pinnedAttribute, RegionAttribute, RootAttribute, SideLeftClass, SideRightClass, ValueKindAttribute } from "../addressing/dom-attributes.ts";
 import { isInSight } from "./element-visibility.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
@@ -197,12 +197,16 @@ export class SideDrawerEngine {
         if (shell.hasAttribute(DrawerOpenAttribute))
             this.close(shell);
 
+        const openerBox = drawerSwitch(drawer) === null ? undefined : opener.getBoundingClientRect();
+
         shell.setAttribute(DrawerOpenAttribute, side);
         this.openers.set(shell, opener);
         this.markToggles(shell);
         this.hold(drawer, side, isModal(shell, side));
         syncLiftedPopups();
-        this.placeSwitch(drawer, opener);
+        this.placeSwitch(drawer, opener, openerBox);
+
+        drawer.querySelector<HTMLElement>(ComponentSelector)?.dispatchEvent(new Event("open", { bubbles: true }));
 
         // Into the drawer, not behind the backdrop; a single next-frame fallback covers a drawer whose visibility transitions in.
         // A press gives it to the drawer itself: a field of it focused at once would raise a phone's on-screen keyboard unasked.
@@ -242,12 +246,13 @@ export class SideDrawerEngine {
      * drawer opens and goes away under one button that stays put. The place is custom properties the drawer's rules read
      * (side-drawers.less), so the switch keeps it while the drawer slides away and a side standing in its column again leaves it unread.
      */
-    private placeSwitch(drawer: HTMLElement, opener: HTMLElement): void {
+    private placeSwitch(drawer: HTMLElement, opener: HTMLElement, openerBox?: DOMRect): void {
         const fold = drawerSwitch(drawer);
-        const target = opener.getBoundingClientRect();
 
         if (fold === null)
             return;
+
+        const target = openerBox ?? opener.getBoundingClientRect();
 
         if (!this.switchNames.has(fold))
             this.switchNames.set(fold, fold.getAttribute("aria-label"));

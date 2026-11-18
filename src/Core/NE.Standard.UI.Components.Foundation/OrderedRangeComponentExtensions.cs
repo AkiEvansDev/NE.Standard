@@ -1,3 +1,4 @@
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation.Inputs;
 
 namespace NE.Standard.UI.Components.Foundation;
@@ -46,6 +47,7 @@ public static class OrderedRangeComponentExtensions
     {
         ValidateOrderedRange(min, component.Max, component.Value, valueNoun);
         component.Min = min;
+        (component as IComponentBindingTarget)?.RemoveNonOptionalBinding(IBoundedInputComponent.MinProperty);
         return component;
     }
 
@@ -56,6 +58,7 @@ public static class OrderedRangeComponentExtensions
     {
         ValidateOrderedRange(component.Min, max, component.Value, valueNoun);
         component.Max = max;
+        (component as IComponentBindingTarget)?.RemoveNonOptionalBinding(IBoundedInputComponent.MaxProperty);
         return component;
     }
 
@@ -67,6 +70,8 @@ public static class OrderedRangeComponentExtensions
         ValidateOrderedRange(min, max, component.Value, valueNoun);
         component.Min = min;
         component.Max = max;
+        (component as IComponentBindingTarget)?.RemoveNonOptionalBinding(IBoundedInputComponent.MinProperty);
+        (component as IComponentBindingTarget)?.RemoveNonOptionalBinding(IBoundedInputComponent.MaxProperty);
         return component;
     }
 

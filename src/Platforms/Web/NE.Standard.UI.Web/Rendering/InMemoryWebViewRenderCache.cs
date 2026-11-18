@@ -105,12 +105,19 @@ internal sealed class InMemoryWebViewRenderCache : IWebViewRenderCache
         var targetCount = Math.Max(1, _maxHeldRenders * 3 / 4);
         var targetBytes = _maxHeldBytes / 4 * 3;
 
-        KeyValuePair<string, HeldRender>[] snapshot = [.. _renders];
-        Array.Sort(snapshot, static (left, right) => left.Value.Stamp.CompareTo(right.Value.Stamp));
+        List<(string Key, HeldRender Entry, long Stamp)> snapshot = [with(_renders.Count)];
 
-        for (var i = 0; i < snapshot.Length - 1 && (_renders.Count > targetCount || Interlocked.Read(ref _heldBytes) > targetBytes); i++)
-            Release(snapshot[i]);
+        foreach (KeyValuePair<string, HeldRender> pair in _renders)
+            snapshot.Add((pair.Key, pair.Value, pair.Value.Stamp));
+
+        snapshot.Sort(static (left, right) => left.Stamp.CompareTo(right.Stamp));
+
+        for (var i = 0; i < snapshot.Count - 1 && (_renders.Count > targetCount || Interlocked.Read(ref _heldBytes) > targetBytes); i++)
+            Release(new KeyValuePair<string, HeldRender>(snapshot[i].Key, snapshot[i].Entry));
     }
+
+    internal void HoldRender(string key, WebCachedViewRender render)
+        => Hold(key, render);
 
     public ValueTask<IReadOnlyList<int>?> GetInitBindingIdsAsync(string key, CancellationToken cancellationToken)
     {

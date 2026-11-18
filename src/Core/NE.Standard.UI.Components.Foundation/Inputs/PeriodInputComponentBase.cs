@@ -61,6 +61,7 @@ public abstract partial class PeriodInputComponentBase<TComponent, TValue>(strin
         ValidatePeriod(Value, endValue, MinDistance);
 
         EndValue = endValue;
+        RemoveNonOptionalBinding(IPeriodInputComponent.EndValueProperty);
         return Self;
     }
 
@@ -72,6 +73,7 @@ public abstract partial class PeriodInputComponentBase<TComponent, TValue>(strin
         ValidatePeriod(Value, EndValue, minDistance);
 
         MinDistance = minDistance;
+        RemoveNonOptionalBinding(IPeriodInputComponent.MinDistanceProperty);
         return Self;
     }
 

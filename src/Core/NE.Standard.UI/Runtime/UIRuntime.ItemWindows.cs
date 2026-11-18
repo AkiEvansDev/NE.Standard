@@ -344,15 +344,9 @@ internal sealed partial class UIRuntime
 
     private static object? UnwrapFilterValue(object? value)
         => value is JsonElement element
-            ? element.ValueKind switch
-            {
-                JsonValueKind.Null or JsonValueKind.Undefined => null,
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.String => element.GetString(),
-                JsonValueKind.Number => element.TryGetInt64(out var signed) ? signed : element.TryGetUInt64(out var unsigned) ? unsigned : element.TryGetDecimal(out var number) ? number : element.GetDouble(),
-                _ => element.GetRawText()
-            }
+            ? element.ValueKind is JsonValueKind.Array or JsonValueKind.Object
+                ? element.GetRawText()
+                : ObjectToInferredTypesConverter.ToInferredValue(element)
             : value;
 
     private static bool IsFilterNumber(object value)

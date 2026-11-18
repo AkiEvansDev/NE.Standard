@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Infrastructure;
-using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Styling;
@@ -20,7 +18,7 @@ internal sealed partial class UIViewCompilationContext
 
     private int _depth;
 
-    private void AddComponent(IVisualComponent component, string? parentId, string? defaultsParentId = null)
+    private void AddComponent(IVisualComponent component, string? parentId)
     {
         ArgumentNullException.ThrowIfNull(component);
         ArgumentException.ThrowIfNullOrWhiteSpace(component.Id);
@@ -39,21 +37,8 @@ internal sealed partial class UIViewCompilationContext
         _authoringIdByComponentId.Add(compiledId, component.Id);
         _componentOrder.Add(component);
         _parentByComponentId.Add(component.Id, parentId);
-        _defaultsParentByComponentId.Add(component.Id, defaultsParentId ?? parentId);
-
-        if (component is IDialogOwnerComponent { HasDialogs: true } dialogOwner)
-        {
-            foreach (UIDialog ownedDialog in dialogOwner.Dialogs)
-            {
-                if (ownedDialog.Content is not null)
-                    _dialogOwnerByContentId[ownedDialog.Content.Id] = component.Id;
-            }
-        }
 
         UIPropertyRegister.EnsureRegistered(component.GetType());
-
-        if (_applyDefaults)
-            ApplySubtreeDefaults(component, defaultsParentId ?? parentId);
         UIEffectTargets.Learn(component);
         ValidateSplitButton(component);
         ValidateKeyValueEditing(component);
@@ -63,35 +48,6 @@ internal sealed partial class UIViewCompilationContext
         AddComponentContent(component);
 
         _depth--;
-    }
-
-    private void ApplySubtreeDefaults(IVisualComponent component, string? parentId)
-    {
-        if (parentId is null)
-            return;
-
-        List<UIDefaultsRule>? matching = null;
-
-        for (var currentId = parentId; currentId is not null; currentId = _defaultsParentByComponentId[currentId])
-        {
-            IReadOnlyList<UIDefaultsRule> rules = _components[currentId].Defaults;
-
-            for (var i = rules.Count - 1; i >= 0; i--)
-            {
-                UIDefaultsRule rule = rules[i];
-
-                if (rule.TargetType.IsInstanceOfType(component))
-                    (matching ??= []).Add(rule);
-            }
-        }
-
-        if (matching is null)
-            return;
-
-        matching.Reverse();
-
-        if (component is IPropertyBindingComponent target)
-            target.ApplyDefaults(CollectionsMarshal.AsSpan(matching), GetTypeState(component.TypeKey).Definitions);
     }
 
     // A menu button's whole face opens the menu, so a click of its own would never run: refused here rather than left to fail silently.

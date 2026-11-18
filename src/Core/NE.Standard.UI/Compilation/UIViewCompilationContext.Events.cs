@@ -141,7 +141,7 @@ internal sealed partial class UIViewCompilationContext
             EventNames.Rename when !UIEffectTargets.TakesInlineRename(component.TypeKey) && component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemRenameComponent>(component) => "a text component (TextComponent), a tab item, or an item template of a host that renames its items (IItemRenameComponent: a tree, a tabs view)",
             EventNames.Move when component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemMoveComponent>(component) => "a tab item or an item template of a host that moves its items (IItemMoveComponent)",
             EventNames.Remove when component is not ITabItemComponent && !IsItemsTemplateRootOf<IItemRemoveComponent>(component) => "a tab item or an item template of a host that removes its items (IItemRemoveComponent)",
-            EventNames.Open when component.TypeKey != FlyoutComponent.ComponentTypeKey && !IsItemsTemplateRootOf<IItemOpenComponent>(component) => "a flyout or an item template of a host that opens its items (IItemOpenComponent)",
+            EventNames.Open when component.TypeKey != FlyoutComponent.ComponentTypeKey && !IsItemsTemplateRootOf<IItemOpenComponent>(component) && !IsSideDrawerRoot(component) => "a flyout, a side drawer's root (OnDrawerOpen), or an item template of a host that opens its items (IItemOpenComponent)",
             EventNames.Close when component.TypeKey != FlyoutComponent.ComponentTypeKey && !IsDialogContentRoot(component) => "a flyout or a dialog's content root (UIDialog.OnClose)",
             _ => null
         };
@@ -161,6 +161,28 @@ internal sealed partial class UIViewCompilationContext
         => _slotByRootComponentId.TryGetValue(component.Id, out UIComponentSlot? slot)
             && IsItemsTemplateSlot(slot.Kind)
             && _components[GetAuthoringId(slot.OwnerComponentId)] is THost;
+
+    private bool IsSideDrawerRoot(IVisualComponent component)
+    {
+        if (_viewOptions.SideDrawers == Primitives.Styling.UISideDrawers.Never)
+            return false;
+
+        UIComponentId id = GetComponentId(component.Id);
+
+        for (var i = 0; i < _regions.Count; i++)
+        {
+            CompiledRegion region = _regions[i];
+
+            if (region.RootComponentId == id
+                && (string.Equals(region.Key, RegionNames.LeftSide, StringComparison.Ordinal)
+                    || string.Equals(region.Key, RegionNames.RightSide, StringComparison.Ordinal)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private bool IsDialogContentRoot(IVisualComponent component)
     {

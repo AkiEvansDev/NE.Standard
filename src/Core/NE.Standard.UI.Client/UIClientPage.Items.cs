@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
+using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Authoring.Components;
@@ -12,9 +13,11 @@ using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Items;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Items;
+using NE.Standard.UI.Primitives.Json;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Serialization;
+using NE.Standard.UI.Shell.Localization;
 
 namespace NE.Standard.UI.Client;
 
@@ -25,6 +28,7 @@ internal readonly record struct ActiveItemsSort(string ItemProperty, UIItemsSort
 public sealed partial class UIClientPage
 {
     private static readonly ConcurrentDictionary<Type, PropertyInfo[]> SearchablePropertiesCache = [];
+    private static readonly ConcurrentDictionary<Enum, string> WireEnumNames = [];
 
     /// <summary>
     /// The rows a host shows after evaluating active <c>ItemsView</c> filters and sorts and any viewer <see cref="UIItemsQuery"/>
@@ -216,7 +220,7 @@ public sealed partial class UIClientPage
             case UIPhrase { IsText: true } authorText:
                 return authorText.Key.Contains(word, StringComparison.OrdinalIgnoreCase);
             case UIPhrase phrase:
-                return Words(phrase) is { Length: > 0 } translated && translated.Contains(word, StringComparison.OrdinalIgnoreCase);
+                return TryTranslatePhraseForSearch(phrase, out var translated) && translated.Contains(word, StringComparison.OrdinalIgnoreCase);
             case bool:
                 return false;
             default:
@@ -235,7 +239,9 @@ public sealed partial class UIClientPage
                 && wireDictionary.Count <= 2
                 && CompiledViewWireSerializer.CoerceWireValue(typeof(UIPhrase), wireDictionary) is UIPhrase coercedPhrase)
             {
-                return Words(coercedPhrase) is { Length: > 0 } wireTranslated && wireTranslated.Contains(word, StringComparison.OrdinalIgnoreCase);
+                return coercedPhrase.IsText
+                    ? coercedPhrase.Key.Contains(word, StringComparison.OrdinalIgnoreCase)
+                    : TryTranslatePhraseForSearch(coercedPhrase, out var wireTranslated) && wireTranslated.Contains(word, StringComparison.OrdinalIgnoreCase);
             }
 
             foreach (var entry in wireDictionary.Values)
@@ -271,8 +277,8 @@ public sealed partial class UIClientPage
 
         Type type = value.GetType();
 
-        if (type.IsEnum)
-            return value.ToString()!.Contains(word, StringComparison.OrdinalIgnoreCase);
+        if (type.IsEnum && value is Enum enumValue)
+            return GetWireEnumName(enumValue).Contains(word, StringComparison.OrdinalIgnoreCase);
 
         if (type.IsPrimitive)
             return false;
@@ -292,6 +298,36 @@ public sealed partial class UIClientPage
 
         return false;
     }
+
+    private bool TryTranslatePhraseForSearch(UIPhrase phrase, out string translated)
+    {
+        translated = string.Empty;
+        if (string.IsNullOrWhiteSpace(phrase.Key))
+            return false;
+
+        var language = Language;
+        ITranslator translator = Transport.Translator;
+        var hasWord = UIWords.TryReadCount(phrase.Arguments, out var count)
+            ? translator.TryTranslate(language, UIPluralRules.FormKey(phrase.Key, UIPluralRules.Select(language, count)), out _)
+                || translator.TryTranslate(language, UIPluralRules.FormKey(phrase.Key, UIPluralCategory.Other), out _)
+                || translator.TryTranslate(language, phrase.Key, out _)
+            : translator.TryTranslate(language, phrase.Key, out _);
+
+        if (!hasWord || Words(phrase) is not { Length: > 0 } words)
+            return false;
+
+        translated = words;
+        return true;
+    }
+
+    private static string GetWireEnumName(Enum value)
+        => WireEnumNames.GetOrAdd(
+            value,
+            static candidate => JsonSerializer.SerializeToElement(candidate, candidate.GetType(), UIWireJson.Options) is { ValueKind: JsonValueKind.String } element
+                && element.GetString() is { Length: > 0 } wireName
+                    ? wireName
+                    : candidate.ToString()
+        );
 
     private static CompareInfo ResolveCompareInfo(string language)
     {

@@ -5,7 +5,10 @@ import { logWarn } from "../metadata/logger.ts";
 import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 import { comparable, compareValues, evaluateOperator, isRuleActive, readItemsQuery } from "../interactions/interaction-evaluator.ts";
+import { clientStrings } from "../rendering/client-strings.ts";
+import { selectPlural } from "../rendering/plural-rules.ts";
 import { isAuthorText, isPhrase } from "../rendering/words.ts";
+import type { Phrase } from "../rendering/words.ts";
 import type { ActiveSort, ItemsQuery } from "../interactions/interaction-evaluator.ts";
 import { getItemsSortDirection } from "../metadata/metadata-index.ts";
 import type {
@@ -51,7 +54,8 @@ export function itemMatchesFilters(config: WebRenderItemsFilterSortMetadata | un
         && itemMatchesSearch(item, query?.search);
 }
 
-const searchTextByItem = new WeakMap<object, string>();
+let searchTextByItem = new WeakMap<object, string>();
+let cachedSearchLanguage = "";
 let cachedSearchRaw = "";
 let cachedSearchWords: readonly string[] = [];
 
@@ -99,6 +103,11 @@ function searchWordsOf(search: string): readonly string[] {
 }
 
 function searchTextOfObject(item: object): string {
+    if (cachedSearchLanguage !== clientStrings.language) {
+        searchTextByItem = new WeakMap<object, string>();
+        cachedSearchLanguage = clientStrings.language;
+    }
+
     const cached = searchTextByItem.get(item);
 
     if (cached !== undefined)
@@ -133,7 +142,15 @@ function collectSearchParts(value: unknown, parts: string[]): void {
         return;
     }
 
-    if (isPhrase(value) || value === null || typeof value !== "object")
+    if (isPhrase(value)) {
+        const translated = tryTranslatePhraseForSearch(value);
+        if (translated !== null)
+            parts.push(translated.toLowerCase());
+
+        return;
+    }
+
+    if (value === null || typeof value !== "object")
         return;
 
     if (Array.isArray(value)) {
@@ -161,13 +178,29 @@ function valueContainsWord(value: unknown, word: string): boolean {
     if (isAuthorText(value))
         return value.text.toLowerCase().includes(word);
 
-    if (isPhrase(value) || value === null || typeof value !== "object")
+    if (isPhrase(value)) {
+        const translated = tryTranslatePhraseForSearch(value);
+        return translated !== null && translated.toLowerCase().includes(word);
+    }
+
+    if (value === null || typeof value !== "object")
         return false;
 
     if (Array.isArray(value))
         return value.some(entry => valueContainsWord(entry, word));
 
     return Object.values(value).some(entry => valueContainsWord(entry, word));
+}
+
+function tryTranslatePhraseForSearch(phrase: Phrase): string | null {
+    const count = phrase.args?.count;
+    const hasWord = typeof count === "number"
+        ? clientStrings.lookup(`${phrase.key}.${selectPlural(clientStrings.language, count)}`, true) !== undefined
+            || clientStrings.lookup(`${phrase.key}.other`, true) !== undefined
+            || clientStrings.lookup(phrase.key, true) !== undefined
+        : clientStrings.lookup(phrase.key, true) !== undefined;
+
+    return hasWord ? clientStrings.translate(phrase.key, phrase.args) : null;
 }
 
 export function sortElements(elements: readonly Element[], activeSorts: readonly ActiveSort[], itemsRenderer: ItemsTemplateRenderer): Element[] {

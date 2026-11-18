@@ -13,13 +13,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Primitives.Json;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
-using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
-using NE.Standard.UI.Web.Assets;
 
 namespace NE.Standard.UI.Web.Hosting;
 
@@ -66,7 +66,7 @@ internal static class WebWordsEndpoint
         return held.Count < MaxHeldLanguages ? held.GetOrAdd(table, asset) : asset;
     }
 
-    private static IResult Serve(string language, HttpContext http, [FromServices] UIApplication application, [FromServices] IEnumerable<IUIStringsSource> packages, [FromServices] WebAssetCompression compression)
+    private static IResult Serve(string language, HttpContext http, [FromServices] UIApplication application, [FromServices] IEnumerable<IUIStringsSource> packages, [FromServices] IOptions<WebResponseCompressionOptions> compression)
     {
         if (!application.Translator.HasLanguage(language))
             return Results.NotFound();
@@ -81,11 +81,11 @@ internal static class WebWordsEndpoint
         if (http.Request.Headers.IfNoneMatch.Count > 0 && http.Request.Headers.IfNoneMatch.ToString().Contains(etag, StringComparison.Ordinal))
             return Results.StatusCode(StatusCodes.Status304NotModified);
 
-        if (compression.Enabled)
+        if (compression.Value.Enabled)
         {
             http.Response.Headers.Vary = "Accept-Encoding";
 
-            if (WebEndpointRouteBuilderExtensions.ChooseEncoding(http.Request.Headers.AcceptEncoding, asset.Compressed) is { } encoding)
+            if (ServerByteCompression.ChooseEncoding(http.Request.Headers.AcceptEncoding, asset.Compressed) is { } encoding)
             {
                 http.Response.Headers.ContentEncoding = encoding;
 
@@ -105,7 +105,7 @@ internal sealed class WebWordsAsset
 {
     public const string ContentType = "application/json; charset=utf-8";
 
-    private readonly Lazy<WebAssetCompression.Compressed> _compressed;
+    private readonly Lazy<ServerByteCompression.CompressedBytes> _compressed;
 
     private WebWordsAsset(string language, byte[] bytes, string version, string stringsJson, string temporalJson)
     {
@@ -115,7 +115,7 @@ internal sealed class WebWordsAsset
         StringsJson = stringsJson;
         TemporalJson = temporalJson;
         Href = string.Create(CultureInfo.InvariantCulture, $"{WebWordsEndpoint.Prefix}{Uri.EscapeDataString(language)}.json?v={version}");
-        _compressed = new Lazy<WebAssetCompression.Compressed>(() => WebAssetCompression.Build(bytes));
+        _compressed = new Lazy<ServerByteCompression.CompressedBytes>(() => ServerByteCompression.Build(bytes));
     }
 
     public string Language { get; }
@@ -130,7 +130,7 @@ internal sealed class WebWordsAsset
     public string Href { get; }
 
     /// <summary>The compressed forms, built on the first request that takes one; either is null where it is not smaller.</summary>
-    public WebAssetCompression.Compressed Compressed => _compressed.Value;
+    public ServerByteCompression.CompressedBytes Compressed => _compressed.Value;
 
     /// <summary>The framework's and the packages' words in this language, serialized for the page's <c>data-ui-strings</c> block.</summary>
     public string StringsJson { get; }
@@ -163,7 +163,7 @@ internal sealed class WebWordsAsset
             bytes = buffer.ToArray();
         }
 
-        return new WebWordsAsset(language, bytes, HashVersion(bytes), WebShellRenderer.SerializeStrings(chrome), temporalJson);
+        return new WebWordsAsset(language, bytes, HashVersion(bytes), JsonSerializer.Serialize(chrome, UIWireJson.Options), temporalJson);
     }
 
     private static void Write(Utf8JsonWriter writer, string language, UIWordTable table, bool reportMissing, SortedDictionary<string, string> words, string temporalJson)
@@ -193,7 +193,7 @@ internal sealed class WebWordsAsset
 
         // The pack a number in the page's culture is drawn with after a switch, as its culture attribute carries it.
         writer.WritePropertyName("number");
-        JsonSerializer.Serialize(writer, WebNumberCulturePack.FromCulture(UICultures.Resolve(language)), WebWireJson.Options);
+        JsonSerializer.Serialize(writer, WebNumberCulturePack.FromCulture(UICultures.Resolve(language)), UIWireJson.Options);
         writer.WriteEndObject();
     }
 
@@ -213,8 +213,8 @@ internal sealed class WebWordsAsset
         {
             // One object of both, each written by the wire's own conventions, as a field's culture attribute carries the pack.
             writer.WriteStartObject();
-            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalCulturePack.FromCulture(culture), WebWireJson.Options));
-            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalPatterns.Resolve(culture, options, ownCulture: false), WebWireJson.Options));
+            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalCulturePack.FromCulture(culture), UIWireJson.Options));
+            WriteFields(writer, JsonSerializer.SerializeToElement(WebTemporalPatterns.Resolve(culture, options, ownCulture: false), UIWireJson.Options));
             writer.WriteEndObject();
         }
 

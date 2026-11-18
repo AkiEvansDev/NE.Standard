@@ -16,11 +16,7 @@ namespace NE.Standard.UI.Extensions;
 /// </summary>
 public static class UICard
 {
-    /// <summary>
-    /// A card with its name, an optional line and an optional mark in the default header, one component as its content, and
-    /// <paramref name="trailing"/> (an icon button, a switcher) at the header's far end, its glyph on the card's edge. A name the
-    /// controller holds is <see cref="BoundCreate(string, string, IVisualComponent, string, IVisualComponent[])"/>'s; a null <paramref name="title"/> leaves it to the header.
-    /// </summary>
+    /// <summary>Builds a card with an optional header title, description, leading icon and trailing header actions around <paramref name="content"/>.</summary>
     public static CardComponent Create(UIPhrase? title, UIPhrase? description, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
     {
         PresetWords.RequireIfGiven(title);
@@ -36,19 +32,19 @@ public static class UICard
         }, content, icon, trailing);
     }
 
-    /// <summary>The same with a name and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    /// <summary>Builds a card whose header title and optional description are bound as content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static CardComponent BoundCreate<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
         => BoundCreate(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, content, icon, trailing);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a card whose header title and optional description are bound as content in <paramref name="scope"/>.</summary>
     public static CardComponent BoundCreate<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
         => BoundCreate(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, content, icon, trailing);
 
-    /// <summary>The same with a name and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    /// <summary>Builds a card whose header title and optional description are bound as content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static CardComponent BoundCreate(string titlePath, string? descriptionPath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
         => BoundCreate(titlePath, descriptionPath, UIBindingScope.Root, content, icon, trailing);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a card whose header title and optional description are bound as content in <paramref name="scope"/>.</summary>
     public static CardComponent BoundCreate(string titlePath, string? descriptionPath, UIBindingScope scope, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
@@ -96,12 +92,8 @@ public static class UICard
         );
     }
 
-    /// <summary>
-    /// One card alone on an otherwise empty page — a sign-in, what a submit came to (<see cref="UIPage.Outcome(string?, UIColorStyle, UIPhrase, UIPhrase, IVisualComponent[])"/>),
-    /// or a stack of a form and what replaces it: a form's column (<see cref="UIColumnWidth.Form"/>, the whole width on a phone) in the
-    /// middle, 24 px under the top on a phone and 96 px from the medium breakpoint, where a card at a wide screen's top edge reads as
-    /// pushed up.
-    /// </summary>
+    /// <summary>Centers a standalone <paramref name="card"/> in a <see cref="UIColumnWidth.Form"/> column on an otherwise empty page.</summary>
+    /// <remarks>Padded 24 px from the top on phones and 96 px from <see cref="UIResponsiveTier.Md"/>.</remarks>
     public static ContainerComponent Centered(IVisualComponent card)
     {
         ArgumentNullException.ThrowIfNull(card);

@@ -5,6 +5,7 @@
   <ItemGroup>
     <NEStandardUIUsing Include="NE.Standard.UI.Server.Hosting" />
     <NEStandardUIUsing Include="NE.Standard.UI.Server.Startup" />
+    <NEStandardUIUsing Include="NE.Standard.UI.Web.Hosting" />
   </ItemGroup>
 
 </Project>

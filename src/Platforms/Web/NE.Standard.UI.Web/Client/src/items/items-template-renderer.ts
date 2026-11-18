@@ -48,8 +48,9 @@ export class ItemsTemplateRenderer {
     // Keyed by each rendered item's own root element, so a scope is found by walking the DOM upwards.
     private readonly itemStackByRoot = new WeakMap<Element, ItemStackEntry>();
 
-    // Keyed by component-items host id and item key, so template clones (`cloneNode`) hydrate their item scope on demand.
-    private readonly componentItemsByHost = new Map<number, ReadonlyMap<string, ItemStackEntry>>();
+    // Keyed by component-items host element (plus host id fallback for clones made after `setComponentItems`), so each instance keeps its own scope.
+    private readonly componentItemsByHost = new WeakMap<Element, ReadonlyMap<string, ItemStackEntry>>();
+    private readonly componentItemsByHostId = new Map<number, ReadonlyMap<string, ItemStackEntry>>();
 
     // Warned once per binding, not per row: most items leave a row's abilities unset, and one line is what a typo needs.
     private readonly unresolved = new Set<number>();
@@ -141,10 +142,21 @@ export class ItemsTemplateRenderer {
         this.itemStackByRoot.set(root, { scopeComponentId, item });
     }
 
-    /** Remembers the item scopes written onto a component-items host so clones of an enclosing template resolve them too. */
-    public rememberComponentItems(componentId: number, itemsByKey: ReadonlyMap<string, ItemStackEntry>): void {
-        if (componentId > 0)
-            this.componentItemsByHost.set(componentId, itemsByKey);
+    /** Remembers the item scopes written onto a component-items host so both the instance and clones of an enclosing template resolve them. */
+    public rememberComponentItems(hostOrComponentId: Element | number, itemsByKey: ReadonlyMap<string, ItemStackEntry>, componentId?: number): void {
+        if (typeof hostOrComponentId === "number") {
+            if (hostOrComponentId > 0)
+                this.componentItemsByHostId.set(hostOrComponentId, itemsByKey);
+
+            return;
+        }
+
+        this.componentItemsByHost.set(hostOrComponentId, itemsByKey);
+
+        const resolvedId = componentId ?? readComponentId(hostOrComponentId.closest(`[${ComponentIdAttribute}]`) ?? hostOrComponentId);
+
+        if (resolvedId > 0)
+            this.componentItemsByHostId.set(resolvedId, itemsByKey);
     }
 
     private resolveScopeEntry(element: Element): ItemStackEntry | undefined {
@@ -153,7 +165,9 @@ export class ItemsTemplateRenderer {
         if (direct !== undefined)
             return direct;
 
-        if (element.parentElement?.hasAttribute(ItemsHostAttribute) !== true)
+        const host = element.parentElement;
+
+        if (host?.hasAttribute(ItemsHostAttribute) !== true)
             return undefined;
 
         const key = element.getAttribute(ComponentKeyAttribute);
@@ -161,9 +175,17 @@ export class ItemsTemplateRenderer {
         if (key === null || key.length === 0)
             return undefined;
 
-        const owner = element.parentElement.closest<Element>(`[${ComponentIdAttribute}]`);
-        const hostId = owner === null ? 0 : readComponentId(owner);
-        const remembered = hostId > 0 ? this.componentItemsByHost.get(hostId)?.get(key) : undefined;
+        const hostItems = this.componentItemsByHost.get(host);
+        let remembered: ItemStackEntry | undefined;
+
+        if (hostItems !== undefined) {
+            remembered = hostItems.get(key);
+        }
+        else {
+            const owner = host.closest<Element>(`[${ComponentIdAttribute}]`);
+            const hostId = owner === null ? 0 : readComponentId(owner);
+            remembered = hostId > 0 ? this.componentItemsByHostId.get(hostId)?.get(key) : undefined;
+        }
 
         if (remembered !== undefined)
             this.itemStackByRoot.set(element, remembered);

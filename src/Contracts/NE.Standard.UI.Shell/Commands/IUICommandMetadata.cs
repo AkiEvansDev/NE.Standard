@@ -38,4 +38,7 @@ public interface IUICommandMetadata
     /// Gets the names of the arguments the command takes, in order, its cancellation token aside.
     /// </summary>
     IReadOnlyList<string> Parameters => [];
+
+    /// <summary>Gets the names of the required parameters that an invocation must supply.</summary>
+    IReadOnlyList<string> RequiredParameters => Parameters;
 }

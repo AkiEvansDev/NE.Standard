@@ -85,28 +85,56 @@
         margin-left: -0.375rem;
     }
 
-// Sized by what it says, like the range labels: reserving room for the longest reading left an empty tail after shorter ones.
+// Reserved to the widest value the slider's bounds and step can produce (`data-ui-slider-value-sizer`), right-aligned horizontally and
+// centred upright so digit transitions during a drag (`0.85` -> `1` or `9` -> `100`) never shift `.ui-slider__track` or sibling faders.
 .ui-slider__value,
 .ui-slider__values {
     display: none;
     flex: 0 0 auto;
-    text-align: start;
+    text-align: end;
+    white-space: nowrap;
     color: @ui-text-muted;
     font-variant-numeric: tabular-nums;
 }
 
-// A band's two readings on one line, "20 – 80"; each keeps the single reading's look.
-.ui-slider__values {
-    white-space: nowrap;
-}
+    .ui-slider.ui-orientation--vertical .ui-slider__value,
+    .ui-slider.ui-orientation--vertical .ui-slider__values {
+        text-align: center;
+    }
 
+    // A band's two readings on one line, "20 – 80"; each keeps the single reading's look and reserved width.
     .ui-slider__values > .ui-slider__value {
-        display: inline;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .ui-slider.ui-orientation--vertical .ui-slider__values > .ui-slider__value {
+        align-items: center;
     }
 
 // The readout sits beside the track only without range labels; with both it would print a second bare number, so it moves over the handle.
-.ui-slider--show-value:not(.ui-slider--show-range) > .ui-slider__row > :is(.ui-slider__value, .ui-slider__values) {
-    display: inline-block;
+.ui-slider--show-value:not(.ui-slider--show-range) > .ui-slider__row > .ui-slider__value {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+    .ui-slider--show-value:not(.ui-slider--show-range).ui-orientation--vertical > .ui-slider__row > .ui-slider__value {
+        align-items: center;
+    }
+
+.ui-slider--show-value:not(.ui-slider--show-range) > .ui-slider__row > .ui-slider__values {
+    display: inline-flex;
+    align-items: center;
+}
+
+.ui-slider__value[data-ui-slider-value-sizer]::after {
+    content: attr(data-ui-slider-value-sizer);
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 // The thumb's size, which the bubble tracks since a range input paints its own handle; a variable, so a size change moves the anchor.

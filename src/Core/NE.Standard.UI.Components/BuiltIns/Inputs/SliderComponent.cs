@@ -1,7 +1,5 @@
 using System;
 using System.Globalization;
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
@@ -94,6 +92,7 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
         ValidateConfiguration(Min, Max, Step, value, EndValue, MinDistance);
 
         Value = value;
+        RemoveNonOptionalBinding(IInputComponent.ValueProperty);
         return Self;
     }
 
@@ -103,25 +102,13 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     /// </summary>
     public void ValidateConfiguration()
         => ValidateConfiguration(
-            Binds(MinProperty) ? null : Min ?? IOrderedRangeComponent.DefaultMin,
-            Binds(MaxProperty) ? null : Max ?? IOrderedRangeComponent.DefaultMax,
-            Binds(StepProperty) ? null : Step ?? DefaultStep,
+            HasBinding(MinProperty) ? null : Min ?? IOrderedRangeComponent.DefaultMin,
+            HasBinding(MaxProperty) ? null : Max ?? IOrderedRangeComponent.DefaultMax,
+            HasBinding(StepProperty) ? null : Step ?? DefaultStep,
             Value,
             EndValue,
             MinDistance
         );
-
-    /// <summary>Whether a binding sets the property, its value unknown until the source delivers it.</summary>
-    private bool Binds(UIProperty property)
-    {
-        foreach (UIBinding binding in Bindings)
-        {
-            if (binding.Target.Equals(property))
-                return true;
-        }
-
-        return false;
-    }
 
     /// <summary>
     /// The one rule every setter keeps: each end between the bounds already set and on a step above zero counted from a known minimum,
@@ -131,8 +118,8 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     private void ValidateConfiguration(decimal? min, decimal? max, decimal? step, decimal? value, decimal? endValue, decimal? minDistance)
     {
         // The setters pass Min, Max and Step as they stand so setter/binding order never traps SetValue(-5).BindMin(...) or SetValue(500).SetMax(1000).
-        var minBound = Binds(MinProperty);
-        var maxBound = Binds(MaxProperty);
+        var minBound = HasBinding(MinProperty);
+        var maxBound = HasBinding(MaxProperty);
         var lower = minBound ? null : min;
         var upper = maxBound ? null : max;
 
@@ -191,6 +178,7 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
         ValidateConfiguration(Min, Max, Step, Value, endValue, MinDistance);
 
         EndValue = endValue;
+        RemoveNonOptionalBinding(IPeriodInputComponent.EndValueProperty);
         return Self;
     }
 
@@ -202,6 +190,7 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
         ValidateConfiguration(Min, Max, Step, Value, EndValue, minDistance);
 
         MinDistance = minDistance;
+        RemoveNonOptionalBinding(IPeriodInputComponent.MinDistanceProperty);
         return Self;
     }
 
@@ -213,6 +202,7 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
         ValidateConfiguration(min, Max, Step, Value, EndValue, MinDistance);
 
         Min = min;
+        RemoveNonOptionalBinding(MinProperty);
         return Self;
     }
 
@@ -224,6 +214,7 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
         ValidateConfiguration(Min, max, Step, Value, EndValue, MinDistance);
 
         Max = max;
+        RemoveNonOptionalBinding(MaxProperty);
         return Self;
     }
 
@@ -236,6 +227,8 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
 
         Min = min;
         Max = max;
+        RemoveNonOptionalBinding(MinProperty);
+        RemoveNonOptionalBinding(MaxProperty);
         return Self;
     }
 
@@ -247,6 +240,7 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
         ValidateConfiguration(Min, Max, step, Value, EndValue, MinDistance);
 
         Step = step;
+        RemoveNonOptionalBinding(StepProperty);
         return Self;
     }
 

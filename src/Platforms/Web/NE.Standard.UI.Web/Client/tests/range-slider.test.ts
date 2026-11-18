@@ -33,7 +33,7 @@ installFakeDom({
     requestAnimationFrame: (callback: () => void) => frames.push(callback)
 });
 
-const { chooseHandle, holdApart, snapToStep, trackFraction, valueAtFraction } = await import("../src/interactions/range-handles.ts");
+const { chooseHandle, holdApart, sliderValueSizer, snapToStep, trackFraction, valueAtFraction } = await import("../src/interactions/range-handles.ts");
 const { RangeValueEngine } = await import("../src/interactions/range-value-engine.ts");
 const { InteractionEngine } = await import("../src/interactions/interaction-engine.ts");
 const { InteractionEvaluator } = await import("../src/interactions/interaction-evaluator.ts");
@@ -69,6 +69,9 @@ test("a handle stops at the other, and at the least distance from it, on a step 
 
 test("a value lands on the step, written as exactly as the step is", () => {
     assert.equal(snapToStep(0.30000000000000004, { min: 0, max: 10, step: 0.1 }), 0.3);
+    assert.equal(snapToStep(0.3, { min: 0, max: 0.3, step: 0.1 }), 0.3);
+    assert.equal(snapToStep(0.6, { min: 0, max: 0.6, step: 0.2 }), 0.6);
+    assert.equal(snapToStep(0.7, { min: 0, max: 0.7, step: 0.1 }), 0.7);
     assert.equal(snapToStep(37, { min: 0, max: 290, step: 10 }), 40);
     assert.equal(snapToStep(289, { min: 0, max: 295, step: 10 }), 290);
     assert.equal(snapToStep(299, { min: 0, max: 295, step: 10 }), 290);
@@ -407,4 +410,15 @@ test("a rule watching each end hears its own end's edit alone, so a band filters
     start.dispatchEvent(new FakeEvent("change"));
 
     assert.deepEqual(heard, ["to 60", "from 30"]);
+});
+
+test("sliderValueSizer reserves the widest reading across integer, sampler fractional, and signed bounds", () => {
+    assert.equal(sliderValueSizer({ min: 0, max: 1, step: 0.05 }), "0.00");
+    assert.equal(sliderValueSizer({ min: 0, max: 100, step: 1 }), "000");
+    assert.equal(sliderValueSizer({ min: 0, max: 10, step: 0.05 }), "0.00");
+    assert.equal(sliderValueSizer({ min: 0, max: 20, step: 0.05 }), "00.00");
+    assert.equal(sliderValueSizer({ min: -2, max: 2, step: 0.05 }), "-0.00");
+    assert.equal(sliderValueSizer({ min: -5, max: 1000, step: 1 }), "0000");
+    assert.equal(sliderValueSizer({ min: 0.5, max: 100, step: 95 }), "00.0");
+    assert.equal(sliderValueSizer({ min: 0.25, max: 100, step: 95 }), "00.00");
 });

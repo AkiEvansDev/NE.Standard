@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Desktop.Hosting;
 using NE.Standard.UI.Startup;
 
@@ -55,8 +56,14 @@ public static class DesktopStartupBuilder
         where TDesktopStartup : DesktopStartupBase<TStartup>, new()
         where TStartup : UIStartupBase, new()
     {
+        (UITheme startupTheme, var startupIcon) = DesktopStartupBase<TStartup>.ReadShellDefaults();
+        DesktopRemoteApplicationDefaults remoteDefaults = new(startupTheme, startupIcon);
+
         TDesktopStartup startup = new();
-        DesktopHostOptions options = new();
+        DesktopHostOptions options = new()
+        {
+            Theme = startupTheme
+        };
         startup.ConfigureHost(options);
         options.ApplyCommandLine(args);
         configureOptions?.Invoke(options);
@@ -65,7 +72,7 @@ public static class DesktopStartupBuilder
             options,
             services =>
             {
-                startup.ConfigureDesktop(services, options);
+                startup.ConfigureDesktop(services, options, remoteDefaults);
                 configureServices?.Invoke(services);
             }
         );
@@ -90,7 +97,7 @@ public static class DesktopStartupBuilder
 
         DesktopWindow window = host.CreateWindow();
         ObserveFault(window.ShellControl.WarmEnvironmentAsync());
-        window.Loaded += async (_, _) => await window.ShellControl.OpenInitialPageAsync().ConfigureAwait(true);
+        window.Loaded += (_, _) => ObserveFault(window.ShellControl.OpenInitialPageAsync());
         return app.Run(window);
     }
 

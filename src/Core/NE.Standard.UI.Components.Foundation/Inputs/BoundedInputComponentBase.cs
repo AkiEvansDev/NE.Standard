@@ -35,6 +35,7 @@ public abstract partial class BoundedInputComponentBase<TComponent, TValue>(stri
     {
         ValidateRange(Min, Max, value);
         Value = value;
+        RemoveNonOptionalBinding(IInputComponent.ValueProperty);
         return Self;
     }
 
@@ -45,6 +46,7 @@ public abstract partial class BoundedInputComponentBase<TComponent, TValue>(stri
     {
         ValidateRange(min, Max, Value);
         Min = min;
+        RemoveNonOptionalBinding(IBoundedInputComponent.MinProperty);
         return Self;
     }
 
@@ -55,6 +57,7 @@ public abstract partial class BoundedInputComponentBase<TComponent, TValue>(stri
     {
         ValidateRange(Min, max, Value);
         Max = max;
+        RemoveNonOptionalBinding(IBoundedInputComponent.MaxProperty);
         return Self;
     }
 
@@ -66,6 +69,8 @@ public abstract partial class BoundedInputComponentBase<TComponent, TValue>(stri
         ValidateRange(min, max, Value);
         Min = min;
         Max = max;
+        RemoveNonOptionalBinding(IBoundedInputComponent.MinProperty);
+        RemoveNonOptionalBinding(IBoundedInputComponent.MaxProperty);
         return Self;
     }
 

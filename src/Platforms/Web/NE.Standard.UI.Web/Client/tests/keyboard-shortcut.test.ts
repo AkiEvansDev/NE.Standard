@@ -41,8 +41,10 @@ test("an F-key up to F24 resolves by number", () => {
     assert.equal(parseShortcut("F24")?.code, "F24");
 });
 
-test("the last non-modifier wins over an earlier one", () => {
-    assert.equal(parseShortcut("A+B")?.code, "KeyB");
+test("a key before its modifier still names the chord, while two keys or an unknown token fail", () => {
+    assert.deepEqual(parseShortcut("S+Ctrl"), { code: "KeyS", ctrl: true, shift: false, alt: false, meta: false });
+    assert.equal(parseShortcut("A+B"), null);
+    assert.equal(parseShortcut("Ctrl+Shfit+S"), null);
 });
 
 test("nothing but modifiers names no key", () => {

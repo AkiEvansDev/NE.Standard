@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -104,22 +103,8 @@ internal sealed partial class WebAssetCompression(IOptions<WebResponseCompressio
     /// <summary>Bytes the framework built itself (a language's words) compressed the way an asset is.</summary>
     internal static Compressed Build(byte[] original)
     {
-        ArgumentNullException.ThrowIfNull(original);
-
-        var brotli = Compress(original, static target => new BrotliStream(target, CompressionLevel.SmallestSize, leaveOpen: true));
-        var gzip = Compress(original, static target => new GZipStream(target, CompressionLevel.SmallestSize, leaveOpen: true));
-
-        return new Compressed(brotli.Length < original.Length ? brotli : null, gzip.Length < original.Length ? gzip : null);
-    }
-
-    private static byte[] Compress(byte[] original, Func<Stream, Stream> wrap)
-    {
-        using MemoryStream target = new();
-
-        using (Stream compressor = wrap(target))
-            compressor.Write(original);
-
-        return target.ToArray();
+        ServerByteCompression.CompressedBytes built = ServerByteCompression.Build(original);
+        return new Compressed(built.Brotli, built.Gzip);
     }
 
     private static bool IsBuildFailure(Exception exception)

@@ -307,10 +307,10 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
         IVisualComponent? previousDefaultTemplate = Template;
         UIEvent[]? previousDefaultEvents = ownTemplate is null ? (Template as ITemplateEventTarget)?.SnapshotEvents() : null;
 
-        if (ownTemplate is not null && _defaultTemplate is not null && !ReferenceEquals(ownTemplate, _defaultTemplate))
+        if (ownTemplate is not null && !ReferenceEquals(ownTemplate, _defaultTemplate))
             Template = _defaultTemplate;
 
-        if (ownEmptyTemplate is not null && _defaultEmptyTemplate is not null && !ReferenceEquals(ownEmptyTemplate, _defaultEmptyTemplate))
+        if (ownEmptyTemplate is not null && !ReferenceEquals(ownEmptyTemplate, _defaultEmptyTemplate))
             EmptyTemplate = _defaultEmptyTemplate;
 
         Dictionary<string, IVisualComponent>? previousVariants = _templates.Count > 0 ? new Dictionary<string, IVisualComponent>(_templates, StringComparer.Ordinal) : null;
@@ -338,8 +338,10 @@ public abstract partial class TemplatedComponentBase<TComponent>(string? id = nu
 
                 ownVariants.Add((key, variant, (variant as ITemplateEventTarget)?.SnapshotComponentState()));
 
-                if (_defaultTemplates is not null && _defaultTemplates.TryGetValue(key, out IVisualComponent? defaultVariant) && !ReferenceEquals(variant, defaultVariant))
+                if (_defaultTemplates is not null && _defaultTemplates.TryGetValue(key, out IVisualComponent? defaultVariant))
                     _templates[key] = defaultVariant;
+                else
+                    _ = _templates.Remove(key);
             }
         }
 

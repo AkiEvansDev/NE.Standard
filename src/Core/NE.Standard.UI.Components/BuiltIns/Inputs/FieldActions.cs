@@ -222,6 +222,23 @@ internal sealed class FieldActions(IDictionary<string, IVisualComponent> regions
         AddTrailing(control: null, select, inField: false, belowStart: false);
     }
 
+    public Action? SnapshotWith(Action? restoreBase)
+    {
+        Action? restoreActions = SnapshotAuthoredState();
+
+        if (restoreBase is null)
+            return restoreActions;
+
+        if (restoreActions is null)
+            return restoreBase;
+
+        return () =>
+        {
+            restoreBase();
+            restoreActions();
+        };
+    }
+
     public Action? SnapshotAuthoredState()
     {
         var hadLeading = _leadingCount > 0 || _leadingBelowEndCount > 0 || _hasLeadingInField;

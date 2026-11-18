@@ -37,7 +37,7 @@ Full guide: https://akievansdev.github.io/NE.Standard/items.html
 
 ## Tables (`TableComponent`)
 
-- Add columns with `.AddColumn(key, caption, template, width)` or the typed shorthand `.AddTextColumn<OrderItem>("Customer", x => x.CustomerName, width: UIGridUnit.Star(1))`.
+- Add columns with `.AddColumn(caption, template, width, alignment, key)` or the typed shorthand `.AddTextColumn<OrderItem>("Customer", x => x.CustomerName, width: UIGridUnit.Star(1))`.
 - Accessibility: every row is named by its first captioned column or `.SetRowHeaderColumn(columnKey)`.
 
 ## Windowed / Virtualized Data (`UIItemSourceBase<TItem>`)
@@ -47,10 +47,16 @@ For large datasets or chat/activity streams that should not sit in memory all at
 ```csharp
 public sealed class OrderSource : UIItemSourceBase<OrderItem>
 {
-    protected override async ValueTask<UIItemWindow<OrderItem>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
+    protected override async Task<UIItemWindow<OrderItem>> GetWindowAsync(UIItemWindowRequest request, CancellationToken cancellationToken)
     {
-        // Query slice using request.Offset, request.Count, and request.Query (filters/sorts)
-        return new UIItemWindow<OrderItem>(items, request.Offset, totalCount, hasMoreBefore, hasMoreAfter);
+        // Query slice using request.Anchor, request.Count, and request.Query (filters/sorts)
+        return new UIItemWindow<OrderItem>(items)
+        {
+            Offset = offset,
+            TotalCount = totalCount,
+            HasMoreBefore = hasMoreBefore,
+            HasMoreAfter = hasMoreAfter
+        };
     }
 }
 ```
@@ -62,5 +68,5 @@ public sealed class OrderSource : UIItemSourceBase<OrderItem>
   - `Move(item, oldIndex, newIndex)`
   - `Remove(key, sourceIndex?)`
   - `Invalidate()` (forces the client to re-request the window from its current edge, including `AnchorToEnd` chat views).
-- Use `.SetAnchorToEnd(true)` for chat/log views that start at the bottom and load older history when scrolling up.
+- Use `.AnchorToEnd()` for chat/log views that start at the bottom and load older history when scrolling up.
 - Use `.SetLoadingLook(UIItemsLoadingLook.Indicator)` when rows have variable heights.

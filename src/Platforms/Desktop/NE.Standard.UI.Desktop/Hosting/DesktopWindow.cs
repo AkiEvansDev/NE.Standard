@@ -13,6 +13,7 @@ public sealed class DesktopWindow : Window
 {
     private WindowState _restoreWindowState = WindowState.Normal;
     private bool _hasActivatedOnce;
+    private bool _restoredByNotification;
     private bool _closeConfirmed;
     private bool _checkingUnsavedClose;
 
@@ -58,6 +59,8 @@ public sealed class DesktopWindow : Window
     /// <summary>Gets the <see cref="DesktopShellControl"/> hosted inside this window.</summary>
     public DesktopShellControl ShellControl { get; }
 
+    internal bool AllowForegroundActivation { get; set; } = true;
+
     private void ApplyWindowChrome()
     {
         UITheme theme = Host.ActiveTheme;
@@ -79,7 +82,7 @@ public sealed class DesktopWindow : Window
     private void SyncShellSurfaceVisibility()
         => ShellControl.IsSurfaceVisible = IsVisible
             && WindowState != WindowState.Minimized
-            && (IsActive || (!_hasActivatedOnce && !ShowActivated));
+            && (IsActive || _restoredByNotification || (!_hasActivatedOnce && !ShowActivated));
 
     private void OnWindowActivated(object? sender, EventArgs e)
     {
@@ -88,11 +91,16 @@ public sealed class DesktopWindow : Window
     }
 
     private void OnWindowDeactivated(object? sender, EventArgs e)
-        => SyncShellSurfaceVisibility();
+    {
+        _restoredByNotification = false;
+        SyncShellSurfaceVisibility();
+    }
 
     private void OnWindowStateChanged(object? sender, EventArgs e)
     {
-        if (WindowState != WindowState.Minimized)
+        if (WindowState == WindowState.Minimized)
+            _restoredByNotification = false;
+        else
             _restoreWindowState = WindowState;
 
         SyncShellSurfaceVisibility();
@@ -135,7 +143,7 @@ public sealed class DesktopWindow : Window
 
                 _ = ShellControl.WebView.Focus();
 
-                var allowClose = await ShellControl.ConfirmCloseAsync().ConfigureAwait(true);
+                var allowClose = await ShellControl.PromptConfirmCloseCoreAsync().ConfigureAwait(true);
                 if (!allowClose)
                 {
                     _checkingUnsavedClose = false;
@@ -175,7 +183,9 @@ public sealed class DesktopWindow : Window
         if (WindowState == WindowState.Minimized)
             WindowState = _restoreWindowState;
 
-        if (ShowActivated)
+        _restoredByNotification = true;
+
+        if (AllowForegroundActivation)
         {
             _ = Activate();
             DesktopDwmWindowHelper.BringToForeground(this);

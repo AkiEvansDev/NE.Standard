@@ -16,6 +16,7 @@ internal sealed class PresetsLayoutView : PresetsViewBase, IUIViewDefinition
             .AddChild(CreateSidebarGroup())
             .AddChildren(DemoUI.CreateColumns([CreateEndsGroup()], [CreateBoardGroup()]))
             .AddChild(CreatePanesGroup())
+            .AddChild(CreateStackedPanesGroup())
             .AddChild(CreatePanesVisibilityGroup());
     }
 }

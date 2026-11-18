@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
@@ -51,6 +52,79 @@ internal static partial class WebFileEndpoints
         _ = endpoints.MapGet($"{Prefix}/selection/{{selectionId}}", SelectionAsync);
         _ = endpoints.MapGet($"{Prefix}/upload/{{fileId}}", UploadedAsync);
         _ = endpoints.MapGet($"{Prefix}/{{token}}", DownloadAsync);
+    }
+
+    internal readonly record struct LocalUploadCandidate(string Path, string? Name, string? ContentType);
+
+    internal readonly record struct LocalUploadOutcome(bool Handled, string? SelectionId = null, string? Error = null);
+
+    /// <summary>
+    /// Registers local disk files directly into <see cref="IUIFileStore"/> without copying file bytes, charging only entry metadata overhead against upload allowances.
+    /// </summary>
+    internal static async Task<LocalUploadOutcome> RegisterLocalUploadsAsync(IServiceProvider services, string sessionId, IReadOnlyList<LocalUploadCandidate> candidates, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        UIApplication application = services.GetRequiredService<UIApplication>();
+        UIFileOptions limits = application.Files;
+
+        if (candidates.Count > limits.MaxFilesPerSelection)
+            return new LocalUploadOutcome(Handled: true, Error: $"A selection carries at most {limits.MaxFilesPerSelection} files.");
+
+        IUIFileStore store = services.GetRequiredService<IUIFileStore>();
+        WebSessionAllowance allowance = services.GetRequiredService<WebSessionAllowance>();
+        ILoggerFactory? loggerFactory = services.GetService<ILoggerFactory>();
+        using WebSessionAllowance.Claim claim = allowance.Open(sessionId, limits.MaxUploadBytesPerSession, limits.MaxUploadBytesTotal ?? 0);
+
+        var storedSince = allowance.CommittedSince(DateTime.UtcNow - limits.UploadRetention - limits.CleanupInterval);
+        claim.HoldElsewhere(await store.GetUploadedBytesAsync(sessionId, cancellationToken).ConfigureAwait(false), storedSince);
+
+        var selectionId = Guid.NewGuid().ToString("N");
+        var totalBytes = 0L;
+        var registeredCount = 0;
+        var committed = false;
+
+        try
+        {
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                LocalUploadCandidate candidate = candidates[i];
+                FileInfo info = new(candidate.Path);
+                if (!info.Exists)
+                    return new LocalUploadOutcome(Handled: false);
+
+                var fileLength = info.Length;
+                if (fileLength > limits.MaxFileSize)
+                    return new LocalUploadOutcome(Handled: true, Error: $"A file may be at most {limits.MaxFileSize} bytes.");
+
+                var fileName = ReduceFileName(candidate.Name) ?? ReduceFileName(info.Name) ?? "upload";
+
+                // Zero-copy local files leave bytes on the user's disk, so only metadata overhead is charged (matching FileSystemUIFileStore.RegisterLocalUploadAsync).
+                if (!claim.TryReserve(UIAllowanceCharge.Overhead(fileName)))
+                    return new LocalUploadOutcome(Handled: true, Error: FullMessage(claim.TotalRefused, limits, allowance, loggerFactory));
+
+                var contentType = string.IsNullOrWhiteSpace(candidate.ContentType) ? null : candidate.ContentType;
+                UIUploadFile uploaded = await store
+                    .RegisterLocalUploadAsync(sessionId, selectionId, candidate.Path, fileName, contentType, cancellationToken)
+                    .ConfigureAwait(false);
+
+                registeredCount++;
+                totalBytes += uploaded.Size;
+            }
+
+            claim.Commit();
+            committed = true;
+        }
+        finally
+        {
+            if (!committed && registeredCount > 0)
+                await store.RemoveSelectionAsync(sessionId, selectionId, CancellationToken.None).ConfigureAwait(false);
+        }
+
+        services.GetService<WebUIMetrics>()?.FileUploaded(totalBytes);
+        return new LocalUploadOutcome(Handled: true, SelectionId: selectionId);
     }
 
     /// <summary>
@@ -207,14 +281,17 @@ internal static partial class WebFileEndpoints
 
     /// <summary>The session's limit or the process's, whichever the upload met; the process's is reported once a burst.</summary>
     private static IResult Full(bool total, UIFileOptions limits, WebSessionAllowance uploads, ILoggerFactory loggerFactory)
+        => WebRequestGuards.TooLarge(FullMessage(total, limits, uploads, loggerFactory));
+
+    private static string FullMessage(bool total, UIFileOptions limits, WebSessionAllowance uploads, ILoggerFactory? loggerFactory)
     {
         if (!total)
-            return WebRequestGuards.TooLarge($"A session may hold at most {limits.MaxUploadBytesPerSession} bytes of uploads at once.");
+            return $"A session may hold at most {limits.MaxUploadBytesPerSession} bytes of uploads at once.";
 
-        if (uploads.ReportTotalReached())
+        if (uploads.ReportTotalReached() && loggerFactory is not null)
             Log.TotalReached(loggerFactory.CreateLogger(typeof(WebFileEndpoints)), limits.MaxUploadBytesTotal ?? 0);
 
-        return WebRequestGuards.TooLarge("The server holds as many uploads as it may; try again later.");
+        return "The server holds as many uploads as it may; try again later.";
     }
 
     // Saturated rather than multiplied blind: a limit set as high as it goes must not wrap to a negative body size.
@@ -361,16 +438,15 @@ internal static partial class WebFileEndpoints
         var contentType = WebInertContent.Apply(http.Response, staged.ContentType, inlinePassive: false);
         ILogger logger = loggerFactory.CreateLogger(typeof(WebFileEndpoints));
 
-        if (staged.WriteToAsync is { } writeAsync)
+        if (staged.WriteToAsync is not null)
         {
             return Results.Stream(
                 async output =>
                 {
-                    using StreamedDownloadSink sink = new(output, staged.MaxBytes);
-                    await writeAsync(sink, http.RequestAborted).ConfigureAwait(false);
+                    var streamedBytes = await staged.WriteBoundedToAsync(output, http.RequestAborted).ConfigureAwait(false);
                     await output.FlushAsync(http.RequestAborted).ConfigureAwait(false);
-                    metrics.FileDownloaded(sink.BytesWritten);
-                    Log.Downloading(logger, sink.BytesWritten);
+                    metrics.FileDownloaded(streamedBytes);
+                    Log.Downloading(logger, streamedBytes);
                 },
                 contentType
             );
@@ -383,55 +459,5 @@ internal static partial class WebFileEndpoints
         Log.Downloading(logger, bytes);
 
         return Results.Stream(staged.Content, contentType);
-    }
-
-    private sealed class StreamedDownloadSink(Stream inner, long? maxBytes) : Stream
-    {
-        public long BytesWritten { get; private set; }
-
-        public override bool CanRead => false;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => BytesWritten;
-        public override long Position
-        {
-            get => BytesWritten;
-            set => throw new NotSupportedException();
-        }
-
-        public override void Flush() => inner.Flush();
-
-        public override Task FlushAsync(CancellationToken cancellationToken) => inner.FlushAsync(cancellationToken);
-
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-
-        public override void SetLength(long value) => throw new NotSupportedException();
-
-        public override void Write(byte[] buffer, int offset, int count)
-            => Write(buffer.AsSpan(offset, count));
-
-        public override void Write(ReadOnlySpan<byte> buffer)
-        {
-            Count(buffer.Length);
-            inner.Write(buffer);
-        }
-
-        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            Count(buffer.Length);
-            return inner.WriteAsync(buffer, cancellationToken);
-        }
-
-        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-            => WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
-
-        private void Count(int count)
-        {
-            BytesWritten += count;
-            if (maxBytes is long limit && BytesWritten > limit)
-                throw new InvalidOperationException("Staged download limit exceeded.");
-        }
     }
 }

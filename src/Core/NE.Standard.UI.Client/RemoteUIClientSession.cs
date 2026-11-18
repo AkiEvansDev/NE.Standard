@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http.Connections;
@@ -16,8 +17,12 @@ namespace NE.Standard.UI.Client;
 /// </summary>
 public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
 {
+    private static readonly HttpRequestOptionsKey<bool> BypassSessionKeyGate = new("NE.Standard.UI.BypassSessionKeyGate");
+
     private readonly Func<HttpMessageHandler>? _handlerFactory;
     private readonly List<RemoteUIClientTransport> _transports = [];
+    private readonly Lock _rotationSync = new();
+    private Task _sessionKeyRotation = Task.CompletedTask;
     private bool _disposed;
 
     /// <summary>Initializes a new remote client session for <paramref name="baseAddress"/>.</summary>
@@ -90,6 +95,46 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
         }
     }
 
+    internal async Task TradeSessionKeyAsync(byte[] body, CancellationToken cancellationToken)
+    {
+        Task previous;
+        TaskCompletionSource next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        lock (_rotationSync)
+        {
+            previous = _sessionKeyRotation;
+            _sessionKeyRotation = next.Task;
+        }
+
+        try
+        {
+            await previous.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using ByteArrayContent content = new(body);
+            content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            using HttpRequestMessage request = new(HttpMethod.Post, new Uri("/_ne/session/key", UriKind.Relative))
+            {
+                Content = content
+            };
+            request.Options.Set(BypassSessionKeyGate, true);
+
+            using HttpResponseMessage response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            _ = response.EnsureSuccessStatusCode();
+        }
+        finally
+        {
+            _ = next.TrySetResult();
+        }
+    }
+
+    internal Task WaitForSessionKeyRotationAsync(CancellationToken cancellationToken)
+    {
+        Task pending;
+        lock (_rotationSync)
+            pending = _sessionKeyRotation;
+
+        return pending.IsCompletedSuccessfully ? Task.CompletedTask : pending.WaitAsync(cancellationToken);
+    }
+
     [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope", Justification = "DelegatingHandler owns and disposes the inner HttpMessageHandler.")]
     internal HttpMessageHandler CreateMessageHandler()
     {
@@ -97,7 +142,7 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
             ? _handlerFactory()
             : new SocketsHttpHandler { UseCookies = false, AllowAutoRedirect = false };
 
-        return new CookieTrackingHandler(Cookies, BaseAddress, inner);
+        return new CookieTrackingHandler(this, Cookies, BaseAddress, inner);
     }
 
     private void RemoveTransport(RemoteUIClientTransport transport)
@@ -173,7 +218,7 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
         }
     }
 
-    private sealed class CookieTrackingHandler(CookieContainer cookies, Uri baseAddress, HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)
+    private sealed class CookieTrackingHandler(RemoteUIClientSession session, CookieContainer cookies, Uri baseAddress, HttpMessageHandler innerHandler) : DelegatingHandler(innerHandler)
     {
         private readonly Lock _sync = new();
 
@@ -185,6 +230,9 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
 
             if (!IsSameOrigin(baseAddress, requestUri))
                 throw new InvalidOperationException($"Refusing to send session request to foreign origin '{requestUri.GetLeftPart(UriPartial.Authority)}'.");
+
+            if (!request.Options.TryGetValue(BypassSessionKeyGate, out var bypass) || !bypass)
+                await session.WaitForSessionKeyRotationAsync(cancellationToken).ConfigureAwait(false);
 
             lock (_sync)
             {

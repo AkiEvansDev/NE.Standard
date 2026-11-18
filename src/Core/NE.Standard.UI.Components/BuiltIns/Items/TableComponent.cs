@@ -147,18 +147,7 @@ public abstract partial class TableComponent<T> : RowItemsComponentBase<T, IBind
 
     /// <summary>Whether the table draws its column of checkboxes: <c>SelectionMode</c> set to <see cref="UISelectionMode.Many"/>, or bound.</summary>
     private bool SelectsMany()
-    {
-        if (SelectionMode == UISelectionMode.Many)
-            return true;
-
-        for (var i = 0; i < Bindings.Count; i++)
-        {
-            if (Bindings[i].Target.Equals(ISelectableItemsComponent.SelectionModeProperty))
-                return true;
-        }
-
-        return false;
-    }
+        => SelectionMode == UISelectionMode.Many || HasBinding(ISelectableItemsComponent.SelectionModeProperty);
 
     /// <summary>
     /// Initializes a table with the built-in empty template and the row template every row is a copy of.

@@ -107,6 +107,13 @@ public sealed record UserSessionState : IUserSessionContext
 
     /// <inheritdoc />
     public bool Equals(UserSessionState? other)
+        => EqualsCore(other, compareLastSeen: true);
+
+    /// <summary>Determines whether all stored fields except <see cref="LastSeenAtUtc"/> match <paramref name="other"/>.</summary>
+    public bool EqualsIgnoringTouch(UserSessionState? other)
+        => EqualsCore(other, compareLastSeen: false);
+
+    private bool EqualsCore(UserSessionState? other, bool compareLastSeen)
     {
         if (other is null)
             return false;
@@ -124,7 +131,7 @@ public sealed record UserSessionState : IUserSessionContext
             && PendingIdRotation == other.PendingIdRotation
             && IsUnclaimed == other.IsUnclaimed
             && CreatedAtUtc.Equals(other.CreatedAtUtc)
-            && LastSeenAtUtc.Equals(other.LastSeenAtUtc)
+            && (!compareLastSeen || LastSeenAtUtc.Equals(other.LastSeenAtUtc))
             && SetsEqual(Roles, other.Roles)
             && SetsEqual(Permissions, other.Permissions);
     }

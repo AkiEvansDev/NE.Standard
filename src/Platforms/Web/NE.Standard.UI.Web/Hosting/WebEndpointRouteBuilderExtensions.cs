@@ -31,19 +31,16 @@ using NE.Standard.UI.Web.Assets;
 using NE.Standard.UI.Web.Html;
 using NE.Standard.UI.Web.Rendering;
 using HeaderNames = Microsoft.Net.Http.Headers.HeaderNames;
-using StringWithQualityHeaderValue = Microsoft.Net.Http.Headers.StringWithQualityHeaderValue;
 
 namespace NE.Standard.UI.Web.Hosting;
 
+/// <summary>Maps the ASP.NET Core web shell, static assets, and live SignalR transport endpoints.</summary>
 public static partial class WebEndpointRouteBuilderExtensions
 {
     private static partial class Log
     {
         [LoggerMessage(EventId = 1, Level = LogLevel.Debug, Message = "Rendering web UI route '{Route}'.")]
         public static partial void Rendering(ILogger logger, string route);
-
-        [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Response compression is switched on but this host does not accept middleware here; call UseResponseCompression() yourself.")]
-        public static partial void CompressionNotInstalled(ILogger logger);
 
         [LoggerMessage(EventId = 3, Level = LogLevel.Error, Message = "Rendering web UI route '{Route}' failed.")]
         public static partial void RenderFailed(ILogger logger, Exception exception, string route);
@@ -53,102 +50,36 @@ public static partial class WebEndpointRouteBuilderExtensions
     }
 
     /// <summary>Everything the framework serves stands under this prefix, and the page route answers nothing beneath it.</summary>
-    internal const string FrameworkPrefix = "/_ne/";
+    internal const string FrameworkPrefix = ServerEndpointCore.FrameworkPrefix;
 
     /// <summary>The address of the hub the client connects to.</summary>
-    internal const string HubPath = "/_ne/hub";
+    internal const string HubPath = ServerEndpointCore.HubPath;
 
     // Renders of a cache key under way, so the requests that miss one key together render it once and write its files once.
     private static readonly ConcurrentDictionary<(IWebViewRenderCache Cache, string Key), Task<WebCachedViewRender>> RendersInFlight = [];
 
+    /// <summary>Maps all <c>NE.Standard.UI.Web</c> browser assets, SignalR hub, file/value/words endpoints, and the catch-all page shell route.</summary>
     public static Task<IEndpointRouteBuilder> MapStandardUIWebAsync(this IEndpointRouteBuilder endpoints, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        // Built now rather than on the first request: a route compiled at Startup compiles here, so a view naming a command its
-        // controller lacks fails the deployment, not its first visitor — and so does a session cookie name a browser would drop.
         _ = endpoints.ServiceProvider.GetRequiredService<UIApplication>();
         _ = endpoints.ServiceProvider.GetRequiredService<WebSessionCookie>();
 
-        // The framework's own page, asset, file and content responses all sit behind this filter; the hub is a
-        // different kind of endpoint and carries no body a browser could sniff.
-        RouteGroupBuilder group = endpoints.MapGroup(string.Empty).AddEndpointFilter(AddNoSniffHeaderAsync);
+        RouteGroupBuilder group = endpoints.MapGroup(string.Empty).AddEndpointFilter(ServerEndpointCore.AddNoSniffHeaderAsync);
 
         MapAssets(group);
         MapThemeStylesheet(group);
 
         WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
 
-        MapServerCoreEndpoints(endpoints, group, options, mapClientViewEndpoint: options.EnableClientViewEndpoint);
+        ServerEndpointCore.MapServerCoreEndpoints(endpoints, group, options, mapClientViewEndpoint: options.EnableClientViewEndpoint);
         WebManifestEndpoint.Map(group);
-        RequireAuthorization(group.MapGet("/{**route}", RenderAsync), options);
+        ServerEndpointCore.RequireAuthorization(group.MapGet("/{**route}", RenderAsync), options);
 
         return Task.FromResult(endpoints);
-    }
-
-    internal static Task<IEndpointRouteBuilder> MapStandardUIServerCoreAsync(IEndpointRouteBuilder endpoints, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(endpoints);
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        _ = endpoints.ServiceProvider.GetRequiredService<UIApplication>();
-        _ = endpoints.ServiceProvider.GetRequiredService<WebSessionCookie>();
-
-        RouteGroupBuilder group = endpoints.MapGroup(string.Empty).AddEndpointFilter(AddNoSniffHeaderAsync);
-        WebEndpointOptions options = endpoints.ServiceProvider.GetRequiredService<IOptions<WebEndpointOptions>>().Value;
-
-        MapServerCoreEndpoints(endpoints, group, options, mapClientViewEndpoint: true);
-
-        return Task.FromResult(endpoints);
-    }
-
-    private static void MapServerCoreEndpoints(IEndpointRouteBuilder endpoints, RouteGroupBuilder group, WebEndpointOptions options, bool mapClientViewEndpoint)
-    {
-        if (mapClientViewEndpoint)
-            WebViewEndpoint.Map(group, options);
-        WebFileEndpoints.Map(group);
-        WebValueEndpoint.Map(group);
-        WebSessionKeyEndpoint.Map(group);
-        WebContentEndpoint.Map(group);
-        WebWordsEndpoint.Map(group);
-
-        UseResponseCompression(endpoints);
-
-        // A socket that drops and comes straight back keeps its connection, its calls and what was sent meanwhile: a background
-        // command is not cancelled and an awaited one is not failed by a blip (the client's `withStatefulReconnect`).
-        HubEndpointConventionBuilder hub = endpoints.MapHub<WebUIHub>(HubPath, static options => options.AllowStatefulReconnects = true);
-
-        hub.Add(RefuseCrossSiteRequests);
-        RequireAuthorization(hub, options);
-    }
-
-    /// <summary>
-    /// A framework response never leaves sniffing to the browser: the content type it declares is the one it means.
-    /// </summary>
-    private static async ValueTask<object?> AddNoSniffHeaderAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
-    {
-        context.HttpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        return await next(context).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Installs the compression middleware in front of everything this call maps — see <see cref="WebResponseCompressionOptions"/>.
-    /// </summary>
-    private static void UseResponseCompression(IEndpointRouteBuilder endpoints)
-    {
-        if (!endpoints.ServiceProvider.GetRequiredService<IOptions<WebResponseCompressionOptions>>().Value.Enabled)
-            return;
-
-        ILogger logger = endpoints.ServiceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(typeof(WebEndpointRouteBuilderExtensions));
-
-        if (endpoints is IApplicationBuilder application)
-            _ = application.UseResponseCompression();
-        else
-            Log.CompressionNotInstalled(logger);
     }
 
     private static void MapAssets(IEndpointRouteBuilder endpoints)
@@ -181,42 +112,6 @@ public static partial class WebEndpointRouteBuilderExtensions
     }
 
     /// <summary>
-    /// Refuses the hub's negotiate and every transport from another origin, as the upload and the staged value are refused
-    /// (<see cref="WebRequestGuards.IsCrossSiteRequest"/>).
-    /// </summary>
-    /// <remarks>
-    /// Around the endpoint's own delegate, before SignalR's dispatcher: a WebSocket passes no CORS and needs no negotiate, and its
-    /// handshake carries the session's cookie to a page on a sibling subdomain or another port.
-    /// </remarks>
-    private static void RefuseCrossSiteRequests(EndpointBuilder endpoint)
-    {
-        RequestDelegate next = endpoint.RequestDelegate ?? throw new InvalidOperationException($"The endpoint '{endpoint.DisplayName}' has no delegate to guard.");
-
-        endpoint.RequestDelegate = http =>
-        {
-            if (!WebRequestGuards.IsCrossSiteRequest(http))
-                return next(http);
-
-            http.Response.StatusCode = StatusCodes.Status403Forbidden;
-            return Task.CompletedTask;
-        };
-    }
-
-    /// <summary>
-    /// The outer gate, opt-in per <see cref="WebEndpointOptions.RequireAuthorization"/>; assets and file endpoints are left alone.
-    /// </summary>
-    internal static void RequireAuthorization(IEndpointConventionBuilder endpoint, WebEndpointOptions options)
-    {
-        if (!options.RequireAuthorization)
-            return;
-
-        if (string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
-            _ = endpoint.RequireAuthorization();
-        else
-            _ = endpoint.RequireAuthorization(options.AuthorizationPolicy);
-    }
-
-    /// <summary>
     /// A request naming the current version is cached for good; an unversioned or stale one revalidates by ETag every time, so a
     /// 304 keeps a stylesheet's font from blinking on navigation.
     /// </summary>
@@ -229,17 +124,14 @@ public static partial class WebEndpointRouteBuilderExtensions
         http.Response.Headers.ETag = etag;
         http.Response.Headers.CacheControl = versioned ? "public, max-age=31536000, immutable" : "public, no-cache";
 
-        // A versioned request revalidates too when the browser asks, as a hard reload does: the ETag says it holds these bytes.
         if (http.Request.Headers.IfNoneMatch.Count > 0 && http.Request.Headers.IfNoneMatch.ToString().Contains(etag, StringComparison.Ordinal))
             return Results.StatusCode(StatusCodes.Status304NotModified);
 
-        // The bytes compressed once, as the browser takes them; with Content-Encoding set, the per-response middleware leaves them be.
         if (compression.Enabled && WebAssetCompression.Compresses(asset))
         {
             http.Response.Headers.Vary = "Accept-Encoding";
 
-            // Null when the build failed: the asset goes out as it is rather than failing the request.
-            if (compression.Get(asset) is { } compressed && ChooseEncoding(http.Request.Headers.AcceptEncoding, compressed) is { } encoding)
+            if (compression.Get(asset) is { } compressed && ServerByteCompression.ChooseEncoding(http.Request.Headers.AcceptEncoding, compressed.Brotli, compressed.Gzip) is { } encoding)
             {
                 http.Response.Headers.ContentEncoding = encoding;
 
@@ -248,27 +140,6 @@ public static partial class WebEndpointRouteBuilderExtensions
         }
 
         return Results.File(asset.Open(), ResolveContentType(asset.Kind), enableRangeProcessing: false);
-    }
-
-    /// <summary>Brotli where the browser takes it, else Gzip, else none: an encoding it refused with <c>q=0</c> is not taken.</summary>
-    internal static string? ChooseEncoding(StringValues acceptEncoding, WebAssetCompression.Compressed compressed)
-    {
-        if (!StringWithQualityHeaderValue.TryParseList(acceptEncoding, out IList<StringWithQualityHeaderValue>? accepted))
-            return null;
-
-        var brotli = false;
-        var gzip = false;
-
-        foreach (StringWithQualityHeaderValue value in accepted)
-        {
-            if (value.Quality is 0)
-                continue;
-
-            brotli |= value.Value.Equals("br", StringComparison.OrdinalIgnoreCase);
-            gzip |= value.Value.Equals("gzip", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return brotli && compressed.Brotli is not null ? "br" : gzip && compressed.Gzip is not null ? "gzip" : null;
     }
 
     private static string ResolveContentType(UIWebAssetKind kind)
@@ -321,8 +192,7 @@ public static partial class WebEndpointRouteBuilderExtensions
 
         UIViewResolution resolution = await host.ResolveViewAsync(navigation, session, UIViewRequestPhase.Open, cancellationToken).ConfigureAwait(false);
 
-        // The shell render is the only half of a page load that can write a header, so a new session's secret is set here.
-        AppendSessionCookie(http, application.Sessions, sessionCookie, resolution);
+        ServerEndpointCore.AppendSessionCookie(http, application.Sessions, sessionCookie, resolution);
 
         try
         {
@@ -330,37 +200,22 @@ public static partial class WebEndpointRouteBuilderExtensions
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // A getter that throws while this reader's values are rendered fails the page the way a failed resolution does: the
-            // error route, in place, rather than a bare 500. The handler declines the error route itself, so this cannot loop.
             Log.RenderFailed(logger, exception, route);
 
-            UserSessionInitData current = new()
-            {
-                SessionId = resolution.Session.SessionId,
-                ConnectionId = session.ConnectionId,
-                Credential = session.Credential,
-                Principal = session.Principal,
-                Connection = session.Connection,
-                Languages = session.Languages
-            };
+            UIViewResolution? errorResolution = await ServerEndpointCore.TryResolveErrorViewAsync(
+                exception,
+                navigation,
+                session,
+                resolution,
+                host,
+                exceptionHandler,
+                http,
+                application.Sessions,
+                sessionCookie,
+                cancellationToken).ConfigureAwait(false);
 
-            UINavigationRequest? next = await exceptionHandler.HandleAsync(new ResolveExceptionViewContext
-            {
-                Exception = exception,
-                Navigation = navigation,
-                SessionInit = current,
-                Session = resolution.Session,
-                Route = resolution.Route
-            }, cancellationToken).ConfigureAwait(false);
-
-            if (next is null)
+            if (errorResolution is null)
                 throw;
-
-            UIViewResolution errorResolution = await host.ResolveViewAsync(next, current, UIViewRequestPhase.Open, cancellationToken).ConfigureAwait(false);
-
-            // Nothing new to write unless the session was ended while the page rendered, and the error page issued another.
-            if (errorResolution.IssuedSecret is not null)
-                AppendSessionCookie(http, application.Sessions, sessionCookie, errorResolution);
 
             return await RenderPageAsync(errorResolution, route, application, host, assets, renderer, renderCache, packageStrings, metrics, logger, http, cancellationToken).ConfigureAwait(false);
         }
@@ -526,12 +381,8 @@ public static partial class WebEndpointRouteBuilderExtensions
         }
     }
 
-    // All of the framework's prefix, not a list of what is mapped there: an address under it that nothing answers is a 404, not a page.
     internal static bool IsSystemRoute(string route)
-        => route.StartsWith("/.well-known/", StringComparison.Ordinal)
-        || route.StartsWith(FrameworkPrefix, StringComparison.Ordinal)
-        || route.Equals(FrameworkPrefix[..^1], StringComparison.Ordinal)
-        || route.Equals("/favicon.ico", StringComparison.Ordinal);
+        => ServerEndpointCore.IsSystemRoute(route);
 
     /// <summary>
     /// Whether the browser asks for the page as a document, or as a frame where the page may be framed; a request without
@@ -583,45 +434,6 @@ public static partial class WebEndpointRouteBuilderExtensions
             Connection = WebClientRequest.ReadConnection(http),
             Languages = WebClientRequest.ReadLanguages(http)
         };
-
-    /// <summary>
-    /// Hands the client the secret of a session the page load issued; with a lifetime, writes the presented one again, since the
-    /// lifetime counts from the last page load.
-    /// </summary>
-    /// <remarks>
-    /// The presented key is written back only as the headers go out, and only while its session is still there with no move to a new
-    /// id pending: a load that overlapped another's sign-in rotation holds the old id, and its key written after the other's would put
-    /// back a key whose session has ended. That load is never handed the new key either — the fixation defence.
-    /// </remarks>
-    internal static void AppendSessionCookie(HttpContext http, UISessionOptions options, WebSessionCookie cookie, UIViewResolution resolution)
-    {
-        if (resolution.IssuedSecret is { } issued)
-        {
-            cookie.Write(http, options, issued.Value);
-            return;
-        }
-
-        if (options.ClientKeyLifetime is null || PresentedSecretOf(http, cookie, resolution.Session.SessionId) is not { } presented)
-            return;
-
-        var sessionId = resolution.Session.SessionId;
-
-        http.Response.OnStarting(async () =>
-        {
-            IUserSessionStore store = http.RequestServices.GetRequiredService<IUserSessionStore>();
-
-            if (await store.TryGetAsync(sessionId, http.RequestAborted).ConfigureAwait(false) is { PendingIdRotation: false })
-                cookie.Write(http, options, presented);
-        });
-    }
-
-    /// <summary>The secret the request presented, where it is the key of <paramref name="sessionId"/>.</summary>
-    private static string? PresentedSecretOf(HttpContext http, WebSessionCookie cookie, string sessionId)
-    {
-        var presented = WebClientRequest.ReadSessionSecret(http, cookie);
-
-        return string.Equals(UISessionSecret.TryToSessionId(presented), sessionId, StringComparison.Ordinal) ? presented : null;
-    }
 
     internal static async ValueTask<WebCachedViewRender> GetOrRenderViewAsync(UIViewResolution resolution, IWebViewRenderer renderer, IWebViewRenderCache renderCache, CancellationToken cancellationToken)
     {

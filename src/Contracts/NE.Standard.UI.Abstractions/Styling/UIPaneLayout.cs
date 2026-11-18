@@ -58,18 +58,11 @@ public static class UIPaneLayout
     public static string Format(IEnumerable<string> names)
         => string.Join(Separator, names);
 
-    /// <summary>
-    /// Where each place stands at a tier once its pane keeps its own size, and the order the tracks then stand in. A run of places side
-    /// by side along an axis — the same cells across it, each starting where the one before ends — whose panes all come from that run,
-    /// one of them keeping its size (<see cref="UIPanePlace.KeepsSize"/>), is laid again with each pane's own tracks, in the order the
-    /// panes stand; <c>pane-container-engine.ts</c>'s <c>arrangePanes</c> does the same in the browser.
-    /// </summary>
+    /// <summary>Computes cell placements and reordered grid tracks at <paramref name="tier"/>, preserving tracks on <see cref="UIPanePlace.KeepsSize"/> runs.</summary>
     /// <remarks>
-    /// A pane without the option in such a run takes what is left, which is its own tracks: the run holds the same tracks in another
-    /// order. Elsewhere each pane takes its place's size: along an axis a splitter sizes (<paramref name="columnsCarry"/>,
-    /// <paramref name="rowsCarry"/> false), a gap between two places, a pane come from outside the run, or another place standing in
-    /// part of the run's tracks, which a new order would resize. <paramref name="standing"/> is the pane at each place, as
-    /// <see cref="Resolve"/> gives them; <paramref name="columns"/> and <paramref name="rows"/> count the authored tracks.
+    /// A contiguous run of places along an axis whose panes all originate in that run and include a <see cref="UIPanePlace.KeepsSize"/>
+    /// pane reorders each pane's authored tracks to match <c>pane-container-engine.ts</c>; elsewhere each pane takes its target place's
+    /// size (including axes sized by splitters when <paramref name="columnsCarry"/> or <paramref name="rowsCarry"/> is <see langword="false"/>).
     /// </remarks>
     public static UIPaneArrangement Arrange(IReadOnlyList<UIPanePlace> places, IReadOnlyList<string> standing, UIResponsiveTier tier, int columns, int rows, bool columnsCarry, bool rowsCarry)
     {

@@ -1,11 +1,7 @@
 using System;
-using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Interaction;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Components.Foundation.Inputs;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Localization;
@@ -16,80 +12,35 @@ namespace NE.Standard.UI.Components.BuiltIns.Inputs;
 /// <summary>
 /// A single-line text input for entering free-form text.
 /// </summary>
-[UIComponentPropertyBlock(typeof(IBorderedComponent))]
-[UIComponentPropertyBlock(typeof(IFieldInputComponent))]
 [UIComponentPropertyBlock(typeof(IAffixedInputComponent))]
 [UIComponentPropertyBlock(typeof(IAffixTextInputComponent))]
-[UIComponentPropertyBlock(typeof(IPlaceholderInputComponent))]
-[UIComponentPropertyBlock(typeof(ITextEntryInputComponent))]
-[UIComponentPropertyBlock(typeof(IDebounceInputComponent))]
-[UIComponentPropertyBlock(typeof(ITextLengthComponent))]
 [UIComponentPropertyBlock(typeof(IClearableInputComponent))]
-public abstract partial class TextInputComponent<T> : InputComponentBase<T, string?>, IBorderedComponent, IFieldInputComponent, IAffixedInputComponent, IPlaceholderInputComponent, ITextEntryInputComponent, IAffixTextInputComponent, IDebounceInputComponent, IClearableInputComponent, ITextLengthComponent, ICaretFieldComponent
+public abstract partial class TextInputComponent<T>(string? id = null) : TextEntryInputComponentBase<T>(id), IAffixedInputComponent, IAffixTextInputComponent, IClearableInputComponent
     where T : TextInputComponent<T>, IUIComponentDefinition
 {
     // UIStrings.SearchField: the Shell's key, written out, as the components reference no Shell.
     private const string SearchKey = "ui.search.field";
 
-    private readonly FieldActions _actions;
-
-    protected TextInputComponent(string? id = null) : base(id)
-    {
-        _actions = new FieldActions(RegionEntries);
-    }
-
     /// <summary>
     /// Gets the first control at the end of the row — a copy, a generate, a look-up, or a split button with a menu of them.
     /// </summary>
-    public IButtonComponent? TrailingAction => _actions.Trailing.Count > 0 ? _actions.Trailing[0] : null;
-
-    /// <summary>
-    /// Gets the controls at the start of the row, in the order they stand; a flyout among them by the button it opens from.
-    /// </summary>
-    public IReadOnlyList<IButtonComponent> LeadingActions => _actions.Leading;
-
-    /// <summary>
-    /// Gets the controls at the end of the row, in the order they stand; a flyout among them by the button it opens from.
-    /// </summary>
-    public IReadOnlyList<IButtonComponent> TrailingActions => _actions.Trailing;
-
-    /// <summary>
-    /// Gets the leading action flagged in the field (<see cref="AddLeadingAction(IButtonComponent, bool)"/>), first at the row's start
-    /// and kept there under <see cref="ActionsBelow"/>.
-    /// </summary>
-    public IButtonComponent? LeadingInFieldAction => _actions.LeadingInField;
-
-    /// <summary>
-    /// Gets the trailing action flagged in the field (<see cref="AddTrailingAction(IButtonComponent, bool)"/>), last at the row's end
-    /// and kept there under <see cref="ActionsBelow"/>.
-    /// </summary>
-    public IButtonComponent? TrailingInFieldAction => _actions.TrailingInField;
-
-    /// <summary>
-    /// Gets or sets the width tier below which the actions stand in a row under the field — the leading ones at its start, the
-    /// trailing ones at its end, or at the end an action's <c>belowAt</c> names — while the in-field ones stay in the row; unset, they
-    /// all stand in the row at every width.
-    /// </summary>
-    /// <remarks>Render-time only. The same components move, so a flyout or a split button among them keeps its one popup.</remarks>
-    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
-    public UIResponsiveTier? ActionsBelow { get; set; }
+    public IButtonComponent? TrailingAction => Actions.Trailing.Count > 0 ? Actions.Trailing[0] : null;
 
     /// <summary>
     /// Puts a button at the end of the row, in place of any there before; the field lays it in and dresses it as an adornment.
     /// </summary>
     public T SetTrailingAction(IButtonComponent action)
     {
-        _actions.SetTrailing(action);
+        Actions.SetTrailing(action);
         return Self;
     }
 
     /// <summary>
-    /// Puts a flyout at the end of the row, in place of any action there before: its anchor, a button, dressed as an adornment, and
-    /// its content opening from it.
+    /// Puts a flyout at the end of the row, in place of any action there before.
     /// </summary>
     public T SetTrailingAction(FlyoutComponent flyout)
     {
-        _actions.SetTrailing(flyout);
+        Actions.SetTrailing(flyout);
         return Self;
     }
 
@@ -98,160 +49,7 @@ public abstract partial class TextInputComponent<T> : InputComponentBase<T, stri
     /// </summary>
     public T SetTrailingAction(IMultiSelectComponent select)
     {
-        _actions.SetTrailing(select);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a button at the start of the row, after those added before; the field dresses it as an adornment.
-    /// </summary>
-    public T AddLeadingAction(IButtonComponent action)
-        => AddLeadingAction(action, false);
-
-    /// <summary>
-    /// Adds a flyout at the start of the row, after the actions added before: its anchor, a button, dressed as an adornment, and its
-    /// content opening from it — an emoji panel, a list of snippets.
-    /// </summary>
-    public T AddLeadingAction(FlyoutComponent flyout)
-        => AddLeadingAction(flyout, false);
-
-    /// <summary>
-    /// Adds a button-variant multi-select at the start of the row, after the actions added before.
-    /// </summary>
-    public T AddLeadingAction(IMultiSelectComponent select)
-        => AddLeadingAction(select, false);
-
-    /// <summary>
-    /// Adds a button at the start of the row; <paramref name="inField"/> flags it as standing in the field (an emoji), first at the
-    /// row's start and kept there under <see cref="ActionsBelow"/>. One leading action of a field is in it.
-    /// </summary>
-    public T AddLeadingAction(IButtonComponent action, bool inField)
-    {
-        _actions.AddLeading(action, inField);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a flyout at the start of the row; <paramref name="inField"/> flags it as standing in the field, as the button's overload.
-    /// </summary>
-    public T AddLeadingAction(FlyoutComponent flyout, bool inField)
-    {
-        _actions.AddLeading(flyout, inField);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a button-variant multi-select at the start of the row; <paramref name="inField"/> flags it as standing in the field.
-    /// </summary>
-    public T AddLeadingAction(IMultiSelectComponent select, bool inField)
-    {
-        _actions.AddLeading(select, inField);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a button at the start of the row that stands at <paramref name="belowAt"/> of the row under the field
-    /// (<see cref="ActionsBelow"/>) — a panel's button at the end its panel opens from; beside the text it stands last at the start.
-    /// </summary>
-    public T AddLeadingAction(IButtonComponent action, UIAlignment belowAt)
-    {
-        _actions.AddLeading(action, belowAt);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a flyout at the start of the row that stands at <paramref name="belowAt"/> of the row under the field, as the button's
-    /// overload.
-    /// </summary>
-    public T AddLeadingAction(FlyoutComponent flyout, UIAlignment belowAt)
-    {
-        _actions.AddLeading(flyout, belowAt);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a button-variant multi-select at the start of the row that stands at <paramref name="belowAt"/> of the row under the field.
-    /// </summary>
-    public T AddLeadingAction(IMultiSelectComponent select, UIAlignment belowAt)
-    {
-        _actions.AddLeading(select, belowAt);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a button at the end of the row, after those added before; the field dresses it as an adornment.
-    /// </summary>
-    public T AddTrailingAction(IButtonComponent action)
-        => AddTrailingAction(action, false);
-
-    /// <summary>
-    /// Adds a flyout at the end of the row, after the actions added before: its anchor, a button, dressed as an adornment, and its
-    /// content opening from it.
-    /// </summary>
-    public T AddTrailingAction(FlyoutComponent flyout)
-        => AddTrailingAction(flyout, false);
-
-    /// <summary>
-    /// Adds a button-variant multi-select at the end of the row, after the actions added before.
-    /// </summary>
-    public T AddTrailingAction(IMultiSelectComponent select)
-        => AddTrailingAction(select, false);
-
-    /// <summary>
-    /// Adds a button at the end of the row; <paramref name="inField"/> flags it as standing in the field (a Send), last at the row's
-    /// end and kept there under <see cref="ActionsBelow"/>. One trailing action of a field is in it: a Send and a Stop that replace
-    /// each other are one button, its icon and command bound.
-    /// </summary>
-    public T AddTrailingAction(IButtonComponent action, bool inField)
-    {
-        _actions.AddTrailing(action, inField);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a flyout at the end of the row; <paramref name="inField"/> flags it as standing in the field, as the button's overload.
-    /// </summary>
-    public T AddTrailingAction(FlyoutComponent flyout, bool inField)
-    {
-        _actions.AddTrailing(flyout, inField);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a button-variant multi-select at the end of the row; <paramref name="inField"/> flags it as standing in the field.
-    /// </summary>
-    public T AddTrailingAction(IMultiSelectComponent select, bool inField)
-    {
-        _actions.AddTrailing(select, inField);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a button at the end of the row that stands at <paramref name="belowAt"/> of the row under the field
-    /// (<see cref="ActionsBelow"/>); beside the text it stands first at the end.
-    /// </summary>
-    public T AddTrailingAction(IButtonComponent action, UIAlignment belowAt)
-    {
-        _actions.AddTrailing(action, belowAt);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a flyout at the end of the row that stands at <paramref name="belowAt"/> of the row under the field, as the button's
-    /// overload.
-    /// </summary>
-    public T AddTrailingAction(FlyoutComponent flyout, UIAlignment belowAt)
-    {
-        _actions.AddTrailing(flyout, belowAt);
-        return Self;
-    }
-
-    /// <summary>
-    /// Adds a button-variant multi-select at the end of the row that stands at <paramref name="belowAt"/> of the row under the field.
-    /// </summary>
-    public T AddTrailingAction(IMultiSelectComponent select, UIAlignment belowAt)
-    {
-        _actions.AddTrailing(select, belowAt);
+        Actions.SetTrailing(select);
         return Self;
     }
 
@@ -262,23 +60,20 @@ public abstract partial class TextInputComponent<T> : InputComponentBase<T, stri
     public UITextInputType? Type { get; set; }
 
     /// <summary>
-    /// Gets or sets what the browser may fill the field with, in its own vocabulary (<see cref="UIAutocomplete"/>) — e.g. naming
-    /// the sign-in pair for a password manager, or an address form's parts.
+    /// Gets or sets what the browser may fill the field with, in its own vocabulary (<see cref="UIAutocomplete"/>).
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public string? Autocomplete { get; set; }
 
     /// <summary>
-    /// Gets or sets which on-screen keyboard the field asks a phone for, whatever its <see cref="Type"/>: digits for a one-time code
-    /// beside <see cref="UIAutocomplete.OneTimeCode"/>; unset, the browser's choice for the type.
+    /// Gets or sets which on-screen keyboard the field asks a phone for, whatever its <see cref="Type"/>.
     /// </summary>
     [UIComponentProperty(DefaultValue = null)]
     public UIInputMode? InputMode { get; set; }
 
     /// <summary>
     /// Makes the field a search box: the search type, the search glyph before the text, a clear button, and
-    /// <paramref name="placeholder"/> or the framework's word "Search". A filter beside a list or a search command reads it; how
-    /// soon it commits is <c>SetDebounceMilliseconds</c>'.
+    /// <paramref name="placeholder"/> or the framework's word "Search".
     /// </summary>
     public T SetSearch(UIPhrase? placeholder = null)
     {
@@ -290,58 +85,6 @@ public abstract partial class TextInputComponent<T> : InputComponentBase<T, stri
             .SetPrefixIcon(UIGlyphs.Search)
             .SetShowClearButton()
             .SetPlaceholder(placeholder ?? SearchKey);
-    }
-
-    /// <summary>
-    /// Runs <paramref name="command"/> on Enter, after the value has reached the server; the field keeps the focus for the next entry.
-    /// </summary>
-    public T OnEnter(string command)
-        => On(EventNames.Enter, command);
-    /// <summary>
-    /// Runs <paramref name="command"/> on Enter with UI action arguments — in a row's template, the row's key among them.
-    /// </summary>
-    public T OnEnter(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => On(EventNames.Enter, command, arguments);
-    /// <summary>
-    /// Runs <paramref name="command"/> on Enter with literal argument values.
-    /// </summary>
-    public T OnEnterLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnLiteral(EventNames.Enter, command, arguments);
-
-    /// <summary>
-    /// Runs <paramref name="command"/> on Escape as a cancel: the field goes back to its last committed value, sending nothing typed
-    /// since, and leaves the focus as Escape does; without it, or with <see cref="CancelOnEscape"/> off, Escape commits and leaves.
-    /// </summary>
-    public T OnEscape(string command)
-        => On(EventNames.Escape, command);
-    /// <summary>
-    /// Runs <paramref name="command"/> on Escape with UI action arguments — in a row's template, the row's key among them.
-    /// </summary>
-    public T OnEscape(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
-        => On(EventNames.Escape, command, arguments);
-    /// <summary>
-    /// Runs <paramref name="command"/> on Escape with literal argument values.
-    /// </summary>
-    public T OnEscapeLiteral(string command, params KeyValuePair<string, object?>[] arguments)
-        => OnLiteral(EventNames.Escape, command, arguments);
-
-    /// <inheritdoc/>
-    protected override Action? SnapshotAuthoredState()
-    {
-        Action? restoreBase = base.SnapshotAuthoredState();
-        Action? restoreActions = _actions.SnapshotAuthoredState();
-
-        if (restoreBase is null)
-            return restoreActions;
-
-        if (restoreActions is null)
-            return restoreBase;
-
-        return () =>
-        {
-            restoreBase();
-            restoreActions();
-        };
     }
 }
 

@@ -1,12 +1,12 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { OrientationVerticalClass, SliderBubbleClass, SliderClass, SliderInputClass, SliderInputEndClass, SliderInputHeldClass, SliderInputHoveredClass, SliderMinDistanceAttribute, SliderRangeClass, SliderThumbAnchorClass, SliderTrackClass, SliderValueClass } from "../addressing/dom-attributes.ts";
+import { OrientationVerticalClass, SliderBubbleClass, SliderClass, SliderInputClass, SliderInputEndClass, SliderInputHeldClass, SliderInputHoveredClass, SliderMinDistanceAttribute, SliderRangeClass, SliderThumbAnchorClass, SliderTrackClass, SliderValueClass, SliderValueSizerAttribute } from "../addressing/dom-attributes.ts";
 import { componentParts } from "../addressing/dom-registry.ts";
 import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { placeAnchoredPopup, releaseAnchoredPopup } from "./anchored-popup.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
 import { PointerDrag } from "./pointer-drag.ts";
 import { focusAsLastInput } from "./popup-focus.ts";
-import { chooseHandle, holdApart, readRangeBounds, trackFraction, valueAtFraction } from "./range-handles.ts";
+import { chooseHandle, holdApart, readRangeBounds, sliderValueSizer, trackFraction, valueAtFraction } from "./range-handles.ts";
 import type { RangeHandle } from "./range-handles.ts";
 
 const FractionProperty = "--ui-slider-fraction";
@@ -106,6 +106,7 @@ export class RangeValueEngine {
                     this.reportClamped(input, change.value);
                 }
                 else if (BoundPropertyNames.has(change.propertyName)) {
+                    this.writeSizer(input);
                     this.oweReport(input, before);
                 }
             }
@@ -407,6 +408,14 @@ export class RangeValueEngine {
             this.placeBubble(input);
         else
             this.releaseBubble(input);
+    }
+
+    private writeSizer(input: HTMLInputElement): void {
+        const slider = input.closest<HTMLElement>(`.${SliderTrackClass}`)?.parentElement ?? input.parentElement;
+        const sizer = sliderValueSizer(readRangeBounds(input));
+
+        for (const readout of slider?.querySelectorAll<HTMLElement>(`.${SliderValueClass}`) ?? [])
+            readout.setAttribute(SliderValueSizerAttribute, sizer);
     }
 }
 

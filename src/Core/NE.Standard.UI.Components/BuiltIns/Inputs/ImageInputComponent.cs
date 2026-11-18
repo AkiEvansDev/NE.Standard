@@ -101,6 +101,9 @@ public abstract partial class ImageInputComponent<T>(string? id = null) : InputC
     {
         if (CropSize is int cropSize)
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(cropSize);
+
+        if (Multiple == true && Crop is not (null or UIImageCrop.None))
+            throw new InvalidOperationException("Crop frames a single picture; a shelf, or an image input with Multiple, takes its pictures as they are.");
     }
 }
 

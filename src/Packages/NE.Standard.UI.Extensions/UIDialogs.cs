@@ -15,27 +15,22 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Extensions;
 
-/// <summary>
-/// A dialog headed by its mark, its title and an × that closes it: the × closes it on the page as Escape does, with nothing asked of
-/// the server but the dialog's own <c>OnClose</c>. A confirmation and a form are the other kind: a question, or fields, answered by the
-/// buttons at their foot, with no ×. Every one is named for a screen reader by the title it shows (<see cref="UIDialog.TitleId"/>), so
-/// a bound title names it as it changes; a <c>Bound*</c> twin takes the words the controller holds, as its own words.
-/// </summary>
+/// <summary>Builds standard titled, full-height, form and confirmation dialogs with accessible title ids and close actions.</summary>
+/// <remarks>
+/// Titled dialogs carry a header close button that dismisses the dialog on the page as Escape does (<c>OnClose</c>); form and
+/// confirmation dialogs omit the header close button and answer through their footer buttons instead.
+/// </remarks>
 public static class UIDialogs
 {
-    /// <summary>
-    /// A dialog with its header over <paramref name="content"/>, named by its title; a <paramref name="width"/> keeps its content to a
-    /// column — the screen's width on a phone — <paramref name="trailing"/> stands in the header before the ×, and the rest of the
-    /// dialog keeps its defaults, changed with <c>with { CloseOnBackdrop = false }</c>.
-    /// </summary>
+    /// <summary>Builds a dialog with a header above scrollable <paramref name="content"/>, optionally constrained to <paramref name="width"/>.</summary>
     public static UIDialog Create(string key, UIPhrase title, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
         => Dialog(key, Content(key, title, content, icon, trailing), width);
 
-    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/> — the thing's name, Add or Edit — as its own words.</summary>
+    /// <summary>Builds a dialog with a header title bound as content at <paramref name="titlePath"/> above scrollable <paramref name="content"/>.</summary>
     public static UIDialog BoundCreate<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
         => BoundCreate(key, PresetBindings.Path(titlePath), content, icon, width, trailing);
 
-    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/> — the thing's name, Add or Edit — as its own words.</summary>
+    /// <summary>Builds a dialog with a header title bound as content at <paramref name="titlePath"/> above scrollable <paramref name="content"/>.</summary>
     public static UIDialog BoundCreate(string key, string titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
         => Dialog(key, BoundContent(key, titlePath, content, icon, trailing), width);
 
@@ -65,9 +60,9 @@ public static class UIDialogs
     /// The width a dialog's content holds in a named column: the screen's below the tier the column fits at, the column from it —
     /// a form's and a text's from the medium breakpoint, the wide one, more than a tablet holds, from the extra-large.
     /// </summary>
-    private static UIResponsive<UILayoutLength> ColumnContentWidth(UIColumnWidth width)
+    internal static UIResponsive<UILayoutLength> ColumnContentWidth(UIColumnWidth width, double extraWidth = 0)
     {
-        UILayoutLength column = UILayoutLength.Absolute(UIPage.Pixels(width));
+        UILayoutLength column = UILayoutLength.Absolute(UIPage.Pixels(width) + extraWidth);
 
         return width == UIColumnWidth.Wide
             ? UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), xl: column)
@@ -81,11 +76,11 @@ public static class UIDialogs
     public static StackPanelComponent Content(string key, UIPhrase title, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
         => Body(Header(key, title, icon, trailing), content);
 
-    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
+    /// <summary>Builds a dialog header over scrollable <paramref name="content"/> with a title bound as content at <paramref name="titlePath"/>.</summary>
     public static StackPanelComponent BoundContent<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
         => BoundContent(key, PresetBindings.Path(titlePath), content, icon, trailing);
 
-    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
+    /// <summary>Builds a dialog header over scrollable <paramref name="content"/> with a title bound as content at <paramref name="titlePath"/>.</summary>
     public static StackPanelComponent BoundContent(string key, string titlePath, IVisualComponent content, string? icon = null, params IVisualComponent[] trailing)
         => Body(BoundHeader(key, titlePath, icon, trailing), content);
 
@@ -102,20 +97,16 @@ public static class UIDialogs
             ? scroll.SetScrollFade(scroll.ScrollFade ?? true)
             : new ScrollContainerComponent().SetScrollFade(true).AddChild(content);
 
-    /// <summary>
-    /// A full-height dialog (<c>Height = UILayoutLength.Fill()</c>) with its header in an <c>Auto</c> row above <paramref name="content"/>
-    /// in a <c>Star(1)</c> row and no <see cref="ScrollContainerComponent"/> wrapper around it, for content that fills and scrolls itself
-    /// (a code editor, a data grid, a split pane). Fills the overlay's width too unless a <paramref name="width"/> column is named or
-    /// overridden with <c>with { Width = … }</c>.
-    /// </summary>
+    /// <summary>Builds a full-height dialog placing its header in an <c>Auto</c> row above self-scrolling <paramref name="content"/> in a <c>Star(1)</c> row.</summary>
+    /// <remarks>Leaves out the outer <see cref="ScrollContainerComponent"/> wrapper; fills the overlay width unless <paramref name="width"/> caps it.</remarks>
     public static UIDialog Fill(string key, UIPhrase title, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
         => FillDialog(key, Header(key, title, icon, trailing), content, width);
 
-    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
+    /// <summary>Builds a full-height dialog with its header title bound as content at <paramref name="titlePath"/> above self-scrolling <paramref name="content"/>.</summary>
     public static UIDialog BoundFill<TSource>(string key, Expression<Func<TSource, object?>> titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
         => BoundFill(key, PresetBindings.Path(titlePath), content, icon, width, trailing);
 
-    /// <summary>The same with a title the controller holds at <paramref name="titlePath"/>, as its own words.</summary>
+    /// <summary>Builds a full-height dialog with its header title bound as content at <paramref name="titlePath"/> above self-scrolling <paramref name="content"/>.</summary>
     public static UIDialog BoundFill(string key, string titlePath, IVisualComponent content, string? icon = null, UIColumnWidth? width = null, params IVisualComponent[] trailing)
         => FillDialog(key, BoundHeader(key, titlePath, icon, trailing), content, width);
 
@@ -250,22 +241,15 @@ public static class UIDialogs
         return ClosesAsViewer(UIButtons.Create(variant, action ?? UIStandardAction.Cancel, glyph: false), key);
     }
 
-    /// <summary>
-    /// A form in a dialog — rename it, invite someone, change a password: its title in the title role and an optional muted line under
-    /// it, <paramref name="content"/>, and at its foot the standard Cancel (<see cref="CloseButton"/>) and <paramref name="primary"/>. A
-    /// form's column wide from the medium breakpoint (<see cref="UIColumnWidth.Form"/>), the dialog's whole width on a phone. No ×, since
-    /// Cancel says it, and a press beside it loses nothing typed: the backdrop does not close it, Escape does.
-    /// </summary>
+    /// <summary>Builds a form dialog in a <see cref="UIColumnWidth.Form"/> column with Cancel and <paramref name="primary"/> at its foot.</summary>
     /// <remarks>
-    /// The dialog is a form, its key the form's id: each field of the content with no form of its own joins it, so Enter in a one-line
-    /// field presses <paramref name="primary"/>, whose press — its command given with <c>OnClick</c> or <c>OnClickShowingLoading</c> —
-    /// first judges the fields' Submit rules and stops on an error, waits for their uploads, and sends the values a field bound
-    /// <c>OnSubmit</c> held; a field bound two-way still writes as it changes. Cancel puts the held values back.
+    /// Joins unassigned input fields under <paramref name="content"/> to form <paramref name="key"/>, wires <paramref name="primary"/> as
+    /// its submit button, disables backdrop dismissal while keeping Escape, and discards buffered <c>OnSubmit</c> edits on Cancel.
     /// </remarks>
     public static UIDialog Form(string key, UIPhrase title, UIPhrase? description, IVisualComponent content, ButtonComponent primary)
         => Form(key, title, description, content, CloseButton(key), primary);
 
-    /// <summary>The same with a safe answer of the author's own in Cancel's place.</summary>
+    /// <summary>Builds a form dialog in a <see cref="UIColumnWidth.Form"/> column with a custom <paramref name="safe"/> button in place of Cancel.</summary>
     public static UIDialog Form(string key, UIPhrase title, UIPhrase? description, IVisualComponent content, ButtonComponent safe, ButtonComponent primary)
     {
         PresetWords.RequireIfGiven(description);
@@ -289,7 +273,8 @@ public static class UIDialogs
         JoinForm(content, key);
 
         // The primary's own command, given with OnClick, becomes the form's submit; one already submitting another form keeps it.
-        primary.SubmitFormId ??= key;
+        if (primary.SubmitFormId is null && !PresetBindings.Binds(primary, ButtonComponent.SubmitFormIdProperty))
+            primary.SubmitFormId = key;
 
         return Dialog(key, UILayout.Stack(16, heading, ScrollBody(content), UIButtons.Pair(safe, primary)), UIColumnWidth.Form) with { CloseOnBackdrop = false };
     }
@@ -319,11 +304,7 @@ public static class UIDialogs
             or PaneContainerComponent
             or TabsComponent;
 
-    /// <summary>
-    /// The same with words the controller holds — the title at <paramref name="titlePath"/> (Add or Edit), the line at
-    /// <paramref name="descriptionPath"/> where there is one (the folder it imports into) — as its own words, drawn plain; a path to a
-    /// key still translates. Dialogs stand at the view's root, so the paths are the controller's.
-    /// </summary>
+    /// <summary>Builds a form dialog whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static UIDialog BoundForm<TSource>(string key, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, IVisualComponent content, ButtonComponent primary)
         => BoundForm(key, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), content, primary);
 
@@ -355,13 +336,10 @@ public static class UIDialogs
     public static UIDialog Confirm(string key, UIPhrase question, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
         => Confirm(key, question, (ParagraphComponent?)null, confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
 
-    /// <summary>
-    /// A question asked before something is done — "Delete this note?" — over its words, answered by Cancel and one committing button,
-    /// <paramref name="middle"/> (a "Don't save") between them where given. No ×, since Cancel says it; the backdrop does not close it,
-    /// and Escape is Cancel. Cancel closes it on the page and raises its <c>OnClose</c>, which runs <paramref name="cancelCommand"/>
-    /// where there is one; the committing button runs <paramref name="confirmCommand"/>, which closes the dialog itself. The question
-    /// names the dialog.
-    /// </summary>
+    /// <summary>Builds a confirmation dialog asking <paramref name="question"/> above an optional <paramref name="description"/>, answered by Cancel and <paramref name="confirmCommand"/>.</summary>
+    /// <remarks>
+    /// Disables backdrop dismissal while mapping Escape and Cancel to <c>OnClose</c> (running <paramref name="cancelCommand"/> when given).
+    /// </remarks>
     public static UIDialog Confirm(string key, UIPhrase question, UIPhrase? description, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
     {
         PresetWords.RequireIfGiven(description);
@@ -369,10 +347,7 @@ public static class UIDialogs
         return Confirm(key, question, description is null ? null : new ParagraphComponent().SetDescription(description), confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
     }
 
-    /// <summary>
-    /// The same with words of the author's own beyond words alone — a link to what goes, an emphasis — given the dialog's text role
-    /// here; words the controller holds are <see cref="BoundConfirm"/>.
-    /// </summary>
+    /// <summary>Builds a confirmation dialog asking <paramref name="question"/> above a custom <paramref name="description"/> paragraph.</summary>
     public static UIDialog Confirm(string key, UIPhrase question, ParagraphComponent? description, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
         => Confirm(key, Title(key, question, null), description, confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
 
@@ -413,11 +388,7 @@ public static class UIDialogs
         return cancelCommand is null ? dialog : dialog.OnClose(cancelCommand);
     }
 
-    /// <summary>
-    /// The question with words the controller holds at <paramref name="descriptionPath"/> — "Delete «Groceries» and its 12 notes?" — as its own
-    /// words, drawn plain (a name in them is the thing's own, never a key that happens to match it, nor markup; a path to a key still
-    /// translates); otherwise <see cref="Confirm(string, UIPhrase, UIPhrase, UIPhrase, string, UIButtonVariant, string?, ButtonComponent?)"/>.
-    /// </summary>
+    /// <summary>Builds a confirmation dialog whose detail text is bound as plain content at <paramref name="descriptionPath"/>.</summary>
     public static UIDialog BoundConfirm<TSource>(string key, UIPhrase question, Expression<Func<TSource, object?>> descriptionPath, UIPhrase confirmTitle, string confirmCommand, UIButtonVariant confirmVariant = UIButtonVariant.Danger, string? cancelCommand = null, ButtonComponent? middle = null)
         => BoundConfirm(key, question, PresetBindings.Path(descriptionPath), confirmTitle, confirmCommand, confirmVariant, cancelCommand, middle);
 

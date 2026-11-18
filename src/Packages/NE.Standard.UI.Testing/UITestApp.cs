@@ -49,16 +49,11 @@ public sealed class UITestApp : IAsyncDisposable, IDisposable
 
     internal UITestClient Client { get; }
 
-    /// <summary>
-    /// Gets or sets whether a page whose view binds what names nothing opens; by default <see cref="OpenAsync(string, Action{UITestSession}?, CancellationToken)"/>
-    /// refuses it, naming each such warning, since such a binding otherwise shows only as a blank control. Advisory warnings never refuse.
-    /// </summary>
+    /// <summary>Gets or sets whether <see cref="OpenAsync(string, Action{UITestSession}?, CancellationToken)"/> accepts views with unresolved binding warnings.</summary>
+    /// <remarks>False by default so broken bindings fail the test immediately; advisory compile warnings never refuse.</remarks>
     public bool AllowsCompileWarnings { get; set; }
 
-    /// <summary>
-    /// Boots <typeparamref name="TStartup"/> as its host would; <paramref name="configureServices"/> runs after the startup's own
-    /// registrations, so a fake registered there replaces the real service.
-    /// </summary>
+    /// <summary>Boots <typeparamref name="TStartup"/> in-process with optional fake service and application overrides.</summary>
     public static UITestApp Create<TStartup>(Action<IServiceCollection>? configureServices = null, Action<UIApplicationBuilder>? configureApplication = null)
         where TStartup : UIStartupBase, new()
     {

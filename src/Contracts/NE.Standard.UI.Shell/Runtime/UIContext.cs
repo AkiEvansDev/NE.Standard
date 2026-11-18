@@ -210,26 +210,11 @@ public sealed class UIContext
     /// </summary>
     private sealed class RuntimeDownloads(UIContext context) : IUIDownloadService
     {
-        public async Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default)
+        public Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default)
         {
-            ArgumentNullException.ThrowIfNull(handle);
-            ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
-            ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
             ArgumentNullException.ThrowIfNull(content);
 
-            handle.Instance.Validate();
-
-            try
-            {
-                if (await context._connection.DownloadStager.StageAsync(handle, fileName, contentType, content, cancellationToken).ConfigureAwait(false) is ClientEffect fetch)
-                    await context.Runtime.SendEffectsToAsync([handle], [fetch], cancellationToken).ConfigureAwait(false);
-
-                return UITransferResult.Ok();
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                return UITransferResult.Cancel();
-            }
+            return DeliverAsync(handle, fileName, contentType, stager => stager.StageAsync(handle, fileName, contentType, content, cancellationToken), cancellationToken);
         }
 
         public async Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, byte[] content, CancellationToken cancellationToken = default)
@@ -242,18 +227,24 @@ public sealed class UIContext
                 return await DownloadAsync(handle, fileName, contentType, stream, cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, Func<Stream, CancellationToken, ValueTask> writeAsync, CancellationToken cancellationToken = default)
+        public Task<UITransferResult> DownloadAsync(UIHandle handle, string fileName, string contentType, Func<Stream, CancellationToken, ValueTask> writeAsync, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(writeAsync);
+
+            return DeliverAsync(handle, fileName, contentType, stager => stager.StageAsync(handle, fileName, contentType, writeAsync, cancellationToken), cancellationToken);
+        }
+
+        private async Task<UITransferResult> DeliverAsync(UIHandle handle, string fileName, string contentType, Func<IUIDownloadStager, Task<ClientEffect?>> stageAsync, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(handle);
             ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
             ArgumentException.ThrowIfNullOrWhiteSpace(contentType);
-            ArgumentNullException.ThrowIfNull(writeAsync);
 
             handle.Instance.Validate();
 
             try
             {
-                if (await context._connection.DownloadStager.StageAsync(handle, fileName, contentType, writeAsync, cancellationToken).ConfigureAwait(false) is ClientEffect fetch)
+                if (await stageAsync(context._connection.DownloadStager).ConfigureAwait(false) is ClientEffect fetch)
                     await context.Runtime.SendEffectsToAsync([handle], [fetch], cancellationToken).ConfigureAwait(false);
 
                 return UITransferResult.Ok();

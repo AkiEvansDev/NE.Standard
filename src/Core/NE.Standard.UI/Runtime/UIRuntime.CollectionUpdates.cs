@@ -168,9 +168,7 @@ internal sealed partial class UIRuntime
 
     private bool IsTemplateKeyProperty(UIComponentId componentId, RecursivePath path, int start)
     {
-        if (View.State.TryGetValue(componentId, ITemplatedComponent.TemplateKeyPropertyProperty, out CompiledUIPropertyValue? value)
-            && !value.IsBind
-            && value.Value is string { Length: > 0 } templateKeyProperty
+        if (View.State.GetStaticString(componentId, ITemplatedComponent.TemplateKeyPropertyProperty) is { } templateKeyProperty
             && RuleReadsPath(templateKeyProperty, path, start))
         {
             return true;

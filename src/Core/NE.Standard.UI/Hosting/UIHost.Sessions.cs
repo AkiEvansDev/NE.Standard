@@ -187,9 +187,7 @@ internal sealed partial class UIHost
         // Compared as records, so a field the session gains later is a change here without a line of its own.
         return resolution > TimeSpan.Zero
             && next.LastSeenAtUtc - stored.LastSeenAtUtc < resolution
-            && stored.Roles.SetEquals(next.Roles)
-            && stored.Permissions.SetEquals(next.Permissions)
-            && next with { LastSeenAtUtc = stored.LastSeenAtUtc, Roles = stored.Roles, Permissions = stored.Permissions } == stored;
+            && stored.EqualsIgnoringTouch(next);
     }
 
     /// <summary>

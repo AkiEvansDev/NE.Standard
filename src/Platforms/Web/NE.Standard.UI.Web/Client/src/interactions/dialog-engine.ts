@@ -39,6 +39,11 @@ export class DialogEngine {
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent), true);
     }
 
+    /** The element page-built dialogs (leave, crop, field expand) attach under so `find` reaches them inside scoped roots too. */
+    public get hostElement(): HTMLElement {
+        return this.root instanceof HTMLElement ? this.root : document.body;
+    }
+
     public open(key: string): boolean {
         const dialog = this.find(key);
 

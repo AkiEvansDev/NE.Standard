@@ -178,20 +178,5 @@ public abstract partial class SelectComponentBase<T, TItem, TValue> : OptionsInp
 
     /// <inheritdoc/>
     protected override Action? SnapshotAuthoredState()
-    {
-        Action? restoreBase = base.SnapshotAuthoredState();
-        Action? restoreActions = _actions.SnapshotAuthoredState();
-
-        if (restoreBase is null)
-            return restoreActions;
-
-        if (restoreActions is null)
-            return restoreBase;
-
-        return () =>
-        {
-            restoreBase();
-            restoreActions();
-        };
-    }
+        => _actions.SnapshotWith(base.SnapshotAuthoredState());
 }

@@ -482,14 +482,26 @@ internal sealed partial class UIHost
 
     /// <inheritdoc />
     public IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution)
+        => TryGetRenderRuntime(resolution, clientWindowId: null);
+
+    /// <inheritdoc />
+    public IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution, string? clientWindowId)
     {
         ArgumentNullException.ThrowIfNull(resolution);
 
         if (resolution.Route.ControllerType is null)
             return null;
 
-        var identity = CreateRouteIdentity(resolution.Route, resolution.Navigation);
         var sessionId = resolution.Session.SessionId;
+
+        if (!string.IsNullOrWhiteSpace(clientWindowId))
+        {
+            UIRuntimeKey windowKey = CreateRuntimeKey(_application.Persistence, resolution.Route, sessionId, resolution.Navigation, clientWindowId);
+            _ = RuntimeStore.TryGetStarted(windowKey, out IUIRuntime? windowRuntime);
+            return windowRuntime;
+        }
+
+        var identity = CreateRouteIdentity(resolution.Route, resolution.Navigation);
 
         // PerClient puts no tab in the key, so the render can build the exact key the client will attach to. One still
         // initializing is not read: the render then attaches to it, which waits for its start.

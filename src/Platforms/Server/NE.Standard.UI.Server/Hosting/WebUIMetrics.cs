@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using NE.Standard.UI.Application;
-using NE.Standard.UI.Web.Abstractions.Rendering;
-using NE.Standard.UI.Web.Rendering;
 
 namespace NE.Standard.UI.Web.Hosting;
 
@@ -51,29 +49,23 @@ internal sealed class WebUIMetrics : IDisposable
 
     private static IEnumerable<Measurement<long>> ObserveHeldCount(IServiceProvider services)
     {
-        IWebViewRenderCache? cache = services.GetService<IWebViewRenderCache>();
-        if (cache is FileSystemWebViewRenderCache disk)
-            yield return new Measurement<long>(disk.HeldCount);
-        else if (cache is InMemoryWebViewRenderCache memory)
-            yield return new Measurement<long>(memory.HeldCount);
+        if (services.GetService<IServerRenderCacheMetrics>() is { } cache)
+            yield return new Measurement<long>(cache.HeldCount);
     }
 
     private static IEnumerable<Measurement<long>> ObserveHeldBytes(IServiceProvider services)
     {
-        IWebViewRenderCache? cache = services.GetService<IWebViewRenderCache>();
-        if (cache is FileSystemWebViewRenderCache disk)
-            yield return new Measurement<long>(disk.HeldBytes);
-        else if (cache is InMemoryWebViewRenderCache memory)
-            yield return new Measurement<long>(memory.HeldBytes);
+        if (services.GetService<IServerRenderCacheMetrics>() is { } cache)
+            yield return new Measurement<long>(cache.HeldBytes);
     }
 
     private static IEnumerable<Measurement<long>> ObserveDisk(IServiceProvider services)
     {
-        if (services.GetService<IWebViewRenderCache>() is not FileSystemWebViewRenderCache cache)
+        if (services.GetService<IServerRenderCacheMetrics>() is not { DiskBytesRead: long read, DiskBytesWritten: long written })
             yield break;
 
-        yield return new Measurement<long>(cache.DiskBytesRead, new KeyValuePair<string, object?>("ne.ui.io.direction", "read"));
-        yield return new Measurement<long>(cache.DiskBytesWritten, new KeyValuePair<string, object?>("ne.ui.io.direction", "write"));
+        yield return new Measurement<long>(read, new KeyValuePair<string, object?>("ne.ui.io.direction", "read"));
+        yield return new Measurement<long>(written, new KeyValuePair<string, object?>("ne.ui.io.direction", "write"));
     }
 
     public void ConnectionOpened()

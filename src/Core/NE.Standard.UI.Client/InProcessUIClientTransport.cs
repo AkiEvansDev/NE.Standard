@@ -175,14 +175,7 @@ public sealed class InProcessUIClientTransport : IUIClientTransport
     public bool SessionHolds(ClientEffect effect)
     {
         IUserSessionContext session = Session;
-
-        return effect switch
-        {
-            SetLanguageEffect language => string.Equals(language.Language, session.Language, StringComparison.Ordinal),
-            SetThemeEffect theme => theme.Stored || theme.Mode == session.ThemeMode,
-            SetThemeColorsEffect colors => Equals(colors.Colors, session.ThemeColors),
-            _ => true
-        };
+        return UISessionSettings.Holds(effect, session.Language, session.ThemeMode, session.ThemeColors);
     }
 
     /// <inheritdoc />

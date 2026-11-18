@@ -64,6 +64,7 @@ public abstract partial class SearchComponent<T, TItem>(string? id = null) : Sel
         ArgumentOutOfRangeException.ThrowIfNegative(minSearchLength);
 
         MinSearchLength = minSearchLength;
+        RemoveNonOptionalBinding(MinSearchLengthProperty);
         return Self;
     }
 

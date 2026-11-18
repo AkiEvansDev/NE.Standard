@@ -97,15 +97,11 @@ public static class UIWords
             _ => UIScriptText.Of(value)
         };
 
-    /// <summary>
-    /// <paramref name="arguments"/> for words read as inline markup (a description, a tooltip): an argument written as text — a string,
-    /// an author's text as the words <paramref name="translateText"/> gives it, any other value as its invariant text (a character, an
-    /// enum, a URI) — with its markup escaped, a nested phrase's arguments the same way, so a name typed as <c>[a](b)</c> shows as typed;
-    /// the template's own text, numbers, flags and moments stay. The arguments themselves where none is text.
-    /// </summary>
+    /// <summary>Escapes inline markup syntax inside text arguments of <paramref name="arguments"/> before template formatting.</summary>
     /// <remarks>
-    /// Escaped before a translator fills the template, so no <see cref="ITranslator"/> needs to know where its words land; the client's
-    /// <c>formatWords</c> escapes the same under its <c>markup</c> flag, both pinned by <c>eng/Tests/Shared/words-format-corpus.json</c>.
+    /// Escapes string arguments, author text resolved via <paramref name="translateText"/>, invariant scalar text and nested phrase
+    /// arguments while leaving template text, numbers, flags and moments untouched; returns <paramref name="arguments"/> unchanged when
+    /// none holds text. Pinned alongside the client's <c>formatWords</c> by <c>eng/Tests/Shared/words-format-corpus.json</c>.
     /// </remarks>
     public static IReadOnlyDictionary<string, object?>? EscapeMarkup(IReadOnlyDictionary<string, object?>? arguments, Func<string, string> translateText)
     {

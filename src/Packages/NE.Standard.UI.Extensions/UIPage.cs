@@ -21,14 +21,11 @@ namespace NE.Standard.UI.Extensions;
 /// </summary>
 public static class UIPage
 {
-    /// <summary>
-    /// The band a page is headed by: the name, a muted line under it, and whatever stands at the far end (a theme switcher, a
-    /// signed-in person, the page's buttons) on the name's row — on a phone, buttons with words stand on a row of their own under the
-    /// line. On a phone the name is a title's size and wraps under itself between words when long, and the line is one line, cut —
-    /// its whole words its tooltip, a long press away — so the band
-    /// stays about a title's height and leaves the screen to the page; from the medium breakpoint the name is in the display role and
-    /// the line runs to three lines.
-    /// </summary>
+    /// <summary>Builds a responsive page header band with <paramref name="title"/>, an optional muted <paramref name="description"/>, and <paramref name="trailing"/> actions.</summary>
+    /// <remarks>
+    /// Uses the title role and single-line truncated description on phones (moving word-carrying buttons onto a row below) and promotes
+    /// the title to the display role with up to three description lines from <see cref="UIResponsiveTier.Md"/>.
+    /// </remarks>
     public static ContainerComponent Header(UIPhrase title, UIPhrase? description = null, params IVisualComponent[] trailing)
     {
         PresetWords.Require(title);
@@ -37,11 +34,7 @@ public static class UIPage
         return Header(null, new BandWords(title, description, null, null), trailing);
     }
 
-    /// <summary>
-    /// The same band led by an action before the name — <c>UIIconButtons.Back()</c> to where the page was reached from — on the name's
-    /// row at every width, the name and the line starting after it and the action's glyph on the content's edge. On a phone it follows
-    /// the shell's drawer toggle, where the view has one.
-    /// </summary>
+    /// <summary>Builds a responsive page header band led by <paramref name="leading"/> before <paramref name="title"/>, <paramref name="description"/> and <paramref name="trailing"/> actions.</summary>
     public static ContainerComponent Header(IVisualComponent leading, UIPhrase title, UIPhrase? description = null, params IVisualComponent[] trailing)
     {
         ArgumentNullException.ThrowIfNull(leading);
@@ -192,19 +185,15 @@ public static class UIPage
     public static ContainerComponent BoundHeader(IVisualComponent? leading, string titlePath, string? descriptionPath = null, params IVisualComponent[] trailing)
         => BoundHeader(leading, titlePath, descriptionPath, UIBindingScope.Root, trailing);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a page header band with its title and optional description bound as plain content in <paramref name="scope"/>.</summary>
     public static ContainerComponent BoundHeader(IVisualComponent? leading, string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] trailing)
         => Header(leading, BandWords.Bound(titlePath, descriptionPath, scope), trailing);
 
-    /// <summary>
-    /// The band at <paramref name="size"/>: <see cref="UIHeaderSize.Page"/> is <see cref="Header(IVisualComponent, UIPhrase, UIPhrase, IVisualComponent[])"/>'s;
-    /// <see cref="UIHeaderSize.Pane"/> is the title row of a pane beside a list or a tree — a conversation's, an open note's — at every
-    /// width: the name one line in the subtitle role, cut with its whole words as its tooltip, the description a muted caption beside
-    /// it (a status: "Not saved"), the far end on the same row, and no edge of its own, the pane's padding being it. A
-    /// <paramref name="leading"/> action (<c>UIIconButtons.Back().ShownBelow(UIResponsiveTier.Md)</c>, an avatar, both in a row)
-    /// stands before the name. <see cref="UIHeaderSize.Strip"/> is a panel's caption over the list or the tree in it — an explorer's
-    /// "Files": the name in the label role, set in by a list row's 8 px so it stands over a list's words and a tree's chevrons, the far end on its row; its buttons with no size said are small.
-    /// </summary>
+    /// <summary>Builds a header band at <paramref name="size"/> (<see cref="UIHeaderSize.Page"/>, <see cref="UIHeaderSize.Pane"/> or <see cref="UIHeaderSize.Strip"/>).</summary>
+    /// <remarks>
+    /// <see cref="UIHeaderSize.Pane"/> renders a single-line subtitle with inline muted caption and trailing actions; <see cref="UIHeaderSize.Strip"/>
+    /// renders an overline panel caption inset by 8 px with small default button sizes.
+    /// </remarks>
     public static ContainerComponent Header(UIHeaderSize size, IVisualComponent? leading, UIPhrase title, UIPhrase? description = null, params IVisualComponent[] trailing)
     {
         PresetWords.Require(title);
@@ -265,16 +254,16 @@ public static class UIPage
     {
         switch (component)
         {
-            case ButtonComponent { Size: null } button:
+            case ButtonComponent { Size: null } button when !PresetBindings.Binds(button, ButtonComponent.SizeProperty):
                 _ = button.SetSize(UISize.Small);
                 break;
-            case SplitButtonComponent { Size: null } menu:
+            case SplitButtonComponent { Size: null } menu when !PresetBindings.Binds(menu, SplitButtonComponent.SizeProperty):
                 _ = menu.SetSize(UISize.Small);
                 break;
-            case ThemeSwitcherComponent { Size: null } theme:
+            case ThemeSwitcherComponent { Size: null } theme when !PresetBindings.Binds(theme, ISwitcherComponent.SizeProperty):
                 _ = theme.SetSize(UISize.Small);
                 break;
-            case LanguageSwitcherComponent { Size: null } language:
+            case LanguageSwitcherComponent { Size: null } language when !PresetBindings.Binds(language, ISwitcherComponent.SizeProperty):
                 _ = language.SetSize(UISize.Small);
                 break;
             // A row at any width: one turning across at md holds the strip's buttons there too.
@@ -373,7 +362,7 @@ public static class UIPage
     public static ContainerComponent BoundHeader(UIHeaderSize size, IVisualComponent? leading, string titlePath, string? descriptionPath = null, params IVisualComponent[] trailing)
         => BoundHeader(size, leading, titlePath, descriptionPath, UIBindingScope.Root, trailing);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a header band at <paramref name="size"/> with its title and optional description bound as plain content in <paramref name="scope"/>.</summary>
     public static ContainerComponent BoundHeader(UIHeaderSize size, IVisualComponent? leading, string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] trailing)
     {
         BandWords words = BandWords.Bound(titlePath, descriptionPath, scope);
@@ -410,7 +399,7 @@ public static class UIPage
         return Section(HeadingWords(UIText.Title(title), description is null ? null : UIText.Note(description)), content);
     }
 
-    /// <summary>The same under a heading of the author's: <see cref="Heading(UIPhrase, UIPhrase, IVisualComponent[])"/>, with things at its far end.</summary>
+    /// <summary>Builds a titled page section under a custom <paramref name="heading"/> component (such as <see cref="Heading(UIPhrase, UIPhrase, IVisualComponent[])"/>).</summary>
     public static StackPanelComponent Section(IVisualComponent heading, params IVisualComponent[] content)
     {
         ArgumentNullException.ThrowIfNull(heading);
@@ -419,19 +408,19 @@ public static class UIPage
         return UILayout.Stack(16).AddChild(heading).AddChildren(content);
     }
 
-    /// <summary>The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    /// <summary>Builds a titled page section whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static StackPanelComponent BoundSection<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, params IVisualComponent[] content)
         => BoundSection(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, content);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a titled page section whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static StackPanelComponent BoundSection<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] content)
         => BoundSection(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, content);
 
-    /// <summary>The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    /// <summary>Builds a titled page section whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static StackPanelComponent BoundSection(string titlePath, string? descriptionPath, params IVisualComponent[] content)
         => BoundSection(titlePath, descriptionPath, UIBindingScope.Root, content);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a titled page section whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static StackPanelComponent BoundSection(string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] content)
     {
         (TextComponent title, ParagraphComponent? note) = BoundHeadingWords(titlePath, descriptionPath, scope);
@@ -484,7 +473,7 @@ public static class UIPage
         return Heading(UIText.Title(title), description is null ? null : UIText.Note(description), trailing);
     }
 
-    /// <summary>The same with a heading of the author's — a title with a badge, a person — and the far end centred on it.</summary>
+    /// <summary>Builds a section heading row pairing a custom <paramref name="heading"/> component with <paramref name="trailing"/> actions.</summary>
     public static ContainerComponent Heading(IVisualComponent heading, params IVisualComponent[] trailing)
     {
         ArgumentNullException.ThrowIfNull(heading);
@@ -492,19 +481,19 @@ public static class UIPage
         return UILayout.Ends(heading, trailing);
     }
 
-    /// <summary>The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    /// <summary>Builds a section heading row whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static ContainerComponent BoundHeading<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath = null, params IVisualComponent[] trailing)
         => BoundHeading(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, trailing);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a section heading row whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static ContainerComponent BoundHeading<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] trailing)
         => BoundHeading(PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, trailing);
 
-    /// <summary>The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content.</summary>
+    /// <summary>Builds a section heading row whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static ContainerComponent BoundHeading(string titlePath, string? descriptionPath = null, params IVisualComponent[] trailing)
         => BoundHeading(titlePath, descriptionPath, UIBindingScope.Root, trailing);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a section heading row whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static ContainerComponent BoundHeading(string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] trailing)
     {
         (TextComponent title, ParagraphComponent? note) = BoundHeadingWords(titlePath, descriptionPath, scope);
@@ -523,12 +512,7 @@ public static class UIPage
         return UILayout.Ends(title.SetHeadingLevel(title.HeadingLevel ?? 2).SetTitleWrap(true), note, trailing, titleLine: true);
     }
 
-    /// <summary>
-    /// A part of a page or a panel folded under its name, the collapsible sibling of <see cref="Section(UIPhrase, UIPhrase, IVisualComponent[])"/>:
-    /// the quiet expander — the name a muted caption with the chevron after it, no card — over the content in a stack. A name the
-    /// controller holds is <see cref="BoundFold(string, bool, IVisualComponent[])"/>'s, a null <paramref name="title"/> leaves it to the header;
-    /// <c>.BindExpanded(path)</c> follows the controller.
-    /// </summary>
+    /// <summary>Builds a quiet collapsible expander section with a caption header over stacked <paramref name="content"/>.</summary>
     public static ExpanderComponent Fold(UIPhrase? title, bool expanded, params IVisualComponent[] content)
     {
         PresetWords.RequireIfGiven(title);
@@ -540,19 +524,19 @@ public static class UIPage
         }, expanded, content);
     }
 
-    /// <summary>The same named by words the controller holds at <paramref name="titlePath"/>, as content.</summary>
+    /// <summary>Builds a quiet collapsible expander section whose header title is bound as content at <paramref name="titlePath"/>.</summary>
     public static ExpanderComponent BoundFold<TSource>(Expression<Func<TSource, object?>> titlePath, bool expanded, params IVisualComponent[] content)
         => BoundFold(PresetBindings.Path(titlePath), UIBindingScope.Root, expanded, content);
 
-    /// <summary>The same, its path read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a quiet collapsible expander section whose header title is bound as content in <paramref name="scope"/>.</summary>
     public static ExpanderComponent BoundFold<TSource>(Expression<Func<TSource, object?>> titlePath, UIBindingScope scope, bool expanded, params IVisualComponent[] content)
         => BoundFold(PresetBindings.Path(titlePath), scope, expanded, content);
 
-    /// <summary>The same named by words the controller holds at <paramref name="titlePath"/>, as content.</summary>
+    /// <summary>Builds a quiet collapsible expander section whose header title is bound as content at <paramref name="titlePath"/>.</summary>
     public static ExpanderComponent BoundFold(string titlePath, bool expanded, params IVisualComponent[] content)
         => BoundFold(titlePath, UIBindingScope.Root, expanded, content);
 
-    /// <summary>The same, its path read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a quiet collapsible expander section whose header title is bound as content in <paramref name="scope"/>.</summary>
     public static ExpanderComponent BoundFold(string titlePath, UIBindingScope scope, bool expanded, params IVisualComponent[] content)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
@@ -589,19 +573,19 @@ public static class UIPage
         return Labelled(UIText.Label(label), content, wrap);
     }
 
-    /// <summary>The same under a label the controller holds at <paramref name="labelPath"/>, as content.</summary>
+    /// <summary>Places an overline label bound as content at <paramref name="labelPath"/> above <paramref name="content"/>.</summary>
     public static StackPanelComponent BoundLabelled<TSource>(Expression<Func<TSource, object?>> labelPath, IVisualComponent content, bool wrap = false)
         => BoundLabelled(PresetBindings.Path(labelPath), UIBindingScope.Root, content, wrap);
 
-    /// <summary>The same with its label bound in <paramref name="scope"/>, a row's own words in an item template.</summary>
+    /// <summary>Places an overline label bound as content in <paramref name="scope"/> above <paramref name="content"/>.</summary>
     public static StackPanelComponent BoundLabelled<TSource>(Expression<Func<TSource, object?>> labelPath, UIBindingScope scope, IVisualComponent content, bool wrap = false)
         => BoundLabelled(PresetBindings.Path(labelPath), scope, content, wrap);
 
-    /// <summary>The same under a label the controller holds at <paramref name="labelPath"/>, as content.</summary>
+    /// <summary>Places an overline label bound as content at <paramref name="labelPath"/> above <paramref name="content"/>.</summary>
     public static StackPanelComponent BoundLabelled(string labelPath, IVisualComponent content, bool wrap = false)
         => BoundLabelled(labelPath, UIBindingScope.Root, content, wrap);
 
-    /// <summary>The same with its label bound in <paramref name="scope"/>, a row's own words in an item template.</summary>
+    /// <summary>Places an overline label bound as content in <paramref name="scope"/> above <paramref name="content"/>.</summary>
     public static StackPanelComponent BoundLabelled(string labelPath, UIBindingScope scope, IVisualComponent content, bool wrap = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(labelPath);
@@ -638,13 +622,7 @@ public static class UIPage
             .AddChild(content);
     }
 
-    /// <summary>
-    /// Where something would be and nothing is yet — a pane before a row is chosen, a page with nothing made — drawn as a list draws its
-    /// own empty state, because it is that state (<see cref="DefaultEmptyTemplate"/>): the icon in the brand's colour where one is given,
-    /// the body title in the text's own ink and the muted caption under it, both wrapping; <paramref name="actions"/> (the button that
-    /// makes the first one, a link to where they are) in a row under the words, each as wide as it is. The block stands in the middle of
-    /// the room it is given, and runs on past its end, not its top, where the room is shorter than it.
-    /// </summary>
+    /// <summary>Builds a centered empty-state placeholder with an optional <paramref name="icon"/>, <paramref name="title"/>, <paramref name="description"/> and <paramref name="actions"/>.</summary>
     public static ContainerComponent Empty(string? icon, UIPhrase title, UIPhrase? description = null, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
@@ -655,22 +633,19 @@ public static class UIPage
         return Empty(icon, description is null ? words : words.SetDescription(description), actions);
     }
 
-    /// <summary>
-    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, as content
-    /// — what a filter found nothing for, whose chat is empty.
-    /// </summary>
+    /// <summary>Builds a centered empty-state placeholder whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static ContainerComponent BoundEmpty<TSource>(string? icon, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath = null, params IVisualComponent[] actions)
         => BoundEmpty(icon, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, actions);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a centered empty-state placeholder whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static ContainerComponent BoundEmpty<TSource>(string? icon, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
         => BoundEmpty(icon, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, actions);
 
-    /// <summary>The empty state with a title and a line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
+    /// <summary>Builds a centered empty-state placeholder whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static ContainerComponent BoundEmpty(string? icon, string titlePath, string? descriptionPath = null, params IVisualComponent[] actions)
         => BoundEmpty(icon, titlePath, descriptionPath, UIBindingScope.Root, actions);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a centered empty-state placeholder whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static ContainerComponent BoundEmpty(string? icon, string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
@@ -728,12 +703,7 @@ public static class UIPage
             .AddChild(block.SetPlacement(1, 1, 24, 1));
     }
 
-    /// <summary>
-    /// What came of a press, in place of the form it ends — "Check your inbox", "Thank you": a raised panel
-    /// with the mark in <paramref name="tone"/>'s colour (<paramref name="icon"/>, else the tone's own) before the title, the line
-    /// under it, and the ways on from it at its far end, the safe one first; a message's tone (Info, Success, Warning or Danger). One
-    /// on an empty page is <see cref="UICard.Centered"/>.
-    /// </summary>
+    /// <summary>Builds a raised outcome surface replacing a completed form, with an icon in <paramref name="tone"/>, <paramref name="title"/> and trailing <paramref name="actions"/>.</summary>
     public static SurfaceComponent Outcome(string? icon, UIColorStyle tone, UIPhrase title, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
@@ -741,7 +711,7 @@ public static class UIPage
         return Outcome(icon, tone, new TextComponent().SetTitle(title), null, actions);
     }
 
-    /// <summary>The same with a line under the title — where the mail went, what happens next.</summary>
+    /// <summary>Builds a raised outcome surface in <paramref name="tone"/> with <paramref name="title"/>, an optional <paramref name="description"/> and trailing <paramref name="actions"/>.</summary>
     public static SurfaceComponent Outcome(string? icon, UIColorStyle tone, UIPhrase title, UIPhrase? description, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
@@ -750,9 +720,7 @@ public static class UIPage
         return Outcome(icon, tone, new TextComponent().SetTitle(title), description is null ? null : new ParagraphComponent().SetDescription(description), actions);
     }
 
-    /// <summary>
-    /// The same with a line of the author's — inline links, emphasis — given the note's role here.
-    /// </summary>
+    /// <summary>Builds a raised outcome surface in <paramref name="tone"/> with <paramref name="title"/>, a custom <paramref name="description"/> paragraph and trailing <paramref name="actions"/>.</summary>
     public static SurfaceComponent Outcome(string? icon, UIColorStyle tone, UIPhrase title, ParagraphComponent? description, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
@@ -760,22 +728,19 @@ public static class UIPage
         return Outcome(icon, tone, new TextComponent().SetTitle(title), description, actions);
     }
 
-    /// <summary>
-    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> — the
-    /// address a mail went to — as content.
-    /// </summary>
+    /// <summary>Builds a raised outcome surface whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static SurfaceComponent BoundOutcome<TSource>(string? icon, UIColorStyle tone, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, params IVisualComponent[] actions)
         => BoundOutcome(icon, tone, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, actions);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a raised outcome surface whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static SurfaceComponent BoundOutcome<TSource>(string? icon, UIColorStyle tone, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
         => BoundOutcome(icon, tone, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, actions);
 
-    /// <summary>The outcome with a title and a line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
+    /// <summary>Builds a raised outcome surface whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static SurfaceComponent BoundOutcome(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, params IVisualComponent[] actions)
         => BoundOutcome(icon, tone, titlePath, descriptionPath, UIBindingScope.Root, actions);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a raised outcome surface whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static SurfaceComponent BoundOutcome(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
@@ -831,12 +796,7 @@ public static class UIPage
             .SetContent(content);
     }
 
-    /// <summary>
-    /// A page's state standing in for all of it — not found, refused, failed — as the framework's own not-found and error pages draw
-    /// theirs (<see cref="StatusComponent"/>): the mark on a faint disc in <paramref name="tone"/>'s colour (<paramref name="icon"/>,
-    /// else the tone's own; Info, Success, Warning or Danger), the title, the line under it and the ways on, the safe one first, centred. Words the controller says
-    /// are <see cref="BoundStatus(string?, UIColorStyle, string, string?, IVisualComponent[])"/>'s; what ends a form, in the form's place, is an <see cref="Outcome(string?, UIColorStyle, UIPhrase, UIPhrase, IVisualComponent[])"/>.
-    /// </summary>
+    /// <summary>Builds a centered page-level status view (not found, forbidden, failed) in <paramref name="tone"/> with <paramref name="title"/>, optional <paramref name="description"/> and <paramref name="actions"/>.</summary>
     public static StatusComponent Status(string? icon, UIColorStyle tone, UIPhrase title, UIPhrase? description, params IVisualComponent[] actions)
     {
         PresetWords.Require(title);
@@ -845,22 +805,19 @@ public static class UIPage
         return WithActions(new StatusComponent(StatusMark(icon, tone), tone, title, description), actions);
     }
 
-    /// <summary>
-    /// The same with a title and a line the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> — what
-    /// was refused, why it failed — as content.
-    /// </summary>
+    /// <summary>Builds a centered page-level status view whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static StatusComponent BoundStatus<TSource>(string? icon, UIColorStyle tone, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, params IVisualComponent[] actions)
         => BoundStatus(icon, tone, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), UIBindingScope.Root, actions);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a centered page-level status view whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static StatusComponent BoundStatus<TSource>(string? icon, UIColorStyle tone, Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
         => BoundStatus(icon, tone, PresetBindings.Path(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, actions);
 
-    /// <summary>The status with a title and a line bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
+    /// <summary>Builds a centered page-level status view whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static StatusComponent BoundStatus(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, params IVisualComponent[] actions)
         => BoundStatus(icon, tone, titlePath, descriptionPath, UIBindingScope.Root, actions);
 
-    /// <summary>The same, its paths read in <paramref name="scope"/>: a row's own words in an item template.</summary>
+    /// <summary>Builds a centered page-level status view whose title and optional description are bound as plain content in <paramref name="scope"/>.</summary>
     public static StatusComponent BoundStatus(string? icon, UIColorStyle tone, string titlePath, string? descriptionPath, UIBindingScope scope, params IVisualComponent[] actions)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
@@ -988,6 +945,115 @@ public static class UIPage
         UIColumnWidth.Wide => 1080,
         _ => throw new ArgumentOutOfRangeException(nameof(width), width, "A column is one of the widths UIColumnWidth names.")
     };
+
+    /// <summary>
+    /// A full-height side-drawer panel with a fixed header row (title, trailing actions, pin and close buttons), a scrolling body, and
+    /// responsive width (<c>320 px</c> on phones, <c>380 px</c> from <c>Md</c>).
+    /// </summary>
+    public static ContainerComponent Drawer(UISide side, UIPhrase title, IVisualComponent body, params IVisualComponent[] actions)
+        => Drawer(DefaultDrawerId(side), side, title, body, footer: null, pinnable: true, actions);
+
+    /// <summary>
+    /// A full-height side-drawer panel with a stable <paramref name="id"/> for persisted pinning, a fixed header row, a scrolling
+    /// <paramref name="body"/>, and an optional fixed <paramref name="footer"/>.
+    /// </summary>
+    public static ContainerComponent Drawer(string id, UISide side, UIPhrase title, IVisualComponent body, IVisualComponent? footer = null, bool pinnable = true, params IVisualComponent[] actions)
+    {
+        PresetWords.Require(title);
+
+        return Drawer(id, side, UIText.Subtitle(title), subheader: null, body, footer, pinnable, actions);
+    }
+
+    /// <summary>
+    /// A full-height side-drawer panel headed by a custom <paramref name="heading"/> component and optional <paramref name="subheader"/>
+    /// row kept fixed above the scrolling <paramref name="body"/>.
+    /// </summary>
+    public static ContainerComponent Drawer(string id, UISide side, IVisualComponent heading, IVisualComponent? subheader, IVisualComponent body, IVisualComponent? footer = null, bool pinnable = true, params IVisualComponent[] actions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+        ArgumentNullException.ThrowIfNull(heading);
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(actions);
+
+        foreach (IVisualComponent action in actions)
+        {
+            ArgumentNullException.ThrowIfNull(action);
+            SmallStripButtons(action);
+        }
+
+        IVisualComponent[] barActions = pinnable
+            ? [.. actions, UIIconButtons.Pin().SetPinsDrawer(side).SetSize(UISize.Small), UIIconButtons.Close().SetOpensDrawer(side).SetSize(UISize.Small)]
+            : [.. actions, UIIconButtons.Close().SetOpensDrawer(side).SetSize(UISize.Small)];
+
+        ContainerComponent bar = UILayout.Ends(heading, barActions);
+        IVisualComponent head = subheader is null ? bar : UILayout.Stack(DrawerSpacing, bar, subheader);
+        UIThickness horizontal = UIThickness.All(DrawerPadding, 0, DrawerPadding, 0);
+
+        ContainerComponent panel = new ContainerComponent(id)
+            .SetRow(1, UIGridUnit.Auto())
+            .AddRow(UIGridUnit.Star())
+            .SetWidth(DrawerWidth)
+            .SetMaxWidth(UILayoutLength.Fill())
+            .SetHeight(UILayoutLength.Fill())
+            .SetPadding(UIThickness.All(0, DrawerPadding, 0, DrawerPadding))
+            .SetSpacing(DrawerSpacing)
+            .AddChild(new ContainerComponent().SetPadding(horizontal).AddChild(head).SetPlacement(1, 1, 24, 1))
+            .AddChild(new ScrollContainerComponent()
+                .SetHeight(UILayoutLength.Fill())
+                .SetPadding(UIThickness.All(DrawerPadding, 2, DrawerPadding, 2))
+                .AddChild(body)
+                .SetPlacement(1, 2, 24, 1)
+            );
+
+        return footer is null
+            ? panel
+            : panel
+                .AddRow(UIGridUnit.Auto())
+                .AddChild(new ContainerComponent().SetPadding(horizontal).AddChild(footer).SetPlacement(1, 3, 24, 1));
+    }
+
+    /// <summary>
+    /// A full-height side-drawer panel whose title is bound at <paramref name="titlePath"/> as content, with trailing actions, pin and close buttons.
+    /// </summary>
+    public static ContainerComponent BoundDrawer<TSource>(UISide side, Expression<Func<TSource, object?>> titlePath, IVisualComponent body, params IVisualComponent[] actions)
+        => BoundDrawer(DefaultDrawerId(side), side, PresetBindings.Path(titlePath), body, footer: null, pinnable: true, actions);
+
+    /// <summary>
+    /// A full-height side-drawer panel whose title is bound at <paramref name="titlePath"/> as content, with trailing actions, pin and close buttons.
+    /// </summary>
+    public static ContainerComponent BoundDrawer(UISide side, string titlePath, IVisualComponent body, params IVisualComponent[] actions)
+        => BoundDrawer(DefaultDrawerId(side), side, titlePath, body, footer: null, pinnable: true, actions);
+
+    /// <summary>
+    /// A full-height side-drawer panel with a stable <paramref name="id"/> and a title bound at <paramref name="titlePath"/> as content.
+    /// </summary>
+    public static ContainerComponent BoundDrawer<TSource>(string id, UISide side, Expression<Func<TSource, object?>> titlePath, IVisualComponent body, IVisualComponent? footer = null, bool pinnable = true, params IVisualComponent[] actions)
+        => BoundDrawer(id, side, PresetBindings.Path(titlePath), body, footer, pinnable, actions);
+
+    /// <summary>
+    /// A full-height side-drawer panel with a stable <paramref name="id"/> and a title bound at <paramref name="titlePath"/> as content.
+    /// </summary>
+    public static ContainerComponent BoundDrawer(string id, UISide side, string titlePath, IVisualComponent body, IVisualComponent? footer = null, bool pinnable = true, params IVisualComponent[] actions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(titlePath);
+
+        TextComponent heading = new TextComponent()
+            .BindTitle(titlePath)
+            .BindTooltip(titlePath)
+            .SetTooltipPlain(true)
+            .AsContent(TextComponent.TitleProperty, ITooltipComponent.TooltipProperty)
+            .AsSubtitle()
+            .SetTitleColor(UIThemeColor.OnBackground);
+
+        return Drawer(id, side, heading, subheader: null, body, footer, pinnable, actions);
+    }
+
+    private static string DefaultDrawerId(UISide side)
+        => side == UISide.Right ? "drawer-right" : "drawer-left";
+
+    private static readonly UIResponsive<UILayoutLength> DrawerWidth = UIResponsive<UILayoutLength>.Create(UILayoutLength.Absolute(320), md: UILayoutLength.Absolute(380));
+    private const double DrawerPadding = 12;
+    private const double DrawerSpacing = 12;
 
     /// <summary>The words of a band — its name and description — written out as phrases, or bound at paths as the thing's own words.</summary>
     private readonly record struct BandWords(UIPhrase? Title, UIPhrase? Description, string? TitlePath, string? DescriptionPath, UIBindingScope Scope = UIBindingScope.Root)

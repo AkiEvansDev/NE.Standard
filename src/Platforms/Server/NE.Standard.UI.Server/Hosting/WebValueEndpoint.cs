@@ -162,11 +162,12 @@ internal static partial class WebValueEndpoint
     private static async Task<byte[]> ReadRemainingChunksAsync(Stream body, byte[]? prefix, int prefixLength, byte? extraByte, CancellationToken cancellationToken)
     {
         List<(byte[] Buffer, int Count)> chunks = [];
+        byte[]? current = null;
         var total = prefixLength;
 
         try
         {
-            var current = ArrayPool<byte>.Shared.Rent(MaxPresizeBytes);
+            current = ArrayPool<byte>.Shared.Rent(MaxPresizeBytes);
             var offset = 0;
 
             if (extraByte is byte first)
@@ -182,9 +183,10 @@ internal static partial class WebValueEndpoint
                 if (read == 0)
                 {
                     if (offset > 0)
+                    {
                         chunks.Add((current, offset));
-                    else
-                        ArrayPool<byte>.Shared.Return(current);
+                        current = null;
+                    }
 
                     break;
                 }
@@ -195,6 +197,7 @@ internal static partial class WebValueEndpoint
                 if (offset == current.Length)
                 {
                     chunks.Add((current, offset));
+                    current = null;
                     current = ArrayPool<byte>.Shared.Rent(MaxPresizeBytes);
                     offset = 0;
                 }
@@ -223,6 +226,9 @@ internal static partial class WebValueEndpoint
         }
         finally
         {
+            if (current is not null)
+                ArrayPool<byte>.Shared.Return(current);
+
             for (var i = 0; i < chunks.Count; i++)
                 ArrayPool<byte>.Shared.Return(chunks[i].Buffer);
         }

@@ -16,7 +16,7 @@ Full guides:
        protected override void ConfigureApplication(UIApplicationBuilder app)
        {
            app.Route<HomeView, HomeController>("/");
-           app.AddFrameworkWords();
+           app.AddFrameworkWords("ru", "zh-Hans");
            // Optional: app.SetIcon("/brand/icon.svg") or app.SetNoIcon(); defaults to the shipped NE mark.
        }
    }
@@ -36,14 +36,14 @@ Full guides:
    `WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services);`
     then `app.UseStaticFiles();`, `app.UseRouting();`, `await app.MapStandardUIWebAsync();` (never `MapStaticAssets()`). Set `WebEndpointOptions.EnableClientViewEndpoint = true` when a browser web host also accepts remote `NE.Standard.UI.Client` connections via `GET /_ne/view`. For an API-only remote server without HTML/Web assets (`NE.Standard.UI.Server`), use `UIServerStartupBase<AppStartup>`, `UIServerStartupBuilder.Configure<AppServerStartup, AppStartup>(builder.Services)`, and `await app.MapStandardUIServerAsync();`.
 4. **Windows `WebView2` Desktop host (`NE.Standard.UI.Desktop` + `NE.Standard.UI.Web.Renderers`, `net11.0-windows` + `UseWPF=true`)**:
-   `AppDesktopStartup : DesktopStartupBase<AppStartup>` registers the exact same Web renderers and add-ons in `ConfigureServices` and window/host settings in `ConfigureHost(DesktopHostOptions options)` (`WindowTitle`, `Icon`, `AppUserModelId`, `InitialWidth`, `InitialHeight`, `WebRootPath`, `DownloadMode`, `Mode = DesktopHostMode.InProcess | Remote`, `ServerUri`); `[STAThread] static int Main(string[] args) => DesktopStartupBuilder.Run<AppDesktopStartup, AppStartup>(args);` runs an in-process `HTTP/2` loopback host (`BrowserBaseUri`, `InMemoryWebViewRenderCache`, `4 GB` file limits, zero-copy local uploads and direct file downloads, native Windows Toast system notifications with `Minimized || !IsActive` visibility tracking) or connects to `--server <url>`.
+   `AppDesktopStartup : DesktopStartupBase<AppStartup>` registers the exact same Web renderers and add-ons in `ConfigureServices` and window/host settings in `ConfigureHost(DesktopHostOptions options)` (`WindowTitle`, `Icon`, `AppUserModelId`, `InitialWidth`, `InitialHeight`, `WebRootPath`, `DownloadMode`, `Mode = DesktopHostMode.InProcess | Remote`, `ServerUri`); `[STAThread] static int Main(string[] args) => DesktopStartupBuilder.Run<AppDesktopStartup, AppStartup>(args);` runs a single in-process HTTPS `HTTP/2` loopback host (`BaseUri == BrowserBaseUri`, per-process `HttpOnly` cookie gate, `InMemoryWebViewRenderCache`, `4 GB` file limits, zero-copy local uploads and direct file downloads, native Windows Toast system notifications with `Minimized || !IsActive` visibility tracking) or connects to `--server <url>` (applying `UIStartupBuilder.ReadShellDefaults<AppStartup>()` for `Theme` and `Icon`).
 
 ## Routing & Authorization
 
 - Route registration:
-  `app.Route<OrderView, OrderController>("/orders/{id}", route => route.Identity("id").Require(rule));`
-  - `.Identity("id")` gives each route parameter value its own controller runtime instance.
-  - Read route/query parameters in `OnNavigatedAsync(UINavigationRequest request)` via `request.TryGetParameter("id", out var id)`.
+  `app.Route<OrderView, OrderController>("/orders", route => route.Identity("id").Require(rule));`
+  - `.Identity("id")` gives each query parameter value (`/orders?id=42`) its own controller runtime instance.
+  - Read query parameters in `OnNavigatedAsync(UINavigationRequest request)` via `request.TryGetParameter("id", out var id)`.
 - Declarative security:
   - `[UIAuthorize("Admin,Support", Permissions = "orders.write", RolesMode = UIAccessMode.Any)]` on views, controllers, or `[UICommand]` methods.
   - `[UIAllowAnonymous]` opens a public view (such as SignIn) when `DefaultPolicy = UIAuthorizationDefault.Authenticated`.
@@ -65,7 +65,7 @@ Test views and controllers end-to-end without a browser:
 
 ```csharp
 await using UITestApp app = UITestApp.Create<AppStartup>();
-UITestPage page = await app.OpenAsync("/orders/42", session => session.SignIn("u1", roles: ["Admin"]));
+UITestPage page = await app.OpenAsync("/orders?id=42", session => session.SignIn("u1", roles: ["Admin"]));
 
 await page.ComponentBoundTo<OrderController>(c => c.Notes).SetValueAsync("Priority");
 await page.ComponentNamed("Save").ClickAsync();

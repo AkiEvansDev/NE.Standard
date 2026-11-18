@@ -24,7 +24,12 @@ internal sealed partial class UIRuntime
         IUICommandMetadata metadata = Controller.GetCommandMetadata(command);
         IReadOnlyDictionary<string, object?> arguments = FrozenDictionary<string, object?>.Empty;
 
-        if (argument is not null)
+        if (argument is null)
+        {
+            if (metadata.RequiredParameters.Count > 0)
+                throw new InvalidOperationException($"Command '{command}' requires {metadata.RequiredParameters.Count} argument(s); an offered action with no argument supplies none.");
+        }
+        else
         {
             arguments = metadata.Parameters.Count == 1
                 ? new Dictionary<string, object?>(1, StringComparer.Ordinal) { [metadata.Parameters[0]] = argument }

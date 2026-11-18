@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Frozen;
+using System.Collections.Generic;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Compiled.Indexes;
 using NE.Standard.UI.Compiled.Views;
@@ -12,12 +13,13 @@ internal static class UIViewCompiler
     {
         ArgumentNullException.ThrowIfNull(view);
 
-        UIViewCompilationContext context = new(controllerType, applyDefaults: view is not UIViewBase);
+        IReadOnlyList<UIDialog> dialogs = view is UIViewBase ? view.Dialogs : UIViewValidation.PrepareAndValidate(view);
+        UIViewCompilationContext context = new(controllerType, view.Options);
 
         foreach (UIRegion region in view.Regions)
             context.AddRegion(region);
 
-        foreach (UIDialog dialog in view.Dialogs)
+        foreach (UIDialog dialog in dialogs)
             context.AddDialog(dialog);
 
         context.AddShortcuts(view.Shortcuts);

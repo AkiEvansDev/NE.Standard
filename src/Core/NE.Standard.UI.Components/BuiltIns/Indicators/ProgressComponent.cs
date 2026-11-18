@@ -76,9 +76,10 @@ public abstract partial class ProgressComponent<T>(string? id = null) : VisualCo
     /// </summary>
     public T SetValue(decimal value)
     {
-        OrderedRangeComponentExtensions.ValidateOrderedRange(Min, Max, value, "progress value");
+        OrderedRangeComponentExtensions.ValidateOrderedRange(HasBinding(MinProperty) ? null : Min, HasBinding(MaxProperty) ? null : Max, value, "progress value");
 
         Value = value;
+        RemoveNonOptionalBinding(ValueProperty);
         return Self;
     }
 
@@ -104,7 +105,7 @@ public abstract partial class ProgressComponent<T>(string? id = null) : VisualCo
     /// Checks the bounds and the value as they stand, by the setters' own rule.
     /// </summary>
     public void ValidateConfiguration()
-        => OrderedRangeComponentExtensions.ValidateOrderedRange(Min, Max, Value, "progress value");
+        => OrderedRangeComponentExtensions.ValidateOrderedRange(HasBinding(MinProperty) ? null : Min, HasBinding(MaxProperty) ? null : Max, Value, "progress value");
 }
 
 /// <summary>

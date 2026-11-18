@@ -79,7 +79,7 @@ public sealed class UIClientComponent
     public string? ValidationMessage
         => Page.View.Validations.TryGetMessageTarget(Node.ComponentId, out _)
             ? null
-            : Page.Message(Node.ComponentId, _rowKeys) is { } message ? Page.Words(message.Message) : null;
+            : Page.Message(Node.ComponentId, _rowKeys) is { } message ? Page.Words(message.Message, !message.Content) : null;
 
     /// <summary>Gets the severity of the message the field shows, or <see langword="null"/> for none.</summary>
     public UIValidationSeverity? ValidationSeverity => Page.Message(Node.ComponentId, _rowKeys)?.Severity;
@@ -146,7 +146,7 @@ public sealed class UIClientComponent
 
     /// <summary>Gets a property's words as the page shows them, in its language.</summary>
     public string? Text(UIProperty property)
-        => Page.Words(Get(property));
+        => Page.Text(Node.ComponentId, _rowKeys, property);
 
     /// <summary>Gets the row with the key <paramref name="key"/>: a direct row first, else the one menu sub-entry with that key.</summary>
     /// <exception cref="InvalidOperationException">The list shows no such row, or several sub-entries share that key.</exception>
@@ -169,10 +169,7 @@ public sealed class UIClientComponent
     public UIClientComponent ComponentNamed(string name)
         => Page.FindNamed(name, Node.ComponentId, _rowKeys);
 
-    /// <summary>
-    /// Types <paramref name="value"/> into the input and leaves it, as a reader does: its rules, the server's answer, its change command
-    /// and their effects land on the page, and the result tells whether the value was refused and what its change command did.
-    /// </summary>
+    /// <summary>Commits <paramref name="value"/> on the input, running validation, server gates, its change command and resulting effects.</summary>
     /// <exception cref="InvalidOperationException">The input is not shown, is disabled or read-only.</exception>
     public Task<UIClientCommandResult> SetValueAsync(object? value, CancellationToken cancellationToken = default)
         => Page.SetValueAsync(Node.ComponentId, _rowKeys, IInputComponent.ValueProperty, value, cancellationToken);

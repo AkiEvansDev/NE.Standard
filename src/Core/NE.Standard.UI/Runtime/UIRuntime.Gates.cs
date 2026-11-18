@@ -516,7 +516,7 @@ internal sealed partial class UIRuntime
     /// single choice offering no clear, or a newly chosen row that may not be chosen or is disabled; a viewer's query naming a term its
     /// host does not offer; or a row's rename or tree move its abilities refuse.
     /// </summary>
-    private bool IsWriteRefusedNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read, ClientChangeSet? changeSet = null)
+    private bool IsWriteRefusedNoLock(ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read, ClientChangeSet? changeSet = null, int currentIndex = -1, HashSet<int>? refusedIndices = null)
     {
         UIComponentGateIndex gates = Gates;
         UIProperty property = update.Address.Property;
@@ -560,7 +560,7 @@ internal sealed partial class UIRuntime
             }
 
             if ((target.ReadOnly is { } readOnly && IsClosedNoLock(readOnly, dynamicParameters))
-                || (target.Values is { } checks && IsValueRefusedNoLock(checks, update, resolution, ref read, changeSet))
+                || (target.Values is { } checks && IsValueRefusedNoLock(checks, target.WriteCheck, update, resolution, ref read, changeSet, currentIndex, refusedIndices))
                 || (target.WriteCheck is { } writeCheck && IsCheckRefusedNoLock(writeCheck, update, resolution, ref read))
                 || (target.TextRename is { } textRename && property == IRenamableComponent.RenamedTitleProperty && !UIComponentGateIndex.IsInteractionTarget(View, componentId, property) && IsTextRenameRefusedNoLock(textRename, dynamicParameters, OpenedRenameWrite)))
             {
@@ -681,7 +681,7 @@ internal sealed partial class UIRuntime
     /// The text is read as the write itself reads it — by the input's own format and culture — and the read handed on to the write, so
     /// it is read once; the value is then boxed once in the property's own type, which the bounds already hold.
     /// </remarks>
-    private bool IsValueRefusedNoLock(UIValueChecks checks, ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read, ClientChangeSet? changeSet = null)
+    private bool IsValueRefusedNoLock(UIValueChecks checks, UIClientWriteCheck? siblingWriteCheck, ClientValueUIUpdate update, CompiledUIBindingResolution resolution, ref ClientValueRead? read, ClientChangeSet? changeSet = null, int currentIndex = -1, HashSet<int>? refusedIndices = null)
     {
         UIProperty property = update.Address.Property;
 
@@ -707,22 +707,25 @@ internal sealed partial class UIRuntime
             return false;
         }
 
-        return IsBeyondNoLock(checks.Min, checks.ValueType, value, dynamicParameters, below: true)
+        return IsSingleValueRefusedNoLock(checks, value, resolution, dynamicParameters)
+            || (checks.Ends is { } ends && IsPastOtherEndNoLock(checks, siblingWriteCheck, ends, update.Address.Component, property == IPeriodInputComponent.EndValueProperty, value, changeSet, currentIndex, refusedIndices));
+    }
+
+    private bool IsSingleValueRefusedNoLock(UIValueChecks checks, object value, CompiledUIBindingResolution? resolution, object?[] dynamicParameters)
+        => IsBeyondNoLock(checks.Min, checks.ValueType, value, dynamicParameters, below: true)
             || IsBeyondNoLock(checks.Max, checks.ValueType, value, dynamicParameters, below: false)
             || (checks.MarkedOnly is { } only
                 && checks.MarkedDays is { } days
                 && DayOf(value) is DateOnly day
                 && IsClosedNoLock(only, dynamicParameters)
                 && !IsMarkedNoLock(days, day, dynamicParameters))
-            || (checks.Ends is { } ends && IsPastOtherEndNoLock(checks, ends, update.Address.Component, property == IPeriodInputComponent.EndValueProperty, value, changeSet))
             || (checks.Step is { } step && IsOffStepNoLock(step, checks.Min, value, dynamicParameters))
-            || (checks.MaxLength is { } maxLength && value is string text && IsTooLongNoLock(maxLength, text, resolution, dynamicParameters))
-            || (checks.MaxSelected is { } maxSelected && value is IReadOnlyList<string> keys && IsPastMaxSelectedNoLock(maxSelected, keys, resolution, dynamicParameters))
+            || (checks.MaxLength is { } maxLength && value is string text && resolution is { } textResolution && IsTooLongNoLock(maxLength, text, textResolution, dynamicParameters))
+            || (checks.MaxSelected is { } maxSelected && value is IReadOnlyList<string> keys && resolution is { } keysResolution && IsPastMaxSelectedNoLock(maxSelected, keys, keysResolution, dynamicParameters))
             || (checks.AllowNegative is { } negative && ToNumber(value) < 0 && IsClosedNoLock(negative, dynamicParameters))
             || (checks.AllowDecimals is { } decimals && ToNumber(value) is decimal number && number != decimal.Truncate(number) && IsClosedNoLock(decimals, dynamicParameters))
             || (checks.ShowOpacity is { } opacityGate && value is UIThemeColor translucent && (translucent.Light ?? translucent.Dark)?.Opacity != byte.MaxValue && IsClosedNoLock(opacityGate, dynamicParameters))
             || (checks.ShowPalette is { } paletteGate && value is UIThemeColor paletteColor && (paletteColor.Light ?? paletteColor.Dark) is { Rgb: null } && IsClosedNoLock(paletteGate, dynamicParameters));
-    }
 
     /// <summary>
     /// Whether a value lies past a bound — below <c>Min</c> or above <c>Max</c>; a bound unset, unread or of no kind the value takes
@@ -794,7 +797,7 @@ internal sealed partial class UIRuntime
     /// one — a start above the end, an end below the start, or nearer to it than the least distance; another end unset, or one the server
     /// cannot read, holds nothing, and an unset or unread distance lets the ends meet.
     /// </summary>
-    private bool IsPastOtherEndNoLock(UIValueChecks checks, UIPeriodEnds ends, UIComponentAddress component, bool isEnd, object value, ClientChangeSet? changeSet)
+    private bool IsPastOtherEndNoLock(UIValueChecks checks, UIClientWriteCheck? siblingWriteCheck, UIPeriodEnds ends, UIComponentAddress component, bool isEnd, object value, ClientChangeSet? changeSet, int currentIndex, HashSet<int>? refusedIndices)
     {
         var dynamicParameters = component.DynamicParameters;
 
@@ -802,7 +805,7 @@ internal sealed partial class UIRuntime
             return false;
 
         if ((isEnd ? ends.Start : ends.End) is not { } other
-            || !TryReadOtherEndNoLock(checks, other, component, isEnd ? IInputComponent.ValueProperty : IPeriodInputComponent.EndValueProperty, changeSet, out var held)
+            || !TryReadOtherEndNoLock(checks, siblingWriteCheck, other, component, isEnd ? IInputComponent.ValueProperty : IPeriodInputComponent.EndValueProperty, changeSet, currentIndex, refusedIndices, out var held)
             || held is null)
         {
             return false;
@@ -818,7 +821,7 @@ internal sealed partial class UIRuntime
         return isEnd ? IsNearer(held, value, least) : IsNearer(value, held, least);
     }
 
-    private bool TryReadOtherEndNoLock(UIValueChecks checks, UIComponentGate other, UIComponentAddress component, UIProperty otherProperty, ClientChangeSet? changeSet, out object? held)
+    private bool TryReadOtherEndNoLock(UIValueChecks checks, UIClientWriteCheck? siblingWriteCheck, UIComponentGate other, UIComponentAddress component, UIProperty otherProperty, ClientChangeSet? changeSet, int currentIndex, HashSet<int>? refusedIndices, out object? held)
     {
         var dynamicParameters = component.DynamicParameters;
 
@@ -826,6 +829,9 @@ internal sealed partial class UIRuntime
         {
             for (var i = changeSet.Updates.Length - 1; i >= 0; i--)
             {
+                if (i == currentIndex || refusedIndices?.Contains(i) == true)
+                    continue;
+
                 if (changeSet.Updates[i] is not ClientValueUIUpdate sibling
                     || sibling.Address.Component.Id != component.Id
                     || sibling.Address.Property != otherProperty
@@ -835,10 +841,19 @@ internal sealed partial class UIRuntime
                     continue;
                 }
 
+                // An earlier inline controller write already landed on _controller (or was recorded in refusedIndices above).
+                if (i < currentIndex && View.Sources.GetRequired(otherBinding.SourceId).Kind == CompiledUIBindingSourceKind.Controller)
+                    break;
+
                 ClientValueRead siblingRead = ReadClientValue(otherBinding, sibling.Value);
+                ClientValueRead? boxedRead = siblingRead;
+                CompiledUIBindingResolution? siblingResolution = View.Bindings.TryResolveWrite(new UIPropertyAddress(component.Id, otherProperty, dynamicParameters), out CompiledUIBindingResolution resolved) ? resolved : null;
 
                 if (siblingRead.Normalization != UIFormattedValueNormalization.Rejected && siblingRead.Value is null)
                 {
+                    if (i > currentIndex && siblingWriteCheck is not null && siblingResolution is { } nullResolution && IsCheckRefusedNoLock(siblingWriteCheck, sibling, nullResolution, ref boxedRead))
+                        break;
+
                     held = null;
                     return false;
                 }
@@ -846,10 +861,9 @@ internal sealed partial class UIRuntime
                 if (siblingRead.Normalization != UIFormattedValueNormalization.Rejected
                     && RecursiveValueCoercion.TryCoerce(siblingRead.Value, checks.ValueType, out var companion)
                     && companion is not null
-                    && !IsBeyondNoLock(checks.Min, checks.ValueType, companion, dynamicParameters, below: true)
-                    && !IsBeyondNoLock(checks.Max, checks.ValueType, companion, dynamicParameters, below: false)
-                    && (checks.MarkedOnly is not { } only || checks.MarkedDays is not { } days || DayOf(companion) is not DateOnly day || !IsClosedNoLock(only, dynamicParameters) || IsMarkedNoLock(days, day, dynamicParameters))
-                    && (checks.Step is not { } step || !IsOffStepNoLock(step, checks.Min, companion, dynamicParameters)))
+                    && (i < currentIndex
+                        || (!IsSingleValueRefusedNoLock(checks, companion, siblingResolution, dynamicParameters)
+                            && (siblingWriteCheck is null || siblingResolution is not { } checkResolution || !IsCheckRefusedNoLock(siblingWriteCheck, sibling, checkResolution, ref boxedRead)))))
                 {
                     held = companion;
                     return true;

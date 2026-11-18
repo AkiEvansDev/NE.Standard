@@ -910,6 +910,10 @@
         "value":  "data-ui-slider-min-distance"
     },
     {
+        "constant":  "SliderValueSizerAttribute",
+        "value":  "data-ui-slider-value-sizer"
+    },
+    {
         "constant":  "CollapseToggleAttribute",
         "value":  "data-ui-collapse-toggle",
         "plugin":  "collapseToggle"

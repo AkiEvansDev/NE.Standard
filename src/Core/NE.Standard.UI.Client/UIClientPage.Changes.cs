@@ -5,6 +5,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding;
@@ -142,7 +143,10 @@ internal sealed class UIClientRowBuffer
 
 public sealed partial class UIClientPage
 {
-    private static readonly JsonSerializerOptions ItemJsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions ItemJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+    };
 
     /// <summary>Takes the attached transport and applies the snapshot a connecting page starts from: every binding's value and every list.</summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -215,6 +219,12 @@ public sealed partial class UIClientPage
 
         lock (_sync)
         {
+            if (result.RequestId is int requestId && _pendingCommands.Remove(requestId, out PendingClientCommand? waiter))
+            {
+                _ = waiter.Completion.TrySetResult(result);
+                return;
+            }
+
             ApplyNoLock(result.Changes.For(Transport.InstanceId));
             ApplyEffectsNoLock(result.Command.Effects);
             scheduled = ScheduleReactionDrainNoLock();
@@ -228,6 +238,15 @@ public sealed partial class UIClientPage
     internal async Task ReceivePushedAsync(UICommandExecutionResult result, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(result);
+
+        lock (_sync)
+        {
+            if (result.RequestId is int requestId && _pendingCommands.Remove(requestId, out PendingClientCommand? waiter))
+            {
+                _ = waiter.Completion.TrySetResult(result);
+                return;
+            }
+        }
 
         await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
 
@@ -313,7 +332,7 @@ public sealed partial class UIClientPage
                     ApplyCollectionNoLock(collection);
                     break;
                 case ServerValidationUIUpdate refusal:
-                    FieldNoLock(refusal.Address.Component).Refusal = refusal.Message is null ? null : new UIClientRefusal(refusal.Message, refusal.Severity, refusal.Address.Property);
+                    FieldNoLock(refusal.Address.Component).Refusal = refusal.Message is null ? null : new UIClientRefusal(refusal.Message, refusal.Severity, refusal.Address.Property, refusal.Content);
                     FieldNoLock(refusal.Address.Component).Touched |= refusal.Message is not null;
                     _ = _changedValidations.Add(refusal.Address.Component);
                     break;
@@ -343,8 +362,17 @@ public sealed partial class UIClientPage
         if (_held.ContainsKey(address))
         {
             _serverValues[address] = value;
+            if (update.Content)
+                _ = _contentValues.Add(address);
+            else
+                _ = _contentValues.Remove(address);
             return;
         }
+
+        if (update.Content)
+            _ = _contentValues.Add(address);
+        else
+            _ = _contentValues.Remove(address);
 
         WriteValueNoLock(address, value, local: false, depth: 0, writes: []);
         ClearShadowedRowValuesNoLock(address);
@@ -426,6 +454,7 @@ public sealed partial class UIClientPage
 
     internal bool RemoveValueEntryNoLock(UIPropertyAddress address)
     {
+        _ = _contentValues.Remove(address);
         if (!_values.Remove(address))
             return false;
 
@@ -916,12 +945,13 @@ public sealed partial class UIClientPage
     /// once the act is done — an address effect rewrites the address and history, a discard lets a form's held edits go, and a language
     /// or theme the session does not hold yet is told to the session.
     /// </summary>
-    private void ApplyEffectsNoLock(IReadOnlyList<ClientEffect> effects, UIComponentAddress? source = null, int depth = 0, List<UIClientWrite>? writes = null)
+    private void ApplyEffectsNoLock(IReadOnlyList<ClientEffect> effects, UIComponentAddress? source = null, int depth = 0, List<UIClientWrite>? writes = null, List<ClientEffect>? collector = null)
     {
         foreach (ClientEffect effect in effects)
         {
             _effects.Add(effect);
             _changedEffects.Add(effect);
+            collector?.Add(effect);
 
             switch (effect)
             {
@@ -1268,6 +1298,7 @@ public sealed partial class UIClientPage
 
             _resync = false;
             _fullResyncOccurred = true;
+            HoldsUnsavedWork = false;
             ClearValueEntriesNoLock();
             _rows.Clear();
             _openedRenames.Clear();
@@ -1291,6 +1322,61 @@ public sealed partial class UIClientPage
         await StartCoreAsync(keepNavigation: true, cancellationToken).ConfigureAwait(false);
     }
 
+    internal void ResetForFreshRuntime()
+    {
+        PendingClientCommand[] orphaned;
+
+        lock (_sync)
+        {
+            _resync = false;
+            _fullResyncOccurred = true;
+            HoldsUnsavedWork = false;
+            ClearValueEntriesNoLock();
+            _rows.Clear();
+            _openedRenames.Clear();
+            _held.Clear();
+            _serverValues.Clear();
+
+            foreach (UIComponentAddress fieldAddress in _fields.Keys)
+                _ = _changedValidations.Add(fieldAddress);
+            _fields.Clear();
+
+            if (_openDialogs.Count > 0)
+            {
+                _openDialogs.Clear();
+                _dialogsChanged = true;
+            }
+
+            _reactions.Clear();
+            orphaned = TakePendingCommandsNoLock();
+        }
+
+        InvalidOperationException failure = new("The server runtime was replaced before the background command completed.");
+        for (var i = 0; i < orphaned.Length; i++)
+            _ = orphaned[i].Completion.TrySetException(failure);
+    }
+
+    internal void CancelPendingCommands(Exception exception)
+    {
+        PendingClientCommand[] orphaned;
+
+        lock (_sync)
+            orphaned = TakePendingCommandsNoLock();
+
+        for (var i = 0; i < orphaned.Length; i++)
+            _ = orphaned[i].Completion.TrySetException(exception);
+    }
+
+    private PendingClientCommand[] TakePendingCommandsNoLock()
+    {
+        if (_pendingCommands.Count == 0)
+            return [];
+
+        PendingClientCommand[] snapshot = [.. _pendingCommands.Values];
+        _pendingCommands.Clear();
+        return snapshot;
+    }
+
     private void ClearValueEntriesNoLock()
     {
         _values.Clear();
@@ -1298,6 +1384,7 @@ public sealed partial class UIClientPage
         _valuesByRow.Clear();
         _rowKeysByHost.Clear();
         _redirectedTargets.Clear();
+        _contentValues.Clear();
         _visibleRowsCache.Clear();
         _visibleRowsStamp++;
     }

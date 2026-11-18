@@ -88,11 +88,11 @@ public static class UIDetails
         return Sum(UIText.Body(label).Muted(), valuePath, scope, strong: false);
     }
 
-    /// <summary>The same with the name the controller holds at <paramref name="labelPath"/> — a rate that changes — as content.</summary>
+    /// <summary>Builds a subtotal or line-item amount row with its label bound as content at <paramref name="labelPath"/> and its value bound at <paramref name="valuePath"/>.</summary>
     public static ContainerComponent BoundAmount<TSource>(Expression<Func<TSource, object?>> labelPath, Expression<Func<TSource, object?>> valuePath, UIBindingScope scope = UIBindingScope.Root)
         => BoundAmount(PresetBindings.Path(labelPath), PresetBindings.Path(valuePath), scope);
 
-    /// <summary>The same with the name the controller holds at <paramref name="labelPath"/> — a rate that changes — as content.</summary>
+    /// <summary>Builds a subtotal or line-item amount row with its label bound as content at <paramref name="labelPath"/> and its value bound at <paramref name="valuePath"/>.</summary>
     public static ContainerComponent BoundAmount(string labelPath, string valuePath, UIBindingScope scope = UIBindingScope.Root)
         => Sum(BoundLabel(labelPath, scope).AsBody().Muted(), valuePath, scope, strong: false);
 
@@ -108,11 +108,11 @@ public static class UIDetails
         return Sum(UIText.Subtitle(label), valuePath, scope, strong: true);
     }
 
-    /// <summary>The same with the name the controller holds at <paramref name="labelPath"/>, as content.</summary>
+    /// <summary>Builds a total row in the subtitle role with its label bound as content at <paramref name="labelPath"/> and its value bound at <paramref name="valuePath"/>.</summary>
     public static ContainerComponent BoundTotal<TSource>(Expression<Func<TSource, object?>> labelPath, Expression<Func<TSource, object?>> valuePath, UIBindingScope scope = UIBindingScope.Root)
         => BoundTotal(PresetBindings.Path(labelPath), PresetBindings.Path(valuePath), scope);
 
-    /// <summary>The same with the name the controller holds at <paramref name="labelPath"/>, as content.</summary>
+    /// <summary>Builds a total row in the subtitle role with its label bound as content at <paramref name="labelPath"/> and its value bound at <paramref name="valuePath"/>.</summary>
     public static ContainerComponent BoundTotal(string labelPath, string valuePath, UIBindingScope scope = UIBindingScope.Root)
         => Sum(BoundLabel(labelPath, scope).AsSubtitle(), valuePath, scope, strong: true);
 

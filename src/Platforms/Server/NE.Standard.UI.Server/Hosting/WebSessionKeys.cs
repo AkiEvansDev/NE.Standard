@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
+using NE.Standard.UI.Shell.Transport;
 using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -66,7 +67,7 @@ internal sealed partial class WebSessionKeys : IUISessionKeyHandover
 
         UICommandExecutionResult result = new()
         {
-            Command = UICommandResult.Ok([new WebSessionKeyEffect(Issue(key, previousSessionId))]),
+            Command = UICommandResult.Ok([new UISessionKeyWireEffect(Issue(key, previousSessionId))]),
             Changes = ServerChangeSet.Empty
         };
 

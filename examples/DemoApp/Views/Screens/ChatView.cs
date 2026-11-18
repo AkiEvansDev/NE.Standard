@@ -8,7 +8,7 @@ namespace DemoApp.Views.Screens;
 /// <summary>
 /// A chat application: its sections on a rail that is the page's whole left side — the column of icons on a wide screen, the bottom
 /// navigation bar on a phone, with no drawer — the chats or the people of the one open, and the conversation of the chat pressed:
-/// beside the list from the medium width (<see cref="UILayout.Panes"/>), in its place on a phone, with a back arrow to the list.
+/// beside the list from the medium width (<see cref="UILayout.Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/>), in its place on a phone, with a back arrow to the list.
 /// </summary>
 /// <remarks>
 /// The conversation is a windowed source read from its end backwards, a day header over each day, the message chosen carrying a bar

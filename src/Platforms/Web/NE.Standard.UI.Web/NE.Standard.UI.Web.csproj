@@ -16,9 +16,6 @@
 
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>NE.Standard.UI.Server</_Parameter1>
-    </AssemblyAttribute>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>NE.Standard.UI.Desktop</_Parameter1>
     </AssemblyAttribute>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
@@ -33,6 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Server\NE.Standard.UI.Server\NE.Standard.UI.Server.csproj" />
     <ProjectReference Include="..\NE.Standard.UI.Web.Abstractions\NE.Standard.UI.Web.Abstractions.csproj" />
     <!-- Analyzers pass through to the application, so the engine's generator reaches a project that installs only this host. -->
     <ProjectReference Include="..\..\..\Core\NE.Standard.UI\NE.Standard.UI.csproj" PrivateAssets="contentfiles;build" />

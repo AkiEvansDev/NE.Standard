@@ -10,6 +10,7 @@ using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Components.Foundation.Items;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
@@ -42,9 +43,15 @@ internal sealed partial class UIViewCompilationContext
             if (property.Equals(IPopupPlacementComponent.PopupPlacementProperty))
                 return UIPopupPlacement.BottomEnd;
 
+            if (property.Equals(ITextBaseComponent.BadgeVariantProperty))
+                return UIBadgeVariant.Primary;
+
             if (property.Equals(SelectComponent.ShowChevronProperty) && !UIPhrase.HasWords(component is ITextBaseComponent text ? text.Title : null) && FindBinding(component, ITextBaseComponent.TitleProperty) is null)
                 return false;
         }
+
+        if (property.Equals(ISelectedKeyComponent.SelectedKeyProperty) && component is TabsComponent { TabKeys: { Count: > 0 } tabKeys })
+            return tabKeys[0];
 
         return property.Equals(IVisualComponent.AlignWithFieldBoxesProperty) ? ImpliedFieldBoxes(component) : null;
     }

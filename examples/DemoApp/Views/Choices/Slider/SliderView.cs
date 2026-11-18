@@ -220,6 +220,13 @@ internal sealed class SliderView : DemoComponentView, IUIViewDefinition
                     .SetValue(2.5m)
                     .SetShowValue()
                 )
+                .AddChild(new SliderComponent()
+                    .SetTitle("Step = 0.05 over a unit share")
+                    .SetRange(0, 1)
+                    .SetStep(0.05m)
+                    .SetValue(0.85m)
+                    .SetShowValue()
+                )
         );
     }
 

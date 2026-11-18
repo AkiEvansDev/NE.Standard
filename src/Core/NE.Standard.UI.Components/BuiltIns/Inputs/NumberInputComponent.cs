@@ -38,12 +38,11 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : Bound
     [UIComponentProperty(DefaultValue = true, GenerateSetter = false)]
     public bool? AllowNegative { get; set; }
 
-    /// <summary>
-    /// Gets or sets whether the value's integer part is grouped by the culture's thousands separator. Unset, the <c>DisplayFormat</c>
-    /// says: <c>N</c>, <c>C</c> and <c>P</c> group, <c>F</c> and <c>D</c> do not, and a field with no format groups nothing, so a
-    /// count or a setting reads <c>32768</c>. <see langword="true"/> groups whatever the format but <c>D</c> (an <c>F2</c> reads as <c>N2</c>);
-    /// <see langword="false"/> never groups, a format's own grouping included.
-    /// </summary>
+    /// <summary>Gets or sets whether the integer part is grouped by the culture's thousands separator.</summary>
+    /// <remarks>
+    /// Unset, follows <c>DisplayFormat</c> (<c>N</c>, <c>C</c> and <c>P</c> group; <c>F</c>, <c>D</c> and unformatted fields do not).
+    /// <see langword="true"/> groups every format except <c>D</c>; <see langword="false"/> suppresses grouping even on <c>N</c>, <c>C</c> and <c>P</c>.
+    /// </remarks>
     [UIComponentProperty(DefaultValue = null)]
     public bool? AllowThousandsSeparator { get; set; }
 
@@ -67,6 +66,7 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : Bound
         ValidateConfiguration(Min, Max, step, Value, AllowDecimals, AllowNegative);
 
         Step = step;
+        RemoveNonOptionalBinding(StepProperty);
         return Self;
     }
 
@@ -78,6 +78,7 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : Bound
         ValidateConfiguration(Min, Max, Step, Value, allowDecimals, AllowNegative);
 
         AllowDecimals = allowDecimals;
+        RemoveNonOptionalBinding(AllowDecimalsProperty);
         return Self;
     }
 
@@ -89,6 +90,7 @@ public abstract partial class NumberInputComponent<T>(string? id = null) : Bound
         ValidateConfiguration(Min, Max, Step, Value, AllowDecimals, allowNegative);
 
         AllowNegative = allowNegative;
+        RemoveNonOptionalBinding(AllowNegativeProperty);
         return Self;
     }
 

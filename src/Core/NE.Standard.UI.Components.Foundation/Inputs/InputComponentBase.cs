@@ -80,25 +80,26 @@ public abstract partial class InputComponentBase<TComponent, TValue>(string? id 
 
     /// <inheritdoc/>
     protected override Action? SnapshotAuthoredState()
-    {
-        Action? restoreBase = base.SnapshotAuthoredState();
-
-        if (_validations.Count == 0)
-            return restoreBase;
-
-        UIValidationRule[] ownValidations = [.. _validations];
-        _validations.Clear();
-
-        return () =>
-        {
-            restoreBase?.Invoke();
-            InputValidationDefaults.MergeAuthored(_validations, ownValidations);
-        };
-    }
+        => InputValidationDefaults.SnapshotWith(base.SnapshotAuthoredState(), _validations);
 }
 
 internal static class InputValidationDefaults
 {
+    public static Action? SnapshotWith(Action? restoreBase, List<UIValidationRule> validations)
+    {
+        if (validations.Count == 0)
+            return restoreBase;
+
+        UIValidationRule[] ownValidations = [.. validations];
+        validations.Clear();
+
+        return () =>
+        {
+            restoreBase?.Invoke();
+            MergeAuthored(validations, ownValidations);
+        };
+    }
+
     public static void MergeAuthored(List<UIValidationRule> target, UIValidationRule[] ownValidations)
     {
         UIValidationRule[] inherited = target.Count > 0 ? [.. target] : [];

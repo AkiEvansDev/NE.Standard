@@ -57,7 +57,7 @@ export function snapToStep(value: number, bounds: RangeBounds): number {
     let steps = Math.round((clamped - bounds.min) / bounds.step);
 
     // The last step that still fits: a range whose length is no whole number of steps ends short of its maximum.
-    if (bounds.min + steps * bounds.step > bounds.max)
+    if (roundTo(bounds.min + steps * bounds.step, bounds) > bounds.max)
         steps--;
 
     return roundTo(bounds.min + steps * bounds.step, bounds);
@@ -114,4 +114,56 @@ export function holdApart(value: number, handle: RangeHandle, other: number, min
 
 function clampTo(value: number, bounds: RangeBounds): number {
     return Math.min(bounds.max, Math.max(bounds.min, value));
+}
+
+/** The widest reading a slider's bounds and step can produce (`WebAttributes.SliderValueSizer`), mirroring `SliderComponentRenderer.ValueSizer`. */
+export function sliderValueSizer(bounds: RangeBounds): string {
+    const lower = Math.min(bounds.min, bounds.max);
+    const upper = Math.max(bounds.min, bounds.max);
+    const stride = bounds.step > 0 ? bounds.step : 1;
+    const stepBounds: RangeBounds = { min: lower, max: upper, step: stride };
+    const precision = Math.min(10, Math.max(decimalsOf(lower), decimalsOf(upper), bounds.step > 0 ? decimalsOf(stride) : 0));
+    const last = snapToStep(upper, stepBounds);
+    const candidates = [
+        Math.min(last, roundTo(lower + stride, stepBounds)),
+        Math.max(lower, roundTo(last - stride, stepBounds)),
+        last,
+        upper
+    ];
+
+    let widest = candidateSizer(lower, precision);
+    let maxWeight = advanceWeight(widest);
+
+    for (const candidate of candidates) {
+        const sizer = candidateSizer(candidate, precision);
+        const weight = advanceWeight(sizer);
+
+        if (weight > maxWeight) {
+            widest = sizer;
+            maxWeight = weight;
+        }
+    }
+
+    return widest;
+}
+
+function candidateSizer(value: number, precision: number): string {
+    const sign = value < 0 ? "-" : "";
+    const digits = integerDigits(Math.trunc(Math.abs(value)));
+    const whole = `${sign}${"0".repeat(digits)}`;
+
+    return precision > 0 && !Number.isInteger(value) ? `${whole}.${"0".repeat(precision)}` : whole;
+}
+
+function integerDigits(nonNegativeTruncated: number): number {
+    return Math.round(nonNegativeTruncated).toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: 0 }).length;
+}
+
+function advanceWeight(sizer: string): number {
+    let weight = 0;
+
+    for (let i = 0; i < sizer.length; i++)
+        weight += sizer[i] === "-" ? 0.75 : sizer[i] === "." ? 0.35 : 1;
+
+    return weight;
 }

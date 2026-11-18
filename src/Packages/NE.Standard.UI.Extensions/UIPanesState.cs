@@ -7,7 +7,7 @@ using NE.Standard.UI.Primitives.Styling;
 namespace NE.Standard.UI.Extensions;
 
 /// <summary>
-/// What <see cref="UILayout.Panes"/> shows: which side is in front below the medium breakpoint, whether something is chosen, and
+/// What <see cref="UILayout.Panes(Authoring.Components.IVisualComponent, Authoring.Components.IVisualComponent, string, Authoring.Components.IVisualComponent?, bool, bool)"/> shows: which side is in front below the medium breakpoint, whether something is chosen, and
 /// the splitter's share. A controller holds one as an observable member and moves it by <see cref="ShowDetail"/>,
 /// <see cref="ShowList"/> and <see cref="ShowNothing"/>; the three visibilities follow together.
 /// </summary>
@@ -21,8 +21,17 @@ public sealed partial class UIPanesState : RecursiveObservable
     /// Creates the state with the list in front; something <paramref name="chosen"/> stands beside it from the medium breakpoint,
     /// nothing chosen leaves the placeholder there.
     /// </summary>
-    public UIPanesState(bool chosen = false)
+    public UIPanesState(bool chosen) : this(chosen, stacked: false)
     {
+    }
+
+    /// <summary>
+    /// Creates the state with the list in front; when <paramref name="stacked"/> is <see langword="true"/>, list and detail switch in a
+    /// single column at every breakpoint rather than standing side by side from <c>Md</c>.
+    /// </summary>
+    public UIPanesState(bool chosen = false, bool stacked = false)
+    {
+        Stacked = stacked;
         Show(detailInFront: false, chosen);
     }
 
@@ -30,13 +39,16 @@ public sealed partial class UIPanesState : RecursiveObservable
     {
         DetailInFront = detailInFront;
         Chosen = chosen;
-        ListVisibility = UILayout.PanesListVisibility(detailInFront);
-        DetailVisibility = UILayout.PanesDetailVisibility(detailInFront, chosen);
-        PlaceholderVisibility = UILayout.PanesPlaceholderVisibility(chosen);
+        ListVisibility = UILayout.PanesListVisibility(detailInFront, Stacked);
+        DetailVisibility = UILayout.PanesDetailVisibility(detailInFront, chosen, Stacked);
+        PlaceholderVisibility = UILayout.PanesPlaceholderVisibility(chosen, Stacked);
     }
 
     /// <summary>Raised when the share changes but by <see cref="SeedShare"/>: the splitter moved, for a page that keeps it per person.</summary>
     public event EventHandler? ShareChanged;
+
+    /// <summary>Gets whether the panes switch in a single column at every breakpoint rather than standing side by side from <c>Md</c>.</summary>
+    public bool Stacked { get; }
 
     /// <summary>Gets whether the detail stands in the list's place below the medium breakpoint.</summary>
     public bool DetailInFront { get; private set; }
@@ -44,15 +56,15 @@ public sealed partial class UIPanesState : RecursiveObservable
     /// <summary>Gets whether something is chosen: the detail beside the list from the medium breakpoint, not the placeholder.</summary>
     public bool Chosen { get; private set; }
 
-    /// <summary>Gets the list's visibility (<see cref="UILayout.PanesListVisibility"/>).</summary>
+    /// <summary>Gets the list's visibility (<see cref="UILayout.PanesListVisibility(bool, bool)"/>).</summary>
     [RecursiveMember]
     public partial UIResponsive<UIVisibility> ListVisibility { get; private set; }
 
-    /// <summary>Gets the detail's visibility (<see cref="UILayout.PanesDetailVisibility"/>).</summary>
+    /// <summary>Gets the detail's visibility (<see cref="UILayout.PanesDetailVisibility(bool, bool, bool)"/>).</summary>
     [RecursiveMember]
     public partial UIResponsive<UIVisibility> DetailVisibility { get; private set; }
 
-    /// <summary>Gets the placeholder's visibility (<see cref="UILayout.PanesPlaceholderVisibility"/>).</summary>
+    /// <summary>Gets the placeholder's visibility (<see cref="UILayout.PanesPlaceholderVisibility(bool, bool)"/>).</summary>
     [RecursiveMember]
     public partial UIResponsive<UIVisibility> PlaceholderVisibility { get; private set; }
 

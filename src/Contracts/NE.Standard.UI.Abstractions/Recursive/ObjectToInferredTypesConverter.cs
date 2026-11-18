@@ -81,15 +81,8 @@ public sealed class ObjectToInferredTypesConverter : JsonConverter<object?>
         return TryToInferred(element, 1, int.MaxValue, ref budget, out var value) ? value : throw new UnreachableException();
     }
 
-    /// <summary>
-    /// The element as its inferred CLR value, built only while it holds at most <paramref name="maxElements"/> list items and document
-    /// fields, counted through every level, and nests at most <paramref name="maxDepth"/> deep; past either, the build stops there
-    /// and answers <see cref="RecursiveValuePastLimits.Instance"/>, which <see cref="RecursiveValueCoercion.IsWithinLimits"/> refuses.
-    /// </summary>
-    /// <remarks>
-    /// The limits as <see cref="RecursiveValueCoercion.IsWithinLimits"/> counts them, applied while reading: a megabyte of tiny elements
-    /// is refused before it becomes a graph many times its size.
-    /// </remarks>
+    /// <summary>Converts <paramref name="element"/> to its inferred CLR value within <paramref name="maxElements"/> and <paramref name="maxDepth"/>, or returns <see cref="RecursiveValuePastLimits.Instance"/>.</summary>
+    /// <remarks>Enforces the same element and nesting bounds as <see cref="RecursiveValueCoercion.IsWithinLimits"/> while reading.</remarks>
     public static object? ToInferredValue(JsonElement element, int maxElements, int maxDepth)
     {
         var budget = maxElements;

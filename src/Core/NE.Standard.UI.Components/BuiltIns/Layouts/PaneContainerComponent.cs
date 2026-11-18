@@ -7,16 +7,11 @@ using NE.Standard.UI.Primitives.Binding;
 
 namespace NE.Standard.UI.Components.BuiltIns.Layouts;
 
-/// <summary>
-/// A container whose panes the viewer moves between their places by a grip at each pane's top: a pane dropped on another's place
-/// trades places with it. The places are the cells the panes were added at; a splitter between them sizes the places, not the panes.
-/// A pane added to keep its size takes its own tracks to a place beside its own (<see cref="UIPaneLayout.Arrange"/>).
-/// </summary>
+/// <summary>A grid container whose named panes the viewer can drag between slots by their header grips.</summary>
 /// <remarks>
-/// <see cref="Layout"/> names the panes in the order of their places, as <c>chat,tasks,tree</c>. Bound, it comes back from the page
-/// for the application to keep per viewer, and a value the controller sets moves the panes; unbound, the browser keeps it under the
-/// container's authored id. A pane the value leaves out or does not know takes the first place left, in the order the panes were
-/// added. Columns, rows, spacing and splitters are a container's own.
+/// Dropping a pane onto another slot swaps their places; splitters resize slots, while panes marked to keep their size carry their own
+/// tracks across adjacent runs (<see cref="UIPaneLayout.Arrange"/>). <see cref="Layout"/> holds the comma-separated pane order (two-way
+/// bound to the controller, or stored locally under the container's authored id when unbound).
 /// </remarks>
 public abstract partial class PaneContainerComponent<T>(string? id = null) : ContainerComponent<T>(id), IRegionContainerComponent
     where T : PaneContainerComponent<T>, IUIComponentDefinition

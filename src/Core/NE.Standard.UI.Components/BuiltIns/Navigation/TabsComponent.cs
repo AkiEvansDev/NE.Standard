@@ -68,9 +68,6 @@ public abstract partial class TabsComponent<T>(string? id = null) : RegionContai
         SetRegion(TabRegionNames.Caption(key), caption);
         SetRegion(TabRegionNames.Page(key), page);
 
-        // The first tab added is the one shown, so a view that never sets SelectedKey still renders a page.
-        SelectedKey ??= key;
-
         return Self;
     }
 
@@ -121,6 +118,63 @@ public abstract partial class TabsComponent<T>(string? id = null) : RegionContai
         SetRegion(TabRegionNames.TabAction(key, index), action);
 
         return Self;
+    }
+
+    /// <inheritdoc/>
+    protected override Action? SnapshotAuthoredState()
+    {
+        Action? restoreBase = base.SnapshotAuthoredState();
+
+        if (_keys.Count == 0 && _stripActions == 0)
+            return restoreBase;
+
+        string[] ownKeys = [.. _keys];
+        KeyValuePair<string, int>[] ownTabActions = [.. _tabActions];
+        var ownStripActions = _stripActions;
+
+        _keys.Clear();
+        _tabActions.Clear();
+        _stripActions = 0;
+
+        return () =>
+        {
+            var defaultStripActions = _stripActions;
+            IVisualComponent[]? defaultActions = null;
+
+            if (defaultStripActions > 0 && ownStripActions > 0)
+            {
+                defaultActions = new IVisualComponent[defaultStripActions];
+
+                for (var i = 0; i < defaultStripActions; i++)
+                    defaultActions[i] = RegionEntries[TabRegionNames.Action(i)];
+            }
+
+            restoreBase?.Invoke();
+
+            for (var i = 0; i < ownKeys.Length; i++)
+            {
+                if (!_keys.Contains(ownKeys[i]))
+                    _keys.Add(ownKeys[i]);
+            }
+
+            for (var i = 0; i < ownTabActions.Length; i++)
+                _tabActions[ownTabActions[i].Key] = ownTabActions[i].Value;
+
+            if (defaultActions is not null)
+            {
+                for (var i = ownStripActions - 1; i >= 0; i--)
+                    SetRegion(TabRegionNames.Action(defaultStripActions + i), RegionEntries[TabRegionNames.Action(i)]);
+
+                for (var i = 0; i < defaultStripActions; i++)
+                    RegionEntries[TabRegionNames.Action(i)] = defaultActions[i];
+
+                _stripActions = defaultStripActions + ownStripActions;
+            }
+            else if (ownStripActions > 0)
+            {
+                _stripActions = ownStripActions;
+            }
+        };
     }
 }
 

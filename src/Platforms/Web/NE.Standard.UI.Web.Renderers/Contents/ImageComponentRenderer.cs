@@ -17,6 +17,7 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
     private static readonly WebDomOperation[] SourceOperations = [WebDomOperation.Attribute("src", converter: WebDomConverters.SafeImageSource)];
     private static readonly WebDomOperation[] FallbackSourceOperations = [WebDomOperation.Attribute(WebAttributes.FallbackSrc, converter: WebDomConverters.SafeImageSource)];
     private static readonly WebDomOperation[] AltTextOperations = [WebDomOperation.Attribute("alt", converter: WebDomConverters.EmptyText, convertsNull: true)];
+    private static readonly WebDomOperation[] LazyOperations = [WebDomOperation.ToggleAttribute("loading", condition: WebValueCondition.IsTrue, value: "lazy")];
     private static readonly WebDomOperation[] FitOperations = [WebDomOperation.Class(converter: WebDomConverters.ImageFitClass)];
     private static readonly WebDomOperation[] ShapeOperations = [WebDomOperation.Class(converter: WebDomConverters.ImageShapeClass)];
 
@@ -62,8 +63,12 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
     {
         _ = picture.Class(WebClassNames.ImagePicture);
 
-        // A long list of pictures fetches only those near the viewport, and none of them holds up the frame while it decodes.
-        _ = picture.Attribute("loading", "lazy");
+        // Deferred by default so long lists fetch only pictures near the viewport; SetLazy(false) loads drawer or dialog chrome eagerly.
+        _ = RenderProperty<bool?>(context, picture, ImageComponent.LazyProperty, static (target, value) =>
+        {
+            if (value != false)
+                _ = target.Attribute("loading", "lazy");
+        }, LazyOperations);
         _ = picture.Attribute("decoding", "async");
 
         _ = RenderProperty<string?>(context, picture, ImageComponent.SourceProperty, static (target, value) =>

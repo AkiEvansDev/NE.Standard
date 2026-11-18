@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
@@ -38,34 +39,76 @@ public sealed partial class UIClientPage
             return ReadNoLock(componentId, rowKeys, property);
     }
 
+    internal string? Text(UIComponentId componentId, object?[] rowKeys, UIProperty property)
+    {
+        object? value;
+        bool translatable;
+
+        lock (_sync)
+            (value, translatable) = ReadWithTranslatableNoLock(componentId, rowKeys, property);
+
+        return Words(value, translatable);
+    }
+
     /// <summary>
     /// What was sent or written to the address, else what the binding reads off the row's item, else the view's own value; a bound
     /// property holding nothing shows its fallback, as on the page.
     /// </summary>
     private object? ReadNoLock(UIComponentId componentId, object?[] rowKeys, UIProperty property)
+        => ReadWithTranslatableNoLock(componentId, rowKeys, property).Value;
+
+    private (object? Value, bool Translatable) ReadWithTranslatableNoLock(UIComponentId componentId, object?[] rowKeys, UIProperty property)
     {
         _ = View.State.TryGetValue(componentId, property, out CompiledUIPropertyValue? compiled);
+        var translatable = compiled is { IsTranslatable: true, IsContent: false };
         CompiledUIBinding? binding = BindingOf(componentId, property);
+        UIPropertyAddress exactAddress = new(new UIComponentAddress(componentId, rowKeys), property);
 
-        if (_values.TryGetValue(new UIPropertyAddress(new UIComponentAddress(componentId, rowKeys), property), out var held))
-            return held ?? binding?.TargetFallbackValue;
+        if (_values.TryGetValue(exactAddress, out var held))
+        {
+            if (_contentValues.Contains(exactAddress) || _redirectedTargets.Contains(exactAddress))
+                translatable = false;
+
+            return (held ?? binding?.TargetFallbackValue, translatable);
+        }
 
         if (rowKeys.Length > 0 && binding is not null)
         {
             var boundDepth = CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters);
 
-            if (boundDepth < rowKeys.Length && _values.TryGetValue(new UIPropertyAddress(new UIComponentAddress(componentId, rowKeys[..boundDepth]), property), out held))
-                return held ?? binding.TargetFallbackValue;
+            if (boundDepth < rowKeys.Length)
+            {
+                UIPropertyAddress prefixAddress = new(new UIComponentAddress(componentId, rowKeys[..boundDepth]), property);
+                if (_values.TryGetValue(prefixAddress, out held))
+                {
+                    if (_contentValues.Contains(prefixAddress) || _redirectedTargets.Contains(prefixAddress))
+                        translatable = false;
+
+                    return (held ?? binding.TargetFallbackValue, translatable);
+                }
+            }
         }
 
         if (binding is null)
-            return View.Interactions.TryGetFirstPaintValue(new UIPropertyAddress(componentId, property), out var painted) ? painted : compiled?.Value;
+        {
+            var staticValue = View.Interactions.TryGetFirstPaintValue(new UIPropertyAddress(componentId, property), out var painted) ? painted : compiled?.Value;
+            return (staticValue, translatable);
+        }
 
-        if (ReadsItem(binding) && TryReadItemValueNoLock(binding, componentId, rowKeys, out var value))
-            return CompiledViewWireSerializer.CoerceWireValue(binding.TargetValueType, value) ?? binding.TargetFallbackValue;
+        if (ReadsItem(binding) && TryReadItemValueNoLock(binding, componentId, rowKeys, out var value, out var scopeItem))
+        {
+            if (IsContentItem(scopeItem))
+                translatable = false;
 
-        return binding.TargetFallbackValue;
+            return (CompiledViewWireSerializer.CoerceWireValue(binding.TargetValueType, value) ?? binding.TargetFallbackValue, translatable);
+        }
+
+        return (binding.TargetFallbackValue, translatable);
     }
+
+    private static bool IsContentItem(object? item)
+        => item is IContentItem { IsContent: true }
+            || (item is IReadOnlyDictionary<string, object?> && ItemContext.TryReadProperty(item, nameof(IContentItem.IsContent), out var contentFlag) && contentFlag is true);
 
     /// <summary>The binding a property takes its value from: its own, or a list's collection binding for its items.</summary>
     private CompiledUIBinding? BindingOf(UIComponentId componentId, UIProperty property)
@@ -91,9 +134,10 @@ public sealed partial class UIClientPage
     }
 
     /// <summary>A bound value read off the items in scope, innermost first, as the page reads a row's binding off its item.</summary>
-    private bool TryReadItemValueNoLock(CompiledUIBinding binding, UIComponentId componentId, object?[] rowKeys, out object? value)
+    private bool TryReadItemValueNoLock(CompiledUIBinding binding, UIComponentId componentId, object?[] rowKeys, out object? value, out object? scopeItem)
     {
         value = null;
+        scopeItem = null;
 
         List<UIDynamicParameterScope> scopes = ScopesNoLock(componentId, rowKeys);
         CompiledUIBindingTemplate template = View.Templates.GetRequired(binding.TemplateId);
@@ -101,7 +145,10 @@ public sealed partial class UIClientPage
         for (var i = scopes.Count - 1; i >= 0; i--)
         {
             if (new ItemContext(scopes[i].Item).TryResolveBindingTemplate(template, binding.Parameters, scopes, out value))
+            {
+                scopeItem = scopes[i].Item;
                 return true;
+            }
         }
 
         return false;
@@ -666,9 +713,10 @@ public sealed partial class UIClientPage
 
             foreach (UIProperty property in NameProperties)
             {
-                var value = Read(node.ComponentId, rowKeys[..View.Graph.GetItemScopes(node.ComponentId).Count], property);
+                var keys = rowKeys[..View.Graph.GetItemScopes(node.ComponentId).Count];
+                var value = Read(node.ComponentId, keys, property);
 
-                if (value is not null && (string.Equals(value.ToString(), name, StringComparison.Ordinal) || string.Equals(Words(value), name, StringComparison.Ordinal)))
+                if (value is not null && (string.Equals(value.ToString(), name, StringComparison.Ordinal) || string.Equals(Text(node.ComponentId, keys, property), name, StringComparison.Ordinal)))
                 {
                     found.Add((node.ComponentId, node.TypeKey is not "standard.text" and not "standard.paragraph"));
                     break;

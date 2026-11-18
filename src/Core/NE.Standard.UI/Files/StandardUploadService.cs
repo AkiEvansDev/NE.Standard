@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
@@ -127,6 +128,8 @@ public sealed class StandardUploadService : IUIUploadService
     /// Copies in chunks so the reported fraction means something — <c>Stream.CopyToAsync</c> would finish and
     /// report once, which is not progress.
     /// </summary>
+    private const int ProgressBufferSize = 64 * 1024;
+
     private static async Task CopyWithProgressAsync(Stream source, Stream destination, long total, IProgress<double>? progress, CancellationToken cancellationToken)
     {
         if (progress is null)
@@ -135,20 +138,28 @@ public sealed class StandardUploadService : IUIUploadService
             return;
         }
 
-        var buffer = new byte[81920];
-        long copied = 0;
-
-        for (var read = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-            read > 0;
-            read = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false))
+        var buffer = ArrayPool<byte>.Shared.Rent(ProgressBufferSize);
+        try
         {
-            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+            long copied = 0;
+            Memory<byte> slice = buffer.AsMemory(0, ProgressBufferSize);
 
-            copied += read;
-            progress.Report(total <= 0 ? 0 : Math.Min(1, copied / (double)total));
+            for (var read = await source.ReadAsync(slice, cancellationToken).ConfigureAwait(false);
+                read > 0;
+                read = await source.ReadAsync(slice, cancellationToken).ConfigureAwait(false))
+            {
+                await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+
+                copied += read;
+                progress.Report(total <= 0 ? 0 : Math.Min(1, copied / (double)total));
+            }
+
+            progress.Report(1);
         }
-
-        progress.Report(1);
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
     }
 
     /// <inheritdoc />

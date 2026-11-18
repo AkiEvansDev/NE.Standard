@@ -23,16 +23,20 @@ public static class RecursiveValueCoercion
     // The page's clock shapes (temporal-dom.ts's TimePattern), and the fraction a serialized TimeOnly carries.
     private static readonly string[] WrittenClockFormats = ["H:mm", "H:mm:ss", "H:mm:ss.FFFFFFF"];
 
+    private const int MaxModelElements = 100_000;
+    private const int MaxModelDepth = 64;
+
     // The wire's own conventions read back: a property camel-cased either way, an enum by its name, an `object` as the value it holds.
     private static readonly JsonSerializerOptions ModelOptions = new(JsonSerializerDefaults.Web)
     {
+        MaxDepth = MaxModelDepth,
         Converters =
         {
             new DefinedEnumConverterFactory(),
             new ThemeColorJsonConverter(),
             new UIPhraseValueJsonConverter(),
             new WrittenMomentConverterFactory(),
-            new ObjectToInferredTypesConverter()
+            new ObjectToInferredTypesConverter(MaxModelElements, MaxModelDepth, throwOnLimit: true)
         }
     };
 
@@ -43,7 +47,7 @@ public static class RecursiveValueCoercion
     {
         result = default!;
 
-        if (value is null)
+        if (value is null or RecursiveValuePastLimits)
             return false;
 
         if (value is T typed && (value is not JsonElement || (Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T)) == typeof(JsonElement)))
@@ -73,7 +77,7 @@ public static class RecursiveValueCoercion
 
         Type underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
-        if (value is null)
+        if (value is null or RecursiveValuePastLimits)
             return false;
 
         if (value is not JsonElement && underlyingType.IsInstanceOfType(value))
@@ -138,9 +142,9 @@ public static class RecursiveValueCoercion
                 }
             }
 
-            value = ObjectToInferredTypesConverter.ToInferredValue(jsonElement);
+            value = ObjectToInferredTypesConverter.ToInferredValue(jsonElement, MaxModelElements, MaxModelDepth);
 
-            if (value is null)
+            if (value is null or RecursiveValuePastLimits)
                 return false;
 
             if (underlyingType.IsInstanceOfType(value))
@@ -212,11 +216,11 @@ public static class RecursiveValueCoercion
     /// </remarks>
     public static bool IsWithinLimits(object? value, int maxElements, int maxDepth)
     {
-        if (value is null or string or not (IEnumerable or RecursiveValuePastLimits))
-            return true;
-
         if (value is RecursiveValuePastLimits)
             return false;
+
+        if (value is null or string or not (IEnumerable or JsonElement { ValueKind: JsonValueKind.Array or JsonValueKind.Object }))
+            return true;
 
         var budget = maxElements;
 
@@ -231,6 +235,9 @@ public static class RecursiveValueCoercion
     {
         switch (value)
         {
+            case JsonElement jsonElement:
+                return FitsJsonElementWithin(jsonElement, depth, maxDepth, ref budget);
+
             case IDictionary<string, object?> document:
                 if (depth > maxDepth || (budget -= document.Count) < 0)
                     return false;
@@ -306,6 +313,41 @@ public static class RecursiveValueCoercion
             default:
                 return value is not RecursiveValuePastLimits;
         }
+    }
+
+    private static bool FitsJsonElementWithin(JsonElement element, int depth, int maxDepth, ref int budget)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+        {
+            var length = element.GetArrayLength();
+
+            if (depth > maxDepth || (budget -= length) < 0)
+                return false;
+
+            foreach (JsonElement item in element.EnumerateArray())
+            {
+                if (!FitsJsonElementWithin(item, depth + 1, maxDepth, ref budget))
+                    return false;
+            }
+
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            if (depth > maxDepth)
+                return false;
+
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (--budget < 0 || !FitsJsonElementWithin(property.Value, depth + 1, maxDepth, ref budget))
+                    return false;
+            }
+
+            return true;
+        }
+
+        return true;
     }
 
     /// <summary>

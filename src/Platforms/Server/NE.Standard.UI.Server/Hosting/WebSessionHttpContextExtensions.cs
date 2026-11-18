@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NE.Standard.UI.Application;
@@ -60,6 +62,49 @@ public static class WebSessionHttpContextExtensions
         UIApplication application = http.RequestServices.GetRequiredService<UIApplication>();
 
         return application.Security.DefaultPolicy == UIAuthorizationDefault.Authenticated && !session.IsAuthenticated ? null : session;
+    }
+
+    internal static async ValueTask<string?> ResolveAuthorizedSessionIdFromCookiesAsync(IServiceProvider services, Uri origin, IReadOnlyList<KeyValuePair<string, string>> cookies, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(origin);
+        ArgumentNullException.ThrowIfNull(cookies);
+
+        if (cookies.Count == 0)
+            return null;
+
+        AsyncServiceScope scope = services.CreateAsyncScope();
+        try
+        {
+            DefaultHttpContext http = new()
+            {
+                RequestServices = scope.ServiceProvider
+            };
+            http.Request.Scheme = origin.Scheme;
+            http.Request.Host = HostString.FromUriComponent(origin);
+
+            var pairs = new string[cookies.Count];
+            for (var i = 0; i < cookies.Count; i++)
+                pairs[i] = $"{cookies[i].Key}={cookies[i].Value}";
+
+            http.Request.Headers.Cookie = string.Join("; ", pairs);
+
+            UIApplication application = scope.ServiceProvider.GetRequiredService<UIApplication>();
+            if (application.Security.IdentitySource == UIIdentitySource.Claims
+                && scope.ServiceProvider.GetService<IAuthenticationService>() is { } authentication)
+            {
+                AuthenticateResult authenticated = await authentication.AuthenticateAsync(http, scheme: null).ConfigureAwait(false);
+                if (authenticated.Succeeded && authenticated.Principal is not null)
+                    http.User = authenticated.Principal;
+            }
+
+            UserSessionState? session = await http.GetAuthorizedUISessionAsync(cancellationToken).ConfigureAwait(false);
+            return session?.SessionId;
+        }
+        finally
+        {
+            await scope.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     /// <summary>

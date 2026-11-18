@@ -195,11 +195,9 @@ export class DomRegistry {
 
         const found = this.liveComponents(componentId).filter(candidate => startsWithDynamicParameters(candidate, dynamicParameters));
 
-        // A stale hit, or exact instances the map does not know (a row that took another key): it is built again at the next keyed lookup.
-        if (indexed.length > 0 || found.some(candidate => readParameterCount(candidate) === dynamicParameters.length))
+        // A stale hit, an unverified bucket, or exact instances the map does not know (a row that took another key): built again at the next keyed lookup.
+        if (this.unverifiedKeyedIds.delete(componentId) || indexed.length > 0 || found.some(candidate => readParameterCount(candidate) === dynamicParameters.length))
             this.keyedComponentsById.delete(componentId);
-        else
-            this.unverifiedKeyedIds.delete(componentId);
 
         return found;
     }

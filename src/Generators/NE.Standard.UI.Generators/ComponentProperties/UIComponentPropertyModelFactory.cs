@@ -571,7 +571,7 @@ internal static class UIComponentPropertyModelFactory
             if (contract.TypeKind != TypeKind.Interface)
                 continue;
 
-            foreach (ISymbol member in EnumerateContractMembers(contract))
+            foreach (ISymbol member in contract.EnumerateContractMembers())
             {
                 if (member is not IPropertySymbol property || property.IsStatic || property.FindAttribute(propertyAttributeType) is null)
                     continue;
@@ -619,7 +619,7 @@ internal static class UIComponentPropertyModelFactory
                 if (attribute.ConstructorArguments.Length != 1 || attribute.ConstructorArguments[0].Value is not INamedTypeSymbol { TypeKind: TypeKind.Interface } contract)
                     continue;
 
-                foreach (ISymbol member in EnumerateContractMembers(contract))
+                foreach (ISymbol member in contract.EnumerateContractMembers())
                 {
                     if (member is not IPropertySymbol { IsStatic: false } contractProperty || contractProperty.Name != propertyName)
                         continue;
@@ -719,13 +719,13 @@ internal static class UIComponentPropertyModelFactory
         }
 
         // The properties are still generated, so the one error stands alone instead of every caller of a missing member.
-        if (!Implements(type, contract))
+        if (!type.ImplementsInterface(contract))
             diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.BlockContractNotImplemented, type, contract.ToDisplayString(), type.ToDisplayString()));
 
         var found = false;
 
         // Properties are often declared one interface further down (ITextBaseComponent over ITextBaseModel), so the whole chain is walked.
-        foreach (ISymbol member in EnumerateContractMembers(contract))
+        foreach (ISymbol member in contract.EnumerateContractMembers())
         {
             if (member is not IPropertySymbol property || property.IsStatic)
                 continue;
@@ -767,30 +767,6 @@ internal static class UIComponentPropertyModelFactory
             diagnostics.Add(DiagnosticInfo.Create(UIComponentPropertyDiagnostics.BlockContractHasNoProperties, type, contract.ToDisplayString(), type.ToDisplayString()));
     }
 
-    /// <summary>Whether the type, itself or through a base, implements the block's contract.</summary>
-    private static bool Implements(INamedTypeSymbol type, INamedTypeSymbol contract)
-    {
-        foreach (INamedTypeSymbol implemented in type.AllInterfaces)
-        {
-            if (SymbolEqualityComparer.Default.Equals(implemented, contract))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static IEnumerable<ISymbol> EnumerateContractMembers(INamedTypeSymbol contract)
-    {
-        foreach (ISymbol member in contract.GetMembers())
-            yield return member;
-
-        foreach (INamedTypeSymbol inherited in contract.AllInterfaces)
-        {
-            foreach (ISymbol member in inherited.GetMembers())
-                yield return member;
-        }
-    }
-
     /// <summary>
     /// Whether the consuming type already declares the block member by hand, which wins over the generated one.
     /// </summary>
@@ -822,33 +798,9 @@ internal static class UIComponentPropertyModelFactory
                 if (member is IPropertySymbol)
                     return true;
             }
-
-            foreach (AttributeData attribute in current.GetAttributes())
-            {
-                if (!SymbolEqualityComparer.Default.Equals(attribute.AttributeClass, blockAttributeType))
-                    continue;
-
-                if (attribute.ConstructorArguments.Length == 1
-                    && attribute.ConstructorArguments[0].Value is INamedTypeSymbol contract
-                    && ContractDeclares(contract, property.Name, propertyAttributeType))
-                {
-                    return true;
-                }
-            }
         }
 
-        return false;
-    }
-
-    private static bool ContractDeclares(INamedTypeSymbol contract, string name, INamedTypeSymbol? propertyAttributeType)
-    {
-        foreach (ISymbol member in EnumerateContractMembers(contract))
-        {
-            if (member is IPropertySymbol candidate && !candidate.IsStatic && candidate.Name == name && candidate.FindAttribute(propertyAttributeType) is not null)
-                return true;
-        }
-
-        return false;
+        return type.BlockDeclaresProperty(property.Name, propertyAttributeType, blockAttributeType, includeSelf: false);
     }
 
     private readonly record struct DefaultEntry(string ValueMember, LocationInfo? Location);

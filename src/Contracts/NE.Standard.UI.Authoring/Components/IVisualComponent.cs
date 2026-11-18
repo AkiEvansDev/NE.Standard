@@ -218,6 +218,38 @@ public interface IVisualComponent : IBindableComponent
     IReadOnlyList<UIBinding> Bindings { get; }
 
     /// <summary>
+    /// Attempts to find a property binding targeting <paramref name="property"/>.
+    /// </summary>
+    bool TryGetBinding(UIProperty property, out UIBinding binding)
+    {
+        IReadOnlyList<UIBinding> bindings = Bindings;
+
+        for (var i = 0; i < bindings.Count; i++)
+        {
+            if (bindings[i].Target.Equals(property))
+            {
+                binding = bindings[i];
+                return true;
+            }
+        }
+
+        binding = default;
+        return false;
+    }
+
+    /// <summary>
+    /// Gets whether <paramref name="property"/> has an authored property binding on this component.
+    /// </summary>
+    bool HasBinding(UIProperty property)
+        => TryGetBinding(property, out _);
+
+    /// <summary>
+    /// Gets whether <paramref name="property"/> has a non-optional authored property binding on this component.
+    /// </summary>
+    bool HasNonOptionalBinding(UIProperty property)
+        => TryGetBinding(property, out UIBinding binding) && !binding.Optional;
+
+    /// <summary>
     /// Gets the client-side interactions declared on the component.
     /// </summary>
     IReadOnlyList<UIInteraction> Interactions { get; }

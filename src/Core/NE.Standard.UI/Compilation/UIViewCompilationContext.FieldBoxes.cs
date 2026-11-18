@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
@@ -106,7 +105,7 @@ internal sealed partial class UIViewCompilationContext
     /// binding may take away (it would leave its neighbour a caption line low).
     /// </summary>
     private static UISize? CertainCaption(IVisualComponent child, UIResponsiveTier tier)
-        => IsGone(child, tier) || Binds(child, IVisualComponent.VisibilityProperty) ? null : UIFieldBoxes.CaptionRowBox(child, tier);
+        => IsGone(child, tier) || child.HasBinding(IVisualComponent.VisibilityProperty) ? null : UIFieldBoxes.CaptionRowBox(child, tier);
 
     /// <summary>The box captioned fields stand on together: their size, the medium one where they differ.</summary>
     private static UISize Merge(UISize? size, UISize own)
@@ -240,7 +239,7 @@ internal sealed partial class UIViewCompilationContext
     /// <summary>Whether the stack runs across at <paramref name="tier"/>: its written orientation, else its type's registered one; a bound one is not known.</summary>
     private bool RunsAcross(IOrientationComponent component, UIResponsiveTier tier)
     {
-        if (Binds(component, IOrientationComponent.OrientationProperty))
+        if (component.HasBinding(IOrientationComponent.OrientationProperty))
             return false;
 
         UIResponsive<UIOrientation>? orientation = component.Orientation
@@ -321,18 +320,7 @@ internal sealed partial class UIViewCompilationContext
     }
 
     private static bool Sets(IVisualComponent component, UIProperty property, object? value)
-        => value is not null || Binds(component, property);
-
-    private static bool Binds(IVisualComponent component, UIProperty property)
-    {
-        foreach (UIBinding binding in component.Bindings)
-        {
-            if (binding.Target.Equals(property))
-                return true;
-        }
-
-        return false;
-    }
+        => value is not null || component.HasBinding(property);
 
     /// <summary>The <paramref name="index"/>th child's tiers as a responsive value, each written only where it differs from the one below; null where it stands level nowhere.</summary>
     private static UIResponsive<UIFieldBoxAlignment>? ToResponsive(UIFieldBoxAlignment[] tiers, int index)

@@ -60,7 +60,7 @@ export function setComponentItems(
         rows.push(row);
     }
 
-    renderer.rememberComponentItems?.(componentId, remembered);
+    renderer.rememberComponentItems?.(host, remembered, componentId);
     resetSourceOrder(host);
     host.replaceChildren(...rows);
     ensureEmptyState(host, componentId, templates, renderer);

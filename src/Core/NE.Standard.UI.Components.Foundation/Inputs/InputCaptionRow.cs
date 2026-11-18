@@ -1,5 +1,3 @@
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Constants;
@@ -10,11 +8,7 @@ namespace NE.Standard.UI.Components.Foundation.Inputs;
 /// <summary>An input's caption row (<see cref="ICaptionRowComponent"/>), the same for the plain and the templated input bases and a package's input.</summary>
 public static class InputCaptionRow
 {
-    /// <summary>
-    /// The input's box size at <paramref name="tier"/> where a caption stands over it — a title, an icon or a badge, written or bound by a
-    /// binding that must resolve, or a header action — or null: a title inside the box with no header action, or nothing to show. An optional binding (a template's) may resolve to
-    /// nothing, and the caption's row is drawn only for words it has.
-    /// </summary>
+    /// <summary>Returns the input's box size at <paramref name="tier"/> when a non-optional caption or header action stands above it, or <see langword="null"/>.</summary>
     public static UISize? Box<TInput>(TInput input, UIResponsiveTier tier)
         where TInput : IInputComponent, ITextBaseComponent
         => Box(input, tier, honoursInside: true);
@@ -43,17 +37,6 @@ public static class InputCaptionRow
     private static bool ShowsCaption<TInput>(TInput input)
         where TInput : IInputComponent, ITextBaseComponent
         => input.Title is not null || input.Icon is not null || input.BadgeTitle is not null || input.BadgeIcon is not null
-            || Binds(input, ITextBaseComponent.TitleProperty) || Binds(input, ITextBaseComponent.IconProperty)
-            || Binds(input, ITextBaseComponent.BadgeTitleProperty) || Binds(input, ITextBaseComponent.BadgeIconProperty);
-
-    private static bool Binds(IVisualComponent component, UIProperty property)
-    {
-        foreach (UIBinding binding in component.Bindings)
-        {
-            if (binding.Target.Equals(property) && !binding.Optional)
-                return true;
-        }
-
-        return false;
-    }
+            || input.HasNonOptionalBinding(ITextBaseComponent.TitleProperty) || input.HasNonOptionalBinding(ITextBaseComponent.IconProperty)
+            || input.HasNonOptionalBinding(ITextBaseComponent.BadgeTitleProperty) || input.HasNonOptionalBinding(ITextBaseComponent.BadgeIconProperty);
 }

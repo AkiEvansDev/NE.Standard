@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 
 namespace NE.Standard.UI.Startup;
@@ -36,4 +37,9 @@ public static class UIStartupBuilder
 
         startup.Configure(services, configureApplication);
     }
+
+    /// <summary>Reads the theme and application icon configured by <typeparamref name="TStartup"/> without building its host services.</summary>
+    public static (UITheme Theme, string? Icon) ReadShellDefaults<TStartup>()
+        where TStartup : UIStartupBase, new()
+        => new TStartup().ReadShellDefaults();
 }

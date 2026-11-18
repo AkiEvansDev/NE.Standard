@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -55,37 +56,67 @@ public static class CompiledViewWireSerializer
     private static readonly Dictionary<string, Type> TagToType = [with(StringComparer.Ordinal)];
     private static readonly Dictionary<Type, string> TypeToTag = [];
     private static readonly HashSet<Assembly> ScannedAssemblies = [];
+    private static bool _referencedWireAssembliesLoaded;
+    private static readonly FrozenDictionary<Type, Type> ModelInterfaceCanonicalTypes = new Dictionary<Type, Type>
+    {
+        [typeof(IBadgeModel)] = typeof(BadgeItem),
+        [typeof(IBreadcrumbItemModel)] = typeof(BreadcrumbItem),
+        [typeof(IButtonModel)] = typeof(ButtonItem),
+        [typeof(IFileModel)] = typeof(FileItem),
+        [typeof(IItemAbilitiesModel)] = typeof(TabItem),
+        [typeof(IKeyValueActionModel)] = typeof(KeyValueActionItem),
+        [typeof(IMenuItemModel)] = typeof(MenuItem),
+        [typeof(IOptionModel)] = typeof(OptionItem),
+        [typeof(ITabItemModel)] = typeof(TabItem),
+        [typeof(ITextBaseModel)] = typeof(TextBaseItem),
+        [typeof(ITextModel)] = typeof(TextItem),
+        [typeof(ITooltipModel)] = typeof(TextBaseItem),
+        [typeof(ITreeNodeModel)] = typeof(TreeNode)
+    }.ToFrozenDictionary();
+    private static readonly ConcurrentDictionary<Type, FrozenSet<string>> ModelPropertyNamesCache = [];
     private static readonly JsonSerializerOptions ValueJsonOptions = CreateValueJsonOptions();
 
     static CompiledViewWireSerializer()
     {
-        RegisterScalarTag("bool", typeof(bool));
-        RegisterScalarTag("u8", typeof(byte));
-        RegisterScalarTag("i8", typeof(sbyte));
-        RegisterScalarTag("i16", typeof(short));
-        RegisterScalarTag("u16", typeof(ushort));
-        RegisterScalarTag("i32", typeof(int));
-        RegisterScalarTag("u32", typeof(uint));
-        RegisterScalarTag("i64", typeof(long));
-        RegisterScalarTag("u64", typeof(ulong));
-        RegisterScalarTag("nint", typeof(nint));
-        RegisterScalarTag("nuint", typeof(nuint));
-        RegisterScalarTag("f64", typeof(double));
-        RegisterScalarTag("f32", typeof(float));
-        RegisterScalarTag("dec", typeof(decimal));
-        RegisterScalarTag("chr", typeof(char));
-        RegisterScalarTag("str", typeof(string));
-        RegisterScalarTag("obj", typeof(object));
-        RegisterScalarTag("guid", typeof(Guid));
-        RegisterScalarTag("dt", typeof(DateTime));
-        RegisterScalarTag("dto", typeof(DateTimeOffset));
-        RegisterScalarTag("do", typeof(DateOnly));
-        RegisterScalarTag("to", typeof(TimeOnly));
-        RegisterScalarTag("ts", typeof(TimeSpan));
-        RegisterScalarTag("item", typeof(IReadOnlyDictionary<string, object?>));
-        TypeToTag[typeof(Dictionary<string, object?>)] = "item";
-        RegisterScalarTag(nameof(CompiledUIItemsView), typeof(CompiledUIItemsView));
-        EnsureLoadedAssembliesScanned();
+        lock (RegistrySync)
+        {
+            RegisterScalarTag("bool", typeof(bool));
+            RegisterScalarTag("u8", typeof(byte));
+            RegisterScalarTag("i8", typeof(sbyte));
+            RegisterScalarTag("i16", typeof(short));
+            RegisterScalarTag("u16", typeof(ushort));
+            RegisterScalarTag("i32", typeof(int));
+            RegisterScalarTag("u32", typeof(uint));
+            RegisterScalarTag("i64", typeof(long));
+            RegisterScalarTag("u64", typeof(ulong));
+            RegisterScalarTag("nint", typeof(nint));
+            RegisterScalarTag("nuint", typeof(nuint));
+            RegisterScalarTag("f64", typeof(double));
+            RegisterScalarTag("f32", typeof(float));
+            RegisterScalarTag("dec", typeof(decimal));
+            RegisterScalarTag("chr", typeof(char));
+            RegisterScalarTag("str", typeof(string));
+            RegisterScalarTag("obj", typeof(object));
+            RegisterScalarTag("guid", typeof(Guid));
+            RegisterScalarTag("uri", typeof(Uri));
+            RegisterScalarTag("dt", typeof(DateTime));
+            RegisterScalarTag("dto", typeof(DateTimeOffset));
+            RegisterScalarTag("do", typeof(DateOnly));
+            RegisterScalarTag("to", typeof(TimeOnly));
+            RegisterScalarTag("ts", typeof(TimeSpan));
+            RegisterScalarTag("item", typeof(IReadOnlyDictionary<string, object?>));
+            TypeToTag[typeof(Dictionary<string, object?>)] = "item";
+            RegisterScalarTag(nameof(CompiledUIItemsView), typeof(CompiledUIItemsView));
+
+            ScanAssemblyNoLock(typeof(UIPhrase).Assembly);
+            ScanAssemblyNoLock(typeof(UIVisibility).Assembly);
+            ScanAssemblyNoLock(typeof(IVisualComponent).Assembly);
+            ScanAssemblyNoLock(typeof(CompiledView).Assembly);
+            ScanAssemblyNoLock(typeof(MenuItem).Assembly);
+            ScanAssemblyNoLock(typeof(CompiledViewWireSerializer).Assembly);
+            ScanAssemblyNoLock(typeof(ColorVariant).Assembly);
+            EnsureLoadedAssembliesScannedNoLock();
+        }
     }
 
     private static void RegisterScalarTag(string tag, Type type)
@@ -94,51 +125,56 @@ public static class CompiledViewWireSerializer
         TypeToTag[type] = tag;
     }
 
-    private static void EnsureLoadedAssembliesScanned()
+    private static void ScanAssemblyNoLock(Assembly assembly)
     {
-        lock (RegistrySync)
+        if (assembly.IsDynamic || !ScannedAssemblies.Add(assembly))
+            return;
+
+        var assemblyName = assembly.GetName().Name;
+        if (assemblyName is null || !IsWireValueAssembly(assemblyName))
+            return;
+
+        Type[] exported;
+        try
         {
-            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            exported = assembly.GetExportedTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            exported = [.. ex.Types.Where(static t => t is not null && t.IsPublic).Select(static t => t!)];
+        }
+
+        Array.Sort(exported, static (left, right) => StringComparer.Ordinal.Compare(left.FullName, right.FullName));
+
+        foreach (Type type in exported)
+        {
+            if (type.IsGenericTypeDefinition
+                || (type.IsAbstract && type.IsSealed)
+                || type.FullName is null
+                || type.Name.StartsWith('<', StringComparison.Ordinal)
+                || typeof(Delegate).IsAssignableFrom(type)
+                || typeof(Exception).IsAssignableFrom(type)
+                || typeof(Task).IsAssignableFrom(type))
             {
-                if (assembly.IsDynamic || !ScannedAssemblies.Add(assembly))
-                    continue;
+                continue;
+            }
 
-                var assemblyName = assembly.GetName().Name;
-                if (assemblyName is null || !IsWireValueAssembly(assemblyName))
-                    continue;
-
-                Type[] exported;
-                try
-                {
-                    exported = assembly.GetExportedTypes();
-                }
-                catch (ReflectionTypeLoadException ex)
-                {
-                    exported = [.. ex.Types.Where(static t => t is not null && t.IsPublic).Select(static t => t!)];
-                }
-
-                foreach (Type type in exported)
-                {
-                    if (type.IsGenericTypeDefinition
-                        || (type.IsAbstract && type.IsSealed)
-                        || type.FullName is null
-                        || type.Name.StartsWith('<', StringComparison.Ordinal)
-                        || typeof(Delegate).IsAssignableFrom(type)
-                        || typeof(Exception).IsAssignableFrom(type)
-                        || typeof(Task).IsAssignableFrom(type))
-                    {
-                        continue;
-                    }
-
-                    if (!TypeToTag.ContainsKey(type))
-                    {
-                        var tag = TagToType.ContainsKey(type.Name) ? type.FullName : type.Name;
-                        _ = TagToType.TryAdd(tag, type);
-                        TypeToTag[type] = tag;
-                    }
-                }
+            if (!TypeToTag.ContainsKey(type))
+            {
+                var tag = TagToType.ContainsKey(type.Name) ? type.FullName : type.Name;
+                _ = TagToType.TryAdd(tag, type);
+                TypeToTag[type] = tag;
             }
         }
+    }
+
+    private static void EnsureLoadedAssembliesScannedNoLock()
+    {
+        Assembly[] loaded = AppDomain.CurrentDomain.GetAssemblies();
+        Array.Sort(loaded, static (left, right) => StringComparer.Ordinal.Compare(left.GetName().Name, right.GetName().Name));
+
+        for (var i = 0; i < loaded.Length; i++)
+            ScanAssemblyNoLock(loaded[i]);
     }
 
     private static bool IsWireValueAssembly(string assemblyName)
@@ -160,6 +196,7 @@ public static class CompiledViewWireSerializer
         };
 
         options.Converters.Add(new JsonStringEnumConverter());
+        options.Converters.Add(new UriWireJsonConverter());
         options.Converters.Add(new NIntWireJsonConverter());
         options.Converters.Add(new NUIntWireJsonConverter());
         options.Converters.Add(new UIPhraseJsonConverter());
@@ -352,14 +389,16 @@ public static class CompiledViewWireSerializer
         if (runtimeType.IsArray)
         {
             Type elementType = runtimeType.GetElementType()!;
-            WriteSequenceEnvelope(writer, $"{ArrayPrefix}{ResolveSequenceElementTag(elementType, (IEnumerable)value)}", (IEnumerable)value, itemProjection);
+            var elementTag = ResolveSequenceElementTag(elementType, (IEnumerable)value, itemProjection, out Type? canonicalModelType);
+            WriteSequenceEnvelope(writer, $"{ArrayPrefix}{elementTag}", (IEnumerable)value, itemProjection, canonicalModelType);
             return true;
         }
 
         if (runtimeType.IsGenericType && runtimeType.GetGenericTypeDefinition() == typeof(RecursiveCollection<>))
         {
             Type elementType = runtimeType.GetGenericArguments()[0];
-            WriteSequenceEnvelope(writer, $"{RecursiveCollectionPrefix}{ResolveSequenceElementTag(elementType, (IEnumerable)value)}", (IEnumerable)value, itemProjection);
+            var elementTag = ResolveSequenceElementTag(elementType, (IEnumerable)value, itemProjection, out Type? canonicalModelType);
+            WriteSequenceEnvelope(writer, $"{RecursiveCollectionPrefix}{elementTag}", (IEnumerable)value, itemProjection, canonicalModelType);
             return true;
         }
 
@@ -368,7 +407,8 @@ public static class CompiledViewWireSerializer
             Type? elementType = TryGetGenericCollectionElement(runtimeType);
             if (elementType is not null)
             {
-                WriteSequenceEnvelope(writer, $"{ArrayPrefix}{ResolveSequenceElementTag(elementType, sequence)}", sequence, itemProjection);
+                var elementTag = ResolveSequenceElementTag(elementType, sequence, itemProjection, out Type? canonicalModelType);
+                WriteSequenceEnvelope(writer, $"{ArrayPrefix}{elementTag}", sequence, itemProjection, canonicalModelType);
                 return true;
             }
         }
@@ -376,22 +416,77 @@ public static class CompiledViewWireSerializer
         return false;
     }
 
-    private static string ResolveSequenceElementTag(Type elementType, IEnumerable sequence)
+    private static string ResolveSequenceElementTag(Type elementType, IEnumerable sequence, UIItemProjection? itemProjection, out Type? canonicalModelType)
     {
+        canonicalModelType = null;
         var tag = GetTypeTag(elementType);
-        if (elementType.IsInterface || elementType.IsAbstract)
+
+        if (!elementType.IsInterface && !elementType.IsAbstract)
+            return tag;
+
+        var hasExternalItem = false;
+        foreach (var item in sequence)
         {
-            foreach (var item in sequence)
+            if (item is not null && string.Equals(GetTypeTag(item.GetType()), "item", StringComparison.Ordinal))
             {
-                if (item is not null && string.Equals(GetTypeTag(item.GetType()), "item", StringComparison.Ordinal))
-                    return "item";
+                hasExternalItem = true;
+                break;
             }
         }
 
-        return tag;
+        if (!hasExternalItem)
+            return tag;
+
+        if (ModelInterfaceCanonicalTypes.TryGetValue(elementType, out Type? modelType) && CanCanonicalizeToModel(modelType, sequence, itemProjection))
+        {
+            canonicalModelType = modelType;
+            return tag;
+        }
+
+        return "item";
     }
 
-    private static void WriteSequenceEnvelope(Utf8JsonWriter writer, string tag, IEnumerable sequence, UIItemProjection? itemProjection)
+    private static bool CanCanonicalizeToModel(Type modelType, IEnumerable sequence, UIItemProjection? itemProjection)
+    {
+        FrozenSet<string> modelProps = GetModelPropertyNames(modelType);
+        foreach (var item in sequence)
+        {
+            if (item is null || !string.Equals(GetTypeTag(item.GetType()), "item", StringComparison.Ordinal))
+                continue;
+
+            FrozenSet<string> itemProps = GetModelPropertyNames(item.GetType());
+            foreach (var prop in itemProps)
+            {
+                if (!modelProps.Contains(prop) && (itemProjection is null || itemProjection.IsWhole || ProjectionReadsMember(itemProjection, prop)))
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ProjectionReadsMember(UIItemProjection projection, string propertyName)
+    {
+        foreach (UIItemProjectionMember member in projection.Members)
+        {
+            if (string.Equals(member.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static FrozenSet<string> GetModelPropertyNames(Type type)
+        => ModelPropertyNamesCache.GetOrAdd(
+            type,
+            static t => t
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(static p => p.CanRead && p.GetIndexParameters().Length == 0)
+                .Select(static p => p.Name)
+                .ToFrozenSet(StringComparer.OrdinalIgnoreCase)
+        );
+
+    private static void WriteSequenceEnvelope(Utf8JsonWriter writer, string tag, IEnumerable sequence, UIItemProjection? itemProjection, Type? canonicalModelType)
     {
         writer.WriteStartObject();
         writer.WriteString(TypeTagProperty, tag);
@@ -399,10 +494,24 @@ public static class CompiledViewWireSerializer
         writer.WriteStartArray();
 
         foreach (var element in sequence)
-            WriteTypedValue(writer, element, itemProjection);
+        {
+            if (canonicalModelType is not null && element is not null && string.Equals(GetTypeTag(element.GetType()), "item", StringComparison.Ordinal))
+                WriteTypedValue(writer, ConvertToCanonicalModel(element, canonicalModelType, itemProjection), itemProjection: null);
+            else
+                WriteTypedValue(writer, element, itemProjection);
+        }
 
         writer.WriteEndArray();
         writer.WriteEndObject();
+    }
+
+    private static object? ConvertToCanonicalModel(object element, Type canonicalModelType, UIItemProjection? itemProjection)
+    {
+        using MemoryStream buffer = new();
+        using (Utf8JsonWriter itemWriter = new(buffer))
+            ServerItemJsonConverter.WriteItem(itemWriter, element, itemProjection, ValueJsonOptions);
+
+        return JsonSerializer.Deserialize(buffer.GetBuffer().AsSpan(0, (int)buffer.Length), canonicalModelType, ValueJsonOptions);
     }
 
     private static bool IsCustomStructuredValue(Type runtimeType)
@@ -466,7 +575,7 @@ public static class CompiledViewWireSerializer
 
     private static string GetTypeTag(Type type)
     {
-        if (TypeToTag.TryGetValue(type, out var existing))
+        if (TryGetRegisteredTag(type, out var existing, scanOnMiss: false))
             return existing;
 
         if (Nullable.GetUnderlyingType(type) is Type nullableInner)
@@ -493,8 +602,7 @@ public static class CompiledViewWireSerializer
                 return $"{ReadOnlyDictionaryPrefix}{GetTypeTag(args[0])},{GetTypeTag(args[1])}";
         }
 
-        EnsureLoadedAssembliesScanned();
-        if (TypeToTag.TryGetValue(type, out existing))
+        if (TryGetRegisteredTag(type, out existing, scanOnMiss: true))
             return existing;
 
         if (TryGetDictionaryArguments(type, out Type? dictKey, out Type? dictValue))
@@ -514,6 +622,21 @@ public static class CompiledViewWireSerializer
             return "item";
 
         throw new InvalidOperationException($"Type '{type.FullName}' is not registered for compiled view wire serialization.");
+    }
+
+    private static bool TryGetRegisteredTag(Type type, [NotNullWhen(true)] out string? tag, bool scanOnMiss)
+    {
+        lock (RegistrySync)
+        {
+            if (TypeToTag.TryGetValue(type, out tag))
+                return true;
+
+            if (!scanOnMiss)
+                return false;
+
+            EnsureLoadedAssembliesScannedNoLock();
+            return TypeToTag.TryGetValue(type, out tag);
+        }
     }
 
     private static string GetExternalTypeSpec(Type type)
@@ -1296,8 +1419,8 @@ public static class CompiledViewWireSerializer
     /// </summary>
     public static CompiledView Deserialize(ReadOnlySpan<byte> utf8Json)
     {
-        using JsonDocument document = JsonDocument.Parse(utf8Json.ToArray());
-        return Read(document.RootElement);
+        Utf8JsonReader reader = new(utf8Json);
+        return Read(ref reader);
     }
 
     /// <summary>
@@ -1439,8 +1562,12 @@ public static class CompiledViewWireSerializer
         foreach (JsonElement item in arrayElement.EnumerateArray())
         {
             var value = ReadTypedValue(item);
-            if (value is not null && !elementType.IsInstanceOfType(value) && RecursiveValueCoercion.TryCoerce(value, elementType, out var coerced))
-                value = coerced;
+            if (value is not null && !elementType.IsInstanceOfType(value))
+            {
+                var coerced = CoerceWireValue(elementType, value);
+                if (elementType.IsInstanceOfType(coerced))
+                    value = coerced;
+            }
 
             array.SetValue(value, index++);
         }
@@ -1456,8 +1583,12 @@ public static class CompiledViewWireSerializer
         foreach (JsonElement item in arrayElement.EnumerateArray())
         {
             var value = ReadTypedValue(item);
-            if (value is not null && !elementType.IsInstanceOfType(value) && RecursiveValueCoercion.TryCoerce(value, elementType, out var coerced))
-                value = coerced;
+            if (value is not null && !elementType.IsInstanceOfType(value))
+            {
+                var coerced = CoerceWireValue(elementType, value);
+                if (elementType.IsInstanceOfType(coerced))
+                    value = coerced;
+            }
 
             _ = collection.Add(value);
         }
@@ -1467,7 +1598,7 @@ public static class CompiledViewWireSerializer
 
     private static Type ResolveTypeTag(string tag)
     {
-        if (TagToType.TryGetValue(tag, out Type? found))
+        if (TryGetRegisteredType(tag, out Type? found, scanOnMiss: false))
             return found;
 
         if (tag.StartsWith(NullablePrefix, StringComparison.Ordinal))
@@ -1502,11 +1633,74 @@ public static class CompiledViewWireSerializer
         if (tag.StartsWith(StructPrefix, StringComparison.Ordinal))
             return TryResolveExternalType(tag[StructPrefix.Length..]) is { IsValueType: true } structType ? structType : typeof(IReadOnlyDictionary<string, object?>);
 
-        EnsureLoadedAssembliesScanned();
-        if (TagToType.TryGetValue(tag, out found))
+        if (TryGetRegisteredType(tag, out found, scanOnMiss: true))
             return found;
 
         throw new JsonException($"Unrecognized compiled view type tag '{tag}'.");
+    }
+
+    private static bool TryGetRegisteredType(string tag, [NotNullWhen(true)] out Type? type, bool scanOnMiss)
+    {
+        lock (RegistrySync)
+        {
+            if (TagToType.TryGetValue(tag, out type))
+                return true;
+
+            if (!scanOnMiss)
+                return false;
+
+            EnsureLoadedAssembliesScannedNoLock();
+            if (TagToType.TryGetValue(tag, out type))
+                return true;
+
+            LoadReferencedWireAssembliesNoLock();
+            return TagToType.TryGetValue(tag, out type);
+        }
+    }
+
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Optional referenced add-on assembly discovery must ignore unavailable assemblies.")]
+    private static void LoadReferencedWireAssembliesNoLock()
+    {
+        if (_referencedWireAssembliesLoaded)
+            return;
+
+        _referencedWireAssembliesLoaded = true;
+        Queue<Assembly> queue = new(AppDomain.CurrentDomain.GetAssemblies());
+        if (Assembly.GetEntryAssembly() is Assembly entry)
+            queue.Enqueue(entry);
+
+        HashSet<string> visited = [with(StringComparer.Ordinal)];
+
+        while (queue.Count > 0)
+        {
+            Assembly current = queue.Dequeue();
+            if (current.IsDynamic)
+                continue;
+
+            var currentName = current.GetName().Name;
+            if (currentName is not null && !visited.Add(currentName))
+                continue;
+
+            foreach (AssemblyName reference in current.GetReferencedAssemblies())
+            {
+                if (reference.Name is not string refName || visited.Contains(refName))
+                    continue;
+
+                if (!IsWireValueAssembly(refName) && !refName.StartsWith("NE.", StringComparison.Ordinal))
+                    continue;
+
+                try
+                {
+                    Assembly loaded = Assembly.Load(reference);
+                    queue.Enqueue(loaded);
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        EnsureLoadedAssembliesScannedNoLock();
     }
 
     private static void SplitDictionaryTagArguments(ReadOnlySpan<char> body, out ReadOnlySpan<char> keyTag, out ReadOnlySpan<char> valueTag)
@@ -1590,16 +1784,33 @@ public static class CompiledViewWireSerializer
     private static Type? TryResolveExternalType(string encodedSpec)
     {
         var spec = encodedSpec.Replace('|', ',');
-        if (Type.GetType(spec, throwOnError: false) is Type direct)
-            return direct;
-
         var comma = spec.IndexOf(',', StringComparison.Ordinal);
         var fullName = (comma >= 0 ? spec[..comma] : spec).Trim();
+        var assemblyName = comma >= 0 ? spec[(comma + 1)..].Trim() : null;
 
-        foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+        if (fullName.Length == 0)
+            return null;
+
+        Assembly[] loaded = AppDomain.CurrentDomain.GetAssemblies();
+        if (!string.IsNullOrEmpty(assemblyName))
         {
-            if (!assembly.IsDynamic && assembly.GetType(fullName, throwOnError: false) is Type loaded)
-                return loaded;
+            for (var i = 0; i < loaded.Length; i++)
+            {
+                Assembly assembly = loaded[i];
+                if (!assembly.IsDynamic
+                    && string.Equals(assembly.GetName().Name, assemblyName, StringComparison.Ordinal)
+                    && assembly.GetType(fullName, throwOnError: false) is Type exact)
+                {
+                    return exact;
+                }
+            }
+        }
+
+        for (var i = 0; i < loaded.Length; i++)
+        {
+            Assembly assembly = loaded[i];
+            if (!assembly.IsDynamic && assembly.GetType(fullName, throwOnError: false) is Type fallback)
+                return fallback;
         }
 
         return null;
@@ -2188,6 +2399,15 @@ public static class CompiledViewWireSerializer
                 return DeserializeWireObject(value, typeof(UIPhrase));
         }
 
+        if (targetType == typeof(Uri))
+        {
+            if (value is Uri)
+                return value;
+
+            if (value is string uriText && Uri.TryCreate(uriText, UriKind.RelativeOrAbsolute, out Uri? parsedUri))
+                return parsedUri;
+        }
+
         if (targetType.IsInstanceOfType(value))
             return value;
 
@@ -2252,6 +2472,18 @@ public static class CompiledViewWireSerializer
     }
 
     private sealed record LayoutWireEntry(UIComponentStateLayout Layout, CompiledUIPropertyValue[] Defaults);
+
+    private sealed class UriWireJsonConverter : JsonConverter<Uri>
+    {
+        public override Uri? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var text = reader.GetString();
+            return text is null ? null : new Uri(text, UriKind.RelativeOrAbsolute);
+        }
+
+        public override void Write(Utf8JsonWriter writer, Uri value, JsonSerializerOptions options)
+            => writer.WriteStringValue(value.OriginalString);
+    }
 
     private sealed class NIntWireJsonConverter : JsonConverter<nint>
     {

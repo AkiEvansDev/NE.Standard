@@ -419,6 +419,9 @@ public static class WebAttributes
     /// <summary>On a range slider: the least distance between its two handles, which neither passes (range-value-engine.ts).</summary>
     public const string SliderMinDistance = "data-ui-slider-min-distance";
 
+    /// <summary>On a slider's value readout (<c>.ui-slider__value</c>): the widest reading its bounds and step can produce, holding its box still during a drag.</summary>
+    public const string SliderValueSizer = "data-ui-slider-value-sizer";
+
     /// <summary>On a group wrapper whose entry is a select: its choices fly out beside it whatever the menu's fold (menu-group-engine.ts).</summary>
     public const string MenuSelect = "data-ui-menu-select";
 

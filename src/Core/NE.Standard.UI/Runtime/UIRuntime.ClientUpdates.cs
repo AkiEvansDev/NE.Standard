@@ -7,7 +7,6 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
-using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Authoring.Components;
@@ -141,6 +140,7 @@ internal sealed partial class UIRuntime
         List<ServerUIUpdate>? refusals = null;
         List<UIComponentId>? staleWindows;
         List<Exception>? failures = null;
+        HashSet<int>? refusedIndices = null;
 
         await _stateLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -163,8 +163,9 @@ internal sealed partial class UIRuntime
                 ClientValueRead? read = null;
 
                 // Ahead of both ways a write goes: one the reader may not make is answered with the value it would replace.
-                if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read, changeSet))
+                if (IsWriteRefusedNoLock(valueUpdate, resolution, ref read, changeSet, i, refusedIndices))
                 {
+                    _ = (refusedIndices ??= []).Add(i);
                     _host.Metrics.ValueRefused("refused");
                     (refusals ??= []).Add(AnswerRefusedWriteNoLock(valueUpdate, resolution));
 
@@ -182,9 +183,16 @@ internal sealed partial class UIRuntime
                     ClientValueRead value = read ?? ReadClientValue(resolution.Binding, valueUpdate.Value);
 
                     if (value.Normalization != UIFormattedValueNormalization.Rejected)
+                    {
                         (sourceWrites ??= []).Add(sourceWrite.Value with { Value = value.Value });
-                    else if (IsWriteRowHeldNoLock(resolution))
-                        (refusals ??= []).Add(RejectValueNoLock(valueUpdate, resolution.Binding));
+                    }
+                    else
+                    {
+                        _ = (refusedIndices ??= []).Add(i);
+
+                        if (IsWriteRowHeldNoLock(resolution))
+                            (refusals ??= []).Add(RejectValueNoLock(valueUpdate, resolution.Binding));
+                    }
 
                     continue;
                 }
@@ -205,6 +213,8 @@ internal sealed partial class UIRuntime
 
                 if (applied is not null)
                     HoldWrittenValueNoLock(applied, resolution.Binding, invoker.Instance.Id);
+                else
+                    _ = (refusedIndices ??= []).Add(i);
             }
 
             DrainControllerChangesNoLock();
@@ -409,19 +419,11 @@ internal sealed partial class UIRuntime
             return UIFormattedValueNormalization.Normalized;
         }
 
-        var format = TryGetComponentText(binding.Address.Component.Id, IFormattedInputComponent.FormatProperty);
-        var culture = TryGetComponentText(binding.Address.Component.Id, IFormattedInputComponent.CultureProperty);
+        var format = View.State.GetStaticString(binding.Address.Component.Id, IFormattedInputComponent.FormatProperty);
+        var culture = View.State.GetStaticString(binding.Address.Component.Id, IFormattedInputComponent.CultureProperty);
 
         return UIFormattedValueNormalizer.Normalize(value, format, culture, out normalized);
     }
-
-    /// <summary>
-    /// Reads a statically-authored string property off the compiled component; a bound format or culture is not followed.
-    /// </summary>
-    private string? TryGetComponentText(UIComponentId componentId, UIProperty property)
-        => View.State.TryGetValue(componentId, property, out CompiledUIPropertyValue? value) && value is { IsBind: false }
-            ? value.Value as string
-            : null;
 
     private ServerValidationUIUpdate RejectValueNoLock(ClientValueUIUpdate update, CompiledUIBinding binding)
     {

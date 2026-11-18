@@ -16,7 +16,7 @@ import { ensureEmptyState, findEmptyPlaceholder, getRealItemElements, toNodes } 
 import { drawGroupHeader, markGroupEdges, markGroupHeader } from "./items-group-runs.ts";
 import { DefaultItemSize, resolveHostMode } from "../addressing/items-host-mode.ts";
 import { renderItemRow } from "./items-row-renderer.ts";
-import { BottomSpacer, TopSpacer, bumpItemsVersion, ensureColumnPrefix, ensureSpacer, firstColumnLine, focusSpacer, groupOf, holdsFocus, holdTopLine, holdTopLineColumn, isColumn, isWrap, keepVirtualCursorShown, lastColumnLine, lineIndexOf, measureVirtualRows, pitchOfVirtualRow, projectVirtualHost, readGap, readPixels, refusesChoice, setElement, sum, tilesAcross, wrapLines } from "./items-spacers.ts";
+import { BottomSpacer, TopSpacer, bumpItemsVersion, dropMeasured, ensureColumnPrefix, ensureSpacer, firstColumnLine, focusSpacer, groupOf, holdsFocus, holdTopLine, holdTopLineColumn, isColumn, isWrap, keepVirtualCursorShown, lastColumnLine, lineIndexOf, measureVirtualRows, pitchOfVirtualRow, projectVirtualHost, readGap, readPixels, refusesChoice, setElement, sum, tilesAcross, wrapLines } from "./items-spacers.ts";
 import type { VirtualEntry, VirtualHostState } from "./items-spacers.ts";
 import { stampRowIndices } from "./table-row-indices.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
@@ -304,10 +304,16 @@ export class ItemsVirtualizationEngine {
 
             const element = this.renewRow(host, kept?.element ?? null);
             const projectedIndex = kept?.projectedIndex ?? -1;
-            const entry: VirtualEntry = { key, item, element, height: kept?.height ?? null, projectedIndex };
+            const keptHeight = element !== null ? (kept?.height ?? null) : null;
+
+            if (kept !== undefined && element === null)
+                dropMeasured(state.itemHeights, kept.height);
+
+            const entry: VirtualEntry = { key, item, element, height: keptHeight, projectedIndex };
 
             if (kept !== undefined) {
                 kept.element = null;
+                kept.height = null;
                 kept.projectedIndex = -1;
 
                 if (projectedIndex >= 0 && state.projected[projectedIndex]?.entry === kept)
@@ -322,12 +328,15 @@ export class ItemsVirtualizationEngine {
         }
 
         for (const dropped of previous.values()) {
+            dropMeasured(state.itemHeights, dropped.height);
             dropped.element?.remove();
             dropped.element = null;
+            dropped.height = null;
             dropped.projectedIndex = -1;
             renewed.push(dropped.key);
         }
 
+        state.itemEstimate = state.itemHeights.count > 0 ? state.itemHeights.sum / state.itemHeights.count : DefaultItemSize;
         state.entries = next;
         state.byKey = byKey;
         state.mounted = mounted;
@@ -384,8 +393,11 @@ export class ItemsVirtualizationEngine {
                 state.entries.splice(oldIndex, 1);
 
             state.mounted.delete(existing);
+            dropMeasured(state.itemHeights, existing.height);
+            state.itemEstimate = state.itemHeights.count > 0 ? state.itemHeights.sum / state.itemHeights.count : DefaultItemSize;
             this.dropRow(host, existing.element);
             existing.element = null;
+            existing.height = null;
             existing.projectedIndex = -1;
         }
 
@@ -416,6 +428,8 @@ export class ItemsVirtualizationEngine {
 
             state.byKey.delete(key);
             state.mounted.delete(entry);
+            dropMeasured(state.itemHeights, entry.height);
+            entry.height = null;
             entry.projectedIndex = -1;
             gone.add(entry);
 
@@ -434,6 +448,7 @@ export class ItemsVirtualizationEngine {
         for (const row of rows)
             row.remove();
 
+        state.itemEstimate = state.itemHeights.count > 0 ? state.itemHeights.sum / state.itemHeights.count : DefaultItemSize;
         state.entries = state.entries.filter(entry => !gone.has(entry));
         state.prefixValid = false;
         bumpItemsVersion(host, state);
@@ -457,12 +472,20 @@ export class ItemsVirtualizationEngine {
         // Under its own key it is the same row drawn anew; under another, another row.
         const element = key === oldKey ? this.renewRow(host, old.element) : null;
         const projectedIndex = key === oldKey ? old.projectedIndex : -1;
-        const entry: VirtualEntry = { key, item, element, height: old.height, projectedIndex };
+        const nextHeight = element !== null ? old.height : null;
+
+        if (element === null) {
+            dropMeasured(state.itemHeights, old.height);
+            state.itemEstimate = state.itemHeights.count > 0 ? state.itemHeights.sum / state.itemHeights.count : DefaultItemSize;
+        }
+
+        const entry: VirtualEntry = { key, item, element, height: nextHeight, projectedIndex };
 
         if (key !== oldKey)
             this.dropRow(host, old.element);
 
         old.element = null;
+        old.height = null;
         old.projectedIndex = -1;
 
         if (element !== null)
@@ -504,9 +527,20 @@ export class ItemsVirtualizationEngine {
             entry.element = null;
         }
 
+        for (const header of state.headers.values())
+            header.element?.remove();
+
         state.mounted.clear();
+        state.headers.clear();
         state.entries = [];
         state.byKey.clear();
+        state.itemHeights.sum = 0;
+        state.itemHeights.count = 0;
+        state.headerHeights.sum = 0;
+        state.headerHeights.count = 0;
+        state.itemEstimate = DefaultItemSize;
+        state.headerEstimate = DefaultItemSize;
+        state.tileWidth = null;
         state.prefixValid = false;
         bumpItemsVersion(host, state);
     }
@@ -520,14 +554,19 @@ export class ItemsVirtualizationEngine {
             return false;
 
         entry.item = writeItemValuePath(entry.item, path, value);
+        state.prefixValid = false;
         bumpItemsVersion(host, state);
 
         // A whole new item is a new row; a property written into the old one already reached the drawn row through its own patch.
         if (path.length === 0) {
             entry.element = this.renewRow(host, entry.element);
 
-            if (entry.element === null)
+            if (entry.element === null) {
                 state.mounted.delete(entry);
+                dropMeasured(state.itemHeights, entry.height);
+                entry.height = null;
+                state.itemEstimate = state.itemHeights.count > 0 ? state.itemHeights.sum / state.itemHeights.count : DefaultItemSize;
+            }
         }
 
         return true;

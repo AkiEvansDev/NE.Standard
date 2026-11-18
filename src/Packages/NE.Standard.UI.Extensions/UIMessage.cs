@@ -12,15 +12,10 @@ using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Extensions;
 
-/// <summary>
-/// A message that stays in the page's flow until it is no longer true — "Your trial ends in 3 days", "This workspace is read-only
-/// during maintenance" — unlike a toast, which leaves on its own: a Tinted surface in its tone's colour holding its mark, a title,
-/// a body, an action and a ×. A status to a screen reader for Info and Success, an alert for Warning and Danger, so a message shown
-/// later or whose bound words change is read out.
-/// </summary>
+/// <summary>Builds persistent in-flow status and alert messages with an icon, title, body, optional action and dismiss button.</summary>
 /// <remarks>
-/// The × hides the message on the page at once, with no round trip, so a reload shows it again; a message the server should stop
-/// showing for good gives the × a <c>dismissCommand</c>, which runs as the message goes, and binds its Visibility.
+/// Announces as a status live region for <c>Info</c> and <c>Success</c> and an alert for <c>Warning</c> and <c>Danger</c>. The dismiss
+/// button hides the message on the page immediately, optionally running <c>dismissCommand</c> beside the hide.
 /// </remarks>
 public static class UIMessage
 {
@@ -40,15 +35,11 @@ public static class UIMessage
     public static SurfaceComponent Danger(UIPhrase? title, UIPhrase? description = null, ButtonComponent? action = null, bool dismissible = false, string? dismissCommand = null)
         => Create(UIColorStyle.Danger, title, description, action, dismissible, dismissCommand: dismissCommand);
 
-    /// <summary>
-    /// A message whose words the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>, either or both — a
-    /// promo code's verdict, a sync's state — bound as the controller's words, drawn plain (a path to a key still translates), and
-    /// read out as they change; otherwise <see cref="Create(UIColorStyle, UIPhrase?, UIPhrase?, ButtonComponent?, bool, string?, string?)"/>.
-    /// </summary>
+    /// <summary>Builds an in-flow message whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static SurfaceComponent BoundCreate<TSource>(UIColorStyle tone, Expression<Func<TSource, object?>>? titlePath, Expression<Func<TSource, object?>>? descriptionPath, UIBindingScope scope = UIBindingScope.Root, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
         => BoundCreate(tone, PresetBindings.PathOrNull(titlePath), PresetBindings.PathOrNull(descriptionPath), scope, action, dismissible, icon, dismissCommand);
 
-    /// <summary>A message whose words are bound at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
+    /// <summary>Builds an in-flow message whose title and optional description are bound as plain content at <paramref name="titlePath"/> and <paramref name="descriptionPath"/>.</summary>
     public static SurfaceComponent BoundCreate(UIColorStyle tone, string? titlePath, string? descriptionPath, UIBindingScope scope = UIBindingScope.Root, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
     {
         if (titlePath is not null)
@@ -65,11 +56,8 @@ public static class UIMessage
         return Create(tone, title, description, action, dismissible, icon, dismissCommand);
     }
 
-    /// <summary>
-    /// A message with a title, a body or both, an optional action (a button carrying its command) and an optional ×;
-    /// <paramref name="icon"/> stands in for the tone's own mark. A <paramref name="dismissCommand"/> gives it the × even where
-    /// <paramref name="dismissible"/> is false, and runs as the × hides it. The tone is Info, Success, Warning or Danger.
-    /// </summary>
+    /// <summary>Builds an in-flow message in <paramref name="tone"/> with a title, description or both, an optional action button and an optional dismiss button.</summary>
+    /// <remarks>Supplying <paramref name="dismissCommand"/> enables the dismiss button even when <paramref name="dismissible"/> is <see langword="false"/>.</remarks>
     public static SurfaceComponent Create(UIColorStyle tone, UIPhrase? title, UIPhrase? description, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
     {
         PresetWords.RequireIfGiven(title);
@@ -78,10 +66,7 @@ public static class UIMessage
         return Create(tone, title is null ? null : new TextComponent().SetTitle(title), description is null ? null : new ParagraphComponent().SetDescription(description), action, dismissible, icon, dismissCommand);
     }
 
-    /// <summary>
-    /// The same with a title or a body of the author's own beyond words alone — a body with a link or an emphasis — given the message's
-    /// text roles here; words the controller holds are <see cref="BoundCreate"/>.
-    /// </summary>
+    /// <summary>Builds an in-flow message in <paramref name="tone"/> from custom <paramref name="title"/> and <paramref name="description"/> components.</summary>
     public static SurfaceComponent Create(UIColorStyle tone, TextComponent? title, ParagraphComponent? description, ButtonComponent? action = null, bool dismissible = false, string? icon = null, string? dismissCommand = null)
     {
         RequireTone(tone);
@@ -119,7 +104,8 @@ public static class UIMessage
 
         if (action is not null)
         {
-            action.Size ??= UISize.Small;
+            if (action.Size is null && !PresetBindings.Binds(action, ButtonComponent.SizeProperty))
+                action.Size = UISize.Small;
 
             _ = layout
                 .SetColumn(24 - (dismissible ? 1 : 0), UIGridUnit.Auto())
@@ -178,19 +164,27 @@ public static class UIMessage
 
         if (title is not null)
         {
-            _ = words.AddChild(title
-                .SetTitleType(UITextAppearance.Subtitle)
-                .SetTitleColor(UIThemeColor.Default)
-                .SetTitleWrap(true)
-            );
+            if (title.TitleType is null && !PresetBindings.Binds(title, TextComponent.TitleTypeProperty))
+                _ = title.SetTitleType(UITextAppearance.Subtitle);
+
+            if (title.TitleColor is null && !PresetBindings.Binds(title, TextComponent.TitleColorProperty))
+                _ = title.SetTitleColor(UIThemeColor.Default);
+
+            if (title.TitleWrap is null && !PresetBindings.Binds(title, TextComponent.TitleWrapProperty))
+                _ = title.SetTitleWrap(true);
+
+            _ = words.AddChild(title);
         }
 
         if (description is not null)
         {
-            _ = words.AddChild(description
-                .SetDescriptionType(UITextAppearance.Body)
-                .SetDescriptionColor(UIThemeColor.Default)
-            );
+            if (description.DescriptionType is null && !PresetBindings.Binds(description, ParagraphComponent.DescriptionTypeProperty))
+                _ = description.SetDescriptionType(UITextAppearance.Body);
+
+            if (description.DescriptionColor is null && !PresetBindings.Binds(description, ParagraphComponent.DescriptionColorProperty))
+                _ = description.SetDescriptionColor(UIThemeColor.Default);
+
+            _ = words.AddChild(description);
         }
 
         return words;

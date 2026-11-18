@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Authoring.Views;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
@@ -541,6 +542,9 @@ public sealed class UIApplicationBuilder
             ReportsToPage = platformDefaults?.ReportsToPage == true
         };
     }
+
+    internal (UITheme Theme, string? Icon) BuildShellDefaults()
+        => (_theme.Build(), _icon);
 
     private UIFileOptions BuildFileOptions(UIPlatformDefaults? platformDefaults)
     {

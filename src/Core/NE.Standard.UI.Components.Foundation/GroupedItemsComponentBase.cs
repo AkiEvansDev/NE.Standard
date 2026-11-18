@@ -54,7 +54,7 @@ public abstract class GroupedItemsComponentBase<TComponent, TItem, TTemplate>(st
 
         Action? restoreOwnGroupTemplate = (ownGroupTemplate as ITemplateEventTarget)?.SnapshotComponentState();
 
-        if (_defaultGroupTemplate is not null && !ReferenceEquals(ownGroupTemplate, _defaultGroupTemplate))
+        if (!ReferenceEquals(ownGroupTemplate, _defaultGroupTemplate))
             GroupTemplate = _defaultGroupTemplate;
 
         return () =>

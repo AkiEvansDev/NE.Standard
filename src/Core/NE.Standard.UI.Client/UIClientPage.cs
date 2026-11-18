@@ -56,6 +56,9 @@ public sealed partial class UIClientPage
     private readonly Dictionary<UIPropertyAddress, object?> _serverValues = [];
     private readonly HashSet<UIComponentAddress> _openedRenames = [];
     private readonly HashSet<UIPropertyAddress> _redirectedTargets = [];
+    private readonly HashSet<UIPropertyAddress> _contentValues = [];
+    private readonly Dictionary<int, PendingClientCommand> _pendingCommands = [];
+    private int _nextRequestId;
     private readonly List<ClientEffect> _effects = [];
     private readonly List<UIClientDownload> _downloads = [];
     private readonly HashSet<string> _openDialogs = [with(StringComparer.Ordinal)];
@@ -99,9 +102,9 @@ public sealed partial class UIClientPage
     /// <summary>Gets the route that answered: the one asked for, or where a refusal or a filter sent the page.</summary>
     public string Route => Transport.Route;
 
-    /// <summary>Gets the address the page shows, as an address bar would after every address effect it received.</summary>
     private string? StandInAddress { get; set; }
 
+    /// <summary>Gets the address the page shows, as an address bar would after every address effect it received.</summary>
     public string Address
     {
         get
@@ -323,10 +326,7 @@ public sealed partial class UIClientPage
             return _openDialogs.Contains(key);
     }
 
-    /// <summary>
-    /// Closes the dialog <paramref name="key"/> as its viewer does — Escape, or a press beside it — letting the edit of a form under its
-    /// key go and raising its <c>OnClose</c>, whose command's answer this is.
-    /// </summary>
+    /// <summary>Dismisses the open dialog <paramref name="key"/> via Escape or backdrop, discarding its buffered form and raising <c>OnClose</c>.</summary>
     /// <exception cref="InvalidOperationException">The dialog is not open, or takes neither Escape nor a press beside it.</exception>
     public async Task<UIClientCommandResult> DismissDialogAsync(string key, CancellationToken cancellationToken = default)
     {
@@ -380,11 +380,11 @@ public sealed partial class UIClientPage
     public UIClientComponent ComponentNamed(string name)
         => FindNamed(name, scope: null, rowKeys: []);
 
-    /// <summary>
-    /// Gets <paramref name="value"/> as the page shows it in its language: a key or a phrase translated, a validation message's words;
-    /// null for none, a NaN or an infinity among them.
-    /// </summary>
+    /// <summary>Formats <paramref name="value"/> as displayed in the page's language, or <see langword="null"/> when empty or non-finite.</summary>
     public string? Words(object? value)
+        => Words(value, translatable: true);
+
+    internal string? Words(object? value, bool translatable)
     {
         var language = Language;
         ITranslator translator = Transport.Translator;
@@ -393,11 +393,11 @@ public sealed partial class UIClientPage
         {
             // A NaN or an infinity is the null the page holds it as.
             _ when UIScriptNumber.ReadsAsNull(value) => null,
-            UIValidationMessage message => Words(message.Message),
-            UIPhrase { IsText: true } text => translator.Translate(language, text.Key),
+            UIValidationMessage message => Words(message.Message, translatable),
+            UIPhrase { IsText: true } text => translatable ? translator.Translate(language, text.Key) : text.Key,
             UIPhrase phrase => translator.Translate(language, phrase.Key, phrase.Arguments),
-            IReadOnlyDictionary<string, object?> wirePhrase when CompiledViewWireSerializer.CoerceWireValue(typeof(UIPhrase), wirePhrase) is UIPhrase coercedPhrase => Words(coercedPhrase),
-            string text => translator.Translate(language, text),
+            IReadOnlyDictionary<string, object?> wirePhrase when CompiledViewWireSerializer.CoerceWireValue(typeof(UIPhrase), wirePhrase) is UIPhrase coercedPhrase => Words(coercedPhrase, translatable),
+            string text => translatable ? translator.Translate(language, text) : text,
             // As the page writes them: a number by its shortest digits (1.5, not 1.50), a flag in the wire's words.
             _ => UIScriptText.Of(value)
         };
@@ -460,14 +460,11 @@ public sealed partial class UIClientPage
     /// <summary>Gets what the page last reported of itself: whether it is on screen, and its notification permission.</summary>
     public UIClientState ClientState => Transport.ClientState;
 
-    /// <summary>
-    /// Takes the page off screen — another tab chosen, the window minimised — as the page reports it; returns once the controller's
-    /// <c>OnVisibilityChangedAsync</c>, where the runtime went off screen, has run.
-    /// </summary>
+    /// <summary>Marks the page hidden and awaits the runtime's visibility hook.</summary>
     public Task HideAsync(CancellationToken cancellationToken = default)
         => ReportAsync(ClientState with { IsVisible = false }, cancellationToken);
 
-    /// <summary>Brings the page back on screen, as the page reports it; returns once the controller heard it, as <see cref="HideAsync"/> does.</summary>
+    /// <summary>Marks the page visible and awaits the runtime's visibility hook.</summary>
     public Task ShowAsync(CancellationToken cancellationToken = default)
         => ReportAsync(ClientState with { IsVisible = true }, cancellationToken);
 
@@ -493,7 +490,10 @@ public sealed partial class UIClientPage
     /// nothing more.
     /// </summary>
     public Task CloseAsync(CancellationToken cancellationToken = default)
-        => Transport.CloseAsync(cancellationToken);
+    {
+        CancelPendingCommands(new OperationCanceledException("The client page closed before the background command completed."));
+        return Transport.CloseAsync(cancellationToken);
+    }
 
     internal void NotifyIfChanged()
     {

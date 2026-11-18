@@ -37,6 +37,7 @@ public sealed class WebRenderMetadata
     // Resolved after every component has rendered, since the target component may come later on the page and only a rendered
     // property has an id.
     private readonly List<(UIComponentId Field, UIPropertyAddress Message)> _pendingValidationTargets = [];
+    private readonly HashSet<(UIComponentId Field, UIPropertyAddress Message)> _validationTargetKeys = [];
     private readonly List<UIPropertyAddress> _pendingExposedProperties = [];
     private readonly HashSet<(UIComponentId Component, string Property)> _exposedPropertyNames = [];
     private readonly List<WebRenderPropertyMetadata> _exposedProperties = [];
@@ -475,7 +476,8 @@ public sealed class WebRenderMetadata
         if (componentId.IsEmpty || message.Component.Id.IsEmpty)
             return;
 
-        _pendingValidationTargets.Add((componentId, message));
+        if (_validationTargetKeys.Add((componentId, message)))
+            _pendingValidationTargets.Add((componentId, message));
     }
 
     /// <summary>

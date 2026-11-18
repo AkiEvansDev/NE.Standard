@@ -113,7 +113,10 @@ public readonly record struct UIKeyChord(string Code, bool Ctrl, bool Shift, boo
                     meta = true;
                     break;
                 default:
-                    code = ResolveCode(part);
+                    if (code is not null || ResolveCode(part) is not string resolved)
+                        return false;
+
+                    code = resolved;
                     break;
             }
         }

@@ -693,8 +693,8 @@ internal sealed class UIComponentGateIndex
     /// </summary>
     private static void AddRowVariants(CompiledView view, UIComponentNode host, UIRowItems items, bool includeHostVariants, Dictionary<UIComponentId, UIRowVariant> rowVariants)
     {
-        var keyProperty = includeHostVariants ? StaticText(view, host.ComponentId, ITemplatedComponent.TemplateKeyPropertyProperty) : null;
-        var fallbackKey = keyProperty is null ? null : StaticText(view, host.ComponentId, ITemplatedComponent.FallbackTemplateKeyProperty);
+        var keyProperty = includeHostVariants ? view.State.GetStaticString(host.ComponentId, ITemplatedComponent.TemplateKeyPropertyProperty) : null;
+        var fallbackKey = keyProperty is null ? null : view.State.GetStaticString(host.ComponentId, ITemplatedComponent.FallbackTemplateKeyProperty);
         var isMenu = keyProperty is not null && view.State.TryGetValue(host.ComponentId, MenuComponent.NestedProperty, out _);
         var opensSubmenus = keyProperty is not null && view.Graph.TryGetSlot(host.ComponentId, UIComponentSlotKind.TemplateVariant, out _, MenuComponent.SubmenuTemplateKey);
 
@@ -733,12 +733,6 @@ internal sealed class UIComponentGateIndex
             rowVariants[root.ComponentId] = new UIRowVariant(host.ComponentId, keyProperty, fallbackKey, variantKey, root.ContextParameterCount, items, opensSubmenus, IsMenu: isMenu);
         }
     }
-
-    /// <summary>A property's static, non-blank text; none where it is bound, unset or of no text.</summary>
-    private static string? StaticText(CompiledView view, UIComponentId componentId, UIProperty property)
-        => view.State.TryGetValue(componentId, property, out CompiledUIPropertyValue? value) && value is { IsBind: false, Value: string { Length: > 0 } text } && !string.IsNullOrWhiteSpace(text)
-            ? text
-            : null;
 
     /// <summary>
     /// Whether a property's value closes the component: disabled, loading, hidden at every width, read-only, not to be chosen,

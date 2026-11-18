@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Abstractions.Binding;
@@ -69,16 +68,9 @@ internal sealed partial class UIRuntime
     }
 
     private static int ReadTabIndex(object? value)
-        => value switch
-        {
-            int index => index,
-            long index => checked((int)index),
-            ulong index => checked((int)index),
-            decimal index when index == decimal.Truncate(index) => checked((int)index),
-            double index when index == Math.Floor(index) => checked((int)index),
-            string text when int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index) => index,
-            _ => throw new InvalidOperationException("A tab's move names no place.")
-        };
+        => value is not bool && RecursiveValueCoercion.TryCoerce(value, out int index)
+            ? index
+            : throw new InvalidOperationException("A tab's move names no place.");
 
     /// <summary>
     /// Puts the tab the keys name where a drop put it (<paramref name="index"/>, its place in the strip after the move), or at the edge

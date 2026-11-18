@@ -12,6 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\DemoApp.Web\DemoAppWebServices.cs" Link="DemoAppWebServices.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="..\DemoApp.Web\wwwroot\**\*">
       <Link>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

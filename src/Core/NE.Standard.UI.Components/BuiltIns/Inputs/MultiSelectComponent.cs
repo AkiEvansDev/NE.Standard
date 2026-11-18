@@ -55,9 +55,6 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
                 _variantTemplate = CreateVariantTemplate(value ?? UIMultiSelectVariant.Chips);
                 SetDefaultTemplate(_variantTemplate);
             }
-
-            if (value == UIMultiSelectVariant.Button && BadgeVariant is null && !HasBinding(ITextBaseComponent.BadgeVariantProperty))
-                _ = SetBadgeVariant(UIBadgeVariant.Primary);
         }
     }
 
@@ -190,6 +187,7 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         ValidateSelectedCount(value, MaxSelected);
 
         Value = value;
+        RemoveNonOptionalBinding(IInputComponent.ValueProperty);
         return Self;
     }
 
@@ -217,6 +215,7 @@ public abstract partial class MultiSelectComponent<T, TItem> : SelectComponentBa
         ValidateSelectedCount(Value, maxSelected);
 
         MaxSelected = maxSelected;
+        RemoveNonOptionalBinding(MaxSelectedProperty);
         return Self;
     }
 

@@ -125,6 +125,9 @@ internal sealed partial class UIRuntime
 
         try
         {
+            if (!RecursiveValueCoercion.IsWithinLimits(request.DynamicParameters, _application.Security.MaxClientValueElements, _application.Security.MaxClientValueDepth))
+                throw new InvalidOperationException("Dynamic parameters exceed the configured value limits.");
+
             if (request.Action is null)
             {
                 // An id this page's compile never gave out is a forged call, refused as one rather than failed with a stack.

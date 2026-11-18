@@ -20,10 +20,7 @@ public static class UIForm
     private const int ComposerDefaultMaxRows = 6;
     private static readonly UIThickness ComposerBannerMargin = UIThickness.All(12, 8, 4, 8);
 
-    /// <summary>
-    /// A field with a muted line under it — what may be typed, what it is for, how much is left — or, with no <paramref name="hint"/>,
-    /// the field alone in the same column, so a form writes every field one way.
-    /// </summary>
+    /// <summary>Places <paramref name="input"/> above an optional muted <paramref name="hint"/> line.</summary>
     public static StackPanelComponent Field(IVisualComponent input, UIPhrase? hint = null)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -32,7 +29,7 @@ public static class UIForm
         return hint is null ? Column(input) : Column(input).AddChild(UIText.Note(hint).SetFieldNote(true));
     }
 
-    /// <summary>The same under a line of the author's — inline links, emphasis — given the hint's role and its place under the field.</summary>
+    /// <summary>Places <paramref name="input"/> above a custom <paramref name="hint"/> paragraph styled in the field-note role.</summary>
     public static StackPanelComponent Field(IVisualComponent input, ParagraphComponent hint)
     {
         ArgumentNullException.ThrowIfNull(input);
@@ -47,10 +44,7 @@ public static class UIForm
             .SetSpacing(4)
             .AddChild(input);
 
-    /// <summary>
-    /// The same with the line the controller holds at <paramref name="hintPath"/> — how much is left, what the choice means — as content,
-    /// drawn as written.
-    /// </summary>
+    /// <summary>Places <paramref name="input"/> above a plain content hint bound at <paramref name="hintPath"/>.</summary>
     public static StackPanelComponent BoundField<TSource>(IVisualComponent input, Expression<Func<TSource, object?>> hintPath, UIBindingScope scope = UIBindingScope.Root)
         => BoundField(input, PresetBindings.Path(hintPath), scope);
 
@@ -73,12 +67,8 @@ public static class UIForm
     public static ContainerComponent Row(params IVisualComponent[] fields)
         => Row(16, fields);
 
-    /// <summary>
-    /// Fields side by side in equal columns, their tops level, <paramref name="spacing"/> apart. Among fields with a caption over their
-    /// boxes, a control with none (a switch, a checkbox, a button) stands a caption line down, centred on a box of their size, while
-    /// they stand side by side, as anything beside a captioned field does (<see cref="IVisualComponent.AlignWithFieldBoxes"/>); a control
-    /// with its hint (<see cref="Field(IVisualComponent, UIPhrase)"/>) stands the control on it.
-    /// </summary>
+    /// <summary>Places <paramref name="fields"/> side by side in equal top-aligned columns, <paramref name="spacing"/> apart.</summary>
+    /// <remarks>Uncaptioned controls align with sibling field boxes while side by side (<see cref="IVisualComponent.AlignWithFieldBoxes"/>).</remarks>
     public static ContainerComponent Row(double spacing, params IVisualComponent[] fields)
     {
         ArgumentNullException.ThrowIfNull(fields);
@@ -87,24 +77,19 @@ public static class UIForm
         return UILayout.Columns(spacing, UIAlignment.Start, fields);
     }
 
-    /// <summary>
-    /// A composer panel — a chat's or a comment box's — holding a <paramref name="textArea"/> and optional upper
-    /// <paramref name="banners"/> (a reply or an edit quote from <see cref="UIText.Quote(UIPhrase, UIPhrase, UIThemeColor?, string?, string?)"/> or
-    /// <see cref="UIText.BoundQuote"/>) inside a calm borderless surface that acts as the window's foot: the field grows up to six lines
-    /// from a single line unless given its own rows, drops its own focus ring and border so the panel stays quiet, and keeps its actions
-    /// on one row beside the words by default (where a composer carries many tools on a phone, either fold the secondary ones into a
-    /// <see cref="UIIconButtons.More()"/> menu button or call <c>SetActionsBelow</c> without
-    /// <c>inField</c> so the text takes the upper row and all buttons including Send stand on a row below it without a dividing rule).
-    /// </summary>
+    /// <summary>Builds a borderless window-foot composer surface holding <paramref name="textArea"/> and optional upper <paramref name="banners"/>.</summary>
+    /// <remarks>
+    /// Defaults <paramref name="textArea"/> to a ghost field auto-growing from one to six rows with its outer focus halo suppressed. On
+    /// phones with many actions, fold secondary actions into <see cref="UIIconButtons.More()"/> or call <c>SetActionsBelow</c> without <c>inField</c>.
+    /// </remarks>
     public static SurfaceComponent Composer(TextAreaComponent textArea, params IVisualComponent[] banners)
         => Composer(textArea, attachments: null, banners);
 
-    /// <summary>
-    /// The same with an optional <paramref name="attachments"/> shelf above the banners and the <paramref name="textArea"/>: the
-    /// <see cref="FileInputComponent"/> is set to <see cref="UIFileInputVariant.Shelf"/>, accepts drops across the whole composer
-    /// panel unless given its own <see cref="FileInputComponent{T}.DropTargetId"/>, and shares a <see cref="IInputComponent.FormId"/>
-    /// with the <paramref name="textArea"/> when either declares one.
-    /// </summary>
+    /// <summary>Builds a borderless window-foot composer surface with an optional <paramref name="attachments"/> shelf above <paramref name="banners"/> and <paramref name="textArea"/>.</summary>
+    /// <remarks>
+    /// Configures <paramref name="attachments"/> as <see cref="UIFileInputVariant.Shelf"/>, accepts drops across the whole composer
+    /// unless <see cref="FileInputComponent{T}.DropTargetId"/> is set, and shares <see cref="IInputComponent.FormId"/> between the two inputs.
+    /// </remarks>
     public static SurfaceComponent Composer(TextAreaComponent textArea, FileInputComponent? attachments, params IVisualComponent[] banners)
     {
         ArgumentNullException.ThrowIfNull(textArea);
@@ -117,15 +102,15 @@ public static class UIForm
         {
             _ = attachments.SetVariant(UIFileInputVariant.Shelf);
 
-            if (attachments.Margin is null)
+            if (attachments.Margin is null && !PresetBindings.Binds(attachments, IVisualComponent.MarginProperty))
                 _ = attachments.SetMargin(UIThickness.Uniform(8));
 
-            if (attachments.DropTargetId is null)
+            if (attachments.DropTargetId is null && !PresetBindings.Binds(attachments, FileInputComponent.DropTargetIdProperty))
                 _ = attachments.SetDropTargetId(composer.Id);
 
-            if (textArea.FormId is not null && attachments.FormId is null)
+            if (textArea.FormId is not null && attachments.FormId is null && !PresetBindings.Binds(attachments, IInputComponent.FormIdProperty))
                 _ = attachments.SetFormId(textArea.FormId);
-            else if (attachments.FormId is not null && textArea.FormId is null)
+            else if (attachments.FormId is not null && textArea.FormId is null && !PresetBindings.Binds(textArea, IInputComponent.FormIdProperty))
                 _ = textArea.SetFormId(attachments.FormId);
 
             _ = stack.AddChild(attachments);
@@ -137,13 +122,13 @@ public static class UIForm
             _ = stack.AddChild(ComposerBanner(banner));
         }
 
-        if (textArea.Appearance is null)
+        if (textArea.Appearance is null && !PresetBindings.Binds(textArea, IFieldInputComponent.AppearanceProperty))
             _ = textArea.SetAppearance(UIInputAppearance.Ghost);
 
-        if (textArea.Rows is null)
+        if (textArea.Rows is null && !PresetBindings.Binds(textArea, TextAreaComponent.RowsProperty))
             _ = textArea.SetRows(1);
 
-        if (textArea.MaxRows is null)
+        if (textArea.MaxRows is null && !PresetBindings.Binds(textArea, TextAreaComponent.MaxRowsProperty))
             _ = textArea.SetAutoGrow(Math.Max(ComposerDefaultMaxRows, textArea.Rows ?? 1));
 
         _ = stack.AddChild(textArea

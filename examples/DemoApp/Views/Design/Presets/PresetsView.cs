@@ -14,7 +14,8 @@ internal sealed class PresetsView : PresetsViewBase, IUIViewDefinition
             .AddChildren(DemoUI.CreateColumns([CreateSectionGroup(), CreateLabelledGroup()], [CreateBannerGroup(), CreateBandGroup()]))
             .AddChildren(DemoUI.CreateColumns([CreateEmptyGroup()], [CreateOutcomeGroup()]))
             .AddChild(CreateStatusGroup())
-            .AddChild(CreateColumnGroup());
+            .AddChild(CreateColumnGroup())
+            .AddChild(CreateDrawerGroup());
 
         _ = container
             .AddChild(CreateHeading("UICard — a card, and one alone on a page"))

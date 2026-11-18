@@ -50,7 +50,7 @@ holds no application state and decides nothing; state survives a reload exactly 
 - **Web host (`NE.Standard.UI.Web` + `NE.Standard.UI.Web.Renderers`)**: `AppWebStartup : WebStartupBase<AppStartup>` - `services.AddStandardRenderers()` and each add-on's
   `Add*()`. `Program.cs`: `WebStartupBuilder.Configure<AppWebStartup, AppStartup>(builder.Services)`, then `app.UseStaticFiles()`,
   `app.UseRouting()`, `await app.MapStandardUIWebAsync()` - in that order, never `MapStaticAssets()`.
-- **Windows Desktop host (`NE.Standard.UI.Desktop` + `NE.Standard.UI.Web.Renderers`, `net11.0-windows`)**: `AppDesktopStartup : DesktopStartupBase<AppStartup>` - `ConfigureServices(services)` registers `services.AddStandardRenderers()` and any web add-on `Add*()`, `ConfigureHost(options)` configures `DesktopHostOptions` (`Mode = DesktopHostMode.InProcess | Remote`, `ServerUri`, `WindowTitle`, `Icon`, `AppUserModelId`, `WebRootPath`, `DownloadMode = DesktopDownloadMode.SaveDialog | Directory`). `[STAThread] Program.Main(args)` calls `DesktopStartupBuilder.Run<AppDesktopStartup, AppStartup>(args)` (supports `--server=<url>`, `--route=<path>`, `--icon=<path>`, `--devtools`, applies the default `NE` `.ico` unless overridden, bridges `ShowSystemNotificationEffect` to native Windows Toast notifications with `Minimized || !IsActive` off-screen visibility and window restore on click, and in `InProcess` mode runs `WebView2` over `HTTP/2` loopback with `InMemoryWebViewRenderCache`, `4 GB` default file limits, zero-copy local file uploads, and direct disk downloads).
+- **Windows Desktop host (`NE.Standard.UI.Desktop` + `NE.Standard.UI.Web.Renderers`, `net11.0-windows`)**: `AppDesktopStartup : DesktopStartupBase<AppStartup>` - `ConfigureServices(services)` registers `services.AddStandardRenderers()` and any web add-on `Add*()`, `ConfigureHost(options)` configures `DesktopHostOptions` (`Mode = DesktopHostMode.InProcess | Remote`, `ServerUri`, `WindowTitle`, `Icon`, `AppUserModelId`, `WebRootPath`, `DownloadMode = DesktopDownloadMode.SaveDialog | Directory`). `[STAThread] Program.Main(args)` calls `DesktopStartupBuilder.Run<AppDesktopStartup, AppStartup>(args)` (supports `--server=<url>`, `--route=<path>`, `--icon=<path>`, `--devtools`, applies the default `NE` `.ico` unless overridden, bridges `ShowSystemNotificationEffect` to native Windows Toast notifications with `Minimized || !IsActive` off-screen visibility and window restore on click, and in `InProcess` mode runs `WebView2` over a single HTTPS `HTTP/2` loopback endpoint gated by a per-process `HttpOnly` cookie with `InMemoryWebViewRenderCache`, `4 GB` default file limits, zero-copy local file uploads, and direct disk downloads).
 - **API-only Server host (`NE.Standard.UI.Server`)**: `AppServerStartup : UIServerStartupBase<AppStartup>` with `UIServerStartupBuilder.Configure<AppServerStartup, AppStartup>(builder.Services)` and `await app.MapStandardUIServerAsync()` — exposes `/_ne/view`, `/_ne/hub`, `/_ne/files`, `/_ne/content`, `/_ne/values`, `/_ne/words` and `/_ne/session/key` for remote C# clients without HTML rendering or Web assets.
 - `UIApplicationBuilder`: `Route`, `SignInView`, `ForbiddenView`, `NotFoundView`, `ErrorView`, `SetIcon`, `SetNoIcon`, `ConfigureSecurity`,
   `ConfigureSessions`, `ConfigurePersistence`, `ConfigureErrorHandling`, `ConfigureLocalization`, `AddLocalizationSource`,
@@ -65,7 +65,7 @@ holds no application state and decides nothing; state survives a reload exactly 
 [views.html](https://akievansdev.github.io/NE.Standard/views.html) | [references/views-and-layout.md](references/views-and-layout.md)
 
 - `sealed class XView : UIViewBase, IUIViewDefinition` with `static string ViewKey`; regions `CreateContent()` (required),
-  `CreateHeader()`, `CreateFooter()`, `CreateLeftSide()`, `CreateRightSide()`; `Title`; `Options` (`UIViewOptions`:
+  `CreateHeader()`, `CreateFooter()`, `CreateLeftSide()`, `CreateRightSide()` (attach `.OnDrawerOpen(command)` on a side root to refresh only when an unpinned drawer opens); `Title`; `Options` (`UIViewOptions`:
   `StickyHeader`, `ScrollContentOnly`, `ShellLayout`, `SideDrawers`, `LeftDrawerModal`/`RightDrawerModal`,
   `NotificationPlacement`, `NotificationWidth`).
 - `CreateDialogs()` returns `UIDialog`s (`Key`, `Content`, `TitleId`, `CloseOnBackdrop`, `CloseOnEscape`, placement as a sheet;
@@ -191,14 +191,14 @@ description line alone where it shows one).
 [extensions.html](https://akievansdev.github.io/NE.Standard/extensions.html) | [references/presets-and-interactions.md](references/presets-and-interactions.md). A preset holds a look in one place - use it
 rather than rebuilding the arrangement with your own widths and spacings. Each returns an ordinary built-in component; every preset taking a binding path (`Bound*`, `UILayout.Panes`) also takes a typed `<TSource>(Expression<Func<TSource, object?>>)` selector.
 
-- `UIPage` - `Header`, `BoundHeader` (the band's name and line bound to the controller), `Section`/`BoundSection`,
+- `UIPage` - `Header`, `BoundHeader` (the band's name and line bound to the controller), `Drawer`/`BoundDrawer` (full-height side-drawer panel with fixed header, pin/close actions, scrolling body, and optional footer), `Section`/`BoundSection`,
   `Heading`/`BoundHeading` (its far end on the title's line; `Heading(component, trailing)` for a heading of your own), `Fold`/`BoundFold`,
   `Labelled`/`BoundLabelled` (names an untitled, unnamed control by the label; its label counts as a field's caption in a form row), `Band`, `Column` (`UIColumnWidth.Reading/Form/Wide`;
   `centered: true` in the middle) with `header.InColumn(width)` for the band over it, `Banner`, `Empty`/`BoundEmpty` (nothing chosen
   or made yet; the icon optional, the ways on in a row), `Outcome`/`BoundOutcome` (what a submit came to), `Status`/`BoundStatus` (not found,
   refused, failed). `UIHeaderSize` sizes a header. Words are `UIPhrase`; words the controller holds go through the `Bound*` twin.
 - `UILayout` - `Stack`, `Row`, `Columns`, `Split`, `Sidebar`, `Board`, `Ends` (trailing icon-only buttons stand 4 px apart, 8 px when any carries words — same in `UIPage.Header`), and `Panes` - a list beside the thing chosen in
-  it (chats and a conversation, a tree and a note), one at a time on a phone:
+  it (chats and a conversation, a tree and a note), one at a time on a phone (or switching in one column at every width when `stacked: true` is passed on both `UILayout.Panes` and `new UIPanesState(stacked: true)`):
   `UILayout.Panes(list, detail, nameof(Controller.Panes), placeholder: UIPage.Empty(...), splitter: true)` over a controller
   property `[RecursiveMember] public partial UIPanesState Panes { get; set; } = new();`. The page calls `Panes.ShowDetail()`
   (an item chosen), `Panes.ShowList()` (back, the chosen one still beside it from md), `Panes.ShowNothing()` (back, nothing
@@ -385,7 +385,7 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
 - **Icons** - `NE.Standard.UI.Icons.Material` / `.Web.Icons.Material`: `MaterialIcons.Save`, `MaterialIcons.Outlined(...)`;
   host `services.AddMaterialWebIcons(names...)` (or with an explicit `MaterialIconStyle` mask) - only registered names
   draw, a misspelt one fails at startup; `MapUIGlyph` draws the framework's own glyphs from the set.
-- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, `SetHeaderAction`/`SetHeaderActions`, full-height modal editor via `SetExpandable(expand => ...)` — `UICodeExpandBuilder`: `SetLineNumbers`, `SetWrapLines`, `SetStatusBar`, `SetFormatBar`, `SetSearch`, `SetMultiCaret`, `SetCompletions`, `SetAppearance`, `SetWidth`, `SetShowButton` — and `ExpandFieldEffect`, inline completions via `AddCompletion`/`SetCompletionItems`/`SetCompletionTriggers`, custom Markdown/token styles via `SetMarkStyle`/`AddSpanStyle`/`AddTokenStyle`, Ctrl+S raises `code-save`:
+- **CodeInput** - `CodeInputComponent` (`SetLanguage(UICodeLanguages.Json)`, `SetRows`, `BindValue`, `SetHeaderAction`/`SetHeaderActions`, full-height modal editor via `SetExpandable(expand => ...)` — `UIExpandedCodeInputBuilder`: `SetLineNumbers`, `SetWrapLines`, `SetStatusBar`, `SetFormatBar`, `SetSearch`, `SetMultiCaret`, `SetCompletions`, `SetAppearance`, `SetWidth`, `SetShowButton` — and `ExpandFieldEffect`, inline completions via `AddCompletion`/`SetCompletionItems`/`SetCompletionTriggers`, custom Markdown/token styles via `SetMarkStyle`/`AddSpanStyle`/`AddTokenStyle`, Ctrl+S raises `code-save`:
   `OnSave`/`OnSaveLiteral`) and `MarkdownDisplayComponent` (`SetMarkStyle`, `AddSpanStyle`, `AddTokenStyle`); host `services.AddCodeInput()`.
 - **DataGrid** - `DataGridComponent` (a `TableComponent` with `AddTextColumn`, `AddEnumColumn<T>`, `AddNumberColumn`,
   `AddMoneyColumn`, `AddDateColumn`, `AddBooleanColumn`, `AddColumn<TRow>` / `AddEditableColumn<TRow, TInput>`, `AddFilter<TRow>`, sorting, filters, editing, paging, totals, CSV export),
@@ -396,7 +396,7 @@ web startup next to `AddStandardRenderers()`; each README in the NuGet cache is 
   `services.AddCharts()`.
 - **Graph** - `NodesComponent` (a node network whose kinds are C# classes, `SetCatalog`/`BindCatalog`, `UINodeCatalog.FromTypes`,
   `UINodeRuns` with static or `Func<UINodeCatalog>` / mutable `Catalog`, `UINodeKinds.Common` / `UINodeKinds.Files`, `SetPinChoices`/`BindPinChoices` for `[GraphInput(ChoicesKey = ...)]` dropdown pins — choice/enum/`ChoicesKey` inputs carry no pin unless `HasPin = true` is set; unresolved plugin nodes preserve `values` and wire endpoints on the canvas and fail cleanly with `RunMissingKind` if run while enabled; `OnSave`, `OnMenuEntry`, `OnNodeClick`, `OnStop`, each with a `…Literal` form),
-  `NodesParametersComponent` (`SetCanvas(canvas)`), `LayeredGraphComponent`, `ProductionGraphComponent`; host `services.AddGraph()` (`AddGraphFiles(root)` for file nodes);
+  `NodesParametersComponent` (`SetCanvas(canvas)`), `LayeredGraphComponent`, `ProductionGraphComponent`; host `services.AddGraph()` (`AddGraphFiles(new UINodeFiles { BasePath = ... })` for file nodes);
   `NE.Standard.UI.Graph.Calculator` (`CalculatorNodes.Kinds`) and `NE.Standard.UI.Graph.Image` (`ImageNodes.Kinds` / `ImageNodes.FileKinds`,
   `AddGraphImages()`, `IUINodeImageStore`). Its own site: https://akievansdev.github.io/NE.Standard.UI.Graph.
 

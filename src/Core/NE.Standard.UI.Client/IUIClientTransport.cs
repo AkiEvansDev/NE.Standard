@@ -11,6 +11,7 @@ using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -52,7 +53,7 @@ public interface IUIClientTransport
     /// <summary>Gets whether the page's route declares a controller.</summary>
     bool HasController { get; }
 
-    /// <summary>Gets the page's in-process controller as <typeparamref name="TController"/>.</summary>
+    /// <summary>Gets the page's controller when running in-process; throws <see cref="System.NotSupportedException"/> on remote transports.</summary>
     TController Controller<TController>() where TController : class;
 
     /// <summary>Gets the initial attach snapshot for the given component property bindings.</summary>
@@ -77,7 +78,8 @@ public interface IUIClientTransport
     Task ReportClientStateAsync(UIClientState state, CancellationToken cancellationToken = default);
 
     /// <summary>Gets whether the session already holds the setting carried by <paramref name="effect"/>.</summary>
-    bool SessionHolds(ClientEffect effect);
+    bool SessionHolds(ClientEffect effect)
+        => UISessionSettings.Holds(effect, Language, ThemeMode, ThemeColors);
 
     /// <summary>Persists a language, theme mode or theme colours change into the session and notifies the session's pages.</summary>
     Task ApplySettingAsync(ClientEffect setting, CancellationToken cancellationToken = default);

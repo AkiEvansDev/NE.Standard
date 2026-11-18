@@ -30,6 +30,9 @@ export class CommitGate {
     private readonly committed = new Map<CaretField, string | null>();
     private readonly focused = new WeakSet<CaretField>();
     private readonly dirty = new Set<CaretField>();
+    private readonly abort = new AbortController();
+    private readonly stopValueHandler: (() => void) | undefined;
+    private disposed = false;
 
     public constructor(options: CommitGateOptions = {}) {
         this.root = options.root ?? document;
@@ -39,13 +42,25 @@ export class CommitGate {
         // On the page's document it listens on the window, capturing: ahead of every engine's listener on the root, none of which may
         // hear a change stopped here, and ahead of NumberInputEngine's blur formatting when a scripted edit commits on focusout.
         const target: EventTarget = this.root === document ? window : this.root;
+        const listenerOptions = { capture: true, signal: this.abort.signal };
 
-        target.addEventListener("focusin", domEvent => this.handleFocus(domEvent), true);
-        target.addEventListener("input", domEvent => this.handleInput(domEvent), true);
-        target.addEventListener("change", domEvent => this.handleChange(domEvent), true);
-        target.addEventListener("focusout", domEvent => this.handleFocusOut(domEvent), true);
+        target.addEventListener("focusin", domEvent => this.handleFocus(domEvent), listenerOptions);
+        target.addEventListener("input", domEvent => this.handleInput(domEvent), listenerOptions);
+        target.addEventListener("change", domEvent => this.handleChange(domEvent), listenerOptions);
+        target.addEventListener("focusout", domEvent => this.handleFocusOut(domEvent), listenerOptions);
 
-        options.propertyPatchEngine?.addValueChangeHandler(change => this.forgetPushed(change.components));
+        this.stopValueHandler = options.propertyPatchEngine?.addValueChangeHandler(change => this.forgetPushed(change.components));
+    }
+
+    public dispose(): void {
+        if (this.disposed)
+            return;
+
+        this.disposed = true;
+        this.abort.abort();
+        this.stopValueHandler?.();
+        this.committed.clear();
+        this.dirty.clear();
     }
 
     /** Commits dirty caret fields accepted by `shouldCommit`, ahead of a command or route switch that did not blur them. */
@@ -168,8 +183,11 @@ export class CommitGate {
             && this.holdsCommit?.(field) !== true;
     }
 
-    /** A value pushed into the field: what the server holds is no longer what it last committed. */
+    /** A value pushed into the field's own component: what the server holds is no longer what it last committed. */
     private forgetPushed(components: readonly Element[]): void {
+        if (this.disposed)
+            return;
+
         for (const field of [...this.committed.keys()]) {
             if (!field.isConnected) {
                 this.committed.delete(field);
@@ -177,8 +195,13 @@ export class CommitGate {
                 continue;
             }
 
+            const owner = field.closest(ComponentSelector);
+
+            if (owner === null)
+                continue;
+
             for (const component of components) {
-                if (component.contains(field)) {
+                if (component === owner) {
                     this.committed.set(field, null);
                     this.dirty.delete(field);
                     break;

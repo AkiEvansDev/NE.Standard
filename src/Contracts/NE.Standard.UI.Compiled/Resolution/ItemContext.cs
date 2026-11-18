@@ -340,8 +340,8 @@ public sealed class ItemContext(object? item)
         return string.Concat(char.ToLowerInvariant(value[0]).ToString(), value.AsSpan(1));
     }
 
-    /// <summary>Caches the reflection lookup per (type, name); it runs once per bound property, per item, per render.</summary>
-    internal static PropertyInfo? ResolveProperty(Type type, string propertyName)
+    /// <summary>Resolves the public instance property named <paramref name="propertyName"/> on <paramref name="type"/>, cached per type and name.</summary>
+    public static PropertyInfo? ResolveProperty(Type type, string propertyName)
         => ResolveCachedProperty(type, propertyName)?.Property;
 
     private static CachedProperty? ResolveCachedProperty(Type type, string propertyName)
@@ -367,8 +367,10 @@ public sealed class ItemContext(object? item)
     /// The public instance property of that name: the exact name first, else the one name it matches ignoring case — none where two
     /// differ only in case. A property a derived type hides with <c>new</c> is the derived one; an indexer is no property here.
     /// </summary>
-    private static PropertyInfo? FindProperty(Type type, string propertyName)
+    public static PropertyInfo? FindProperty(Type type, string propertyName)
     {
+        ArgumentNullException.ThrowIfNull(type);
+        ArgumentException.ThrowIfNullOrEmpty(propertyName);
         PropertyInfo? exact = null;
         PropertyInfo? folded = null;
         var foldedTwice = false;

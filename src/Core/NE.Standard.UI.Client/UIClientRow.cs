@@ -97,10 +97,7 @@ public sealed class UIClientRow
     public Task<UIClientCommandResult> RenameAsync(string title, CancellationToken cancellationToken = default)
         => Page.RenameRowAsync(Host, HostKeys, Entry, title, cancellationToken);
 
-    /// <summary>
-    /// Chooses the row as a press does: the host's chosen key or option value written where the host binds it to write back, then the row's
-    /// click command where it has one and the write succeeded.
-    /// </summary>
+    /// <summary>Selects this row on its host and invokes the row's click command when present.</summary>
     public async Task<UIClientCommandResult> ChooseAsync(CancellationToken cancellationToken = default)
     {
         await Page.EnsureRowChoosableAsync(Host, HostKeys, RowKeys, Entry, cancellationToken).ConfigureAwait(false);

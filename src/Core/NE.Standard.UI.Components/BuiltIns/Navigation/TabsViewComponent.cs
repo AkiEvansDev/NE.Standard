@@ -196,6 +196,26 @@ public abstract partial class TabsViewComponent<T> : ItemsComponentBase<T, ITabI
         if (TabMenuEntries is UITabMenuEntries entries && entries.HasFlag(UITabMenuEntries.Close | UITabMenuEntries.Delete))
             throw new ArgumentException("Close and Delete are the two forms of the tab menu's one remove entry; choose one.", nameof(TabMenuEntries));
     }
+
+    /// <inheritdoc/>
+    protected override Action? SnapshotAuthoredState()
+    {
+        Action? restoreBase = base.SnapshotAuthoredState();
+
+        if (_entries.Count == 0)
+            return restoreBase;
+
+        MenuItem[] ownEntries = [.. _entries];
+        _entries.Clear();
+        ComposeTabMenu();
+
+        return () =>
+        {
+            restoreBase?.Invoke();
+            _entries.AddRange(ownEntries);
+            ComposeTabMenu();
+        };
+    }
 }
 
 /// <summary>

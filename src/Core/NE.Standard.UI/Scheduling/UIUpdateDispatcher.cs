@@ -87,11 +87,7 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
     public void Enqueue(IUIRuntime runtime, ServerChangeSet changes)
         => _ = Enqueue(runtime, changes, awaited: false);
 
-    /// <summary>
-    /// Queues a change set as <see cref="Enqueue(IUIRuntime, ServerChangeSet)"/> does, and answers the task that completes once it is
-    /// sent — with the set it joined, where it joined one — or dropped for a resync or a stop. Null where nothing was queued: the
-    /// runtime or the dispatcher stopping, or no client attached.
-    /// </summary>
+    /// <summary>Queues <paramref name="changes"/> for attached clients and returns a task that completes when sent or dropped, or <see langword="null"/> when nothing was queued.</summary>
     public Task? EnqueueAwaited(IUIRuntime runtime, ServerChangeSet changes)
         => Enqueue(runtime, changes, awaited: true);
 
@@ -117,13 +113,8 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
         return waiter?.Done;
     }
 
-    /// <summary>
-    /// Queues one caller's answer for that caller alone, behind every set queued for the runtime so far, and answers the task that
-    /// completes once it is sent — <paramref name="sent"/> run then, before any later set goes — or dropped for a resync or a stop. An
-    /// empty one only waits its turn. Null where nothing was queued: the runtime or the dispatcher stopping, or an empty answer with
-    /// nothing ahead of it.
-    /// </summary>
-    /// <remarks>Called in the hold of the runtime's state lock that took the answer's copy, so no set drained after it goes before it.</remarks>
+    /// <summary>Queues one caller's answer behind prior runtime sets and returns a task that completes when sent or dropped, or <see langword="null"/> when idle.</summary>
+    /// <remarks>Called under the runtime state lock that captured <paramref name="changes"/>, running <paramref name="sent"/> once delivered before any subsequent set.</remarks>
     public Task? EnqueueAnswer(IUIRuntime runtime, string instanceId, ServerChangeSet changes, Action? sent)
     {
         ArgumentNullException.ThrowIfNull(runtime);
@@ -138,11 +129,7 @@ internal sealed partial class UIUpdateDispatcher : IDisposable
         return TryQueue(runtime, new QueuedChanges(runtime.Handle, [instanceId], changes, answer), whenIdle: !changes.IsEmpty) ? answer.Done : null;
     }
 
-    /// <summary>
-    /// Queues effects pushed outside a command to one page, behind every set queued for the runtime so far, as an answer is queued; answers
-    /// the task that completes once they are sent — faulted where the send failed — or dropped for a resync or a stop. Null where nothing
-    /// was queued: the runtime or the dispatcher stopping.
-    /// </summary>
+    /// <summary>Queues an out-of-band command result for <paramref name="page"/> behind prior runtime sets, returning its completion task or <see langword="null"/> when stopped.</summary>
     public Task? EnqueueResult(IUIRuntime runtime, UIHandle page, UICommandExecutionResult result)
     {
         ArgumentNullException.ThrowIfNull(runtime);

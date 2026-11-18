@@ -26,22 +26,22 @@ public sealed partial class OrdersController : UIControllerBase
 
 - Mark methods with `[UICommand]` (options: `ConcurrencyMode = UICommandConcurrencyMode.Exclusive | Background`, `MaxConcurrent = n`).
 - Allowed return types: `void`, `Task`, `UICommandResult`, `Task<UICommandResult>`.
-- Return effects via `UICommandResult.Ok(new ShowNotificationEffect(...))` or `UICommandResult.Fail("error", ...)`.
-- **Passing arguments from the view**:
-  - Literal: `UIAction.Arg("literal")` (or `.OnClickLiteral(nameof(Controller.Run), "literal")`).
-  - Current row key / item: `UIAction.ArgCurrentItemKey()`, `UIAction.ArgCurrentItem()`, or shorthand `.OnClickWithItemKey(nameof(Controller.Delete))`.
-  - Bound value from scope: `UIAction.ArgRoot<OrdersController>(c => c.Filter)`, `UIAction.ArgRelative<OrderItem>(x => x.Status)`, `UIAction.ArgParent<OrderGroup>(g => g.Id)`.
-  - Event payload: `UIAction.ArgEventValue("value")`.
+- Return effects via `UICommandResult.Ok([new ShowNotificationEffect(...)])` or `UICommandResult.Fail("error", [...])`.
+- **Passing arguments from the view** (first parameter is the command parameter's `string name`):
+  - Literal: `UIAction.Arg("mode", "literal")` (or `.OnClickLiteral(nameof(Controller.Run), KeyValuePair.Create<string, object?>("mode", "literal"))`).
+  - Current row key / item: `UIAction.ArgCurrentItemKey("id")`, `UIAction.ArgCurrentItem("item")`, or shorthand `.OnClickWithItemKey(nameof(Controller.Delete))`.
+  - Bound value from scope: `UIAction.ArgRoot<OrdersController>("filter", c => c.Filter)`, `UIAction.ArgRelative<OrderItem>("status", x => x.Status)`, `UIAction.ArgParent<OrderGroup>("groupId", g => g.Id)`.
+  - Event payload: `UIAction.ArgEventValue("value", index: 0)`.
 - **Compile-time verification**: the view compiler rejects paths that do not exist on the target type, row arguments used outside an item template, or missing required value-type parameters.
 
 ## Lifecycle Hooks & Runtime Access
 
 - Hooks: `OnInitializeAsync`, `OnNavigatedAsync(UINavigationRequest)`, `OnAttachedAsync`, `OnDetachedAsync`, `OnVisibilityChangedAsync`, `OnLanguageChangedAsync`, `OnThemeChangedAsync`, `OnNotificationPermissionChangedAsync`, `OnLeaveRequestedAsync` (with `HoldsUnsavedWork`), `OnNotify(RecursiveChange)`.
 - `Context.Runtime`:
-  - `InvokeAsync(Func<Task>)`: acquire the runtime lock from an external callback and flush changes (throws if called inside a running command).
-  - `Post(Func<ValueTask>)`: queue work between exclusive commands.
+  - `InvokeAsync(Action)` / `InvokeAsync(Func<CancellationToken, Task>)`: acquire the runtime lock and schedule changes for the next flush (safe from inside a command; throws if nested inside another `InvokeAsync` action).
+  - `Post(Func<CancellationToken, Task>)`: queue work between exclusive commands.
   - `Start(Func<CancellationToken, Task>)`: start a background task owned by the runtime.
-- Cross-session pub/sub: `Context.Subscribe("topic")` + `IUIBroadcast.PostAsync("topic", payload)` / `PostToUserAsync(userId, payload)`.
+- Cross-session pub/sub: `Context.Subscribe("topic")` + `IUIBroadcast.PostAsync<OrdersController>("topic", c => ...)` / `PostToUserAsync<OrdersController>(userId, c => ...)`.
 
 ## Binding Modes and Scopes
 
@@ -55,8 +55,8 @@ public sealed partial class OrdersController : UIControllerBase
 
 ## Validation and Forms
 
-- Input validation rules (evaluated in browser and enforced on server):
-  - `.Required(message?)`, `.Regex(pattern, message?)`, `.RegexEach(pattern, message?)`
+- Input validation rules (evaluated in browser; server enforces structural `Min`/`Max`/`Step`/`MaxLength`/option gates, while business rules run in the command):
+  - `.Required(message)`, `.Regex(pattern, message)`, `.RegexEach(pattern, message)`
   - `.Validate(trigger, UIComparisonOperator, value, message, severity)`
   - `.ValidateAgainst(otherInputOrId, UIComparisonOperator.Equal, message)` (cross-field validation, e.g. password confirmation)
   - `.ValidationInto(targetComponentOrId)` routes validation display to another component.

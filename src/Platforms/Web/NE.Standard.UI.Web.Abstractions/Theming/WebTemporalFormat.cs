@@ -7,35 +7,6 @@ using NE.Standard.UI.Shell.Localization;
 namespace NE.Standard.UI.Web.Abstractions.Theming;
 
 /// <summary>
-/// The locale-dependent text a formatted temporal value needs, resolved once from a
-/// <see cref="CultureInfo"/> and handed to the client alongside the value.
-/// </summary>
-/// <remarks>Text only: .NET stays the single source for month and day names, the client only assembles them.</remarks>
-public sealed record WebTemporalCulturePack(IReadOnlyList<string> MonthNames, IReadOnlyList<string> MonthGenitiveNames, IReadOnlyList<string> AbbreviatedMonthNames, IReadOnlyList<string> DayNames, IReadOnlyList<string> AbbreviatedDayNames, string AmDesignator, string PmDesignator)
-{
-    /// <summary>
-    /// Builds the pack for <paramref name="culture"/>; month arrays are trimmed to twelve, since .NET returns
-    /// thirteen for a leap-month calendar and the client indexes by month number.
-    /// </summary>
-    /// <remarks>Both month forms are carried because an inflected language needs each in a different pattern.</remarks>
-    public static WebTemporalCulturePack FromCulture(CultureInfo culture)
-    {
-        ArgumentNullException.ThrowIfNull(culture);
-
-        DateTimeFormatInfo format = culture.DateTimeFormat;
-
-        return new WebTemporalCulturePack(
-            [.. format.MonthNames[..12]],
-            [.. format.MonthGenitiveNames[..12]],
-            [.. format.AbbreviatedMonthNames[..12]],
-            [.. format.DayNames],
-            [.. format.AbbreviatedDayNames],
-            format.AMDesignator,
-            format.PMDesignator);
-    }
-}
-
-/// <summary>
 /// Formats a temporal value against the <b>documented token subset</b> shared with the TypeScript client
 /// (<c>temporal-format.ts</c>); <c>TemporalFormatSyncTests</c> keeps the two token tables in step.
 /// </summary>

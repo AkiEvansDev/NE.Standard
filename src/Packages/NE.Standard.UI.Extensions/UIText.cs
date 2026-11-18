@@ -74,13 +74,11 @@ public static class UIText
     public static ParagraphComponent Note(UIPhrase? text = null)
         => Paragraph(text).SetDescriptionType(UITextAppearance.Caption).Muted();
 
-    /// <summary>
-    /// A quote, as a messenger draws a reply or an edit: a stroke on the left in <paramref name="accent"/> (the brand where none is
-    /// given), the title a caption in that colour — who, or "Editing" — and one muted line under it, the start of the words. Both are
-    /// content, a person's name and words shown as written; a <see cref="UIPhrase.Of"/> key still translates.
-    /// <paramref name="clickCommand"/> makes the whole quote pressable (a jump to what it quotes), <paramref name="closeCommand"/> ends it
-    /// in an × (the reply dropped), its glyph on the quote's end, which hides the quote at once and runs the command beside the hide.
-    /// </summary>
+    /// <summary>Builds a left-stroked reply or edit quote surface with an accented caption title above a muted summary line.</summary>
+    /// <remarks>
+    /// Treats both lines as content (<see cref="UIPhrase.Of"/> keys still translate), wires <paramref name="clickCommand"/> onto the
+    /// surface when given, and hides the quote immediately before running <paramref name="closeCommand"/> on its dismiss button.
+    /// </remarks>
     public static SurfaceComponent Quote(UIPhrase title, UIPhrase description, UIThemeColor? accent = null, string? clickCommand = null, string? closeCommand = null)
     {
         PresetWords.Require(title);
@@ -91,11 +89,7 @@ public static class UIText
         return Quote(QuoteWords(new TextComponent().SetTitle(title).SetDescription(description).SetTitleColor(color)), clickCommand, closeCommand).SetBorderColor(color);
     }
 
-    /// <summary>
-    /// A quote round content of the author's — a paragraph, a picture and its caption, a whole message — with the same stroke, its colour
-    /// <paramref name="accent"/> or, where none is given, the neutral border colour a quotation inside text is drawn in (a reply's words
-    /// take the brand: <see cref="Quote(UIPhrase, UIPhrase, UIThemeColor?, string?, string?)"/>); pressable and closed as that one.
-    /// </summary>
+    /// <summary>Builds a left-stroked quote surface around custom <paramref name="content"/>, defaulting to the neutral border colour.</summary>
     public static SurfaceComponent Quote(IVisualComponent content, UIThemeColor? accent = null, string? clickCommand = null, string? closeCommand = null)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -176,12 +170,7 @@ public static class UIText
             .SetVerticalAlignment(UIAlignment.Center)
             .AsContent(TextComponent.TitleProperty, TextComponent.DescriptionProperty);
 
-    /// <summary>
-    /// The words quote bound to what the controller holds at <paramref name="titlePath"/> and <paramref name="descriptionPath"/> — a reply line
-    /// over a composer, a quote in a message's row — the colour at <paramref name="accentPath"/> where given, the brand while it is null.
-    /// A jump that names what it quotes takes its argument on the result: <c>.OnClick(command, arguments)</c>. The words are drawn as
-    /// written, data rather than markup.
-    /// </summary>
+    /// <summary>Builds a left-stroked quote surface whose plain content title, description and optional accent colour are bound in <paramref name="scope"/>.</summary>
     public static SurfaceComponent BoundQuote<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>> descriptionPath, UIBindingScope scope = UIBindingScope.Root, Expression<Func<TSource, object?>>? accentPath = null, string? clickCommand = null, string? closeCommand = null)
         => BoundQuote(PresetBindings.Path(titlePath), PresetBindings.Path(descriptionPath), scope, PresetBindings.PathOrNull(accentPath), clickCommand, closeCommand);
 
@@ -210,12 +199,7 @@ public static class UIText
         return quote.BindBorderColor(accentPath, scope);
     }
 
-    /// <summary>
-    /// A person as a list's row or a byline shows one: the round picture at <paramref name="avatar"/> (the person glyph where there is
-    /// none), and beside it on its middle the name in the body's role over a muted caption — a role, how long ago, the last words.
-    /// Both are content, a person's name and words as written; a <see cref="UIPhrase.Of"/> key still translates. The size is
-    /// <see cref="UISize.Medium"/> (a 40 px picture), <see cref="UISize.Small"/> (32 px) or <see cref="UISize.Large"/> (48 px).
-    /// </summary>
+    /// <summary>Builds a person row pairing a circular avatar (<c>32 / 40 / 48 px</c>) with a content name and optional muted description.</summary>
     public static ContainerComponent Person(string? avatar, UIPhrase name, UIPhrase? description = null, UISize size = UISize.Medium)
     {
         PresetWords.Require(name);
@@ -226,10 +210,7 @@ public static class UIText
         return Person(Picture(avatar), PersonWords(description is null ? words : words.SetDescription(description)), size);
     }
 
-    /// <summary>
-    /// The same beside words of the author's — a name with a badge, a line with a timestamp — standing where the name would, on the
-    /// picture's middle.
-    /// </summary>
+    /// <summary>Builds a person row pairing a circular avatar at <paramref name="avatar"/> with custom <paramref name="words"/> content.</summary>
     public static ContainerComponent Person(string? avatar, IVisualComponent words, UISize size = UISize.Medium)
     {
         ArgumentNullException.ThrowIfNull(words);
@@ -288,10 +269,7 @@ public static class UIText
             .SetDescriptionColor(UIThemeColor.Muted)
             .AsContent(TextComponent.TitleProperty, TextComponent.DescriptionProperty);
 
-    /// <summary>
-    /// The same bound to what the controller holds at <paramref name="avatarPath"/> (the person glyph where none is given or it holds
-    /// nothing), <paramref name="namePath"/> and <paramref name="descriptionPath"/> — a chat's row, a conversation's person.
-    /// </summary>
+    /// <summary>Builds a person row bound to <paramref name="avatarPath"/>, <paramref name="namePath"/> and optional <paramref name="descriptionPath"/> in <paramref name="scope"/>.</summary>
     public static ContainerComponent BoundPerson<TSource>(Expression<Func<TSource, object?>>? avatarPath, Expression<Func<TSource, object?>> namePath, Expression<Func<TSource, object?>>? descriptionPath = null, UIBindingScope scope = UIBindingScope.Root, UISize size = UISize.Medium)
         => BoundPerson(PresetBindings.PathOrNull(avatarPath), PresetBindings.Path(namePath), PresetBindings.PathOrNull(descriptionPath), scope, size);
 
@@ -367,6 +345,8 @@ public static class UIText
 
     private static BadgeComponent Badge(BadgeItem badge)
     {
+        ArgumentNullException.ThrowIfNull(badge);
+
         BadgeComponent component = new BadgeComponent()
             .SetVariant(badge.BadgeVariant)
             .SetColor(badge.BadgeColor)
@@ -384,10 +364,7 @@ public static class UIText
         return badge.BadgeTooltip is null ? component : component.SetTooltip(badge.BadgeTooltip).SetTooltipPlacement(badge.BadgeTooltipPlacement);
     }
 
-    /// <summary>
-    /// The same with the title the controller holds at <paramref name="titlePath"/>, as content — in a list's row — and the badges a
-    /// collection of <see cref="BadgeItem"/> holds at <paramref name="badgesPath"/>, kept in step as it changes.
-    /// </summary>
+    /// <summary>Builds a content title bound at <paramref name="titlePath"/> above a wrapping row of <see cref="BadgeItem"/>s bound at <paramref name="badgesPath"/>.</summary>
     public static ContainerComponent BoundWithBadges<TSource>(Expression<Func<TSource, object?>> titlePath, Expression<Func<TSource, object?>> badgesPath, UIBindingScope scope = UIBindingScope.Root, string? icon = null)
         => BoundWithBadges(PresetBindings.Path(titlePath), PresetBindings.Path(badgesPath), scope, icon);
 
@@ -415,16 +392,17 @@ public static class UIText
 
     private static BadgeComponent BoundBadge()
         => new BadgeComponent()
-            .BindVariant(nameof(BadgeItem.BadgeVariant), UIBindingScope.Relative)
-            .BindColor(nameof(BadgeItem.BadgeColor), UIBindingScope.Relative)
-            .BindFill(nameof(BadgeItem.BadgeFill), UIBindingScope.Relative)
-            .BindIcon(nameof(BadgeItem.BadgeIcon), UIBindingScope.Relative)
-            .BindIconColor(nameof(BadgeItem.BadgeIconColor), UIBindingScope.Relative)
-            .BindIconSize(nameof(BadgeItem.BadgeIconSize), UIBindingScope.Relative)
-            .BindTitle(nameof(BadgeItem.BadgeTitle), UIBindingScope.Relative)
-            .BindTitleType(nameof(BadgeItem.BadgeTitleType), UIBindingScope.Relative)
-            .BindTooltip(nameof(BadgeItem.BadgeTooltip), UIBindingScope.Relative)
-            .BindTooltipPlacement(nameof(BadgeItem.BadgeTooltipPlacement), UIBindingScope.Relative);
+            .BindItemState()
+            .BindVariant(nameof(BadgeItem.BadgeVariant), UIBindingScope.Relative, optional: true)
+            .BindColor(nameof(BadgeItem.BadgeColor), UIBindingScope.Relative, optional: true)
+            .BindFill(nameof(BadgeItem.BadgeFill), UIBindingScope.Relative, optional: true)
+            .BindIcon(nameof(BadgeItem.BadgeIcon), UIBindingScope.Relative, optional: true)
+            .BindIconColor(nameof(BadgeItem.BadgeIconColor), UIBindingScope.Relative, optional: true)
+            .BindIconSize(nameof(BadgeItem.BadgeIconSize), UIBindingScope.Relative, optional: true)
+            .BindTitle(nameof(BadgeItem.BadgeTitle), UIBindingScope.Relative, optional: true)
+            .BindTitleType(nameof(BadgeItem.BadgeTitleType), UIBindingScope.Relative, optional: true)
+            .BindTooltip(nameof(BadgeItem.BadgeTooltip), UIBindingScope.Relative, optional: true)
+            .BindTooltipPlacement(nameof(BadgeItem.BadgeTooltipPlacement), UIBindingScope.Relative, optional: true);
 
     // Words left out are bound after; null is the one spelling of that, so blank words are refused.
     private static TextComponent Create(UIPhrase? title, UIPhrase? description)

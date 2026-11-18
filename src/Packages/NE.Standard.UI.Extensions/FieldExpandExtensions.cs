@@ -1,5 +1,4 @@
 using System;
-using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 
 namespace NE.Standard.UI.Extensions;
@@ -20,11 +19,6 @@ public static class FieldExpandExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        UILayoutLength surface = UILayoutLength.Absolute(UIPage.Pixels(width) + DialogHorizontalChrome);
-        UIResponsive<UILayoutLength> responsive = width == UIColumnWidth.Wide
-            ? UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), xl: surface)
-            : UIResponsive<UILayoutLength>.Create(UILayoutLength.Fill(), md: surface);
-
-        return builder.SetWidth(responsive);
+        return builder.SetWidth(UIDialogs.ColumnContentWidth(width, DialogHorizontalChrome));
     }
 }

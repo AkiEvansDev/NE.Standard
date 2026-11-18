@@ -5,7 +5,7 @@ namespace DemoApp.Views.Screens;
 
 /// <summary>
 /// An editor of the operator's files: the folders as a tree, the files open in a strip of tabs over the text, and a status line —
-/// beside the tree from the medium width, in its place on a phone once a file is pressed (<see cref="UILayout.Panes"/>). The
+/// beside the tree from the medium width, in its place on a phone once a file is pressed (<see cref="UILayout.Panes(IVisualComponent, IVisualComponent, string, IVisualComponent?, bool, bool)"/>). The
 /// strip is an items view, so every gesture on it — open, close, rename, pin, drag — is a change to one document the controller sees
 /// and may refuse.
 /// </summary>

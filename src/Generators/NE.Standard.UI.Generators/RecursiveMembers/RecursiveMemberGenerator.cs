@@ -228,7 +228,25 @@ public sealed class RecursiveMemberGenerator : IIncrementalGenerator
         if (model.GetterAccessibility.Length != 0)
             _ = builder.Append(model.GetterAccessibility).Append(' ');
 
-        _ = builder.AppendLine("get => field;");
+        if (!model.IsFieldBacked && model.CanHoldRecursiveObservable)
+        {
+            _ = builder
+                .AppendLine("get")
+                .AppendLine("        {")
+                .Append("            if (field is ")
+                .Append(RecursiveMemberNames.RecursiveObservableTypeName)
+                .AppendLine(" __recursiveChild)")
+                .Append("                AttachChild(")
+                .Append(segmentFieldName)
+                .AppendLine(", __recursiveChild, null);")
+                .AppendLine()
+                .AppendLine("            return field;")
+                .AppendLine("        }");
+        }
+        else
+        {
+            _ = builder.AppendLine("get => field;");
+        }
 
         _ = builder.Append("        ");
 

@@ -36,10 +36,12 @@ public sealed class UINotificationAction
     }
 
     [JsonConstructor]
-    private UINotificationAction(UIPhrase title, string id, UIButtonVariant variant = UIButtonVariant.Surface)
+    private UINotificationAction(UIPhrase title, string? id = null, UIButtonVariant variant = UIButtonVariant.Surface)
     {
         ArgumentNullException.ThrowIfNull(title);
-        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+
+        if (id is not null)
+            ArgumentException.ThrowIfNullOrWhiteSpace(id);
 
         Title = title;
         Command = string.Empty;

@@ -10,8 +10,8 @@ Always use a preset before assembling raw containers, margins, or font sizes by 
 
 | Preset Class | Key Methods & Purpose |
 | --- | --- |
-| `UIPage` | `Header`, `BoundHeader`, `Section`/`BoundSection`, `Heading`/`BoundHeading`, `Fold`/`BoundFold`, `Labelled`/`BoundLabelled`, `Band`, `Column(UIColumnWidth.Reading \| Form \| Wide)`, `Banner`, `Empty`/`BoundEmpty`, `Outcome`/`BoundOutcome`, `Status`/`BoundStatus` |
-| `UILayout` | `Stack`, `Row` (auto-aligns button/control boxes with titled field boxes), `Columns`, `Split`, `Sidebar`, `Board`, `Ends` (start + trailing controls; icon-only trailing buttons use 4 px spacing), `Panes` (master/detail responsive layout bound to `UIPanesState`) |
+| `UIPage` | `Header`, `BoundHeader`, `Drawer`/`BoundDrawer` (full-height side-drawer panel with fixed header, pin/close actions, scrolling body, and optional footer), `Section`/`BoundSection`, `Heading`/`BoundHeading`, `Fold`/`BoundFold`, `Labelled`/`BoundLabelled`, `Band`, `Column(UIColumnWidth.Reading \| Form \| Wide)`, `Banner`, `Empty`/`BoundEmpty`, `Outcome`/`BoundOutcome`, `Status`/`BoundStatus` |
+| `UILayout` | `Stack`, `Row` (auto-aligns button/control boxes with titled field boxes), `Columns`, `Split`, `Sidebar`, `Board`, `Ends` (start + trailing controls; icon-only trailing buttons use 4 px spacing), `Panes` (master/detail layout bound to `UIPanesState`; pass `stacked: true` on `UILayout.Panes` and `new UIPanesState(stacked: true)` to switch in a single column at every breakpoint) |
 | `UIButtons` | `Primary`, `Accent`, `Danger`, `Ghost`, `Outline`, `Link`, `Icon`, `Pair` (primary + cancel), `Toolbar` |
 | `UIIconButtons` / `UIMenuItems` | `Add`, `Attach`, `Back`, `Cancel`, `Close`, `Copy`, `Delete`, `Done`, `Download`, `Duplicate`, `Edit`, `Filter`, `Menu`, `More`, `New`, `Open`, `Pin`, `Redo`, `Refresh`, `Remove`, `Rename`, `Save`, `Search`, `Send`, `Settings`, `Share`, `SignOut`, `Stop`, `Undo`, `Unpin`, `Upload` |
 | `UIText` | `Display`, `Title`, `Subtitle`, `Body`, `Caption`, `Label`, `Note`, `Paragraph`, `Editable`, `Quote`/`BoundQuote`, `Person`/`BoundPerson`, `WithBadges`/`BoundWithBadges`, plus `AsDisplay`/`AsTitle`/`AsSubtitle`/`AsBody`/`AsCaption`/`AsOverline`/`Muted`/`Editable` |
@@ -28,7 +28,7 @@ Always use a preset before assembling raw containers, margins, or font sizes by 
 
 Interactions execute in the browser without a server round-trip:
 - **Call on the target, pass the source**:
-  `targetButton.EnabledWhen(sourceInput, UIComparisonOperator.Required)` or `targetPanel.ShownWhen(toggleSwitch, true)` or `targetButton.DisabledWhen(sourceInput, UIComparisonOperator.Equal, "locked")`.
+  `targetButton.EnabledWhen(sourceInput)` or `targetPanel.ShownWhen(toggleSwitch, true)` or `targetButton.DisabledWhen(sourceInput, "locked")`.
 - General property rule:
   `target.Interact(sourceComponentOrId, sourceProp, targetProp, UIComparisonOperator.Equal, compareValue, whenTrue, whenFalse)`.
 - Live value mirror: `target.InteractCopyValue(sourceComponentOrId, targetProp)`.
@@ -43,9 +43,9 @@ Interactions execute in the browser without a server round-trip:
 
 ## Client Effects (`ClientEffect`)
 
-Returned from `[UICommand]` via `UICommandResult.Ok(effect)` or triggered from interactions (`CanRunInInteraction`):
-- Navigation & URL: `NavigateEffect(url)`, `NavigateBackEffect(fallbackUrl)`, `ReplaceAddressEffect(url)`, `PushAddressEffect(url)`, `ConfirmLeaveEffect(enabled)`.
+Returned from `[UICommand]` via `UICommandResult.Ok([effect])` or triggered from interactions (`CanRunInInteraction`):
+- Navigation & URL: `NavigateEffect(url)`, `NavigateBackEffect(fallbackUrl)`, `ReplaceAddressEffect(parameters)`, `PushAddressEffect(parameters)`, `ConfirmLeaveEffect(target)`.
 - Focus & Scroll: `FocusEffect(target)`, `ScrollToEffect(target)`, `ScrollEffect(target, position)`, `ScrollToItemEffect(list, itemKey)`.
 - Dialogs & Toasts: `OpenDialogEffect(key)`, `CloseDialogEffect(key)`, `ShowNotificationEffect(message, style)`, `ShowSystemNotificationEffect(title, body)`, `RequestNotificationPermissionEffect()`.
-- Editing & Clipboard: `CopyToClipboardEffect.Text(str)` / `CopyToClipboardEffect.ValueOf(target)`, `InsertTextEffect.Literal(target, text)` / `InsertTextEffect.CurrentItemKey(target)` / `InsertTextEffect.CurrentItemValue(target)`, `RenameItemEffect(target)` / `RenameItemEffect(target, itemKey)` (requires writable `.BindRenamedTitle(...)` on target/host), `DiscardFormEffect(formId)`, `OpenPickerEffect(fileInput)`, `ExpandFieldEffect(target)` (opens a `SetExpandable` text area's or code editor's modal dialog), `ShowImageEffect(url)`.
-- Session & Theme: `SetThemeEffect(mode)`, `SetThemeColorsEffect(primary, accent)`, `SetLanguageEffect(lang)`, `DownloadFileEffect(url, fileName)`, `AnnounceEffect(message)`.
+- Editing & Clipboard: `CopyToClipboardEffect.Literal(str)` / `CopyToClipboardEffect.ValueOf(target)`, `InsertTextEffect.Literal(target, text)` / `InsertTextEffect.CurrentItemKey(target)` / `InsertTextEffect.CurrentItemValue(target)`, `RenameItemEffect(target)` / `RenameItemEffect(target, itemKey)` (requires writable `.BindRenamedTitle(...)` on target/host), `DiscardFormEffect(formId)`, `OpenPickerEffect(fileInput)`, `ExpandFieldEffect(target)` (opens a `SetExpandable` text area's or code editor's modal dialog), `ShowImageEffect(url)`.
+- Session & Theme: `SetThemeEffect(mode)`, `SetThemeColorsEffect(UIThemeColors.Create(primary, accent))`, `SetLanguageEffect(lang)`, `DownloadFileEffect(url, fileName)`, `AnnounceEffect(message)`.

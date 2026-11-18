@@ -32,10 +32,15 @@ internal static class ComponentIdGenerator
     }
 }
 
+internal interface IComponentBindingTarget
+{
+    void RemoveNonOptionalBinding(UIProperty target);
+}
+
 /// <summary>
 /// Base class for visual components with layout, binding, interaction, and event authoring support.
 /// </summary>
-public abstract partial class VisualComponentBase<TComponent>(string? id = null) : IVisualComponent, IDialogOwnerComponent, IPropertyBindingComponent, ITemplateEventTarget
+public abstract partial class VisualComponentBase<TComponent>(string? id = null) : IVisualComponent, IDialogOwnerComponent, IPropertyBindingComponent, ITemplateEventTarget, IComponentBindingTarget
     where TComponent : VisualComponentBase<TComponent>, IUIComponentDefinition
 {
     private readonly Dictionary<UIProperty, int> _bindingIndexes = [];
@@ -317,12 +322,25 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
         return Self;
     }
 
+    /// <summary>Attempts to get an authored property binding targeting <paramref name="property"/>.</summary>
+    public bool TryGetBinding(UIProperty property, out UIBinding binding)
+    {
+        if (_bindingIndexes.TryGetValue(property, out var index))
+        {
+            binding = _bindings[index];
+            return true;
+        }
+
+        binding = default;
+        return false;
+    }
+
     /// <summary>Gets whether <paramref name="property"/> has an authored property binding on this component.</summary>
-    protected bool HasBinding(UIProperty property)
+    public bool HasBinding(UIProperty property)
         => _bindingIndexes.ContainsKey(property);
 
     /// <summary>Gets whether <paramref name="property"/> has a non-optional authored property binding on this component.</summary>
-    protected bool HasNonOptionalBinding(UIProperty property)
+    public bool HasNonOptionalBinding(UIProperty property)
         => _bindingIndexes.TryGetValue(property, out var index) && !_bindings[index].Optional;
 
     private UIPropertyDefinition GetBindableDefinition(UIProperty property)
@@ -491,6 +509,10 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     protected virtual Action? SnapshotAuthoredState()
         => null;
 
+    /// <summary>Snapshots a child or region component's full state before ancestor <c>SetDefaults</c> rules run and returns a callback that restores it after.</summary>
+    protected static Action? SnapshotChildComponentState(IVisualComponent? component)
+        => (component as ITemplateEventTarget)?.SnapshotComponentState();
+
     private void RestoreComponentState(ReadOnlySpan<UIPropertyDefinition> definitions, in CapturedComponentState captured)
     {
         for (var i = 0; i < definitions.Length; i++)
@@ -575,6 +597,9 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
 
         return false;
     }
+
+    void IComponentBindingTarget.RemoveNonOptionalBinding(UIProperty target)
+        => RemoveNonOptionalBinding(target);
 
     /// <summary>Removes any non-optional authored property binding targeting <paramref name="target"/>.</summary>
     protected void RemoveNonOptionalBinding(UIProperty target)
@@ -1133,6 +1158,27 @@ public abstract partial class VisualComponentBase<TComponent>(string? id = null)
     /// </summary>
     public TComponent OnDropLiteral(string kind, string command, params KeyValuePair<string, object?>[] arguments)
         => OnDrop(kind, command, UIActionArgument.Literals(arguments));
+
+    /// <summary>
+    /// Registers a command invoked when the side drawer rooted at this component is opened.
+    /// </summary>
+    /// <remarks>Refused when the view compiles unless this component is the root of a side region that can open as a drawer.</remarks>
+    public TComponent OnDrawerOpen(string command)
+        => On(EventNames.Open, command);
+
+    /// <summary>
+    /// Registers a command with action arguments invoked when the side drawer rooted at this component is opened.
+    /// </summary>
+    /// <remarks>Refused when the view compiles unless this component is the root of a side region that can open as a drawer.</remarks>
+    public TComponent OnDrawerOpen(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => On(EventNames.Open, command, arguments);
+
+    /// <summary>
+    /// Registers a command with literal arguments invoked when the side drawer rooted at this component is opened.
+    /// </summary>
+    /// <remarks>Refused when the view compiles unless this component is the root of a side region that can open as a drawer.</remarks>
+    public TComponent OnDrawerOpenLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnLiteral(EventNames.Open, command, arguments);
 
     /// <summary>
     /// Registers or replaces an event command with literal action arguments.

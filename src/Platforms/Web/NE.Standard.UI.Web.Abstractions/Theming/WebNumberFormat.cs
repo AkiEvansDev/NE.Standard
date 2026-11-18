@@ -1,73 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Web.Abstractions.Theming;
-
-/// <summary>
-/// Locale-dependent number-formatting text (separators, group sizes, currency/percent symbols) resolved once from a
-/// <see cref="CultureInfo"/> and sent to the client as <c>data-ui-number-culture</c>. .NET stays the single source of the values.
-/// </summary>
-public sealed record WebNumberCulturePack(string DecimalSeparator, string GroupSeparator, IReadOnlyList<int> GroupSizes, string NegativeSign, int NegativePattern, int DecimalDigits, string CurrencySymbol, string CurrencyDecimalSeparator, string CurrencyGroupSeparator, IReadOnlyList<int> CurrencyGroupSizes, int CurrencyDecimalDigits, int CurrencyPositivePattern, int CurrencyNegativePattern, string PercentSymbol, string PercentDecimalSeparator, string PercentGroupSeparator, IReadOnlyList<int> PercentGroupSizes, int PercentDecimalDigits, int PercentPositivePattern, int PercentNegativePattern)
-{
-    public static WebNumberCulturePack FromCulture(CultureInfo culture)
-    {
-        ArgumentNullException.ThrowIfNull(culture);
-
-        NumberFormatInfo info = culture.NumberFormat;
-
-        return new WebNumberCulturePack(
-            info.NumberDecimalSeparator,
-            info.NumberGroupSeparator,
-            [.. info.NumberGroupSizes],
-            info.NegativeSign,
-            info.NumberNegativePattern,
-            info.NumberDecimalDigits,
-            info.CurrencySymbol,
-            info.CurrencyDecimalSeparator,
-            info.CurrencyGroupSeparator,
-            [.. info.CurrencyGroupSizes],
-            info.CurrencyDecimalDigits,
-            info.CurrencyPositivePattern,
-            info.CurrencyNegativePattern,
-            info.PercentSymbol,
-            info.PercentDecimalSeparator,
-            info.PercentGroupSeparator,
-            [.. info.PercentGroupSizes],
-            info.PercentDecimalDigits,
-            info.PercentPositivePattern,
-            info.PercentNegativePattern);
-    }
-
-    /// <summary>The pack as .NET reads it back, so a value formats on the server exactly as the culture it came from would.</summary>
-    public NumberFormatInfo ToNumberFormatInfo()
-        => new()
-        {
-            NumberDecimalSeparator = DecimalSeparator,
-            NumberGroupSeparator = GroupSeparator,
-            NumberGroupSizes = [.. GroupSizes],
-            NegativeSign = NegativeSign,
-            NumberNegativePattern = NegativePattern,
-            NumberDecimalDigits = DecimalDigits,
-            CurrencySymbol = CurrencySymbol,
-            CurrencyDecimalSeparator = CurrencyDecimalSeparator,
-            CurrencyGroupSeparator = CurrencyGroupSeparator,
-            CurrencyGroupSizes = [.. CurrencyGroupSizes],
-            CurrencyDecimalDigits = CurrencyDecimalDigits,
-            CurrencyPositivePattern = CurrencyPositivePattern,
-            CurrencyNegativePattern = CurrencyNegativePattern,
-            PercentSymbol = PercentSymbol,
-            PercentDecimalSeparator = PercentDecimalSeparator,
-            PercentGroupSeparator = PercentGroupSeparator,
-            PercentGroupSizes = [.. PercentGroupSizes],
-            PercentDecimalDigits = PercentDecimalDigits,
-            PercentPositivePattern = PercentPositivePattern,
-            PercentNegativePattern = PercentNegativePattern
-        };
-}
 
 /// <summary>
 /// Formats a number against the format subset shared with the TypeScript client (<c>number-format.ts</c>): <c>N</c>, <c>F</c>,

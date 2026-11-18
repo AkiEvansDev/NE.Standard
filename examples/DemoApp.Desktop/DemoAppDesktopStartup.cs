@@ -1,4 +1,5 @@
 using System;
+using DemoApp.Web;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DemoApp.Desktop;
@@ -14,12 +15,5 @@ internal sealed class DemoAppDesktopStartup : DesktopStartupBase<DemoAppStartup>
     }
 
     protected override void ConfigureServices(IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        _ = services.AddStandardRenderers();
-        _ = services.AddCodeInput();
-        _ = services.AddSystemNotifications();
-        _ = services.AddMaterialWebIcons(MaterialIconStyle.Fill | MaterialIconStyle.Outlined, DemoIcons.All());
-    }
+        => DemoAppWebServices.Register(services);
 }

@@ -199,7 +199,17 @@ const BuiltInValueReaders: readonly ValueReaderRegistration[] = [
 /** The list itself, not its text: the engine keeps it serialized only because an attribute is text. */
 function readJsonAttribute(element: Element, name: string): unknown {
     const text = element.getAttribute(name);
-    return text === null ? null : JSON.parse(text) as unknown;
+
+    if (text === null || text.length === 0)
+        return null;
+
+    try {
+        return JSON.parse(text) as unknown;
+    }
+    catch {
+        logWarn("value reader: attribute is not valid JSON.", { name });
+        return null;
+    }
 }
 
 export function clearElementValue(element: Element): void {

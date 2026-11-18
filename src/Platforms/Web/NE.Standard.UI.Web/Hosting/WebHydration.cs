@@ -4,9 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NE.Standard.UI.Shell.Hosting;
-using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
-using NE.Standard.UI.Shell.Updates.Server;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Hosting;
@@ -51,64 +49,18 @@ internal sealed class WebHydration
         ArgumentNullException.ThrowIfNull(render);
         ArgumentNullException.ThrowIfNull(words);
 
-        // A page with no controller is finished the moment it is rendered: nothing to fill in, only its words to tell the client.
         if (!resolution.HasController)
             return new WebHydration(JsonSerializer.SerializeToUtf8Bytes(new { words = words.Table, title = words.Title }, WebWireJson.Options), null);
 
-        IUIRuntime? existing = host.TryGetRenderRuntime(resolution);
-
-        if (existing is null)
-            return await PrepareNewAsync(host, resolution, render, words, cancellationToken).ConfigureAwait(false);
-
-        // A runtime kept while its session moved to another language or theme hears it first, so the paint is not its old text.
-        await host.HearBeforeRenderAsync(existing, resolution, cancellationToken).ConfigureAwait(false);
-
-        return await ReadAsync(existing, pageId: null, resolution, render, words, signedInKey: null, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task<WebHydration> PrepareNewAsync(IUIHost host, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, CancellationToken cancellationToken)
-    {
-        var pageId = Guid.NewGuid().ToString("N");
-
-        UIInstance instance = new()
-        {
-            Id = pageId,
-            WindowId = pageId,
-            Navigation = resolution.Navigation,
-            PageId = pageId
-        };
-
-        RuntimeResolution runtime = await host.AttachRuntimeAsync(resolution, instance, cancellationToken).ConfigureAwait(false);
-
-        try
-        {
-            UISessionSecret? signedInKey = host.TakeRenderKey(runtime.Handle);
-
-            return await ReadAsync(runtime.Runtime, pageId, resolution, render, words, signedInKey, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            // Released whatever happened: the render only authors this runtime; disconnected retention keeps it alive for the client.
-            _ = host.DetachRuntime(runtime.Handle);
-        }
-    }
-
-    private static async Task<WebHydration> ReadAsync(IUIRuntime? runtime, string? pageId, UIViewResolution resolution, WebCachedViewRender render, WebPageWords words, UISessionSecret? signedInKey, CancellationToken cancellationToken)
-    {
-        UIRenderSnapshot snapshot = await WebInitialChanges
-            .BuildAsync(runtime, pageId, render.InitBindingIds ?? [], cancellationToken)
+        ServerPreparedSnapshot snapshot = await ServerEndpointCore
+            .PrepareSnapshotAsync(host, resolution, render.InitBindingIds ?? [], cancellationToken)
             .ConfigureAwait(false);
-
-        ServerChangeSet changes = snapshot.Changes;
         var view = resolution.View.Fingerprint;
 
-        // `view` is the compile's fingerprint: the attach presents it, and a page of another compile is reloaded rather than attached.
-        // `sequence` is where the runtime the render prepared stood: the page's first attach presents it and is sent only what came after.
-        // `identity` names the parameters the route keys its runtimes by: an address differing in one goes to another runtime in place.
         return new WebHydration(
-            JsonSerializer.SerializeToUtf8Bytes(new { pageId, view, sequence = snapshot.Sequence, identity = resolution.Route.IdentityParameters, changes, words = words.Table, title = words.Title }, WebWireJson.Options),
-            WebRenderValues.Create(changes),
-            signedInKey
+            JsonSerializer.SerializeToUtf8Bytes(new { pageId = snapshot.PageId, view, sequence = snapshot.Sequence, identity = resolution.Route.IdentityParameters, changes = snapshot.Changes, words = words.Table, title = words.Title }, WebWireJson.Options),
+            WebRenderValues.Create(snapshot.Changes),
+            snapshot.SignedInKey
         );
     }
 }

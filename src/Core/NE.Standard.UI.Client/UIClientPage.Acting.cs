@@ -40,7 +40,14 @@ internal sealed record UIClientWrite(UIPropertyAddress Address, object? Value);
 internal sealed record UIClientReaction(UIComponentId? DialogClosed = null, ClientEffect? Setting = null, IReadOnlyDictionary<string, object?>? NavigateInPlace = null, bool HasNavigateInPlace = false, UINavigationRequest? FallbackOrigin = null, IReadOnlyList<UIClientWrite>? DeferredWrites = null);
 
 /// <summary>The server's refusal of a field's value, shown until a value it takes replaces it or the controller gives that property again.</summary>
-internal sealed record UIClientRefusal(UIPhrase Message, UIValidationSeverity Severity, UIProperty Property);
+internal sealed record UIClientRefusal(UIPhrase Message, UIValidationSeverity Severity, UIProperty Property, bool Content = false);
+
+internal sealed class PendingClientCommand
+{
+    public TaskCompletionSource<UICommandExecutionResult> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public List<ClientEffect> DirectEffects { get; } = [];
+}
 
 /// <summary>
 /// What the page knows of one field: the rules it fails, whether the reader has been in it, the server's refusal, and the page's own
@@ -521,6 +528,7 @@ public sealed partial class UIClientPage
         CompiledUIBinding? binding = BindingOf(valueTargetId, IRenamableComponent.RenamedTitleProperty);
         List<UIClientWrite> writes = [];
         var hadExplicitTitle = false;
+        var hadContentTitle = false;
         object? explicitTitle = null;
         var unchanged = false;
         int mark;
@@ -532,8 +540,12 @@ public sealed partial class UIClientPage
             _ = _openedRenames.Remove(valueComponent);
 
             var currentShown = titleAddress is UIPropertyAddress currentTitleAddress
-                ? Words(ReadNoLock(currentTitleAddress.Component.Id, rowKeys, ITextBaseComponent.TitleProperty))?.Trim()
-                : Words(ReadNoLock(valueTargetId, rowKeys, IRenamableComponent.RenamedTitleProperty))?.Trim();
+                ? ReadWithTranslatableNoLock(currentTitleAddress.Component.Id, rowKeys, ITextBaseComponent.TitleProperty) is var (titleRaw, titleTr)
+                    ? Words(titleRaw, titleTr)?.Trim()
+                    : null
+                : ReadWithTranslatableNoLock(valueTargetId, rowKeys, IRenamableComponent.RenamedTitleProperty) is var (renamedRaw, renamedTr)
+                    ? Words(renamedRaw, renamedTr)?.Trim()
+                    : null;
 
             if (string.Equals(trimmed, currentShown, StringComparison.Ordinal))
             {
@@ -542,7 +554,10 @@ public sealed partial class UIClientPage
             else
             {
                 if (titleAddress is UIPropertyAddress knownTitle)
+                {
                     hadExplicitTitle = _values.TryGetValue(knownTitle, out explicitTitle);
+                    hadContentTitle = _contentValues.Contains(knownTitle);
+                }
 
                 if (binding is { Mode: UIBindingMode.OnSubmit } && !_held.ContainsKey(renamedAddress))
                     _serverValues[renamedAddress] = ReadNoLock(valueTargetId, rowKeys, IRenamableComponent.RenamedTitleProperty);
@@ -552,6 +567,7 @@ public sealed partial class UIClientPage
                 if (titleAddress is UIPropertyAddress targetTitle)
                 {
                     SetValueEntryNoLock(targetTitle, trimmed);
+                    _ = _contentValues.Add(targetTitle);
                     _ = _changedProperties.Add(targetTitle);
                 }
 
@@ -581,9 +597,17 @@ public sealed partial class UIClientPage
             if (refused && titleAddress is UIPropertyAddress revertTitle && _values.TryGetValue(revertTitle, out var currentTitle) && Equals(currentTitle, trimmed))
             {
                 if (hadExplicitTitle)
+                {
                     SetValueEntryNoLock(revertTitle, explicitTitle);
+                    if (hadContentTitle)
+                        _ = _contentValues.Add(revertTitle);
+                    else
+                        _ = _contentValues.Remove(revertTitle);
+                }
                 else
+                {
                     _ = RemoveValueEntryNoLock(revertTitle);
+                }
 
                 _ = _changedProperties.Add(revertTitle);
             }
@@ -836,47 +860,74 @@ public sealed partial class UIClientPage
     private async Task<UIClientCommandResult> SendCommandAsync(UICommandRequest request, UIComponentAddress? source, string? eventName, CancellationToken cancellationToken)
     {
         List<UIClientWrite> writes = [];
+        var requestId = Interlocked.Increment(ref _nextRequestId);
+        UICommandRequest trackedRequest = new()
+        {
+            EventId = request.EventId,
+            Action = request.Action,
+            DynamicParameters = request.DynamicParameters,
+            RequestId = requestId
+        };
+        PendingClientCommand pending = new();
         int mark;
 
         lock (_sync)
         {
             mark = _effects.Count;
+            _pendingCommands[requestId] = pending;
 
             if (source is UIComponentAddress before)
-                RunEventInteractionsNoLock(before, EventNames.BeforePrefix + eventName, writes);
+                RunEventInteractionsNoLock(before, EventNames.BeforePrefix + eventName, writes, pending.DirectEffects);
         }
 
-        await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            lock (_sync)
+                _ = _pendingCommands.Remove(requestId);
+            throw;
+        }
 
         UICommandExecutionResult result;
 
         try
         {
-            result = await Transport.ProcessEventAsync(request, cancellationToken).ConfigureAwait(false);
+            result = await Transport.ProcessEventAsync(trackedRequest, cancellationToken).ConfigureAwait(false);
         }
         catch
         {
-            writes.Clear();
+            await CleanupFailedCommandAsync(requestId, source, eventName, writes, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
 
+        var detached = result.Accepted;
+        if (detached)
+        {
             lock (_sync)
             {
-                if (source is UIComponentAddress failedAfter)
-                    RunEventInteractionsNoLock(failedAfter, EventNames.AfterPrefix + eventName, writes);
-            }
-
-            if (writes.Count > 0 && !cancellationToken.IsCancellationRequested)
-            {
-                try
-                {
-                    await SendValuesAsync(writes, CancellationToken.None).ConfigureAwait(false);
-                }
-                catch
-                {
-                }
+                ApplyNoLock(result.Changes.For(Transport.InstanceId));
+                ApplyEffectsNoLock(result.Command.Effects, collector: pending.DirectEffects);
             }
 
             NotifyIfChanged();
-            throw;
+
+            try
+            {
+                result = await pending.Completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                await CleanupFailedCommandAsync(requestId, source, eventName, writes, cancellationToken).ConfigureAwait(false);
+                throw;
+            }
+        }
+        else
+        {
+            lock (_sync)
+                _ = _pendingCommands.Remove(requestId);
         }
 
         writes.Clear();
@@ -884,10 +935,10 @@ public sealed partial class UIClientPage
         lock (_sync)
         {
             ApplyNoLock(result.Changes.For(Transport.InstanceId));
-            ApplyEffectsNoLock(result.Command.Effects);
+            ApplyEffectsNoLock(result.Command.Effects, collector: pending.DirectEffects);
 
             if (source is UIComponentAddress after)
-                RunEventInteractionsNoLock(after, EventNames.AfterPrefix + eventName, writes);
+                RunEventInteractionsNoLock(after, EventNames.AfterPrefix + eventName, writes, pending.DirectEffects);
         }
 
         await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
@@ -895,7 +946,34 @@ public sealed partial class UIClientPage
         await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
         NotifyIfChanged();
 
-        return UIClientCommandResult.Answered(result.Command.Success, result.Command.Error, EffectsSince(mark));
+        return UIClientCommandResult.Answered(result.Command.Success, result.Command.Error, detached ? [.. pending.DirectEffects] : EffectsSince(mark));
+    }
+
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Best-effort after-interaction write flush must not mask the original command exception.")]
+    private async Task CleanupFailedCommandAsync(int requestId, UIComponentAddress? source, string? eventName, List<UIClientWrite> writes, CancellationToken cancellationToken)
+    {
+        writes.Clear();
+
+        lock (_sync)
+        {
+            _ = _pendingCommands.Remove(requestId);
+
+            if (source is UIComponentAddress failedAfter)
+                RunEventInteractionsNoLock(failedAfter, EventNames.AfterPrefix + eventName, writes);
+        }
+
+        if (writes.Count > 0 && !cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                await SendValuesAsync(writes, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+            }
+        }
+
+        NotifyIfChanged();
     }
 
     /// <summary>
@@ -1076,12 +1154,12 @@ public sealed partial class UIClientPage
             ApplyInteractionNoLock(interaction, address.Component.DynamicParameters, local, value, depth, writes);
     }
 
-    private void RunEventInteractionsNoLock(UIComponentAddress source, string eventName, List<UIClientWrite> writes)
+    private void RunEventInteractionsNoLock(UIComponentAddress source, string eventName, List<UIClientWrite> writes, List<ClientEffect>? collector = null)
     {
         foreach (CompiledUIInteraction interaction in View.Interactions.GetBySource(new CompiledUIEventAddress(source.Id, eventName)))
         {
             if (IsRowsOwn(interaction, source.DynamicParameters))
-                ApplyInteractionNoLock(interaction, source.DynamicParameters, local: true, sourceValue: true, depth: 0, writes);
+                ApplyInteractionNoLock(interaction, source.DynamicParameters, local: true, sourceValue: true, depth: 0, writes, collector);
         }
     }
 
@@ -1098,7 +1176,7 @@ public sealed partial class UIClientPage
     }
 
     /// <summary>An interaction as the client runs it: its effect while the condition holds, else the value it writes to its target.</summary>
-    private void ApplyInteractionNoLock(CompiledUIInteraction interaction, object?[] rowKeys, bool local, object? sourceValue, int depth, List<UIClientWrite> writes)
+    private void ApplyInteractionNoLock(CompiledUIInteraction interaction, object?[] rowKeys, bool local, object? sourceValue, int depth, List<UIClientWrite> writes, List<ClientEffect>? collector = null)
     {
         var matches = UIComparisonEvaluator.Evaluate(sourceValue, interaction.Operator, interaction.Value);
 
@@ -1108,7 +1186,7 @@ public sealed partial class UIClientPage
             {
                 UIComponentId? sourceId = interaction.Source?.Component.Id ?? interaction.SourceEvent?.ComponentId;
                 UIComponentAddress? sourceAddress = sourceId is UIComponentId id ? new UIComponentAddress(id, rowKeys) : null;
-                ApplyEffectsNoLock([effect], sourceAddress, depth, writes);
+                ApplyEffectsNoLock([effect], sourceAddress, depth, writes, collector);
             }
 
             return;
@@ -1214,25 +1292,28 @@ public sealed partial class UIClientPage
     /// The strongest message a field shows: the page's refusal of a value past its bounds, the server's refusal, the controller's bound
     /// message, or a failing rule's once the reader has been in the field — the graver first, the first of equals.
     /// </summary>
-    internal (UIPhrase Message, UIValidationSeverity Severity)? Message(UIComponentId componentId, object?[] rowKeys)
+    internal (UIPhrase Message, UIValidationSeverity Severity, bool Content)? Message(UIComponentId componentId, object?[] rowKeys)
     {
         lock (_sync)
             return MessageNoLock(new UIComponentAddress(componentId, rowKeys));
     }
 
-    private (UIPhrase Message, UIValidationSeverity Severity)? MessageNoLock(UIComponentAddress component)
+    private (UIPhrase Message, UIValidationSeverity Severity, bool Content)? MessageNoLock(UIComponentAddress component)
     {
         UIClientField field = FieldNoLock(component);
-        (UIPhrase Message, UIValidationSeverity Severity)? strongest = null;
+        (UIPhrase Message, UIValidationSeverity Severity, bool Content)? strongest = null;
 
         if (field.BoundRefusal is { } outOfBounds)
-            strongest = (outOfBounds, UIValidationSeverity.Error);
+            strongest = (outOfBounds, UIValidationSeverity.Error, false);
 
         if (field.Refusal is { } refusal && Graver(refusal.Severity, strongest))
-            strongest = (refusal.Message, refusal.Severity);
+            strongest = (refusal.Message, refusal.Severity, refusal.Content);
 
         if (ReadNoLock(component.Id, component.DynamicParameters, IInputComponent.ValidationProperty) is UIValidationMessage bound && Graver(bound.Severity, strongest))
-            strongest = (bound.Message, bound.Severity);
+        {
+            var boundContent = _contentValues.Contains(new UIPropertyAddress(component, IInputComponent.ValidationProperty));
+            strongest = (bound.Message, bound.Severity, boundContent);
+        }
 
         if (!field.Touched)
             return strongest;
@@ -1240,13 +1321,13 @@ public sealed partial class UIClientPage
         foreach (CompiledUIValidationRule rule in View.Validations.GetByComponent(component.Id))
         {
             if (field.Failing.Contains(rule) && Graver(rule.Severity, strongest))
-                strongest = (rule.Message, rule.Severity);
+                strongest = (rule.Message, rule.Severity, false);
         }
 
         return strongest;
     }
 
-    private static bool Graver(UIValidationSeverity severity, (UIPhrase Message, UIValidationSeverity Severity)? than)
+    private static bool Graver(UIValidationSeverity severity, (UIPhrase Message, UIValidationSeverity Severity, bool Content)? than)
         => than is null || severity < than.Value.Severity;
 
     /// <summary>Writes active validation messages of fields using <c>ValidationInto</c> onto their target component properties.</summary>
@@ -1266,7 +1347,7 @@ public sealed partial class UIClientPage
 
             foreach (UIComponentAddress field in EnumerateFieldAddressesNoLock(node.ComponentId))
             {
-                if (MessageNoLock(field) is not { } message || Words(message.Message) is not { Length: > 0 } words)
+                if (MessageNoLock(field) is not { } message || Words(message.Message, !message.Content) is not { Length: > 0 } words)
                     continue;
 
                 var targetKeys = field.DynamicParameters.Length >= targetDepth ? field.DynamicParameters[..targetDepth] : [];

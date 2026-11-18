@@ -1,49 +1,188 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.InteropServices;
+using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Authoring.Infrastructure;
 using NE.Standard.UI.Primitives.Constants;
 
 namespace NE.Standard.UI.Authoring.Views;
 
-internal static class UIViewValidation
+/// <summary>
+/// Cascades subtree defaults, collects component-owned dialogs, and validates an authored view's regions, dialogs and layout properties.
+/// </summary>
+public static class UIViewValidation
 {
-    public static void Validate(UIViewBase view)
+    private const int MaxCascadeDepth = 256;
+
+    /// <summary>
+    /// Applies subtree defaults across <paramref name="view"/>, collects component-owned dialogs, validates the view, and returns the complete dialog list.
+    /// </summary>
+    public static UIDialog[] PrepareAndValidate(IUIView view)
     {
         ArgumentNullException.ThrowIfNull(view);
-        ArgumentNullException.ThrowIfNull(view.Title);
 
+        return PrepareAndValidate(view.GetType().Name, view.Title, view.Regions, view.Dialogs);
+    }
+
+    internal static UIDialog[] PrepareAndValidate(string viewName, string title, IReadOnlyList<UIRegion> regions, IReadOnlyList<UIDialog> dialogs)
+    {
+        ArgumentNullException.ThrowIfNull(title);
+        ArgumentNullException.ThrowIfNull(regions);
+        ArgumentNullException.ThrowIfNull(dialogs);
+
+        List<UIDialog> owned = ApplyDefaultsAndCollectDialogs(regions, dialogs);
+        UIDialog[] allDialogs;
+
+        if (owned.Count == 0)
+        {
+            allDialogs = [.. dialogs];
+        }
+        else
+        {
+            HashSet<string> existingKeys = [with(StringComparer.Ordinal)];
+
+            for (var i = 0; i < dialogs.Count; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(dialogs[i].Key))
+                    _ = existingKeys.Add(dialogs[i].Key);
+            }
+
+            List<UIDialog> combined = [.. dialogs];
+
+            for (var i = 0; i < owned.Count; i++)
+            {
+                if (!existingKeys.Contains(owned[i].Key))
+                    combined.Add(owned[i]);
+            }
+
+            allDialogs = [.. combined];
+        }
+
+        Validate(viewName, regions, allDialogs);
+
+        return allDialogs;
+    }
+
+    private static List<UIDialog> ApplyDefaultsAndCollectDialogs(IReadOnlyList<UIRegion> regions, IReadOnlyList<UIDialog> dialogs)
+    {
+        HashSet<IVisualComponent> visited = [with(ReferenceEqualityComparer.Instance)];
+        List<UIDefaultsRule> activeRules = [];
+        List<(UIDialog Dialog, UIDefaultsRule[] OwnerRules)> ownedDialogs = [];
+
+        foreach (UIRegion region in regions)
+        {
+            if (region?.Root is not null)
+                ApplySubtreeDefaults(region.Root, activeRules, visited, ownedDialogs, 1);
+        }
+
+        foreach (UIDialog dialog in dialogs)
+        {
+            if (dialog?.Content is not null)
+                ApplySubtreeDefaults(dialog.Content, activeRules, visited, ownedDialogs, 1);
+        }
+
+        List<UIDialog> collected = [with(ownedDialogs.Count)];
+
+        // A dialog found this way may hold a component with dialogs of its own; the list grows under the loop.
+        for (var i = 0; i < ownedDialogs.Count; i++)
+        {
+            (UIDialog dialog, UIDefaultsRule[] ownerRules) = ownedDialogs[i];
+            collected.Add(dialog);
+
+            if (dialog.Content is null)
+                continue;
+
+            activeRules.Clear();
+            activeRules.AddRange(ownerRules);
+            ApplySubtreeDefaults(dialog.Content, activeRules, visited, ownedDialogs, 1);
+            activeRules.Clear();
+        }
+
+        return collected;
+    }
+
+    private static void ApplySubtreeDefaults(IVisualComponent component, List<UIDefaultsRule> activeRules, HashSet<IVisualComponent> visited, List<(UIDialog Dialog, UIDefaultsRule[] OwnerRules)> ownedDialogs, int depth)
+    {
+        if (depth > MaxCascadeDepth || !visited.Add(component))
+            return;
+
+        if (activeRules.Count > 0 && component is IPropertyBindingComponent target)
+        {
+            List<UIDefaultsRule>? matching = null;
+
+            for (var i = 0; i < activeRules.Count; i++)
+            {
+                UIDefaultsRule rule = activeRules[i];
+
+                if (rule.TargetType.IsInstanceOfType(component))
+                    (matching ??= []).Add(rule);
+            }
+
+            if (matching is not null)
+            {
+                UIPropertyRegister.EnsureRegistered(component.GetType());
+                target.ApplyDefaults(CollectionsMarshal.AsSpan(matching), UIPropertyRegister.GetProperties(component.TypeKey));
+            }
+        }
+
+        var priorCount = activeRules.Count;
+        IReadOnlyList<UIDefaultsRule> ownDefaults = component.Defaults;
+
+        for (var i = 0; i < ownDefaults.Count; i++)
+            activeRules.Add(ownDefaults[i]);
+
+        if (component is IDialogOwnerComponent { HasDialogs: true } owner)
+        {
+            UIDefaultsRule[] snapshot = activeRules.Count > 0 ? [.. activeRules] : [];
+
+            foreach (UIDialog dialog in owner.Dialogs)
+                ownedDialogs.Add((dialog, snapshot));
+        }
+
+        foreach (UIComponentTreeSlot slot in UIComponentTree.EnumerateSlots(component))
+            ApplySubtreeDefaults(slot.Root, activeRules, visited, ownedDialogs, depth + 1);
+
+        if (activeRules.Count > priorCount)
+            activeRules.RemoveRange(priorCount, activeRules.Count - priorCount);
+    }
+
+    private static void Validate(string viewName, IReadOnlyList<UIRegion> regions, IReadOnlyList<UIDialog> dialogs)
+    {
         var hasContent = false;
         HashSet<string> dialogKeys = [with(StringComparer.Ordinal)];
 
-        foreach (UIRegion region in view.Regions)
+        foreach (UIRegion region in regions)
         {
+            ArgumentNullException.ThrowIfNull(region);
             ArgumentException.ThrowIfNullOrWhiteSpace(region.Key);
             ArgumentNullException.ThrowIfNull(region.Root);
 
             if (!IsKnownRegion(region.Key))
-                throw new InvalidOperationException($"View '{view.GetType().Name}' declared unsupported region '{region.Key}'.");
+                throw new InvalidOperationException($"View '{viewName}' declared unsupported region '{region.Key}'.");
 
             if (string.Equals(region.Key, RegionNames.Content, StringComparison.Ordinal))
                 hasContent = true;
 
-            ValidateLayout(view, region.Root);
+            ValidateLayout(viewName, region.Root);
         }
 
         if (!hasContent)
-            throw new InvalidOperationException($"View '{view.GetType().Name}' must declare a '{RegionNames.Content}' region.");
+            throw new InvalidOperationException($"View '{viewName}' must declare a '{RegionNames.Content}' region.");
 
-        foreach (UIDialog dialog in view.Dialogs)
+        foreach (UIDialog dialog in dialogs)
         {
+            ArgumentNullException.ThrowIfNull(dialog);
             ArgumentException.ThrowIfNullOrWhiteSpace(dialog.Key);
             ArgumentNullException.ThrowIfNull(dialog.Content);
 
             if (!dialogKeys.Add(dialog.Key))
-                throw new InvalidOperationException($"View '{view.GetType().Name}' declared duplicate dialog '{dialog.Key}'.");
+                throw new InvalidOperationException($"View '{viewName}' declared duplicate dialog '{dialog.Key}'.");
 
-            ValidateDialogLayout(view, dialog);
-            ValidateLayout(view, dialog.Content);
+            ValidateDialogLayout(viewName, dialog);
+            ValidateLayout(viewName, dialog.Content);
         }
     }
 
@@ -59,11 +198,11 @@ internal static class UIViewValidation
     }
 
     // The value types' own rules, applied here since a component's setters take any value and a bad one only fails in the page.
-    private static void ValidateLayout(UIViewBase view, IVisualComponent root)
+    private static void ValidateLayout(string viewName, IVisualComponent root)
     {
         foreach (IVisualComponent component in UIComponentTree.EnumerateDescendants(root))
         {
-            var owner = $"Component '{component.Id}' in view '{view.GetType().Name}'";
+            var owner = $"Component '{component.Id}' in view '{viewName}'";
 
             ValidateResponsive(owner, nameof(IVisualComponent.Placement), component.Placement, static placement => placement.Validate());
             ValidateLengths(owner, component.Width, component.MinWidth, component.MaxWidth, component.Height, component.MinHeight, component.MaxHeight);
@@ -98,7 +237,13 @@ internal static class UIViewValidation
     /// </summary>
     private static UIResponsive<T>? ReadOwnProperty<T>(IVisualComponent component, string name)
         where T : struct
-        => component.GetType().GetProperty(name)?.GetValue(component) as UIResponsive<T>?;
+    {
+        UIPropertyRegister.EnsureRegistered(component.GetType());
+
+        return UIPropertyRegister.TryGet(component.TypeKey, new UIProperty(name), out UIPropertyDefinition? definition)
+            ? definition.Getter(component) as UIResponsive<T>?
+            : null;
+    }
 
     private static void ValidateResponsive<T>(string owner, string property, UIResponsive<T>? value, Action<T> validate)
         where T : struct
@@ -140,6 +285,6 @@ internal static class UIViewValidation
             throw new InvalidOperationException($"{owner} has an invalid {nameof(ISurfaceComponent.BackgroundImageBlur)} '{blur.ToString(CultureInfo.InvariantCulture)}': it must be a finite number of zero or more.");
     }
 
-    private static void ValidateDialogLayout(UIViewBase view, UIDialog dialog)
-        => ValidateLengths($"Dialog '{dialog.Key}' in view '{view.GetType().Name}'", dialog.Width, dialog.MinWidth, dialog.MaxWidth, dialog.Height, dialog.MinHeight, dialog.MaxHeight);
+    private static void ValidateDialogLayout(string viewName, UIDialog dialog)
+        => ValidateLengths($"Dialog '{dialog.Key}' in view '{viewName}'", dialog.Width, dialog.MinWidth, dialog.MaxWidth, dialog.Height, dialog.MinHeight, dialog.MaxHeight);
 }

@@ -46,19 +46,38 @@ public abstract partial class OptionsInputComponentBase<TComponent, TItem, TValu
     /// <summary>
     /// Binds the list of options to a property at the given string path.
     /// </summary>
-    public TComponent BindOptions(string path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
+    public TComponent BindOptions(string path, UIBindingScope scope, UIBindingMode mode)
         => BindItems(path, scope, mode);
+
+    /// <summary>
+    /// Binds the list of options to a property at the given string path.
+    /// </summary>
+    public TComponent BindOptions(string path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
+        => BindItems(path, scope, mode, optional);
+
     /// <summary>
     /// Binds the list of options to a property at the given recursive path.
     /// </summary>
-    public TComponent BindOptions(RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
+    public TComponent BindOptions(RecursivePath path, UIBindingScope scope, UIBindingMode mode)
         => BindItems(path, scope, mode);
+
+    /// <summary>
+    /// Binds the list of options to a property at the given recursive path.
+    /// </summary>
+    public TComponent BindOptions(RecursivePath path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
+        => BindItems(path, scope, mode, optional);
 
     /// <summary>
     /// Binds the list of options to a property at the given typed path expression.
     /// </summary>
-    public TComponent BindOptions<TSource>(Expression<Func<TSource, object?>> path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay)
+    public TComponent BindOptions<TSource>(Expression<Func<TSource, object?>> path, UIBindingScope scope, UIBindingMode mode)
         => BindItems(RecursivePath.FromExpression(path), scope, mode);
+
+    /// <summary>
+    /// Binds the list of options to a property at the given typed path expression.
+    /// </summary>
+    public TComponent BindOptions<TSource>(Expression<Func<TSource, object?>> path, UIBindingScope scope = UIBindingScope.Root, UIBindingMode mode = UIBindingMode.OneWay, bool optional = false)
+        => BindItems(RecursivePath.FromExpression(path), scope, mode, optional);
 }
 
 /// <summary>

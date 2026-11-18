@@ -44,10 +44,15 @@ export function parseShortcut(value: string | null | undefined): KeyboardShortcu
                 meta = true;
                 break;
 
-            default:
-                // The last non-modifier wins rather than the first, so a malformed "S+Ctrl" still names S.
-                code = resolveCode(part);
+            default: {
+                const resolved = resolveCode(part);
+
+                if (code !== null || resolved === null)
+                    return null;
+
+                code = resolved;
                 break;
+            }
         }
     }
 

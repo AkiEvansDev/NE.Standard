@@ -49,16 +49,10 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public IReadOnlyList<UIResponsive<UIGridUnit>> Rows => _rows;
 
-    /// <summary>
-    /// Gets or sets the free air its parent leaves after the container's end, optionally per breakpoint, which the scroller along that
-    /// end takes for its overlay bar: the scroller keeps no room for the bar inside, so its rows end where the container's other children
-    /// do (a list under its search field), and the bar stands in the air. Unset, a scroller keeps its room inside.
-    /// </summary>
+    /// <summary>Gets or sets the trailing clearance outside this container that an inner scroller may claim for its scrollbar gutter.</summary>
     /// <remarks>
-    /// The air is taken up to the bar's room (<see cref="ContainerComponent.ScrollbarRoom"/>); what it lacks stays inside. Taken by the outermost
-    /// scroller reached through containers and stacks with no padding, border or fill of their own — a padded, framed or filled box
-    /// between, or a scroller framed or filled itself, keeps the room inside — whose own end margin gives way to it; a screen where
-    /// nothing hovers keeps no room.
+    /// Claimed up to <see cref="ContainerComponent.ScrollbarRoom"/> by the outermost unpadded, unframed scroller so its rows align flush
+    /// with sibling controls; unset, scrollers reserve gutter room inside their own bounds.
     /// </remarks>
     [UIComponentProperty]
     public UIResponsive<double>? ScrollbarAir { get; set; }

@@ -97,7 +97,7 @@ internal sealed partial class SliderBoundsGroupContext : DemoGroupContext
         => SetLastChange(nameof(Max), Max = CycleValue(Max, 100m, 10m, 250m, null));
 
     public void CycleStep()
-        => SetLastChange(nameof(Step), Step = CycleValue(Step, null, 5m, 25m));
+        => SetLastChange(nameof(Step), Step = CycleValue(Step, null, 0.05m, 5m, 25m));
 
     public void CycleMinDistance()
         => SetLastChange(nameof(MinDistance), MinDistance = CycleValue(MinDistance, null, 10m, 30m));

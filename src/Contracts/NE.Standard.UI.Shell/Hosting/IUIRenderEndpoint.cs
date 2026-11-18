@@ -18,6 +18,10 @@ public interface IUIRenderEndpoint
     /// </remarks>
     IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution);
 
+    /// <summary>The runtime a page render or view descriptor fetch may read its values from when <paramref name="clientWindowId"/> is known.</summary>
+    IUIRuntime? TryGetRenderRuntime(UIViewResolution resolution, string? clientWindowId)
+        => TryGetRenderRuntime(resolution);
+
     /// <summary>
     /// Tells a kept runtime a page render is about to paint what moved in its session since it last heard, so the paint is already in
     /// it; one that heard it all is left alone.

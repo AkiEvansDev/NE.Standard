@@ -48,7 +48,14 @@ internal sealed class UIRouteRegistry : IUIRouteRegistry
     {
         ArgumentNullException.ThrowIfNull(uri);
 
-        return TryGet(uri.IsAbsoluteUri ? uri.AbsolutePath : uri.OriginalString, out route);
+        if (uri.IsAbsoluteUri)
+            return TryGet(uri.AbsolutePath, out route);
+
+        var raw = uri.OriginalString;
+        var suffixAt = raw.AsSpan().IndexOfAny('?', '#');
+        var path = suffixAt < 0 ? raw : suffixAt == 0 ? "/" : raw[..suffixAt];
+
+        return TryGet(path, out route);
     }
 
     /// <inheritdoc />

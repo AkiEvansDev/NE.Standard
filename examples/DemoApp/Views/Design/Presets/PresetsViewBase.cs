@@ -366,6 +366,32 @@ internal abstract class PresetsViewBase : DemoView
             columns: 24
         );
 
+    protected static ContainerComponent CreateDrawerGroup()
+        => DemoUI.CreateExample("Drawer and BoundDrawer",
+            UILayout.Columns(16, UIAlignment.Start,
+                new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Background)
+                    .SetBorderThickness(UIThickness.Uniform(1))
+                    .SetHeight(UILayoutLength.Absolute(280))
+                    .SetContent(UIPage.Drawer("presets-sample-drawer", UISide.Left, "Settings",
+                        UIDetails.List(("Region", "eu-west"), ("Plan", "Pro"), ("Backups", "Nightly")),
+                        footer: UIText.Note("Pinned per browser from xl up."),
+                        pinnable: false,
+                        UIIconButtons.Refresh()
+                    )),
+                new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Background)
+                    .SetBorderThickness(UIThickness.Uniform(1))
+                    .SetHeight(UILayoutLength.Absolute(280))
+                    .SetContent(UIPage.BoundDrawer<PresetsController>("presets-bound-drawer", UISide.Right, static x => x.DrawerTitle,
+                        UIText.Paragraph("The title is bound to the controller as content, with a scrolling body and fixed header chrome."),
+                        pinnable: false
+                    ))
+            ),
+            note: "A side-drawer panel for CreateLeftSide / CreateRightSide: a fixed header with optional actions, Pin and Close wired to its UISide, a scrolling body with focus-ring room, and an optional fixed footer.",
+            columns: 24
+        );
+
     protected static ContainerComponent CreateCenteredGroup()
         => DemoUI.CreateExample("Centered",
             new SurfaceComponent()
@@ -557,6 +583,29 @@ internal abstract class PresetsViewBase : DemoView
                 .SetHeight(UILayoutLength.Absolute(220))
             ),
             note: "A list and the thing chosen in it: side by side from md, the list 280 px and 16 px of air (a bound splitter between them where given); below md one at a time, the detail in the list's place with its own Back. The controller holds a UIPanesState and moves it by ShowDetail, ShowList and ShowNothing; the placeholder is UIPage.Empty. The strip over them is the list's header, as wide as the list from md (InPanesList), shown while the list is.",
+            columns: 24
+        );
+
+    protected static ContainerComponent CreateStackedPanesGroup()
+        => DemoUI.CreateExample("Panes (stacked)",
+            UIPage.Column(UIColumnWidth.Form,
+                UILayout.Panes<PresetsController>(
+                    new MenuComponent()
+                        .SetItems(
+                        [
+                            new MenuItem { Id = "api-eu-west-1", Title = "api-eu-west-1", Icon = DemoIcons.Outline(DemoIcons.Server) },
+                            new MenuItem { Id = "db-us-east-2", Title = "db-us-east-2", Icon = DemoIcons.Outline(DemoIcons.Server) }
+                        ])
+                        .OnItemClickWithItemKey(nameof(PresetsController.ShowStackedServer)),
+                    UILayout.Stack(12,
+                        UIPage.BoundHeader<PresetsController>(UIHeaderSize.Pane, UIIconButtons.Back().OnClick(nameof(PresetsController.BackToStackedServers)), static x => x.OpenStackedServer),
+                        UIText.Paragraph().BindDescription<PresetsController>(static x => x.OpenStackedServerLine)
+                    ),
+                    static x => x.StackedServerPanes,
+                    stacked: true
+                )
+            ),
+            note: "With stacked: true on both UIPanesState and UILayout.Panes, the list and its detail switch in one column at every breakpoint — for narrow side drawers and dialogs.",
             columns: 24
         );
 

@@ -196,7 +196,7 @@ public static class UIPropertyRegister
     private static Action<IBindableComponent, object?>? CreateSetter<TBindable, TValue>(PropertyInfo propertyInfo)
         where TBindable : IBindableComponent
     {
-        if (propertyInfo.SetMethod is not { } setMethod || Array.IndexOf(setMethod.ReturnParameter.GetRequiredCustomModifiers(), typeof(IsExternalInit)) >= 0)
+        if (propertyInfo.SetMethod is not { IsPublic: true } setMethod || Array.IndexOf(setMethod.ReturnParameter.GetRequiredCustomModifiers(), typeof(IsExternalInit)) >= 0)
             return null;
 
         ParameterExpression componentParameter = Expression.Parameter(typeof(IBindableComponent), "component");

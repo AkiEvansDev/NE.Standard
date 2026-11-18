@@ -127,9 +127,12 @@ export async function cropPictureAsync(dialogs: DialogEngine, file: File, reques
         parts ??= buildDialog();
 
         const crop = parts;
+        const host = dialogs.hostElement ?? document.body;
 
-        if (!crop.dialog.isConnected)
-            document.body.append(crop.dialog);
+        if (!crop.dialog.isConnected || crop.dialog.parentElement !== host) {
+            crop.dialog.setAttribute("hidden", "");
+            host.append(crop.dialog);
+        }
 
         session = {
             file,

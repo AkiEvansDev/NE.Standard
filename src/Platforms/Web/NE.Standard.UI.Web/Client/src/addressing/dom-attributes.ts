@@ -399,6 +399,8 @@ export const MarkedMenuEntrySelector = `${MenuGroupEntrySelector}, .${MenuItemCl
 export const ShortcutAttribute = "data-ui-shortcut";
 /** On a range slider: the least distance between its two handles (`WebAttributes.SliderMinDistance`). */
 export const SliderMinDistanceAttribute = "data-ui-slider-min-distance";
+/** On a slider's value readout: the widest reading its bounds and step can produce (`WebAttributes.SliderValueSizer`). */
+export const SliderValueSizerAttribute = "data-ui-slider-value-sizer";
 export const CollapseToggleAttribute = "data-ui-collapse-toggle";
 /** Client-only: on a collapsible while collapsible-engine.ts slides it, so the stylesheet holds the open layout until the slide ends. */
 export const FoldingAttribute = "data-ui-folding";

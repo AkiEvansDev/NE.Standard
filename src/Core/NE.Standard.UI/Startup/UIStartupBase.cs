@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Files;
 using NE.Standard.UI.Hosting;
@@ -42,6 +43,13 @@ public abstract class UIStartupBase
         _ = services.AddSingleton(application.Build);
         _ = services.AddSingleton<IUIHost, UIHost>();
         AddHostServices(services, static provider => (UIHost)provider.GetRequiredService<IUIHost>());
+    }
+
+    internal (UITheme Theme, string? Icon) ReadShellDefaults()
+    {
+        UIApplicationBuilder application = new();
+        ConfigureApplication(application);
+        return application.BuildShellDefaults();
     }
 
     /// <summary>Registers what the host itself serves, read from <paramref name="host"/>.</summary>

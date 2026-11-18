@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using NE.Standard.UI.Application;
@@ -26,8 +25,16 @@ internal static class DesktopIconLoader
         if (frame is null)
             return null;
 
-        var key = host.ActiveIcon ?? EmbeddedDefaultIcon;
-        var hash = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..16];
+        byte[] pngBytes;
+        using (MemoryStream encoded = new())
+        {
+            PngBitmapEncoder encoder = new();
+            encoder.Frames.Add(BitmapFrame.Create(frame));
+            encoder.Save(encoded);
+            pngBytes = encoded.ToArray();
+        }
+
+        var hash = Convert.ToHexStringLower(SHA256.HashData(pngBytes))[..16];
         var targetPath = Path.Combine(directory, $"toast-icon-{hash}.png");
         if (File.Exists(targetPath))
             return targetPath;
@@ -35,10 +42,7 @@ internal static class DesktopIconLoader
         try
         {
             _ = Directory.CreateDirectory(directory);
-            PngBitmapEncoder encoder = new();
-            encoder.Frames.Add(BitmapFrame.Create(frame));
-            using FileStream output = File.Create(targetPath);
-            encoder.Save(output);
+            File.WriteAllBytes(targetPath, pngBytes);
             return targetPath;
         }
         catch (IOException)

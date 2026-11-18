@@ -237,6 +237,7 @@ function collapseActive(): void {
         placeholder.remove();
     }
     else {
+        fieldRoot.remove();
         placeholder.remove();
     }
 }

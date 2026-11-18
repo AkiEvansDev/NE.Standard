@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Desktop.Hosting;
 using NE.Standard.UI.Shell.Files;
@@ -24,10 +25,14 @@ public abstract class DesktopStartupBase<TStartup> : WebStartupBase<TStartup>
     protected internal virtual void ConfigureHost(DesktopHostOptions options)
         => ArgumentNullException.ThrowIfNull(options);
 
-    internal void ConfigureDesktop(IServiceCollection services, DesktopHostOptions options)
+    internal static (UITheme Theme, string? Icon) ReadShellDefaults()
+        => UIStartupBuilder.ReadShellDefaults<TStartup>();
+
+    internal void ConfigureDesktop(IServiceCollection services, DesktopHostOptions options, DesktopRemoteApplicationDefaults remoteDefaults)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(remoteDefaults);
 
         if (options.Mode == DesktopHostMode.InProcess)
         {
@@ -38,7 +43,7 @@ public abstract class DesktopStartupBase<TStartup> : WebStartupBase<TStartup>
         }
         else
         {
-            ConfigureServices(services);
+            _ = services.AddSingleton(remoteDefaults);
         }
     }
 

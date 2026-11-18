@@ -14,14 +14,12 @@ using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
+using NE.Standard.UI.Primitives.Json;
 using NE.Standard.UI.Serialization;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Navigation;
-using NE.Standard.UI.Shell.Runtime;
 using NE.Standard.UI.Shell.Sessions;
-using NE.Standard.UI.Shell.Updates.Server;
-using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Hosting;
 
@@ -46,7 +44,7 @@ internal static partial class WebViewEndpoint
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(options);
 
-        WebEndpointRouteBuilderExtensions.RequireAuthorization(endpoints.MapGet(Path, ServeAsync), options);
+        ServerEndpointCore.RequireAuthorization(endpoints.MapGet(Path, ServeAsync), options);
     }
 
     private static async Task<IResult> ServeAsync(
@@ -72,7 +70,7 @@ internal static partial class WebViewEndpoint
         UINavigationRequest parsed = UINavigationAddress.Parse(string.IsNullOrWhiteSpace(address) ? "/" : address);
         var requestedRoute = UIRoutePath.Normalize(parsed.Route);
 
-        if (WebEndpointRouteBuilderExtensions.IsSystemRoute(requestedRoute))
+        if (ServerEndpointCore.IsSystemRoute(requestedRoute))
             return Results.NotFound();
 
         UINavigationRequest navigation = new()
@@ -96,49 +94,27 @@ internal static partial class WebViewEndpoint
 
         UIViewResolution resolution = await host.ResolveViewAsync(navigation, session, UIViewRequestPhase.Open, cancellationToken).ConfigureAwait(false);
 
-        WebEndpointRouteBuilderExtensions.AppendSessionCookie(http, application.Sessions, sessionCookie, resolution);
+        ServerEndpointCore.AppendSessionCookie(http, application.Sessions, sessionCookie, resolution);
 
         var includeDiagnostics = environment.IsDevelopment();
 
         try
         {
-            return await WriteViewResultAsync(resolution, requestedRoute, requestedAddress, application, host, sessionCookie, packageStrings, includeDiagnostics, http, cancellationToken).ConfigureAwait(false);
+            return await WriteViewResultAsync(resolution, requestedRoute, requestedAddress, session.ClientWindowId, application, host, sessionCookie, packageStrings, includeDiagnostics, http, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             ILogger logger = loggerFactory.CreateLogger(typeof(WebViewEndpoint));
             Log.ViewPreparationFailed(logger, exception, requestedRoute);
 
-            UserSessionInitData current = new()
-            {
-                SessionId = resolution.Session.SessionId,
-                ConnectionId = session.ConnectionId,
-                ClientWindowId = session.ClientWindowId,
-                Credential = session.Credential,
-                Principal = session.Principal,
-                Connection = session.Connection,
-                Languages = session.Languages,
-                TimeZone = session.TimeZone
-            };
+            UIViewResolution? errorResolution = await ServerEndpointCore
+                .TryResolveErrorViewAsync(exception, navigation, session, resolution, host, exceptionHandler, http, application.Sessions, sessionCookie, cancellationToken)
+                .ConfigureAwait(false);
 
-            UINavigationRequest? next = await exceptionHandler.HandleAsync(new ResolveExceptionViewContext
-            {
-                Exception = exception,
-                Navigation = navigation,
-                SessionInit = current,
-                Session = resolution.Session,
-                Route = resolution.Route
-            }, cancellationToken).ConfigureAwait(false);
-
-            if (next is null)
+            if (errorResolution is null)
                 throw;
 
-            UIViewResolution errorResolution = await host.ResolveViewAsync(next, current, UIViewRequestPhase.Open, cancellationToken).ConfigureAwait(false);
-
-            if (errorResolution.IssuedSecret is not null)
-                WebEndpointRouteBuilderExtensions.AppendSessionCookie(http, application.Sessions, sessionCookie, errorResolution);
-
-            return await WriteViewResultAsync(errorResolution, requestedRoute, requestedAddress, application, host, sessionCookie, packageStrings, includeDiagnostics, http, cancellationToken).ConfigureAwait(false);
+            return await WriteViewResultAsync(errorResolution, requestedRoute, requestedAddress, session.ClientWindowId, application, host, sessionCookie, packageStrings, includeDiagnostics, http, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -148,19 +124,11 @@ internal static partial class WebViewEndpoint
         return destination.Length == 0 || destination.Equals("empty", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static async Task<IResult> WriteViewResultAsync(
-        UIViewResolution resolution,
-        string requestedRoute,
-        string requestedAddress,
-        UIApplication application,
-        IUIHost host,
-        WebSessionCookie sessionCookie,
-        IEnumerable<IUIStringsSource> packageStrings,
-        bool includeDiagnostics,
-        HttpContext http,
-        CancellationToken cancellationToken)
+    private static async Task<IResult> WriteViewResultAsync(UIViewResolution resolution, string requestedRoute, string requestedAddress, string? clientWindowId, UIApplication application, IUIHost host, WebSessionCookie sessionCookie, IEnumerable<IUIStringsSource> packageStrings, bool includeDiagnostics, HttpContext http, CancellationToken cancellationToken)
     {
-        PreparedSnapshot snapshot = await PrepareSnapshotAsync(host, resolution, cancellationToken).ConfigureAwait(false);
+        ServerPreparedSnapshot snapshot = await ServerEndpointCore
+            .PrepareSnapshotAsync(host, resolution, resolution.HasController ? WebInitialChanges.FromView(resolution.View) : [], cancellationToken, clientWindowId)
+            .ConfigureAwait(false);
         var viewBytes = GetCachedViewBytes(resolution.View, includeDiagnostics);
 
         if (snapshot.SignedInKey is { } signedInKey)
@@ -183,24 +151,27 @@ internal static partial class WebViewEndpoint
                 writer.WriteString("address", requestedAddress);
 
             writer.WritePropertyName("navigation");
-            JsonSerializer.Serialize(writer, resolution.Navigation, WebWireJson.Options);
+            JsonSerializer.Serialize(writer, resolution.Navigation, UIWireJson.Options);
 
             writer.WritePropertyName("identity");
-            JsonSerializer.Serialize(writer, resolution.Route.IdentityParameters, WebWireJson.Options);
+            JsonSerializer.Serialize(writer, resolution.Route.IdentityParameters, UIWireJson.Options);
 
             writer.WriteBoolean("hasController", resolution.HasController);
             writer.WriteString("language", resolution.Session.Language);
+            writer.WriteString("defaultLanguage", application.Translator.DefaultLanguage);
+            writer.WritePropertyName("languages");
+            JsonSerializer.Serialize(writer, application.Translator.Languages, UIWireJson.Options);
 
             if (resolution.Session.ThemeMode is { } themeMode)
             {
                 writer.WritePropertyName("themeMode");
-                JsonSerializer.Serialize(writer, themeMode, WebWireJson.Options);
+                JsonSerializer.Serialize(writer, themeMode, UIWireJson.Options);
             }
 
             if (resolution.Session.ThemeColors is { } themeColors)
             {
                 writer.WritePropertyName("themeColors");
-                JsonSerializer.Serialize(writer, themeColors, WebWireJson.Options);
+                JsonSerializer.Serialize(writer, themeColors, UIWireJson.Options);
             }
 
             if (snapshot.PageId is not null)
@@ -210,7 +181,7 @@ internal static partial class WebViewEndpoint
                 writer.WriteNumber("sequence", sequence);
 
             writer.WritePropertyName("changes");
-            JsonSerializer.Serialize(writer, snapshot.Changes, WebWireJson.Options);
+            JsonSerializer.Serialize(writer, snapshot.Changes, UIWireJson.Options);
 
             writer.WritePropertyName("words");
             writer.WriteRawValue(words.Bytes, skipInputValidation: true);
@@ -227,48 +198,6 @@ internal static partial class WebViewEndpoint
 
     private static byte[] GetCachedViewBytes(CompiledView view, bool includeDiagnostics)
         => WireViewCache.GetOrCreateValue(view).GetOrCreate(view, includeDiagnostics);
-
-    private static async Task<PreparedSnapshot> PrepareSnapshotAsync(IUIHost host, UIViewResolution resolution, CancellationToken cancellationToken)
-    {
-        if (!resolution.HasController)
-            return new PreparedSnapshot(PageId: null, Sequence: null, ServerChangeSet.Empty, SignedInKey: null);
-
-        var initBindingIds = WebInitialChanges.FromView(resolution.View);
-        IUIRuntime? existing = host.TryGetRenderRuntime(resolution);
-
-        if (existing is not null)
-        {
-            await host.HearBeforeRenderAsync(existing, resolution, cancellationToken).ConfigureAwait(false);
-            UIRenderSnapshot existingSnapshot = await WebInitialChanges.BuildAsync(existing, pageId: null, initBindingIds, cancellationToken).ConfigureAwait(false);
-
-            return new PreparedSnapshot(PageId: null, existingSnapshot.Sequence, existingSnapshot.Changes, SignedInKey: null);
-        }
-
-        var pageId = Guid.NewGuid().ToString("N");
-        UIInstance instance = new()
-        {
-            Id = pageId,
-            WindowId = pageId,
-            Navigation = resolution.Navigation,
-            PageId = pageId
-        };
-
-        RuntimeResolution runtime = await host.AttachRuntimeAsync(resolution, instance, cancellationToken).ConfigureAwait(false);
-
-        try
-        {
-            UISessionSecret? signedInKey = host.TakeRenderKey(runtime.Handle);
-            UIRenderSnapshot preparedSnapshot = await WebInitialChanges.BuildAsync(runtime.Runtime, pageId, initBindingIds, cancellationToken).ConfigureAwait(false);
-
-            return new PreparedSnapshot(pageId, preparedSnapshot.Sequence, preparedSnapshot.Changes, signedInKey);
-        }
-        finally
-        {
-            _ = host.DetachRuntime(runtime.Handle);
-        }
-    }
-
-    private sealed record PreparedSnapshot(string? PageId, long? Sequence, ServerChangeSet Changes, UISessionSecret? SignedInKey);
 
     private sealed class CachedWireViews
     {

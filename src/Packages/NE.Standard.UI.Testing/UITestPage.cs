@@ -13,10 +13,7 @@ using NE.Standard.UI.Shell.Runtime;
 
 namespace NE.Standard.UI.Testing;
 
-/// <summary>
-/// One open page: its components as the page holds them — every change set it received applied the way the client applies it — and
-/// the ways a reader acts on them, each sent through the host's own entry points.
-/// </summary>
+/// <summary>An open in-process test page holding synchronized client state and driving host actions.</summary>
 public sealed class UITestPage
 {
     private readonly UITestApp _app;
@@ -123,10 +120,7 @@ public sealed class UITestPage
     public bool IsDialogOpen(string key)
         => ClientPage.IsDialogOpen(key);
 
-    /// <summary>
-    /// Closes the dialog <paramref name="key"/> as its viewer does — Escape, or a press beside it — letting the edit of a form under its
-    /// key go and raising its <c>OnClose</c>, whose command's answer this is.
-    /// </summary>
+    /// <summary>Dismisses the open dialog <paramref name="key"/> via Escape or backdrop, discarding its buffered form and raising <c>OnClose</c>.</summary>
     /// <exception cref="InvalidOperationException">The dialog is not open, or takes neither Escape nor a press beside it.</exception>
     public async Task<UITestCommandResult> DismissDialogAsync(string key, CancellationToken cancellationToken = default)
         => UITestCommandResult.From(await ClientPage.DismissDialogAsync(key, cancellationToken).ConfigureAwait(false));
@@ -172,21 +166,15 @@ public sealed class UITestPage
     /// <summary>Gets what the page last reported of itself: whether it is on screen, and its notification permission.</summary>
     public UIClientState ClientState => ClientPage.ClientState;
 
-    /// <summary>
-    /// Takes the page off screen — another tab chosen, the window minimised — as the page reports it; returns once the controller's
-    /// <c>OnVisibilityChangedAsync</c>, where the runtime went off screen, has run.
-    /// </summary>
+    /// <summary>Marks the page hidden and awaits the controller's <c>OnVisibilityChangedAsync</c> hook.</summary>
     public Task HideAsync(CancellationToken cancellationToken = default)
         => ClientPage.HideAsync(cancellationToken);
 
-    /// <summary>Brings the page back on screen, as the page reports it; returns once the controller heard it, as <see cref="HideAsync"/> does.</summary>
+    /// <summary>Marks the page visible and awaits the controller's <c>OnVisibilityChangedAsync</c> hook.</summary>
     public Task ShowAsync(CancellationToken cancellationToken = default)
         => ClientPage.ShowAsync(cancellationToken);
 
-    /// <summary>
-    /// Reports the browser's answer to a notification permission prompt, or a change made in its settings; returns once the
-    /// controller's <c>OnNotificationPermissionChangedAsync</c> has run.
-    /// </summary>
+    /// <summary>Reports <paramref name="permission"/> and awaits the controller's <c>OnNotificationPermissionChangedAsync</c> hook.</summary>
     public Task ReportNotificationPermissionAsync(UINotificationPermission permission, CancellationToken cancellationToken = default)
         => ClientPage.ReportNotificationPermissionAsync(permission, cancellationToken);
 
@@ -206,14 +194,8 @@ public sealed class UITestPage
         return _app.OpenFromPageAsync(navigation, _transport.SessionId, _initialSession, ClientState.NotificationPermission, cancellationToken);
     }
 
-    /// <summary>
-    /// Closes the page as a reader closing its tab does: its connection leaves the runtime through the host, and the page receives
-    /// nothing more; returns once the controller's <c>OnDetachedAsync</c>, which the detach posts, has run.
-    /// </summary>
-    /// <remarks>
-    /// The runtime stays as a closed tab's does, for its retention, and a background command the page raised runs on until its tab's
-    /// stay ends; a page closed takes no further act.
-    /// </remarks>
+    /// <summary>Detaches the page from its runtime as closing its tab does, awaiting <c>OnDetachedAsync</c>.</summary>
+    /// <remarks>The runtime remains subject to its retention policy, and a closed page accepts no further actions.</remarks>
     public Task CloseAsync(CancellationToken cancellationToken = default)
         => ClientPage.CloseAsync(cancellationToken);
 }

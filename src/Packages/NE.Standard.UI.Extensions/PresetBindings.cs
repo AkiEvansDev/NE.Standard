@@ -20,21 +20,9 @@ internal static class PresetBindings
 
     /// <summary>Whether <paramref name="component"/> binds <paramref name="property"/>.</summary>
     public static bool Binds(IVisualComponent component, UIProperty property)
-        => TryFind(component, property, out _);
+        => component.HasBinding(property);
 
     /// <summary>The binding <paramref name="component"/> holds for <paramref name="property"/>, where it binds one.</summary>
     public static bool TryFind(IVisualComponent component, UIProperty property, out UIBinding binding)
-    {
-        foreach (UIBinding candidate in component.Bindings)
-        {
-            if (candidate.Target.Equals(property))
-            {
-                binding = candidate;
-                return true;
-            }
-        }
-
-        binding = default;
-        return false;
-    }
+        => component.TryGetBinding(property, out binding);
 }

@@ -143,26 +143,18 @@ public abstract partial class ItemsViewComponent<T> : GroupedItemsComponentBase<
     [UIComponentProperty(DefaultValue = false)]
     public bool? RowBleed { get; set; }
 
-    /// <summary>
-    /// Gets the key of the row at the top of the view where the reader stands: the first row whose box shows below the scroll's top edge,
-    /// past the view's <see cref="Padding"/> and a group header held over it. Written by the page once the reader's scroll settles, once
-    /// after the first layout, and again as the rows under the top change; follow it in the bound property's setter.
-    /// </summary>
+    /// <summary>Gets the key of the topmost visible row past <see cref="Padding"/> and sticky group headers.</summary>
     /// <remarks>
-    /// Bound one way, from the page: a value the controller sets scrolls nothing and is not sent. Unbound, the page reports nothing.
-    /// A windowed view reports a row of the window it holds; while only rows still on their way stand in view, it reports nothing.
+    /// Reported one-way from the page after initial layout, settled scrolls and row updates; controller writes do not scroll the view,
+    /// and unbound views or unmounted windows report nothing.
     /// </remarks>
     [UIComponentProperty(DefaultValue = null, GenerateSetter = false, BindingCapabilities = UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.OneWayToSource)]
     public string? FirstVisibleKey { get; set; }
 
-    /// <summary>
-    /// Gets the key of the row at the foot of the view where the reader stands: the last row whose box shows above the scroll's bottom
-    /// edge, past the view's <see cref="Padding"/> (room a composer laid over the list's foot stands in). Written as
-    /// <see cref="FirstVisibleKey"/> is: once the reader's scroll settles, once after the first layout, and again as the rows change.
-    /// </summary>
+    /// <summary>Gets the key of the bottommost visible row above the scroll foot and <see cref="Padding"/>.</summary>
     /// <remarks>
-    /// Bound one way, from the page: a value the controller sets scrolls nothing and is not sent. Unbound, the page reports nothing.
-    /// A windowed view reports a row of the window it holds; while only rows still on their way stand in view, it reports nothing.
+    /// Reported one-way from the page after initial layout, settled scrolls and row updates; controller writes do not scroll the view,
+    /// and unbound views or unmounted windows report nothing.
     /// </remarks>
     [UIComponentProperty(DefaultValue = null, GenerateSetter = false, BindingCapabilities = UIBindingCapabilities.TargetToSource, DefaultBindingMode = UIBindingMode.OneWayToSource)]
     public string? LastVisibleKey { get; set; }

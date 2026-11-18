@@ -78,6 +78,19 @@ internal sealed partial class PresetsController() : DemoController
     [RecursiveMember]
     public partial UIPanesState ServerPanes { get; set; } = new();
 
+    /// <summary>The stacked panes sample's state: list and detail switching in one column at every width.</summary>
+    [RecursiveMember]
+    public partial UIPanesState StackedServerPanes { get; set; } = new(stacked: true);
+
+    [RecursiveMember]
+    public partial string? OpenStackedServer { get; set; }
+
+    [RecursiveMember]
+    public partial string OpenStackedServerLine { get; set; } = string.Empty;
+
+    [RecursiveMember]
+    public partial string DrawerTitle { get; set; } = "api-eu-west-1 · Inspector";
+
     /// <summary>The sums under a summary, which the controller keeps.</summary>
     [RecursiveMember]
     public partial string SubtotalLine { get; set; } = "€108.00";
@@ -286,6 +299,18 @@ internal sealed partial class PresetsController() : DemoController
         OpenServer = null;
         ServerPanes.ShowNothing();
     }
+
+    [UICommand]
+    public void ShowStackedServer(string id)
+    {
+        OpenStackedServer = id;
+        OpenStackedServerLine = $"{id} · 4 replicas healthy in eu-west.";
+        StackedServerPanes.ShowDetail();
+    }
+
+    [UICommand]
+    public void BackToStackedServers()
+        => StackedServerPanes.ShowList();
 
     /// <summary>The ×, Escape and the safe answer, heard through the dialog's <c>OnClose</c>.</summary>
     [UICommand]

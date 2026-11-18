@@ -70,18 +70,23 @@ internal sealed class WebOutgoingValues
                         : new ServerValueUIUpdate { Address = update.Address, Value = new WebRawJsonValue(json), Content = update.Content, ExceptInstanceId = update.ExceptInstanceId };
                     break;
 
-                case ServerCollectionChangeUIUpdate collection when MeasuredItemsJson(collection) is { } itemsJson
-                    && itemsJson.Length > LargeValueBytes
-                    && _store.TryStageOutgoing(sessionId, itemsJson, readers, attachOf, out var itemsToken):
-                    staged ??= [.. changes.Updates];
-                    staged[i] = new ServerCollectionChangeUIUpdate
+                case ServerCollectionChangeUIUpdate collection when MeasuredItemsJson(collection) is { } itemsJson:
+                    if (itemsJson.Length > LargeValueBytes && _store.TryStageOutgoing(sessionId, itemsJson, readers, attachOf, out var itemsToken))
                     {
-                        Action = collection.Action,
-                        Component = collection.Component,
-                        Items = [],
-                        ItemsToken = itemsToken,
-                        Trimmed = collection.Trimmed
-                    };
+                        staged ??= [.. changes.Updates];
+                        staged[i] = new ServerCollectionChangeUIUpdate
+                        {
+                            Action = collection.Action,
+                            Component = collection.Component,
+                            Items = [],
+                            ItemsToken = itemsToken,
+                            Trimmed = collection.Trimmed
+                        };
+                    }
+                    else
+                    {
+                        WebRawCollectionItems.Remember(collection.Items, itemsJson);
+                    }
                     break;
 
                 default:

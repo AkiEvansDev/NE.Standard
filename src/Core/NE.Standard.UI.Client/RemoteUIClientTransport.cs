@@ -1,10 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -15,17 +16,23 @@ using Microsoft.Extensions.DependencyInjection;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Effects;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling.Theme;
+using NE.Standard.UI.Compiled.Indexes;
+using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Primitives.Json;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Serialization;
 using NE.Standard.UI.Shell.Commands;
 using NE.Standard.UI.Shell.Data;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Shell.Runtime;
+using NE.Standard.UI.Shell.Sessions;
+using NE.Standard.UI.Shell.Transport;
 using NE.Standard.UI.Shell.Updates.Client;
 using NE.Standard.UI.Shell.Updates.Server;
 
@@ -47,6 +54,8 @@ public sealed record UIClientUploadSelection(string SelectionId, IReadOnlyList<U
 public sealed class RemoteUIClientTransport : IUIClientTransport
 {
     private const int LargeValueBytes = 8 * 1024;
+    private const int MaxTranslateKeysPerCall = 256;
+    private const int MaxTranslateKeyLength = 512;
     private static readonly JsonSerializerOptions WireOptions = CreateWireOptions();
 
     private readonly RemoteUIClientSession _session;
@@ -57,9 +66,13 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private readonly ServerChangeSet _initialChanges;
     private readonly Action<RemoteUIClientTransport>? _onClose;
     private readonly ConcurrentQueue<Task> _incoming;
+    private readonly Lock _stateSync = new();
 
     private UIClientPage? _page;
     private string? _runtimeStamp;
+    private string? _attachedConnectionId;
+    private Task _reconnectTask = Task.CompletedTask;
+    private Exception? _fatalFault;
     private bool _attached;
     private bool _closed;
 
@@ -164,6 +177,12 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         UINavigationRequest navigation = root.GetProperty("navigation").Deserialize<UINavigationRequest>(WireOptions) ?? new UINavigationRequest { Route = route };
         var hasController = root.GetProperty("hasController").GetBoolean();
         var language = root.GetProperty("language").GetString() ?? "en";
+        var defaultLanguage = root.TryGetProperty("defaultLanguage", out JsonElement defLangEl) && defLangEl.ValueKind == JsonValueKind.String
+            ? defLangEl.GetString() ?? language
+            : language;
+        var languages = root.TryGetProperty("languages", out JsonElement langsEl) && langsEl.ValueKind == JsonValueKind.Array
+            ? langsEl.Deserialize<string[]>(WireOptions) ?? [defaultLanguage, language]
+            : [defaultLanguage, language];
         UIThemeMode? themeMode = root.TryGetProperty("themeMode", out JsonElement tmEl) && tmEl.ValueKind != JsonValueKind.Null
             ? tmEl.Deserialize<UIThemeMode>(WireOptions)
             : null;
@@ -178,7 +197,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             ? chEl.Deserialize<ServerChangeSet>(WireOptions) ?? ServerChangeSet.Empty
             : ServerChangeSet.Empty;
 
-        RemoteClientTranslator translator = new(language);
+        RemoteClientTranslator translator = new(defaultLanguage, languages);
         if (root.TryGetProperty("words", out JsonElement wordsEl))
             translator.LoadWords(wordsEl);
 
@@ -212,6 +231,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         try
         {
             await hub.StartAsync(cancellationToken).ConfigureAwait(false);
+            await transport.PrefetchViewWordsAsync(LanguageFor(translator, language), cancellationToken).ConfigureAwait(false);
             return transport;
         }
         catch
@@ -220,6 +240,9 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             throw;
         }
     }
+
+    private static string LanguageFor(RemoteClientTranslator translator, string language)
+        => translator.HasLanguage(language) ? language : translator.DefaultLanguage;
 
     private static HubConnection BuildHubConnection(RemoteUIClientSession session, ConcurrentQueue<Task> incoming)
     {
@@ -243,7 +266,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                 protocol.PayloadSerializerOptions.Converters.Add(new PushedServerChangeSetJsonConverter(incoming));
                 protocol.PayloadSerializerOptions.Converters.Add(new PushedCommandExecutionResultJsonConverter(incoming));
                 protocol.PayloadSerializerOptions.Converters.Add(new RemoteUICommandResultJsonConverter());
-                protocol.PayloadSerializerOptions.Converters.Add(new RemoteClientEffectJsonConverter());
+                protocol.PayloadSerializerOptions.Converters.Add(new UIHubClientEffectJsonConverter());
                 protocol.PayloadSerializerOptions.Converters.Add(new ObjectToInferredTypesConverter());
             })
             .Build();
@@ -252,10 +275,67 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     internal void BindPage(UIClientPage page)
         => _page = page;
 
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "SignalR swallows Reconnected event exceptions; capture any fatal reload fault so subsequent client calls surface it.")]
     private async Task OnReconnectedAsync(string? connectionId)
     {
-        if (!_closed && _page is { } page)
+        if (_closed || _page is not { } page)
+            return;
+
+        string? attachedId;
+        lock (_stateSync)
+            attachedId = _attachedConnectionId;
+
+        // Stateful reconnect kept the same connection id and hub handle on the server: no re-attach or full resync is needed.
+        if (connectionId is not null && string.Equals(connectionId, attachedId, StringComparison.Ordinal))
+            return;
+
+        Task previous;
+        TaskCompletionSource gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_stateSync)
+        {
+            previous = _reconnectTask;
+            _reconnectTask = gate.Task;
+        }
+
+        try
+        {
+            await previous.ConfigureAwait(false);
+            if (_closed)
+                return;
+
             await page.ReceivePushedAsync(new ServerChangeSet { Updates = [new ServerFullResyncUIUpdate()] }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            lock (_stateSync)
+                _fatalFault = ex;
+        }
+        finally
+        {
+            _ = gate.TrySetResult();
+        }
+    }
+
+    private async Task EnsureReadyAsync(CancellationToken cancellationToken)
+    {
+        Task reconnect;
+        Exception? fault;
+
+        lock (_stateSync)
+        {
+            reconnect = _reconnectTask;
+            fault = _fatalFault;
+        }
+
+        if (!reconnect.IsCompleted)
+        {
+            await reconnect.WaitAsync(cancellationToken).ConfigureAwait(false);
+            lock (_stateSync)
+                fault = _fatalFault;
+        }
+
+        if (fault is not null)
+            ExceptionDispatchInfo.Capture(fault).Throw();
     }
 
     private async Task OnServerChangesAsync(PushedServerChangeSet pushed, string? runtimeStamp)
@@ -274,6 +354,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private async Task ApplyPushedChangesAsync(ServerChangeSet changes)
     {
         ServerChangeSet resolved = await ResolveStagedUpdatesAsync(changes, CancellationToken.None).ConfigureAwait(false);
+        await PrefetchChangeSetWordsAsync(resolved, CancellationToken.None).ConfigureAwait(false);
         if (_page is { } page)
             await page.ReceivePushedAsync(resolved).ConfigureAwait(false);
     }
@@ -294,7 +375,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private async Task ApplyPushedCommandResultAsync(UICommandExecutionResult result)
     {
         (UICommandExecutionResult resolved, var onlySessionKey) = await PrepareCommandResultAsync(result, CancellationToken.None).ConfigureAwait(false);
-        if (onlySessionKey && resolved.Changes.Updates.Length == 0)
+        if (onlySessionKey && resolved.Changes.Updates.Length == 0 && resolved.RequestId is null)
             return;
 
         if (_page is { } page)
@@ -314,9 +395,9 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         if (!_attached)
         {
             _attached = true;
-            WireAttachResult firstAttach = await _hub.InvokeAsync<WireAttachResult>(
+            UIHubAttachResult firstAttach = await _hub.InvokeAsync<UIHubAttachResult>(
                 "AttachAsync",
-                new WireAttachRequest
+                new UIHubAttachRequest
                 {
                     ClientWindowId = _session.ClientWindowId,
                     Route = InitialNavigation.Route,
@@ -325,7 +406,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                     View = View.Fingerprint,
                     Since = _initialSequence,
                     TimeZone = _session.TimeZone,
-                    ClientState = ToWireClientState(ClientState)
+                    ClientState = UIHubClientStateRequest.FromClientState(ClientState)
                 },
                 cancellationToken
             ).ConfigureAwait(false);
@@ -333,42 +414,50 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             if (firstAttach.Reload)
                 throw new InvalidOperationException($"The server requested a page reload for '{Route}' before the hub attached; reopen the page.");
 
-            if (!firstAttach.Fresh)
-            {
-                _runtimeStamp = firstAttach.Runtime;
-                ServerChangeSet hydrated = await ResolveStagedUpdatesAsync(_initialChanges, cancellationToken).ConfigureAwait(false);
-                ServerChangeSet delta = await ResolveStagedUpdatesAsync(firstAttach.InitialChanges, cancellationToken).ConfigureAwait(false);
+            RecordAttached(firstAttach.Runtime);
+            ServerChangeSet hydrated = await ResolveStagedUpdatesAsync(_initialChanges, cancellationToken).ConfigureAwait(false);
+            ServerChangeSet delta = await ResolveStagedUpdatesAsync(firstAttach.InitialChanges, cancellationToken).ConfigureAwait(false);
+            ServerChangeSet combined = delta.Updates.Length == 0
+                ? hydrated
+                : hydrated.Updates.Length == 0
+                    ? delta
+                    : new ServerChangeSet { Updates = [.. hydrated.Updates, .. delta.Updates] };
 
-                return delta.Updates.Length == 0
-                    ? hydrated
-                    : hydrated.Updates.Length == 0
-                        ? delta
-                        : new ServerChangeSet { Updates = [.. hydrated.Updates, .. delta.Updates] };
-            }
-
-            _runtimeStamp = firstAttach.Runtime;
+            await PrefetchChangeSetWordsAsync(combined, cancellationToken).ConfigureAwait(false);
+            return combined;
         }
 
         UINavigationRequest currentNav = _page?.Navigation ?? InitialNavigation;
-        WireAttachResult resyncAttach = await InvokeResyncAttachAsync(currentNav, cancellationToken).ConfigureAwait(false);
+        UIHubAttachResult resyncAttach = await InvokeResyncAttachAsync(currentNav, cancellationToken).ConfigureAwait(false);
 
         if (resyncAttach.Fresh)
         {
-            _runtimeStamp = resyncAttach.Runtime;
+            _page?.ResetForFreshRuntime();
+            _runtimeStamp = null;
             resyncAttach = await InvokeResyncAttachAsync(currentNav, cancellationToken).ConfigureAwait(false);
         }
 
-        if (resyncAttach.Runtime is not null)
-            _runtimeStamp = resyncAttach.Runtime;
-
-        return await ResolveStagedUpdatesAsync(resyncAttach.InitialChanges, cancellationToken).ConfigureAwait(false);
+        RecordAttached(resyncAttach.Runtime ?? _runtimeStamp);
+        ServerChangeSet resynced = await ResolveStagedUpdatesAsync(resyncAttach.InitialChanges, cancellationToken).ConfigureAwait(false);
+        await PrefetchChangeSetWordsAsync(resynced, cancellationToken).ConfigureAwait(false);
+        return resynced;
     }
 
-    private async Task<WireAttachResult> InvokeResyncAttachAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    private void RecordAttached(string? runtimeStamp)
     {
-        WireAttachResult result = await _hub.InvokeAsync<WireAttachResult>(
+        _runtimeStamp = runtimeStamp;
+        lock (_stateSync)
+        {
+            _attachedConnectionId = _hub.ConnectionId;
+            _fatalFault = null;
+        }
+    }
+
+    private async Task<UIHubAttachResult> InvokeResyncAttachAsync(UINavigationRequest navigation, CancellationToken cancellationToken)
+    {
+        UIHubAttachResult result = await _hub.InvokeAsync<UIHubAttachResult>(
             "AttachAsync",
-            new WireAttachRequest
+            new UIHubAttachRequest
             {
                 ClientWindowId = _session.ClientWindowId,
                 Route = navigation.Route,
@@ -376,7 +465,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                 View = View.Fingerprint,
                 Runtime = _runtimeStamp,
                 TimeZone = _session.TimeZone,
-                ClientState = ToWireClientState(ClientState)
+                ClientState = UIHubClientStateRequest.FromClientState(ClientState)
             },
             cancellationToken
         ).ConfigureAwait(false);
@@ -387,19 +476,12 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         return result;
     }
 
-    private static WireClientStateRequest? ToWireClientState(UIClientState state)
-        => state == UIClientState.Unreported
-            ? null
-            : new WireClientStateRequest
-            {
-                Visible = state.IsVisible,
-                NotificationPermission = state.NotificationPermission
-            };
-
     /// <inheritdoc />
     public async Task<UICommandExecutionResult> ProcessEventAsync(UICommandRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
 
         string? parametersToken = null;
         var dynamicParameters = request.DynamicParameters;
@@ -416,7 +498,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
         UICommandExecutionResult raw = await _hub.InvokeAsync<UICommandExecutionResult>(
             "ProcessEventAsync",
-            new WireCommandRequest
+            new UIHubCommandRequest
             {
                 EventId = request.EventId,
                 Action = request.Action,
@@ -427,7 +509,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             cancellationToken
         ).ConfigureAwait(false);
 
-        await DrainIncomingAsync().ConfigureAwait(false);
+        await DrainIncomingAsync(cancellationToken).ConfigureAwait(false);
         (UICommandExecutionResult resolved, _) = await PrepareCommandResultAsync(raw, cancellationToken).ConfigureAwait(false);
         return resolved;
     }
@@ -437,7 +519,9 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     {
         ArgumentNullException.ThrowIfNull(changeSet);
 
-        WireValueChangeRequest[] updates = new WireValueChangeRequest[changeSet.Updates.Length];
+        await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+
+        UIHubValueChangeRequest[] updates = new UIHubValueChangeRequest[changeSet.Updates.Length];
 
         for (var i = 0; i < changeSet.Updates.Length; i++)
         {
@@ -448,7 +532,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             if (json.Length > LargeValueBytes)
             {
                 var token = await StageClientValueAsync(json, cancellationToken).ConfigureAwait(false);
-                updates[i] = new WireValueChangeRequest
+                updates[i] = new UIHubValueChangeRequest
                 {
                     ComponentId = update.Address.Component.Id.Value,
                     PropertyName = update.Address.Property.Name,
@@ -459,7 +543,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             else
             {
                 using JsonDocument doc = JsonDocument.Parse(json);
-                updates[i] = new WireValueChangeRequest
+                updates[i] = new UIHubValueChangeRequest
                 {
                     ComponentId = update.Address.Component.Id.Value,
                     PropertyName = update.Address.Property.Name,
@@ -471,12 +555,14 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
         ServerChangeSet raw = await _hub.InvokeAsync<ServerChangeSet>(
             "ProcessChangeSetAsync",
-            new WireChangeSetRequest { Updates = updates },
+            new UIHubChangeSetRequest { Updates = updates },
             cancellationToken
         ).ConfigureAwait(false);
 
-        await DrainIncomingAsync().ConfigureAwait(false);
-        return await ResolveStagedUpdatesAsync(raw, cancellationToken).ConfigureAwait(false);
+        await DrainIncomingAsync(cancellationToken).ConfigureAwait(false);
+        ServerChangeSet resolved = await ResolveStagedUpdatesAsync(raw, cancellationToken).ConfigureAwait(false);
+        await PrefetchChangeSetWordsAsync(resolved, cancellationToken).ConfigureAwait(false);
+        return resolved;
     }
 
     /// <inheritdoc />
@@ -484,9 +570,11 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+
         ServerChangeSet raw = await _hub.InvokeAsync<ServerChangeSet>(
             "RequestItemWindowAsync",
-            new WireItemWindowRequest
+            new UIHubItemWindowRequest
             {
                 ComponentId = request.ComponentId.Value,
                 DynamicParameters = request.DynamicParameters,
@@ -499,20 +587,24 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             cancellationToken
         ).ConfigureAwait(false);
 
-        await DrainIncomingAsync().ConfigureAwait(false);
-        return await ResolveStagedUpdatesAsync(raw, cancellationToken).ConfigureAwait(false);
+        await DrainIncomingAsync(cancellationToken).ConfigureAwait(false);
+        ServerChangeSet resolved = await ResolveStagedUpdatesAsync(raw, cancellationToken).ConfigureAwait(false);
+        await PrefetchChangeSetWordsAsync(resolved, cancellationToken).ConfigureAwait(false);
+        return resolved;
     }
 
     /// <inheritdoc />
     public async Task<UICommandExecutionResult> NavigateInPlaceAsync(IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken = default)
     {
+        await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+
         UICommandExecutionResult raw = await _hub.InvokeAsync<UICommandExecutionResult>(
             "NavigateInPlaceAsync",
-            new WireAddressRequest { Parameters = parameters },
+            new UIHubAddressRequest { Parameters = parameters },
             cancellationToken
         ).ConfigureAwait(false);
 
-        await DrainIncomingAsync().ConfigureAwait(false);
+        await DrainIncomingAsync(cancellationToken).ConfigureAwait(false);
         (UICommandExecutionResult resolved, _) = await PrepareCommandResultAsync(raw, cancellationToken).ConfigureAwait(false);
         return resolved;
     }
@@ -522,13 +614,15 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
 
+        await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+
         UICommandExecutionResult raw = await _hub.InvokeAsync<UICommandExecutionResult>(
             "RequestLeaveAsync",
-            new WireLeaveRequest { Target = target },
+            new UIHubLeaveRequest { Target = target },
             cancellationToken
         ).ConfigureAwait(false);
 
-        await DrainIncomingAsync().ConfigureAwait(false);
+        await DrainIncomingAsync(cancellationToken).ConfigureAwait(false);
         (UICommandExecutionResult resolved, _) = await PrepareCommandResultAsync(raw, cancellationToken).ConfigureAwait(false);
         return resolved;
     }
@@ -536,17 +630,20 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     /// <inheritdoc />
     public async Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default)
     {
-        await DrainIncomingAsync().ConfigureAwait(false);
+        await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+        await DrainIncomingAsync(cancellationToken).ConfigureAwait(false);
         return ServerChangeSet.Empty;
     }
 
     /// <inheritdoc />
     public async Task ReportClientStateAsync(UIClientState state, CancellationToken cancellationToken = default)
     {
+        await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+
         ClientState = state;
         await _hub.InvokeAsync(
             "ReportClientStateAsync",
-            new WireClientStateRequest
+            new UIHubClientStateRequest
             {
                 Visible = state.IsVisible,
                 NotificationPermission = state.NotificationPermission
@@ -554,32 +651,28 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             cancellationToken
         ).ConfigureAwait(false);
 
-        await DrainIncomingAsync().ConfigureAwait(false);
+        await DrainIncomingAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public bool SessionHolds(ClientEffect effect)
-        => effect switch
-        {
-            SetLanguageEffect language => string.Equals(language.Language, Language, StringComparison.Ordinal),
-            SetThemeEffect theme => theme.Stored || theme.Mode == ThemeMode,
-            SetThemeColorsEffect colors => Equals(colors.Colors, ThemeColors),
-            _ => true
-        };
+        => UISessionSettings.Holds(effect, Language, ThemeMode, ThemeColors);
 
     /// <inheritdoc />
     public async Task ApplySettingAsync(ClientEffect setting, CancellationToken cancellationToken = default)
     {
+        await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+
         switch (setting)
         {
             case SetLanguageEffect language:
-                WireLanguageResult langResult = await _hub.InvokeAsync<WireLanguageResult>(
+                UIHubLanguageResult langResult = await _hub.InvokeAsync<UIHubLanguageResult>(
                     "SetLanguageAsync",
-                    new WireSetLanguageRequest { Language = language.Language },
+                    new UIHubSetLanguageRequest { Language = language.Language },
                     cancellationToken
                 ).ConfigureAwait(false);
 
-                await FetchWordsAsync(langResult.Href, cancellationToken).ConfigureAwait(false);
+                await FetchWordsAsync(langResult.Href, langResult.Language, cancellationToken).ConfigureAwait(false);
                 Language = langResult.Language;
                 break;
 
@@ -593,7 +686,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
                 await _hub.InvokeAsync(
                     "SetThemeAsync",
-                    new WireSetThemeRequest { Theme = themeName },
+                    new UIHubSetThemeRequest { Theme = themeName },
                     cancellationToken
                 ).ConfigureAwait(false);
 
@@ -601,9 +694,9 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                 break;
 
             case SetThemeColorsEffect colors:
-                _ = await _hub.InvokeAsync<WireThemeColorsResult>(
+                _ = await _hub.InvokeAsync<UIHubThemeColorsResult>(
                     "SetThemeColorsAsync",
-                    new WireSetThemeColorsRequest { Colors = colors.Colors },
+                    new UIHubSetThemeColorsRequest { Colors = colors.Colors },
                     cancellationToken
                 ).ConfigureAwait(false);
 
@@ -614,7 +707,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                 break;
         }
 
-        await DrainIncomingAsync().ConfigureAwait(false);
+        await DrainIncomingAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Uploads one or more files to <c>POST /_ne/files/upload</c> and returns the stored selection descriptor.</summary>
@@ -643,7 +736,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             ?? throw new InvalidOperationException("Upload response was empty.");
     }
 
-    /// <summary>Downloads a file from a download effect URL (<c>/_ne/files/{token}</c>) and records it on the page.</summary>
+    /// <summary>Downloads a file from a framework download effect URL (<c>/_ne/files/{token}</c>) and records it on the page.</summary>
     public async Task<UIClientDownload> DownloadFileAsync(DownloadFileEffect effect, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(effect);
@@ -679,11 +772,12 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
         _closed = true;
         _hub.Reconnected -= OnReconnectedAsync;
+        _page?.CancelPendingCommands(new OperationCanceledException("The client page closed before the background command completed."));
         _onClose?.Invoke(this);
         await _hub.DisposeAsync().ConfigureAwait(false);
     }
 
-    private async Task DrainIncomingAsync()
+    private async Task DrainIncomingAsync(CancellationToken cancellationToken)
     {
         await Task.Yield();
         while (_incoming.TryDequeue(out Task? pending))
@@ -691,34 +785,48 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             await pending.ConfigureAwait(false);
             await Task.Yield();
         }
+
+        await FlushQueuedWordRequestsAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<(UICommandExecutionResult Result, bool OnlySessionKey)> PrepareCommandResultAsync(UICommandExecutionResult raw, CancellationToken cancellationToken)
     {
-        ServerChangeSet changes = await ResolveStagedUpdatesAsync(raw.Changes, cancellationToken).ConfigureAwait(false);
         ClientEffect[] effects = raw.Command.Effects;
+        var sawSessionKey = false;
+
+        // Rotate the session cookie BEFORE resolving staged tokens: SignInAsync replaced the old session id in the server store.
+        for (var i = 0; i < effects.Length; i++)
+        {
+            if (effects[i] is UISessionKeyWireEffect sessionKey)
+            {
+                sawSessionKey = true;
+                await TradeSessionKeyAsync(sessionKey.Token, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        ServerChangeSet changes = await ResolveStagedUpdatesAsync(raw.Changes, cancellationToken).ConfigureAwait(false);
         if (effects.Length == 0)
+        {
+            await PrefetchChangeSetWordsAsync(changes, cancellationToken).ConfigureAwait(false);
             return (ReferenceEquals(changes, raw.Changes) ? raw : raw with { Changes = changes }, false);
+        }
 
         List<ClientEffect> filtered = [with(effects.Length)];
-        var sawSessionKey = false;
 
         for (var i = 0; i < effects.Length; i++)
         {
             switch (effects[i])
             {
-                case RemoteSessionKeyEffect sessionKey:
-                    sawSessionKey = true;
-                    await TradeSessionKeyAsync(sessionKey.Token, cancellationToken).ConfigureAwait(false);
+                case UISessionKeyWireEffect:
                     break;
 
-                case RemoteStoredLanguageEffect storedLanguage:
-                    await FetchWordsAsync(storedLanguage.Href, cancellationToken).ConfigureAwait(false);
+                case UIStoredLanguageWireEffect storedLanguage:
+                    await FetchWordsAsync(storedLanguage.Href, storedLanguage.Language, cancellationToken).ConfigureAwait(false);
                     Language = storedLanguage.Language;
                     filtered.Add(new SetLanguageEffect(storedLanguage.Language));
                     break;
 
-                case RemoteStoredThemeColorsEffect storedColors:
+                case UIStoredThemeColorsWireEffect storedColors:
                     ThemeColors = storedColors.Colors;
                     filtered.Add(new SetThemeColorsEffect(storedColors.Colors));
                     break;
@@ -728,16 +836,14 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                     filtered.Add(storedTheme);
                     break;
 
-                case DownloadFileEffect download:
-                    _ = await DownloadFileAsync(download, cancellationToken).ConfigureAwait(false);
-                    filtered.Add(download);
-                    break;
-
                 default:
                     filtered.Add(effects[i]);
                     break;
             }
         }
+
+        await PrefetchChangeSetWordsAsync(changes, cancellationToken).ConfigureAwait(false);
+        await PrefetchEffectsWordsAsync(filtered, cancellationToken).ConfigureAwait(false);
 
         UICommandResult command = raw.Command.Success
             ? UICommandResult.Ok([.. filtered])
@@ -820,20 +926,13 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
             ?? throw new InvalidOperationException("Value staging endpoint returned no token.");
     }
 
-    private async Task TradeSessionKeyAsync(string token, CancellationToken cancellationToken)
+    private Task TradeSessionKeyAsync(string token, CancellationToken cancellationToken)
     {
         var body = JsonSerializer.SerializeToUtf8Bytes(new { token }, WireOptions);
-        using ByteArrayContent content = new(body);
-        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
-        using HttpResponseMessage response = await _session.HttpClient
-            .PostAsync(new Uri("/_ne/session/key", UriKind.Relative), content, cancellationToken)
-            .ConfigureAwait(false);
-
-        _ = response.EnsureSuccessStatusCode();
+        return _session.TradeSessionKeyAsync(body, cancellationToken);
     }
 
-    private async Task FetchWordsAsync(string href, CancellationToken cancellationToken)
+    private async Task FetchWordsAsync(string href, string language, CancellationToken cancellationToken)
     {
         using HttpResponseMessage response = await _session.HttpClient
             .GetAsync(RequireFrameworkPath(href), cancellationToken)
@@ -844,13 +943,224 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
         using JsonDocument doc = JsonDocument.Parse(bytes);
         _translator.LoadWords(doc.RootElement);
+        await PrefetchViewWordsAsync(LanguageFor(_translator, language), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task PrefetchViewWordsAsync(string language, CancellationToken cancellationToken)
+    {
+        if (!_translator.NeedsRemoteLookup(language))
+            return;
+
+        HashSet<string> candidates = [with(StringComparer.Ordinal)];
+        CollectPhraseOrPlainKey(View.Title, plainAllowed: true, language, candidates);
+
+        if (View.TitleArguments is not null)
+        {
+            foreach (var arg in View.TitleArguments.Values)
+                CollectValueWordKeys(arg, plainAllowed: false, language, candidates, depth: 0);
+        }
+
+        foreach (CompiledDialog dialog in View.Dialogs)
+            CollectValueWordKeys(dialog.AccessibleName, plainAllowed: true, language, candidates, depth: 0);
+
+        foreach (UIComponentState state in View.State.All)
+        {
+            foreach (CompiledUIPropertyValue slot in state.All)
+            {
+                if (!slot.IsBind && slot.Value is not null)
+                    CollectValueWordKeys(slot.Value, slot.IsTranslatable && !slot.IsContent, language, candidates, depth: 0);
+            }
+        }
+
+        foreach (CompiledUIValidationRule rule in View.Validations.All)
+            CollectValueWordKeys(rule.Message, plainAllowed: true, language, candidates, depth: 0);
+
+        await FetchMissingWordsCoreAsync(language, candidates, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task PrefetchChangeSetWordsAsync(ServerChangeSet changes, CancellationToken cancellationToken)
+    {
+        var language = LanguageFor(_translator, Language);
+        if (!_translator.NeedsRemoteLookup(language))
+            return;
+
+        HashSet<string> candidates = [with(StringComparer.Ordinal)];
+        for (var i = 0; i < changes.Updates.Length; i++)
+        {
+            switch (changes.Updates[i])
+            {
+                case ServerValueUIUpdate valueUpdate:
+                    var translatable = !valueUpdate.Content
+                        && View.State.TryGetValue(valueUpdate.Address.Component.Id, valueUpdate.Address.Property, out CompiledUIPropertyValue? compiled)
+                        && compiled.IsTranslatable
+                        && !compiled.IsContent;
+                    CollectValueWordKeys(valueUpdate.Value, translatable, language, candidates, depth: 0);
+                    break;
+
+                case ServerValidationUIUpdate validationUpdate:
+                    CollectValueWordKeys(validationUpdate.Message, !validationUpdate.Content, language, candidates, depth: 0);
+                    break;
+
+                case ServerCollectionChangeUIUpdate collectionUpdate:
+                    for (var j = 0; j < collectionUpdate.Items.Length; j++)
+                        CollectValueWordKeys(collectionUpdate.Items[j].Item, plainAllowed: true, language, candidates, depth: 0);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        await FlushQueuedWordRequestsIntoAsync(language, candidates, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task PrefetchEffectsWordsAsync(List<ClientEffect> effects, CancellationToken cancellationToken)
+    {
+        var language = LanguageFor(_translator, Language);
+        if (!_translator.NeedsRemoteLookup(language))
+            return;
+
+        HashSet<string> candidates = [with(StringComparer.Ordinal)];
+        for (var i = 0; i < effects.Count; i++)
+        {
+            switch (effects[i])
+            {
+                case ShowNotificationEffect toast:
+                    CollectValueWordKeys(toast.Message, plainAllowed: true, language, candidates, depth: 0);
+                    CollectValueWordKeys(toast.Action?.Title, plainAllowed: true, language, candidates, depth: 0);
+                    break;
+
+                case ShowSystemNotificationEffect systemToast:
+                    CollectValueWordKeys(systemToast.Title, plainAllowed: true, language, candidates, depth: 0);
+                    CollectValueWordKeys(systemToast.Body, plainAllowed: true, language, candidates, depth: 0);
+                    break;
+
+                case AnnounceEffect announce:
+                    CollectValueWordKeys(announce.Message, plainAllowed: true, language, candidates, depth: 0);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        await FlushQueuedWordRequestsIntoAsync(language, candidates, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task FlushQueuedWordRequestsAsync(CancellationToken cancellationToken)
+    {
+        foreach ((var language, HashSet<string> queued) in _translator.TakeQueuedRequests())
+            await FetchMissingWordsCoreAsync(language, queued, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task FlushQueuedWordRequestsIntoAsync(string language, HashSet<string> candidates, CancellationToken cancellationToken)
+    {
+        foreach ((var queuedLang, HashSet<string> queued) in _translator.TakeQueuedRequests())
+        {
+            if (string.Equals(queuedLang, language, StringComparison.Ordinal))
+                candidates.UnionWith(queued);
+            else
+                await FetchMissingWordsCoreAsync(queuedLang, queued, cancellationToken).ConfigureAwait(false);
+        }
+
+        await FetchMissingWordsCoreAsync(language, candidates, cancellationToken).ConfigureAwait(false);
+    }
+
+    private void CollectValueWordKeys(object? value, bool plainAllowed, string language, HashSet<string> candidates, int depth)
+    {
+        if (value is null || depth > 5)
+            return;
+
+        switch (value)
+        {
+            case string text:
+                if (plainAllowed)
+                    CollectPhraseOrPlainKey(text, plainAllowed: true, language, candidates);
+                return;
+
+            case UIPhrase { IsText: true } authorText:
+                if (plainAllowed)
+                    CollectPhraseOrPlainKey(authorText.Key, plainAllowed: true, language, candidates);
+                return;
+
+            case UIPhrase phrase:
+                CollectPhraseOrPlainKey(phrase.Key, plainAllowed: false, language, candidates);
+                if (phrase.Arguments is not null)
+                {
+                    foreach (var arg in phrase.Arguments.Values)
+                        CollectValueWordKeys(arg, plainAllowed: true, language, candidates, depth + 1);
+                }
+
+                return;
+
+            case UIValidationMessage validationMessage:
+                CollectValueWordKeys(validationMessage.Message, plainAllowed: true, language, candidates, depth + 1);
+                return;
+
+            case IReadOnlyDictionary<string, object?> dict:
+                if ((dict.ContainsKey("key") || dict.ContainsKey("text"))
+                    && dict.Count <= 2
+                    && CompiledViewWireSerializer.CoerceWireValue(typeof(UIPhrase), dict) is UIPhrase coerced)
+                {
+                    CollectValueWordKeys(coerced, plainAllowed, language, candidates, depth + 1);
+                    return;
+                }
+
+                var itemContent = (dict.TryGetValue("isContent", out var icLower) && icLower is true)
+                    || (dict.TryGetValue("IsContent", out var icUpper) && icUpper is true);
+
+                foreach (var entry in dict.Values)
+                    CollectValueWordKeys(entry, plainAllowed && !itemContent, language, candidates, depth + 1);
+                return;
+
+            case IEnumerable sequence:
+                foreach (var element in sequence)
+                    CollectValueWordKeys(element, plainAllowed, language, candidates, depth + 1);
+                return;
+
+            default:
+                return;
+        }
+    }
+
+    private void CollectPhraseOrPlainKey(string? key, bool plainAllowed, string language, HashSet<string> candidates)
+    {
+        if (_translator.ShouldAskServer(language, key, plain: plainAllowed))
+            _ = candidates.Add(key);
+    }
+
+    private async Task FetchMissingWordsCoreAsync(string language, HashSet<string> candidates, CancellationToken cancellationToken)
+    {
+        if (candidates.Count == 0 || _closed)
+            return;
+
+        List<string> toAsk = _translator.ClaimUnasked(language, candidates);
+        if (toAsk.Count == 0)
+            return;
+
+        for (var offset = 0; offset < toAsk.Count; offset += MaxTranslateKeysPerCall)
+        {
+            var count = Math.Min(MaxTranslateKeysPerCall, toAsk.Count - offset);
+            var batch = toAsk.GetRange(offset, count).ToArray();
+            UIHubTranslateResult answer = await _hub.InvokeAsync<UIHubTranslateResult>(
+                "TranslateAsync",
+                new UIHubTranslateRequest
+                {
+                    Language = language,
+                    Keys = batch
+                },
+                cancellationToken
+            ).ConfigureAwait(false);
+
+            _translator.MergeTranslations(answer.Language, answer.Words);
+        }
     }
 
     private static JsonSerializerOptions CreateWireOptions()
     {
         JsonSerializerOptions options = UIWireJson.CreateOptions();
         options.Converters.Add(new RemoteUICommandResultJsonConverter());
-        options.Converters.Add(new RemoteClientEffectJsonConverter());
+        options.Converters.Add(new UIHubClientEffectJsonConverter());
         options.Converters.Add(new ObjectToInferredTypesConverter());
         return options;
     }
@@ -926,27 +1236,61 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         }
     }
 
-    private sealed class RemoteClientTranslator(string defaultLanguage) : ITranslator
+    private sealed class RemoteClientTranslator : ITranslator
     {
-        private readonly ConcurrentDictionary<string, Dictionary<string, string>> _tables = new(StringComparer.Ordinal);
-        private readonly HashSet<string> _languages = [with(StringComparer.Ordinal), defaultLanguage];
+        private readonly ConcurrentDictionary<string, LoadedWordTable> _tables = new(StringComparer.Ordinal);
+        private readonly List<string> _languages = [];
+        private readonly HashSet<string> _languageSet = [with(StringComparer.Ordinal)];
+        private readonly Dictionary<string, HashSet<string>> _queuedRequests = [with(StringComparer.Ordinal)];
+        private readonly Lock _sync = new();
 
-        public string DefaultLanguage { get; } = defaultLanguage;
+        public RemoteClientTranslator(string defaultLanguage, IEnumerable<string> languages)
+        {
+            DefaultLanguage = defaultLanguage;
+            AddLanguage(defaultLanguage);
+            foreach (var lang in languages)
+                AddLanguage(lang);
+        }
+
+        public string DefaultLanguage { get; }
 
         public IReadOnlyList<string> Languages
         {
             get
             {
-                lock (_languages)
+                lock (_sync)
                     return [.. _languages];
+            }
+        }
+
+        public bool HasLanguage(string language)
+        {
+            lock (_sync)
+                return _languageSet.Contains(language);
+        }
+
+        private void AddLanguage(string language)
+        {
+            if (string.IsNullOrWhiteSpace(language))
+                return;
+
+            lock (_sync)
+            {
+                if (_languageSet.Add(language))
+                    _languages.Add(language);
             }
         }
 
         public void LoadWords(JsonElement root)
         {
             var lang = root.TryGetProperty("language", out JsonElement langEl) ? langEl.GetString() ?? DefaultLanguage : DefaultLanguage;
-            Dictionary<string, string> words = [with(StringComparer.Ordinal)];
+            var complete = !root.TryGetProperty("complete", out JsonElement compEl) || compEl.ValueKind != JsonValueKind.False;
+            var report = root.TryGetProperty("report", out JsonElement repEl) && repEl.ValueKind == JsonValueKind.True;
+            var prefixes = root.TryGetProperty("prefixes", out JsonElement prefEl) && prefEl.ValueKind == JsonValueKind.Array
+                ? ReadStringArray(prefEl)
+                : [];
 
+            ConcurrentDictionary<string, string> words = new(StringComparer.Ordinal);
             if (root.TryGetProperty("words", out JsonElement wordsEl) && wordsEl.ValueKind == JsonValueKind.Object)
             {
                 foreach (JsonProperty prop in wordsEl.EnumerateObject())
@@ -956,227 +1300,193 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                 }
             }
 
-            _tables[lang] = words;
-            lock (_languages)
-                _ = _languages.Add(lang);
+            _tables[lang] = new LoadedWordTable(words, complete, prefixes, report);
+            AddLanguage(lang);
+        }
+
+        private static string[] ReadStringArray(JsonElement arrayElement)
+        {
+            List<string> items = [with(arrayElement.GetArrayLength())];
+            foreach (JsonElement item in arrayElement.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String && item.GetString() is { } text)
+                    items.Add(text);
+            }
+
+            return [.. items];
+        }
+
+        public bool NeedsRemoteLookup(string language)
+            => _tables.TryGetValue(language, out LoadedWordTable? table) && (!table.Complete || table.ReportMissing);
+
+        public bool ShouldAskServer(string language, [NotNullWhen(true)] string? key, bool plain)
+        {
+            if (string.IsNullOrWhiteSpace(key) || key.Length > MaxTranslateKeyLength)
+                return false;
+
+            if (!_tables.TryGetValue(language, out LoadedWordTable? table))
+                return false;
+
+            if (plain && !HasKeyPrefix(table.Prefixes, key))
+                return false;
+
+            if (table.Words.ContainsKey(key) || table.Asked.ContainsKey(key))
+                return false;
+
+            return !table.Complete || (table.ReportMissing && table.Prefixes.Length > 0 && HasKeyPrefix(table.Prefixes, key));
+        }
+
+        public List<string> ClaimUnasked(string language, IEnumerable<string> candidates)
+        {
+            List<string> claimed = [];
+            if (!_tables.TryGetValue(language, out LoadedWordTable? table))
+                return claimed;
+
+            foreach (var key in candidates)
+            {
+                if (!table.Words.ContainsKey(key) && table.Asked.TryAdd(key, 0))
+                    claimed.Add(key);
+            }
+
+            return claimed;
+        }
+
+        public void MergeTranslations(string language, IReadOnlyDictionary<string, string> words)
+        {
+            if (!_tables.TryGetValue(language, out LoadedWordTable? table))
+                return;
+
+            foreach (KeyValuePair<string, string> entry in words)
+                table.Words[entry.Key] = entry.Value;
+        }
+
+        public List<(string Language, HashSet<string> Keys)> TakeQueuedRequests()
+        {
+            lock (_sync)
+            {
+                if (_queuedRequests.Count == 0)
+                    return [];
+
+                List<(string, HashSet<string>)> taken = [with(_queuedRequests.Count)];
+                foreach (KeyValuePair<string, HashSet<string>> entry in _queuedRequests)
+                    taken.Add((entry.Key, entry.Value));
+
+                _queuedRequests.Clear();
+                return taken;
+            }
         }
 
         public string? Translate(string language, string? key)
         {
-            if (string.IsNullOrEmpty(key))
+            if (string.IsNullOrWhiteSpace(key))
                 return key;
 
-            if (_tables.TryGetValue(language, out Dictionary<string, string>? table) && table.TryGetValue(key, out var translated))
-                return translated;
+            var targetLanguage = HasLanguage(language) ? language : DefaultLanguage;
+            if (_tables.TryGetValue(targetLanguage, out LoadedWordTable? table) && !HasKeyPrefix(table.Prefixes, key))
+                return key;
 
-            if (_tables.TryGetValue(DefaultLanguage, out Dictionary<string, string>? fallback) && fallback.TryGetValue(key, out var fallbackTranslated))
-                return fallbackTranslated;
-
-            return key;
+            return LookupKey(targetLanguage, key, probe: false) ?? key;
         }
 
         public bool TryTranslate(string language, string key, [NotNullWhen(true)] out string? words)
         {
-            if (_tables.TryGetValue(language, out Dictionary<string, string>? table) && table.TryGetValue(key, out words))
-                return true;
-
-            words = null;
-            return false;
-        }
-    }
-
-    private sealed class RemoteSessionKeyEffect(string token) : ClientEffect
-    {
-        public override string Kind => "SessionKey";
-
-        public string Token { get; } = token;
-    }
-
-    private sealed class RemoteStoredLanguageEffect(string language, string href) : ClientEffect
-    {
-        public override string Kind => ClientEffectKinds.SetLanguage;
-
-        public string Language { get; } = language;
-
-        public string Href { get; } = href;
-    }
-
-    private sealed class RemoteStoredThemeColorsEffect(UIThemeColors? colors) : ClientEffect
-    {
-        public override string Kind => ClientEffectKinds.SetThemeColors;
-
-        public UIThemeColors? Colors { get; } = colors;
-    }
-
-    private sealed class RemoteClientEffectJsonConverter : JsonConverter<ClientEffect>
-    {
-        private static readonly ClientEffectJsonConverter Inner = new();
-
-        public override ClientEffect? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
-            JsonElement root = doc.RootElement;
-
-            if (root.TryGetProperty("kind", out JsonElement kindEl) && kindEl.ValueKind == JsonValueKind.String)
+            if (string.IsNullOrWhiteSpace(key))
             {
-                var kind = kindEl.GetString();
-                if (string.Equals(kind, "SessionKey", StringComparison.Ordinal))
-                {
-                    var token = root.GetProperty("token").GetString() ?? string.Empty;
-                    return new RemoteSessionKeyEffect(token);
-                }
-
-                if (string.Equals(kind, ClientEffectKinds.SetLanguage, StringComparison.Ordinal)
-                    && root.TryGetProperty("href", out JsonElement hrefEl)
-                    && hrefEl.ValueKind == JsonValueKind.String)
-                {
-                    var language = root.GetProperty("language").GetString() ?? string.Empty;
-                    return new RemoteStoredLanguageEffect(language, hrefEl.GetString()!);
-                }
-
-                if (string.Equals(kind, ClientEffectKinds.SetThemeColors, StringComparison.Ordinal)
-                    && root.TryGetProperty("css", out _))
-                {
-                    UIThemeColors? colors = root.TryGetProperty("colors", out JsonElement colorsEl) && colorsEl.ValueKind != JsonValueKind.Null
-                        ? colorsEl.Deserialize<UIThemeColors>(options)
-                        : null;
-                    return new RemoteStoredThemeColorsEffect(colors);
-                }
+                words = null;
+                return false;
             }
 
-            var rawBytes = Encoding.UTF8.GetBytes(root.GetRawText());
-            Utf8JsonReader innerReader = new(rawBytes);
-            _ = innerReader.Read();
-            return Inner.Read(ref innerReader, typeToConvert, options);
+            var targetLanguage = HasLanguage(language) ? language : DefaultLanguage;
+            words = LookupKey(targetLanguage, key, probe: true);
+            return words is not null;
         }
 
-        public override void Write(Utf8JsonWriter writer, ClientEffect value, JsonSerializerOptions options)
-            => Inner.Write(writer, value, options);
-    }
+        public string? Translate(string language, string? key, IReadOnlyDictionary<string, object?>? arguments)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return key;
 
-    private sealed class WireAttachRequest
-    {
-        public required string ClientWindowId { get; init; }
+            var targetLanguage = HasLanguage(language) ? language : DefaultLanguage;
+            var template = UIWords.TryReadCount(arguments, out var count)
+                ? LookupPlural(targetLanguage, key, count)
+                : LookupKey(targetLanguage, key, probe: false) ?? key;
 
-        public required string Route { get; init; }
+            return UIWords.Format(
+                template,
+                arguments,
+                nested => (nested.IsText ? Translate(targetLanguage, nested.Key) : Translate(targetLanguage, nested.Key, nested.Arguments)) ?? nested.Key
+            );
+        }
 
-        public string? PageId { get; init; }
+        private string LookupPlural(string language, string key, double count)
+        {
+            var form = UIPluralRules.FormKey(key, UIPluralRules.Select(language, count));
+            if (LookupKey(language, form, probe: true) is { } exact)
+                return exact;
 
-        public string? View { get; init; }
+            var other = UIPluralRules.FormKey(key, UIPluralCategory.Other);
+            if (LookupKey(language, other, probe: true) is { } fallbackOther)
+                return fallbackOther;
 
-        public long? Since { get; init; }
+            return LookupKey(language, key, probe: false) ?? key;
+        }
 
-        public string? Runtime { get; init; }
+        private string? LookupKey(string language, string key, bool probe)
+        {
+            if (_tables.TryGetValue(language, out LoadedWordTable? table))
+            {
+                if (table.Words.TryGetValue(key, out var translated))
+                    return translated;
 
-        public string? TimeZone { get; init; }
+                if (!probe && ShouldAskServer(language, key, plain: false))
+                    QueueKey(language, key);
+            }
 
-        public WireClientStateRequest? ClientState { get; init; }
+            if (!string.Equals(language, DefaultLanguage, StringComparison.Ordinal)
+                && _tables.TryGetValue(DefaultLanguage, out LoadedWordTable? fallback)
+                && fallback.Words.TryGetValue(key, out var fallbackTranslated))
+            {
+                return fallbackTranslated;
+            }
 
-        public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
-    }
+            return null;
+        }
 
-    private sealed class WireAttachResult
-    {
-        public ServerChangeSet InitialChanges { get; init; } = ServerChangeSet.Empty;
+        private void QueueKey(string language, string key)
+        {
+            lock (_sync)
+            {
+                if (!_queuedRequests.TryGetValue(language, out HashSet<string>? set))
+                {
+                    set = [with(StringComparer.Ordinal)];
+                    _queuedRequests[language] = set;
+                }
 
-        public bool Reload { get; init; }
+                _ = set.Add(key);
+            }
+        }
 
-        public string? Runtime { get; init; }
+        private static bool HasKeyPrefix(string[] prefixes, string value)
+        {
+            if (prefixes.Length == 0)
+                return true;
 
-        public long? RetentionMilliseconds { get; init; }
+            for (var i = 0; i < prefixes.Length; i++)
+            {
+                if (value.StartsWith(prefixes[i], StringComparison.Ordinal))
+                    return true;
+            }
 
-        public bool Fresh { get; init; }
-    }
+            return false;
+        }
 
-    private sealed class WireCommandRequest
-    {
-        public UIEventId EventId { get; init; }
-
-        public string? Action { get; init; }
-
-        public object?[] DynamicParameters { get; init; } = [];
-
-        public string? DynamicParametersToken { get; init; }
-
-        public int? RequestId { get; init; }
-    }
-
-    private sealed class WireValueChangeRequest
-    {
-        public required int ComponentId { get; init; }
-
-        public required string PropertyName { get; init; }
-
-        public object?[] DynamicParameters { get; init; } = [];
-
-        public JsonElement? Value { get; init; }
-
-        public string? ValueToken { get; init; }
-    }
-
-    private sealed class WireChangeSetRequest
-    {
-        public required WireValueChangeRequest[] Updates { get; init; }
-    }
-
-    private sealed class WireItemWindowRequest
-    {
-        public required int ComponentId { get; init; }
-
-        public object?[] DynamicParameters { get; init; } = [];
-
-        public required string Anchor { get; init; }
-
-        public int Offset { get; init; }
-
-        public string? Key { get; init; }
-
-        public required int Count { get; init; }
-
-        public bool Extend { get; init; }
-    }
-
-    private sealed class WireAddressRequest
-    {
-        public IReadOnlyDictionary<string, object?>? Parameters { get; init; }
-    }
-
-    private sealed class WireLeaveRequest
-    {
-        public required string Target { get; init; }
-    }
-
-    private sealed class WireClientStateRequest
-    {
-        public bool Visible { get; init; } = true;
-
-        public UINotificationPermission NotificationPermission { get; init; }
-    }
-
-    private sealed class WireSetLanguageRequest
-    {
-        public required string Language { get; init; }
-    }
-
-    private sealed class WireLanguageResult
-    {
-        public required string Language { get; init; }
-
-        public required string Href { get; init; }
-    }
-
-    private sealed class WireSetThemeRequest
-    {
-        public required string Theme { get; init; }
-    }
-
-    private sealed class WireSetThemeColorsRequest
-    {
-        public UIThemeColors? Colors { get; init; }
-    }
-
-    private sealed class WireThemeColorsResult
-    {
-        public string Css { get; init; } = string.Empty;
+        private sealed record LoadedWordTable(
+            ConcurrentDictionary<string, string> Words,
+            bool Complete,
+            string[] Prefixes,
+            bool ReportMissing)
+        {
+            public ConcurrentDictionary<string, byte> Asked { get; } = new(StringComparer.Ordinal);
+        }
     }
 }

@@ -82,6 +82,8 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         _ = ResolveRenderValue(context, SliderComponent.EndValueProperty, out decimal? initialEnd, out _);
         _ = ResolveRenderValue(context, SliderComponent.MinProperty, out decimal? initialMin, out _);
         _ = ResolveRenderValue(context, SliderComponent.MaxProperty, out decimal? initialMax, out _);
+        _ = ResolveRenderValue(context, SliderComponent.StepProperty, out decimal? initialStep, out _);
+        var valueSizer = ValueSizer(initialMin, initialMax, initialStep);
 
         _ = root.Element("span", row =>
         {
@@ -150,9 +152,9 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
             });
 
             if (isRange)
-                RenderRangeReadout(row, Clamp(initialValue, initialMin, initialMax), Clamp(initialEnd, initialMin, initialMax));
+                RenderRangeReadout(row, Clamp(initialValue, initialMin, initialMax), Clamp(initialEnd, initialMin, initialMax), valueSizer);
             else
-                RenderReadout(row, Clamp(initialValue, initialMin, initialMax), end: false);
+                RenderReadout(row, Clamp(initialValue, initialMin, initialMax), end: false, valueSizer);
         });
 
         RenderValidationMessage(context, root);
@@ -221,7 +223,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
     }
 
     /// <summary>The reading beside the track: one value, or one end of a band.</summary>
-    private static void RenderReadout(IHtmlElementBuilder parent, decimal? initial, bool end)
+    private static void RenderReadout(IHtmlElementBuilder parent, decimal? initial, bool end, string valueSizer)
     {
         _ = parent.Element("output", output =>
         {
@@ -230,19 +232,21 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
             if (end)
                 _ = output.Class("ui-slider__value--end");
 
+            _ = output.Attribute(WebAttributes.SliderValueSizer, valueSizer);
+
             if (initial is decimal value)
                 _ = output.Text(value.ToString(CultureInfo.InvariantCulture));
         });
     }
 
     /// <summary>A band's two readings, "20 – 80", each written as the single slider writes its value.</summary>
-    private static void RenderRangeReadout(IHtmlElementBuilder row, decimal? start, decimal? end)
+    private static void RenderRangeReadout(IHtmlElementBuilder row, decimal? start, decimal? end, string valueSizer)
     {
         _ = row.Element("span", values =>
         {
             _ = values.Class("ui-slider__values");
 
-            RenderReadout(values, start, end: false);
+            RenderReadout(values, start, end: false, valueSizer);
 
             _ = values.Element("span", dash =>
             {
@@ -250,8 +254,117 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
                 _ = dash.Text(" – ");
             });
 
-            RenderReadout(values, end, end: true);
+            RenderReadout(values, end, end: true, valueSizer);
         });
+    }
+
+    internal static string ValueSizer(decimal? min, decimal? max, decimal? step)
+    {
+        var lower = min ?? 0m;
+        var upper = max ?? 100m;
+        var stride = step is decimal positive and > 0m ? positive : 1m;
+
+        if (upper < lower)
+            (lower, upper) = (upper, lower);
+
+        var precision = Math.Min(10, Math.Max(DecimalPlaces(lower), Math.Max(DecimalPlaces(upper), DecimalPlaces(stride))));
+        var last = LastOnStep(lower, upper, stride);
+        ReadOnlySpan<decimal> candidates =
+        [
+            Math.Min(last, SafeShift(lower, stride)),
+            Math.Max(lower, SafeShift(last, -stride)),
+            last,
+            upper
+        ];
+
+        var widest = CandidateSizer(lower, precision);
+        var maxWeight = AdvanceWeight(widest);
+
+        foreach (var candidate in candidates)
+        {
+            var sizer = CandidateSizer(candidate, precision);
+            var weight = AdvanceWeight(sizer);
+
+            if (weight > maxWeight)
+            {
+                widest = sizer;
+                maxWeight = weight;
+            }
+        }
+
+        return widest;
+    }
+
+    private static int DecimalPlaces(decimal value)
+    {
+        var text = value.ToString(CultureInfo.InvariantCulture);
+        var dot = text.IndexOf('.', StringComparison.Ordinal);
+
+        if (dot < 0)
+            return 0;
+
+        var end = text.Length;
+
+        while (end > dot + 1 && text[end - 1] == '0')
+            end--;
+
+        return end - dot - 1;
+    }
+
+    private static decimal LastOnStep(decimal lower, decimal upper, decimal stride)
+    {
+        try
+        {
+            var steps = decimal.Floor((upper - lower) / stride);
+
+            if (steps <= 0m)
+                return lower;
+
+            if (lower + (steps * stride) > upper)
+                steps--;
+
+            return lower + (steps * stride);
+        }
+        catch (OverflowException)
+        {
+            return upper;
+        }
+    }
+
+    private static decimal SafeShift(decimal origin, decimal delta)
+    {
+        try
+        {
+            return origin + delta;
+        }
+        catch (OverflowException)
+        {
+            return origin;
+        }
+    }
+
+    private static string CandidateSizer(decimal value, int precision)
+    {
+        var sign = value < 0m ? "-" : string.Empty;
+        var digits = IntegerDigits(Math.Truncate(Math.Abs(value)));
+        var whole = sign + new string('0', digits);
+
+        return precision > 0 && value != Math.Truncate(value)
+            ? whole + "." + new string('0', precision)
+            : whole;
+    }
+
+    private static int IntegerDigits(decimal nonNegativeTruncated)
+        => nonNegativeTruncated.ToString("F0", CultureInfo.InvariantCulture).Length;
+
+    private static double AdvanceWeight(string sizer)
+    {
+        var weight = 0.0;
+
+        for (var i = 0; i < sizer.Length; i++)
+            weight += sizer[i] == '-' ? 0.75 : sizer[i] == '.' ? 0.35 : 1.0;
+
+        return weight;
     }
 
     /// <summary>Where the value sits between the bounds, 0 to 1; absent or equal bounds leave it at the start.</summary>

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Primitives.Interaction;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Text;
@@ -60,21 +61,11 @@ public static class UIComparisonEvaluator
         if (value is IBindableItem item)
             return item.Id;
 
-        if (value is IReadOnlyDictionary<string, object?> map)
+        if (value is IReadOnlyDictionary<string, object?> or IDictionary<string, object?>
+            && ItemContext.TryReadProperty(value, nameof(IBindableItem.Id), out var id)
+            && id is string idText)
         {
-            if (map.TryGetValue("id", out var id) && id is string idText)
-                return idText;
-
-            if (map.TryGetValue("Id", out var pascalId) && pascalId is string pascalIdText)
-                return pascalIdText;
-        }
-        else if (value is IDictionary<string, object?> mutableMap)
-        {
-            if (mutableMap.TryGetValue("id", out var id) && id is string idText)
-                return idText;
-
-            if (mutableMap.TryGetValue("Id", out var pascalId) && pascalId is string pascalIdText)
-                return pascalIdText;
+            return idText;
         }
 
         return value;
@@ -108,22 +99,12 @@ public static class UIComparisonEvaluator
                 return 0;
             case bool flag:
                 return flag ? 1 : 0;
-            // Convertible, but its ToDouble throws: a moment is its ISO text on the page, which Number() reads as NaN, so dates fall
-            // through to ordinal text. Answered here rather than caught, as a date filter over many rows would throw once a row.
-            case DateTime:
+            case Enum or DateTime:
                 return double.NaN;
-            // A character's ToDouble throws too, and the page holds it as a one-character string: read below as its text, as Number() reads it.
-            case IConvertible convertible and not (string or char):
-                try
-                {
-                    return convertible.ToDouble(CultureInfo.InvariantCulture);
-                }
-                catch (Exception exception) when (exception is FormatException or InvalidCastException or OverflowException)
-                {
-                    return double.NaN;
-                }
-
             default:
+                if (UIScriptNumber.TryRead(value, out var wireNumber))
+                    return wireNumber;
+
                 break;
         }
 
@@ -135,12 +116,9 @@ public static class UIComparisonEvaluator
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : double.NaN;
     }
 
-    /// <summary>
-    /// Whether the value is text on the client: a string, or a character or a moment, which travel as one.
-    /// </summary>
-    // A phrase is text too: its key, or an author's text's own words — the client's `comparable`.
+    /// <summary>Whether the value travels as text on the wire (strings, characters, enums, moments, phrases).</summary>
     private static bool IsText(object? value)
-        => value is string or char or DateTime or DateTimeOffset or DateOnly or TimeOnly or UIPhrase;
+        => value is string or char or Enum or DateTime or DateTimeOffset or DateOnly or TimeOnly or UIPhrase;
 
     private static bool IsIn(object? left, object? right)
     {
