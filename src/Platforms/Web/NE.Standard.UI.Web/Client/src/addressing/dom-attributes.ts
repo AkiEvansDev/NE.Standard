@@ -376,23 +376,27 @@ export const WindowFootAttribute = "data-ui-window-foot";
 export const ContentFillsAttribute = "data-ui-content-fills";
 /** On each band of the page, naming it: a side's drawer is found by it. */
 export const RegionAttribute = "data-ui-region";
-/** On a menu entry: what it is beside a plain one — a header, a separator, a check. */
+/** On a menu entry or passive row: what it is beside a plain one — a header, a separator, a check. */
 export const MenuItemKindAttribute = "data-ui-menu-item-kind";
-/** A menu's root, its entry, a check entry turned on, and the entry of the current page. */
+/** A menu's root, its entry, its passive section caption and rule, a check entry turned on, and the entry of the current page. */
 export const MenuRootClass = "ui-menu";
 export const MenuItemClass = "ui-menu-item";
+const MenuHeaderClass = "ui-menu-header";
+const MenuSeparatorClass = "ui-menu-separator";
 const MenuItemCheckedClass = "ui-menu-item--checked";
 export const MenuItemSelectedClass = "ui-menu-item--selected";
 /** A rail (UIMenuDisplay.Rail): it never folds and has no room inline, so its groups fly out, and a label it cuts shows as a tooltip. */
 export const MenuRailClass = "ui-menu--rail";
 /** A menu standing in another's group: part of that menu, as its submenu. */
 export const NestedMenuClass = "ui-menu--nested";
-/** A menu entry that runs nothing when pressed: a caption or a rule. */
+/** Every rendered row face inside a menu: interactive entries, section captions and rules. */
+export const MenuRowEntrySelector = `:is(.${MenuItemClass}, .${MenuHeaderClass}, .${MenuSeparatorClass})`;
+/** A menu row face that runs nothing when pressed: a caption or a rule. */
 export const PassiveMenuEntrySelector = `[${MenuItemKindAttribute}="header"], [${MenuItemKindAttribute}="separator"]`;
 /** A group's own entry, which opens its block rather than running anything. */
 export const MenuGroupEntrySelector = `[${MenuGroupAttribute}] > .${MenuItemClass}`;
-/** A menu's entries that are controls: every entry but a header's and a separator's. */
-export const MenuControlEntrySelector = `.${MenuItemClass}:not(${PassiveMenuEntrySelector})`;
+/** A menu's entries that are controls: every entry (captions and rules wear `.ui-menu-header` / `.ui-menu-separator`). */
+export const MenuControlEntrySelector = `.${MenuItemClass}`;
 /** A menu entry with a mark of its own (a group's chevron, a check's tick), which a press also leaves the menu open on. */
 export const MarkedMenuEntrySelector = `${MenuGroupEntrySelector}, .${MenuItemClass}[${MenuItemKindAttribute}="check"]`;
 /** On a button or a menu entry: the key chord that presses it (`WebAttributes.Shortcut`), read by the page's one registry. */

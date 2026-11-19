@@ -210,7 +210,7 @@ test("a group's own entry, a check, a caption, a disabled entry and a popup menu
     const { root, toggle, drawer } = shell();
     const groupEntry = FakeElement.of("ui-menu-item", { href: "/settings" }, "a");
     const check = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "check" }, "a");
-    const caption = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "header" }, "a");
+    const caption = FakeElement.of("ui-menu-header", { "data-ui-menu-item-kind": "header" }, "div");
     const disabled = FakeElement.of("ui-menu-item", { "aria-disabled": "true" }, "a");
     const popupEntry = FakeElement.of("ui-menu-item", {}, "a");
 

@@ -1,17 +1,20 @@
 using System;
+using System.Collections.Concurrent;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Actions;
+using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Renderers.Navigation;
 
-/// <summary>Renders a menu entry as button chrome on an anchor, so an entry that navigates has a real URL.</summary>
+/// <summary>Renders a menu entry as button chrome on an anchor, or a passive section caption or rule on a plain block.</summary>
 public sealed class MenuItemComponentRenderer : ButtonRendererBase
 {
     private const string ShortcutClass = WebClassNames.MenuItemShortcut;
@@ -32,6 +35,7 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
     /// </summary>
     public const string MenuIconsOperationKind = "menu-icons";
 
+    private static readonly ConcurrentDictionary<string, string> HeaderOwnerTypeKeys = new(StringComparer.Ordinal);
     private static readonly WebDomOperation MenuIconsOperation = WebDomOperation.Custom(MenuIconsOperationKind);
 
     private static readonly WebDomOperation[] SelectedOperations =
@@ -52,29 +56,51 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
 
     protected override bool IsButtonElement => false;
 
+    protected override (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return ResolveKind(context, out _) switch
+        {
+            UIMenuItemKind.Header => ("div", WebClassNames.MenuHeader),
+            UIMenuItemKind.Separator => ("div", WebClassNames.MenuSeparator),
+            _ => base.ResolveRoot(context)
+        };
+    }
+
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
 
-        _ = root.Class(WebClassNames.Button);
-
-        RenderButtonChrome(context, root);
-
-        // Render-time only, and an attribute rather than a class because it also gates the content a separator still renders.
-        _ = ResolveRenderValue(context, MenuItemComponent.KindProperty, out UIMenuItemKind? kind, out _);
-        UIMenuItemKind resolvedKind = kind ?? UIMenuItemKind.Item;
+        UIMenuItemKind resolvedKind = ResolveKind(context, out UIMenuItemKind? kind);
         _ = root.Attribute(WebAttributes.MenuItemKind, resolvedKind.ToString().ToLowerInvariant());
 
         var popup = InPopupMenu(context);
+
+        if (resolvedKind == UIMenuItemKind.Separator)
+        {
+            if (popup)
+                _ = root.Attribute("role", "separator");
+
+            RenderPassiveSurface(context, root);
+            return;
+        }
+
+        if (resolvedKind == UIMenuItemKind.Header)
+        {
+            RenderHeader(context, root);
+            return;
+        }
+
+        _ = root.Class(WebClassNames.Button);
+
+        RenderButtonChrome(context, root);
 
         if (popup)
             RenderPopupRole(root, kind);
         else
             RenderPageRole(context, root, kind);
-
-        if (resolvedKind == UIMenuItemKind.Separator)
-            return;
 
         if (resolvedKind == UIMenuItemKind.Item)
         {
@@ -108,6 +134,12 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
         RenderChecked(context, root, kind, popup);
     }
 
+    private static UIMenuItemKind ResolveKind(WebRenderContext context, out UIMenuItemKind? kind)
+    {
+        _ = ResolveRenderValue(context, MenuItemComponent.KindProperty, out kind, out _);
+        return kind ?? UIMenuItemKind.Item;
+    }
+
     /// <summary>Whether the entry stands in a popup menu, where its role is a menu item's rather than a link's.</summary>
     private static bool InPopupMenu(WebRenderContext context)
     {
@@ -119,12 +151,38 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
             && MenuComponentRenderer.IsPopupMenu(context, menu);
     }
 
-    // A caption is words between entries and takes no role; a check's role is its own (RenderChecked).
+    private static void RenderPassiveSurface(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        ResponsiveRenderer.ApplyResponsiveThickness(context, root, ButtonComponent.PaddingProperty, WebResponsiveCss.PaddingVariable);
+        SurfaceStyleRenderer.RenderBackground(context, root, ButtonComponent.BackgroundProperty);
+    }
+
+    private static void RenderHeader(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        RenderTooltip(context, root, TextContentRendererBase.TooltipNameOperation);
+        OverflowStyleRenderer.RenderOverflow(context, root);
+        RenderPassiveSurface(context, root);
+
+        var ownerTypeKey = HeaderOwnerTypeKeys.GetOrAdd(context.Node.TypeKey, static typeKey => $"{typeKey}.header");
+
+        _ = root.Element("span", label =>
+        {
+            TextContentRendererBase.RenderTextBody(context, root, label, new WebTextBodyOptions
+            {
+                IncludeTextLayout = true,
+                DefaultBadgePlacement = UITextBadgePlacement.Trailing,
+                PartsShownOperation = MenuIconsOperation,
+                PropertyOwnerTypeKey = ownerTypeKey
+            });
+        });
+
+        RenderAccessibleName(context, root);
+    }
+
+    // A check's role is its own (RenderChecked).
     private static void RenderPopupRole(IHtmlElementBuilder root, UIMenuItemKind? kind)
     {
-        if (kind == UIMenuItemKind.Separator)
-            _ = root.Attribute("role", "separator");
-        else if (kind is null or UIMenuItemKind.Item or UIMenuItemKind.Select)
+        if (kind is null or UIMenuItemKind.Item or UIMenuItemKind.Select)
             _ = root.Attribute("role", "menuitem");
     }
 
@@ -144,6 +202,21 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
 
         if (!WebUrlSafety.IsSafeLink(url) && (binding is null || !context.IsTemplate))
             _ = root.Attribute("role", "button");
+    }
+
+    /// <summary>
+    /// The chord at the entry's end, as authored; its attribute is the chrome's, and the client writes the words from it in the reader's
+    /// platform's form and again as it changes (<c>shortcut-engine.ts</c>), so the span carries no operation of its own.
+    /// </summary>
+    private static void RenderShortcut(WebRenderContext context, IHtmlElementBuilder root)
+    {
+        _ = ResolveRenderValue(context, MenuItemComponent.ShortcutProperty, out string? value, out _);
+
+        // Emitted even when empty: the client fills it, and never adds an element.
+        _ = root.Element("span", span => span.Class(ShortcutClass).Text(value ?? string.Empty));
+
+        if (!string.IsNullOrWhiteSpace(value))
+            _ = root.Attribute(WebAttributes.MenuItemShortcut);
     }
 
     /// <summary>A select's current value at the row's end; the span is always there, a DOM operation only patches text.</summary>
@@ -185,20 +258,5 @@ public sealed class MenuItemComponentRenderer : ButtonRendererBase
 
             _ = target.Attribute("aria-checked", value == true ? "true" : "false");
         }, CheckedOperations);
-    }
-
-    /// <summary>
-    /// The chord at the entry's end, as authored; its attribute is the chrome's, and the client writes the words from it in the reader's
-    /// platform's form and again as it changes (<c>shortcut-engine.ts</c>), so the span carries no operation of its own.
-    /// </summary>
-    private static void RenderShortcut(WebRenderContext context, IHtmlElementBuilder root)
-    {
-        _ = ResolveRenderValue(context, MenuItemComponent.ShortcutProperty, out string? value, out _);
-
-        // Emitted even when empty: the client fills it, and never adds an element.
-        _ = root.Element("span", span => span.Class(ShortcutClass).Text(value ?? string.Empty));
-
-        if (!string.IsNullOrWhiteSpace(value))
-            _ = root.Attribute(WebAttributes.MenuItemShortcut);
     }
 }

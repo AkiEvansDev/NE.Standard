@@ -11,7 +11,7 @@ import { isPressWaveRecord } from "./press-wave.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 import { typeAheadCharacter } from "./type-ahead.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
-import { ButtonContentClass, CollapsedAttribute, CollapsibleBarClass, MenuGroupEntrySelector, MenuHostClass, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuItemWrapperClass, MenuOpenAttribute, MenuRailClass, MenuRootClass, MenuRootClass as RootClass, MenuSearchAttribute, MenuSubmenuClass, MenuUnmatchedAttribute, OrientationHorizontalClass, PassiveMenuEntrySelector, TextBodyClass, TextHeaderClass, TextTitleClass, TooltipAttribute } from "../addressing/dom-attributes.ts";
+import { ButtonContentClass, CollapsedAttribute, CollapsibleBarClass, MenuGroupEntrySelector, MenuHostClass, MenuItemClass as ItemClass, MenuItemSelectedClass as SelectedModifier, MenuItemWrapperClass, MenuOpenAttribute, MenuRailClass, MenuRootClass, MenuRootClass as RootClass, MenuSearchAttribute, MenuSubmenuClass, MenuUnmatchedAttribute, OrientationHorizontalClass, TextBodyClass, TextHeaderClass, TextTitleClass, TooltipAttribute } from "../addressing/dom-attributes.ts";
 
 // A rail's own entries (UIMenuDisplay.Rail), whose one-line label may be cut; a collapsed menu's, whose title is hidden; the title.
 const RailEntrySelector = `.${MenuRailClass} > .${MenuHostClass} > .${MenuItemWrapperClass} > .${ItemClass}`;
@@ -209,7 +209,7 @@ export class MenuEngine {
 
     /** The keyboard's press on an entry: Enter's at once, Space's on its release; Enter on one with an address is the browser's to follow. */
     private pressEntry(domEvent: KeyboardEvent, entry: HTMLElement): void {
-        if (domEvent.target !== entry || !isPlainKey(domEvent, { shift: true }) || entry.matches(PassiveMenuEntrySelector) || !isRovingCandidate(entry))
+        if (domEvent.target !== entry || !isPlainKey(domEvent, { shift: true }) || !isRovingCandidate(entry))
             return;
 
         if (entry.hasAttribute("href") && domEvent.key === "Enter")
@@ -270,7 +270,7 @@ export class MenuEngine {
         const item = domEvent.target instanceof Element ? domEvent.target.closest<HTMLElement>(`.${ItemClass}`) : null;
 
         // A popup's entries only: a sidebar's entry focused on hover would open its tooltip at once and keep it.
-        if (item === null || item === document.activeElement || !item.matches(PopupEntrySelector) || item.matches(PassiveMenuEntrySelector) || !isRovingCandidate(item))
+        if (item === null || item === document.activeElement || !item.matches(PopupEntrySelector) || !isRovingCandidate(item))
             return;
 
         // The menu's keyboard is in it: on an entry (in this list or an ancestor/child popup submenu), or on the menu itself where the pointer opened it.

@@ -5,7 +5,7 @@
 // waits to be drawn until it is wanted (`row-menus.ts`): asked for here, it is drawn, and opens once the page's engines took it in.
 
 import type { AnchoredPopupOptions } from "./anchored-popup.ts";
-import { ActionBarAttribute, ActionBarClass, ActionBarMoreClass, ActionBarRestAttribute, ActionBarStripClass, ComponentSelector, ContextMenuAttribute, ContextMenuLaterAttribute, ContextMenuOpenClass, ContextMenuOpeningEventName, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemClass, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, NoContextMenuAttribute, PassiveMenuEntrySelector, RenameFieldAttribute } from "../addressing/dom-attributes.ts";
+import { ActionBarAttribute, ActionBarClass, ActionBarMoreClass, ActionBarRestAttribute, ActionBarStripClass, ComponentSelector, ContextMenuAttribute, ContextMenuLaterAttribute, ContextMenuOpenClass, ContextMenuOpeningEventName, ContextMenuOwnerAttribute, ContextMenuUseAttribute, ItemsHostAttribute, MenuItemKindAttribute, MenuLeftOutAttribute, MenuRootClass, MenuRowEntrySelector, NoContextMenuAttribute, PassiveMenuEntrySelector, RenameFieldAttribute } from "../addressing/dom-attributes.ts";
 import { drawActionBar, isShownEntry, readActionBarEntries } from "./action-bar.ts";
 import { placeAtPoint } from "./anchored-popup.ts";
 import { takesTyping } from "./caret-fields.ts";
@@ -413,8 +413,8 @@ function leaveOutBarEntries(host: HTMLElement): void {
     for (const entry of entries)
         leaveOut(entry);
 
-    // The menu's own entries this opening still shows, in order; a group's block is a list of its own.
-    const shown = ownDescendants(menu, `.${MenuItemClass}`, `.${MenuRootClass}`).filter(entry => entry.closest(`[${MenuLeftOutAttribute}]`) === null && isShownEntry(entry, host));
+    // The menu's own entries and passive rows this opening still shows, in order; a group's block is a list of its own.
+    const shown = ownDescendants(menu, MenuRowEntrySelector, `.${MenuRootClass}`).filter(entry => entry.closest(`[${MenuLeftOutAttribute}]`) === null && isShownEntry(entry, host));
     const kept: HTMLElement[] = [];
 
     for (const [index, entry] of shown.entries()) {

@@ -9,7 +9,7 @@ const clientRoot = resolve(import.meta.dirname, "..");
 const manifestPath = resolve(clientRoot, "src/addressing/dom-names.json");
 const domAttributesPath = resolve(clientRoot, "src/addressing/dom-attributes.ts");
 const contractPath = resolve(clientRoot, "plugin/ne-standard-ui.d.ts");
-const addonsRoot = resolve(clientRoot, "../../../../addons");
+const addonsRoot = resolve(clientRoot, "../../../../../addons");
 
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const byConstant = new Map(manifest.map(entry => [entry.constant, entry]));

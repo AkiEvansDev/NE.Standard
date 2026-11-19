@@ -172,7 +172,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         TextAppearanceRenderer.RenderTextAppearance(context, container, ITextBaseComponent.TitleTypeProperty);
 
         if (options.IncludeTextLayout)
-            RenderTextLayout(context, root, container, options.AlignsRoot);
+            RenderTextLayout(context, root, container, options.AlignsRoot, options.PropertyOwnerTypeKey);
 
         _ = container.Element("span", icon => RenderIcon(context, root, icon, options.PartsShownOperation));
 
@@ -242,7 +242,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
             || !string.IsNullOrWhiteSpace(badgeTitle);
     }
 
-    private static void RenderTextLayout(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder container, bool alignsRoot)
+    private static void RenderTextLayout(WebRenderContext context, IHtmlElementBuilder root, IHtmlElementBuilder container, bool alignsRoot, string? propertyOwnerTypeKey = null)
     {
         // Read once rather than registered: IconAlignment is not bindable, so nothing can arrive later.
         _ = ResolveRenderValue(context, ITextMarkAlignmentComponent.IconAlignmentProperty, out UITextIconAlignment? iconAlignment, out _);
@@ -255,7 +255,7 @@ public abstract class TextContentRendererBase : WebComponentRendererBase
         if (badgeAlignment is UITextBadgeAlignment badge)
             _ = container.Class(WebClassNames.TextBadgeAlignment(badge));
 
-        _ = RenderProperty<UITextAlignment?>(context, container, ITextComponent.TextAlignmentProperty, (target, value) =>
+        _ = RenderProperty<UITextAlignment?>(context, container, propertyOwnerTypeKey ?? context.Node.TypeKey, ITextComponent.TextAlignmentProperty, (target, value) =>
         {
             if (value is not UITextAlignment alignment)
                 return;

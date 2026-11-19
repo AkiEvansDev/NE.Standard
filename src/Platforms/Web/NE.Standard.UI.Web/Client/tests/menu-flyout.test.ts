@@ -88,7 +88,7 @@ test("one group's flyout swapped for another's goes at once, not fading under th
 });
 
 test("a press on a flyout's entry puts it away; one on a caption or a check keeps it up", () => {
-    const caption = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "header" });
+    const caption = FakeElement.of("ui-menu-header", { "data-ui-menu-item-kind": "header" });
     const check = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "check" });
 
     layouts.parts.entries[0].parentElement?.append(caption, check);

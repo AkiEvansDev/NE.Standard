@@ -124,8 +124,8 @@ type Truth = typeof No | typeof Maybe | typeof Yes;
 
 type Box = { readonly tag: string; readonly classes: readonly string[]; readonly attributes: Readonly<Record<string, string>> };
 
-// An entry's classes and marks as the renderer writes them; a modifier it may wear by its Size or state is a maybe, any other class
-// or mark is not on it.
+// An entry's classes and marks as the renderer writes them; a modifier an entry may wear by its Size or state is a maybe, any other class
+// or mark is not on it. Captions and rules render on plain blocks (`.ui-menu-header`, `.ui-menu-separator`) without button chrome.
 const EntryClasses = ["ui-menu-item", "ui-button", "ui-button--ghost", "ui-button--medium", "ui-button--align-start"];
 const EntryModifiers = /^(ui-button--|ui-menu-item--)/;
 const EntryMarks = { "data-ui-id": "1", "data-ui-context": "1", "data-ui-pc": "1", "data-ui-tooltip-placement": "top", "data-ui-tooltip-named": "" };
@@ -135,6 +135,22 @@ function entry(kind: string, role: string | null, titled: boolean): Box {
         tag: "a",
         classes: EntryClasses,
         attributes: { ...EntryMarks, "data-ui-menu-item-kind": kind, ...(role === null ? {} : { role }), ...(titled ? { "data-ui-text-title": "" } : {}) }
+    };
+}
+
+function caption(): Box {
+    return {
+        tag: "div",
+        classes: ["ui-menu-header"],
+        attributes: { "data-ui-id": "1", "data-ui-context": "1", "data-ui-pc": "1", "data-ui-tooltip-placement": "top", "data-ui-menu-item-kind": "header", "data-ui-text-title": "" }
+    };
+}
+
+function separator(role: string | null): Box {
+    return {
+        tag: "div",
+        classes: ["ui-menu-separator"],
+        attributes: { "data-ui-id": "1", "data-ui-context": "1", "data-ui-pc": "1", "data-ui-menu-item-kind": "separator", ...(role === null ? {} : { role }) }
     };
 }
 
@@ -156,8 +172,8 @@ function row(passive: boolean): Box {
 type Chain = readonly Box[];
 
 // In a popup a rule is a separator and an entry a menu item; elsewhere neither carries a role, and a caption never does.
-const Separators: Chain[] = [[entry("separator", "separator", false), row(true)], [entry("separator", null, false), row(true)]];
-const Captions: Chain[] = [[entry("header", null, true), row(true)]];
+const Separators: Chain[] = [[separator("separator"), row(true)], [separator(null), row(true)]];
+const Captions: Chain[] = [[caption(), row(true)]];
 const Entries: Chain[] = [[entry("item", "menuitem", true), row(false)], [entry("item", null, true), row(false)]];
 
 /** Whether the selector matches the chain's element at `level`. */
@@ -269,7 +285,7 @@ function matchSimple(simple: string, chain: Chain, level: number): Truth {
         return Yes;
 
     if (simple.startsWith("."))
-        return box.classes.includes(simple.slice(1)) ? Yes : level === 0 && EntryModifiers.test(simple.slice(1)) ? Maybe : No;
+        return box.classes.includes(simple.slice(1)) ? Yes : level === 0 && box.classes.includes("ui-menu-item") && EntryModifiers.test(simple.slice(1)) ? Maybe : No;
 
     if (simple.startsWith("#"))
         return No;
@@ -421,24 +437,28 @@ function violations(rules: readonly CssRule[], kind: string, chains: readonly Ch
 const rules = rulesOf(css);
 
 test("the sweep reads a selector as the browser does", () => {
-    const [separator] = Separators;
+    const [ruleBox] = Separators;
+    const [captionBox] = Captions;
 
-    assert.equal(matches('.ui-menu-item[data-ui-menu-item-kind="separator"]', separator), Yes);
-    assert.equal(matches(".ui-menu__item:where(:not([data-ui-menu-passive])) > .ui-menu-item", separator), No);
-    assert.equal(matches(".ui-menu__item > .ui-menu-item:where(:not([data-ui-menu-item-kind=\"header\"], [data-ui-menu-item-kind=\"separator\"]))", separator), No);
-    assert.equal(matches(".ui-menu__item > .ui-menu-item", separator), Yes);
-    assert.equal(matches(".ui-menu--rail .ui-menu-item", separator), Maybe, "the row is the entry's, what holds it any page's");
-    assert.equal(matches("[data-ui-sheet][popover] :is([role=\"option\"], .ui-menu-item):not(.ui-action-bar > *)", separator), Maybe);
-    assert.equal(matches(".ui-menu-item:not(.ui-action-bar > *, [data-ui-menu-item-kind=\"separator\"])", separator), No);
-    assert.equal(matches(".ui-menu-item::after", separator), No, "a pseudo-element is not the entry's box");
+    assert.equal(matches(".ui-menu-separator", ruleBox), Yes);
+    assert.equal(matches(".ui-menu-header", captionBox), Yes);
+    assert.equal(matches(".ui-menu-item", ruleBox), No);
+    assert.equal(matches(".ui-menu-item", captionBox), No);
+    assert.equal(matches(".ui-button", ruleBox), No);
+    assert.equal(matches(".ui-button", captionBox), No);
+    assert.equal(matches(".ui-button--ghost", ruleBox), No);
+    assert.equal(matches(".ui-button--ghost", captionBox), No);
+    assert.equal(matches(".ui-menu__item:where(:not([data-ui-menu-passive])) > *", ruleBox), No);
+    assert.equal(matches("[data-ui-sheet][popover] :is([role=\"option\"], .ui-menu-item):not(.ui-action-bar > *)", ruleBox), No);
+    assert.equal(matches(".ui-menu-separator::after", ruleBox), No, "a pseudo-element is not the rule's box");
     assert.deepEqual(specificityOf("[data-ui-sheet][popover] :is([role=\"menuitem\"], .ui-menu-item):not(.ui-action-bar > *)"), [0, 4, 0]);
     assert.deepEqual(specificityOf(".a:where(.b, .c) > .d::before"), [0, 2, 1]);
 });
 
 test("the sweep finds the faults #218 and #225 were: a rail's entry size and a sheet's touch size over the rule", () => {
     const faulty = (selector: string, body: string) => rulesOf(`${css}\n${selector} { ${body} }`);
-    const rail = ".ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item";
-    const sheet = "[data-ui-sheet][popover] :is([role=\"menuitem\"], [role=\"option\"], .ui-menu-item):not(.ui-action-bar > *)";
+    const rail = ".ui-menu--rail > .ui-menu__host > .ui-menu__item > [data-ui-menu-item-kind]";
+    const sheet = "[data-ui-sheet][popover] [data-ui-menu-item-kind]:not(.ui-action-bar > *)";
 
     assert.deepEqual(violations(faulty(rail, "min-height: 3rem;"), "separator", Separators), [{ kind: "separator", selector: rail, measure: "min-height" }]);
     assert.deepEqual(violations(faulty(sheet, "min-height: 3rem;"), "caption", Captions), [{ kind: "caption", selector: sheet, measure: "min-height" }]);
@@ -451,29 +471,28 @@ test("no rule that sizes a menu entry sizes its rule or its caption: each is out
 
 test("a flyout's caption is a popup list's, words and all: no folded menu's or rail's rule turns it into the rule", () => {
     const folded = [":is(.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail), .ui-menu--rail) ", ".ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail) "];
-    const captionRules = rules.filter(rule => folded.some(prefix => rule.selector.startsWith(prefix)) && rule.selector.includes('[data-ui-menu-item-kind="header"]'));
+    const captionRules = rules.filter(rule => folded.some(prefix => rule.selector.startsWith(prefix)) && rule.selector.includes(".ui-menu-header"));
 
     assert.ok(captionRules.length >= 2, "the folded caption's rules are not read");
 
     for (const rule of captionRules)
         assert.equal(Math.max(...Captions.map(chain => matches(rule.selector, inFlyout(chain)))), No, rule.selector);
 
-    assert.equal(matches('.ui-menu-item:not([data-ui-menu-flyout] *)', inFlyout(Captions[0])), No);
-    assert.equal(matches('.ui-menu-item:not([data-ui-menu-flyout] *)', Captions[0]), Maybe);
+    assert.equal(matches(".ui-menu-header:not([data-ui-menu-flyout] *)", inFlyout(Captions[0])), No);
+    assert.equal(matches(".ui-menu-header:not([data-ui-menu-flyout] *)", Captions[0]), Maybe);
 });
 
-test("a rule's content takes no line, a folded caption's words are out of sight, and no folded entry's line stands under either", () => {
+test("a folded caption's words are out of sight, and no folded entry's line stands under a caption or a rule", () => {
     const content = (selector: string) => rules.find(rule => rule.selector === selector)?.declarations;
-    const foldedWords = ':is(.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail), .ui-menu--rail) .ui-menu-item[data-ui-menu-item-kind="header"]:not([data-ui-menu-flyout] *) > .ui-button__content';
+    const foldedWords = ":is(.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail), .ui-menu--rail) .ui-menu-header:not([data-ui-menu-flyout] *) > .ui-text";
 
-    assert.equal(content('.ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-button__content')?.get("display"), "none");
     // A rail's caption is the rule it stands for, as a collapsed menu's: its words stood as a line under the rule.
     assert.equal(content(foldedWords)?.get("position"), "absolute");
     assert.equal(content(foldedWords)?.get("clip"), "rect(0, 0, 0, 0)");
     assert.ok(rules.some(rule => rule.selector.endsWith(" > .ui-text") && rule.declarations.get("min-block-size") === "1lh"), "a folded entry's line is gone");
 
     for (const rule of rules.filter(rule => rule.declarations.has("min-block-size") && rule.selector.endsWith(" > .ui-text"))) {
-        const words = (chain: Chain) => matches(rule.selector, [{ tag: "span", classes: ["ui-button__content", "ui-text"], attributes: {} }, ...chain]);
+        const words = (chain: Chain) => matches(rule.selector, [{ tag: "span", classes: ["ui-text"], attributes: {} }, ...chain]);
 
         assert.equal(Math.max(...Captions.map(words), ...Separators.map(words)), No, rule.selector);
     }

@@ -85,6 +85,12 @@ public static class WebClassNames
     /// <summary>A menu entry's root.</summary>
     public const string MenuItem = "ui-menu-item";
 
+    /// <summary>A section caption inside a menu (<c>UIMenuItemKind.Header</c>).</summary>
+    public const string MenuHeader = "ui-menu-header";
+
+    /// <summary>A dividing rule inside a menu (<c>UIMenuItemKind.Separator</c>).</summary>
+    public const string MenuSeparator = "ui-menu-separator";
+
     /// <summary>On a check entry of a menu while it is on.</summary>
     public const string MenuItemChecked = "ui-menu-item--checked";
 

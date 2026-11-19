@@ -1,7 +1,7 @@
 // A menu's search, by the one matching rule (`search-terms.ts`) over the words an entry shows — translated, not the keys behind
 // them; one that leaves nothing says so, as a select's does. Emptied, or the menu folded, the menu is as it was.
 
-import { CollapsedAttribute, CollapsibleBarClass, ComponentKeyAttribute, MenuGroupAttribute, MenuHostClass, MenuItemClass as EntryClass, MenuItemKindAttribute, MenuItemWrapperClass, MenuOpenAttribute, MenuRailClass, MenuRootClass, MenuRootClass as RootClass, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuSubmenuClass, MenuUnmatchedAttribute } from "../addressing/dom-attributes.ts";
+import { CollapsedAttribute, CollapsibleBarClass, ComponentKeyAttribute, MenuGroupAttribute, MenuHostClass, MenuItemKindAttribute, MenuItemWrapperClass, MenuOpenAttribute, MenuRailClass, MenuRootClass, MenuRootClass as RootClass, MenuRowEntrySelector, MenuSearchAttribute, MenuSearchingAttribute, MenuSelectAttribute, MenuSubmenuClass, MenuUnmatchedAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isRovingCandidate } from "./roving-focus.ts";
 import { toggleNoMatchPlaceholder } from "./search-input-engine.ts";
@@ -12,7 +12,7 @@ import { entryWords, foldWords, matchesTerms, searchTerms } from "./search-terms
 const SearchableSelector = `.${RootClass}[${MenuSearchAttribute}]`;
 const BarSelector = `:scope > .${CollapsibleBarClass}`;
 const HostSelector = `:scope > .${MenuHostClass}`;
-const EntrySelector = `:scope > .${EntryClass}`;
+const EntrySelector = `:scope > ${MenuRowEntrySelector}`;
 const SubmenuHostSelector = `:scope > .${MenuSubmenuClass} > .${MenuRootClass} > .${MenuHostClass}`;
 
 export type MenuSearchEngineOptions = {

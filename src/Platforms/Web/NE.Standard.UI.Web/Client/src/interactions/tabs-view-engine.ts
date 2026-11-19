@@ -1,6 +1,6 @@
 // The items variant of a tabs strip: captions and pages from one collection, keyed by the item, with a tab menu of its own.
 
-import { BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ContextMenuOpeningEventName, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemClass, PassiveMenuEntrySelector, TabCaptionAttribute, TabItemCaptionClass, TabItemCaptionOverflowedClass, TabItemClass, TabItemCloseClass, TabItemDraggingClass, TabItemLabelClass, TabItemPageClass, TabItemPinClass, TabItemRenameClass, TabItemSelectedClass, TabOverflowClass, TabPinnedAttribute, TabsDraggableAttribute, TabsRenamableAttribute, TabsSelectedAttribute, TabsViewClass, TabsViewNoOverflowClass, TabsViewOverflowingClass, TextTitleClass, UndraggableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
+import { BindSelectedKeyAttribute, ComponentKeyAttribute, ContextMenuAttribute, ContextMenuOpeningEventName, ItemsHostAttribute, MenuGroupEntrySelector, MenuItemClass, TabCaptionAttribute, TabItemCaptionClass, TabItemCaptionOverflowedClass, TabItemClass, TabItemCloseClass, TabItemDraggingClass, TabItemLabelClass, TabItemPageClass, TabItemPinClass, TabItemRenameClass, TabItemSelectedClass, TabOverflowClass, TabPinnedAttribute, TabsDraggableAttribute, TabsRenamableAttribute, TabsSelectedAttribute, TabsViewClass, TabsViewNoOverflowClass, TabsViewOverflowingClass, TextTitleClass, UndraggableAttribute, UnremovableAttribute, UnrenamableAttribute, VisibilityTierAttributes } from "../addressing/dom-attributes.ts";
 import type { EffectRunner } from "../addressing/dom-registry.ts";
 import { aheadOfAnswer } from "../events/ahead-of-answer.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
@@ -351,8 +351,8 @@ export class TabsViewEngine {
         const opened = this.menuTab;
         const item = opened === null || opened.root !== root ? undefined : this.ownItems(root).find(candidate => tabKey(candidate) === opened.key);
 
-        // A group's own entry opens its block, a rule or a caption runs nothing, and a tab closed while the menu stood open has none.
-        if (key.length === 0 || entry.matches(`${MenuGroupEntrySelector}, ${PassiveMenuEntrySelector}`) || item === undefined)
+        // A group's own entry opens its block, and a tab closed while the menu stood open has none.
+        if (key.length === 0 || entry.matches(MenuGroupEntrySelector) || item === undefined)
             return true;
 
         if (!key.startsWith(TabMenuPrefix)) {

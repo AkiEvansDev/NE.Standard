@@ -885,6 +885,14 @@
         "plugin":  "menuItemClass"
     },
     {
+        "constant":  "MenuHeaderClass",
+        "value":  "ui-menu-header"
+    },
+    {
+        "constant":  "MenuSeparatorClass",
+        "value":  "ui-menu-separator"
+    },
+    {
         "constant":  "MenuItemCheckedClass",
         "value":  "ui-menu-item--checked",
         "plugin":  "menuItemCheckedClass"

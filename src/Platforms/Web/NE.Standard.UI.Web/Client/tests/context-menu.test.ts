@@ -84,7 +84,7 @@ function pathOf(target: FakeElement | null): FakeElement[] {
 type Scene = { readonly card: FakeElement; readonly host: FakeElement; readonly entries: readonly FakeElement[]; readonly before: FakeElement };
 
 function scene(): Scene {
-    const caption = FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "header" });
+    const caption = FakeElement.of("ui-menu-header", { "data-ui-menu-item-kind": "header" });
     const rename = FakeElement.of("ui-menu-item", { role: "menuitem", tabindex: "-1" });
     const duplicate = FakeElement.of("ui-menu-item", { role: "menuitem", tabindex: "-1" });
     const host = FakeElement.of("ui-context-menu", { "data-ui-context-menu": "", role: "menu" }).append(FakeElement.of("ui-menu").append(caption, rename, duplicate));

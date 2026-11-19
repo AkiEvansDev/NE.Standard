@@ -68,7 +68,7 @@ public readonly record struct WebTextBodyOptions
     public string? LabelForId { get; init; }
 
     /// <summary>
-    /// Optional property-owner key for <c>TitleProperty</c> when one component type renders distinct title operation sets across variants.
+    /// Optional property-owner key for <c>TitleProperty</c> and <c>TextAlignmentProperty</c> when one component type renders distinct operation sets across variants.
     /// </summary>
     public string? PropertyOwnerTypeKey { get; init; }
 }

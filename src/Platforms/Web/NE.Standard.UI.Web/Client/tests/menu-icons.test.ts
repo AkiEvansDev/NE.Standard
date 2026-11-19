@@ -28,7 +28,7 @@ test("a host is marked while an entry of its own carries an icon, and unmarked w
 });
 
 test("a caption's icon and a nested menu's entries leave the host unmarked", () => {
-    const caption = FakeElement.of("ui-menu__item", { "data-ui-menu-passive": "" }).append(entry(true));
+    const caption = FakeElement.of("ui-menu__item", { "data-ui-menu-passive": "" }).append(FakeElement.of("ui-menu-header", { "data-ui-text-icon": "" }, "div"));
     const nestedHost = FakeElement.of("ui-menu__host").append(FakeElement.of("ui-menu__item").append(entry(true)));
     const host = FakeElement.of("ui-menu__host").append(caption, FakeElement.of("ui-menu__item").append(entry(false), FakeElement.of("ui-menu ui-menu--nested").append(nestedHost)));
     const menu = FakeElement.of("ui-menu").append(host);

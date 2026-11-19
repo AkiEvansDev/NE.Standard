@@ -1083,7 +1083,7 @@ test("more stands only while the menu holds an entry out of the bar, and opens t
 test("more over a host asking for the rest opens the menu without the bar's entries, and a caption or rule left with nothing goes too", () => {
     const at = scene({ hostAttributes: { "data-ui-action-bar-rest": "" } });
     const copy = entry("Copy text", false);
-    const passive = (kind: string): FakeElement => FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": kind }, "a");
+    const passive = (kind: string): FakeElement => FakeElement.of(kind === "header" ? "ui-menu-header" : "ui-menu-separator", { "data-ui-menu-item-kind": kind }, "div");
     const list = at.menu.children[0];
 
     list.children.length = 0;
@@ -1116,7 +1116,7 @@ test("more over a host asking for the rest keeps one rule between the entries le
     const at = scene({ hostAttributes: { "data-ui-action-bar-rest": "" } });
     const copy = entry("Copy text", false);
     const paste = entry("Paste", false);
-    const rule = (): FakeElement => FakeElement.of("ui-menu-item", { "data-ui-menu-item-kind": "separator" }, "a");
+    const rule = (): FakeElement => FakeElement.of("ui-menu-separator", { "data-ui-menu-item-kind": "separator" }, "div");
     const [first, second] = [rule(), rule()];
     const list = at.menu.children[0];
 

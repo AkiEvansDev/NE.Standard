@@ -25,22 +25,7 @@ const WidthProperty = /^border(-(top|right|bottom|left|block|inline)(-(start|end
 const RadiusProperty = /^border(-(top|bottom|start|end)-(left|right|start|end))?-radius$/;
 
 /** Flat declarations that are intentional, each with the reason an authored border has nothing to lose there. */
-const Approved = new Map<string, string>([
-    ['.ui-menu-item[data-ui-menu-item-kind="separator"] | border-top', "A separator is a rule drawn by its menu, not an entry an author frames."],
-    ['.ui-menu.ui-orientation--horizontal .ui-menu-item[data-ui-menu-item-kind="separator"] | border-top', "The same rule standing upright along a bar."],
-    ['.ui-menu.ui-orientation--horizontal .ui-menu-item[data-ui-menu-item-kind="separator"] | border-left', "The same rule standing upright along a bar."],
-    [':is(.ui-menu[data-ui-collapsed]:not([data-ui-folding], .ui-menu--rail), .ui-menu--rail) .ui-menu-item[data-ui-menu-item-kind="header"]:not([data-ui-menu-flyout] *) | border-top', "A caption folded into the rule it stands in for."],
-    ['.ui-menu--rail.ui-orientation--horizontal > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-top', "The rail's rule, upright along a bar."],
-    ['.ui-menu--rail.ui-orientation--horizontal > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-left', "The rail's rule, upright along a bar."],
-    ['[data-ui-root][data-ui-side-drawers] > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-top', "The bottom bar's rule, upright."],
-    ['[data-ui-root][data-ui-side-drawers] > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-left', "The bottom bar's rule, upright."],
-    ['[data-ui-root]:is([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"]) > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-top', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."],
-    ['[data-ui-root]:is([data-ui-side-drawers="xl"], [data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"]) > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-left', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."],
-    ['[data-ui-root]:is([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"]) > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-top', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."],
-    ['[data-ui-root]:is([data-ui-side-drawers="xxl"], [data-ui-side-drawers="always"]) > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-left', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."],
-    ['[data-ui-root][data-ui-side-drawers="always"] > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-top', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."],
-    ['[data-ui-root][data-ui-side-drawers="always"] > [data-ui-bottom-bar] .ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) | border-left', "The bottom bar's rule, upright, in a wider band of a view whose sides are drawers there."]
-]);
+const Approved = new Map<string, string>();
 
 type Rule = { selector: string; declarations: [string, string][] };
 

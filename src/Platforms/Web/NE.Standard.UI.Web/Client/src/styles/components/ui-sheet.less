@@ -64,8 +64,8 @@
 }
 
 // Every entry a finger's height: a menu's — a link entry too, which carries no role —, a select's option, a choice's; not the icons
-// of an action bar's row atop a menu, nor a menu's caption or rule, which take no press (ui-menu.less), nor a clock dial's fixed cells, at no added weight.
-[data-ui-sheet][popover] :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], .ui-menu-item):not(.ui-action-bar > *, @{ui-menu-passive-kinds}, .ui-temporal-input__time-cell) {
+// of an action bar's row atop a menu, nor a clock dial's fixed cells, at no added weight.
+[data-ui-sheet][popover] :is([role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], .ui-menu-item):not(.ui-action-bar > *, .ui-temporal-input__time-cell) {
     min-height: 3rem;
 }
 

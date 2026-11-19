@@ -15,10 +15,8 @@
 @ui-menu-collapsed-entry: ~"@{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *)";
 // A rail (UIMenuDisplay.Rail) never folds, but its groups fly out as a collapsed menu's do, and its captions are rules.
 @ui-menu-rail: ~".ui-menu--rail";
-// A rail's own entries: its direct rows, never a flyout's, which are a plain nested menu, nor a caption or a rule, which are a line
-// (`@ui-menu-passive-kinds`, below): an entry's height stood an empty slot under it. In :where(), at the weight the rules below were
-// written for.
-@ui-menu-rail-entry: ~".ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item:where(:not(@{ui-menu-passive-kinds}))";
+// A rail's own entries: its direct rows, never a flyout's, which are a plain nested menu (captions and rules wear .ui-menu-header / .ui-menu-separator).
+@ui-menu-rail-entry: ~".ui-menu--rail > .ui-menu__host > .ui-menu__item > .ui-menu-item";
 // Either: a menu with no room for its groups inline, nor for a shortcut; in :is(), at the collapsed menu's own weight.
 @ui-menu-folded: ~":is(@{ui-menu-collapsed}, @{ui-menu-rail})";
 // An entry whose badge stands on its icon's corner, as the words beside the icon are gone or under it.
@@ -27,9 +25,6 @@
 @ui-menu-rail-width: var(--ui-menu-rail-width);
 // The narrowest a bar's entry is squeezed to, a press's room for the icon and a short label; past it the bar scrolls sideways.
 @ui-menu-bar-entry-width: var(--ui-menu-bar-entry-width);
-// A caption and a rule (`PassiveMenuEntrySelector`, dom-attributes.ts): a line between entries, not one. A rule sizing entries leaves
-// them out, as their own rules (below) are lighter than a sheet's touch size: an entry's height stood an empty slot under the line.
-@ui-menu-passive-kinds: ~'[data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]';
 // The popups a menu fills on its own, a right-click menu's host and a split button's list: `MenuHostPopupSelector` (dom-attributes.ts).
 @ui-menu-host-popups: ~".ui-context-menu, .ui-split-button__menu";
 // Every popup a menu's entry can stand in (`PopupMenuSelector`, menu-group-engine.ts): those, a flyout's content, and a submenu flyout.
@@ -107,7 +102,7 @@
 // Down a list where some entries carry an icon (`data-ui-menu-icons`, menu-icons.ts), one without keeps the icon's room so every entry's
 // words start on one edge: they zigzagged (a column chooser). A caption and a rule stand at the edge, and a folded menu or a rail,
 // whose entries centre, keeps none.
-.ui-menu.ui-orientation--vertical:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item > .ui-menu-item:not([data-ui-text-icon]):not(@{ui-menu-passive-kinds}) > .ui-button__content {
+.ui-menu.ui-orientation--vertical:not([data-ui-collapsed]:not([data-ui-folding]), .ui-menu--rail) > .ui-menu__host[data-ui-menu-icons] > .ui-menu__item > .ui-menu-item:not([data-ui-text-icon]) > .ui-button__content {
     padding-inline-start: unit(@ui-menu-icon-room, em);
 }
 
@@ -208,7 +203,7 @@
 }
 
 // Collapsed, an entry keeps its padding so the glyph stays in line with the page title's edge; not in the flyout, which keeps titles.
-@{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *, @{ui-menu-passive-kinds}) {
+@{ui-menu-collapsed-entry} {
     .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
 }
 
@@ -296,50 +291,46 @@
     .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2);
 }
 
-// A caption is not a control: it neither reacts nor takes focus, it just names the entries under it.
-.ui-menu-item[data-ui-menu-item-kind="header"] {
-    // A list row's height of its own, as a rule's is: the size entries take (a sheet's finger height) is a control's.
+// A caption is not a control: a plain block (`MenuItemComponentRenderer.ResolveRoot`) that neither reacts nor takes focus, naming the entries under it.
+.ui-menu-header {
+    position: relative;
+    display: flex;
+    align-items: center;
     .ui-responsive-property(min-height, --ui-min-height, @ui-list-row-height);
     // Through the chain, an entry's padding but its foot: an authored Margin or Padding still wins.
     .ui-responsive-property(margin, --ui-margin, @ui-space-3 0 0);
     .ui-responsive-property(padding, --ui-padding, @ui-space-1 @ui-space-2 0);
-    background: none;
-    color: @ui-text-muted;
+    background-color: var(--ui-surface-color, transparent);
     .ui-text-type--overline();
-    pointer-events: none;
 }
 
-    // The caption's text wears TitleType, which would re-declare the type over the entry's, so the role is reapplied (as for a selected tab).
-    .ui-menu-item[data-ui-menu-item-kind="header"] .ui-text {
+:where(.ui-menu-header) {
+    color: @ui-text-muted;
+}
+
+    // The caption's text wears TitleType, which would re-declare the type over the header's, so the role is reapplied (as for a selected tab).
+    .ui-menu-header > .ui-text {
         .ui-text-type--overline();
     }
 
-.ui-menu__host > *:first-child > .ui-menu-item[data-ui-menu-item-kind="header"] {
+.ui-menu__host > *:first-child > .ui-menu-header {
     .ui-responsive-property(margin, --ui-margin, 0);
 }
 
-// A rule has no content, but its content region still renders: out of the flow, so it takes no line.
-.ui-menu-item[data-ui-menu-item-kind="separator"] {
+// A rule between runs of entries: a plain block (`MenuItemComponentRenderer.ResolveRoot`) with a 1px top (or inline) stroke.
+.ui-menu-separator {
     .ui-responsive-property(min-height, --ui-min-height, 0);
     .ui-responsive-property(margin, --ui-margin, @ui-space-1 0);
     .ui-responsive-property(padding, --ui-padding, 0);
-    .ui-menu-entry-corners(0);
-    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-top: 1px solid var(--ui-color-border);
-    background: none;
-    pointer-events: none;
+    background-color: var(--ui-surface-color, transparent);
 }
 
-    .ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-button__content {
-        display: none;
-    }
-
-:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-item[data-ui-menu-item-kind="separator"] {
-    .ui-menu-entry-corners(0);
+:is(@{ui-menu-host-popups}, .ui-menu__submenu[data-ui-menu-flyout]) .ui-menu-separator {
     .ui-responsive-property(margin, --ui-margin, @ui-space-1 -@ui-space-1);
 }
 
-.ui-menu.ui-orientation--horizontal .ui-menu-item[data-ui-menu-item-kind="separator"] {
+.ui-menu.ui-orientation--horizontal .ui-menu-separator {
     align-self: stretch;
     .ui-responsive-property(width, --ui-width, 0);
     .ui-responsive-property(margin, --ui-margin, 0 @ui-space-1);
@@ -363,9 +354,7 @@
         display: none;
     }
 
-// A caption and a rule take no key, only a select entry shows its value on the row, and a collapsed menu or a rail has no room for the text.
-.ui-menu-item[data-ui-menu-item-kind="header"] > .ui-menu-item__shortcut,
-.ui-menu-item[data-ui-menu-item-kind="separator"] > .ui-menu-item__shortcut,
+// Only a select entry shows its value on the row, and a collapsed menu or a rail has no room for the text.
 .ui-menu-item:not([data-ui-menu-item-kind="select"]) > .ui-menu-item__value,
 @{ui-menu-folded} .ui-menu-item__shortcut {
     display: none;
@@ -436,9 +425,8 @@
     }
 
     // One track, no gap, or the hidden body's track pushes the glyph off centre; restated as ui-button.less stretches a badge entry.
-    // A line tall, as the title made it open: shorter, every icon down the rail moved up at the end of the fold. A caption's words
-    // are gone into its rule, which a line would stand an empty slot under.
-    @{ui-menu-collapsed} .ui-menu-item:not([data-ui-menu-flyout] *, @{ui-menu-passive-kinds}) > .ui-text {
+    // A line tall, as the title made it open: shorter, every icon down the rail moved up at the end of the fold.
+    @{ui-menu-collapsed-entry} > .ui-text {
         grid-template-columns: auto;
         gap: 0;
         .ui-responsive-property(width, --ui-width, auto);
@@ -447,19 +435,17 @@
     }
 
 // A flyout's caption is a popup list's, words and all, as the flyout's entries keep their titles.
-@{ui-menu-folded} .ui-menu-item[data-ui-menu-item-kind="header"]:not([data-ui-menu-flyout] *) {
+@{ui-menu-folded} .ui-menu-header:not([data-ui-menu-flyout] *) {
     // A caption with no text (or none that fits a rail) would be an empty gap, so it becomes the rule it visually stands in for.
     .ui-responsive-property(min-height, --ui-min-height, 0);
     .ui-responsive-property(margin, --ui-margin, @ui-space-2 0);
     .ui-responsive-property(padding, --ui-padding, 0);
-    .ui-menu-entry-corners(0);
-    .ui-responsive-property(border-width, --ui-border-thickness, 0);
     border-top: 1px solid var(--ui-color-border);
 }
 
     // The rule alone: its words leave the eye but not a screen reader, as a folded entry's title does; under a rail's rule they
     // stood as a line of their own. A flyout's captions keep their words.
-    @{ui-menu-folded} .ui-menu-item[data-ui-menu-item-kind="header"]:not([data-ui-menu-flyout] *) > .ui-button__content {
+    @{ui-menu-folded} .ui-menu-header:not([data-ui-menu-flyout] *) > .ui-text {
         .ui-visually-hidden();
     }
 
@@ -727,7 +713,7 @@
             min-width: 0;
         }
 
-        > .ui-menu__host > .ui-menu__item > .ui-menu-item:is([data-ui-menu-item-kind="header"], [data-ui-menu-item-kind="separator"]) {
+        > .ui-menu__host > .ui-menu__item > :is(.ui-menu-header, .ui-menu-separator) {
             align-self: stretch;
             .ui-responsive-property(width, --ui-width, 0);
             .ui-responsive-property(margin, --ui-margin, @ui-space-2 @ui-space-1);
