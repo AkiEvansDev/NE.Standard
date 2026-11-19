@@ -37,6 +37,46 @@ export function paintsPageWritten(payload: WebHydrationPayload | null): boolean 
     return payload !== null && (holdsPageWritten(payload.title) || holdsPageWritten(payload.changes));
 }
 
+/**
+ * Schedules rewriting values the page formats itself (`UIMoment`, `UIFileSize`) once hydration's change set and its words table have
+ * settled, keeping the inbound queue closed until it runs; skips the rewrite when the page expected a words table that failed to load,
+ * so boot-painted words are never overwritten with raw keys.
+ */
+export function scheduleHydratedPageWritten(
+    payload: WebHydrationPayload | null,
+    applied: void | Promise<void>,
+    hasTable: () => boolean,
+    isDisposed: () => boolean,
+    rewrite: () => void,
+    setInbound: (next: Promise<void> | null, expected?: Promise<void>) => void,
+    onError?: (error: unknown) => void
+): void {
+    const expectsTable = payload?.words !== null && payload?.words !== undefined;
+    const run = (): void => {
+        if (isDisposed() || (expectsTable && !hasTable()))
+            return;
+
+        try {
+            rewrite();
+        }
+        catch (error) {
+            onError?.(error);
+        }
+    };
+
+    if (applied === undefined) {
+        run();
+        return;
+    }
+
+    const rewritten = applied.then(run);
+
+    setInbound(rewritten, applied);
+    void rewritten.then(() => {
+        setInbound(null, rewritten);
+    });
+}
+
 export function readHydration(documentRoot: ParentNode = document): WebHydrationPayload | null {
     const script = documentRoot.querySelector<HTMLScriptElement>(HydrationSelector);
     const text = script?.textContent?.trim() ?? "";

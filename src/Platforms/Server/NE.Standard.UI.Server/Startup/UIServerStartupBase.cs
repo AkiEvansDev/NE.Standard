@@ -15,6 +15,7 @@ using NE.Standard.UI.Shell.Sessions;
 using NE.Standard.UI.Shell.Updates;
 using NE.Standard.UI.Startup;
 using NE.Standard.UI.Web.Hosting;
+using NE.Standard.UI.Web.Logging;
 using NE.Standard.UI.Web.Services;
 
 namespace NE.Standard.UI.Server.Startup;
@@ -37,6 +38,7 @@ public abstract class UIServerStartupBase<TStartup>
         WebServerRegistration.ConfigureDefaults(services);
 
         UIStartupBuilder.Configure<TStartup>(services);
+        UIConsoleLoggerRegistration.EnsureConsoleProviderIfEnabled(services);
     }
 
     /// <summary>Configures additional host-specific services before the default server services are added.</summary>
@@ -61,6 +63,8 @@ internal static class WebServerRegistration
     public static void ConfigureDefaults(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        UIConsoleLoggerRegistration.RegisterDefaults(services);
 
         _ = services.AddResponseCompression();
         _ = services.AddOptions<BrotliCompressionProviderOptions>()

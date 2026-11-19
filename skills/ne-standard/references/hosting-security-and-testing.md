@@ -18,6 +18,7 @@ Full guides:
            app.Route<HomeView, HomeController>("/");
            app.AddFrameworkWords("ru", "zh-Hans");
            // Optional: app.SetIcon("/brand/icon.svg") or app.SetNoIcon(); defaults to the shipped NE mark.
+           // Optional: app.ConfigureLogging(log => log.UseFile("logs", TimeSpan.FromDays(14), TimeSpan.FromHours(2)));
        }
    }
    ```

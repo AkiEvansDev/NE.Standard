@@ -56,6 +56,7 @@ export function itemMatchesFilters(config: WebRenderItemsFilterSortMetadata | un
 
 let searchTextByItem = new WeakMap<object, string>();
 let cachedSearchLanguage = "";
+let cachedSearchRevision = -1;
 let cachedSearchRaw = "";
 let cachedSearchWords: readonly string[] = [];
 
@@ -103,9 +104,10 @@ function searchWordsOf(search: string): readonly string[] {
 }
 
 function searchTextOfObject(item: object): string {
-    if (cachedSearchLanguage !== clientStrings.language) {
+    if (cachedSearchLanguage !== clientStrings.language || cachedSearchRevision !== clientStrings.revision) {
         searchTextByItem = new WeakMap<object, string>();
         cachedSearchLanguage = clientStrings.language;
+        cachedSearchRevision = clientStrings.revision;
     }
 
     const cached = searchTextByItem.get(item);

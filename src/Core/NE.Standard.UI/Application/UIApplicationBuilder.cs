@@ -35,6 +35,7 @@ public sealed class UIApplicationBuilder
     private readonly UISessionOptions _sessions = new();
     private readonly UIFileOptions _files = new();
     private readonly List<Action<UIFileOptions>> _fileConfigurations = [];
+    private readonly UILoggingOptions _logging = new();
     private readonly List<IUIViewFilter> _viewFilters = [];
     private readonly List<IUICommandFilter> _commandFilters = [];
     private readonly UILocalizationOptions _localization = new();
@@ -94,6 +95,19 @@ public sealed class UIApplicationBuilder
         configure(_files);
         _files.Validate();
         _fileConfigurations.Add(configure);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Configures standard console formatting, log levels, and rolling file logging with retention cleanup.
+    /// </summary>
+    public UIApplicationBuilder ConfigureLogging(Action<UILoggingOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        configure(_logging);
+        _logging.Validate();
 
         return this;
     }
@@ -509,9 +523,11 @@ public sealed class UIApplicationBuilder
         _temporal.Validate();
         _sessions.Validate();
         _files.Validate();
+        _logging.Validate();
 
         UIPlatformDefaults? platformDefaults = services.GetService<UIPlatformDefaults>();
         UIFileOptions files = BuildFileOptions(platformDefaults);
+        UILoggingOptions logging = services.GetService<UILoggingOptions>() ?? BuildLoggingOptions();
 
         UILocalizationOptions localization = CloneLocalizationOptions(_localization);
         UIMissingWords? missingWords = BuildMissingWords(services, localization);
@@ -530,6 +546,7 @@ public sealed class UIApplicationBuilder
             CloneSecurityOptions(_security),
             CloneSessionOptions(_sessions),
             files,
+            logging,
             localization,
             CloneTemporalOptions(_temporal),
             missingWords,
@@ -545,6 +562,13 @@ public sealed class UIApplicationBuilder
 
     internal (UITheme Theme, string? Icon) BuildShellDefaults()
         => (_theme.Build(), _icon);
+
+    internal UILoggingOptions BuildLoggingOptions()
+    {
+        _logging.Validate();
+
+        return CloneLoggingOptions(_logging);
+    }
 
     private UIFileOptions BuildFileOptions(UIPlatformDefaults? platformDefaults)
     {
@@ -712,14 +736,78 @@ public sealed class UIApplicationBuilder
         => new()
         {
             MaxFileSize = source.MaxFileSize,
-            MaxFilesPerSelection = source.MaxFilesPerSelection,
             MaxUploadBytesPerSession = source.MaxUploadBytesPerSession,
             MaxUploadBytesTotal = source.MaxUploadBytesTotal,
             MaxDownloadBytesPerSession = source.MaxDownloadBytesPerSession,
             MaxDownloadBytesTotal = source.MaxDownloadBytesTotal,
+            MaxFilesPerSelection = source.MaxFilesPerSelection,
             UploadRetention = source.UploadRetention,
             DownloadRetention = source.DownloadRetention,
             CleanupInterval = source.CleanupInterval,
             StorageRoot = source.StorageRoot
+        };
+
+    /// <inheritdoc cref="CloneSecurityOptions" />
+    internal static UILoggingOptions CloneLoggingOptions(UILoggingOptions source)
+    {
+        UILoggingOptions copy = new()
+        {
+            MinimumLevel = source.MinimumLevel
+        };
+
+        UIConsoleLogOptions console = CloneConsoleLogOptions(source.Console);
+        copy.Console.Enabled = console.Enabled;
+        copy.Console.TimestampFormat = console.TimestampFormat;
+        copy.Console.UseUtcTimestamp = console.UseUtcTimestamp;
+        copy.Console.FullCategoryName = console.FullCategoryName;
+        copy.Console.UseColors = console.UseColors;
+        copy.Console.IncludeScopes = console.IncludeScopes;
+
+        UIFileLogOptions file = CloneFileLogOptions(source.File);
+        copy.File.Enabled = file.Enabled;
+        copy.File.DirectoryPath = file.DirectoryPath;
+        copy.File.FileNamePrefix = file.FileNamePrefix;
+        copy.File.MinimumLevel = file.MinimumLevel;
+        copy.File.MaxFileSize = file.MaxFileSize;
+        copy.File.Retention = file.Retention;
+        copy.File.CleanupInterval = file.CleanupInterval;
+        copy.File.TimestampFormat = file.TimestampFormat;
+        copy.File.UseUtcTimestamp = file.UseUtcTimestamp;
+        copy.File.FullCategoryName = file.FullCategoryName;
+        copy.File.IncludeScopes = file.IncludeScopes;
+
+        foreach (KeyValuePair<string, LogLevel> pair in source.CategoryLevels)
+            copy.CategoryLevels[pair.Key] = pair.Value;
+
+        return copy;
+    }
+
+    /// <inheritdoc cref="CloneSecurityOptions" />
+    private static UIConsoleLogOptions CloneConsoleLogOptions(UIConsoleLogOptions source)
+        => new()
+        {
+            Enabled = source.Enabled,
+            TimestampFormat = source.TimestampFormat,
+            UseUtcTimestamp = source.UseUtcTimestamp,
+            FullCategoryName = source.FullCategoryName,
+            UseColors = source.UseColors,
+            IncludeScopes = source.IncludeScopes
+        };
+
+    /// <inheritdoc cref="CloneSecurityOptions" />
+    private static UIFileLogOptions CloneFileLogOptions(UIFileLogOptions source)
+        => new()
+        {
+            Enabled = source.Enabled,
+            DirectoryPath = source.DirectoryPath,
+            FileNamePrefix = source.FileNamePrefix,
+            MinimumLevel = source.MinimumLevel,
+            MaxFileSize = source.MaxFileSize,
+            Retention = source.Retention,
+            CleanupInterval = source.CleanupInterval,
+            TimestampFormat = source.TimestampFormat,
+            UseUtcTimestamp = source.UseUtcTimestamp,
+            FullCategoryName = source.FullCategoryName,
+            IncludeScopes = source.IncludeScopes
         };
 }

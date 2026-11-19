@@ -22,7 +22,7 @@ public sealed class UIApplication
     /// <summary>The icon value that suppresses the framework's default mark without triggering a browser <c>/favicon.ico</c> request.</summary>
     public const string NoIcon = "data:,";
 
-    internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, UILocalizationOptions localization, UITemporalOptions temporal, IUIMissingWords? missingWords, IUIContentAddressResolver? content, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
+    internal UIApplication(UIRouteRegistry routes, UIPersistenceOptions persistence, ITranslator translator, UITheme theme, UIErrorHandlingOptions errorHandling, UISecurityOptions security, UISessionOptions sessions, UIFileOptions files, UILoggingOptions logging, UILocalizationOptions localization, UITemporalOptions temporal, IUIMissingWords? missingWords, IUIContentAddressResolver? content, IUIViewFilter[] viewFilters, IUICommandFilter[] commandFilters)
     {
         ArgumentNullException.ThrowIfNull(routes);
         ArgumentNullException.ThrowIfNull(persistence);
@@ -32,6 +32,7 @@ public sealed class UIApplication
         ArgumentNullException.ThrowIfNull(security);
         ArgumentNullException.ThrowIfNull(sessions);
         ArgumentNullException.ThrowIfNull(files);
+        ArgumentNullException.ThrowIfNull(logging);
         ArgumentNullException.ThrowIfNull(localization);
         ArgumentNullException.ThrowIfNull(temporal);
         ArgumentNullException.ThrowIfNull(viewFilters);
@@ -39,6 +40,7 @@ public sealed class UIApplication
 
         persistence.Validate();
         theme.Validate();
+        logging.Validate();
 
         Routes = routes;
         Persistence = persistence;
@@ -48,6 +50,7 @@ public sealed class UIApplication
         Security = security;
         Sessions = sessions;
         Files = files;
+        Logging = logging;
         Localization = localization;
         Temporal = temporal;
         MissingWords = missingWords;
@@ -114,6 +117,11 @@ public sealed class UIApplication
     /// Gets file transfer limits and lifetimes.
     /// </summary>
     public UIFileOptions Files { get; }
+
+    /// <summary>
+    /// Gets console and rolling file logging configuration.
+    /// </summary>
+    public UILoggingOptions Logging { get; }
 
     /// <summary>Resolves the address a piece of registered content is served at.</summary>
     /// <exception cref="InvalidOperationException">

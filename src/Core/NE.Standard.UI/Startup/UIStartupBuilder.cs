@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Logging;
 
 namespace NE.Standard.UI.Startup;
 
@@ -42,4 +43,13 @@ public static class UIStartupBuilder
     public static (UITheme Theme, string? Icon) ReadShellDefaults<TStartup>()
         where TStartup : UIStartupBase, new()
         => new TStartup().ReadShellDefaults();
+
+    /// <summary>Registers the logging options and rolling file logger configured by <typeparamref name="TStartup"/> without building its host services.</summary>
+    public static void ConfigureLogging<TStartup>(IServiceCollection services)
+        where TStartup : UIStartupBase, new()
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        UILoggingRegistration.Register(services, new TStartup().ReadLoggingDefaults());
+    }
 }

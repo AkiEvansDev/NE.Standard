@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Files;
 using NE.Standard.UI.Hosting;
+using NE.Standard.UI.Logging;
 using NE.Standard.UI.Security;
 using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Files;
@@ -39,6 +40,8 @@ public abstract class UIStartupBase
         Configure(services, application);
         configureApplication?.Invoke(application);
 
+        UILoggingRegistration.Register(services, application.BuildLoggingOptions());
+
         // Built in the host's own container, on first resolve: a provider built here would construct every singleton the build touches a second time.
         _ = services.AddSingleton(application.Build);
         _ = services.AddSingleton<IUIHost, UIHost>();
@@ -50,6 +53,13 @@ public abstract class UIStartupBase
         UIApplicationBuilder application = new();
         ConfigureApplication(application);
         return application.BuildShellDefaults();
+    }
+
+    internal UILoggingOptions ReadLoggingDefaults()
+    {
+        UIApplicationBuilder application = new();
+        ConfigureApplication(application);
+        return application.BuildLoggingOptions();
     }
 
     /// <summary>Registers what the host itself serves, read from <paramref name="host"/>.</summary>

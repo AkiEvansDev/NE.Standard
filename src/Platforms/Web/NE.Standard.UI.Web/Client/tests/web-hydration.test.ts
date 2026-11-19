@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { paintsPageWritten, readHydration } from "../src/runtime/web-hydration.ts";
+import { paintsPageWritten, readHydration, scheduleHydratedPageWritten } from "../src/runtime/web-hydration.ts";
 
 function pageWith(json: string | null): ParentNode {
     const script = json === null
@@ -70,4 +70,52 @@ test("a row's file size the server painted in English is one the page writes aga
     const drawn = readHydration(pageWith(JSON.stringify({ pageId: "abc", changes: { updates: [{ kind: "CollectionChange", action: "Insert", items: [{ index: 0, key: "1", item: row }] }] } })));
 
     assert.equal(paintsPageWritten(drawn), true);
+});
+
+test("hydrating page-written values waits for the words table and keeps the inbound queue closed until rewritten", async () => {
+    const payload = readHydration(pageWith(JSON.stringify({
+        pageId: null,
+        words: { language: "en", href: "/_ne/words/en.json?v=1" },
+        changes: { updates: [] }
+    })));
+    let tableReady = false;
+    let rewrites = 0;
+    let releaseApplied!: () => void;
+    const applied = new Promise<void>(resolve => {
+        releaseApplied = resolve;
+    });
+    let inbound: Promise<void> | null = applied;
+    const setInbound = (next: Promise<void> | null, expected?: Promise<void>): void => {
+        if (expected === undefined || inbound === expected)
+            inbound = next;
+    };
+
+    scheduleHydratedPageWritten(payload, applied, () => tableReady, () => false, () => { rewrites++; }, setInbound);
+
+    assert.equal(rewrites, 0, "must not rewrite while only boot strings are loaded");
+    assert.notEqual(inbound, null);
+    assert.notEqual(inbound, applied, "inbound stays chained through the page-written rewrite");
+
+    tableReady = true;
+    releaseApplied();
+    await inbound;
+    await Promise.resolve();
+
+    assert.equal(rewrites, 1);
+    assert.equal(inbound, null);
+});
+
+test("hydrating page-written values leaves boot-painted text untouched if the expected words table failed to load", async () => {
+    const payload = readHydration(pageWith(JSON.stringify({
+        pageId: null,
+        words: { language: "en", href: "/_ne/words/en.json?v=1" },
+        changes: { updates: [] }
+    })));
+    let rewrites = 0;
+
+    scheduleHydratedPageWritten(payload, Promise.resolve(), () => false, () => false, () => { rewrites++; }, () => undefined);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(rewrites, 0);
 });

@@ -8,6 +8,7 @@ using NE.Standard.UI.Shell.Files;
 using NE.Standard.UI.Startup;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Hosting;
+using NE.Standard.UI.Web.Logging;
 using NE.Standard.UI.Web.Rendering;
 using NE.Standard.UI.Web.Startup;
 
@@ -44,6 +45,8 @@ public abstract class DesktopStartupBase<TStartup> : WebStartupBase<TStartup>
         else
         {
             _ = services.AddSingleton(remoteDefaults);
+            UIStartupBuilder.ConfigureLogging<TStartup>(services);
+            UIConsoleLoggerRegistration.EnsureConsoleProviderIfEnabled(services);
         }
     }
 

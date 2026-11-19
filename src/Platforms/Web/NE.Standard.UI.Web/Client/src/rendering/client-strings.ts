@@ -137,6 +137,7 @@ export class ClientWords implements WordLookup {
     private complete = true;
     private report = false;
     private tableLoaded = false;
+    private wordsRevision = 0;
 
     // A bare host or a test page carries no strings block, so a key missing there is a debug note, not a warning.
     private hasStringsBlock = false;
@@ -189,6 +190,16 @@ export class ClientWords implements WordLookup {
         return this.currentPrefixes;
     }
 
+    /** Whether a language's table has arrived (`useTable`); false while the page holds only the boot words. */
+    public get hasTable(): boolean {
+        return this.tableLoaded;
+    }
+
+    /** Incremented whenever the loaded words change (boot, table, overrides, or server-answered missing keys). */
+    public get revision(): number {
+        return this.wordsRevision;
+    }
+
     /** Reads the words the shell wrote; a page without them (a test, a bare host) reads keys back. */
     public load(documentRoot: ParentNode = document): void {
         // The head's names and patterns, the table's own: a day or a time is written in the reader's zone from the start, as the boot
@@ -209,6 +220,8 @@ export class ClientWords implements WordLookup {
                 if (typeof value === "string")
                     this.words.set(key, value);
             }
+
+            this.wordsRevision++;
         }
         catch (error) {
             logWarn("client strings could not be read.", error);
@@ -221,6 +234,8 @@ export class ClientWords implements WordLookup {
             if (typeof value === "string")
                 this.overrides.set(key, value);
         }
+
+        this.wordsRevision++;
     }
 
     /** Takes a language's whole table in place of the one before it: the boot subset, or the language the page left. */
@@ -240,6 +255,7 @@ export class ClientWords implements WordLookup {
         this.complete = table.complete !== false;
         this.report = table.report === true;
         this.tableLoaded = true;
+        this.wordsRevision++;
         this.missing.clear();
         this.pending.clear();
         this.notify(this.tableHandlers, "a words table handler failed.");
@@ -581,8 +597,10 @@ export class ClientWords implements WordLookup {
             }
         }
 
-        if (added)
+        if (added) {
+            this.wordsRevision++;
             this.notifyChanged();
+        }
     }
 
     /**

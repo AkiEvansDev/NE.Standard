@@ -69,7 +69,7 @@ import {
     switchRuntimeLanguageAsync, wireTransportCallbacks
 } from "./runtime-words";
 import { StashedPage, UnsavedStash } from "./unsaved-stash";
-import { readHydration } from "./web-hydration";
+import { readHydration, scheduleHydratedPageWritten } from "./web-hydration";
 import { getOrCreateWindowId } from "./window-id";
 
 export type { Badges, Icons, PluginEngine, PluginEngineContext, PropertyWriting, Urls } from "./component-engines";
@@ -502,11 +502,20 @@ export class WebUIRuntime {
 
         this.dom.rebuild();
         this.updateProcessor.registerServerRenderedItems(changes);
-        void this.applyChanges(changes);
+        const applied = this.applyChanges(changes);
         this.updateProcessor.initializeItemsHosts();
 
-        if (holdsPaintedPageWritten(this.root, this.hydration, this.metadata))
-            this.rewritePageWritten();
+        if (holdsPaintedPageWritten(this.root, this.hydration, this.metadata)) {
+            scheduleHydratedPageWritten(
+                this.hydration,
+                applied,
+                () => clientStrings.hasTable,
+                () => this.disposed,
+                () => this.rewritePageWritten(),
+                (next, expected) => this.setInbound(next, expected),
+                error => logWarn("the page's written values could not be written again.", error)
+            );
+        }
 
         logElapsed("runtime hydrated from the page", started, { pageId: this.hydration.pageId, updates: changes?.updates?.length ?? 0 });
     }

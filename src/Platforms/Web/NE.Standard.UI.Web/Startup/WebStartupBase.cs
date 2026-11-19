@@ -13,6 +13,7 @@ using NE.Standard.UI.Web.Abstractions.Assets;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Assets;
 using NE.Standard.UI.Web.Hosting;
+using NE.Standard.UI.Web.Logging;
 using NE.Standard.UI.Web.Rendering;
 
 namespace NE.Standard.UI.Web.Startup;
@@ -33,6 +34,7 @@ public abstract class WebStartupBase<TStartup>
         ConfigureDefaults(services);
 
         UIStartupBuilder.Configure<TStartup>(services);
+        UIConsoleLoggerRegistration.EnsureConsoleProviderIfEnabled(services);
     }
 
     /// <summary>Configures additional host-specific services before the default web services are added.</summary>

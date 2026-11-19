@@ -35,6 +35,13 @@ internal static class UITestHostBuilder
                 persistence.CleanupInterval = TimeSpan.FromHours(1);
             });
 
+            // Tests run quietly without writing application log files unless the test's own configureApplication turns them on.
+            _ = application.ConfigureLogging(static logging =>
+            {
+                logging.Console.Enabled = false;
+                logging.File.Enabled = false;
+            });
+
             configureApplication?.Invoke(application);
         });
 
