@@ -2,6 +2,7 @@
 // on demand (a grid's cell editor, drawn when the cell opens rather than once per row), where a key is the row keyboard's, and the
 // keyboard's cursor over a grid's cells as a package walks and moves it.
 
+import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { moveRowCursor, rowCells, unclaimedRowKeyTarget, walksCells } from "../interactions/row-cursor.ts";
 import { SelectionRootSelector } from "../interactions/row-selection.ts";
 import { readItemPropertyPath } from "./binding-template-evaluator.ts";
@@ -30,7 +31,7 @@ export type ItemRows = {
     moveCursor(row: Element, cell?: Element | null): void;
 };
 
-export function createItemRows(templates: ItemsTemplateRegistry, renderer: ItemsTemplateRenderer, virtualization: ItemsVirtualizationEngine): ItemRows {
+export function createItemRows(templates: ItemsTemplateRegistry, renderer: ItemsTemplateRenderer, virtualization: ItemsVirtualizationEngine, dom?: Pick<DomRegistry, "invalidate">): ItemRows {
     return {
         itemOf: row => renderer.getItemValue(row),
         itemsOf: host => virtualization.itemsOf(host),
@@ -44,7 +45,17 @@ export function createItemRows(templates: ItemsTemplateRegistry, renderer: Items
                 return null;
 
             // As a composite row draws each of its slots: against the row's own item, under the scopes above it.
-            return renderer.renderFromTemplate(template, scope.item, renderer.getAncestorStack(row));
+            const rendered = renderer.renderFromTemplate(template, scope.item, renderer.getAncestorStack(row));
+
+            if (rendered !== null && dom !== undefined) {
+                dom.invalidate(row);
+                queueMicrotask(() => {
+                    if (rendered.isConnected)
+                        dom.invalidate(row);
+                });
+            }
+
+            return rendered;
         },
         isKeyTarget: target => unclaimedRowKeyTarget(target) !== null,
         cellsOf: row => {

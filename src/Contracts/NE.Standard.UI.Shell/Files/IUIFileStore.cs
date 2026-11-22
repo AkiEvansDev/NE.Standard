@@ -26,7 +26,7 @@ public interface IUIFileStore
         ArgumentException.ThrowIfNullOrWhiteSpace(localFilePath);
 
         var resolvedName = string.IsNullOrWhiteSpace(fileName) ? Path.GetFileName(localFilePath) : fileName;
-        FileStream stream = new(localFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        FileStream stream = new(localFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
 
         await using (stream.ConfigureAwait(false))
             return await SaveUploadAsync(sessionId, selectionId, resolvedName, contentType, stream, cancellationToken).ConfigureAwait(false);
@@ -36,6 +36,10 @@ public interface IUIFileStore
     /// <remarks>A store that does not count answers zero, and the per-session limit then holds nothing back.</remarks>
     Task<long> GetUploadedBytesAsync(string sessionId, CancellationToken cancellationToken = default)
         => Task.FromResult(0L);
+
+    /// <summary>How many bytes of uploads every session together holds now, or <see langword="null"/> when the store does not track a process-wide total.</summary>
+    ValueTask<long?> GetTotalUploadedBytesAsync(CancellationToken cancellationToken = default)
+        => ValueTask.FromResult<long?>(null);
 
     /// <summary>
     /// Reads back the metadata of a stored selection, or an empty list when the session has no such selection.
@@ -89,13 +93,17 @@ public interface IUIFileStore
 
         await using (staged.ConfigureAwait(false))
         {
-            var directory = Path.GetDirectoryName(destinationPath);
+            var fullDestination = Path.GetFullPath(destinationPath);
+            var directory = Path.GetDirectoryName(fullDestination);
             if (!string.IsNullOrEmpty(directory))
                 _ = Directory.CreateDirectory(directory);
 
+            var tempDirectory = string.IsNullOrEmpty(directory) ? "." : directory;
+            var tempPath = Path.Combine(tempDirectory, $".{Path.GetFileName(fullDestination)}.{Guid.NewGuid():N}.tmp");
+
             try
             {
-                FileStream destination = new(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                FileStream destination = new(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
                 await using (destination.ConfigureAwait(false))
                 {
                     if (staged.WriteToAsync is not null)
@@ -103,13 +111,15 @@ public interface IUIFileStore
                     else
                         await staged.Content.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
                 }
+
+                File.Move(tempPath, fullDestination, overwrite: true);
             }
             catch
             {
                 try
                 {
-                    if (File.Exists(destinationPath))
-                        File.Delete(destinationPath);
+                    if (File.Exists(tempPath))
+                        File.Delete(tempPath);
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {
@@ -245,6 +255,9 @@ public sealed class UIStagedDownload : IAsyncDisposable, IDisposable
 
         private void EnsureAllowance(int count)
         {
+            if (count <= 0)
+                return;
+
             BytesWritten += count;
             if (maxBytes is long limit && BytesWritten > limit)
                 throw new InvalidOperationException("Staged download limit exceeded.");

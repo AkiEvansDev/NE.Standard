@@ -75,6 +75,9 @@ public sealed class UIClientComponent
     /// <summary>Gets whether a reader can act on it: neither it nor an ancestor disabled or loading.</summary>
     public bool IsEnabled => Page.IsEnabled(Node.ComponentId, _rowKeys);
 
+    /// <summary>Gets whether this field currently stands open in the full-height expanded field modal.</summary>
+    public bool IsExpanded => Page.IsFieldExpanded(Node.ComponentId, _rowKeys);
+
     /// <summary>Gets the validation message the field shows, in the page's language, or <see langword="null"/> for none.</summary>
     public string? ValidationMessage
         => Page.View.Validations.TryGetMessageTarget(Node.ComponentId, out _)
@@ -90,9 +93,16 @@ public sealed class UIClientComponent
     /// <summary>Gets the component shown on a right click or a long press on this one.</summary>
     /// <exception cref="InvalidOperationException">It has none.</exception>
     public UIClientComponent ContextMenu
-        => Page.View.Graph.TryGetSlot(Node.ComponentId, UIComponentSlotKind.ContextMenu, out UIComponentSlot? slot)
-            ? Page.At(slot.RootComponentId, _rowKeys)
-            : throw new InvalidOperationException($"'{Id}' has no context menu.");
+    {
+        get
+        {
+            if (!Page.View.Graph.TryGetSlot(Node.ComponentId, UIComponentSlotKind.ContextMenu, out UIComponentSlot? slot))
+                throw new InvalidOperationException($"'{Id}' has no context menu.");
+
+            Page.TryOpenContextMenu(Node.ComponentId, _rowKeys);
+            return Page.At(slot.RootComponentId, _rowKeys);
+        }
+    }
 
     /// <summary>Gets the menu a split button drops, whose rows are its entries.</summary>
     /// <exception cref="InvalidOperationException">It drops none.</exception>

@@ -9,6 +9,7 @@ using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Sessions;
 using NE.Standard.UI.Shell.Commands;
@@ -154,6 +155,19 @@ public sealed class InProcessUIClientTransport : IUIClientTransport
     /// <inheritdoc />
     public Task<UICommandExecutionResult> NavigateInPlaceAsync(IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken = default)
         => _host.NavigateInPlaceAsync(Resolution.Handle, parameters, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<UICommandExecutionResult> RequestLeaveAsync(string target, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(target);
+
+        if (!UIRoutePath.IsLocal(target))
+            throw new ArgumentException("A leave names an address of this site.", nameof(target));
+
+        return Resolution.Runtime is not null
+            ? _host.RequestLeaveAsync(Resolution.Handle, target, cancellationToken)
+            : Task.FromResult(new UICommandExecutionResult { Command = UICommandResult.Ok([new NavigateEffect(target)]), Changes = ServerChangeSet.Empty });
+    }
 
     /// <inheritdoc />
     public Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default)

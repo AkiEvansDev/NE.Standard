@@ -1054,11 +1054,11 @@ public abstract class WebComponentRendererBase : IWebComponentRenderer
 
     /// <summary>
     /// A static translatable value recorded for the page, so a language switch writes it again: once for every instance when it is
-    /// the component's own, per row when it was read off the row's item. Only where the page can switch to another language.
+    /// the component's own, per row when it was read off the row's item. Recorded where the page can switch to another language, or where a phrase holds a value the page writes itself.
     /// </summary>
     private static bool RecordWord(WebRenderContext context, string propertyId, RenderedWord word)
     {
-        if (word.Key is null || context.IsPresentationCopy || context.Translator.Languages.Count < 2)
+        if (word.Key is null || context.IsPresentationCopy || (context.Translator.Languages.Count < 2 && (word.Key is not UIPhrase phrase || !WebWords.HoldsPageWritten(phrase))))
             return false;
 
         context.Metadata.AddWord(context.Node.ComponentId, propertyId, word.FromItem ? ResolveItemKeys(context) : null, word.Key);

@@ -258,7 +258,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
         return held;
     }
 
-    /// <summary>The sides a button of the view's own opens (<see cref="ButtonComponent{T}.OpensDrawer"/>).</summary>
+    /// <summary>The sides a button of the view's own opens (<see cref="ButtonComponent{T}.OpensDrawer"/>), outside that side itself and any dialog.</summary>
     private static (bool Left, bool Right) OwnOpeners(CompiledView view)
         => DrawerOpeners.GetValue(view, static view =>
         {
@@ -270,13 +270,35 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                     continue;
 
                 if (value.Value is UISide.Left)
-                    openers.Left = true;
+                {
+                    if (FindRegionKey(view, state.ComponentId) is string leftHost && !string.Equals(leftHost, RegionNames.LeftSide, StringComparison.Ordinal))
+                        openers.Left = true;
+                }
                 else if (value.Value is UISide.Right)
-                    openers.Right = true;
+                {
+                    if (FindRegionKey(view, state.ComponentId) is string rightHost && !string.Equals(rightHost, RegionNames.RightSide, StringComparison.Ordinal))
+                        openers.Right = true;
+                }
             }
 
             return new StrongBox<(bool Left, bool Right)>(openers);
         }).Value;
+
+    private static string? FindRegionKey(CompiledView view, UIComponentId componentId)
+    {
+        UIComponentId current = componentId;
+
+        while (view.Graph.GetRequired(current).ParentId is UIComponentId parentId)
+            current = parentId;
+
+        for (var i = 0; i < view.Regions.Length; i++)
+        {
+            if (view.Regions[i].RootComponentId == current)
+                return view.Regions[i].Key;
+        }
+
+        return null;
+    }
 
     private static string? ToggleHost(CompiledView view, bool leftDrawer, bool rightDrawer)
         => !leftDrawer && !rightDrawer ? null

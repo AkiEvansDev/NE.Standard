@@ -56,7 +56,7 @@ public static class CompiledViewWireSerializer
     private static readonly Dictionary<string, Type> TagToType = [with(StringComparer.Ordinal)];
     private static readonly Dictionary<Type, string> TypeToTag = [];
     private static readonly HashSet<Assembly> ScannedAssemblies = [];
-    private static bool _referencedWireAssembliesLoaded;
+    private static readonly HashSet<string> InspectedWireReferenceRoots = [with(StringComparer.Ordinal)];
     private static readonly FrozenDictionary<Type, Type> ModelInterfaceCanonicalTypes = new Dictionary<Type, Type>
     {
         [typeof(IBadgeModel)] = typeof(BadgeItem),
@@ -214,6 +214,7 @@ public static class CompiledViewWireSerializer
         options.Converters.Add(new UIPropertyJsonConverter());
         options.Converters.Add(new UIComponentAddressJsonConverter());
         options.Converters.Add(new ColorVariantWireJsonConverter());
+        options.Converters.Add(new UIThemeColorWireJsonConverter());
         options.Converters.Add(new UIItemsQueryTermsWireJsonConverter());
         options.Converters.Add(new UIItemReadsWireJsonConverter());
         options.Converters.Add(new CompiledUIItemsViewWireJsonConverter());
@@ -1528,19 +1529,29 @@ public static class CompiledViewWireSerializer
                 JsonElement valueElement = element.GetProperty(ValueProperty);
 
                 if (string.Equals(tag, "type", StringComparison.Ordinal))
-                    return ResolveTypeTag(valueElement.GetString() ?? throw new JsonException("Type value is null."));
+                {
+                    var typeTag = valueElement.GetString() ?? throw new JsonException("Type value is null.");
+                    return TryResolveTypeTag(typeTag, out Type? resolvedType) ? resolvedType : null;
+                }
 
                 if (string.Equals(tag, "item", StringComparison.Ordinal))
                     return ObjectToInferredTypesConverter.ToInferredValue(valueElement);
 
                 if (tag.StartsWith(ArrayPrefix, StringComparison.Ordinal))
-                    return ReadTypedArray(ResolveTypeTag(tag[ArrayPrefix.Length..]), valueElement);
+                {
+                    return TryResolveTypeTag(tag[ArrayPrefix.Length..], out Type? arrayElementType)
+                        ? ReadTypedArray(arrayElementType, valueElement)
+                        : ObjectToInferredTypesConverter.ToInferredValue(valueElement);
+                }
 
                 if (tag.StartsWith(RecursiveCollectionPrefix, StringComparison.Ordinal))
-                    return ReadRecursiveCollection(ResolveTypeTag(tag[RecursiveCollectionPrefix.Length..]), valueElement);
+                {
+                    return TryResolveTypeTag(tag[RecursiveCollectionPrefix.Length..], out Type? collectionElementType)
+                        ? ReadRecursiveCollection(collectionElementType, valueElement)
+                        : ObjectToInferredTypesConverter.ToInferredValue(valueElement);
+                }
 
-                Type targetType = ResolveTypeTag(tag);
-                if (targetType == typeof(IReadOnlyDictionary<string, object?>))
+                if (!TryResolveTypeTag(tag, out Type? targetType) || targetType == typeof(IReadOnlyDictionary<string, object?>))
                     return ObjectToInferredTypesConverter.ToInferredValue(valueElement);
 
                 if (valueElement.ValueKind == JsonValueKind.Null)
@@ -1596,47 +1607,98 @@ public static class CompiledViewWireSerializer
         return collection;
     }
 
-    private static Type ResolveTypeTag(string tag)
+    private static bool TryResolveTypeTag(string tag, [NotNullWhen(true)] out Type? type)
     {
-        if (TryGetRegisteredType(tag, out Type? found, scanOnMiss: false))
-            return found;
+        if (TryGetRegisteredType(tag, out type, scanOnMiss: false))
+            return true;
 
         if (tag.StartsWith(NullablePrefix, StringComparison.Ordinal))
         {
-            Type inner = ResolveTypeTag(tag[NullablePrefix.Length..]);
-            return inner.IsValueType ? typeof(Nullable<>).MakeGenericType(inner) : inner;
+            if (!TryResolveTypeTag(tag[NullablePrefix.Length..], out Type? inner))
+            {
+                type = null;
+                return false;
+            }
+
+            type = inner.IsValueType ? typeof(Nullable<>).MakeGenericType(inner) : inner;
+            return true;
         }
 
         if (tag.StartsWith(ArrayPrefix, StringComparison.Ordinal))
-            return ResolveTypeTag(tag[ArrayPrefix.Length..]).MakeArrayType();
+        {
+            if (!TryResolveTypeTag(tag[ArrayPrefix.Length..], out Type? element))
+            {
+                type = null;
+                return false;
+            }
+
+            type = element.MakeArrayType();
+            return true;
+        }
 
         if (tag.StartsWith(ResponsivePrefix, StringComparison.Ordinal))
-            return typeof(UIResponsive<>).MakeGenericType(ResolveTypeTag(tag[ResponsivePrefix.Length..]));
+        {
+            if (!TryResolveTypeTag(tag[ResponsivePrefix.Length..], out Type? responsiveInner) || !responsiveInner.IsValueType || Nullable.GetUnderlyingType(responsiveInner) is not null)
+            {
+                type = null;
+                return false;
+            }
+
+            type = typeof(UIResponsive<>).MakeGenericType(responsiveInner);
+            return true;
+        }
 
         if (tag.StartsWith(RecursiveCollectionPrefix, StringComparison.Ordinal))
-            return typeof(RecursiveCollection<>).MakeGenericType(ResolveTypeTag(tag[RecursiveCollectionPrefix.Length..]));
+        {
+            if (!TryResolveTypeTag(tag[RecursiveCollectionPrefix.Length..], out Type? collectionInner))
+            {
+                type = null;
+                return false;
+            }
+
+            type = typeof(RecursiveCollection<>).MakeGenericType(collectionInner);
+            return true;
+        }
 
         if (tag.StartsWith(ReadOnlyListPrefix, StringComparison.Ordinal))
-            return typeof(IReadOnlyList<>).MakeGenericType(ResolveTypeTag(tag[ReadOnlyListPrefix.Length..]));
+        {
+            if (!TryResolveTypeTag(tag[ReadOnlyListPrefix.Length..], out Type? listInner))
+            {
+                type = null;
+                return false;
+            }
+
+            type = typeof(IReadOnlyList<>).MakeGenericType(listInner);
+            return true;
+        }
 
         if (tag.StartsWith(ReadOnlyDictionaryPrefix, StringComparison.Ordinal))
         {
             SplitDictionaryTagArguments(tag.AsSpan(ReadOnlyDictionaryPrefix.Length), out ReadOnlySpan<char> keySpan, out ReadOnlySpan<char> valSpan);
-            Type keyType = ResolveTypeTag(keySpan.ToString());
-            Type valType = ResolveTypeTag(valSpan.ToString());
-            return typeof(IReadOnlyDictionary<,>).MakeGenericType(keyType, valType);
+            if (!TryResolveTypeTag(keySpan.ToString(), out Type? keyType))
+            {
+                type = null;
+                return false;
+            }
+
+            Type valType = TryResolveTypeTag(valSpan.ToString(), out Type? resolvedValType) ? resolvedValType : typeof(object);
+            type = typeof(IReadOnlyDictionary<,>).MakeGenericType(keyType, valType);
+            return true;
         }
 
         if (tag.StartsWith(EnumPrefix, StringComparison.Ordinal))
-            return TryResolveExternalType(tag[EnumPrefix.Length..]) is { IsEnum: true } enumType ? enumType : typeof(string);
+        {
+            type = TryResolveExternalType(tag[EnumPrefix.Length..]) is { IsEnum: true } enumType ? enumType : typeof(string);
+            return true;
+        }
 
         if (tag.StartsWith(StructPrefix, StringComparison.Ordinal))
-            return TryResolveExternalType(tag[StructPrefix.Length..]) is { IsValueType: true } structType ? structType : typeof(IReadOnlyDictionary<string, object?>);
+        {
+            type = TryResolveExternalType(tag[StructPrefix.Length..]) is { IsValueType: true } structType ? structType : typeof(IReadOnlyDictionary<string, object?>);
+            return true;
+        }
 
-        if (TryGetRegisteredType(tag, out found, scanOnMiss: true))
-            return found;
-
-        throw new JsonException($"Unrecognized compiled view type tag '{tag}'.");
+        return TryGetRegisteredType(tag, out type, scanOnMiss: true);
     }
 
     private static bool TryGetRegisteredType(string tag, [NotNullWhen(true)] out Type? type, bool scanOnMiss)
@@ -1661,15 +1723,9 @@ public static class CompiledViewWireSerializer
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Optional referenced add-on assembly discovery must ignore unavailable assemblies.")]
     private static void LoadReferencedWireAssembliesNoLock()
     {
-        if (_referencedWireAssembliesLoaded)
-            return;
-
-        _referencedWireAssembliesLoaded = true;
         Queue<Assembly> queue = new(AppDomain.CurrentDomain.GetAssemblies());
         if (Assembly.GetEntryAssembly() is Assembly entry)
             queue.Enqueue(entry);
-
-        HashSet<string> visited = [with(StringComparer.Ordinal)];
 
         while (queue.Count > 0)
         {
@@ -1678,12 +1734,12 @@ public static class CompiledViewWireSerializer
                 continue;
 
             var currentName = current.GetName().Name;
-            if (currentName is not null && !visited.Add(currentName))
+            if (currentName is not null && !InspectedWireReferenceRoots.Add(currentName))
                 continue;
 
             foreach (AssemblyName reference in current.GetReferencedAssemblies())
             {
-                if (reference.Name is not string refName || visited.Contains(refName))
+                if (reference.Name is not string refName || InspectedWireReferenceRoots.Contains(refName))
                     continue;
 
                 if (!IsWireValueAssembly(refName) && !refName.StartsWith("NE.", StringComparison.Ordinal))
@@ -1781,6 +1837,7 @@ public static class CompiledViewWireSerializer
         return false;
     }
 
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Optional external assembly resolution must degrade gracefully when the assembly is unavailable on the client.")]
     private static Type? TryResolveExternalType(string encodedSpec)
     {
         var spec = encodedSpec.Replace('|', ',');
@@ -1802,6 +1859,24 @@ public static class CompiledViewWireSerializer
                     && assembly.GetType(fullName, throwOnError: false) is Type exact)
                 {
                     return exact;
+                }
+            }
+
+            if (assemblyName.IndexOfAny(['/', '\\', ':']) < 0)
+            {
+                try
+                {
+                    Assembly loadedOnDemand = Assembly.Load(new AssemblyName(assemblyName));
+                    lock (RegistrySync)
+                    {
+                        ScanAssemblyNoLock(loadedOnDemand);
+                    }
+
+                    if (loadedOnDemand.GetType(fullName, throwOnError: false) is Type onDemandType)
+                        return onDemandType;
+                }
+                catch
+                {
                 }
             }
         }
@@ -2507,14 +2582,63 @@ public static class CompiledViewWireSerializer
     {
         public override ColorVariant Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            var text = reader.GetString();
-            return UIThemeColor.TryParse(text, out UIThemeColor parsed) && parsed.Light is ColorVariant color
-                ? color
-                : throw new JsonException($"'{text}' is not a valid ColorVariant.");
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var text = reader.GetString();
+                return UIThemeColor.TryParse(text, out UIThemeColor parsed) && (parsed.Light ?? parsed.Dark) is ColorVariant color
+                    ? color
+                    : throw new JsonException($"'{text}' is not a valid ColorVariant.");
+            }
+
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                using JsonDocument document = JsonDocument.ParseValue(ref reader);
+                return RecursiveValueCoercion.TryCoerce(document.RootElement, out ColorVariant color)
+                    ? color
+                    : throw new JsonException("JSON object is not a valid ColorVariant.");
+            }
+
+            throw new JsonException($"Unexpected JSON token '{reader.TokenType}' when reading ColorVariant.");
         }
 
         public override void Write(Utf8JsonWriter writer, ColorVariant value, JsonSerializerOptions options)
             => writer.WriteStringValue(UIThemeColor.FromColorVariant(value).ToCanonical());
+    }
+
+    private sealed class UIThemeColorWireJsonConverter : JsonConverter<UIThemeColor>
+    {
+        public override UIThemeColor Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var text = reader.GetString();
+                return UIThemeColor.TryParse(text, out UIThemeColor parsed)
+                    ? parsed
+                    : throw new JsonException($"'{text}' is not a valid UIThemeColor.");
+            }
+
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                using JsonDocument document = JsonDocument.ParseValue(ref reader);
+                return RecursiveValueCoercion.TryCoerce(document.RootElement, out UIThemeColor color)
+                    ? color
+                    : throw new JsonException("JSON object is not a valid UIThemeColor.");
+            }
+
+            throw new JsonException($"Unexpected JSON token '{reader.TokenType}' when reading UIThemeColor.");
+        }
+
+        public override void Write(Utf8JsonWriter writer, UIThemeColor value, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("style");
+            JsonSerializer.Serialize(writer, value.Style, options);
+            writer.WritePropertyName("light");
+            JsonSerializer.Serialize(writer, value.Light, options);
+            writer.WritePropertyName("dark");
+            JsonSerializer.Serialize(writer, value.Dark, options);
+            writer.WriteEndObject();
+        }
     }
 
     private sealed class UIItemsQueryTermsWireJsonConverter : JsonConverter<UIItemsQueryTerms>

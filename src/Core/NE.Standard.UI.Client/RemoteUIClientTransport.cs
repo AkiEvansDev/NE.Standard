@@ -65,7 +65,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private readonly long? _initialSequence;
     private readonly ServerChangeSet _initialChanges;
     private readonly Action<RemoteUIClientTransport>? _onClose;
-    private readonly ConcurrentQueue<Task> _incoming;
+    private readonly InboundPushQueue _incoming;
     private readonly Lock _stateSync = new();
 
     private UIClientPage? _page;
@@ -79,7 +79,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private RemoteUIClientTransport(
         RemoteUIClientSession session,
         HubConnection hub,
-        ConcurrentQueue<Task> incoming,
+        InboundPushQueue incoming,
         string route,
         string? initialAddress,
         UINavigationRequest initialNavigation,
@@ -207,7 +207,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
 
         CompiledView view = CompiledViewWireSerializer.Read(root.GetProperty("view"));
 
-        ConcurrentQueue<Task> incoming = new();
+        InboundPushQueue incoming = new();
         HubConnection hub = BuildHubConnection(session, incoming);
         RemoteUIClientTransport transport = new(
             session,
@@ -244,7 +244,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private static string LanguageFor(RemoteClientTranslator translator, string language)
         => translator.HasLanguage(language) ? language : translator.DefaultLanguage;
 
-    private static HubConnection BuildHubConnection(RemoteUIClientSession session, ConcurrentQueue<Task> incoming)
+    private static HubConnection BuildHubConnection(RemoteUIClientSession session, InboundPushQueue incoming)
     {
         Uri hubUri = new(session.BaseAddress, "/_ne/hub");
         HubConnectionBuilder builder = new();
@@ -266,7 +266,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                 protocol.PayloadSerializerOptions.Converters.Add(new PushedServerChangeSetJsonConverter(incoming));
                 protocol.PayloadSerializerOptions.Converters.Add(new PushedCommandExecutionResultJsonConverter(incoming));
                 protocol.PayloadSerializerOptions.Converters.Add(new RemoteUICommandResultJsonConverter());
-                protocol.PayloadSerializerOptions.Converters.Add(new UIHubClientEffectJsonConverter());
+                protocol.PayloadSerializerOptions.Converters.Add(new RemoteHubClientEffectJsonConverter(session));
                 protocol.PayloadSerializerOptions.Converters.Add(new ObjectToInferredTypesConverter());
             })
             .Build();
@@ -307,8 +307,7 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         }
         catch (Exception ex)
         {
-            lock (_stateSync)
-                _fatalFault = ex;
+            RecordFatalFault(ex);
         }
         finally
         {
@@ -319,35 +318,35 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private async Task EnsureReadyAsync(CancellationToken cancellationToken)
     {
         Task reconnect;
-        Exception? fault;
 
         lock (_stateSync)
-        {
             reconnect = _reconnectTask;
-            fault = _fatalFault;
-        }
 
         if (!reconnect.IsCompleted)
-        {
             await reconnect.WaitAsync(cancellationToken).ConfigureAwait(false);
-            lock (_stateSync)
-                fault = _fatalFault;
-        }
 
-        if (fault is not null)
-            ExceptionDispatchInfo.Capture(fault).Throw();
+        ThrowIfFaulted();
     }
 
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "SignalR drops unhandled hub handler exceptions; record any fault so subsequent client operations surface it.")]
     private async Task OnServerChangesAsync(PushedServerChangeSet pushed, string? runtimeStamp)
     {
         try
         {
+            await pushed.Ticket.Predecessor.ConfigureAwait(false);
+            if (_closed || HasFatalFault())
+                return;
+
             if (!IsStaleStamp(runtimeStamp))
                 await ApplyPushedChangesAsync(pushed.Changes).ConfigureAwait(false);
         }
+        catch (Exception ex) when (!_closed)
+        {
+            RecordFatalFault(ex);
+        }
         finally
         {
-            _ = pushed.Gate.TrySetResult();
+            _ = pushed.Ticket.Applied.TrySetResult();
         }
     }
 
@@ -355,20 +354,38 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     {
         ServerChangeSet resolved = await ResolveStagedUpdatesAsync(changes, CancellationToken.None).ConfigureAwait(false);
         await PrefetchChangeSetWordsAsync(resolved, CancellationToken.None).ConfigureAwait(false);
-        if (_page is { } page)
-            await page.ReceivePushedAsync(resolved).ConfigureAwait(false);
+        _page?.Receive(resolved);
     }
 
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "SignalR drops unhandled hub handler exceptions; record any fault so subsequent client operations surface it.")]
     private async Task OnServerCommandResultAsync(PushedCommandExecutionResult pushed, string? runtimeStamp)
     {
         try
         {
-            if (!IsStaleStamp(runtimeStamp))
-                await ApplyPushedCommandResultAsync(pushed.Result).ConfigureAwait(false);
+            await pushed.Ticket.Predecessor.ConfigureAwait(false);
+            if (_closed || HasFatalFault())
+            {
+                CancelSessionKeyRotations(pushed.Result);
+                return;
+            }
+
+            if (IsStaleStamp(runtimeStamp))
+            {
+                await TradeOnlySessionKeysAsync(pushed.Result, CancellationToken.None).ConfigureAwait(false);
+                return;
+            }
+
+            await ApplyPushedCommandResultAsync(pushed.Result).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            CancelSessionKeyRotations(pushed.Result);
+            if (!_closed)
+                RecordFatalFault(ex);
         }
         finally
         {
-            _ = pushed.Gate.TrySetResult();
+            _ = pushed.Ticket.Applied.TrySetResult();
         }
     }
 
@@ -378,8 +395,31 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         if (onlySessionKey && resolved.Changes.Updates.Length == 0 && resolved.RequestId is null)
             return;
 
-        if (_page is { } page)
-            await page.ReceivePushedAsync(resolved).ConfigureAwait(false);
+        _page?.Receive(resolved);
+    }
+
+    private bool HasFatalFault()
+    {
+        lock (_stateSync)
+            return _fatalFault is not null;
+    }
+
+    private void RecordFatalFault(Exception exception)
+    {
+        lock (_stateSync)
+            _fatalFault ??= exception;
+
+        _page?.CancelPendingCommands(exception);
+    }
+
+    private void ThrowIfFaulted()
+    {
+        Exception? fault;
+        lock (_stateSync)
+            fault = _fatalFault;
+
+        if (fault is not null)
+            ExceptionDispatchInfo.Capture(fault).Throw();
     }
 
     private bool IsStaleStamp(string? runtimeStamp)
@@ -609,12 +649,18 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         return resolved;
     }
 
-    /// <summary>Asks the server controller whether the page may leave for <paramref name="target"/> when holding unsaved work.</summary>
+    /// <inheritdoc />
     public async Task<UICommandExecutionResult> RequestLeaveAsync(string target, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
 
+        if (!Navigation.UIRoutePath.IsLocal(target))
+            throw new ArgumentException("A leave names an address of this site.", nameof(target));
+
         await EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!HasController)
+            return new UICommandExecutionResult { Command = UICommandResult.Ok([new NavigateEffect(target)]), Changes = ServerChangeSet.Empty };
 
         UICommandExecutionResult raw = await _hub.InvokeAsync<UICommandExecutionResult>(
             "RequestLeaveAsync",
@@ -780,12 +826,17 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private async Task DrainIncomingAsync(CancellationToken cancellationToken)
     {
         await Task.Yield();
-        while (_incoming.TryDequeue(out Task? pending))
+        while (true)
         {
-            await pending.ConfigureAwait(false);
+            Task tail = _incoming.Tail;
+            if (tail.IsCompleted)
+                break;
+
+            await tail.WaitAsync(cancellationToken).ConfigureAwait(false);
             await Task.Yield();
         }
 
+        ThrowIfFaulted();
         await FlushQueuedWordRequestsAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -794,14 +845,22 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         ClientEffect[] effects = raw.Command.Effects;
         var sawSessionKey = false;
 
-        // Rotate the session cookie BEFORE resolving staged tokens: SignInAsync replaced the old session id in the server store.
-        for (var i = 0; i < effects.Length; i++)
+        try
         {
-            if (effects[i] is UISessionKeyWireEffect sessionKey)
+            // Rotate the session cookie BEFORE resolving staged tokens: SignInAsync replaced the old session id in the server store.
+            for (var i = 0; i < effects.Length; i++)
             {
-                sawSessionKey = true;
-                await TradeSessionKeyAsync(sessionKey.Token, cancellationToken).ConfigureAwait(false);
+                if (effects[i] is UISessionKeyWireEffect sessionKey)
+                {
+                    sawSessionKey = true;
+                    await TradeSessionKeyAsync(sessionKey.Token, cancellationToken).ConfigureAwait(false);
+                }
             }
+        }
+        catch
+        {
+            CancelSessionKeyRotations(raw);
+            throw;
         }
 
         ServerChangeSet changes = await ResolveStagedUpdatesAsync(raw.Changes, cancellationToken).ConfigureAwait(false);
@@ -929,7 +988,27 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
     private Task TradeSessionKeyAsync(string token, CancellationToken cancellationToken)
     {
         var body = JsonSerializer.SerializeToUtf8Bytes(new { token }, WireOptions);
-        return _session.TradeSessionKeyAsync(body, cancellationToken);
+        return _session.TradeSessionKeyAsync(token, body, cancellationToken);
+    }
+
+    private async Task TradeOnlySessionKeysAsync(UICommandExecutionResult result, CancellationToken cancellationToken)
+    {
+        ClientEffect[] effects = result.Command.Effects;
+        for (var i = 0; i < effects.Length; i++)
+        {
+            if (effects[i] is UISessionKeyWireEffect sessionKey)
+                await TradeSessionKeyAsync(sessionKey.Token, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private void CancelSessionKeyRotations(UICommandExecutionResult result)
+    {
+        ClientEffect[] effects = result.Command.Effects;
+        for (var i = 0; i < effects.Length; i++)
+        {
+            if (effects[i] is UISessionKeyWireEffect sessionKey)
+                _session.CancelArmedSessionKeyRotation(sessionKey.Token);
+        }
     }
 
     private async Task FetchWordsAsync(string href, string language, CancellationToken cancellationToken)
@@ -1033,6 +1112,8 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
                 case ShowSystemNotificationEffect systemToast:
                     CollectValueWordKeys(systemToast.Title, plainAllowed: true, language, candidates, depth: 0);
                     CollectValueWordKeys(systemToast.Body, plainAllowed: true, language, candidates, depth: 0);
+                    CollectValueWordKeys(systemToast.Action?.Title, plainAllowed: true, language, candidates, depth: 0);
+                    CollectValueWordKeys(systemToast.AddressTitle, plainAllowed: true, language, candidates, depth: 0);
                     break;
 
                 case AnnounceEffect announce:
@@ -1165,37 +1246,78 @@ public sealed class RemoteUIClientTransport : IUIClientTransport
         return options;
     }
 
-    private sealed record PushedServerChangeSet(ServerChangeSet Changes, TaskCompletionSource Gate);
+    private sealed record InboundPushTicket(Task Predecessor, TaskCompletionSource Applied);
 
-    private sealed record PushedCommandExecutionResult(UICommandExecutionResult Result, TaskCompletionSource Gate);
+    private sealed class InboundPushQueue
+    {
+        private readonly Lock _sync = new();
+        private Task _tail = Task.CompletedTask;
 
-    private sealed class PushedServerChangeSetJsonConverter(ConcurrentQueue<Task> incoming) : JsonConverter<PushedServerChangeSet>
+        public Task Tail
+        {
+            get
+            {
+                lock (_sync)
+                    return _tail;
+            }
+        }
+
+        public InboundPushTicket Enqueue()
+        {
+            TaskCompletionSource applied = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (_sync)
+            {
+                Task predecessor = _tail;
+                _tail = applied.Task;
+                return new InboundPushTicket(predecessor, applied);
+            }
+        }
+    }
+
+    private sealed record PushedServerChangeSet(ServerChangeSet Changes, InboundPushTicket Ticket);
+
+    private sealed record PushedCommandExecutionResult(UICommandExecutionResult Result, InboundPushTicket Ticket);
+
+    private sealed class PushedServerChangeSetJsonConverter(InboundPushQueue incoming) : JsonConverter<PushedServerChangeSet>
     {
         public override PushedServerChangeSet? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             ServerChangeSet changes = JsonSerializer.Deserialize<ServerChangeSet>(ref reader, options) ?? ServerChangeSet.Empty;
-            TaskCompletionSource gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            incoming.Enqueue(gate.Task);
-            return new PushedServerChangeSet(changes, gate);
+            return new PushedServerChangeSet(changes, incoming.Enqueue());
         }
 
         public override void Write(Utf8JsonWriter writer, PushedServerChangeSet value, JsonSerializerOptions options)
             => JsonSerializer.Serialize(writer, value.Changes, options);
     }
 
-    private sealed class PushedCommandExecutionResultJsonConverter(ConcurrentQueue<Task> incoming) : JsonConverter<PushedCommandExecutionResult>
+    private sealed class PushedCommandExecutionResultJsonConverter(InboundPushQueue incoming) : JsonConverter<PushedCommandExecutionResult>
     {
         public override PushedCommandExecutionResult? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             UICommandExecutionResult result = JsonSerializer.Deserialize<UICommandExecutionResult>(ref reader, options)
                 ?? throw new JsonException("Pushed command execution result was null.");
-            TaskCompletionSource gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            incoming.Enqueue(gate.Task);
-            return new PushedCommandExecutionResult(result, gate);
+            return new PushedCommandExecutionResult(result, incoming.Enqueue());
         }
 
         public override void Write(Utf8JsonWriter writer, PushedCommandExecutionResult value, JsonSerializerOptions options)
             => JsonSerializer.Serialize(writer, value.Result, options);
+    }
+
+    private sealed class RemoteHubClientEffectJsonConverter(RemoteUIClientSession session) : JsonConverter<ClientEffect>
+    {
+        private readonly UIHubClientEffectJsonConverter _inner = new();
+
+        public override ClientEffect? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            ClientEffect? effect = _inner.Read(ref reader, typeToConvert, options);
+            if (effect is UISessionKeyWireEffect sessionKey)
+                session.ArmSessionKeyRotation(sessionKey.Token);
+
+            return effect;
+        }
+
+        public override void Write(Utf8JsonWriter writer, ClientEffect value, JsonSerializerOptions options)
+            => _inner.Write(writer, value, options);
     }
 
     private sealed class RemoteUICommandResultJsonConverter : JsonConverter<UICommandResult>

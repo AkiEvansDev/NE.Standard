@@ -65,10 +65,14 @@ export type TooltipWordsProvider = {
 
 const providers = new Set<TooltipWordsProvider>();
 
-/** Registers words for elements that write no tooltip; registering one provider twice keeps it once. */
-export function registerTooltipWords(provider: TooltipWordsProvider): void {
+/** Registers words for elements that write no tooltip; registering one provider twice keeps it once, and answers a disposer. */
+export function registerTooltipWords(provider: TooltipWordsProvider): () => void {
     providers.add(provider);
     registerRuntimeCleanup(() => providers.delete(provider));
+
+    return () => {
+        providers.delete(provider);
+    };
 }
 
 export function startTooltips(root: ParentNode = document): void {
@@ -539,11 +543,13 @@ function closeTooltip(): void {
 export type Tooltips = {
     show(target: Element, words: string, options?: TooltipShowOptions): void;
     hide(): void;
+    /** Registers words for elements that write no tooltip of their own; answers what unregisters the provider. */
+    register(provider: TooltipWordsProvider): () => void;
     /** A caption or a value made safe to stand among words a tooltip reads as inline markup (`UIInlineMarkup.Escape`'s twin). */
     escape(text: string): string;
 };
 
-export const tooltips: Tooltips = { show: showTooltipWith, hide: closeTooltip, escape: escapeInlineMarkup };
+export const tooltips: Tooltips = { show: showTooltipWith, hide: closeTooltip, register: registerTooltipWords, escape: escapeInlineMarkup };
 
 /** Opens an anchor's tooltip until focus leaves its control — for a mark appearing under typing, with no focus event to open on. */
 export function pinTooltip(element: Element): void {

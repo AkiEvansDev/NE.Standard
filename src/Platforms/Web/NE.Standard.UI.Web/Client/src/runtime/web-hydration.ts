@@ -38,6 +38,42 @@ export function paintsPageWritten(payload: WebHydrationPayload | null): boolean 
 }
 
 /**
+ * Schedules initializing items hosts once hydration's change set and its words table have settled, keeping the inbound queue closed
+ * until virtualized rows, group headers and empty states are drawn in the page's language rather than before the words table arrives.
+ */
+export function scheduleHydratedItemsHosts(
+    applied: void | Promise<void>,
+    isDisposed: () => boolean,
+    initialize: () => void,
+    setInbound: (next: Promise<void> | null, expected?: Promise<void>) => void,
+    onError?: (error: unknown) => void
+): void {
+    const run = (): void => {
+        if (isDisposed())
+            return;
+
+        try {
+            initialize();
+        }
+        catch (error) {
+            onError?.(error);
+        }
+    };
+
+    if (applied === undefined) {
+        run();
+        return;
+    }
+
+    const initialized = applied.then(run);
+
+    setInbound(initialized, applied);
+    void initialized.then(() => {
+        setInbound(null, initialized);
+    });
+}
+
+/**
  * Schedules rewriting values the page formats itself (`UIMoment`, `UIFileSize`) once hydration's change set and its words table have
  * settled, keeping the inbound queue closed until it runs; skips the rewrite when the page expected a words table that failed to load,
  * so boot-painted words are never overwritten with raw keys.

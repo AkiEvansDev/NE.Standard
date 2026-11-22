@@ -530,6 +530,7 @@ public static class NativeInputRendererBase
                 _ = selection.Attribute(WebAttributes.ValueHolder);
 
             RenderFieldName(context, selection, "selection");
+            RenderFormId(context, selection);
 
             // RenderProperty as well as the attribute: resolving alone leaves the binding unregistered, and the
             // client refuses a binding id it cannot look up.

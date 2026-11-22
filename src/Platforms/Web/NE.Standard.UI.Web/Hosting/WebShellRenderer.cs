@@ -121,6 +121,7 @@ public static class WebShellRenderer
             {
                 _ = link.Attribute("rel", "manifest");
                 _ = link.Attribute("href", WebManifestEndpoint.Path);
+                _ = link.Attribute("crossorigin", "use-credentials");
             });
         }
 

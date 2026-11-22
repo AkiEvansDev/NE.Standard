@@ -69,6 +69,12 @@ public static class TextPresetExtensions
         => text.Editable(PresetBindings.Path(titlePath), scope, renameCommand);
 
     /// <summary>
+    /// Makes the tab caption's title editable in place without changing its rest look or layout.
+    /// </summary>
+    public static TabCaptionRegion Editable(this TabCaptionRegion text, string titlePath, UIBindingScope scope = UIBindingScope.Relative, string? renameCommand = null)
+        => Editable<TabCaptionRegion>(text, titlePath, scope, renameCommand);
+
+    /// <summary>
     /// Makes the text's title editable in place (double-click or F2) without changing its rest look or layout, binding both its shown
     /// title and its two-way renamed title to <paramref name="titlePath"/> and optionally running <paramref name="renameCommand"/> on commit.
     /// </summary>

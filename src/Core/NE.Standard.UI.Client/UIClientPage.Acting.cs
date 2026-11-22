@@ -15,9 +15,11 @@ using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Items;
 using NE.Standard.UI.Primitives.Binding;
@@ -644,49 +646,319 @@ public sealed partial class UIClientPage
     private async Task<UIClientCommandResult> DispatchCoreAsync(UIComponentId componentId, object?[] rowKeys, string eventName, object?[] eventKeys, CancellationToken cancellationToken)
     {
         UIComponentAddress source = new(componentId, rowKeys);
+        List<UIClientWrite> builtInWrites = [];
+        (UIComponentId TargetId, object?[] Keys, string EventName)? builtInFollowUp = null;
+        var closeContextMenuAfter = false;
+        var closeDrawerAfter = false;
+        int initialMark;
+
+        lock (_sync)
+        {
+            initialMark = _effects.Count;
+            if (eventName == EventNames.Click)
+                ApplyBuiltInClickNoLock(componentId, rowKeys, builtInWrites, out builtInFollowUp, out closeContextMenuAfter, out closeDrawerAfter);
+        }
+
+        if (builtInWrites.Count > 0)
+            await SendValuesAsync(builtInWrites, cancellationToken).ConfigureAwait(false);
+
+        UIClientCommandResult primaryResult;
 
         // A row's own effect — one menu entry's — runs in place of the command the event carries for every other row.
         if (!View.Events.TryGet(new CompiledUIEventAddress(componentId, eventName), out CompiledUIEvent? compiled) || TakesRowEvent(source, eventName))
         {
             List<UIClientWrite> writes = [];
-            int mark;
 
             lock (_sync)
-            {
-                mark = _effects.Count;
                 RunEventInteractionsNoLock(source, eventName, writes);
-            }
 
             await SendValuesAsync(writes, cancellationToken).ConfigureAwait(false);
             await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
+            FinishClickDismissals(closeContextMenuAfter, closeDrawerAfter);
             NotifyIfChanged();
 
-            return UIClientCommandResult.RanOnPage(EffectsSince(mark));
+            primaryResult = UIClientCommandResult.RanOnPage(EffectsSince(initialMark));
         }
-
-        if (SubmittedForm(compiled, componentId, rowKeys, eventName) is string formId)
+        else
         {
-            bool valid;
-
-            lock (_sync)
-                valid = RunSubmitValidationNoLock(formId);
-
-            if (!valid)
+            if (SubmittedForm(compiled, componentId, rowKeys, eventName) is string formId)
             {
-                NotifyIfChanged();
-                return UIClientCommandResult.Refused($"The form '{formId}' has a field in error.");
+                bool valid;
+
+                lock (_sync)
+                    valid = RunSubmitValidationNoLock(formId);
+
+                if (!valid)
+                {
+                    NotifyIfChanged();
+                    return UIClientCommandResult.Refused($"The form '{formId}' has a field in error.");
+                }
+
+                if (!await SubmitHeldValuesAsync(formId, cancellationToken).ConfigureAwait(false))
+                {
+                    NotifyIfChanged();
+                    return UIClientCommandResult.Refused($"The server refused a value submitted in form '{formId}'.");
+                }
             }
 
-            if (!await SubmitHeldValuesAsync(formId, cancellationToken).ConfigureAwait(false))
+            UICommandRequest request = new() { EventId = compiled.Id, DynamicParameters = [.. rowKeys, .. eventKeys] };
+            primaryResult = await SendCommandAsync(request, source, eventName, cancellationToken).ConfigureAwait(false);
+            FinishClickDismissals(closeContextMenuAfter, closeDrawerAfter);
+        }
+
+        if (builtInFollowUp is (UIComponentId followTarget, object?[] followKeys, string followEvent))
+        {
+            UIClientCommandResult followResult = await DispatchCoreAsync(followTarget, followKeys, followEvent, [], cancellationToken).ConfigureAwait(false);
+            return primaryResult.Sent || followResult.Sent
+                ? UIClientCommandResult.Answered(primaryResult.Succeeded && followResult.Succeeded, primaryResult.Error ?? followResult.Error, EffectsSince(initialMark))
+                : UIClientCommandResult.RanOnPage(EffectsSince(initialMark));
+        }
+
+        return primaryResult;
+    }
+
+    private void ApplyBuiltInClickNoLock(UIComponentId componentId, object?[] rowKeys, List<UIClientWrite> writes, out (UIComponentId TargetId, object?[] Keys, string EventName)? followUp, out bool closeContextMenuAfter, out bool closeDrawerAfter)
+    {
+        followUp = null;
+        closeContextMenuAfter = _openContextMenu is UIComponentAddress openMenu && IsInsideContextMenuSubtreeNoLock(componentId, openMenu.Id);
+        closeDrawerAfter = false;
+
+        if (ResolveAtTierNoLock<UISide>(ReadNoLock(componentId, rowKeys, ButtonComponent.OpensDrawerProperty)) is UISide openerSide and (UISide.Left or UISide.Right))
+        {
+            if (_openDrawer == openerSide)
             {
-                NotifyIfChanged();
-                return UIClientCommandResult.Refused($"The server refused a value submitted in form '{formId}'.");
+                _openDrawer = null;
+                _dialogsChanged = true;
+            }
+            else if (IsSideDrawerNoLock(openerSide) && View.FindRegion(openerSide == UISide.Right ? RegionNames.RightSide : RegionNames.LeftSide) is CompiledRegion drawerRegion)
+            {
+                _openDrawer = openerSide;
+                _dialogsChanged = true;
+                if (HasEventOrInteraction(drawerRegion.RootComponentId, [], EventNames.Open))
+                    followUp = (drawerRegion.RootComponentId, [], EventNames.Open);
+            }
+
+            return;
+        }
+
+        if (ResolveAtTierNoLock<UISide>(ReadNoLock(componentId, rowKeys, ButtonComponent.PinsDrawerProperty)) is UISide pinSide and (UISide.Left or UISide.Right))
+        {
+            ToggleDrawerPinNoLock(pinSide, writes);
+            return;
+        }
+
+        if (TryFindFlyoutToggleTarget(componentId, out UIComponentId flyoutId))
+        {
+            var flyoutKeys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(flyoutId).Count)];
+            var nextOpen = ResolveAtTierNoLock<bool>(ReadNoLock(flyoutId, flyoutKeys, FlyoutComponent.IsOpenProperty)) is not true;
+            UIPropertyAddress openAddress = new(new UIComponentAddress(flyoutId, flyoutKeys), FlyoutComponent.IsOpenProperty);
+
+            WriteValueNoLock(openAddress, nextOpen, local: true, depth: 0, writes);
+            if (BindingOf(flyoutId, FlyoutComponent.IsOpenProperty) is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource })
+                writes.Add(new UIClientWrite(openAddress, nextOpen));
+
+            var flyoutEvent = nextOpen ? EventNames.Open : EventNames.Close;
+            if (HasEventOrInteraction(flyoutId, flyoutKeys, flyoutEvent))
+                followUp = (flyoutId, flyoutKeys, flyoutEvent);
+        }
+        else if (TryFindExpanderToggleTarget(componentId, out UIComponentId expanderId))
+        {
+            var expanderKeys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(expanderId).Count)];
+            var nextExpanded = ResolveAtTierNoLock<bool>(ReadNoLock(expanderId, expanderKeys, ExpanderComponent.ExpandedProperty)) is false;
+            UIPropertyAddress expandedAddress = new(new UIComponentAddress(expanderId, expanderKeys), ExpanderComponent.ExpandedProperty);
+
+            WriteValueNoLock(expandedAddress, nextExpanded, local: true, depth: 0, writes);
+            if (BindingOf(expanderId, ExpanderComponent.ExpandedProperty) is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource })
+                writes.Add(new UIClientWrite(expandedAddress, nextExpanded));
+
+            var expanderEvent = nextExpanded ? EventNames.Expand : EventNames.Collapse;
+            if (HasEventOrInteraction(expanderId, expanderKeys, expanderEvent))
+                followUp = (expanderId, expanderKeys, expanderEvent);
+        }
+        else if (View.Graph.GetRequired(componentId) is UIComponentNode panelNode
+            && panelNode.TypeKey == CollapsiblePanelComponent.ComponentTypeKey
+            && ResolveAtTierNoLock<bool>(ReadNoLock(componentId, rowKeys, ICollapsibleComponent.ShowCollapseToggleProperty)) is not false)
+        {
+            var nextExpanded = !IsCollapsiblePanelOpenNoLock(panelNode, rowKeys);
+            UIPropertyAddress expandedAddress = new(new UIComponentAddress(componentId, rowKeys), ICollapsibleComponent.ExpandedProperty);
+
+            WriteValueNoLock(expandedAddress, nextExpanded, local: true, depth: 0, writes);
+            if (panelNode.HasAuthoredId)
+                Store.Set(panelNode.AuthoringId, "collapsed", nextExpanded ? "false" : "true");
+
+            if (BindingOf(componentId, ICollapsibleComponent.ExpandedProperty) is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource })
+                writes.Add(new UIClientWrite(expandedAddress, nextExpanded));
+
+            var collapseEvent = nextExpanded ? EventNames.Expand : EventNames.Collapse;
+            if (HasEventOrInteraction(componentId, rowKeys, collapseEvent))
+                followUp = (componentId, rowKeys, collapseEvent);
+        }
+
+        if (_openDrawer is UISide activeDrawer && ShouldCloseOpenDrawerAfterClickNoLock(componentId, activeDrawer))
+            closeDrawerAfter = true;
+    }
+
+    private void ToggleDrawerPinNoLock(UISide side, List<UIClientWrite> writes)
+    {
+        var regionKey = side == UISide.Right ? RegionNames.RightSide : RegionNames.LeftSide;
+        if (View.FindRegion(regionKey) is null)
+            return;
+
+        var nextPinned = !IsSidePinnedNoLock(side);
+        if (nextPinned)
+        {
+            _ = _pinnedDrawers.Add(side);
+            if (_openDrawer == side)
+            {
+                _openDrawer = null;
+                _dialogsChanged = true;
+            }
+        }
+        else
+        {
+            _ = _pinnedDrawers.Remove(side);
+        }
+
+        if (FirstAuthoredIdInSide(side) is string ownerId)
+        {
+            if (nextPinned)
+                Store.Set(ownerId, "pinned", "true");
+            else
+                Store.Remove(ownerId, "pinned");
+        }
+
+        foreach (UIComponentNode node in View.Graph.All)
+        {
+            if (View.Graph.GetItemScopes(node.ComponentId).Count > 0)
+                continue;
+
+            if (ResolveAtTierNoLock<UISide>(ReadNoLock(node.ComponentId, [], ButtonComponent.PinsDrawerProperty)) == side)
+            {
+                UIPropertyAddress pressedAddress = new(new UIComponentAddress(node.ComponentId, []), ButtonComponent.PressedProperty);
+                WriteValueNoLock(pressedAddress, nextPinned, local: true, depth: 0, writes);
+                if (BindingOf(node.ComponentId, ButtonComponent.PressedProperty) is { Mode: UIBindingMode.TwoWay or UIBindingMode.OneWayToSource })
+                    writes.Add(new UIClientWrite(pressedAddress, nextPinned));
+            }
+        }
+    }
+
+    private bool TryFindFlyoutToggleTarget(UIComponentId clickedId, out UIComponentId flyoutId)
+    {
+        UIComponentNode current = View.Graph.GetRequired(clickedId);
+        if (current.TypeKey == FlyoutComponent.ComponentTypeKey)
+        {
+            flyoutId = clickedId;
+            return true;
+        }
+
+        while (current.ParentId is UIComponentId parentId)
+        {
+            UIComponentNode parentNode = View.Graph.GetRequired(parentId);
+            if (parentNode.TypeKey == FlyoutComponent.ComponentTypeKey && FindDirectSlot(parentNode, current.ComponentId) is { Kind: UIComponentSlotKind.Region, Key: RegionNames.Anchor })
+            {
+                flyoutId = parentId;
+                return true;
+            }
+
+            current = parentNode;
+        }
+
+        flyoutId = default;
+        return false;
+    }
+
+    private bool TryFindExpanderToggleTarget(UIComponentId clickedId, out UIComponentId expanderId)
+    {
+        UIComponentNode current = View.Graph.GetRequired(clickedId);
+        if (current.TypeKey == ExpanderComponent.ComponentTypeKey)
+        {
+            expanderId = clickedId;
+            return true;
+        }
+
+        while (current.ParentId is UIComponentId parentId)
+        {
+            UIComponentNode parentNode = View.Graph.GetRequired(parentId);
+            if (parentNode.TypeKey == ExpanderComponent.ComponentTypeKey && FindDirectSlot(parentNode, current.ComponentId) is { Kind: UIComponentSlotKind.Region, Key: RegionNames.Header })
+            {
+                expanderId = parentId;
+                return true;
+            }
+
+            current = parentNode;
+        }
+
+        expanderId = default;
+        return false;
+    }
+
+    private bool IsInsideContextMenuSubtreeNoLock(UIComponentId componentId, UIComponentId ownerId)
+    {
+        UIComponentNode current = View.Graph.GetRequired(componentId);
+        while (current.ParentId is UIComponentId parentId)
+        {
+            UIComponentNode parentNode = View.Graph.GetRequired(parentId);
+            if (parentId == ownerId && FindDirectSlot(parentNode, current.ComponentId) is { Kind: UIComponentSlotKind.ContextMenu })
+                return true;
+
+            current = parentNode;
+        }
+
+        return false;
+    }
+
+    private bool ShouldCloseOpenDrawerAfterClickNoLock(UIComponentId componentId, UISide openSide)
+    {
+        var regionKey = openSide == UISide.Right ? RegionNames.RightSide : RegionNames.LeftSide;
+        if (View.FindRegion(regionKey) is not CompiledRegion drawerRegion || !StandsUnder(componentId, drawerRegion.RootComponentId))
+            return false;
+
+        UIComponentNode clicked = View.Graph.GetRequired(componentId);
+        if (clicked.TypeKey == LinkComponent.ComponentTypeKey)
+            return true;
+
+        if (clicked.ParentId is not UIComponentId hostId)
+            return false;
+
+        UIComponentNode host = View.Graph.GetRequired(hostId);
+        if (host.TypeKey != MenuComponent.ComponentTypeKey)
+            return false;
+
+        // Popup menus (context menu, split-button menu, flyout content) act on the drawer's content without closing the drawer.
+        for (UIComponentNode? cursor = host; cursor is not null && cursor.ComponentId != drawerRegion.RootComponentId; cursor = cursor.ParentId is UIComponentId pid ? View.Graph.GetRequired(pid) : null)
+        {
+            if (cursor.ParentId is not UIComponentId parentId)
+                break;
+
+            UIComponentNode parentNode = View.Graph.GetRequired(parentId);
+            UIComponentSlot? slot = FindDirectSlot(parentNode, cursor.ComponentId);
+            if (slot is { Kind: UIComponentSlotKind.ContextMenu }
+                || slot is { Kind: UIComponentSlotKind.Region, Key: RegionNames.Menu }
+                || (parentNode.TypeKey == FlyoutComponent.ComponentTypeKey && slot is { Kind: UIComponentSlotKind.Region, Key: RegionNames.Content }))
+            {
+                return false;
             }
         }
 
-        UICommandRequest request = new() { EventId = compiled.Id, DynamicParameters = [.. rowKeys, .. eventKeys] };
+        return SubmenuOf(hostId) is null;
+    }
 
-        return await SendCommandAsync(request, source, eventName, cancellationToken).ConfigureAwait(false);
+    private void FinishClickDismissals(bool closeContextMenu, bool closeDrawer)
+    {
+        if (!closeContextMenu && !closeDrawer)
+            return;
+
+        lock (_sync)
+        {
+            if (closeContextMenu)
+                _openContextMenu = null;
+
+            if (closeDrawer && _openDrawer is not null)
+            {
+                _openDrawer = null;
+                _dialogsChanged = true;
+            }
+        }
     }
 
     /// <summary>The form an event submits: a submit button's on its click, or the field's own where its event submits it (a code field's save).</summary>

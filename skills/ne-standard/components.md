@@ -72,7 +72,7 @@ arguments, or literal ones: `OnChangeLiteral`/`OnBlurLiteral`). A field with a b
   multi-select's `SetVariant(UIMultiSelectVariant…)` draws it as `Chips` (the default), `Badges` (each option its badge, chosen
   into the field as the badge) or `Checkboxes` (a box per option in place, no list; `Orientation`/`Spacing`/`ItemMinWidth` as a radio group's;
   no free text or field actions) or `Button` (a compact button trigger with `ButtonVariant`, icon/title and an automatic chosen-count badge when `Value.Count > 0` that opens the multi-select popup and also fits in `TextInputComponent`/`TextAreaComponent` field actions; no free text or field actions of its own). `SetVariant` installs the variant's option template unless one of your own is set.
-- `DateInputComponent`, `TimeInputComponent`, `DateTimeInputComponent`, `CalendarComponent` (a month in place, a day or a period).
+- `DateInputComponent`, `TimeInputComponent`, `DateTimeInputComponent`, `CalendarComponent` (a month in place, a day or a period; week starts on Monday regardless of culture unless `FirstDayOfWeek` overrides it).
   A period (`SetIsRange()`) keeps its ends `SetMinDistance(TimeSpan)` apart, as a range slider keeps its handles; a date's in whole days, a time's under a day.
 - `ColorInputComponent` - a colour picked freely in an always-available picker (`#RRGGBB`, or `#RRGGBBAA` with `SetAllowOpacity(true)` to expose the alpha channel slider), with `ShowPalette` optionally adding a palette tab and `Picker | Palette` switcher.
 - `FileInputComponent` (`UIFileInputVariant`: `Row`, `Tiles` or `Shelf`, binding `SelectionId` or `SelectionIds`), `ImageInputComponent` (`UIImageInputVariant`: `Picture`, `Avatar` or `Inline`, plus `SetMultiple(true)` for a multi-picture shelf) - upload on pick.

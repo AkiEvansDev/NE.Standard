@@ -9,6 +9,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Client;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Runtime;
 
 namespace NE.Standard.UI.Testing;
@@ -79,7 +80,7 @@ public sealed class UITestPage
         }
     }
 
-    /// <summary>Gets the dialogs open on the page, by key.</summary>
+    /// <summary>Gets the dialogs open on the page, by key, from bottom to top.</summary>
     public IReadOnlyCollection<string> OpenDialogs => ClientPage.OpenDialogs;
 
     /// <summary>Gets what the page's view compile warned of, each of its kind: a binding naming nothing, or advice.</summary>
@@ -125,25 +126,60 @@ public sealed class UITestPage
     public async Task<UITestCommandResult> DismissDialogAsync(string key, CancellationToken cancellationToken = default)
         => UITestCommandResult.From(await ClientPage.DismissDialogAsync(key, cancellationToken).ConfigureAwait(false));
 
+    /// <summary>Gets whether the <paramref name="side"/> drawer is currently open as an overlay drawer.</summary>
+    public bool IsDrawerOpen(UISide side)
+        => ClientPage.IsDrawerOpen(side);
+
+    /// <summary>Opens the <paramref name="side"/> overlay drawer when that side acts as a drawer at the current viewport tier, raising <c>open</c> on its root when wired.</summary>
+    public async Task<UITestCommandResult> OpenDrawerAsync(UISide side, CancellationToken cancellationToken = default)
+        => UITestCommandResult.From(await ClientPage.OpenDrawerAsync(side, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Closes the <paramref name="side"/> overlay drawer when open.</summary>
+    public void CloseDrawer(UISide side)
+        => ClientPage.CloseDrawer(side);
+
+    /// <summary>Gets the component currently open in the full-height expanded field modal, or <see langword="null"/> when none is open.</summary>
+    public UITestComponent? ExpandedField => ClientPage.ExpandedField is { } expanded ? new UITestComponent(this, expanded) : null;
+
+    /// <summary>Gets the authored id of the field currently open in the full-height expanded field modal, or <see langword="null"/> when none is open.</summary>
+    public string? ExpandedFieldId => ClientPage.ExpandedFieldId;
+
+    /// <summary>Gets whether the field with authored id <paramref name="componentId"/> currently stands open in the expanded field modal.</summary>
+    public bool IsFieldExpanded(string componentId)
+        => ClientPage.IsFieldExpanded(componentId);
+
+    /// <summary>Closes the currently open expanded field modal when one is open.</summary>
+    public void CloseExpandedField()
+        => ClientPage.CloseExpandedField();
+
+    /// <summary>Closes any open context menu on the page.</summary>
+    public void CloseContextMenu()
+        => ClientPage.CloseContextMenu();
+
     /// <summary>Gets the page's controller as <typeparamref name="TController"/>.</summary>
     /// <exception cref="InvalidOperationException">The page has no controller, or one of another type.</exception>
     public TController Controller<TController>() where TController : class
         => ClientPage.Controller<TController>();
+
+    /// <summary>Gets the root component of the declared dialog <paramref name="key"/>.</summary>
+    /// <exception cref="InvalidOperationException">The view declares no dialog with that key.</exception>
+    public UITestComponent Dialog(string key)
+        => new(this, ClientPage.Dialog(key));
 
     /// <summary>Gets the component with the authored id <paramref name="id"/>.</summary>
     /// <exception cref="InvalidOperationException">The view has no such component, or it stands in a list's rows.</exception>
     public UITestComponent Component(string id)
         => new(this, ClientPage.Component(id));
 
-    /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
+    /// <summary>Gets the one component in the active view or modal dialog whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
     public UITestComponent ComponentBoundTo<TSource>(Expression<Func<TSource, object?>> path)
         => new(this, ClientPage.ComponentBoundTo(path));
 
-    /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
+    /// <summary>Gets the one component in the active view or modal dialog whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
     public UITestComponent ComponentBoundTo(string path)
         => new(this, ClientPage.ComponentBoundTo(path));
 
-    /// <summary>Gets the one component a reader knows by <paramref name="name"/>: its title, accessible name or tooltip, as written or as shown.</summary>
+    /// <summary>Gets the one component in the active view or modal dialog a reader knows by <paramref name="name"/>: its title, accessible name or tooltip, as written or as shown.</summary>
     public UITestComponent ComponentNamed(string name)
         => new(this, ClientPage.ComponentNamed(name));
 
@@ -158,9 +194,18 @@ public sealed class UITestPage
     public Task FlushAsync(CancellationToken cancellationToken = default)
         => ClientPage.FlushAsync(cancellationToken);
 
+    /// <summary>Asks the page whether it may leave for <paramref name="target"/>, running the controller's leave hook while holding unsaved work.</summary>
+    public async Task<UITestCommandResult> RequestLeaveAsync(string target, CancellationToken cancellationToken = default)
+        => UITestCommandResult.From(await ClientPage.RequestLeaveAsync(target, cancellationToken).ConfigureAwait(false));
+
     /// <summary>Presses the action a notification offered — its Undo — through the command path, once, as a press on the toast does.</summary>
     /// <exception cref="InvalidOperationException">The notification offers no action.</exception>
     public async Task<UITestCommandResult> PressNotificationActionAsync(ShowNotificationEffect notification, CancellationToken cancellationToken = default)
+        => UITestCommandResult.From(await ClientPage.PressNotificationActionAsync(notification, cancellationToken).ConfigureAwait(false));
+
+    /// <summary>Follows a system notification click on this page: navigates through the page's leave guard when <see cref="ShowSystemNotificationEffect.Address"/> names another address, otherwise runs <see cref="ShowSystemNotificationEffect.Action"/>.</summary>
+    /// <exception cref="InvalidOperationException">The page already stands at the notification's address (or none was given) and the notification offers no action.</exception>
+    public async Task<UITestCommandResult> PressNotificationActionAsync(ShowSystemNotificationEffect notification, CancellationToken cancellationToken = default)
         => UITestCommandResult.From(await ClientPage.PressNotificationActionAsync(notification, cancellationToken).ConfigureAwait(false));
 
     /// <summary>Gets what the page last reported of itself: whether it is on screen, and its notification permission.</summary>

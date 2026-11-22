@@ -21,7 +21,7 @@ import {
     BadgeOptionAttributes, candidateOptions, collectMutatedSelects, controlOf, currentOption, entryOf, entryTarget,
     focusChip, handleChipNavigationKey, holdHeightAbove, initializeEntryPopup, initializePopupFocus,
     initializeSearchPopup, isBoxAroundEntry, isDisabledOptionKey, isFixed, isMultiple, isSelectTrigger, keepFieldFocus, markActiveOption, markListKeyboard,
-    moveCurrentOption, ObservedAttributes, OptionAttributes, optionKeyNamed, optionLabel, optionsOf,
+    moveCurrentOption, MultiOptionAttributes, ObservedAttributes, OptionAttributes, optionKeyNamed, optionLabel, optionsOf,
     resetSearchField, resolveClearKeySelect, resolveClosedArrowStart, scrollIntoList, searchFieldOf, SelectHostSelector, SelectTriggerSelector, syncMultipleSelect, syncSingleSelect,
     triggerOf, typedFieldOf
 } from "./select-dom.ts";
@@ -277,7 +277,11 @@ export class SelectInteractionEngine {
             return;
 
         this.watched.add(select);
-        const attributeFilter = select.classList.contains(BadgeSelectClass) ? BadgeOptionAttributes : OptionAttributes;
+        const attributeFilter = !isMultiple(select)
+            ? OptionAttributes
+            : select.classList.contains(BadgeSelectClass)
+                ? BadgeOptionAttributes
+                : MultiOptionAttributes;
 
         this.optionWatch.observe(select, { attributes: true, attributeFilter, characterData: true, subtree: true });
     }

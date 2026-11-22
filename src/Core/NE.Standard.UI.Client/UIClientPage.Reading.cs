@@ -5,10 +5,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Items;
 using NE.Standard.UI.Abstractions.Recursive;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
@@ -17,11 +19,14 @@ using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Resolution;
 using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Components.BuiltIns.Items;
+using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Data;
 using NE.Standard.UI.Primitives.Binding;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Items;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Serialization;
 
@@ -31,6 +36,7 @@ public sealed partial class UIClientPage
 {
     private static readonly UIProperty[] NameProperties = [ITextBaseComponent.TitleProperty, IAccessibleNameComponent.AccessibleNameProperty, ITooltipComponent.TooltipProperty];
     private static readonly ConcurrentDictionary<Type, MethodInfo?> CustomResponsiveResolvers = [];
+    private static readonly ConcurrentDictionary<Type, Type?> ResponsiveTargetTypes = [];
 
     /// <summary>A property's value as the page holds it at a component in the rows <paramref name="rowKeys"/> name.</summary>
     internal object? Read(UIComponentId componentId, object?[] rowKeys, UIProperty property)
@@ -184,6 +190,26 @@ public sealed partial class UIClientPage
     }
 
     private bool IsShownNoLock(UIComponentId componentId, object?[] rowKeys)
+        => (EnclosingDialogKey(componentId) is not string dialog || _openDialogs.Contains(dialog))
+            && IsShownInSubtreeNoLock(componentId, rowKeys);
+
+    private string? EnclosingDialogKey(UIComponentId componentId)
+    {
+        UIComponentId root = componentId;
+
+        while (View.Graph.GetRequired(root).ParentId is UIComponentId parent)
+            root = parent;
+
+        foreach (CompiledDialog dialog in View.Dialogs)
+        {
+            if (dialog.RootComponentId.Equals(root))
+                return dialog.Key;
+        }
+
+        return null;
+    }
+
+    private bool IsShownInSubtreeNoLock(UIComponentId componentId, object?[] rowKeys)
     {
         for (UIComponentNode? node = View.Graph.GetRequired(componentId); node is not null; node = node.ParentId is UIComponentId parent ? View.Graph.GetRequired(parent) : null)
         {
@@ -192,8 +218,48 @@ public sealed partial class UIClientPage
             if (ResolveAtTierNoLock<UIVisibility>(ReadNoLock(node.ComponentId, keys, IVisualComponent.VisibilityProperty)) is UIVisibility.Collapsed or UIVisibility.Hidden)
                 return false;
 
-            if (DialogKeyOf(node.ComponentId) is { } dialog && !_openDialogs.Contains(dialog))
+            if (node.ParentId is UIComponentId parentId)
+            {
+                UIComponentNode parentNode = View.Graph.GetRequired(parentId);
+                var parentKeys = rowKeys[..Math.Min(rowKeys.Length, View.Graph.GetItemScopes(parentId).Count)];
+                UIComponentSlot? owningSlot = FindDirectSlot(parentNode, node.ComponentId);
+
+                if (owningSlot is { Kind: UIComponentSlotKind.EmptyTemplate })
+                {
+                    if (ResolveAtTierNoLock<bool>(ReadNoLock(parentId, parentKeys, IEmptyStateComponent.ShowEmptyTemplateProperty)) is false
+                        || ReadVisibleRowsNoLock(new UIComponentAddress(parentId, parentKeys)).Count > 0)
+                    {
+                        return false;
+                    }
+                }
+                else if (owningSlot is { Kind: UIComponentSlotKind.ContextMenu })
+                {
+                    if (_openContextMenu != new UIComponentAddress(parentId, parentKeys) || !CanShowContextMenuOnOwnerNoLock(parentId, parentKeys))
+                        return false;
+                }
+                else if (parentNode.TypeKey == FlyoutComponent.ComponentTypeKey
+                    && owningSlot is { Kind: UIComponentSlotKind.Region, Key: RegionNames.Content }
+                    && ResolveAtTierNoLock<bool>(ReadNoLock(parentId, parentKeys, FlyoutComponent.IsOpenProperty)) is not true)
+                {
+                    return false;
+                }
+                else if (parentNode.TypeKey == ExpanderComponent.ComponentTypeKey
+                    && (owningSlot is null || owningSlot is { Kind: UIComponentSlotKind.Region, Key: RegionNames.Content })
+                    && ResolveAtTierNoLock<bool>(ReadNoLock(parentId, parentKeys, ExpanderComponent.ExpandedProperty)) is false)
+                {
+                    return false;
+                }
+                else if (parentNode.TypeKey == CollapsiblePanelComponent.ComponentTypeKey
+                    && (owningSlot is null || owningSlot is { Kind: UIComponentSlotKind.Region, Key: RegionNames.Content })
+                    && !IsCollapsiblePanelOpenNoLock(parentNode, parentKeys))
+                {
+                    return false;
+                }
+            }
+            else if (TryGetRegionSide(node.ComponentId, out UISide regionSide) && IsSideDrawerNoLock(regionSide) && _openDrawer != regionSide)
+            {
                 return false;
+            }
         }
 
         foreach (UIDynamicParameterScope scope in ScopesNoLock(componentId, rowKeys))
@@ -214,6 +280,80 @@ public sealed partial class UIClientPage
         return true;
     }
 
+    internal static UIComponentSlot? FindDirectSlot(UIComponentNode parentNode, UIComponentId childId)
+    {
+        UIComponentSlot[] slots = parentNode.Slots;
+        for (var i = 0; i < slots.Length; i++)
+        {
+            if (slots[i].RootComponentId == childId)
+                return slots[i];
+        }
+
+        return null;
+    }
+
+    internal bool CanShowContextMenuOnOwnerNoLock(UIComponentId ownerId, object?[] ownerKeys)
+    {
+        if (ResolveAtTierNoLock<bool>(ReadNoLock(ownerId, ownerKeys, IVisualComponent.ShowContextMenuProperty)) is false
+            || ResolveAtTierNoLock<bool>(ReadNoLock(ownerId, ownerKeys, IItemAbilitiesComponent.CanShowContextMenuProperty)) is false)
+        {
+            return false;
+        }
+
+        List<UIDynamicParameterScope> scopes = ScopesNoLock(ownerId, ownerKeys);
+        if (scopes.Count > 0 && scopes[^1].ComponentId == ownerId)
+        {
+            var item = scopes[^1].Item;
+            if (item is IItemAbilitiesModel { CanShowContextMenu: false })
+                return false;
+
+            if (item is IReadOnlyDictionary<string, object?> && ItemContext.TryReadProperty(item, nameof(IItemAbilitiesModel.CanShowContextMenu), out var canShow) && ResolveAtTierNoLock<bool>(canShow) is false)
+                return false;
+        }
+
+        return true;
+    }
+
+    internal bool IsCollapsiblePanelOpenNoLock(UIComponentNode panelNode, object?[] panelKeys)
+    {
+        UIPropertyAddress address = new(new UIComponentAddress(panelNode.ComponentId, panelKeys), ICollapsibleComponent.ExpandedProperty);
+        if (_values.TryGetValue(address, out var explicitValue))
+            return ResolveAtTierNoLock<bool>(explicitValue) is not false;
+
+        if (ResolveAtTierNoLock<bool>(ReadNoLock(panelNode.ComponentId, panelKeys, ICollapsibleComponent.ShowCollapseToggleProperty)) is true
+            && panelNode.HasAuthoredId
+            && Store.Get(panelNode.AuthoringId, "collapsed") is string stored)
+        {
+            return !string.Equals(stored, "true", StringComparison.Ordinal);
+        }
+
+        return ResolveAtTierNoLock<bool>(ReadNoLock(panelNode.ComponentId, panelKeys, ICollapsibleComponent.ExpandedProperty)) is not false;
+    }
+
+    internal bool TryGetRegionSide(UIComponentId rootId, out UISide side)
+    {
+        foreach (CompiledRegion region in View.Regions)
+        {
+            if (region.RootComponentId != rootId)
+                continue;
+
+            if (string.Equals(region.Key, RegionNames.LeftSide, StringComparison.Ordinal))
+            {
+                side = UISide.Left;
+                return true;
+            }
+
+            if (string.Equals(region.Key, RegionNames.RightSide, StringComparison.Ordinal))
+            {
+                side = UISide.Right;
+                return true;
+            }
+        }
+
+        side = default;
+        return false;
+    }
+
     /// <summary>A plain or responsive value resolved at the page's current <see cref="ResponsiveTier"/>.</summary>
     private T? ResolveAtTierNoLock<T>(object? value) where T : struct
     {
@@ -227,17 +367,6 @@ public sealed partial class UIClientPage
             return coercedResponsive.Resolve(_responsiveTier);
 
         return value is not null && RecursiveValueCoercion.TryCoerce(value, out T coercedPlain) ? coercedPlain : null;
-    }
-
-    private string? DialogKeyOf(UIComponentId componentId)
-    {
-        foreach (CompiledDialog dialog in View.Dialogs)
-        {
-            if (dialog.RootComponentId.Equals(componentId))
-                return dialog.Key;
-        }
-
-        return null;
     }
 
     /// <summary>Whether a reader can act on the component: neither it nor an ancestor is disabled or loading.</summary>
@@ -292,6 +421,7 @@ public sealed partial class UIClientPage
             UIResponsive<UIOrientation> value => value.Resolve(tier),
             UIResponsive<UISize> value => value.Resolve(tier),
             UIResponsive<UIAlignment> value => value.Resolve(tier),
+            UIResponsive<UIFieldBoxAlignment> value => value.Resolve(tier),
             UIResponsive<UIThickness> value => value.Resolve(tier),
             UIResponsive<UICornerRadius> value => value.Resolve(tier),
             UIResponsive<UILayoutLength> value => value.Resolve(tier),
@@ -299,7 +429,7 @@ public sealed partial class UIClientPage
             UIResponsive<UIGridUnit> value => value.Resolve(tier),
             UIResponsive<UIItemsLayoutType> value => value.Resolve(tier),
             UIResponsive<UIMenuDisplay> value => value.Resolve(tier),
-            _ => TryResolveCustomResponsive(raw, tier)
+            _ => TryResolveCustomResponsive<T>(raw, tier)
         };
 
         if (unwrapped is T typed)
@@ -312,15 +442,49 @@ public sealed partial class UIClientPage
         return false;
     }
 
-    private static object? TryResolveCustomResponsive(object raw, UIResponsiveTier tier)
+    private static object? TryResolveCustomResponsive<T>(object raw, UIResponsiveTier tier)
     {
         Type type = raw.GetType();
 
-        if (!type.IsValueType || !type.IsGenericType || type.GetGenericTypeDefinition() != typeof(UIResponsive<>))
+        if (type.IsValueType && type.IsGenericType && type.GetGenericTypeDefinition() == typeof(UIResponsive<>))
+        {
+            MethodInfo? method = CustomResponsiveResolvers.GetOrAdd(type, static responsiveType => responsiveType.GetMethod(nameof(UIResponsive<>.Resolve), [typeof(UIResponsiveTier)]));
+            return method?.Invoke(raw, [tier]);
+        }
+
+        if (HasResponsiveBaseKey(raw)
+            && ResponsiveTargetTypes.GetOrAdd(typeof(T), CreateResponsiveTargetType) is Type targetResponsiveType
+            && RecursiveValueCoercion.TryCoerce(raw, targetResponsiveType, out var coercedResponsive)
+            && coercedResponsive is not null)
+        {
+            MethodInfo? method = CustomResponsiveResolvers.GetOrAdd(targetResponsiveType, static responsiveType => responsiveType.GetMethod(nameof(UIResponsive<>.Resolve), [typeof(UIResponsiveTier)]));
+            return method?.Invoke(coercedResponsive, [tier]);
+        }
+
+        return null;
+    }
+
+    private static bool HasResponsiveBaseKey(object raw)
+    {
+        if (raw is IReadOnlyDictionary<string, object?> readOnly)
+            return readOnly.ContainsKey("base") || readOnly.ContainsKey("Base");
+
+        if (raw is IDictionary<string, object?> mutable)
+            return mutable.ContainsKey("base") || mutable.ContainsKey("Base");
+
+        if (raw is JsonElement { ValueKind: JsonValueKind.Object } jsonObject)
+            return jsonObject.TryGetProperty("base", out _) || jsonObject.TryGetProperty("Base", out _);
+
+        return false;
+    }
+
+    private static Type? CreateResponsiveTargetType(Type targetType)
+    {
+        Type inner = Nullable.GetUnderlyingType(targetType) ?? targetType;
+        if (!inner.IsValueType || (inner.IsGenericType && inner.GetGenericTypeDefinition() == typeof(UIResponsive<>)))
             return null;
 
-        MethodInfo? method = CustomResponsiveResolvers.GetOrAdd(type, static responsiveType => responsiveType.GetMethod(nameof(UIResponsive<>.Resolve), [typeof(UIResponsiveTier)]));
-        return method?.Invoke(raw, [tier]);
+        return typeof(UIResponsive<>).MakeGenericType(inner);
     }
 
     /// <summary>The sub-entries a menu row shows now; empty where its host opens no submenus.</summary>
@@ -453,10 +617,28 @@ public sealed partial class UIClientPage
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(variantKey);
 
-        var resolvedKey = ItemTemplateSelection.ResolveCompositeVariant(View.Graph, hostId, variantKey, variantKeyPropertyName, item);
+        var effectiveKeyProperty = variantKeyPropertyName ?? ResolveDeclaredSlotKeyProperty(hostId, variantKey);
+        var resolvedKey = ItemTemplateSelection.ResolveCompositeVariant(View.Graph, hostId, variantKey, effectiveKeyProperty, item);
         return View.Graph.TryGetSlot(hostId, UIComponentSlotKind.TemplateVariant, out UIComponentSlot? slot, resolvedKey)
             ? At(slot.RootComponentId, rowKeys)
             : null;
+    }
+
+    private string? ResolveDeclaredSlotKeyProperty(UIComponentId hostId, string variantKey)
+    {
+        var prefix = variantKey + ":";
+        foreach (UIComponentSlot slot in View.Graph.GetRequired(hostId).Slots)
+        {
+            if (slot.Kind == UIComponentSlotKind.TemplateVariant
+                && slot.KeyProperty is { Length: > 0 } keyProperty
+                && slot.Key is { } key
+                && (string.Equals(key, variantKey, StringComparison.Ordinal) || key.StartsWith(prefix, StringComparison.Ordinal)))
+            {
+                return keyProperty;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Whether the property is bound to write back what the reader changes.</summary>
@@ -546,13 +728,26 @@ public sealed partial class UIClientPage
         if (rowKeys.Length != View.Graph.GetItemScopes(root).Count + 1 || !View.Graph.TryGetSlot(root, UIComponentSlotKind.TemplateVariant, out _, TemplateNames.Row))
             return true;
 
-        foreach (UIComponentSlot slot in View.Graph.GetRequired(root).Slots)
+        UIComponentNode hostNode = View.Graph.GetRequired(root);
+        var isTableOrGrid = hostNode.TypeKey == TableComponent.ComponentTypeKey || hostNode.TypeKey == "datagrid.grid";
+
+        foreach (UIComponentSlot slot in hostNode.Slots)
         {
             if (slot.RootComponentId != directChild)
                 continue;
 
             if (slot.Kind is not (UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant))
                 return false;
+
+            if (isTableOrGrid && slot.Key is { Length: > 0 } tableSlotKey)
+            {
+                if (string.Equals(tableSlotKey, "detail", StringComparison.Ordinal) || tableSlotKey.StartsWith("edit:", StringComparison.Ordinal))
+                    return false;
+
+                const string columnPrefix = UITableColumn.TemplatePrefix + ":";
+                if (tableSlotKey.StartsWith(columnPrefix, StringComparison.Ordinal) && IsTableColumnHidden(root, rowKeys[..^1], tableSlotKey[columnPrefix.Length..]))
+                    return false;
+            }
 
             if (slot.KeyProperty is not { Length: > 0 } keyProperty || slot.Key is not { Length: > 0 } slotKey)
                 return true;
@@ -564,6 +759,39 @@ public sealed partial class UIClientPage
         }
 
         return false;
+    }
+
+    private bool IsTableColumnHidden(UIComponentId hostId, object?[] hostKeys, string columnKey)
+    {
+        lock (_sync)
+        {
+            if (ReadNoLock(hostId, hostKeys, TableComponent.ColumnsProperty) is not IEnumerable columns)
+                return false;
+
+            foreach (var entry in columns)
+            {
+                if (entry is UITableColumn column)
+                {
+                    if (!string.Equals(column.Key, columnKey, StringComparison.Ordinal))
+                        continue;
+
+                    return column.Hidden || (column.HideBelow is UIResponsiveTier hideBelow && _responsiveTier < hideBelow);
+                }
+
+                if (entry is IReadOnlyDictionary<string, object?> wireColumn && ItemContext.TryReadProperty(wireColumn, nameof(UITableColumn.Key), out var wireKey) && string.Equals(wireKey as string, columnKey, StringComparison.Ordinal))
+                {
+                    if (ItemContext.TryReadProperty(wireColumn, nameof(UITableColumn.Hidden), out var hiddenRaw) && ResolveAtTierNoLock<bool>(hiddenRaw) is true)
+                        return true;
+
+                    if (ItemContext.TryReadProperty(wireColumn, nameof(UITableColumn.HideBelow), out var hideBelowRaw) && ResolveAtTierNoLock<UIResponsiveTier>(hideBelowRaw) is UIResponsiveTier wireHideBelow && _responsiveTier < wireHideBelow)
+                        return true;
+
+                    return false;
+                }
+            }
+
+            return false;
+        }
     }
 
     /// <summary>A handle to the component in as many of the caller's rows as it stands in; one deeper in a list is reached through its row.</summary>
@@ -588,25 +816,57 @@ public sealed partial class UIClientPage
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var inRow = rowKeys.Length > 0;
-        List<(UIComponentId Component, bool Value)> found = [];
+        UIComponentId chosen;
 
-        foreach (CompiledUIBinding binding in View.Bindings.All)
+        lock (_sync)
         {
-            UIComponentId componentId = binding.Address.Component.Id;
+            List<(UIComponentId Component, int Rank)> found = [];
 
-            if ((scope is UIComponentId root && !IsWithin(componentId, root, rowKeys, rowItem)) || View.Graph.GetItemScopes(componentId).Count > rowKeys.Length)
-                continue;
+            foreach (CompiledUIBinding binding in View.Bindings.All)
+            {
+                UIComponentId componentId = binding.Address.Component.Id;
 
-            if (inRow && (!ReadsItem(binding) || CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters) != rowKeys.Length))
-                continue;
+                if ((scope is UIComponentId root && !IsWithin(componentId, root, rowKeys, rowItem)) || View.Graph.GetItemScopes(componentId).Count > rowKeys.Length)
+                    continue;
 
-            if (!string.Equals(AuthoredPath(binding, componentId, inRow), path, StringComparison.Ordinal))
-                continue;
+                var dialogKey = EnclosingDialogKey(componentId);
+                var openIndex = dialogKey is null ? -1 : _openDialogs.IndexOf(dialogKey);
 
-            found.Add((componentId, binding.Kind == CompiledUIBindingKind.ComponentCollection || binding.Address.Property == IInputComponent.ValueProperty));
+                if (scope is null && dialogKey is not null && openIndex < 0)
+                    continue;
+
+                if (inRow && (!ReadsItem(binding) || CompiledUIBindingParameterResolver.CountDynamic(binding.Parameters) != rowKeys.Length))
+                    continue;
+
+                if (!string.Equals(AuthoredPath(binding, componentId, inRow), path, StringComparison.Ordinal))
+                    continue;
+
+                var keys = rowKeys[..View.Graph.GetItemScopes(componentId).Count];
+                var isPrimaryValue = binding.Kind == CompiledUIBindingKind.ComponentCollection || binding.Address.Property == IInputComponent.ValueProperty;
+                var shown = IsShownInSubtreeNoLock(componentId, keys);
+                var rank = (-CountOpenModalsAboveNoLock(openIndex, componentId) * 4) + (isPrimaryValue ? 2 : 0) + (shown ? 1 : 0);
+                var updated = false;
+
+                for (var i = 0; i < found.Count; i++)
+                {
+                    if (found[i].Component == componentId)
+                    {
+                        if (rank > found[i].Rank)
+                            found[i] = (componentId, rank);
+
+                        updated = true;
+                        break;
+                    }
+                }
+
+                if (!updated)
+                    found.Add((componentId, rank));
+            }
+
+            chosen = SingleFound(found, path, "bound to");
         }
 
-        return At(SingleFound(found, path, "bound to"), rowKeys);
+        return At(chosen, rowKeys);
     }
 
     /// <summary>The path the view bound: fixed indices materialized, a row's outer segments dropped, and a windowed source's window suffix stripped.</summary>
@@ -680,23 +940,71 @@ public sealed partial class UIClientPage
             : formatted;
     }
 
-    /// <summary>The one candidate, or the one whose value it is; none, or several alike, is the test's mistake to hear about.</summary>
-    private UIComponentId SingleFound(List<(UIComponentId Component, bool Value)> found, string what, string how)
+    private int CountOpenModalsAboveNoLock(int openIndex, UIComponentId? candidateId = null)
     {
-        if (found.Count == 1)
-            return found[0].Component;
+        var count = 0;
 
-        List<(UIComponentId Component, bool Value)> values = found.FindAll(static candidate => candidate.Value);
+        for (var i = openIndex + 1; i < _openDialogs.Count; i++)
+        {
+            if (View.FindDialog(_openDialogs[i]) is { Modal: true })
+                count++;
+        }
 
-        if (values.Count == 1)
-            return values[0].Component;
+        if (openIndex < 0
+            && candidateId is UIComponentId id
+            && _openDrawer is UISide openSide
+            && IsSideDrawerNoLock(openSide)
+            && (openSide == UISide.Right ? View.Options.RightDrawerModal : View.Options.LeftDrawerModal)
+            && View.FindRegion(openSide == UISide.Right ? RegionNames.RightSide : RegionNames.LeftSide) is CompiledRegion drawerRegion
+            && !StandsUnder(id, drawerRegion.RootComponentId))
+        {
+            count++;
+        }
 
+        return count;
+    }
+
+    /// <summary>The one highest-ranked candidate; none, or several tied at the top rank, is the test's mistake to hear about.</summary>
+    private UIComponentId SingleFound(List<(UIComponentId Component, int Rank)> found, string what, string how)
+    {
         if (found.Count == 0)
             throw new InvalidOperationException($"The page at '{Route}' has no component {how} '{what}'.");
 
-        List<string> ids = found.ConvertAll(candidate => View.Graph.GetRequired(candidate.Component).AuthoringId);
+        if (found.Count == 1)
+            return found[0].Component;
 
-        throw new InvalidOperationException($"The page at '{Route}' has {found.Count} components {how} '{what}' ({string.Join(", ", ids)}): find one by its id.");
+        var bestRank = int.MinValue;
+
+        for (var i = 0; i < found.Count; i++)
+        {
+            if (found[i].Rank > bestRank)
+                bestRank = found[i].Rank;
+        }
+
+        UIComponentId winner = default;
+        var count = 0;
+
+        for (var i = 0; i < found.Count; i++)
+        {
+            if (found[i].Rank == bestRank)
+            {
+                winner = found[i].Component;
+                count++;
+            }
+        }
+
+        if (count == 1)
+            return winner;
+
+        List<string> ids = [with(count)];
+
+        for (var i = 0; i < found.Count; i++)
+        {
+            if (found[i].Rank == bestRank)
+                ids.Add(View.Graph.GetRequired(found[i].Component).AuthoringId);
+        }
+
+        throw new InvalidOperationException($"The page at '{Route}' has {count} components {how} '{what}' ({string.Join(", ", ids)}): find one by its id.");
     }
 
     /// <summary>The one component a reader knows by the name: its title, accessible name or tooltip, as written or as shown.</summary>
@@ -704,26 +1012,52 @@ public sealed partial class UIClientPage
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        List<(UIComponentId Component, bool Value)> found = [];
+        UIComponentId chosen;
 
-        foreach (UIComponentNode node in View.Graph.All)
+        lock (_sync)
         {
-            if ((scope is UIComponentId root && !IsWithin(node.ComponentId, root, rowKeys, rowItem)) || View.Graph.GetItemScopes(node.ComponentId).Count > rowKeys.Length)
-                continue;
+            List<(UIComponentId Component, int Rank)> found = [];
 
-            foreach (UIProperty property in NameProperties)
+            foreach (UIComponentNode node in View.Graph.All)
             {
-                var keys = rowKeys[..View.Graph.GetItemScopes(node.ComponentId).Count];
-                var value = Read(node.ComponentId, keys, property);
+                if ((scope is UIComponentId root && !IsWithin(node.ComponentId, root, rowKeys, rowItem)) || View.Graph.GetItemScopes(node.ComponentId).Count > rowKeys.Length)
+                    continue;
 
-                if (value is not null && (string.Equals(value.ToString(), name, StringComparison.Ordinal) || string.Equals(Text(node.ComponentId, keys, property), name, StringComparison.Ordinal)))
+                var dialogKey = EnclosingDialogKey(node.ComponentId);
+                var openIndex = dialogKey is null ? -1 : _openDialogs.IndexOf(dialogKey);
+
+                if (scope is null && dialogKey is not null && openIndex < 0)
+                    continue;
+
+                var keys = rowKeys[..View.Graph.GetItemScopes(node.ComponentId).Count];
+
+                foreach (UIProperty property in NameProperties)
                 {
-                    found.Add((node.ComponentId, node.TypeKey is not "standard.text" and not "standard.paragraph"));
-                    break;
+                    (var value, var translatable) = ReadWithTranslatableNoLock(node.ComponentId, keys, property);
+
+                    if (value is not null && (string.Equals(WrittenName(value), name, StringComparison.Ordinal) || string.Equals(Words(value, translatable), name, StringComparison.Ordinal)))
+                    {
+                        var shown = IsShownInSubtreeNoLock(node.ComponentId, keys);
+                        var isControl = node.TypeKey is not "standard.text" and not "standard.paragraph";
+                        var rank = (shown ? 20_000 : 0) - (CountOpenModalsAboveNoLock(openIndex, node.ComponentId) * 2) + (isControl ? 1 : 0);
+                        found.Add((node.ComponentId, rank));
+                        break;
+                    }
                 }
             }
+
+            chosen = SingleFound(found, name, "named");
         }
 
-        return At(SingleFound(found, name, "named"), rowKeys);
+        return At(chosen, rowKeys);
     }
+
+    private static string? WrittenName(object value)
+        => value switch
+        {
+            string text => text,
+            UIPhrase phrase => phrase.Key,
+            IReadOnlyDictionary<string, object?> wirePhrase when CompiledViewWireSerializer.CoerceWireValue(typeof(UIPhrase), wirePhrase) is UIPhrase coerced => coerced.Key,
+            _ => value.ToString()
+        };
 }

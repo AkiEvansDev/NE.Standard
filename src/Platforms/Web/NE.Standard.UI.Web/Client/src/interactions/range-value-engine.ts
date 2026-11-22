@@ -44,9 +44,11 @@ export class RangeValueEngine {
     private readonly pressedFrom = new WeakMap<HTMLInputElement, string>();
     private readonly cancelled = new WeakSet<HTMLInputElement>();
 
-    // The ranges a pushed bound may have clamped, with the value the server holds: reported once the change set is applied, since a
-    // report raised inside it would hold the set's own Value push out of the field.
+    // The ranges a pushed value or bound may have clamped, with the value the server holds: reported once the change set is applied,
+    // after every Min, Max and Step in the same batch has landed, so an earlier Value push is never clamped by stale bounds.
     private readonly owedReports = new Map<HTMLInputElement, unknown>();
+    private readonly pushedValues = new Map<HTMLInputElement, { value: unknown; boundChangedAfter: boolean }>();
+    private reportQueued = false;
     private hoveredHandle: HTMLInputElement | null = null;
 
     public constructor(options: RangeValueEngineOptions = {}) {
@@ -97,40 +99,70 @@ export class RangeValueEngine {
             for (const input of componentParts(change.components, `.${SliderInputClass}`) as HTMLInputElement[]) {
                 const before = this.settled.get(input) ?? input.defaultValue;
 
-                this.settled.set(input, input.value);
-                this.writeReadings(input);
-
                 if (change.propertyName === (isEndInput(input) ? EndValuePropertyName : ValuePropertyName)) {
-                    // The value pushed after a bound in the same set is the server's: its own report covers that bound's clamp.
-                    this.owedReports.delete(input);
-                    this.reportClamped(input, change.value);
+                    this.pushedValues.set(input, { value: change.value, boundChangedAfter: false });
+                    this.settled.set(input, input.value);
+                    this.writeReadings(input);
+                    this.oweReport(input, change.value, true);
                 }
                 else if (BoundPropertyNames.has(change.propertyName)) {
+                    const pushed = this.pushedValues.get(input);
+
+                    if (pushed !== undefined) {
+                        pushed.boundChangedAfter = true;
+
+                        if (pushed.value !== null && pushed.value !== undefined)
+                            input.value = String(pushed.value);
+                    }
+                    else {
+                        this.oweReport(input, before, false);
+                    }
+
+                    this.settled.set(input, input.value);
+                    this.writeReadings(input);
                     this.writeSizer(input);
-                    this.oweReport(input, before);
+                }
+                else {
+                    this.settled.set(input, input.value);
+                    this.writeReadings(input);
                 }
             }
         });
     }
 
-    /** Owes a range the report of a pushed bound's clamp, judged against the value it stood at before the set's first bound. */
-    private oweReport(input: HTMLInputElement, before: string): void {
-        if (this.owedReports.has(input))
+    /** Owes a range the report of a pushed value's or bound's clamp, judged once the whole synchronous change set has landed. */
+    private oweReport(input: HTMLInputElement, server: unknown, overwrite: boolean): void {
+        if (!overwrite && this.owedReports.has(input))
             return;
 
-        if (this.owedReports.size === 0)
+        if (!this.reportQueued) {
+            this.reportQueued = true;
             queueMicrotask(() => this.payOwedReports());
+        }
 
-        this.owedReports.set(input, before);
+        this.owedReports.set(input, server);
     }
 
     private payOwedReports(): void {
+        this.reportQueued = false;
+
         const owed = [...this.owedReports];
+        const pushed = new Map(this.pushedValues);
 
         this.owedReports.clear();
+        this.pushedValues.clear();
 
-        for (const [input, server] of owed)
+        for (const [input, server] of owed) {
+            const batchPush = pushed.get(input);
+
+            if (batchPush?.boundChangedAfter === true && batchPush.value !== null && batchPush.value !== undefined) {
+                input.value = String(batchPush.value);
+                this.settled.set(input, input.value);
+                this.writeReadings(input);
+            }
+
             this.reportClamped(input, server);
+        }
     }
 
     private notePress(target: EventTarget | null): void {

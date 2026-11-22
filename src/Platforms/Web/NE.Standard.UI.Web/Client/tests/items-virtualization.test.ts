@@ -290,3 +290,91 @@ test("scrolling a 10,000-row virtualized list renders only the visible window an
     assert.equal(layoutOf(host).at(-2), "k5015");
     assert.equal(layoutOf(host).at(-1), `bottom ${32 * (10000 - 5016)}px`);
 });
+
+test("a virtualized host re-observes on reconnect and recomputes spacers when a mounted row changes height inline", () => {
+    const observed = new Set<FakeElement>();
+    const callbacks: ((entries: { readonly target: FakeElement }[]) => void)[] = [];
+    const frames: (() => void)[] = [];
+    const originalResizeObserver = (globalThis as Record<string, unknown>).ResizeObserver;
+    const originalRaf = window.requestAnimationFrame;
+
+    (globalThis as Record<string, unknown>).ResizeObserver = class {
+        public constructor(callback: (entries: { readonly target: FakeElement }[]) => void) {
+            callbacks.push(callback);
+        }
+
+        public observe(target: FakeElement): void {
+            observed.add(target);
+        }
+
+        public unobserve(target: FakeElement): void {
+            observed.delete(target);
+        }
+
+        public disconnect(): void {
+            observed.clear();
+        }
+    };
+    window.requestAnimationFrame = (callback: FrameRequestCallback): number => {
+        frames.push(() => callback(0));
+        return 1;
+    };
+
+    try {
+        const items = Array.from({ length: 50 }, (_, index) => ({ key: `k${index}`, item: { Id: `k${index}` } }));
+        const host = FakeElement.of("ui-items-view__host", { "data-ui-items-host": "", "data-ui-host-mode": "virtualized" });
+        const wrapper = FakeElement.of("ui-items-view ui-items-view--stack ui-orientation--vertical", { "data-ui-id": "17" }).append(host);
+        const page = FakeElement.of("page").append(wrapper);
+
+        host.rect = { left: 0, top: 0, width: 300, height: 160 };
+        fakeDocument.body.replaceChildren(page);
+
+        const engine = new ItemsVirtualizationEngine(real<ItemsVirtualizationEngineOptions>({
+            root: page,
+            metadata: { getItemValues: () => items, getItemsTemplateMetadata: () => undefined, getItemsFilterSortMetadata: () => undefined },
+            templates: { getGroupTemplate: () => undefined, getEmptyTemplate: () => undefined },
+            renderer: {
+                getAncestorStack: () => [],
+                renderItem: (_componentId: number, _item: unknown, key: string) => {
+                    const row = FakeElement.of("ui-items-view__item", { "data-ui-key": key });
+                    row.rect = { left: 0, top: 0, width: 300, height: 40 };
+                    return row;
+                }
+            },
+            state: {},
+            dom: { invalidate: () => undefined }
+        }));
+
+        engine.sync(real<Element>(host));
+
+        const firstRow = host.children.find(child => child.getAttribute("data-ui-key") === "k0")!;
+        const initialBottom = layoutOf(host).at(-1);
+
+        assert.equal(observed.has(host), true);
+        assert.equal(observed.has(firstRow), true);
+        assert.equal(initialBottom, "bottom 1600px");
+
+        // Inline row disclosure expands `k0` from 40px to 240px: ResizeObserver triggers relayout and recomputes spacers.
+        firstRow.rect = { left: 0, top: 0, width: 300, height: 240 };
+        for (const callback of callbacks)
+            callback([{ target: firstRow }]);
+        for (const frame of frames.splice(0))
+            frame();
+
+        assert.notEqual(layoutOf(host).at(-1), initialBottom);
+
+        // Detach `wrapper`, notify ResizeObserver while detached (unobserving `host`), then reconnect and sync: `host` is observed again.
+        wrapper.remove();
+        for (const callback of callbacks)
+            callback([{ target: host }]);
+        assert.equal(observed.has(host), false);
+
+        page.append(wrapper);
+        engine.sync(real<Element>(host));
+        assert.equal(observed.has(host), true);
+    }
+    finally {
+        (globalThis as Record<string, unknown>).ResizeObserver = originalResizeObserver;
+        window.requestAnimationFrame = originalRaf;
+    }
+});

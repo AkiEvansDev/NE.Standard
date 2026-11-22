@@ -191,15 +191,27 @@ export type PropertyWriting = {
     set(element: Element, propertyName: string, value: unknown): boolean;
 };
 
+type CoreEngineContext = EngineContext & {
+    readonly commitGate: CommitGate | null;
+    readonly valueBinding: ValueBindingEngine | undefined;
+};
+
 // Engines needing only the root and the shared services, named for the console if one throws; where their order matters, it says so.
-const ComponentEngines: readonly (readonly [name: string, start: (context: EngineContext) => unknown])[] = [
+const ComponentEngines: readonly (readonly [name: string, start: (context: CoreEngineContext) => unknown])[] = [
     ["refusal", ({ root }) => startRefusals(root)],
     ["file input", ({ root, validation }) => new FileInputEngine({ root, validation })],
     ["image input", ({ root, validation, propertyPatchEngine, dialogs }) => new ImageInputEngine({ root, validation, propertyPatchEngine, dialogs })],
     ["key value action", ({ root, dom, propertyPatchEngine, validation }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine, validation })],
     // Listens in the capture phase ahead of FieldKeysEngine so trigger keys claim Enter, Tab, Backspace and Delete first.
     ["text trigger", ({ root, propertyPatchEngine }) => new TextTriggerEngine({ root, propertyPatchEngine })],
-    ["field keys", ({ root, propertyPatchEngine }) => new FieldKeysEngine({ root, propertyPatchEngine })],
+    ["field keys", ({ root, propertyPatchEngine, commitGate, valueBinding }) => new FieldKeysEngine({
+        root,
+        propertyPatchEngine,
+        discardDraft: field => {
+            commitGate?.discard(field);
+            valueBinding?.cancelEdit(field);
+        }
+    })],
     ["field box press", ({ root }) => new FieldBoxPressEngine({ root })],
     ["field expand", ({ root, dialogs }) => new FieldExpandEngine({ root, dialogs })],
     // Ahead of the engines reading a class it sets (an orientation, a size, a list's layout), so they read the width's.
@@ -217,7 +229,12 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: Engin
     ["items selection", ({ root, heldRows }) => new ItemsSelectionEngine({ root, rows: heldRows })],
     ["range value", ({ root, propertyPatchEngine }) => new RangeValueEngine({ root, propertyPatchEngine })],
     ["color input", ({ root, propertyPatchEngine }) => new ColorInputEngine({ root, propertyPatchEngine })],
-    ["temporal picker", ({ root, propertyPatchEngine, validation }) => new TemporalPickerEngine({ root, propertyPatchEngine, validation })],
+    ["temporal picker", ({ root, propertyPatchEngine, validation, commitGate }) => new TemporalPickerEngine({
+        root,
+        propertyPatchEngine,
+        validation,
+        noteCommitted: (field, track) => commitGate?.noteCommitted(field, track)
+    })],
     ["theme switcher", ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom })],
     ["language switcher", ({ root, effects, dom }) => new LanguageSwitcherEngine({ root, effects, dom })],
     ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine })],
@@ -290,8 +307,10 @@ export function startCoreComponentEngines(
         return numberInputs;
     }, engineContext));
 
+    const coreContext: CoreEngineContext = { ...engineContext, commitGate, valueBinding };
+
     for (const [name, start] of ComponentEngines)
-        record(startEngine(name, start, engineContext));
+        record(startEngine(name, start, coreContext));
 
     // Apart from the list: a tree's filter and sort run in its own walk, which needs the rules and the rows' values.
     record(startEngine("tree", ({ root, effects, propertyPatchEngine }) => new TreeEngine({ root, effects, propertyPatchEngine, rules: { metadata, state: propertyState, renderer: itemsRenderer, compareItems, itemMatchesFilters } }), engineContext));
@@ -475,7 +494,7 @@ export function createPluginEngineContext(
         tooltips,
         renames: { open: openInlineRename },
         tables,
-        rows: createItemRows(itemsTemplates, itemsRenderer, virtualization),
+        rows: createItemRows(itemsTemplates, itemsRenderer, virtualization, engineContext.dom),
         uploads: createFileUploads(validationEngine, uploadsInFlight),
         selection: itemSelection,
         popups: createPopups(engineContext.dom),

@@ -4,7 +4,7 @@
 // choice, gives a menu whose display differs by breakpoint the width's shape, and holds every region with a part a package's engine
 // draws, before the first paint.
 
-import { ComponentNameAttribute, FileTileClass, FileTileSizeAttribute, FileTileSizeClass, FrameworkAttributePrefix, MenuRailTiersAttribute, PageWrittenAttribute, RootAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
+import { ComponentNameAttribute, FileTileClass, FileTileSizeAttribute, FileTileSizeClass, FrameworkAttributePrefix, MenuRailTiersAttribute, PageWrittenAttribute, RootAttribute, TimestampClass, TimestampFormatAttribute, TimestampTextClass, TooltipAttribute, TreeRootClass, TreeRowClass, WordsAttribute, WordsTextTarget, writeAttribute } from "./addressing/dom-attributes.ts";
 import { formatFileSize, serverFileSizePaint, tileSizeText } from "./rendering/file-size.ts";
 import { PageWrittenMarkSelector, paintedOfMark, readPageTemporal, readPageWrittenAttribute, serverMomentPaint } from "./rendering/first-paint-words.ts";
 import type { PaintedValue } from "./rendering/first-paint-words.ts";
@@ -295,7 +295,7 @@ import { LegacyTreeFoldSlots, readTreeFold, treeFoldWalk } from "./rendering/tre
             return false;
 
         for (const attribute of [...element.attributes]) {
-            if ((place === AnyPlace ? attribute.name.startsWith(FrameworkAttributePrefix) : attribute.name !== place) || !attribute.value.includes(painted))
+            if ((place === AnyPlace ? (attribute.name.startsWith(FrameworkAttributePrefix) && attribute.name !== TooltipAttribute) : attribute.name !== place) || !attribute.value.includes(painted))
                 continue;
 
             element.setAttribute(attribute.name, attribute.value.replace(painted, () => written));

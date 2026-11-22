@@ -17,6 +17,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Compiled.Views;
+using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Localization;
@@ -61,7 +62,12 @@ public sealed partial class UIClientPage
     private int _nextRequestId;
     private readonly List<ClientEffect> _effects = [];
     private readonly List<UIClientDownload> _downloads = [];
-    private readonly HashSet<string> _openDialogs = [with(StringComparer.Ordinal)];
+    private readonly List<string> _openDialogs = [];
+    private readonly HashSet<UISide> _pinnedDrawers = [];
+    private bool _pinsInitialized;
+    private UISide? _openDrawer;
+    private UIComponentAddress? _expandedField;
+    private UIComponentAddress? _openContextMenu;
     // What effects left for after the act, run once the lock is let go (RunReactionsAsync).
     private readonly List<UIClientReaction> _reactions = [];
     private bool _resync;
@@ -186,7 +192,7 @@ public sealed partial class UIClientPage
         }
     }
 
-    /// <summary>Gets the dialogs open on the page, by key.</summary>
+    /// <summary>Gets the dialogs open on the page, by key, from bottom to top.</summary>
     public IReadOnlyCollection<string> OpenDialogs
     {
         get
@@ -211,6 +217,12 @@ public sealed partial class UIClientPage
                 return;
 
             _responsiveTier = tier;
+            if (_openDrawer is UISide openSide && !IsSideDrawerNoLock(openSide))
+            {
+                _openDrawer = null;
+                _dialogsChanged = true;
+            }
+
             _tierChanged = true;
         }
 
@@ -355,9 +367,283 @@ public sealed partial class UIClientPage
         return await DispatchCoreAsync(root, [], EventNames.Close, [], cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Gets whether the <paramref name="side"/> drawer is currently open as an overlay drawer.</summary>
+    public bool IsDrawerOpen(UISide side)
+    {
+        EnsureDrawerSide(side);
+
+        lock (_sync)
+            return _openDrawer == side && IsSideDrawerNoLock(side);
+    }
+
+    /// <summary>Opens the <paramref name="side"/> overlay drawer when that side acts as a drawer at the current viewport tier, raising <c>open</c> on its root when wired.</summary>
+    public async Task<UIClientCommandResult> OpenDrawerAsync(UISide side, CancellationToken cancellationToken = default)
+    {
+        EnsureDrawerSide(side);
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
+        UIComponentId root;
+        bool hasOpen;
+        int mark;
+
+        lock (_sync)
+        {
+            var regionKey = DrawerRegionKey(side);
+            CompiledRegion region = View.FindRegion(regionKey) ?? throw new InvalidOperationException($"The page at '{Route}' declares no '{regionKey}' region.");
+            mark = _effects.Count;
+
+            if (_openDrawer == side || !IsSideDrawerNoLock(side))
+                return UIClientCommandResult.RanOnPage([]);
+
+            _openDrawer = side;
+            _dialogsChanged = true;
+            root = region.RootComponentId;
+            hasOpen = HasEventOrInteraction(root, [], EventNames.Open);
+        }
+
+        if (hasOpen)
+            return await DispatchCoreAsync(root, [], EventNames.Open, [], cancellationToken).ConfigureAwait(false);
+
+        NotifyIfChanged();
+        return UIClientCommandResult.RanOnPage(EffectsSince(mark));
+    }
+
+    /// <summary>Closes the <paramref name="side"/> overlay drawer when open.</summary>
+    public void CloseDrawer(UISide side)
+    {
+        EnsureDrawerSide(side);
+
+        var closed = false;
+        lock (_sync)
+        {
+            if (_openDrawer == side)
+            {
+                _openDrawer = null;
+                _dialogsChanged = true;
+                closed = true;
+            }
+        }
+
+        if (closed)
+            NotifyIfChanged();
+    }
+
+    private static void EnsureDrawerSide(UISide side)
+    {
+        if (side is not (UISide.Left or UISide.Right))
+            throw new ArgumentOutOfRangeException(nameof(side), side, "A side drawer must be UISide.Left or UISide.Right.");
+    }
+
+    private static string DrawerRegionKey(UISide side)
+        => side == UISide.Right ? RegionNames.RightSide : RegionNames.LeftSide;
+
+    internal bool IsSideDrawerNoLock(UISide side)
+    {
+        var regionKey = DrawerRegionKey(side);
+        if (View.FindRegion(regionKey) is null)
+            return false;
+
+        if (side == UISide.Left && HasBottomBar())
+            return false;
+
+        if (!SidesAreDrawersAtTier(View.Options.SideDrawers, _responsiveTier))
+            return false;
+
+        return !(IsSidePinnedNoLock(side) && _responsiveTier >= UIResponsiveTier.Xl);
+    }
+
+    private bool HasBottomBar()
+        => View.Options.SideDrawers != UISideDrawers.Never && View.Options.RailBottomBar && IsRailAlone(RegionNames.LeftSide);
+
+    private bool IsRailAlone(string regionKey)
+    {
+        if (FindSideSingleMenu(regionKey) is not UIComponentNode menu)
+            return false;
+
+        if (!View.State.TryGetValue(menu.ComponentId, MenuComponent.DisplayProperty, out CompiledUIPropertyValue? display) || display.IsBind)
+            return false;
+
+        return RecursiveValueCoercion.TryCoerce(display.Value, out UIResponsive<UIMenuDisplay> shape) && shape.Base == UIMenuDisplay.Rail;
+    }
+
+    private UIComponentNode? FindSideSingleMenu(string regionKey)
+    {
+        if (View.FindRegion(regionKey) is not CompiledRegion region)
+            return null;
+
+        UIComponentNode node = View.Graph.GetRequired(region.RootComponentId);
+
+        while (node.TypeKey is "standard.container" or "standard.stack-panel" or "standard.scroll-container" or "standard.surface")
+        {
+            if (OnlyChildOf(node) is not UIComponentId child)
+                return null;
+
+            node = View.Graph.GetRequired(child);
+        }
+
+        return string.Equals(node.TypeKey, MenuComponent.ComponentTypeKey, StringComparison.Ordinal) ? node : null;
+    }
+
+    private static UIComponentId? OnlyChildOf(UIComponentNode node)
+    {
+        if (node.Children.Length == 1 && node.Slots.Length == 0)
+            return node.Children[0];
+
+        if (node.Children.Length == 0 && node.Slots.Length == 1 && node.Slots[0].Kind == UIComponentSlotKind.Region)
+            return node.Slots[0].RootComponentId;
+
+        return null;
+    }
+
+    private static bool SidesAreDrawersAtTier(UISideDrawers drawers, UIResponsiveTier tier)
+        => drawers switch
+        {
+            UISideDrawers.Never => false,
+            UISideDrawers.BelowMd => tier < UIResponsiveTier.Md,
+            UISideDrawers.BelowXl => tier < UIResponsiveTier.Xl,
+            UISideDrawers.BelowXxl => tier < UIResponsiveTier.Xxl,
+            UISideDrawers.Always => true,
+            _ => false
+        };
+
+    internal bool IsSidePinnedNoLock(UISide side)
+    {
+        EnsurePinsInitializedNoLock();
+        return _pinnedDrawers.Contains(side);
+    }
+
+    private void EnsurePinsInitializedNoLock()
+    {
+        if (_pinsInitialized)
+            return;
+
+        _pinsInitialized = true;
+        LoadStoredPinNoLock(UISide.Left);
+        LoadStoredPinNoLock(UISide.Right);
+    }
+
+    private void LoadStoredPinNoLock(UISide side)
+    {
+        if (FirstAuthoredIdInSide(side) is string ownerId && string.Equals(Store.Get(ownerId, "pinned"), "true", StringComparison.Ordinal))
+            _ = _pinnedDrawers.Add(side);
+    }
+
+    internal string? FirstAuthoredIdInSide(UISide side)
+    {
+        if (View.FindRegion(DrawerRegionKey(side)) is not CompiledRegion region)
+            return null;
+
+        return FindFirstAuthoredId(region.RootComponentId);
+    }
+
+    private string? FindFirstAuthoredId(UIComponentId rootId)
+    {
+        UIComponentNode node = View.Graph.GetRequired(rootId);
+        if (node.HasAuthoredId)
+            return node.AuthoringId;
+
+        for (var i = 0; i < node.Children.Length; i++)
+        {
+            if (FindFirstAuthoredId(node.Children[i]) is string childId)
+                return childId;
+        }
+
+        for (var i = 0; i < node.Slots.Length; i++)
+        {
+            if (FindFirstAuthoredId(node.Slots[i].RootComponentId) is string slotId)
+                return slotId;
+        }
+
+        return null;
+    }
+
+    /// <summary>Gets the component currently open in the full-height expanded field modal, or <see langword="null"/> when none is open.</summary>
+    public UIClientComponent? ExpandedField
+    {
+        get
+        {
+            lock (_sync)
+                return _expandedField is UIComponentAddress expanded ? At(expanded.Id, expanded.DynamicParameters) : null;
+        }
+    }
+
+    /// <summary>Gets the authored id of the field currently open in the full-height expanded field modal, or <see langword="null"/> when none is open.</summary>
+    public string? ExpandedFieldId
+    {
+        get
+        {
+            lock (_sync)
+                return _expandedField is UIComponentAddress expanded ? View.Graph.GetRequired(expanded.Id).AuthoringId : null;
+        }
+    }
+
+    /// <summary>Gets whether the field with authored id <paramref name="componentId"/> currently stands open in the expanded field modal.</summary>
+    public bool IsFieldExpanded(string componentId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(componentId);
+
+        lock (_sync)
+        {
+            return _expandedField is UIComponentAddress expanded
+                && View.Graph.TryGetComponentId(componentId, out UIComponentId id)
+                && expanded.Id == id;
+        }
+    }
+
+    internal bool IsFieldExpanded(UIComponentId componentId, object?[] rowKeys)
+    {
+        lock (_sync)
+            return _expandedField == new UIComponentAddress(componentId, rowKeys);
+    }
+
+    /// <summary>Closes the currently open expanded field modal when one is open.</summary>
+    public void CloseExpandedField()
+    {
+        var closed = false;
+        lock (_sync)
+        {
+            if (_expandedField is not null)
+            {
+                _expandedField = null;
+                _dialogsChanged = true;
+                closed = true;
+            }
+        }
+
+        if (closed)
+            NotifyIfChanged();
+    }
+
+    /// <summary>Closes any open context menu on the page.</summary>
+    public void CloseContextMenu()
+    {
+        lock (_sync)
+            _openContextMenu = null;
+    }
+
+    internal void TryOpenContextMenu(UIComponentId ownerId, object?[] rowKeys)
+    {
+        lock (_sync)
+        {
+            if (IsShownNoLock(ownerId, rowKeys) && IsEnabledNoLock(ownerId, rowKeys) && CanShowContextMenuOnOwnerNoLock(ownerId, rowKeys))
+                _openContextMenu = new UIComponentAddress(ownerId, rowKeys);
+        }
+    }
+
     /// <summary>Gets the page's in-process controller as <typeparamref name="TController"/>.</summary>
     public TController Controller<TController>() where TController : class
         => Transport.Controller<TController>();
+
+    /// <summary>Gets the root component of the declared dialog <paramref name="key"/>.</summary>
+    /// <exception cref="InvalidOperationException">The view declares no dialog with that key.</exception>
+    public UIClientComponent Dialog(string key)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        CompiledDialog dialog = View.FindDialog(key) ?? throw new InvalidOperationException($"The page at '{Route}' declares no dialog '{key}'.");
+        return At(dialog.RootComponentId, []);
+    }
 
     /// <summary>Gets the component with the authored id <paramref name="id"/>.</summary>
     /// <exception cref="InvalidOperationException">The view has no such component, or it stands in a list's rows.</exception>
@@ -368,15 +654,15 @@ public sealed partial class UIClientPage
     public UIClientComponent Component(UIComponentId componentId, object?[]? rowKeys = null)
         => At(componentId, rowKeys ?? []);
 
-    /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
+    /// <summary>Gets the one component in the active view or modal dialog whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
     public UIClientComponent ComponentBoundTo<TSource>(Expression<Func<TSource, object?>> path)
         => ComponentBoundTo(RecursivePath.FromExpression(path).ToString());
 
-    /// <summary>Gets the one component whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
+    /// <summary>Gets the one component in the active view or modal dialog whose value — else another property — is bound to <paramref name="path"/> on the controller.</summary>
     public UIClientComponent ComponentBoundTo(string path)
         => FindBoundTo(path, scope: null, rowKeys: []);
 
-    /// <summary>Gets the one component a reader knows by <paramref name="name"/>: its title, accessible name or tooltip, as written or as shown.</summary>
+    /// <summary>Gets the one component in the active view or modal dialog a reader knows by <paramref name="name"/>: its title, accessible name or tooltip, as written or as shown.</summary>
     public UIClientComponent ComponentNamed(string name)
         => FindNamed(name, scope: null, rowKeys: []);
 
@@ -444,6 +730,45 @@ public sealed partial class UIClientPage
         NotifyIfChanged();
     }
 
+    /// <summary>Asks the page whether it may leave for <paramref name="target"/>, running the controller's leave hook while holding unsaved work.</summary>
+    public async Task<UIClientCommandResult> RequestLeaveAsync(string target, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(target);
+
+        if (!UIRoutePath.IsLocal(target))
+            throw new ArgumentException("A leave names an address of this site.", nameof(target));
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
+        int mark;
+        lock (_sync)
+            mark = _effects.Count;
+
+        if (!Transport.HasController)
+        {
+            lock (_sync)
+                ApplyEffectsNoLock([new NavigateEffect(target)]);
+
+            await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
+            NotifyIfChanged();
+            return UIClientCommandResult.RanOnPage(EffectsSince(mark));
+        }
+
+        UICommandExecutionResult result = await Transport.RequestLeaveAsync(target, cancellationToken).ConfigureAwait(false);
+
+        lock (_sync)
+        {
+            ApplyNoLock(result.Changes.For(Transport.InstanceId));
+            ApplyEffectsNoLock(result.Command.Effects);
+        }
+
+        await ResyncIfAskedAsync(cancellationToken).ConfigureAwait(false);
+        await RunReactionsAsync(cancellationToken).ConfigureAwait(false);
+        NotifyIfChanged();
+
+        return UIClientCommandResult.Answered(result.Command.Success, result.Command.Error, EffectsSince(mark));
+    }
+
     /// <summary>Presses the action a notification offered — its Undo — through the command path, once, as a press on the toast does.</summary>
     /// <exception cref="InvalidOperationException">The notification offers no action.</exception>
     public async Task<UIClientCommandResult> PressNotificationActionAsync(ShowNotificationEffect notification, CancellationToken cancellationToken = default)
@@ -455,6 +780,43 @@ public sealed partial class UIClientPage
         var action = notification.Action?.Id ?? throw new InvalidOperationException("The notification offers no action the page could press.");
 
         return await SendCommandAsync(new UICommandRequest { Action = action }, source: null, eventName: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Follows a system notification click on this page: navigates through the page's leave guard when <see cref="ShowSystemNotificationEffect.Address"/> names another address, otherwise runs <see cref="ShowSystemNotificationEffect.Action"/>.</summary>
+    /// <exception cref="InvalidOperationException">The page already stands at the notification's address (or none was given) and the notification offers no action.</exception>
+    public async Task<UIClientCommandResult> PressNotificationActionAsync(ShowSystemNotificationEffect notification, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        await DrainPendingReactionsAsync(cancellationToken).ConfigureAwait(false);
+
+        if (notification.Address is { Length: > 0 } bringTo && IsNotificationTargetElsewhere(bringTo))
+            return await RequestLeaveAsync(bringTo, cancellationToken).ConfigureAwait(false);
+
+        var action = notification.Action?.Id ?? throw new InvalidOperationException("The notification offers no action the page could press.");
+
+        return await SendCommandAsync(new UICommandRequest { Action = action }, source: null, eventName: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool IsNotificationTargetElsewhere(string targetAddress)
+    {
+        var current = Address;
+        (var targetWithoutHash, var targetHash) = SplitAddressFragment(targetAddress);
+        (var currentWithoutHash, var currentHash) = SplitAddressFragment(current);
+
+        var normalizedTarget = UINavigationAddress.Format(UINavigationAddress.Parse(targetWithoutHash));
+        var normalizedCurrent = UINavigationAddress.Format(UINavigationAddress.Parse(currentWithoutHash));
+
+        if (!string.Equals(normalizedTarget, normalizedCurrent, StringComparison.Ordinal))
+            return true;
+
+        return targetHash.Length > 0 && !string.Equals(targetHash, currentHash, StringComparison.Ordinal);
+    }
+
+    private static (string Address, string Fragment) SplitAddressFragment(string address)
+    {
+        var hashIndex = address.IndexOf('#', StringComparison.Ordinal);
+        return hashIndex < 0 ? (address, string.Empty) : (address[..hashIndex], address[hashIndex..]);
     }
 
     /// <summary>Gets what the page last reported of itself: whether it is on screen, and its notification permission.</summary>

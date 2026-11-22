@@ -69,10 +69,11 @@ gives (an argument the command has no parameter for, a `Root` binding a row's it
 ## Finding a component
 
 - `page.Component("chat-conversation")` — by the id the view gave it.
+- `page.Dialog("delete-chat")` — the root component of a declared dialog, so `page.Dialog(key).ComponentNamed(...)` and `page.Dialog(key).ComponentBoundTo(...)` scope inside that dialog whether open or closed.
 - `page.ComponentBoundTo(nameof(SignUpController.Email))` or `page.ComponentBoundTo<SignUpController>(c => c.Email)` —
-  by the controller path its value, its items or another property is bound to (and on a `UITestComponent`, within its subtree).
+  by the controller path its value, its items or another property is bound to (and on a `UITestComponent`, within its subtree; on the page, closed dialogs are skipped and the active modal dialog wins over components behind it).
 - `page.ComponentNamed("Create account")` — by what a reader knows it by: its title, accessible name or tooltip, as
-  written or in the page's language.
+  written or in the page's language (skipping closed dialogs outside their scope and preferring visible components in the active modal dialog over components behind it).
 
 A list's visible rows (after any plain-host `FilterBy`, `SortBy` and `Query` rules, or a windowed host's realized window)
 are `component.Rows` and `component.Row(key)`; a row's components are found the same way inside it (`row.Component(id)`,

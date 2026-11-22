@@ -111,3 +111,20 @@ test("a file tile with no size, or none the page can read, keeps its size part e
     assert.equal(unset.children[0].textContent, "");
     assert.equal(broken.children[0].textContent, "");
 });
+
+test("data-ui-page-written rewrites painted values inside data-ui-tooltip while leaving other framework attributes untouched", () => {
+    const button = FakeElement.of("ui-button", {
+        "data-ui-key": "1.5 MB",
+        "data-ui-tooltip": "Download (1.5 MB)",
+        "data-ui-page-written": JSON.stringify([{ fileSize: 1572864 }])
+    });
+    const entries = button.attributes.entries.bind(button.attributes);
+
+    (button.attributes as unknown as Record<symbol, unknown>)[Symbol.iterator] = () => [...entries()].map(([name, value]) => ({ name, value }))[Symbol.iterator]();
+
+    fakeDocument.body.replaceChildren(button);
+    handOver(button);
+
+    assert.equal(button.getAttribute("data-ui-tooltip"), `Download (${formatFileSize(1572864, "ru")})`);
+    assert.equal(button.getAttribute("data-ui-key"), "1.5 MB");
+});

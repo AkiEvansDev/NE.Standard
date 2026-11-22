@@ -7,8 +7,10 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using NE.Colors;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Abstractions.Recursive;
@@ -33,6 +35,7 @@ public static class RecursiveValueCoercion
         Converters =
         {
             new DefinedEnumConverterFactory(),
+            new ColorVariantJsonConverter(),
             new ThemeColorJsonConverter(),
             new UIPhraseValueJsonConverter(),
             new WrittenMomentConverterFactory(),
@@ -96,6 +99,12 @@ public static class RecursiveValueCoercion
 
         if (wrapper is not null)
         {
+            if (TryDeserializeResponsiveMap(value, underlyingType, out var mappedResponsive))
+            {
+                result = mappedResponsive;
+                return true;
+            }
+
             Type elementType = underlyingType.GetGenericArguments()[0];
 
             if (TryCoerce(value, elementType, out var element) && element is not null)
@@ -165,8 +174,11 @@ public static class RecursiveValueCoercion
                 // command's text argument read off an item) — the one rule for a phrase read as a string.
                 _ when underlyingType == typeof(UIPhrase) && value is string phraseText => UIPhrase.Text(phraseText),
                 _ when underlyingType == typeof(string) && value is UIPhrase phrase => phrase.Key,
-                // A colour travels back as the canonical text UIThemeColor.TryParse reads.
+                // A colour travels back as the canonical text UIThemeColor.TryParse reads, or switches between UIThemeColor and ColorVariant.
                 _ when underlyingType == typeof(UIThemeColor) && value is string colorText => UIThemeColor.TryParse(colorText, out UIThemeColor color) ? color : null,
+                _ when underlyingType == typeof(UIThemeColor) && value is ColorVariant colorVariant => UIThemeColor.FromColorVariant(colorVariant),
+                _ when underlyingType == typeof(ColorVariant) && value is string variantText => UIThemeColor.TryParse(variantText, out UIThemeColor parsedVariant) && (parsedVariant.Light ?? parsedVariant.Dark) is ColorVariant variant ? variant : null,
+                _ when underlyingType == typeof(ColorVariant) && value is UIThemeColor themeColor => themeColor.Light ?? themeColor.Dark,
                 // A list of keys arrives as the client's own array, one text per element.
                 _ when IsStringList(underlyingType) && value is IEnumerable<object?> listItems => ToStringArray(listItems),
                 _ when underlyingType.IsEnum && value is string enumText => Enum.Parse(underlyingType, enumText, ignoreCase: false),
@@ -177,7 +189,7 @@ public static class RecursiveValueCoercion
                 _ when underlyingType == typeof(string) && value.GetType().IsEnum => value.ToString(),
                 // A document the client sent, as the inferred dictionary or array it arrives as, against the model that declares its
                 // shape — a graph's nodes, a grid's sort terms.
-                _ when (value is IDictionary<string, object?> or object?[] || (value is IEnumerable && value is not string && typeof(IEnumerable).IsAssignableFrom(underlyingType))) && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),
+                _ when (value is IDictionary<string, object?> or IReadOnlyDictionary<string, object?> or object?[] || (value is IEnumerable && value is not string && typeof(IEnumerable).IsAssignableFrom(underlyingType))) && IsModelType(underlyingType) => JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), underlyingType, ModelOptions),
                 // Invariant text carries no group separator: "1,5" is a decimal comma typed in another culture, never fifteen.
                 _ when value is string fractionalText && IsFractional(underlyingType) => ParseFractional(fractionalText, underlyingType),
                 // A whole-number property takes a whole number, from a number or from text alike: a fraction is refused, never rounded.
@@ -372,6 +384,76 @@ public static class RecursiveValueCoercion
         return Expression.Lambda<Func<object, object>>(body, parameter).Compile();
     }
 
+    private static bool TryDeserializeResponsiveMap(object value, Type responsiveType, out object? result)
+    {
+        result = null;
+
+        if (value is JsonElement { ValueKind: JsonValueKind.Object } jsonObject && IsResponsiveMapJson(jsonObject))
+        {
+            try
+            {
+                result = jsonObject.Deserialize(responsiveType, ModelOptions);
+                return result is not null && responsiveType.IsInstanceOfType(result);
+            }
+            catch (Exception exception) when (exception is JsonException or NotSupportedException)
+            {
+                return false;
+            }
+        }
+
+        if ((value is IReadOnlyDictionary<string, object?> readOnlyMap && IsResponsiveMapKeys(readOnlyMap.Keys))
+            || (value is IDictionary<string, object?> mutableMap && IsResponsiveMapKeys(mutableMap.Keys)))
+        {
+            try
+            {
+                result = JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(value, ModelOptions), responsiveType, ModelOptions);
+                return result is not null && responsiveType.IsInstanceOfType(result);
+            }
+            catch (Exception exception) when (exception is JsonException or NotSupportedException)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsResponsiveMapJson(JsonElement jsonObject)
+    {
+        var hasBase = false;
+
+        foreach (JsonProperty property in jsonObject.EnumerateObject())
+        {
+            if (property.Name.Equals("base", StringComparison.OrdinalIgnoreCase))
+                hasBase = true;
+            else if (!IsResponsiveTierPropertyName(property.Name))
+                return false;
+        }
+
+        return hasBase;
+    }
+
+    private static bool IsResponsiveTierPropertyName(string name)
+        => string.Equals(name, "sm", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "md", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "xl", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "xxl", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsResponsiveMapKeys(IEnumerable<string> keys)
+    {
+        var hasBase = false;
+
+        foreach (var key in keys)
+        {
+            if (string.Equals(key, "base", StringComparison.OrdinalIgnoreCase))
+                hasBase = true;
+            else if (!IsResponsiveTierPropertyName(key))
+                return false;
+        }
+
+        return hasBase;
+    }
+
     private static bool IsMoment(Type type)
         => type == typeof(DateTime) || type == typeof(DateOnly) || type == typeof(TimeOnly) || type == typeof(DateTimeOffset);
 
@@ -487,6 +569,213 @@ public static class RecursiveValueCoercion
             ? unchecked((ulong)Convert.ToInt64(value, CultureInfo.InvariantCulture))
             : Convert.ToUInt64(value, CultureInfo.InvariantCulture);
 
+    private static bool TryReadColorVariant(JsonElement element, out ColorVariant color)
+    {
+        if (TryReadColorVariantField(element, out color))
+            return true;
+
+        if (element.ValueKind == JsonValueKind.Object && TryReadThemeColorFields(element, out UIThemeColor themeColor) && (themeColor.Light ?? themeColor.Dark) is ColorVariant resolved)
+        {
+            color = resolved;
+            return true;
+        }
+
+        color = default;
+        return false;
+    }
+
+    private static bool TryReadThemeColor(JsonElement element, out UIThemeColor color)
+    {
+        color = default;
+
+        if (element.ValueKind == JsonValueKind.String)
+            return element.GetString() is string text && UIThemeColor.TryParse(text, out color);
+
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            if (TryReadThemeColorFields(element, out color))
+                return true;
+
+            if (TryReadColorVariantObject(element, out ColorVariant variant))
+            {
+                color = UIThemeColor.FromColorVariant(variant);
+                return true;
+            }
+        }
+
+        color = default;
+        return false;
+    }
+
+    private static bool TryReadThemeColorFields(JsonElement element, out UIThemeColor color)
+    {
+        color = default;
+        UIColorStyle? style = null;
+        ColorVariant? light = null;
+        ColorVariant? dark = null;
+        var hasRecognizedProperty = false;
+
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (property.Name.Equals("style", StringComparison.OrdinalIgnoreCase))
+            {
+                hasRecognizedProperty = true;
+                if (property.Value.ValueKind != JsonValueKind.Null)
+                {
+                    if (!TryReadEnumProperty(property.Value, out UIColorStyle parsedStyle))
+                        return false;
+
+                    style = parsedStyle;
+                }
+            }
+            else if (property.Name.Equals("light", StringComparison.OrdinalIgnoreCase))
+            {
+                hasRecognizedProperty = true;
+                if (property.Value.ValueKind != JsonValueKind.Null)
+                {
+                    if (!TryReadColorVariantField(property.Value, out ColorVariant parsedLight))
+                        return false;
+
+                    light = parsedLight;
+                }
+            }
+            else if (property.Name.Equals("dark", StringComparison.OrdinalIgnoreCase))
+            {
+                hasRecognizedProperty = true;
+                if (property.Value.ValueKind != JsonValueKind.Null)
+                {
+                    if (!TryReadColorVariantField(property.Value, out ColorVariant parsedDark))
+                        return false;
+
+                    dark = parsedDark;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (!hasRecognizedProperty)
+            return false;
+
+        color = new UIThemeColor(style, light, dark);
+        return true;
+    }
+
+    private static bool TryReadColorVariantField(JsonElement element, out ColorVariant color)
+    {
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            if (element.GetString() is string text && UIThemeColor.TryParse(text, out UIThemeColor parsed) && (parsed.Light ?? parsed.Dark) is ColorVariant fromText)
+            {
+                color = fromText;
+                return true;
+            }
+
+            color = default;
+            return false;
+        }
+
+        if (element.ValueKind == JsonValueKind.Object)
+            return TryReadColorVariantObject(element, out color);
+
+        color = default;
+        return false;
+    }
+
+    private static bool TryReadColorVariantObject(JsonElement element, out ColorVariant color)
+    {
+        color = default;
+        ColorName name = default;
+        ColorAdjustment adjustment = ColorAdjustment.None;
+        var factor = 0;
+        byte opacity = 255;
+        int? rgb = null;
+        var hasName = false;
+        var hasRgbField = false;
+
+        foreach (JsonProperty property in element.EnumerateObject())
+        {
+            if (property.Name.Equals("name", StringComparison.OrdinalIgnoreCase))
+            {
+                if (property.Value.ValueKind != JsonValueKind.Null)
+                {
+                    if (!TryReadEnumProperty(property.Value, out name))
+                        return false;
+
+                    hasName = true;
+                }
+            }
+            else if (property.Name.Equals("adjustment", StringComparison.OrdinalIgnoreCase))
+            {
+                if (property.Value.ValueKind != JsonValueKind.Null && !TryReadEnumProperty(property.Value, out adjustment))
+                    return false;
+            }
+            else if (property.Name.Equals("factor", StringComparison.OrdinalIgnoreCase))
+            {
+                if (property.Value.ValueKind != JsonValueKind.Null && (!property.Value.TryGetInt32(out factor) || factor is < ColorVariant.MinFactor or > ColorVariant.MaxFactor))
+                    return false;
+            }
+            else if (property.Name.Equals("opacity", StringComparison.OrdinalIgnoreCase))
+            {
+                if (property.Value.ValueKind != JsonValueKind.Null && !property.Value.TryGetByte(out opacity))
+                    return false;
+            }
+            else if (property.Name.Equals("rgb", StringComparison.OrdinalIgnoreCase))
+            {
+                hasRgbField = true;
+                if (property.Value.ValueKind != JsonValueKind.Null)
+                {
+                    if (!property.Value.TryGetInt32(out var parsedRgb) || parsedRgb is < 0 or > 0xFFFFFF)
+                        return false;
+
+                    rgb = parsedRgb;
+                }
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        if (rgb is int rgbValue)
+        {
+            // Explicit RGB variants serialize default(ColorName) alongside non-null rgb on the server; rgb must win.
+            color = ColorVariant.FromRgb((byte)((rgbValue >> 16) & 0xFF), (byte)((rgbValue >> 8) & 0xFF), (byte)(rgbValue & 0xFF), adjustment, factor, opacity);
+            return true;
+        }
+
+        if (!hasName && !hasRgbField)
+            return false;
+
+        if (!hasName)
+            return false;
+
+        color = new ColorVariant(name, adjustment, factor, opacity);
+        return true;
+    }
+
+    private static bool TryReadEnumProperty<TEnum>(JsonElement element, out TEnum value)
+        where TEnum : struct, Enum
+    {
+        if (element.ValueKind == JsonValueKind.String && element.GetString() is string text && Enum.TryParse(text, ignoreCase: false, out value) && IsDefinedEnumValue(typeof(TEnum), value))
+            return true;
+
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out var signed))
+        {
+            var boxed = Enum.ToObject(typeof(TEnum), signed);
+            if (boxed is TEnum parsed && IsDefinedEnumValue(typeof(TEnum), parsed))
+            {
+                value = parsed;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
     private sealed class DefinedEnumConverterFactory : JsonConverterFactory
     {
         public override bool CanConvert(Type typeToConvert)
@@ -525,15 +814,65 @@ public static class RecursiveValueCoercion
             => writer.WriteStringValue(value.ToString());
     }
 
+    private sealed class ColorVariantJsonConverter : JsonConverter<ColorVariant>
+    {
+        public override ColorVariant Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                return reader.GetString() is string text && UIThemeColor.TryParse(text, out UIThemeColor parsed) && (parsed.Light ?? parsed.Dark) is ColorVariant fromText
+                    ? fromText
+                    : throw new JsonException();
+            }
+
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                using JsonDocument document = JsonDocument.ParseValue(ref reader);
+                return TryReadColorVariant(document.RootElement, out ColorVariant color)
+                    ? color
+                    : throw new JsonException();
+            }
+
+            throw new JsonException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, ColorVariant value, JsonSerializerOptions options)
+            => writer.WriteStringValue(UIThemeColor.FromColorVariant(value).ToCanonical());
+    }
+
     private sealed class ThemeColorJsonConverter : JsonConverter<UIThemeColor>
     {
         public override UIThemeColor Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            => reader.TokenType == JsonTokenType.String && reader.GetString() is string text && UIThemeColor.TryParse(text, out UIThemeColor color)
-                ? color
-                : throw new JsonException();
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                return reader.GetString() is string text && UIThemeColor.TryParse(text, out UIThemeColor color)
+                    ? color
+                    : throw new JsonException();
+            }
+
+            if (reader.TokenType == JsonTokenType.StartObject)
+            {
+                using JsonDocument document = JsonDocument.ParseValue(ref reader);
+                return TryReadThemeColor(document.RootElement, out UIThemeColor color)
+                    ? color
+                    : throw new JsonException();
+            }
+
+            throw new JsonException();
+        }
 
         public override void Write(Utf8JsonWriter writer, UIThemeColor value, JsonSerializerOptions options)
-            => writer.WriteStringValue(value.ToString());
+        {
+            writer.WriteStartObject();
+            writer.WritePropertyName("style");
+            JsonSerializer.Serialize(writer, value.Style, options);
+            writer.WritePropertyName("light");
+            JsonSerializer.Serialize(writer, value.Light, options);
+            writer.WritePropertyName("dark");
+            JsonSerializer.Serialize(writer, value.Dark, options);
+            writer.WriteEndObject();
+        }
     }
 
     private sealed class WrittenMomentConverterFactory : JsonConverterFactory

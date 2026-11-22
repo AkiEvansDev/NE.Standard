@@ -1,5 +1,5 @@
 // `node --test` loads this module as it is (the validation engine's test): `.ts` on the value imports.
-import { BindingAttributePrefix, ComponentIdAttribute, ComponentSelector, DisabledClass, GroupHeaderAttribute, LoadingClass, ReadOnlyClass, ValueBindingAttribute, ensureElementId } from "./dom-attributes.ts";
+import { BindingAttributePrefix, ComponentIdAttribute, ComponentSelector, DisabledClass, GroupHeaderAttribute, LoadingClass, RadioBindValueIdAttribute, ReadOnlyClass, ValueBindingAttribute, ensureElementId } from "./dom-attributes.ts";
 import { closestLogical, collectDynamicParameters, logicalParentOf, matchesDynamicParameters, readNumberAttribute, readParameterCount, startsWithDynamicParameters } from "./dynamic-parameters.ts";
 import { getBindingMode, rowKeysText } from "../metadata/metadata-index.ts";
 import type { ClientEffect, MetadataIndex, WebBindingMode, WebRenderBindingMetadata } from "../metadata/metadata-index.ts";
@@ -516,7 +516,7 @@ export type WritableBinding = {
 
 /** The binding an element writes back through, read off the element: one element carries one writable value; null when it has none. */
 export function resolveWritableBinding(element: Element, metadata: Pick<MetadataIndex, "getBindingById">): WritableBinding | null {
-    const value = element.getAttribute(ValueBindingAttribute);
+    const value = element.getAttribute(ValueBindingAttribute) ?? element.getAttribute(RadioBindValueIdAttribute);
 
     if (value !== null) {
         const bound = metadata.getBindingById(Number(value));

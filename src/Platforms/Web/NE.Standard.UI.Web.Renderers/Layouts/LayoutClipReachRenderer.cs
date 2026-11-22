@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -153,8 +154,11 @@ internal static class LayoutClipReachRenderer
                 : Contour;
         }
 
-        if (typeKey == BreadcrumbsComponent.ComponentTypeKey || typeKey == TabsComponent.ComponentTypeKey)
+        if (typeKey == BreadcrumbsComponent.ComponentTypeKey || typeKey == TabsViewComponent.ComponentTypeKey)
             return Contour;
+
+        if (typeKey == TabsComponent.ComponentTypeKey)
+            return HasTabActions(view, childId) ? Glyph : Contour;
 
         if (typeKey == ExpanderComponent.ComponentTypeKey)
         {
@@ -197,5 +201,19 @@ internal static class LayoutClipReachRenderer
         }
 
         return None;
+    }
+
+    private static bool HasTabActions(CompiledView view, UIComponentId tabsId)
+    {
+        if (view.Graph.TryGetSlot(tabsId, UIComponentSlotKind.Region, out _, TabRegionNames.Action(0)))
+            return true;
+
+        foreach (UIComponentSlot slot in view.Graph.GetRequired(tabsId).Slots)
+        {
+            if (slot.Kind == UIComponentSlotKind.Region && slot.Key is { } key && key.StartsWith("tab-action:", StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 }

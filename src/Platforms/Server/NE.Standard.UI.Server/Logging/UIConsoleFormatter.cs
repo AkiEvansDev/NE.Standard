@@ -104,6 +104,15 @@ internal sealed class UIConsoleFormatter(IOptionsMonitor<SimpleConsoleFormatterO
     }
 
     internal static bool ShouldUseColors(UIConsoleLogOptions consoleOptions, LoggerColorBehavior colorBehavior)
+        => ShouldUseColors(
+            consoleOptions,
+            colorBehavior,
+            Console.IsOutputRedirected,
+            Environment.GetEnvironmentVariable("NO_COLOR"),
+            Environment.GetEnvironmentVariable("TERM")
+        );
+
+    internal static bool ShouldUseColors(UIConsoleLogOptions consoleOptions, LoggerColorBehavior colorBehavior, bool isOutputRedirected, string? noColor, string? term)
     {
         if (!consoleOptions.UseColors || colorBehavior == LoggerColorBehavior.Disabled)
             return false;
@@ -111,7 +120,9 @@ internal sealed class UIConsoleFormatter(IOptionsMonitor<SimpleConsoleFormatterO
         if (colorBehavior == LoggerColorBehavior.Enabled)
             return true;
 
-        return !Console.IsOutputRedirected && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NO_COLOR"));
+        return !isOutputRedirected
+            && string.IsNullOrEmpty(noColor)
+            && !string.Equals(term, "dumb", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static string GetLevelAnsi(LogLevel logLevel)

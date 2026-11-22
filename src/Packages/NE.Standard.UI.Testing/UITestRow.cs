@@ -29,6 +29,10 @@ public sealed class UITestRow
     /// <summary>Gets the component the row's template drew it with: the variant its item names, a composite's row, else the list's template.</summary>
     public UITestComponent Root => new(_page, _row.Root);
 
+    /// <summary>Gets the component in the composite variant slot <paramref name="variantKey"/> for this row, or <see langword="null"/> where the host defines none.</summary>
+    public UITestComponent? Slot(string variantKey, string? variantKeyPropertyName = null)
+        => _row.Slot(variantKey, variantKeyPropertyName) is { } slot ? new UITestComponent(_page, slot) : null;
+
     /// <summary>Gets the component shown on a right click or a long press on the row.</summary>
     public UITestComponent ContextMenu => new(_page, _row.ContextMenu);
 

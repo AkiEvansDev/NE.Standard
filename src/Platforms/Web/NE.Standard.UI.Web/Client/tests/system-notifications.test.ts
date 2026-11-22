@@ -93,14 +93,16 @@ test("a browser that refuses the page's own notification answers false, for the 
     assert.equal(await showSystemNotification(Request, () => undefined, services), false);
 });
 
-test("a desktop host bridge takes precedence over a registered service worker and forwards clicks", async () => {
+test("a desktop host bridge takes precedence over a registered service worker and forwards bringTo and clicks", async () => {
     const { services: base, shown } = browser("granted", { worker: true });
+    let capturedRequest: SystemNotificationRequest | undefined;
     let capturedClick: (() => void) | undefined;
     let clicked = 0;
 
     const services: SystemNotificationServices = {
         ...base,
-        desktop: (_request, onClick) => {
+        desktop: (request, onClick) => {
+            capturedRequest = request;
             capturedClick = onClick;
             return Promise.resolve(true);
         }
@@ -108,6 +110,8 @@ test("a desktop host bridge takes precedence over a registered service worker an
 
     assert.equal(await showSystemNotification(Request, () => clicked++, services), true);
     assert.equal(shown.length, 0);
+    assert.equal(capturedRequest?.bringTo, "/chat?id=42");
+    assert.equal(capturedRequest?.address, "/chat?id=42");
     capturedClick?.();
     assert.equal(clicked, 1);
 });

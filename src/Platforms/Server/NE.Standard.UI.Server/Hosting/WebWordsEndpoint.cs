@@ -33,10 +33,10 @@ internal static class WebWordsEndpoint
     /// <summary>The path the words are served under.</summary>
     public const string Prefix = "/_ne/words/";
 
-    // How many languages' words are held per translator; past it a table is built for its request.
+    // How many languages' words are held per application; past it a table is built for its request.
     private const int MaxHeldLanguages = 64;
 
-    private static readonly ConditionalWeakTable<ITranslator, ConcurrentDictionary<string, WebWordsAsset>> Held = [];
+    private static readonly ConditionalWeakTable<UIApplication, ConcurrentDictionary<string, WebWordsAsset>> Held = [];
 
     public static void Map(IEndpointRouteBuilder endpoints)
     {
@@ -47,7 +47,7 @@ internal static class WebWordsEndpoint
 
     /// <summary>
     /// The words a page of <paramref name="language"/> translates by — its own language's table when the translator lists it, else the
-    /// default language's — built on first use under the application's options and held with its translator.
+    /// default language's — built on first use under the application's options and held with its application.
     /// </summary>
     public static WebWordsAsset Resolve(UIApplication application, string? language, IEnumerable<IUIStringsSource> packages)
     {
@@ -56,7 +56,7 @@ internal static class WebWordsEndpoint
 
         ITranslator translator = application.Translator;
         var table = language is not null && translator.HasLanguage(language) ? language : translator.DefaultLanguage;
-        ConcurrentDictionary<string, WebWordsAsset> held = Held.GetValue(translator, static _ => new ConcurrentDictionary<string, WebWordsAsset>(StringComparer.Ordinal));
+        ConcurrentDictionary<string, WebWordsAsset> held = Held.GetValue(application, static _ => new ConcurrentDictionary<string, WebWordsAsset>(StringComparer.Ordinal));
 
         if (held.TryGetValue(table, out WebWordsAsset? asset))
             return asset;

@@ -961,7 +961,7 @@ public static class UIPage
     {
         PresetWords.Require(title);
 
-        return Drawer(id, side, UIText.Subtitle(title), subheader: null, body, footer, pinnable, actions);
+        return Drawer(id, side, UIText.Subtitle(title).SetTooltip(title).SetTitleColor(UIThemeColor.OnBackground), subheader: null, body, footer, pinnable, actions);
     }
 
     /// <summary>

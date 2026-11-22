@@ -117,13 +117,21 @@ public static class WebWords
     {
         ArgumentNullException.ThrowIfNull(phrase);
 
-        if (phrase.IsText || phrase.Arguments is not { } arguments || !HoldsPageWritten(arguments))
+        if (!HoldsPageWritten(phrase))
             return null;
 
         StringBuilder text = new("[");
 
-        AppendPageWritten(text, arguments);
+        AppendPageWritten(text, phrase.Arguments!);
         return text.Append(']').ToString();
+    }
+
+    /// <summary>Whether the phrase carries a moment or a file size that the page formats itself, directly or in a nested phrase.</summary>
+    public static bool HoldsPageWritten(UIPhrase phrase)
+    {
+        ArgumentNullException.ThrowIfNull(phrase);
+
+        return !phrase.IsText && phrase.Arguments is { } arguments && HoldsPageWritten(arguments);
     }
 
     private static bool HoldsPageWritten(IReadOnlyDictionary<string, object?> arguments)

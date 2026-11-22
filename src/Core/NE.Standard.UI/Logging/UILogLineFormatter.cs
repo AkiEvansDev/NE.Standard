@@ -133,20 +133,79 @@ public static class UILogLineFormatter
             return category.AsSpan();
 
         ReadOnlySpan<char> span = category.AsSpan();
-        var end = span.Length;
 
-        if (span[^1] is ']' or '>')
+        if (span.IndexOfAny('[', '<', '`') < 0)
         {
-            var open = span.IndexOfAny('[', '<');
+            var dot = span.LastIndexOf('.');
 
-            if (open > 0)
-                end = open;
+            return dot >= 0 && dot + 1 < span.Length ? span[(dot + 1)..] : span;
         }
 
-        ReadOnlySpan<char> head = span[..end];
-        var dot = head.LastIndexOf('.');
+        return TrimGenericCategory(span);
+    }
 
-        return dot >= 0 && dot + 1 < head.Length ? head[(dot + 1)..] : head;
+    private static ReadOnlySpan<char> TrimGenericCategory(ReadOnlySpan<char> span)
+    {
+        var depth = 0;
+        var lastOuterDot = -1;
+
+        for (var i = 0; i < span.Length; i++)
+        {
+            var ch = span[i];
+            if (ch is '[' or '<')
+                depth++;
+            else if (ch is ']' or '>' && depth > 0)
+                depth--;
+            else if (ch == '.' && depth == 0)
+                lastOuterDot = i;
+        }
+
+        if (depth != 0)
+        {
+            var fallbackDot = span.LastIndexOf('.');
+
+            return fallbackDot >= 0 && fallbackDot + 1 < span.Length ? span[(fallbackDot + 1)..] : span;
+        }
+
+        ReadOnlySpan<char> tail = lastOuterDot >= 0 && lastOuterDot + 1 < span.Length ? span[(lastOuterDot + 1)..] : span;
+        var firstGenericMarker = tail.IndexOfAny('[', '<', '`');
+
+        if (firstGenericMarker < 0)
+            return tail;
+
+        StringBuilder trimmed = new(tail.Length);
+
+        for (var i = 0; i < tail.Length; i++)
+        {
+            var ch = tail[i];
+
+            if (ch is '[' or '<')
+            {
+                var nestedDepth = 1;
+                while (i + 1 < tail.Length && nestedDepth > 0)
+                {
+                    i++;
+                    if (tail[i] is '[' or '<')
+                        nestedDepth++;
+                    else if (tail[i] is ']' or '>')
+                        nestedDepth--;
+                }
+
+                continue;
+            }
+
+            if (ch == '`')
+            {
+                while (i + 1 < tail.Length && char.IsAsciiDigit(tail[i + 1]))
+                    i++;
+
+                continue;
+            }
+
+            _ = trimmed.Append(ch);
+        }
+
+        return trimmed.Length > 0 ? trimmed.ToString().AsSpan() : tail;
     }
 
     private static void AppendScopes(StringBuilder builder, IExternalScopeProvider scopeProvider)

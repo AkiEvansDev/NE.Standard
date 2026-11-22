@@ -3,7 +3,7 @@
 // focus is in a panel beside it, so a press in an emoji flyout inserts where the reader stopped.
 
 // `.ts` on the value imports: `node --test` loads this module as it is.
-import { InputDebounceAttribute, MenuItemValueClass } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, InputDebounceAttribute, MenuItemValueClass } from "../addressing/dom-attributes.ts";
 import { isCaretField } from "../interactions/caret-fields.ts";
 import { isInert, isReadOnly } from "../interactions/interactive-state.ts";
 import { insertTextAsTyped } from "../interactions/legacy-commands.ts";
@@ -67,7 +67,7 @@ function caretFieldOf(component: Element): CaretField | null {
         return component;
 
     for (const candidate of component.querySelectorAll("input, textarea")) {
-        if (isCaretField(candidate))
+        if (isCaretField(candidate) && candidate.closest(ComponentSelector) === component)
             return candidate;
     }
 

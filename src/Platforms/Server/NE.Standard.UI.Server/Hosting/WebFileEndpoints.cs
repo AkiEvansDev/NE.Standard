@@ -77,9 +77,7 @@ internal static partial class WebFileEndpoints
         WebSessionAllowance allowance = services.GetRequiredService<WebSessionAllowance>();
         ILoggerFactory? loggerFactory = services.GetService<ILoggerFactory>();
         using WebSessionAllowance.Claim claim = allowance.Open(sessionId, limits.MaxUploadBytesPerSession, limits.MaxUploadBytesTotal ?? 0);
-
-        var storedSince = allowance.CommittedSince(DateTime.UtcNow - limits.UploadRetention - limits.CleanupInterval);
-        claim.HoldElsewhere(await store.GetUploadedBytesAsync(sessionId, cancellationToken).ConfigureAwait(false), storedSince);
+        await HoldStoredBytesAsync(allowance, claim, store, limits, sessionId, cancellationToken).ConfigureAwait(false);
 
         var selectionId = Guid.NewGuid().ToString("N");
         var totalBytes = 0L;
@@ -91,15 +89,13 @@ internal static partial class WebFileEndpoints
             for (var i = 0; i < candidates.Count; i++)
             {
                 LocalUploadCandidate candidate = candidates[i];
-                FileInfo info = new(candidate.Path);
-                if (!info.Exists)
+                if (!TryProbeLocalFile(candidate.Path, out var fullPath, out var fileLength))
                     return new LocalUploadOutcome(Handled: false);
 
-                var fileLength = info.Length;
                 if (fileLength > limits.MaxFileSize)
                     return new LocalUploadOutcome(Handled: true, Error: $"A file may be at most {limits.MaxFileSize} bytes.");
 
-                var fileName = ReduceFileName(candidate.Name) ?? ReduceFileName(info.Name) ?? "upload";
+                var fileName = ReduceFileName(candidate.Name) ?? ReduceFileName(Path.GetFileName(fullPath)) ?? "upload";
 
                 // Zero-copy local files leave bytes on the user's disk, so only metadata overhead is charged (matching FileSystemUIFileStore.RegisterLocalUploadAsync).
                 if (!claim.TryReserve(UIAllowanceCharge.Overhead(fileName)))
@@ -107,7 +103,7 @@ internal static partial class WebFileEndpoints
 
                 var contentType = string.IsNullOrWhiteSpace(candidate.ContentType) ? null : candidate.ContentType;
                 UIUploadFile uploaded = await store
-                    .RegisterLocalUploadAsync(sessionId, selectionId, candidate.Path, fileName, contentType, cancellationToken)
+                    .RegisterLocalUploadAsync(sessionId, selectionId, fullPath, fileName, contentType, cancellationToken)
                     .ConfigureAwait(false);
 
                 registeredCount++;
@@ -125,6 +121,36 @@ internal static partial class WebFileEndpoints
 
         services.GetService<WebUIMetrics>()?.FileUploaded(totalBytes);
         return new LocalUploadOutcome(Handled: true, SelectionId: selectionId);
+    }
+
+    private static async Task HoldStoredBytesAsync(WebSessionAllowance allowance, WebSessionAllowance.Claim claim, IUIFileStore store, UIFileOptions limits, string sessionId, CancellationToken cancellationToken)
+    {
+        var sessionBytes = await store.GetUploadedBytesAsync(sessionId, cancellationToken).ConfigureAwait(false);
+        var totalBytes = await store.GetTotalUploadedBytesAsync(cancellationToken).ConfigureAwait(false)
+            ?? allowance.CommittedSince(DateTime.UtcNow - limits.UploadRetention - limits.CleanupInterval);
+
+        claim.HoldElsewhere(sessionBytes, totalBytes);
+    }
+
+    private static bool TryProbeLocalFile(string? path, out string fullPath, out long length)
+    {
+        fullPath = string.Empty;
+        length = 0;
+
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+            using FileStream probe = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.SequentialScan);
+            length = probe.Length;
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -169,12 +195,7 @@ internal static partial class WebFileEndpoints
         // Bytes count as they arrive, against what the session holds and what its other uploads are still sending, so parallel
         // requests share the allowance rather than each reading it whole; and against what every session holds and sends.
         using WebSessionAllowance.Claim claim = uploads.Open(sessionId, limits.MaxUploadBytesPerSession, limits.MaxUploadBytesTotal ?? 0);
-
-        // The store answers what one session holds but not what all of them do; every upload this process stored within the
-        // retention, and the sweep's interval after it, bounds that from above.
-        var storedSince = uploads.CommittedSince(DateTime.UtcNow - limits.UploadRetention - limits.CleanupInterval);
-
-        claim.HoldElsewhere(await store.GetUploadedBytesAsync(sessionId, cancellationToken).ConfigureAwait(false), storedSince);
+        await HoldStoredBytesAsync(uploads, claim, store, limits, sessionId, cancellationToken).ConfigureAwait(false);
 
         var remaining = claim.Remaining;
 
@@ -389,11 +410,23 @@ internal static partial class WebFileEndpoints
         if (string.IsNullOrWhiteSpace(fileId))
             return Results.NotFound();
 
-        UIUploadFile? file = await store.GetUploadAsync(sessionId, fileId, cancellationToken).ConfigureAwait(false);
-        Stream? content = file is null ? null : await store.OpenUploadAsync(sessionId, fileId, cancellationToken).ConfigureAwait(false);
+        UIUploadFile? file;
+        Stream? content;
+
+        try
+        {
+            file = await store.GetUploadAsync(sessionId, fileId, cancellationToken).ConfigureAwait(false);
+            content = file is null ? null : await store.OpenUploadAsync(sessionId, fileId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return Results.NotFound();
+        }
 
         if (file is null || content is null)
             return Results.NotFound();
+
+        http.Response.RegisterForDispose(content);
 
         var contentType = string.IsNullOrEmpty(file.ContentType) ? "application/octet-stream" : file.ContentType;
 
@@ -426,6 +459,8 @@ internal static partial class WebFileEndpoints
         // Not found rather than forbidden: telling a caller a token exists but isn't theirs is telling them it exists.
         if (staged is null)
             return Results.NotFound();
+
+        http.Response.RegisterForDispose(staged);
 
         // One fetch of one session's file: nothing between here and the browser may keep a copy.
         http.Response.Headers.CacheControl = "no-store";

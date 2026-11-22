@@ -109,6 +109,9 @@ internal static class WebRequestGuards
 
         private void Track(int count)
         {
+            if (count <= 0)
+                return;
+
             _read += count;
 
             if (_read > limit)

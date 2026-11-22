@@ -456,7 +456,12 @@ function moveDay(day: Date, key: string, firstDay: number, shift: boolean): Date
 }
 
 function readFirstDay(root: HTMLElement): number {
-    const firstDay = Number(root.getAttribute(TemporalFirstDayAttribute));
+    const raw = root.getAttribute(TemporalFirstDayAttribute)?.trim() ?? "";
+
+    if (raw.length === 0)
+        return 1;
+
+    const firstDay = Number(raw);
 
     return Number.isInteger(firstDay) && firstDay >= 0 && firstDay <= 6 ? firstDay : 1;
 }

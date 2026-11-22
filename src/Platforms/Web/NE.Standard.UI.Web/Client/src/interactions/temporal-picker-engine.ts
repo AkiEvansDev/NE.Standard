@@ -28,6 +28,8 @@ export type TemporalPickerEngineOptions = {
     readonly propertyPatchEngine?: PropertyPatchTarget;
     /** Where a typed value written back says why, on the field's line. */
     readonly validation?: FieldValidation;
+    /** Keeps `CommitGate`'s committed snapshot in step when a picker popup or server value updates the display input. */
+    readonly noteCommitted?: (field: HTMLInputElement, track: boolean) => void;
 };
 
 /**
@@ -90,7 +92,7 @@ export class TemporalPickerEngine {
             for (const picker of pickers)
                 this.reconcileRefused(picker, pushedValue ? change.propertyName === "EndValue" : undefined);
 
-            this.applyDisplay(pickers);
+            this.applyDisplay(pickers, pushedValue);
 
             for (const picker of pickers) {
                 // A calendar in place turns to a value the controller pushed, as it opens on its value; a popup keeps the month it shows.
@@ -107,7 +109,7 @@ export class TemporalPickerEngine {
         observeComponents(this.root, TemporalRootSelector, { attributeFilter: [...PickerAttributes] }, pickers => {
             for (const picker of pickers) {
                 this.reconcileRefused(picker);
-                this.applyDisplay([picker]);
+                this.applyDisplay([picker], true);
 
                 if (this.isShowing(picker))
                     this.renderSurface(picker);
@@ -202,7 +204,7 @@ export class TemporalPickerEngine {
     }
 
     // Formatted here, not server-side, so a live patch and the initial render produce the same string; formatTemporal mirrors WebTemporalFormat.
-    private applyDisplay(pickers: Iterable<HTMLElement>): void {
+    private applyDisplay(pickers: Iterable<HTMLElement>, committed = false): void {
         for (const picker of pickers) {
             const placeholder = temporalPlaceholder(readFormat(picker), placeholderLetters());
             // A format of digits alone asks a phone for its digit keyboard rather than its letters.
@@ -229,12 +231,15 @@ export class TemporalPickerEngine {
 
                 if (value !== null) {
                     field.value = formatTemporal(value, readFormat(picker), readCulturePack(picker));
+                    this.options.noteCommitted?.(field, committed);
                     continue;
                 }
 
                 // Only an explicitly empty value clears the field: text that failed to parse is left for the user to see.
-                if (canonical.length === 0)
+                if (canonical.length === 0) {
                     field.value = "";
+                    this.options.noteCommitted?.(field, committed);
+                }
             }
         }
     }
@@ -529,7 +534,7 @@ export class TemporalPickerEngine {
         if (isInline(picker) && `${start?.value ?? ""}|${valueInputOf(picker, true)?.value ?? ""}` === before)
             start?.dispatchEvent(new Event("change", { bubbles: true }));
 
-        this.applyDisplay([picker]);
+        this.applyDisplay([picker], true);
         this.renderSurface(picker);
     }
 
@@ -553,7 +558,7 @@ export class TemporalPickerEngine {
         // other past them; clamped again past the hold for an other end the server put where none keeps the distance.
         writeValueOf(picker, value === null ? null : clampToRange(picker, holdPeriodEnd(picker, clampToRange(picker, value, end), end), end), end);
         orderPeriod(picker);
-        this.applyDisplay([picker]);
+        this.applyDisplay([picker], true);
 
         if (this.isShowing(picker))
             this.renderSurface(picker);

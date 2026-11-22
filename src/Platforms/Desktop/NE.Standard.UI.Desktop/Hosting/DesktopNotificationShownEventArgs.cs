@@ -8,11 +8,12 @@ public sealed class DesktopNotificationShownEventArgs : EventArgs
     private readonly Action _activate;
     private readonly Action _dismiss;
 
-    internal DesktopNotificationShownEventArgs(string title, string? body, string? tag, bool silent, bool requireInteraction, Action activate, Action dismiss)
+    internal DesktopNotificationShownEventArgs(string title, string? body, string? tag, string? bringTo, bool silent, bool requireInteraction, Action activate, Action dismiss)
     {
         Title = title ?? throw new ArgumentNullException(nameof(title));
         Body = body;
         Tag = tag;
+        BringTo = bringTo;
         Silent = silent;
         RequireInteraction = requireInteraction;
         _activate = activate ?? throw new ArgumentNullException(nameof(activate));
@@ -27,6 +28,9 @@ public sealed class DesktopNotificationShownEventArgs : EventArgs
 
     /// <summary>Gets the optional replacement tag.</summary>
     public string? Tag { get; }
+
+    /// <summary>Gets the optional local route or same-origin URL that clicking the notification navigates to.</summary>
+    public string? BringTo { get; }
 
     /// <summary>Gets whether notification audio is suppressed.</summary>
     public bool Silent { get; }

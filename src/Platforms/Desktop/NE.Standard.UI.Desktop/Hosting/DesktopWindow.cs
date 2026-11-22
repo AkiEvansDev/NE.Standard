@@ -138,10 +138,7 @@ public sealed class DesktopWindow : Window
             var hasUnsaved = await ShellControl.HasUnsavedWorkAsync().ConfigureAwait(true);
             if (hasUnsaved)
             {
-                if (WindowState == WindowState.Minimized)
-                    WindowState = _restoreWindowState;
-
-                _ = ShellControl.WebView.Focus();
+                BringWindowToFrontForInteraction();
 
                 var allowClose = await ShellControl.PromptConfirmCloseCoreAsync().ConfigureAwait(true);
                 if (!allowClose)
@@ -161,21 +158,7 @@ public sealed class DesktopWindow : Window
         }
     }
 
-    private void OnWindowClosed(object? sender, EventArgs e)
-    {
-        ShellControl.TitleChanged -= OnShellTitleChanged;
-        ShellControl.ThemeChanged -= OnShellThemeChanged;
-        ShellControl.WindowActivationRequested -= OnShellWindowActivationRequested;
-        ShellControl.Dispose();
-    }
-
-    private void OnShellTitleChanged(object? sender, EventArgs e)
-        => Title = ShellControl.DocumentTitle;
-
-    private void OnShellThemeChanged(object? sender, EventArgs e)
-        => ApplyWindowChrome();
-
-    private void OnShellWindowActivationRequested(object? sender, EventArgs e)
+    private void BringWindowToFrontForInteraction()
     {
         if (!IsVisible)
             Show();
@@ -194,4 +177,21 @@ public sealed class DesktopWindow : Window
         SyncShellSurfaceVisibility();
         _ = ShellControl.WebView.Focus();
     }
+
+    private void OnWindowClosed(object? sender, EventArgs e)
+    {
+        ShellControl.TitleChanged -= OnShellTitleChanged;
+        ShellControl.ThemeChanged -= OnShellThemeChanged;
+        ShellControl.WindowActivationRequested -= OnShellWindowActivationRequested;
+        ShellControl.Dispose();
+    }
+
+    private void OnShellTitleChanged(object? sender, EventArgs e)
+        => Title = ShellControl.DocumentTitle;
+
+    private void OnShellThemeChanged(object? sender, EventArgs e)
+        => ApplyWindowChrome();
+
+    private void OnShellWindowActivationRequested(object? sender, EventArgs e)
+        => BringWindowToFrontForInteraction();
 }

@@ -1188,7 +1188,8 @@
     },
     {
         "constant":  "FileMaxSizeAttribute",
-        "value":  "data-ui-file-max-size"
+        "value":  "data-ui-file-max-size",
+        "plugin":  "fileMaxSize"
     },
     {
         "constant":  "FilePickAttribute",

@@ -305,6 +305,46 @@ test("a pushed bound followed by the set's own Value reports nothing the Value a
     assert.deepEqual(slider.changes, []);
 });
 
+test("a pushed Value arriving before Max in the same change set is re-applied once Max lands and never reports the stale bound's clamp", async () => {
+    const slider = drawnSlider("20", "20");
+    let currentValue = "20";
+
+    slider.input.setAttribute("max", "50");
+    Object.defineProperty(slider.input, "value", {
+        get: () => currentValue,
+        set: (next: string) => {
+            const max = Number(slider.input.getAttribute("max") ?? "100");
+            const min = Number(slider.input.getAttribute("min") ?? "0");
+            const parsed = Number(next);
+
+            currentValue = Number.isFinite(parsed) ? String(Math.min(max, Math.max(min, parsed))) : next;
+        }
+    });
+
+    // Value = 80 arrives first while max is still 50 (clamping DOM value to 50), then Max = 100 lands in the same synchronous batch.
+    slider.input.value = "80";
+    slider.push("Value", 80);
+    assert.equal(slider.input.value, "50");
+    assert.deepEqual(slider.changes, []);
+
+    slider.input.setAttribute("max", "100");
+    slider.push("Max", 100);
+    await Promise.resolve();
+
+    assert.equal(slider.input.value, "80");
+    assert.deepEqual(slider.changes, []);
+
+    // When Value = 150 still exceeds the new Max = 120 in the same batch, the reported clamp is 120, never the stale 100.
+    slider.input.value = "150";
+    slider.push("Value", 150);
+    slider.input.setAttribute("max", "120");
+    slider.push("Max", 120);
+    await Promise.resolve();
+
+    assert.equal(slider.input.value, "120");
+    assert.deepEqual(slider.changes, ["120"]);
+});
+
 type Reference = { readonly componentId: number; readonly propertyId: string };
 
 const BandStart: Reference = { componentId: 1, propertyId: "band.value" };

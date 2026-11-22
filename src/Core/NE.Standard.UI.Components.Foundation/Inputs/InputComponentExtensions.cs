@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Interaction;
@@ -125,6 +126,104 @@ public static class InputComponentExtensions
     public static T Required<T>(this T component, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
         where T : IInputComponent
         => component.Validate(trigger, UIComparisonOperator.Required, null, message, severity);
+
+    /// <summary>
+    /// Adds a minimum-length validation rule using the framework's default <c>ui.value.length.min</c> message.
+    /// </summary>
+    public static T MinLength<T>(this T component, int min, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(min, 1);
+        return component.MinLength(min, UIPhrase.Of("ui.value.length.min", ("min", min)), trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds a minimum-length validation rule; its message is the author's text or a key.
+    /// </summary>
+    public static T MinLength<T>(this T component, int min, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(min, 1);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        return component.MinLength(min, UIPhrase.Text(message), trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds a minimum-length validation rule whose message is a phrase, such as a key with its arguments.
+    /// </summary>
+    public static T MinLength<T>(this T component, int min, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(min, 1);
+        return component.Validate(trigger, UIComparisonOperator.Regex, string.Create(CultureInfo.InvariantCulture, $"^[\\s\\S]{{{min},}}$"), message, severity);
+    }
+
+    /// <summary>
+    /// Adds a maximum-length validation rule using the framework's default <c>ui.value.length.max</c> message.
+    /// </summary>
+    public static T MaxLength<T>(this T component, int max, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(max, 1);
+        return component.MaxLength(max, UIPhrase.Of("ui.value.length.max", ("max", max)), trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds a maximum-length validation rule; its message is the author's text or a key.
+    /// </summary>
+    public static T MaxLength<T>(this T component, int max, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(max, 1);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        return component.MaxLength(max, UIPhrase.Text(message), trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds a maximum-length validation rule whose message is a phrase, such as a key with its arguments.
+    /// </summary>
+    public static T MaxLength<T>(this T component, int max, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(max, 1);
+        return component.Validate(trigger, UIComparisonOperator.Regex, string.Create(CultureInfo.InvariantCulture, $"^[\\s\\S]{{0,{max}}}$"), message, severity);
+    }
+
+    /// <summary>
+    /// Adds inclusive lower- and upper-bound validation rules using the framework's default <c>ui.value.range</c> message.
+    /// </summary>
+    public static T Range<T, TBound>(this T component, TBound min, TBound max, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+        where TBound : struct, IComparable<TBound>
+    {
+        OrderedRange.Validate<TBound>(min, max, null, "value");
+        return component.Range(min, max, UIPhrase.Of("ui.value.range", ("min", min), ("max", max)), trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds inclusive lower- and upper-bound validation rules; their message is the author's text or a key.
+    /// </summary>
+    public static T Range<T, TBound>(this T component, TBound min, TBound max, string message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+        where TBound : struct, IComparable<TBound>
+    {
+        OrderedRange.Validate<TBound>(min, max, null, "value");
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        return component.Range(min, max, UIPhrase.Text(message), trigger, severity);
+    }
+
+    /// <summary>
+    /// Adds inclusive lower- and upper-bound validation rules whose message is a phrase, such as a key with its arguments.
+    /// </summary>
+    public static T Range<T, TBound>(this T component, TBound min, TBound max, UIPhrase message, UIValidationTrigger trigger = UIValidationTrigger.Change, UIValidationSeverity severity = UIValidationSeverity.Error)
+        where T : IInputComponent
+        where TBound : struct, IComparable<TBound>
+    {
+        OrderedRange.Validate<TBound>(min, max, null, "value");
+        return component
+            .Validate(trigger, UIComparisonOperator.GreaterOrEqual, min, message, severity)
+            .Validate(trigger, UIComparisonOperator.LessOrEqual, max, message, severity);
+    }
 
     /// <summary>
     /// Adds a regular-expression validation rule; its message is the author's text or a key.

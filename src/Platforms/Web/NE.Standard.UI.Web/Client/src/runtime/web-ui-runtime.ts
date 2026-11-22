@@ -69,7 +69,7 @@ import {
     switchRuntimeLanguageAsync, wireTransportCallbacks
 } from "./runtime-words";
 import { StashedPage, UnsavedStash } from "./unsaved-stash";
-import { readHydration, scheduleHydratedPageWritten } from "./web-hydration";
+import { readHydration, scheduleHydratedItemsHosts, scheduleHydratedPageWritten } from "./web-hydration";
 import { getOrCreateWindowId } from "./window-id";
 
 export type { Badges, Icons, PluginEngine, PluginEngineContext, PropertyWriting, Urls } from "./component-engines";
@@ -456,7 +456,11 @@ export class WebUIRuntime {
 
         this.hydrate();
         this.startEnginesAwaitingHydration();
-        releaseRegions(this.root);
+
+        if (this.inbound === null)
+            releaseRegions(this.root);
+        else
+            void this.inbound.finally(() => releaseRegions(this.root));
         this.clientState.start();
 
         if (!await connected)
@@ -503,12 +507,18 @@ export class WebUIRuntime {
         this.dom.rebuild();
         this.updateProcessor.registerServerRenderedItems(changes);
         const applied = this.applyChanges(changes);
-        this.updateProcessor.initializeItemsHosts();
+        scheduleHydratedItemsHosts(
+            applied,
+            () => this.disposed,
+            () => this.updateProcessor.initializeItemsHosts(),
+            (next, expected) => this.setInbound(next, expected),
+            error => logWarn("the page's items hosts could not be initialized.", error)
+        );
 
         if (holdsPaintedPageWritten(this.root, this.hydration, this.metadata)) {
             scheduleHydratedPageWritten(
                 this.hydration,
-                applied,
+                this.inbound ?? undefined,
                 () => clientStrings.hasTable,
                 () => this.disposed,
                 () => this.rewritePageWritten(),

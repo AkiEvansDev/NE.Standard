@@ -6,7 +6,7 @@
 // takes Escape as a cancel: it goes back to the value it last committed, sending nothing typed since, leaves as any field does, and
 // then raises `escape`.
 
-import { CommitInPlaceEventName, cssAttributeValue, FormIdAttribute, RunsOnEnterAttribute, SubmitFormIdAttribute, SubmitOnEnterAttribute } from "../addressing/dom-attributes.ts";
+import { CommitInPlaceEventName, ComponentSelector, cssAttributeValue, FormIdAttribute, RunsOnEnterAttribute, SubmitFormIdAttribute, SubmitOnEnterAttribute } from "../addressing/dom-attributes.ts";
 import type { EventRegistration } from "../events/event-descriptor.ts";
 import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { isCaretInput } from "./caret-fields.ts";
@@ -29,35 +29,43 @@ export const FieldEnterEvent: { readonly name: string; readonly registration: Om
 export type FieldKeysEngineOptions = {
     readonly root?: ParentNode;
     readonly propertyPatchEngine?: Pick<PropertyPatchTarget, "addValueChangeHandler" | "writeBoundValue">;
+    /** Clears uncommitted dirty and buffered state on `field` before `CancelOnEscape` blurs it. */
+    readonly discardDraft?: (field: HTMLInputElement | HTMLTextAreaElement) => void;
 };
 
 export class FieldKeysEngine {
     private readonly root: ParentNode;
 
-    // The browser raises a change only for typed input, so these tell whether any other arrival still needs committing: the value the
-    // field held when it took the focus or last committed, and how many changes were raised.
-    private committedValue = "";
+    // Per-field snapshots so switching focus between fields (or opening a find input inside an expanded editor) never cross-contaminates state.
+    private readonly committedOnFocus = new WeakMap<HTMLInputElement | HTMLTextAreaElement, string>();
+    private readonly lastCommitted = new WeakMap<HTMLInputElement | HTMLTextAreaElement, string>();
+    private readonly trackedFields = new Set<HTMLInputElement | HTMLTextAreaElement>();
     private changes = 0;
 
     // Fields typed into since their last change: a field that keeps the focus may be given, after a pushed clear, the very text it
     // last committed, which the value alone would take for committed.
     private readonly edited = new WeakSet<EventTarget>();
 
-    // What a cancel puts back: the field the focus is in and the value it last committed — its own at the focus, a change's, a push's.
-    private focusedField: HTMLInputElement | HTMLTextAreaElement | null = null;
-    private lastCommitted = "";
-
     private readonly propertyPatchEngine: FieldKeysEngineOptions["propertyPatchEngine"];
+    private readonly discardDraft: FieldKeysEngineOptions["discardDraft"];
 
     public constructor(options: FieldKeysEngineOptions = {}) {
         this.root = options.root ?? document;
         this.propertyPatchEngine = options.propertyPatchEngine;
+        this.discardDraft = options.discardDraft;
 
         this.root.addEventListener("focusin", domEvent => {
             if (domEvent.target instanceof HTMLInputElement || domEvent.target instanceof HTMLTextAreaElement) {
-                this.committedValue = domEvent.target.value;
-                this.focusedField = domEvent.target;
-                this.lastCommitted = domEvent.target.value;
+                this.pruneTracked();
+                this.trackedFields.add(domEvent.target);
+
+                if (!this.edited.has(domEvent.target)) {
+                    this.committedOnFocus.set(domEvent.target, domEvent.target.value);
+                    this.lastCommitted.set(domEvent.target, domEvent.target.value);
+                }
+                else if (!this.lastCommitted.has(domEvent.target)) {
+                    this.lastCommitted.set(domEvent.target, domEvent.target.defaultValue);
+                }
             }
         });
         this.root.addEventListener("input", domEvent => {
@@ -67,15 +75,17 @@ export class FieldKeysEngine {
         this.root.addEventListener("change", domEvent => {
             this.changes++;
 
-            if (domEvent.target !== null)
+            if (domEvent.target instanceof HTMLInputElement || domEvent.target instanceof HTMLTextAreaElement) {
                 this.edited.delete(domEvent.target);
+                this.lastCommitted.set(domEvent.target, domEvent.target.value);
 
-            if (domEvent.target === this.focusedField && this.focusedField !== null)
-                this.lastCommitted = this.focusedField.value;
-
-            // A text area's alone: an input's text may be rewritten around its change (a number's invariant text), a text area's never.
-            if (domEvent.target instanceof HTMLTextAreaElement)
-                this.committedValue = domEvent.target.value;
+                // A text area's alone: an input's text may be rewritten around its change (a number's invariant text), a text area's never.
+                if (domEvent.target instanceof HTMLTextAreaElement)
+                    this.committedOnFocus.set(domEvent.target, domEvent.target.value);
+            }
+            else if (domEvent.target !== null) {
+                this.edited.delete(domEvent.target);
+            }
         }, true);
         this.root.addEventListener("keydown", domEvent => this.handleKeydown(domEvent as KeyboardEvent));
         this.root.addEventListener(CommitInPlaceEventName, domEvent => {
@@ -83,14 +93,30 @@ export class FieldKeysEngine {
                 this.commitInPlace(domEvent.target);
         });
 
-        // A value pushed into the focused field is what the server holds now: a cancel goes back to it. Not the page's own echo of what
+        // A value pushed into a tracked field is what the server holds now: a cancel goes back to it. Not the page's own echo of what
         // is being typed (a local change while the field holds an edit), which is no commit: taken for one, the cancel had nothing to undo.
         options.propertyPatchEngine?.addValueChangeHandler(change => {
-            const field = this.focusedField;
+            for (const field of [...this.trackedFields]) {
+                if (!field.isConnected) {
+                    this.trackedFields.delete(field);
+                    continue;
+                }
 
-            if (field !== null && !(change.local && this.edited.has(field)) && change.components.some(component => component.contains(field)))
-                this.lastCommitted = field.value;
+                if (!(change.local && this.edited.has(field)) && change.components.some(component => component.contains(field))) {
+                    this.lastCommitted.set(field, field.value);
+
+                    if (!this.edited.has(field))
+                        this.committedOnFocus.set(field, field.value);
+                }
+            }
         });
+    }
+
+    private pruneTracked(): void {
+        for (const field of this.trackedFields) {
+            if (!field.isConnected)
+                this.trackedFields.delete(field);
+        }
     }
 
     private handleKeydown(domEvent: KeyboardEvent): void {
@@ -165,8 +191,14 @@ export class FieldKeysEngine {
         dropWaiting(field);
         this.edited.delete(field);
 
-        if (field === this.focusedField && field.value !== this.lastCommitted)
-            this.putBack(field, this.lastCommitted);
+        const restored = this.lastCommitted.get(field);
+
+        if (restored !== undefined && field.value !== restored)
+            this.putBack(field, restored);
+
+        this.committedOnFocus.set(field, field.value);
+        this.lastCommitted.set(field, field.value);
+        this.discardDraft?.(field);
 
         const holder = focusHolderAround(field);
 
@@ -186,7 +218,7 @@ export class FieldKeysEngine {
 
     /** The button that submits the field's form, pressed after the field let go of its value. */
     private submitForm(field: HTMLInputElement | HTMLTextAreaElement): void {
-        const formId = field.getAttribute(FormIdAttribute);
+        const formId = field.getAttribute(FormIdAttribute) ?? field.closest(ComponentSelector)?.getAttribute(FormIdAttribute) ?? null;
 
         if (formId === null || formId.length === 0)
             return;
@@ -199,8 +231,9 @@ export class FieldKeysEngine {
 
     private leave(field: HTMLInputElement | HTMLTextAreaElement): void {
         const changesBefore = this.changes;
+        const snapshot = this.committedOnFocus.get(field);
         // Read before the blur, which formats a number field at rest and would make its text differ from the edit text it took on focus.
-        const dirty = this.edited.has(field) || field.value !== this.committedValue;
+        const dirty = this.edited.has(field) || (snapshot !== undefined && field.value !== snapshot);
         const holder = focusHolderAround(field);
 
         field.blur();
@@ -213,7 +246,12 @@ export class FieldKeysEngine {
 
     /** Commits a field that keeps the focus: what was typed since its last change goes, even the text it committed before a clear. */
     private commitInPlace(field: HTMLInputElement | HTMLTextAreaElement): void {
-        if (this.edited.has(field) || field.value !== this.committedValue)
+        if (field.readOnly || isInert(field))
+            return;
+
+        const snapshot = this.committedOnFocus.get(field);
+
+        if (this.edited.has(field) || (snapshot !== undefined && field.value !== snapshot))
             field.dispatchEvent(new Event("change", { bubbles: true }));
     }
 }

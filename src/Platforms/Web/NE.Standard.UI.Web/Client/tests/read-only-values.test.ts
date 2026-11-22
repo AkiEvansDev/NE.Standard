@@ -95,10 +95,11 @@ function slider(state: string): { readonly input: FakeInput; readonly changes: F
     };
 }
 
-test("a slider's value pushed past Max is reported back while it is editable, and only shown clamped while it is not", () => {
+test("a slider's value pushed past Max is reported back while it is editable, and only shown clamped while it is not", async () => {
     const editable = slider(Editable);
 
     editable.push(150);
+    await Promise.resolve();
 
     assert.equal(editable.changes.length, 1);
 
@@ -106,6 +107,7 @@ test("a slider's value pushed past Max is reported back while it is editable, an
         const fixed = slider(state);
 
         fixed.push(150);
+        await Promise.resolve();
 
         assert.equal(fixed.changes.length, 0, `${state} reported the clamp`);
     }

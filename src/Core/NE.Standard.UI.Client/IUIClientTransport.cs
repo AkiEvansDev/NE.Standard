@@ -71,6 +71,9 @@ public interface IUIClientTransport
     /// <summary>Notifies the current runtime of an in-place navigation to another history entry of the same route.</summary>
     Task<UICommandExecutionResult> NavigateInPlaceAsync(IReadOnlyDictionary<string, object?>? parameters, CancellationToken cancellationToken = default);
 
+    /// <summary>Asks the runtime whether the page may leave for <paramref name="target"/>, running <c>OnLeaveRequestedAsync</c> when holding unsaved work.</summary>
+    Task<UICommandExecutionResult> RequestLeaveAsync(string target, CancellationToken cancellationToken = default);
+
     /// <summary>Flushes pending server-originated changes for this page's runtime.</summary>
     Task<ServerChangeSet> FlushAsync(CancellationToken cancellationToken = default);
 

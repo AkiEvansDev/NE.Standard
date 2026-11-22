@@ -43,6 +43,9 @@ public sealed class UITestComponent
     /// <summary>Gets whether a reader can act on it: neither it nor an ancestor disabled or loading.</summary>
     public bool IsEnabled => _component.IsEnabled;
 
+    /// <summary>Gets whether this field currently stands open in the full-height expanded field modal.</summary>
+    public bool IsExpanded => _component.IsExpanded;
+
     /// <summary>Gets the validation message the field shows, in the page's language, or <see langword="null"/> for none.</summary>
     public string? ValidationMessage => _component.ValidationMessage;
 

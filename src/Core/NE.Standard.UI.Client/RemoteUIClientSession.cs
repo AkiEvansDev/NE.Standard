@@ -21,6 +21,7 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
 
     private readonly Func<HttpMessageHandler>? _handlerFactory;
     private readonly List<RemoteUIClientTransport> _transports = [];
+    private readonly Dictionary<string, ArmedSessionRotation> _armedRotations = [with(StringComparer.Ordinal)];
     private readonly Lock _rotationSync = new();
     private Task _sessionKeyRotation = Task.CompletedTask;
     private bool _disposed;
@@ -95,15 +96,54 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
         }
     }
 
-    internal async Task TradeSessionKeyAsync(byte[] body, CancellationToken cancellationToken)
+    internal void ArmSessionKeyRotation(string token)
     {
-        Task previous;
-        TaskCompletionSource next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (string.IsNullOrWhiteSpace(token))
+            return;
 
         lock (_rotationSync)
         {
-            previous = _sessionKeyRotation;
-            _sessionKeyRotation = next.Task;
+            if (_disposed || _armedRotations.ContainsKey(token))
+                return;
+
+            Task previous = _sessionKeyRotation;
+            TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            _sessionKeyRotation = completion.Task;
+            _armedRotations[token] = new ArmedSessionRotation(previous, completion);
+        }
+    }
+
+    internal void CancelArmedSessionKeyRotation(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return;
+
+        ArmedSessionRotation? armed;
+        lock (_rotationSync)
+            _ = _armedRotations.Remove(token, out armed);
+
+        if (armed is not null)
+            _ = armed.Completion.TrySetResult();
+    }
+
+    internal async Task TradeSessionKeyAsync(string token, byte[] body, CancellationToken cancellationToken)
+    {
+        Task previous;
+        TaskCompletionSource next;
+
+        lock (_rotationSync)
+        {
+            if (_armedRotations.Remove(token, out ArmedSessionRotation? armed))
+            {
+                previous = armed.Previous;
+                next = armed.Completion;
+            }
+            else
+            {
+                previous = _sessionKeyRotation;
+                next = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _sessionKeyRotation = next.Task;
+            }
         }
 
         try
@@ -158,6 +198,7 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
             return;
 
         _disposed = true;
+        ReleaseArmedRotations();
 
         RemoteUIClientTransport[] active;
         lock (_transports)
@@ -179,6 +220,7 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
             return;
 
         _disposed = true;
+        ReleaseArmedRotations();
 
         RemoteUIClientTransport[] active;
         lock (_transports)
@@ -195,6 +237,21 @@ public sealed class RemoteUIClientSession : IAsyncDisposable, IDisposable
 
         _ = CloseAndDisposeAsync(active, HttpClient);
     }
+
+    private void ReleaseArmedRotations()
+    {
+        ArmedSessionRotation[] pending;
+        lock (_rotationSync)
+        {
+            pending = [.. _armedRotations.Values];
+            _armedRotations.Clear();
+        }
+
+        for (var i = 0; i < pending.Length; i++)
+            _ = pending[i].Completion.TrySetResult();
+    }
+
+    private sealed record ArmedSessionRotation(Task Previous, TaskCompletionSource Completion);
 
     [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Best-effort background close during synchronous Dispose must not fault unobserved tasks.")]
     private static async Task CloseAndDisposeAsync(RemoteUIClientTransport[] active, HttpClient httpClient)

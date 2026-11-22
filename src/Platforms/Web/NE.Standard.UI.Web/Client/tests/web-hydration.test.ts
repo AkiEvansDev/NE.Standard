@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { paintsPageWritten, readHydration, scheduleHydratedPageWritten } from "../src/runtime/web-hydration.ts";
+import { paintsPageWritten, readHydration, scheduleHydratedItemsHosts, scheduleHydratedPageWritten } from "../src/runtime/web-hydration.ts";
 
 function pageWith(json: string | null): ParentNode {
     const script = json === null
@@ -118,4 +118,45 @@ test("hydrating page-written values leaves boot-painted text untouched if the ex
     await Promise.resolve();
 
     assert.equal(rewrites, 0);
+});
+
+test("hydrating items hosts waits for the initial change set and words table before initializing and before rewriting page-written values", async () => {
+    const payload = readHydration(pageWith(JSON.stringify({
+        pageId: "p1",
+        words: { language: "ru", href: "/_ne/words/ru.json?v=1" },
+        changes: { updates: [] }
+    })));
+    const order: string[] = [];
+    let tableReady = false;
+    let releaseApplied!: () => void;
+    const applied = new Promise<void>(resolve => {
+        releaseApplied = () => {
+            tableReady = true;
+            order.push("applied");
+            resolve();
+        };
+    });
+    let inbound: Promise<void> | null = applied;
+    const setInbound = (next: Promise<void> | null, expected?: Promise<void>): void => {
+        if (expected === undefined || inbound === expected)
+            inbound = next;
+    };
+
+    scheduleHydratedItemsHosts(applied, () => false, () => {
+        assert.equal(tableReady, true, "items hosts must initialize only after the words table has settled");
+        order.push("items");
+    }, setInbound);
+    scheduleHydratedPageWritten(payload, inbound ?? undefined, () => tableReady, () => false, () => {
+        order.push("page-written");
+    }, setInbound);
+
+    assert.deepEqual(order, [], "nothing runs before applied resolves");
+    assert.notEqual(inbound, null);
+
+    releaseApplied();
+    await inbound;
+    await Promise.resolve();
+
+    assert.deepEqual(order, ["applied", "items", "page-written"]);
+    assert.equal(inbound, null);
 });

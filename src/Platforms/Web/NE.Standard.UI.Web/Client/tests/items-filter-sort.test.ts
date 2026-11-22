@@ -173,3 +173,17 @@ test("sortByActiveSorts precomputes nested paths once per item and matches compa
 
     assert.deepEqual(sorted.map(entry => entry.key), ["a", "d", "b", "c", "e"]);
 });
+
+test("query.search formats direct Moment and FileSize item fields into their display words", () => {
+    const row = {
+        id: "doc-1",
+        uploadedAt: { moment: "2026-09-30T14:05:00.000Z", format: "date" as const },
+        attachmentSize: { fileSize: 1572864 }
+    };
+
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "2026-09-30" }), true);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "1.5 mb" }), true);
+    assert.equal(itemMatchesFilters(undefined, row, noState, { search: "1572864" }), false);
+    assert.equal(itemMatchesFilters(undefined, { moment: "2026-09-30T14:05:00.000Z", format: "date" }, noState, { search: "2026-09-30" }), true);
+    assert.equal(itemMatchesFilters(undefined, { fileSize: 2048 }, noState, { search: "2 kb" }), true);
+});

@@ -71,3 +71,22 @@ test("a provider saying nothing opens nothing", () => {
 
     assert.equal(entry.hasAttribute("aria-describedby"), false);
 });
+
+test("tooltips.register adds a provider on the plugin surface and its disposer unregisters it cleanly", () => {
+    const chip = FakeElement.of("plugin-spoken", { "data-plugin-words": "Pin details" });
+    const stop = tooltips.register({
+        anchor: target => target.closest(".plugin-spoken"),
+        words: anchor => anchor.getAttribute("data-plugin-words")
+    });
+
+    fakeDocument.body.append(chip);
+    raise("focusin", chip);
+
+    assert.equal(tooltipText(), "Pin details");
+
+    raise("focusout", chip);
+    stop();
+    raise("focusin", chip);
+
+    assert.equal(chip.hasAttribute("aria-describedby"), false);
+});

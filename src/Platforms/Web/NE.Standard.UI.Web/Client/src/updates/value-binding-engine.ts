@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ClearAttribute, ClearTargetAttribute, ComponentSelector, cssAttributeValue, DraftDroppedEventName, FormIdAttribute, SecretFieldAttribute, TemporalEndAttribute, ValueBindingAttribute } from "../addressing/dom-attributes.ts";
+import { ClearAttribute, ClearTargetAttribute, ComponentSelector, cssAttributeValue, DraftDroppedEventName, FormIdAttribute, SecretFieldAttribute, TemporalEndAttribute, ValueBindingAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
 import { isBufferedMode, isWritableMode, resolveWritableBinding, ValueSyncEventNames } from "../addressing/dom-registry.ts";
 import type { ComponentResolveResult, DomRegistry, FormValues, PressedForm } from "../addressing/dom-registry.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
@@ -75,6 +75,9 @@ export class ValueBindingEngine {
     // Elements held explicitly by a package's own editor (`hold`/`release`), which decides when its field commits.
     private readonly packageHeld = new WeakSet<Element>();
 
+    // Buffered elements that have already raised at least one `change` commit, so cancelling a subsequent typing draft keeps their earlier buffered commit.
+    private readonly committedBuffered = new WeakSet<Element>();
+
     // An attach's snapshot is being applied: a field the reader is typing in holds its words against it (`holdTypedDuring`).
     private holdingTyped = false;
 
@@ -110,23 +113,25 @@ export class ValueBindingEngine {
         if (!(domEvent.target instanceof Element))
             return;
 
+        const target = this.resolveBindingElement(domEvent.target);
+
         // Any field with a writable value, not only `data-ui-bind-value`: a text input writes through its `data-ui-bind-<id>`.
-        if (!this.typed.has(domEvent.target) && resolveWritableBinding(domEvent.target, this.options.metadata) !== null) {
+        if (!this.typed.has(target) && resolveWritableBinding(target, this.options.metadata) !== null) {
             // A row taken off the page takes its field out of the set too, or a long list typed in would keep every row alive.
             for (const element of this.typed) {
                 if (!element.isConnected)
                     this.typed.delete(element);
             }
 
-            this.typed.add(domEvent.target);
+            this.typed.add(target);
         }
 
         // A field with no form is left to `change`, which says once that it can never be submitted, not at every keystroke.
-        if (this.bufferedElements.has(domEvent.target) || !domEvent.target.hasAttribute(FormIdAttribute))
+        if (this.bufferedElements.has(target) || this.formIdOf(target) === null)
             return;
 
-        if (resolveWritableBinding(domEvent.target, this.options.metadata)?.buffered === true)
-            this.bufferValue(domEvent.target);
+        if (resolveWritableBinding(target, this.options.metadata)?.buffered === true)
+            this.bufferValue(target);
     }
 
     /** A draft let go of is held no longer: the fields inside it take the server's values again. */
@@ -137,6 +142,8 @@ export class ValueBindingEngine {
         for (const element of [...this.bufferedElements]) {
             if (domEvent.target.contains(element) || !element.isConnected) {
                 this.bufferedElements.delete(element);
+                this.packageHeld.delete(element);
+                this.committedBuffered.delete(element);
                 this.refusedElements.delete(element);
                 this.endConflict(element);
             }
@@ -146,6 +153,22 @@ export class ValueBindingEngine {
             if (domEvent.target.contains(element) || !element.isConnected)
                 this.refusedElements.delete(element);
         }
+
+        for (const element of [...this.typed]) {
+            if (domEvent.target.contains(element) || !element.isConnected)
+                this.typed.delete(element);
+        }
+    }
+
+    /** Lets go of an uncommitted typing draft on `target` (such as `CancelOnEscape`), preserving any earlier `OnSubmit` commit. */
+    public cancelEdit(target: Element): void {
+        const element = this.resolveBindingElement(target);
+
+        this.typed.delete(element);
+        this.refusedElements.delete(element);
+
+        if (!this.committedBuffered.has(element) && !this.packageHeld.has(element) && !this.conflicted.has(element))
+            this.bufferedElements.delete(element);
     }
 
     /** Lets go of every edit a form holds, and answers the fields that held one, for the caller to put the server's values back into. */
@@ -156,15 +179,19 @@ export class ValueBindingEngine {
             // A field its row took off the page is let go of here too, rather than held for a submit that can never reach it.
             if (!element.isConnected) {
                 this.bufferedElements.delete(element);
+                this.packageHeld.delete(element);
+                this.committedBuffered.delete(element);
                 this.refusedElements.delete(element);
                 this.endConflict(element);
                 continue;
             }
 
-            if (element.getAttribute(FormIdAttribute) !== formId)
+            if (this.formIdOf(element) !== formId)
                 continue;
 
             this.bufferedElements.delete(element);
+            this.packageHeld.delete(element);
+            this.committedBuffered.delete(element);
             this.refusedElements.delete(element);
             this.endConflict(element);
             released.push(element);
@@ -176,7 +203,7 @@ export class ValueBindingEngine {
                 continue;
             }
 
-            if (element.getAttribute(FormIdAttribute) !== formId)
+            if (this.formIdOf(element) !== formId)
                 continue;
 
             this.refusedElements.delete(element);
@@ -195,6 +222,7 @@ export class ValueBindingEngine {
         for (const element of [...this.bufferedElements]) {
             this.bufferedElements.delete(element);
             this.packageHeld.delete(element);
+            this.committedBuffered.delete(element);
             this.refusedElements.delete(element);
             this.endConflict(element);
 
@@ -238,6 +266,7 @@ export class ValueBindingEngine {
         this.refusedElements.delete(element);
         this.endConflict(element);
         this.packageHeld.delete(element);
+        this.committedBuffered.delete(element);
 
         return this.bufferedElements.delete(element);
     }
@@ -343,18 +372,20 @@ export class ValueBindingEngine {
 
     /** Sends the reader's words as a change sends them, past the commit gate, which may hold them as committed already. */
     private commitTyped(element: Element): void {
-        const writable = resolveWritableBinding(element, this.options.metadata);
+        const target = this.resolveBindingElement(element);
+        const writable = resolveWritableBinding(target, this.options.metadata);
 
         if (writable === null)
             return;
 
         if (writable.buffered) {
-            this.endConflict(element);
-            this.bufferValue(element);
+            this.endConflict(target);
+            if (this.bufferValue(target))
+                this.committedBuffered.add(target);
             return;
         }
 
-        void this.syncValueAsync(element, writable.bindingId).catch(error => this.fail(error));
+        void this.syncValueAsync(target, writable.bindingId).catch(error => this.fail(error));
     }
 
     // A clear affordance is a click on a separate element, not a "change" on the field.
@@ -397,51 +428,76 @@ export class ValueBindingEngine {
         if (domEvent.type === "change" && (isReadOnly(domEvent.target) || isInert(domEvent.target)))
             return;
 
-        const writable = resolveWritableBinding(domEvent.target, this.options.metadata);
+        const target = this.resolveBindingElement(domEvent.target);
+        const writable = resolveWritableBinding(target, this.options.metadata);
 
         if (writable === null)
             return;
 
         // Not sent, and an OnSubmit field's error stops its form's submit: the controller keeps the last value it took.
-        if (domEvent.type === "change" && this.options.refuses?.(domEvent.target) === true) {
+        if (domEvent.type === "change" && this.options.refuses?.(target) === true) {
             this.pruneDetached();
-            this.refusedElements.add(domEvent.target);
+            this.refusedElements.add(target);
             return;
         }
 
-        this.refusedElements.delete(domEvent.target);
+        this.refusedElements.delete(target);
 
         if (writable.buffered) {
             // The reader's next edit: held for the next submit as any edit is, the conflict over.
-            this.endConflict(domEvent.target);
-            this.bufferValue(domEvent.target);
+            this.endConflict(target);
+            if (this.bufferValue(target))
+                this.committedBuffered.add(target);
             return;
         }
 
         // A value sent is held no longer: a package held it only while it was unsent.
-        this.bufferedElements.delete(domEvent.target);
-        this.packageHeld.delete(domEvent.target);
-        await this.syncValueAsync(domEvent.target, writable.bindingId);
+        this.bufferedElements.delete(target);
+        this.packageHeld.delete(target);
+        this.committedBuffered.delete(target);
+        await this.syncValueAsync(target, writable.bindingId);
     }
 
     /** Holds an `OnSubmit` value back until its form is submitted; a field with no form id could never be submitted. */
-    private bufferValue(element: Element): void {
-        if (element.getAttribute(FormIdAttribute) === null) {
+    private bufferValue(element: Element): boolean {
+        if (this.formIdOf(element) === null) {
             logWarn("value binding engine: an OnSubmit value has no form to be submitted with.", { element: element.tagName });
-            return;
+            return false;
         }
 
         if (!this.bufferedElements.has(element))
             this.pruneDetached();
 
         this.bufferedElements.add(element);
+        return true;
+    }
+
+    private formIdOf(element: Element): string | null {
+        return element.getAttribute(FormIdAttribute)
+            ?? this.options.dom.resolveNearestComponent(element, () => true)?.element.getAttribute(FormIdAttribute)
+            ?? element.closest(ComponentSelector)?.getAttribute(FormIdAttribute)
+            ?? null;
+    }
+
+    private resolveBindingElement(target: Element): Element {
+        if (target instanceof HTMLInputElement && target.type === "radio") {
+            const group = this.options.dom.resolveNearestComponent(target, () => true)?.element ?? target.closest(ComponentSelector);
+
+            if (group?.getAttribute(ValueKindAttribute) === "checked-radio")
+                return group;
+        }
+
+        return target;
     }
 
     /** Lets go of held fields their rows took off the page: a set of elements would otherwise keep every removed row alive. */
     private pruneDetached(): void {
         for (const element of this.bufferedElements) {
-            if (!element.isConnected)
+            if (!element.isConnected) {
                 this.bufferedElements.delete(element);
+                this.packageHeld.delete(element);
+                this.committedBuffered.delete(element);
+            }
         }
 
         for (const element of this.conflicted.keys()) {
@@ -465,16 +521,25 @@ export class ValueBindingEngine {
         const fields: Element[] = [];
 
         for (const element of this.bufferedElements) {
-            if (element.isConnected && element.getAttribute(FormIdAttribute) === formId && !this.conflicted.has(element))
+            if (element.isConnected && this.formIdOf(element) === formId && !this.conflicted.has(element))
                 values.set(element, this.options.valueReaders.readBound(element));
         }
 
-        for (const field of this.root.querySelectorAll(`[${FormIdAttribute}="${cssAttributeValue(formId)}"]`)) {
-            const text = isCaretField(field) && field.hasAttribute(ValueBindingAttribute) ? this.options.valueReaders.readBound(field) : null;
+        for (const scope of this.root.querySelectorAll(`[${FormIdAttribute}="${cssAttributeValue(formId)}"]`)) {
+            const candidates = isCaretField(scope) ? [scope] : [...scope.querySelectorAll("input, textarea")];
 
-            if (typeof text === "string") {
-                this.pressedText.set(field, { text, press });
-                fields.push(field);
+            for (const field of candidates) {
+                if (!isCaretField(field) || this.pressedText.get(field)?.press === press || this.formIdOf(field) !== formId)
+                    continue;
+
+                const text = field.hasAttribute(ValueBindingAttribute) || resolveWritableBinding(field, this.options.metadata) !== null
+                    ? this.options.valueReaders.readBound(field)
+                    : null;
+
+                if (typeof text === "string") {
+                    this.pressedText.set(field, { text, press });
+                    fields.push(field);
+                }
             }
         }
 
@@ -499,7 +564,7 @@ export class ValueBindingEngine {
 
         for (const element of [...this.bufferedElements]) {
             // Held over another writer's value, it goes only with the reader's next edit of it; the submit is refused (`conflictedField`).
-            if (element.getAttribute(FormIdAttribute) !== formId || this.conflicted.has(element))
+            if (this.formIdOf(element) !== formId || this.conflicted.has(element))
                 continue;
 
             const current = pressed === undefined || readsNow?.(element) === true;
@@ -511,8 +576,11 @@ export class ValueBindingEngine {
             const value = pressed === undefined || current ? this.options.valueReaders.readBound(element) : pressed.get(element);
 
             // An edit made while the submit waited stays the reader's, held for the next submit: the press's value goes.
-            if (current || !element.isConnected || areValuesEqual(value, this.options.valueReaders.readBound(element)))
+            if (current || !element.isConnected || areValuesEqual(value, this.options.valueReaders.readBound(element))) {
                 this.bufferedElements.delete(element);
+                this.packageHeld.delete(element);
+                this.committedBuffered.delete(element);
+            }
 
             if (!element.isConnected)
                 continue;
@@ -612,7 +680,7 @@ export class ValueBindingEngine {
     /** The component of a field of the form held over another writer's value, which refuses the form's submit; null where none is. */
     public conflictedField(formId: string): Element | null {
         for (const [element, component] of this.conflicted) {
-            if (element.isConnected && element.getAttribute(FormIdAttribute) === formId)
+            if (element.isConnected && this.formIdOf(element) === formId)
                 return component;
         }
 
@@ -754,7 +822,9 @@ export class ValueBindingEngine {
 
     /** The field whose writable value goes through the binding, in the row the keys name; a control or a `data-ui-bind-value` element. */
     private findField(unsaved: UnsavedValue): { readonly element: Element; readonly component: Element } | null {
-        for (const element of this.root.querySelectorAll(`input, textarea, select, [${ValueBindingAttribute}]`)) {
+        for (const raw of this.root.querySelectorAll(`input, textarea, select, [${ValueBindingAttribute}]`)) {
+            const element = this.resolveBindingElement(raw);
+
             if (resolveWritableBinding(element, this.options.metadata)?.bindingId !== unsaved.bindingId)
                 continue;
 

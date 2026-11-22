@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -26,15 +27,17 @@ namespace NE.Standard.UI.Desktop.Hosting;
 internal sealed record DesktopRemoteApplicationDefaults(UITheme Theme, string? Icon);
 
 /// <summary>Manages the in-process loopback <c>NE.Standard.UI.Web</c> server or remote server target backing a desktop window.</summary>
-public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
+public sealed partial class DesktopWebHost : IAsyncDisposable, IDisposable
 {
-    internal const string LoopbackAuthCookieName = "ne.desktop.auth";
+    internal const string LoopbackAuthCookiePrefix = "ne.desktop.auth";
 
     private readonly WebApplication? _webApplication;
     private readonly X509Certificate2? _serverCertificate;
     private readonly byte[]? _serverCertificateSha256;
     private readonly ServiceProvider? _remoteServices;
-    private readonly SemaphoreSlim _startGate = new(1, 1);
+    private readonly ILoggerFactory? _loggerFactory;
+    private readonly Lock _lifecycleSync = new();
+    private Task _lifecycleQueue = Task.CompletedTask;
     private volatile Uri? _baseUri;
     private int _disposed;
 
@@ -46,6 +49,7 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
         _serverCertificateSha256 = serverCertificate?.GetCertHash(HashAlgorithmName.SHA256);
         LoopbackAuthToken = loopbackAuthToken;
         _remoteServices = remoteServices;
+        _loggerFactory = webApplication?.Services.GetService<ILoggerFactory>() ?? remoteServices?.GetService<ILoggerFactory>();
         ContentRootPath = contentRootPath;
         WebRootPath = webRootPath;
     }
@@ -58,6 +62,10 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
     internal string WebRootPath { get; }
 
     internal string? LoopbackAuthToken { get; }
+
+    internal string LoopbackAuthCookieName => GetLoopbackAuthCookieName(BaseUri.Port);
+
+    internal bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
     /// <summary>Gets the root service provider for the host.</summary>
     public IServiceProvider Services => _webApplication?.Services
@@ -78,6 +86,9 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
 
     /// <summary>Gets the HTTP/2-capable loopback HTTPS URI navigated to by the embedded browser when in-process, or <see cref="BaseUri"/> when remote.</summary>
     public Uri BrowserBaseUri => BaseUri;
+
+    internal static string GetLoopbackAuthCookieName(int port)
+        => string.Create(CultureInfo.InvariantCulture, $"{LoopbackAuthCookiePrefix}.{port}");
 
     internal static DesktopWebHost Create(DesktopHostOptions options, Action<IServiceCollection> configureServices)
     {
@@ -135,9 +146,11 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
         configureServices(builder.Services);
 
         WebApplication app = builder.Build();
+        DesktopWebHost? hostRef = null;
         _ = app.Use(async (context, next) =>
         {
-            if (!HasValidLoopbackCookie(context.Request, expectedTokenBytes))
+            var port = hostRef?._baseUri?.Port ?? context.Connection.LocalPort;
+            if (!HasValidLoopbackCookie(context.Request, GetLoopbackAuthCookieName(port), expectedTokenBytes))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 context.Response.Headers.CacheControl = "no-store";
@@ -151,7 +164,8 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             _ = app.UseStaticFiles();
 
         _ = app.UseRouting();
-        return new DesktopWebHost(options, app, serverCertificate, loopbackAuthToken, remoteServices: null, contentRoot, webRoot);
+        hostRef = new DesktopWebHost(options, app, serverCertificate, loopbackAuthToken, remoteServices: null, contentRoot, webRoot);
+        return hostRef;
     }
 
     private static string ResolveContentRootPath(DesktopHostOptions options)
@@ -168,9 +182,9 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             ? Path.Combine(contentRoot, "wwwroot")
             : Path.GetFullPath(options.WebRootPath);
 
-    private static bool HasValidLoopbackCookie(HttpRequest request, byte[] expectedTokenBytes)
+    private static bool HasValidLoopbackCookie(HttpRequest request, string cookieName, byte[] expectedTokenBytes)
     {
-        if (!request.Cookies.TryGetValue(LoopbackAuthCookieName, out var presented)
+        if (!request.Cookies.TryGetValue(cookieName, out var presented)
             || presented is null
             || presented.Length != expectedTokenBytes.Length)
         {
@@ -184,14 +198,32 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
     }
 
     /// <summary>Starts the loopback server (when in-process) and resolves <see cref="BaseUri"/> and <see cref="BrowserBaseUri"/>.</summary>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
 
-        await _startGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        Task previous;
+        TaskCompletionSource gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_lifecycleSync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            if (_baseUri is not null)
+                return Task.CompletedTask;
+
+            previous = _lifecycleQueue;
+            _lifecycleQueue = gate.Task;
+        }
+
+        return StartCoreAsync(previous, gate, cancellationToken);
+    }
+
+    private async Task StartCoreAsync(Task previous, TaskCompletionSource gate, CancellationToken cancellationToken)
+    {
         try
         {
-            ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+            await previous.WaitAsync(cancellationToken).ConfigureAwait(false);
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
 
             if (_baseUri is not null)
                 return;
@@ -221,11 +253,29 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             }
 
             _baseUri = httpsUri ?? throw new InvalidOperationException("The in-process loopback server started without a valid HTTPS address.");
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
         }
         finally
         {
-            _ = _startGate.Release();
+            CompleteGateAfter(previous, gate);
         }
+    }
+
+    private static void CompleteGateAfter(Task previous, TaskCompletionSource gate)
+    {
+        if (previous.IsCompleted)
+        {
+            gate.SetResult();
+            return;
+        }
+
+        _ = previous.ContinueWith(
+            static (_, state) => ((TaskCompletionSource)state!).SetResult(),
+            gate,
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default
+        );
     }
 
     private static Uri EnsureTrailingSlash(Uri uri)
@@ -237,14 +287,14 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
     /// <summary>Creates an <see cref="HttpClient"/> configured for <see cref="BaseUri"/>, carrying the per-process loopback credential and certificate pin when in-process.</summary>
     public HttpClient CreateHttpClient()
     {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         Uri baseUri = BaseUri;
         if (LoopbackAuthToken is null || _serverCertificateSha256 is null)
             return new HttpClient { BaseAddress = baseUri };
 
         CookieContainer cookies = new();
-        cookies.Add(new Cookie(LoopbackAuthCookieName, LoopbackAuthToken, "/", baseUri.Host) { HttpOnly = true, Secure = true });
+        cookies.Add(new Cookie(GetLoopbackAuthCookieName(baseUri.Port), LoopbackAuthToken, "/", baseUri.Host) { HttpOnly = true, Secure = true });
 
         var expectedCertHash = _serverCertificateSha256;
         SocketsHttpHandler? handler = new()
@@ -285,23 +335,57 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
     public Uri ResolveBrowserUri(string? route = null)
         => ResolveAgainst(BrowserBaseUri, route);
 
-    private static Uri ResolveAgainst(Uri root, string? route)
+    internal static Uri ResolveAgainst(Uri root, string? route)
     {
+        ArgumentNullException.ThrowIfNull(root);
+
         if (string.IsNullOrWhiteSpace(route) || route == "/")
             return root;
 
-        if (route.StartsWith("//", StringComparison.Ordinal) || route[0] == '\\' || HasUriScheme(route))
-            throw new ArgumentException("Route must be a relative path on the host's origin.", nameof(route));
+        if (ContainsControlCharacters(route) || char.IsWhiteSpace(route[0]) || char.IsWhiteSpace(route[^1]))
+            throw new ArgumentException("Route must not contain control characters or surrounding whitespace.", nameof(route));
 
-        var trimmed = route[0] == '/' ? route[1..] : route;
-        if (trimmed.Length > 0 && (trimmed[0] == '/' || trimmed[0] == '\\'))
-            throw new ArgumentException("Route must be a relative path on the host's origin.", nameof(route));
+        string trimmed;
+        if (route[0] == '/')
+        {
+            if (route.Length > 1 && (route[1] == '/' || route[1] == '\\'))
+                throw new ArgumentException("Route must be a relative path on the host's origin.", nameof(route));
 
-        Uri resolved = new(root, trimmed);
-        if (!MatchesOrigin(resolved, root))
+            trimmed = route[1..];
+        }
+        else
+        {
+            if (route[0] == '\\' || HasUriScheme(route))
+                throw new ArgumentException("Route must be a relative path on the host's origin.", nameof(route));
+
+            trimmed = route;
+        }
+
+        if (trimmed.Length == 0)
+            return root;
+
+        // RFC 3986 §4.2: a first relative segment containing ':' (such as "/urn:123" stripped to "urn:123") must carry "./" so Uri does not parse it as a scheme.
+        var relative = trimmed[0] is '?' or '#' ? trimmed : "./" + trimmed;
+        Uri resolved = new(root, relative);
+        if (!MatchesOrigin(resolved, root)
+            || !string.IsNullOrEmpty(resolved.UserInfo)
+            || !resolved.AbsolutePath.StartsWith(root.AbsolutePath, StringComparison.Ordinal))
+        {
             throw new ArgumentException("Route must stay on the host's origin.", nameof(route));
+        }
 
         return resolved;
+    }
+
+    private static bool ContainsControlCharacters(string value)
+    {
+        for (var i = 0; i < value.Length; i++)
+        {
+            if (char.IsControl(value[i]))
+                return true;
+        }
+
+        return false;
     }
 
     private static bool HasUriScheme(string route)
@@ -324,6 +408,42 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
             && string.Equals(candidate.Host, origin.Host, StringComparison.OrdinalIgnoreCase)
             && candidate.Port == origin.Port;
 
+    internal void LogStartupError(string categoryName, string operation, Exception exception)
+    {
+        if (_loggerFactory is null)
+            return;
+
+        try
+        {
+            ILogger logger = _loggerFactory.CreateLogger(categoryName);
+            LogDesktopOperationFailed(logger, operation, exception);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Desktop host operation '{Operation}' failed.")]
+    private static partial void LogDesktopOperationFailed(ILogger logger, string operation, Exception exception);
+
+    internal void LogHostWarning(string categoryName, string detail, Exception? exception = null)
+    {
+        if (_loggerFactory is null)
+            return;
+
+        try
+        {
+            ILogger logger = _loggerFactory.CreateLogger(categoryName);
+            LogDesktopWarning(logger, detail, exception);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "{Detail}")]
+    private static partial void LogDesktopWarning(ILogger logger, string detail, Exception? exception);
+
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
@@ -345,9 +465,18 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
 
     private async Task DisposeCoreAsync()
     {
-        await _startGate.WaitAsync().ConfigureAwait(false);
+        Task previous;
+        TaskCompletionSource gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (_lifecycleSync)
+        {
+            previous = _lifecycleQueue;
+            _lifecycleQueue = gate.Task;
+        }
+
         try
         {
+            await previous.ConfigureAwait(false);
+
             if (_webApplication is not null)
             {
                 if (_baseUri is not null)
@@ -363,8 +492,7 @@ public sealed class DesktopWebHost : IAsyncDisposable, IDisposable
         }
         finally
         {
-            _ = _startGate.Release();
-            _startGate.Dispose();
+            gate.SetResult();
         }
     }
 }

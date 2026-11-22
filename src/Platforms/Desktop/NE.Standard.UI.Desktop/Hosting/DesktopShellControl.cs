@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +25,12 @@ namespace NE.Standard.UI.Desktop.Hosting;
 /// <summary>WPF control hosting a <see cref="WebView2"/> surface bound to a <see cref="DesktopWebHost"/>.</summary>
 public sealed class DesktopShellControl : Border, IDisposable
 {
+    private const int HrErrorInvalidState = unchecked((int)0x8007139F);
+    private const int MaxSanitizedFileNameLength = 200;
+    private const int MaxTempFileStemLength = 180;
+    private const int MaxDialogExtensionLength = 32;
+    private const int FileBufferSize = 64 * 1024;
+
     private const string ThemeBridgeScript = """
         (() => {
             if (window !== window.top) return;
@@ -63,13 +72,53 @@ public sealed class DesktopShellControl : Border, IDisposable
         "redo"
     ];
 
+    private static readonly HashSet<string> ReservedDosDeviceNames =
+    [
+        with(StringComparer.OrdinalIgnoreCase),
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "CONIN$",
+        "CONOUT$",
+        "COM0",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "COM\u00B9",
+        "COM\u00B2",
+        "COM\u00B3",
+        "LPT0",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
+        "LPT\u00B9",
+        "LPT\u00B2",
+        "LPT\u00B3"
+    ];
+
     private Task<CoreWebView2Environment>? _environmentTask;
     private Task? _initializationTask;
     private CoreWebView2? _attachedCore;
     private TaskCompletionSource<bool>? _pendingNavigation;
     private PendingCloseRequest? _pendingCloseConfirmation;
     private DesktopToastNotifier? _toastNotifier;
+    private string? _resolvedUserDataFolder;
+    private long _navigationEpoch;
     private int _nextHostRequestId;
+    private int _nextNotificationId;
     private volatile bool _disposed;
 
     /// <summary>Initializes a new <see cref="DesktopShellControl"/> bound to <paramref name="host"/>.</summary>
@@ -107,6 +156,14 @@ public sealed class DesktopShellControl : Border, IDisposable
     internal event EventHandler? WindowActivationRequested;
 
     internal string? LastToastFailureReason => _toastNotifier?.LastFailureReason;
+
+    internal long NavigationEpoch => Volatile.Read(ref _navigationEpoch);
+
+    internal TimeSpan UnsavedWorkTimeout { get; set; } = CloseAckTimeout;
+
+    internal Func<string, string, string?>? SaveFileDialogPrompt { get; set; }
+
+    internal Action<Uri>? NotificationNavigationHandler { get; set; }
 
     /// <summary>Gets the backing <see cref="DesktopWebHost"/>.</summary>
     public DesktopWebHost Host { get; }
@@ -160,7 +217,10 @@ public sealed class DesktopShellControl : Border, IDisposable
         using CancellationTokenRegistration registration = cancellationToken.Register(static state => ((TaskCompletionSource<bool>)state!).TrySetCanceled(), tcs);
 
         Uri target = Host.ResolveBrowserUri(route);
-        WebView.CoreWebView2.Navigate(target.AbsoluteUri);
+        CoreWebView2 core = WebView.CoreWebView2;
+        await SeedLoopbackAuthCookieAsync(core).ConfigureAwait(true);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        core.Navigate(target.AbsoluteUri);
         _ = await tcs.Task.ConfigureAwait(true);
     }
 
@@ -174,24 +234,40 @@ public sealed class DesktopShellControl : Border, IDisposable
     }
 
     /// <summary>Checks whether the active page's leave guard currently reports unsaved work or pending commits.</summary>
-    public async Task<bool> HasUnsavedWorkAsync()
+    public Task<bool> HasUnsavedWorkAsync()
     {
-        if (_disposed || WebView.CoreWebView2 is null)
-            return false;
+        if (_disposed || WebView.CoreWebView2 is not { } core)
+            return Task.FromResult(false);
+
+        return EvaluateUnsavedWorkAsync(
+            () => core.ExecuteScriptAsync("window.__neStandardUIRuntime?.hasUnsavedCloseWork?.() ?? (window.dispatchEvent(new Event('beforeunload', { cancelable: true })) === false)"),
+            UnsavedWorkTimeout
+        );
+    }
+
+    internal static async Task<bool> EvaluateUnsavedWorkAsync(Func<Task<string>> executeScriptAsync, TimeSpan timeout)
+    {
+        ArgumentNullException.ThrowIfNull(executeScriptAsync);
 
         try
         {
-            var json = await WebView.CoreWebView2
-                .ExecuteScriptAsync("window.__neStandardUIRuntime?.hasUnsavedCloseWork?.() ?? (window.dispatchEvent(new Event('beforeunload', { cancelable: true })) === false)")
-                .ConfigureAwait(true);
-
+            Task<string> scriptTask = executeScriptAsync();
+            ObserveIgnoredScriptTask(scriptTask);
+            var json = await scriptTask.WaitAsync(timeout).ConfigureAwait(true);
             return string.Equals(json, "true", StringComparison.Ordinal);
+        }
+        catch (TimeoutException)
+        {
+            return false;
         }
         catch
         {
             return false;
         }
     }
+
+    private static void ObserveIgnoredScriptTask(Task task)
+        => _ = task.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
     /// <summary>Asks the active page to settle pending values and, if unsaved work remains, opens the framework's localized leave confirmation dialog.</summary>
     public async Task<bool> ConfirmCloseAsync(CancellationToken cancellationToken = default)
@@ -259,7 +335,7 @@ public sealed class DesktopShellControl : Border, IDisposable
         return _environmentTask ??= CreateEnvironmentAsync();
     }
 
-    private Task<CoreWebView2Environment> CreateEnvironmentAsync()
+    private async Task<CoreWebView2Environment> CreateEnvironmentAsync()
     {
         var userDataFolder = ResolveUserDataFolder(Host.Options);
         _ = Directory.CreateDirectory(userDataFolder);
@@ -268,34 +344,439 @@ public sealed class DesktopShellControl : Border, IDisposable
             ? new CoreWebView2EnvironmentOptions(additionalBrowserArguments: $"--ignore-certificate-errors-spki-list={DesktopLoopbackCertificate.Instance.SpkiSha256Base64}")
             : null;
 
-        return CoreWebView2Environment.CreateAsync(browserExecutableFolder: null, userDataFolder: userDataFolder, options: environmentOptions);
+        try
+        {
+            CoreWebView2Environment environment = await CoreWebView2Environment
+                .CreateAsync(browserExecutableFolder: null, userDataFolder: userDataFolder, options: environmentOptions)
+                .ConfigureAwait(true);
+            _resolvedUserDataFolder = userDataFolder;
+            return environment;
+        }
+        catch (COMException ex) when (string.IsNullOrWhiteSpace(Host.Options.UserDataFolder) && ex.HResult == HrErrorInvalidState)
+        {
+            var fallbackFolder = BuildFallbackInProcessUserDataFolder(Host.Options);
+            _ = Directory.CreateDirectory(fallbackFolder);
+            Host.LogHostWarning(typeof(DesktopShellControl).FullName!, $"Default WebView2 profile '{userDataFolder}' is locked with incompatible browser options; using '{fallbackFolder}'.", ex);
+
+            CoreWebView2Environment fallbackEnvironment = await CoreWebView2Environment
+                .CreateAsync(browserExecutableFolder: null, userDataFolder: fallbackFolder, options: environmentOptions)
+                .ConfigureAwait(true);
+            _resolvedUserDataFolder = fallbackFolder;
+            return fallbackEnvironment;
+        }
+        catch (Exception ex)
+        {
+            Host.LogStartupError(typeof(DesktopShellControl).FullName!, "CreateWebView2Environment", ex);
+            throw;
+        }
     }
 
-    private static string ResolveUserDataFolder(DesktopHostOptions options)
+    internal static string ResolveUserDataFolder(DesktopHostOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
+
         if (!string.IsNullOrWhiteSpace(options.UserDataFolder))
             return Path.GetFullPath(options.UserDataFolder);
 
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var appFolder = SanitizeDirectorySegment(options.WindowTitle);
-        return Path.Combine(localAppData, appFolder, "WebView2");
+        var appFolder = SanitizeWindowsFileName(options.WindowTitle, "NE.Standard");
+        var modeSegment = options.Mode == DesktopHostMode.InProcess ? "inproc" : "remote";
+        return Path.Combine(localAppData, appFolder, "WebView2", modeSegment);
     }
 
-    private static string SanitizeDirectorySegment(string? rawName)
+    private static string BuildFallbackInProcessUserDataFolder(DesktopHostOptions options)
     {
-        if (string.IsNullOrWhiteSpace(rawName))
-            return "NE.Standard";
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var appFolder = SanitizeWindowsFileName(options.WindowTitle, "NE.Standard");
+        var modePrefix = options.Mode == DesktopHostMode.InProcess ? "inproc" : "remote";
+        var instanceSegment = string.Create(CultureInfo.InvariantCulture, $"{modePrefix}-{Environment.ProcessId}");
+        return Path.Combine(localAppData, appFolder, "WebView2", instanceSegment);
+    }
 
-        var invalid = Path.GetInvalidFileNameChars();
-        var chars = rawName.Trim().ToCharArray();
-        for (var i = 0; i < chars.Length; i++)
+    internal static string SanitizeWindowsFileName(string? rawName, string fallback = "download")
+    {
+        var safeFallback = string.IsNullOrWhiteSpace(fallback) ? "download" : SanitizeWindowsFileNameCore(fallback);
+        if (safeFallback.Length == 0)
+            safeFallback = "download";
+
+        if (string.IsNullOrWhiteSpace(rawName))
+            return safeFallback;
+
+        var sanitized = SanitizeWindowsFileNameCore(rawName);
+        return sanitized.Length == 0 ? safeFallback : sanitized;
+    }
+
+    private static string SanitizeWindowsFileNameCore(string rawName)
+    {
+        ReadOnlySpan<char> span = rawName.AsSpan().Trim();
+        var lastSeparator = span.LastIndexOfAny('/', '\\');
+        if (lastSeparator >= 0)
+            span = span[(lastSeparator + 1)..];
+
+        while (span.Length >= 2 && char.IsAsciiLetter(span[0]) && span[1] == ':')
+            span = span[2..];
+
+        if (span.IsEmpty)
+            return string.Empty;
+
+        StringBuilder builder = new(span.Length);
+        for (var i = 0; i < span.Length; i++)
         {
-            if (Array.IndexOf(invalid, chars[i]) >= 0)
-                chars[i] = '_';
+            var ch = span[i];
+            if (char.IsHighSurrogate(ch))
+            {
+                if (i + 1 < span.Length && char.IsLowSurrogate(span[i + 1]))
+                    _ = builder.Append(ch).Append(span[++i]);
+                else
+                    _ = builder.Append('_');
+
+                continue;
+            }
+
+            if (char.IsLowSurrogate(ch) || IsInvalidWindowsFileNameChar(ch))
+            {
+                _ = builder.Append('_');
+                continue;
+            }
+
+            _ = builder.Append(ch);
         }
 
-        var result = new string(chars).Trim('.');
-        return string.IsNullOrWhiteSpace(result) ? "NE.Standard" : result;
+        var trimmed = TrimSurroundingSpacesAndTrailingDots(builder.ToString());
+        if (trimmed.Length == 0)
+            return string.Empty;
+
+        if (IsReservedWindowsFileName(trimmed))
+            trimmed = "_" + trimmed;
+
+        if (trimmed.Length > MaxSanitizedFileNameLength)
+            trimmed = TruncatePreservingExtension(trimmed, MaxSanitizedFileNameLength);
+
+        return trimmed;
+    }
+
+    private static bool IsInvalidWindowsFileNameChar(char ch)
+        => ch < (char)0x20 || char.IsControl(ch) || ch is '<' or '>' or ':' or '"' or '/' or '\\' or '|' or '?' or '*';
+
+    private static string TrimSurroundingSpacesAndTrailingDots(ReadOnlySpan<char> span)
+    {
+        var start = 0;
+        var end = span.Length;
+
+        while (start < end && char.IsWhiteSpace(span[start]))
+            start++;
+
+        while (end > start && (span[end - 1] == '.' || char.IsWhiteSpace(span[end - 1])))
+            end--;
+
+        return start >= end ? string.Empty : span[start..end].ToString();
+    }
+
+    private static bool IsReservedWindowsFileName(string candidate)
+    {
+        var dotIndex = candidate.IndexOf('.', StringComparison.Ordinal);
+        ReadOnlySpan<char> stem = dotIndex >= 0 ? candidate.AsSpan(0, dotIndex) : candidate.AsSpan();
+        while (!stem.IsEmpty && (stem[^1] == '.' || char.IsWhiteSpace(stem[^1])))
+            stem = stem[..^1];
+
+        return !stem.IsEmpty && ReservedDosDeviceNames.GetAlternateLookup<ReadOnlySpan<char>>().Contains(stem);
+    }
+
+    private static string TruncatePreservingExtension(string fileName, int maxLength)
+    {
+        var ext = Path.GetExtension(fileName);
+        if (ext.Length >= maxLength / 2)
+            ext = string.Empty;
+
+        var keepStemLength = maxLength - ext.Length;
+        if (keepStemLength > 0 && char.IsHighSurrogate(fileName[keepStemLength - 1]))
+            keepStemLength--;
+
+        var stem = TrimSurroundingSpacesAndTrailingDots(fileName.AsSpan(0, keepStemLength));
+        if (stem.Length == 0)
+            stem = "_";
+
+        return TrimSurroundingSpacesAndTrailingDots((stem + ext).AsSpan());
+    }
+
+    internal static string? TryBuildSaveDialogFilter(string? fileName, out string? defaultExtension)
+    {
+        defaultExtension = null;
+        if (string.IsNullOrWhiteSpace(fileName))
+            return null;
+
+        var rawExtension = Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(rawExtension))
+            return null;
+
+        StringBuilder clean = new(rawExtension.Length);
+        for (var i = 0; i < rawExtension.Length && clean.Length < MaxDialogExtensionLength; i++)
+        {
+            var ch = rawExtension[i];
+            if (ch == '.' || char.IsWhiteSpace(ch) || IsInvalidWindowsFileNameChar(ch) || ch == ';')
+                continue;
+
+            _ = clean.Append(ch);
+        }
+
+        if (clean.Length == 0)
+            return null;
+
+        var ext = clean.ToString();
+        defaultExtension = "." + ext;
+        return $"*.{ext}|*.{ext}|*.*|*.*";
+    }
+
+    internal static string ResolveUniqueFilePath(string directory, string? rawFileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+
+        var fullDirectory = Path.GetFullPath(directory);
+        var directoryPrefix = Path.EndsInDirectorySeparator(fullDirectory)
+            ? fullDirectory
+            : fullDirectory + Path.DirectorySeparatorChar;
+        var safeFileName = SanitizeWindowsFileName(rawFileName);
+
+        var firstCandidate = EnsureContainedFilePath(fullDirectory, directoryPrefix, safeFileName);
+        if (!File.Exists(firstCandidate))
+            return firstCandidate;
+
+        var stem = Path.GetFileNameWithoutExtension(safeFileName);
+        var ext = Path.GetExtension(safeFileName);
+        for (var i = 2; i < 10000; i++)
+        {
+            var numberedName = string.Create(CultureInfo.InvariantCulture, $"{stem} ({i}){ext}");
+            var next = EnsureContainedFilePath(fullDirectory, directoryPrefix, numberedName);
+            if (!File.Exists(next))
+                return next;
+        }
+
+        var fallbackName = string.Create(CultureInfo.InvariantCulture, $"{stem}-{Guid.NewGuid():N}{ext}");
+        return EnsureContainedFilePath(fullDirectory, directoryPrefix, fallbackName);
+    }
+
+    private static string EnsureContainedFilePath(string fullDirectory, string directoryPrefix, string candidateFileName)
+    {
+        var fullCandidate = Path.GetFullPath(Path.Combine(fullDirectory, candidateFileName));
+        var candidateParent = Path.GetDirectoryName(fullCandidate);
+        var expectedParent = Path.TrimEndingDirectorySeparator(fullDirectory);
+
+        if (!fullCandidate.StartsWith(directoryPrefix, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(candidateParent, expectedParent, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Resolved download path escaped the configured downloads directory.");
+        }
+
+        return fullCandidate;
+    }
+
+    internal long AdvanceNavigationEpoch()
+        => Interlocked.Increment(ref _navigationEpoch);
+
+    internal Uri? TryResolveNotificationTargetUri(string? bringTo)
+    {
+        if (string.IsNullOrWhiteSpace(bringTo) || !Host.IsStarted)
+            return null;
+
+        if (bringTo[0] != '/' && Uri.TryCreate(bringTo, UriKind.Absolute, out Uri? absolute))
+            return IsSameOrigin(absolute) && string.IsNullOrEmpty(absolute.UserInfo) ? absolute : null;
+
+        try
+        {
+            return Host.ResolveBrowserUri(bringTo);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private bool IsSameOrigin(Uri uri)
+        => Host.IsStarted && (DesktopWebHost.MatchesOrigin(uri, Host.BrowserBaseUri) || DesktopWebHost.MatchesOrigin(uri, Host.BaseUri));
+
+    internal Action CreateNotificationActivationAction(long capturedEpoch, int hostNotificationId, int pageNotificationId, string? capturedPageEpoch, Uri? bringToUri)
+        => () => DispatchOnUi(() => HandleNotificationActivatedOnUi(capturedEpoch, hostNotificationId, pageNotificationId, capturedPageEpoch, bringToUri));
+
+    private void DispatchOnUi(Action action)
+    {
+        if (Dispatcher.CheckAccess())
+            action();
+        else
+            _ = Dispatcher.InvokeAsync(action);
+    }
+
+    private void HandleNotificationActivatedOnUi(long capturedEpoch, int hostNotificationId, int pageNotificationId, string? capturedPageEpoch, Uri? bringToUri)
+    {
+        if (_disposed)
+            return;
+
+        WindowActivationRequested?.Invoke(this, EventArgs.Empty);
+
+        if (Volatile.Read(ref _navigationEpoch) == capturedEpoch)
+        {
+            PostBridgeObject(new NotificationEventBridgeMessage("notification-clicked", hostNotificationId, pageNotificationId, capturedPageEpoch));
+            return;
+        }
+
+        if (bringToUri is not null)
+            NavigateToNotificationTarget(bringToUri);
+    }
+
+    private void NavigateToNotificationTarget(Uri targetUri)
+    {
+        if (NotificationNavigationHandler is { } handler)
+        {
+            handler(targetUri);
+            return;
+        }
+
+        if (WebView.CoreWebView2 is { } core)
+        {
+            SeedLoopbackAuthCookie(core);
+            core.Navigate(targetUri.AbsoluteUri);
+        }
+    }
+
+    internal async Task<bool> DeliverStagedDownloadAsync(IUIFileStore store, string sessionId, Uri downloadUri, string token, string? fileName, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        ArgumentNullException.ThrowIfNull(downloadUri);
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
+
+        UIStagedDownload? staged = await store.TakeDownloadAsync(sessionId, token, cancellationToken).ConfigureAwait(true);
+        if (staged is null)
+            return false;
+
+        await using (staged.ConfigureAwait(true))
+        {
+            var rawName = !string.IsNullOrWhiteSpace(fileName) ? fileName : staged.FileName;
+            var suggestedName = SanitizeWindowsFileName(rawName);
+            var initialDirectory = ResolveDownloadsDirectory(Host.Options);
+            string? targetPath;
+
+            if (Host.Options.DownloadMode == DesktopDownloadMode.Directory)
+            {
+                _ = Directory.CreateDirectory(initialDirectory);
+                targetPath = ResolveUniqueFilePath(initialDirectory, suggestedName);
+            }
+            else
+            {
+                targetPath = (SaveFileDialogPrompt ?? ShowSaveFileDialog)(initialDirectory, suggestedName);
+                if (string.IsNullOrWhiteSpace(targetPath))
+                    return true;
+            }
+
+            var fullTargetPath = Path.GetFullPath(targetPath);
+            try
+            {
+                var bytesWritten = await Task
+                    .Run(() => SaveStagedDownloadAtomicallyAsync(staged, fullTargetPath, cancellationToken), cancellationToken)
+                    .ConfigureAwait(true);
+
+                if (Host.Services.GetService<WebUIMetrics>() is { } metrics)
+                    metrics.FileDownloaded(bytesWritten);
+
+                DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(downloadUri, fullTargetPath, succeeded: true));
+            }
+            catch (Exception ex)
+            {
+                Host.LogHostWarning(typeof(DesktopShellControl).FullName!, $"Saving download '{suggestedName}' to '{fullTargetPath}' failed.", ex);
+                DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(downloadUri, fullTargetPath, succeeded: false));
+            }
+
+            return true;
+        }
+    }
+
+    private static string ResolveDownloadsDirectory(DesktopHostOptions options)
+    {
+        if (!string.IsNullOrWhiteSpace(options.DownloadsDirectory))
+            return Path.GetFullPath(options.DownloadsDirectory);
+
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return Path.Combine(userProfile, "Downloads");
+    }
+
+    private string? ShowSaveFileDialog(string initialDirectory, string suggestedName)
+    {
+        var safeSuggested = SanitizeWindowsFileName(suggestedName);
+        SaveFileDialog dialog = new()
+        {
+            FileName = safeSuggested,
+            InitialDirectory = Directory.Exists(initialDirectory) ? initialDirectory : null,
+            OverwritePrompt = true
+        };
+
+        if (TryBuildSaveDialogFilter(safeSuggested, out var defaultExtension) is { } filter && defaultExtension is not null)
+        {
+            dialog.DefaultExt = defaultExtension;
+            dialog.Filter = filter;
+        }
+
+        Window? owner = Window.GetWindow(this);
+        var accepted = owner is not null ? dialog.ShowDialog(owner) : dialog.ShowDialog();
+        return accepted == true && !string.IsNullOrWhiteSpace(dialog.FileName) ? dialog.FileName : null;
+    }
+
+    private static async Task<long> SaveStagedDownloadAtomicallyAsync(UIStagedDownload staged, string fullDestination, CancellationToken cancellationToken)
+    {
+        var directory = Path.GetDirectoryName(fullDestination);
+        if (!string.IsNullOrEmpty(directory))
+            _ = Directory.CreateDirectory(directory);
+
+        var tempPath = CreateSiblingTempPath(fullDestination);
+        try
+        {
+            long bytesWritten;
+            FileStream destination = new(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, FileBufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await using (destination.ConfigureAwait(false))
+            {
+                if (staged.WriteToAsync is not null)
+                {
+                    bytesWritten = await staged.WriteBoundedToAsync(destination, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await staged.Content.CopyToAsync(destination, FileBufferSize, cancellationToken).ConfigureAwait(false);
+                    bytesWritten = destination.Length;
+                }
+            }
+
+            File.Move(tempPath, fullDestination, overwrite: true);
+            return bytesWritten;
+        }
+        catch
+        {
+            TryDeleteTempFile(tempPath);
+            throw;
+        }
+    }
+
+    private static string CreateSiblingTempPath(string fullDestination)
+    {
+        var directory = Path.GetDirectoryName(fullDestination);
+        var targetDir = string.IsNullOrEmpty(directory) ? "." : directory;
+        var baseName = Path.GetFileName(fullDestination);
+        if (baseName.Length > MaxTempFileStemLength)
+        {
+            var cut = char.IsHighSurrogate(baseName[MaxTempFileStemLength - 1]) ? MaxTempFileStemLength - 1 : MaxTempFileStemLength;
+            baseName = baseName[..cut];
+        }
+
+        return Path.Combine(targetDir, string.Create(CultureInfo.InvariantCulture, $".{baseName}.{Guid.NewGuid():N}.tmp"));
+    }
+
+    private static void TryDeleteTempFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
     }
 
     private void ApplyGroundColors()
@@ -311,71 +792,126 @@ public sealed class DesktopShellControl : Border, IDisposable
     private async Task InitializeCoreAsync(CancellationToken cancellationToken)
     {
         Task hostStartTask = Host.StartAsync(cancellationToken);
-        _ = hostStartTask.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        var hostStartAwaited = false;
+        _ = hostStartTask.ContinueWith(
+            t =>
+            {
+                AggregateException? aggregate = t.Exception;
+                if (aggregate is not null && !Volatile.Read(ref hostStartAwaited) && !_disposed)
+                    Host.LogStartupError(typeof(DesktopShellControl).FullName!, "StartAsync", aggregate.Flatten().InnerException ?? aggregate);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default
+        );
 
-        CoreWebView2Environment environment = await WarmEnvironmentAsync().ConfigureAwait(true);
-        if (_disposed)
-            return;
-
-        await WebView.EnsureCoreWebView2Async(environment).ConfigureAwait(true);
-        if (_disposed)
-            return;
-
-        CoreWebView2 core = WebView.CoreWebView2;
-        core.Profile.PreferredColorScheme = Host.Options.DefaultThemeMode switch
+        try
         {
-            UIThemeMode.Dark => CoreWebView2PreferredColorScheme.Dark,
-            UIThemeMode.Light => CoreWebView2PreferredColorScheme.Light,
-            _ => CoreWebView2PreferredColorScheme.Auto
-        };
+            CoreWebView2Environment environment = await WarmEnvironmentAsync().ConfigureAwait(true);
+            if (_disposed)
+                return;
 
-        CoreWebView2Settings settings = core.Settings;
-        settings.IsStatusBarEnabled = false;
-        settings.IsBuiltInErrorPageEnabled = false;
-        settings.AreBrowserAcceleratorKeysEnabled = false;
-        settings.IsZoomControlEnabled = false;
-        settings.IsPinchZoomEnabled = false;
-        settings.AreDevToolsEnabled = Host.Options.EnableDevTools;
+            await WebView.EnsureCoreWebView2Async(environment).ConfigureAwait(true);
+            if (_disposed)
+                return;
 
-        _ = await core.AddScriptToExecuteOnDocumentCreatedAsync(ThemeBridgeScript).ConfigureAwait(true);
-        if (_disposed)
+            CoreWebView2 core = WebView.CoreWebView2;
+            core.Profile.PreferredColorScheme = Host.Options.DefaultThemeMode switch
+            {
+                UIThemeMode.Dark => CoreWebView2PreferredColorScheme.Dark,
+                UIThemeMode.Light => CoreWebView2PreferredColorScheme.Light,
+                _ => CoreWebView2PreferredColorScheme.Auto
+            };
+
+            CoreWebView2Settings settings = core.Settings;
+            settings.IsStatusBarEnabled = false;
+            settings.IsBuiltInErrorPageEnabled = false;
+            settings.AreBrowserAcceleratorKeysEnabled = false;
+            settings.IsZoomControlEnabled = false;
+            settings.IsPinchZoomEnabled = false;
+            settings.AreDevToolsEnabled = Host.Options.EnableDevTools;
+
+            _ = await core.AddScriptToExecuteOnDocumentCreatedAsync(ThemeBridgeScript).ConfigureAwait(true);
+            if (_disposed)
+                return;
+
+            _ = await core.AddScriptToExecuteOnDocumentCreatedAsync(BuildDesktopBridgeScript(Host.Options.Mode == DesktopHostMode.InProcess, IsSurfaceVisible)).ConfigureAwait(true);
+            if (_disposed)
+                return;
+
+            Volatile.Write(ref hostStartAwaited, true);
+            await hostStartTask.ConfigureAwait(true);
+            if (_disposed)
+                return;
+
+            await SeedLoopbackAuthCookieAsync(core).ConfigureAwait(true);
+            if (_disposed)
+                return;
+
+            await GrantNotificationPermissionsAsync(core).ConfigureAwait(true);
+            if (_disposed)
+                return;
+
+            var userDataFolder = _resolvedUserDataFolder ?? ResolveUserDataFolder(Host.Options);
+            DesktopToastNotifier notifier = new(Host, userDataFolder);
+            AttachCoreHandlers(core);
+            _toastNotifier = notifier;
+            _attachedCore = core;
+
+            if (_disposed)
+            {
+                if (Interlocked.Exchange(ref _attachedCore, null) is { } racedCore)
+                    DetachCoreHandlers(racedCore);
+
+                Interlocked.Exchange(ref _toastNotifier, null)?.Dispose();
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !_disposed)
+        {
+            Host.LogStartupError(typeof(DesktopShellControl).FullName!, "InitializeShellControl", ex);
+            throw;
+        }
+    }
+
+    private async Task SeedLoopbackAuthCookieAsync(CoreWebView2 core)
+    {
+        if (!Host.IsStarted || Host.LoopbackAuthToken is not { } authToken)
             return;
 
-        _ = await core.AddScriptToExecuteOnDocumentCreatedAsync(BuildDesktopBridgeScript(Host.Options.Mode == DesktopHostMode.InProcess, IsSurfaceVisible)).ConfigureAwait(true);
-        if (_disposed)
-            return;
-
-        await hostStartTask.ConfigureAwait(true);
-        if (_disposed)
-            return;
+        var authority = Host.BrowserBaseUri.GetLeftPart(UriPartial.Authority);
+        List<CoreWebView2Cookie> existing = await core.CookieManager.GetCookiesAsync(authority).ConfigureAwait(true);
+        for (var i = 0; i < existing.Count; i++)
+        {
+            if (string.Equals(existing[i].Name, Host.LoopbackAuthCookieName, StringComparison.Ordinal)
+                && string.Equals(existing[i].Value, authToken, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
 
         SeedLoopbackAuthCookie(core);
-
-        await GrantNotificationPermissionsAsync(core).ConfigureAwait(true);
-        if (_disposed)
-            return;
-
-        var userDataFolder = ResolveUserDataFolder(Host.Options);
-        DesktopToastNotifier notifier = new(Host, userDataFolder);
-        AttachCoreHandlers(core);
-        _toastNotifier = notifier;
-        _attachedCore = core;
-
-        if (_disposed)
+        for (var attempt = 0; attempt < 10; attempt++)
         {
-            if (Interlocked.Exchange(ref _attachedCore, null) is { } racedCore)
-                DetachCoreHandlers(racedCore);
+            List<CoreWebView2Cookie> updated = await core.CookieManager.GetCookiesAsync(authority).ConfigureAwait(true);
+            for (var i = 0; i < updated.Count; i++)
+            {
+                if (string.Equals(updated[i].Name, Host.LoopbackAuthCookieName, StringComparison.Ordinal)
+                    && string.Equals(updated[i].Value, authToken, StringComparison.Ordinal))
+                {
+                    return;
+                }
+            }
 
-            Interlocked.Exchange(ref _toastNotifier, null)?.Dispose();
+            await Task.Delay(10).ConfigureAwait(true);
         }
     }
 
     private void SeedLoopbackAuthCookie(CoreWebView2 core)
     {
-        if (Host.LoopbackAuthToken is not { } authToken)
+        if (!Host.IsStarted || Host.LoopbackAuthToken is not { } authToken)
             return;
 
-        CoreWebView2Cookie cookie = core.CookieManager.CreateCookie(DesktopWebHost.LoopbackAuthCookieName, authToken, Host.BrowserBaseUri.Host, "/");
+        CoreWebView2Cookie cookie = core.CookieManager.CreateCookie(Host.LoopbackAuthCookieName, authToken, Host.BrowserBaseUri.Host, "/");
         cookie.IsHttpOnly = true;
         cookie.IsSecure = true;
         cookie.SameSite = CoreWebView2CookieSameSiteKind.Strict;
@@ -385,6 +921,7 @@ public sealed class DesktopShellControl : Border, IDisposable
     private void AttachCoreHandlers(CoreWebView2 core)
     {
         core.NavigationStarting += OnNavigationStarting;
+        core.ContentLoading += OnContentLoading;
         core.NavigationCompleted += OnNavigationCompleted;
         core.NewWindowRequested += OnNewWindowRequested;
         core.DocumentTitleChanged += OnDocumentTitleChanged;
@@ -399,6 +936,7 @@ public sealed class DesktopShellControl : Border, IDisposable
     private void DetachCoreHandlers(CoreWebView2 core)
     {
         core.NavigationStarting -= OnNavigationStarting;
+        core.ContentLoading -= OnContentLoading;
         core.NavigationCompleted -= OnNavigationCompleted;
         core.NewWindowRequested -= OnNewWindowRequested;
         core.DocumentTitleChanged -= OnDocumentTitleChanged;
@@ -422,6 +960,9 @@ public sealed class DesktopShellControl : Border, IDisposable
                 if (!webview) return;
 
                 let nextId = 0;
+                const pageEpoch = typeof crypto?.randomUUID === "function"
+                    ? crypto.randomUUID()
+                    : `${Date.now()}-${Math.random()}`;
                 const pending = new Map();
                 const notificationClicks = new Map();
 
@@ -440,17 +981,17 @@ public sealed class DesktopShellControl : Border, IDisposable
                         return;
                     }
 
-                    if (data.type === "notification-clicked" && typeof data.notificationId === "number") {
-                        const onClick = notificationClicks.get(data.notificationId);
+                    if (data.type === "notification-clicked" && data.pageEpoch === pageEpoch && typeof data.pageNotificationId === "number") {
+                        const onClick = notificationClicks.get(data.pageNotificationId);
                         if (onClick) {
-                            notificationClicks.delete(data.notificationId);
+                            notificationClicks.delete(data.pageNotificationId);
                             onClick();
                         }
                         return;
                     }
 
-                    if (data.type === "notification-closed" && typeof data.notificationId === "number") {
-                        notificationClicks.delete(data.notificationId);
+                    if (data.type === "notification-closed" && data.pageEpoch === pageEpoch && typeof data.pageNotificationId === "number") {
+                        notificationClicks.delete(data.pageNotificationId);
                         return;
                     }
 
@@ -497,9 +1038,11 @@ public sealed class DesktopShellControl : Border, IDisposable
                         webview.postMessage(JSON.stringify({
                             type: "system-notification",
                             requestId,
+                            pageEpoch,
                             title: request?.title ?? "",
                             body: request?.body ?? null,
                             tag: request?.tag ?? "",
+                            bringTo: typeof request?.bringTo === "string" ? request.bringTo : null,
                             silent: Boolean(request?.silent),
                             requireInteraction: Boolean(request?.requireInteraction)
                         }));
@@ -605,9 +1148,6 @@ public sealed class DesktopShellControl : Border, IDisposable
             OpenExternalUri(targetUri);
     }
 
-    private bool IsSameOrigin(Uri uri)
-        => Host.IsStarted && (DesktopWebHost.MatchesOrigin(uri, Host.BrowserBaseUri) || DesktopWebHost.MatchesOrigin(uri, Host.BaseUri));
-
     private static void OpenExternalUri(Uri uri)
     {
         if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
@@ -623,6 +1163,9 @@ public sealed class DesktopShellControl : Border, IDisposable
         });
     }
 
+    private void OnContentLoading(object? sender, CoreWebView2ContentLoadingEventArgs e)
+        => _ = AdvanceNavigationEpoch();
+
     private void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
         _ = Interlocked.Exchange(ref _pendingCloseConfirmation, null)?.Completion.TrySetResult(false);
@@ -637,13 +1180,15 @@ public sealed class DesktopShellControl : Border, IDisposable
         if (e.IsSuccess || e.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled)
             _ = pending.TrySetResult(e.IsSuccess);
         else
-            _ = pending.TrySetException(new InvalidOperationException($"WebView2 navigation failed with status '{e.WebErrorStatus}'."));
+            _ = pending.TrySetException(new InvalidOperationException(string.Create(CultureInfo.InvariantCulture, $"WebView2 navigation failed with status '{e.WebErrorStatus}' (HTTP {e.HttpStatusCode}).")));
     }
 
     private void OnProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
     {
+        InvalidOperationException failure = new($"WebView2 process failed with kind '{e.ProcessFailedKind}'.");
+        Host.LogStartupError(typeof(DesktopShellControl).FullName!, "WebView2ProcessFailed", failure);
         _ = Interlocked.Exchange(ref _pendingCloseConfirmation, null)?.Completion.TrySetResult(true);
-        _ = Interlocked.Exchange(ref _pendingNavigation, null)?.TrySetException(new InvalidOperationException($"WebView2 process failed with kind '{e.ProcessFailedKind}'."));
+        _ = Interlocked.Exchange(ref _pendingNavigation, null)?.TrySetException(failure);
     }
 
     private void OnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
@@ -653,9 +1198,15 @@ public sealed class DesktopShellControl : Border, IDisposable
             return;
 
         if (IsSameOrigin(targetUri))
-            WebView.CoreWebView2.Navigate(targetUri.AbsoluteUri);
+        {
+            CoreWebView2 core = WebView.CoreWebView2;
+            SeedLoopbackAuthCookie(core);
+            core.Navigate(targetUri.AbsoluteUri);
+        }
         else
+        {
             OpenExternalUri(targetUri);
+        }
     }
 
     private void OnDocumentTitleChanged(object? sender, object e)
@@ -787,6 +1338,8 @@ public sealed class DesktopShellControl : Border, IDisposable
         var title = root.TryGetProperty("title", out JsonElement titleProp) && titleProp.ValueKind == JsonValueKind.String ? titleProp.GetString() : null;
         var body = root.TryGetProperty("body", out JsonElement bodyProp) && bodyProp.ValueKind == JsonValueKind.String ? bodyProp.GetString() : null;
         var tag = root.TryGetProperty("tag", out JsonElement tagProp) && tagProp.ValueKind == JsonValueKind.String ? tagProp.GetString() : null;
+        var bringTo = root.TryGetProperty("bringTo", out JsonElement bringToProp) && bringToProp.ValueKind == JsonValueKind.String ? bringToProp.GetString() : null;
+        var pageEpoch = root.TryGetProperty("pageEpoch", out JsonElement epochProp) && epochProp.ValueKind == JsonValueKind.String ? epochProp.GetString() : null;
         var silent = root.TryGetProperty("silent", out JsonElement silentProp) && silentProp.ValueKind == JsonValueKind.True;
         var requireInteraction = root.TryGetProperty("requireInteraction", out JsonElement interactionProp) && interactionProp.ValueKind == JsonValueKind.True;
 
@@ -796,12 +1349,19 @@ public sealed class DesktopShellControl : Border, IDisposable
         if (string.IsNullOrWhiteSpace(tag))
             tag = null;
 
+        if (string.IsNullOrWhiteSpace(bringTo))
+            bringTo = null;
+
         if (string.IsNullOrWhiteSpace(title) || _toastNotifier is null)
         {
             PostBridgeReply(new BridgeReply(requestId, Handled: false));
             return;
         }
 
+        var hostNotificationId = Interlocked.Increment(ref _nextNotificationId);
+        var capturedEpoch = Volatile.Read(ref _navigationEpoch);
+        Uri? bringToUri = TryResolveNotificationTargetUri(bringTo);
+        Action activateAction = CreateNotificationActivationAction(capturedEpoch, hostNotificationId, requestId, pageEpoch, bringToUri);
         var completed = 0;
 
         void NotifyActivated()
@@ -809,14 +1369,7 @@ public sealed class DesktopShellControl : Border, IDisposable
             if (Interlocked.CompareExchange(ref completed, 1, 0) != 0)
                 return;
 
-            DispatchOnUi(() =>
-            {
-                if (_disposed)
-                    return;
-
-                WindowActivationRequested?.Invoke(this, EventArgs.Empty);
-                PostBridgeObject(new NotificationEventBridgeMessage("notification-clicked", requestId));
-            });
+            activateAction();
         }
 
         void NotifyDismissed()
@@ -826,13 +1379,13 @@ public sealed class DesktopShellControl : Border, IDisposable
 
             DispatchOnUi(() =>
             {
-                if (!_disposed)
-                    PostBridgeObject(new NotificationEventBridgeMessage("notification-closed", requestId));
+                if (!_disposed && Volatile.Read(ref _navigationEpoch) == capturedEpoch)
+                    PostBridgeObject(new NotificationEventBridgeMessage("notification-closed", hostNotificationId, requestId, pageEpoch));
             });
         }
 
         var shown = _toastNotifier.TryShow(title, body, tag, silent, requireInteraction, NotifyActivated, NotifyDismissed, out Action toastDismiss);
-        PostBridgeReply(new BridgeReply(requestId, Handled: shown));
+        PostBridgeReply(new BridgeReply(requestId, Handled: shown, NotificationId: shown ? hostNotificationId : null));
 
         if (!shown)
             return;
@@ -843,19 +1396,11 @@ public sealed class DesktopShellControl : Border, IDisposable
             toastDismiss();
         }
 
-        SystemNotificationShown?.Invoke(this, new DesktopNotificationShownEventArgs(title, body, tag, silent, requireInteraction, ActivateProgrammatically, toastDismiss));
+        SystemNotificationShown?.Invoke(this, new DesktopNotificationShownEventArgs(title, body, tag, bringToUri?.PathAndQuery, silent, requireInteraction, ActivateProgrammatically, toastDismiss));
     }
 
     private void PostBridgeReply(BridgeReply reply)
         => PostBridgeObject(reply);
-
-    private void DispatchOnUi(Action action)
-    {
-        if (Dispatcher.CheckAccess())
-            action();
-        else
-            _ = Dispatcher.InvokeAsync(action);
-    }
 
     private static bool TryReadLocalUploadCandidates(JsonElement root, IReadOnlyList<object>? additionalObjects, out List<WebFileEndpoints.LocalUploadCandidate>? candidates)
     {
@@ -942,111 +1487,14 @@ public sealed class DesktopShellControl : Border, IDisposable
                 return;
             }
 
-            var suggestedName = WebFileEndpoints.ReduceFileName(fileName) ?? "download";
-            var initialDirectory = ResolveDownloadsDirectory(Host.Options);
-            string? targetPath;
-
-            if (Host.Options.DownloadMode == DesktopDownloadMode.Directory)
-            {
-                _ = Directory.CreateDirectory(initialDirectory);
-                targetPath = ResolveUniqueFilePath(initialDirectory, suggestedName);
-            }
-            else
-            {
-                targetPath = ShowSaveFileDialog(initialDirectory, suggestedName);
-                if (string.IsNullOrWhiteSpace(targetPath))
-                {
-                    IUIFileStore cancelledStore = Host.Services.GetRequiredService<IUIFileStore>();
-                    if (await cancelledStore.TakeDownloadAsync(sessionId, token, CancellationToken.None).ConfigureAwait(true) is { } discarded)
-                        await discarded.DisposeAsync().ConfigureAwait(true);
-
-                    PostBridgeReply(new BridgeReply(requestId, Handled: true));
-                    return;
-                }
-            }
-
             IUIFileStore store = Host.Services.GetRequiredService<IUIFileStore>();
-            var delivered = false;
-            try
-            {
-                delivered = await Task.Run(() => store.TryDeliverDownloadAsync(sessionId, token, targetPath, CancellationToken.None)).ConfigureAwait(true);
-            }
-            catch
-            {
-                delivered = false;
-            }
-
-            if (!delivered)
-            {
-                if (Host.Options.DownloadMode == DesktopDownloadMode.Directory)
-                {
-                    PostBridgeReply(new BridgeReply(requestId, Handled: false));
-                    return;
-                }
-
-                PostBridgeReply(new BridgeReply(requestId, Handled: true));
-                DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(downloadUri, targetPath, succeeded: false));
-                return;
-            }
-
-            if (Host.Services.GetService<WebUIMetrics>() is { } metrics && File.Exists(targetPath))
-                metrics.FileDownloaded(new FileInfo(targetPath).Length);
-
-            PostBridgeReply(new BridgeReply(requestId, Handled: true));
-            DownloadCompleted?.Invoke(this, new DesktopDownloadCompletedEventArgs(downloadUri, targetPath, succeeded: true));
+            var handled = await DeliverStagedDownloadAsync(store, sessionId, downloadUri, token, fileName, CancellationToken.None).ConfigureAwait(true);
+            PostBridgeReply(new BridgeReply(requestId, Handled: handled));
         }
         catch
         {
             PostBridgeReply(new BridgeReply(requestId, Handled: false));
         }
-    }
-
-    private static string ResolveDownloadsDirectory(DesktopHostOptions options)
-    {
-        if (!string.IsNullOrWhiteSpace(options.DownloadsDirectory))
-            return Path.GetFullPath(options.DownloadsDirectory);
-
-        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return Path.Combine(userProfile, "Downloads");
-    }
-
-    private static string ResolveUniqueFilePath(string directory, string fileName)
-    {
-        var candidate = Path.Combine(directory, fileName);
-        if (!File.Exists(candidate))
-            return candidate;
-
-        var stem = Path.GetFileNameWithoutExtension(fileName);
-        var ext = Path.GetExtension(fileName);
-        for (var i = 2; i < 10000; i++)
-        {
-            var next = Path.Combine(directory, $"{stem} ({i}){ext}");
-            if (!File.Exists(next))
-                return next;
-        }
-
-        return Path.Combine(directory, $"{stem}-{Guid.NewGuid():N}{ext}");
-    }
-
-    private string? ShowSaveFileDialog(string initialDirectory, string suggestedName)
-    {
-        SaveFileDialog dialog = new()
-        {
-            FileName = suggestedName,
-            InitialDirectory = Directory.Exists(initialDirectory) ? initialDirectory : null,
-            OverwritePrompt = true
-        };
-
-        var extension = Path.GetExtension(suggestedName);
-        if (!string.IsNullOrWhiteSpace(extension))
-        {
-            dialog.DefaultExt = extension;
-            dialog.Filter = $"*{extension}|*{extension}|*.*|*.*";
-        }
-
-        Window? owner = Window.GetWindow(this);
-        var accepted = owner is not null ? dialog.ShowDialog(owner) : dialog.ShowDialog();
-        return accepted == true && !string.IsNullOrWhiteSpace(dialog.FileName) ? dialog.FileName : null;
     }
 
     private void OnContextMenuRequested(object? sender, CoreWebView2ContextMenuRequestedEventArgs e)
@@ -1087,10 +1535,7 @@ public sealed class DesktopShellControl : Border, IDisposable
     {
         e.Handled = true;
 
-        var suggestedName = Path.GetFileName(e.ResultFilePath);
-        if (string.IsNullOrWhiteSpace(suggestedName))
-            suggestedName = "download";
-
+        var suggestedName = SanitizeWindowsFileName(e.ResultFilePath);
         Uri sourceUri = Uri.TryCreate(e.DownloadOperation.Uri, UriKind.Absolute, out Uri? parsed)
             ? parsed
             : Host.BrowserBaseUri;
@@ -1135,7 +1580,7 @@ public sealed class DesktopShellControl : Border, IDisposable
                 return;
             }
 
-            var chosenPath = ShowSaveFileDialog(initialDirectory, suggestedName);
+            var chosenPath = (SaveFileDialogPrompt ?? ShowSaveFileDialog)(initialDirectory, suggestedName);
             if (string.IsNullOrWhiteSpace(chosenPath))
             {
                 e.Cancel = true;
@@ -1179,6 +1624,7 @@ public sealed class DesktopShellControl : Border, IDisposable
             return;
         }
 
+        var capturedEpoch = Volatile.Read(ref _navigationEpoch);
         var completed = 0;
         Action? toastDismissRef = null;
 
@@ -1200,7 +1646,9 @@ public sealed class DesktopShellControl : Border, IDisposable
                     return;
 
                 WindowActivationRequested?.Invoke(this, EventArgs.Empty);
-                webNotification.ReportClicked();
+                if (Volatile.Read(ref _navigationEpoch) == capturedEpoch)
+                    webNotification.ReportClicked();
+
                 webNotification.ReportClosed();
             });
         }
@@ -1235,16 +1683,16 @@ public sealed class DesktopShellControl : Border, IDisposable
             toastDismiss();
         }
 
-        SystemNotificationShown?.Invoke(this, new DesktopNotificationShownEventArgs(title, body, tag, silent, requireInteraction, ActivateProgrammatically, toastDismiss));
+        SystemNotificationShown?.Invoke(this, new DesktopNotificationShownEventArgs(title, body, tag, bringTo: null, silent, requireInteraction, ActivateProgrammatically, toastDismiss));
     }
 
-    private sealed record BridgeReply(int RequestId, bool Handled, string? SelectionId = null, string? Error = null);
+    private sealed record BridgeReply(int RequestId, bool Handled, string? SelectionId = null, string? Error = null, int? NotificationId = null);
 
     private sealed record VisibilityBridgeMessage(string Type, bool Visible);
 
     private sealed record ConfirmCloseBridgeMessage(string Type, int RequestId);
 
-    private sealed record NotificationEventBridgeMessage(string Type, int NotificationId);
+    private sealed record NotificationEventBridgeMessage(string Type, int NotificationId, int PageNotificationId, string? PageEpoch);
 
     private sealed record PendingCloseRequest(int RequestId, TaskCompletionSource Acknowledged, TaskCompletionSource<bool> Completion);
 }

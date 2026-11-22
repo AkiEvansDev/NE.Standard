@@ -22,7 +22,7 @@ import { stampRowIndices } from "./table-row-indices.ts";
 import type { ItemsTemplateRegistry } from "./items-template-registry.ts";
 import { writeItemValuePath } from "./items-template-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer.ts";
-import { hostOfScrollTarget, readHostScroll, scrollHostTo } from "../addressing/items-viewport.ts";
+import { hostOfScrollTarget, itemBox, readHostScroll, scrollHostTo } from "../addressing/items-viewport.ts";
 import { logWarn } from "../metadata/logger.ts";
 import { registerRuntimeCleanup } from "../runtime/cleanup-scope.ts";
 
@@ -54,6 +54,8 @@ export class ItemsVirtualizationEngine {
 
     // A host that changed size without a scroll — a flyout opened over it, a window widened past another tile a line — shows other rows.
     private readonly resizes = typeof ResizeObserver === "function" ? new ResizeObserver(entries => this.handleResize(entries)) : null;
+    private readonly observedHosts = new WeakSet<Element>();
+    private readonly rowHosts = new WeakMap<Element, Element>();
 
     // Rows kept as drawn through a change of their item for the focus they hold, drawn anew from it once the focus has left them.
     private readonly keptAsDrawn = new WeakSet<Element>();
@@ -119,9 +121,38 @@ export class ItemsVirtualizationEngine {
     /** Lets go of the hosts taken off the page, which the set would otherwise keep with every row they drew. */
     private letGoOffPage(): void {
         for (const host of this.held) {
-            if (!host.isConnected)
+            if (!host.isConnected) {
                 this.held.delete(host);
+                this.unobserveHost(host);
+            }
         }
+    }
+
+    private observeHost(host: Element): void {
+        if (!this.observedHosts.has(host)) {
+            this.observedHosts.add(host);
+            this.resizes?.observe(host);
+        }
+    }
+
+    private unobserveHost(host: Element): void {
+        if (this.observedHosts.delete(host))
+            this.resizes?.unobserve(host);
+    }
+
+    private observeRow(host: Element, element: Element | null): void {
+        if (element === null || this.rowHosts.get(element) === host)
+            return;
+
+        this.rowHosts.set(element, host);
+        this.resizes?.observe(element);
+    }
+
+    private unobserveRow(element: Element | null): void {
+        if (element === null || !this.rowHosts.delete(element))
+            return;
+
+        this.resizes?.unobserve(element);
     }
 
     /** The row drawn for the item of `key`, or null while it is not drawn. */
@@ -329,6 +360,7 @@ export class ItemsVirtualizationEngine {
 
         for (const dropped of previous.values()) {
             dropMeasured(state.itemHeights, dropped.height);
+            this.unobserveRow(dropped.element);
             dropped.element?.remove();
             dropped.element = null;
             dropped.height = null;
@@ -371,6 +403,8 @@ export class ItemsVirtualizationEngine {
     private dropRow(host: Element, element: Element | null): void {
         if (element === null)
             return;
+
+        this.unobserveRow(element);
 
         const held = takeRowCursor(element);
 
@@ -445,8 +479,10 @@ export class ItemsVirtualizationEngine {
         const root = rowCursorRoot(host);
         const restoreCursor = root === null || rows.size === 0 ? null : planRowRemoval(root, getRealItemElements(host), rows);
 
-        for (const row of rows)
+        for (const row of rows) {
+            this.unobserveRow(row);
             row.remove();
+        }
 
         state.itemEstimate = state.itemHeights.count > 0 ? state.itemHeights.sum / state.itemHeights.count : DefaultItemSize;
         state.entries = state.entries.filter(entry => !gone.has(entry));
@@ -523,12 +559,15 @@ export class ItemsVirtualizationEngine {
             return;
 
         for (const entry of state.mounted) {
+            this.unobserveRow(entry.element);
             entry.element?.remove();
             entry.element = null;
         }
 
-        for (const header of state.headers.values())
+        for (const header of state.headers.values()) {
+            this.unobserveRow(header.element);
             header.element?.remove();
+        }
 
         state.mounted.clear();
         state.headers.clear();
@@ -604,20 +643,65 @@ export class ItemsVirtualizationEngine {
         if (this.disposed)
             return;
 
-        for (const entry of entries) {
-            const host = entry.target;
+        const hosts = new Set<Element>();
 
-            // The next frame, not here: rows drawn inside the observer's callback grow a host it watches, which the browser reports as a loop.
-            if (host.isConnected && resolveHostMode(host) === "virtualized") {
-                window.requestAnimationFrame(() => {
+        for (const entry of entries) {
+            const target = entry.target;
+            const rowHost = this.rowHosts.get(target);
+
+            if (rowHost !== undefined) {
+                if (!target.isConnected || !rowHost.isConnected || resolveHostMode(rowHost) !== "virtualized") {
+                    this.unobserveRow(target);
+                    continue;
+                }
+
+                const state = this.states.get(rowHost);
+
+                if (state !== undefined && this.rowSizeChanged(rowHost, state, target))
+                    hosts.add(rowHost);
+
+                continue;
+            }
+
+            if (target.isConnected && resolveHostMode(target) === "virtualized")
+                hosts.add(target);
+            else
+                this.unobserveHost(target);
+        }
+
+        // The next frame, not here: rows drawn inside the observer's callback grow a host it watches, which the browser reports as a loop.
+        if (hosts.size > 0) {
+            window.requestAnimationFrame(() => {
+                for (const host of hosts) {
                     if (!this.disposed && host.isConnected)
                         this.relayout(host);
-                });
-            }
-            else {
-                this.resizes?.unobserve(host);
-            }
+                }
+            });
         }
+    }
+
+    private rowSizeChanged(host: Element, state: VirtualHostState, element: Element): boolean {
+        const box = itemBox(element);
+
+        if (box.height <= 0)
+            return false;
+
+        if (element.hasAttribute(GroupHeaderAttribute)) {
+            for (const header of state.headers.values()) {
+                if (header.element === element)
+                    return header.height === null || Math.abs(box.height - header.height) > 1e-6;
+            }
+
+            return true;
+        }
+
+        const key = element.getAttribute(ComponentKeyAttribute);
+        const entry = key === null ? undefined : state.byKey.get(key);
+
+        if (entry === undefined || entry.height === null || Math.abs(box.height - entry.height) > 1e-6)
+            return true;
+
+        return isWrap(host) && (state.tileWidth === null || Math.abs(box.width - state.tileWidth) > 1e-6);
     }
 
     private relayout(host: Element): void {
@@ -640,7 +724,7 @@ export class ItemsVirtualizationEngine {
         }, PassInterval);
     }
 
-    private layout(host: Element, state: VirtualHostState): void {
+    private layout(host: Element, state: VirtualHostState, remeasured = false): void {
         const rows = state.projected;
         const total = rows.length;
         const style = getComputedStyle(host);
@@ -735,6 +819,7 @@ export class ItemsVirtualizationEngine {
                 if (row.header)
                     markGroupHeader(element, row.entry.key);
 
+                this.observeRow(host, element);
                 drawn.push(element);
 
                 if (!row.header)
@@ -752,6 +837,7 @@ export class ItemsVirtualizationEngine {
                 restoreWaitingCursor(host, rendered);
 
             setElement(state, row, rendered);
+            this.observeRow(host, rendered);
             drawn.push(rendered);
 
             if (!row.header)
@@ -784,6 +870,7 @@ export class ItemsVirtualizationEngine {
             if (rowIndex >= 0 && holdsFocused && rows[rowIndex]?.entry === entry) {
                 held = { element, line: lines === null ? rowIndex : lineIndexOf(lines.starts, rowIndex) };
                 kept.add(element);
+                this.observeRow(host, element);
                 placed.push([element, headersBefore === null ? rowIndex : rowIndex - headersBefore[rowIndex]]);
                 continue;
             }
@@ -807,6 +894,7 @@ export class ItemsVirtualizationEngine {
             const child = host.children[i];
 
             if (child.hasAttribute(GroupHeaderAttribute) && !kept.has(child)) {
+                this.unobserveRow(child);
                 child.remove();
                 changed = true;
             }
@@ -856,12 +944,15 @@ export class ItemsVirtualizationEngine {
         // Measured after every write of the pass, so the pass forces one layout, not one per row.
         measureVirtualRows(state, rows, first, last);
 
-        // A line holds as many tiles as fit it, known once one is drawn: a pass that learned another count lays the lines out again.
+        // A line holds as many tiles as fit it, known once one is drawn: a pass that learned another count or row height lays the spacers out again.
         if (lines !== null) {
             state.across = tilesAcross(host, style, state.tileWidth) ?? state.across;
 
-            if (state.across !== across)
-                this.layout(host, state);
+            if (state.across !== across || (!remeasured && !state.prefixValid))
+                this.layout(host, state, true);
+        }
+        else if (column && !remeasured && !state.prefixValid) {
+            this.layout(host, state, true);
         }
     }
 
@@ -880,8 +971,10 @@ export class ItemsVirtualizationEngine {
         const known = this.states.get(host);
 
         if (known !== undefined) {
-            // Again on every use: a host let go while it was off the page is held again once it is back.
+            // Again on every use: a host let go while it was off the page is held and observed again once it is back.
             this.held.add(host);
+            if (host.isConnected)
+                this.observeHost(host);
             return known;
         }
 
@@ -952,7 +1045,9 @@ export class ItemsVirtualizationEngine {
         // A host drawn anew is when the ones it replaced are let go, so the set never outgrows the page's hosts by much.
         this.letGoOffPage();
         this.held.add(host);
-        this.resizes?.observe(host);
+        this.observeHost(host);
+        for (const entry of state.mounted)
+            this.observeRow(host, entry.element);
 
         return state;
     }

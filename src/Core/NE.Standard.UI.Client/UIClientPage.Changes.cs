@@ -862,6 +862,15 @@ public sealed partial class UIClientPage
                     _ = _openedRenames.Remove(droppedRenames[i]);
             }
         }
+
+        if (_expandedField is UIComponentAddress expanded && IsUnderRow(expanded, host, key))
+        {
+            _expandedField = null;
+            _dialogsChanged = true;
+        }
+
+        if (_openContextMenu is UIComponentAddress openMenu && IsUnderRow(openMenu, host, key))
+            _openContextMenu = null;
     }
 
     private void DropRowValuesNoLock(UIComponentAddress host, string? key)
@@ -956,8 +965,13 @@ public sealed partial class UIClientPage
             switch (effect)
             {
                 case OpenDialogEffect open:
-                    if (_openDialogs.Add(DeclaredDialog(open.DialogKey).Key))
+                    var openedKey = DeclaredDialog(open.DialogKey).Key;
+                    if (!_openDialogs.Contains(openedKey))
+                    {
+                        _openDialogs.Add(openedKey);
                         _dialogsChanged = true;
+                    }
+
                     break;
                 case CloseDialogEffect { RaisesClose: true } close:
                     CloseAsTheViewerNoLock(DeclaredDialog(close.DialogKey));
@@ -1021,6 +1035,9 @@ public sealed partial class UIClientPage
                     break;
                 case RenameItemEffect { ResolvedTarget: { } renameTarget } rename:
                     OpenRenameNoLock(rename, renameTarget, source);
+                    break;
+                case ExpandFieldEffect { ResolvedTarget: { } expandTarget }:
+                    OpenExpandedFieldNoLock(expandTarget, source);
                     break;
                 case SetLanguageEffect or SetThemeEffect or SetThemeColorsEffect when !Transport.SessionHolds(effect):
                     _reactions.Add(new UIClientReaction(Setting: effect));
@@ -1170,6 +1187,35 @@ public sealed partial class UIClientPage
             _ = _openedRenames.Add(new UIComponentAddress(target.Id, targetKeys));
     }
 
+    private void OpenExpandedFieldNoLock(UIComponentAddress target, UIComponentAddress? source)
+    {
+        if (!View.Graph.TryGet(target.Id, out _))
+            return;
+
+        var scopeDepth = View.Graph.GetItemScopes(target.Id).Count;
+        var targetKeys = target.DynamicParameters.Length > 0
+            ? target.DynamicParameters
+            : source is UIComponentAddress src && src.DynamicParameters.Length >= scopeDepth
+                ? src.DynamicParameters[..scopeDepth]
+                : [];
+
+        if (targetKeys.Length < scopeDepth)
+            return;
+
+        if (ResolveAtTierNoLock<bool>(ReadNoLock(target.Id, targetKeys, IExpandableInputComponent.ExpandableProperty)) is not true)
+            return;
+
+        if (!IsShownNoLock(target.Id, targetKeys) || !IsEnabledNoLock(target.Id, targetKeys))
+            return;
+
+        UIComponentAddress next = new(target.Id, targetKeys);
+        if (_expandedField != next)
+        {
+            _expandedField = next;
+            _dialogsChanged = true;
+        }
+    }
+
     /// <summary>A dialog the page's view declares; one it does not is refused, as the runtime drops it and the page finds nothing.</summary>
     private CompiledDialog DeclaredDialog(string dialogKey)
         => View.FindDialog(dialogKey) ?? throw new InvalidOperationException($"An effect names dialog '{dialogKey}', which the page's view does not declare.");
@@ -1302,6 +1348,12 @@ public sealed partial class UIClientPage
             ClearValueEntriesNoLock();
             _rows.Clear();
             _openedRenames.Clear();
+            _openContextMenu = null;
+            if (_expandedField is not null)
+            {
+                _expandedField = null;
+                _dialogsChanged = true;
+            }
 
             // A held field keeps the reader's edit through the rebuild, as the page's input does; the snapshot's value waits aside.
             foreach (KeyValuePair<UIPropertyAddress, object?> held in _held)
@@ -1334,6 +1386,19 @@ public sealed partial class UIClientPage
             ClearValueEntriesNoLock();
             _rows.Clear();
             _openedRenames.Clear();
+            _openContextMenu = null;
+            if (_openDrawer is not null)
+            {
+                _openDrawer = null;
+                _dialogsChanged = true;
+            }
+
+            if (_expandedField is not null)
+            {
+                _expandedField = null;
+                _dialogsChanged = true;
+            }
+
             _held.Clear();
             _serverValues.Clear();
 

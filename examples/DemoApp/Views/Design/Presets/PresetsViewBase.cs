@@ -373,7 +373,7 @@ internal abstract class PresetsViewBase : DemoView
                     .SetSurface(UISurfaceStyle.Background)
                     .SetBorderThickness(UIThickness.Uniform(1))
                     .SetHeight(UILayoutLength.Absolute(280))
-                    .SetContent(UIPage.Drawer("presets-sample-drawer", UISide.Left, "Settings",
+                    .SetContent(UIPage.Drawer("presets-sample-drawer", UISide.Right, "Settings",
                         UIDetails.List(("Region", "eu-west"), ("Plan", "Pro"), ("Backups", "Nightly")),
                         footer: UIText.Note("Pinned per browser from xl up."),
                         pinnable: false,

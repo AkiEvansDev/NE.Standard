@@ -182,3 +182,55 @@ test("a field without OnEscape keeps Escape's commit and leave, and a dialog kee
     assert.equal(field.value, "Kept");
     assert.deepEqual(heard, ["change Kept"]);
 });
+
+test("switching focus between fields never cross-contaminates per-field snapshots, and commitInPlace skips untouched or read-only fields", () => {
+    const localRoot = new FakeElement();
+    const discarded: FakeElement[] = [];
+
+    new FieldKeysEngine({
+        root: real<ParentNode>(localRoot),
+        discardDraft: target => discarded.push(target as unknown as FakeElement)
+    });
+
+    const first = new FakeInput();
+    const second = new FakeInput();
+    const untouchedArea = new FakeTextArea();
+    const readOnlyArea = new FakeTextArea();
+    const changes: string[] = [];
+
+    first.value = "Alpha";
+    first.setAttribute("data-ui-runs-on-escape", "");
+    second.value = "";
+    untouchedArea.value = "Existing text";
+    readOnlyArea.value = "Read-only text";
+    readOnlyArea.readOnly = true;
+
+    for (const control of [first, second, untouchedArea, readOnlyArea])
+        control.addEventListener("change", () => changes.push(`${control === first ? "first" : control === second ? "second" : "area"}:${control.value}`));
+
+    localRoot.append(first, second, untouchedArea, readOnlyArea);
+    root.children.length = 0;
+    root.append(localRoot);
+
+    // Focus `first` ("Alpha"), switch to `second` ("") — e.g. a find input — then commit `first` in place: `first` was never edited, so no spurious change fires.
+    first.focus();
+    second.focus();
+    first.dispatchEvent(new FakeEvent("ui-commit-in-place"));
+    untouchedArea.dispatchEvent(new FakeEvent("ui-commit-in-place"));
+
+    // Even if edited earlier, a read-only field refuses `commitInPlace`.
+    readOnlyArea.dispatchEvent(new FakeEvent("input"));
+    readOnlyArea.dispatchEvent(new FakeEvent("ui-commit-in-place"));
+
+    assert.deepEqual(changes, []);
+
+    // Now edit `first`, focus `second` briefly, and press Escape on `first`: `first` restores "Alpha" and runs `discardDraft` before blurring.
+    first.focus();
+    type(first, "Alpha draft");
+    second.focus();
+    press(first, "Escape");
+
+    assert.equal(first.value, "Alpha");
+    assert.deepEqual(discarded, [first]);
+    assert.deepEqual(changes, []);
+});

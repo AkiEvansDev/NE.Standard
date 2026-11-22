@@ -56,7 +56,7 @@ public sealed partial class OrdersController : UIControllerBase
 ## Validation and Forms
 
 - Input validation rules (evaluated in browser; server enforces structural `Min`/`Max`/`Step`/`MaxLength`/option gates, while business rules run in the command):
-  - `.Required(message)`, `.Regex(pattern, message)`, `.RegexEach(pattern, message)`
+  - `.Required(message)`, `.MinLength(min, message?)`, `.MaxLength(max, message?)`, `.Range(min, max, message?)`, `.Regex(pattern, message)`, `.RegexEach(pattern, message)`
   - `.Validate(trigger, UIComparisonOperator, value, message, severity)`
   - `.ValidateAgainst(otherInputOrId, UIComparisonOperator.Equal, message)` (cross-field validation, e.g. password confirmation)
   - `.ValidationInto(targetComponentOrId)` routes validation display to another component.

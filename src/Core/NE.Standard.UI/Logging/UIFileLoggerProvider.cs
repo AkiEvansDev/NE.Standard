@@ -235,11 +235,11 @@ internal sealed class UIFileLoggerProvider : ILoggerProvider, ISupportExternalSc
             if (resumeSize > 0 && resumeSize + entryBytes > _maxFileSize)
             {
                 var nextIndex = resumeIndex + 1;
-                OpenWriterNoLock(date, nextIndex, BuildFilePath(date, nextIndex), existingLength: 0);
+                OpenWriterNoLock(date, nextIndex, BuildFilePath(date, nextIndex));
             }
             else
             {
-                OpenWriterNoLock(date, resumeIndex, resumePath, resumeSize);
+                OpenWriterNoLock(date, resumeIndex, resumePath);
             }
 
             return;
@@ -257,8 +257,7 @@ internal sealed class UIFileLoggerProvider : ILoggerProvider, ISupportExternalSc
             rolledPath = BuildFilePath(date, rolledIndex);
         }
 
-        var existing = File.Exists(rolledPath) ? new FileInfo(rolledPath).Length : 0;
-        OpenWriterNoLock(date, rolledIndex, rolledPath, existing);
+        OpenWriterNoLock(date, rolledIndex, rolledPath);
     }
 
     private (int Index, string Path, long Size) FindResumeTarget(DateOnly date)
@@ -322,12 +321,13 @@ internal sealed class UIFileLoggerProvider : ILoggerProvider, ISupportExternalSc
         return Path.Combine(DirectoryPath, fileName);
     }
 
-    private void OpenWriterNoLock(DateOnly date, int index, string path, long existingLength)
+    private void OpenWriterNoLock(DateOnly date, int index, string path)
     {
         FileStream? stream = new(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite, FileBufferSize, FileOptions.SequentialScan);
 
         try
         {
+            var existingLength = stream.Length;
             _writer = new StreamWriter(stream, Utf8NoBom, FileBufferSize, leaveOpen: false);
             stream = null;
             _currentDate = date;
@@ -433,6 +433,9 @@ internal sealed class UIFileLoggerProvider : ILoggerProvider, ISupportExternalSc
         {
             foreach (var path in Directory.EnumerateFiles(DirectoryPath, $"{FileNamePrefix}-*.log"))
             {
+                if (_shutdownToken.IsCancellationRequested)
+                    break;
+
                 if (activeFilePath is not null && string.Equals(path, activeFilePath, StringComparison.OrdinalIgnoreCase))
                     continue;
 
@@ -562,6 +565,9 @@ internal sealed class UIFileLoggerProvider : ILoggerProvider, ISupportExternalSc
 
         _ = _channel.Writer.TryComplete();
         _shutdownCts.Cancel();
+
+        _processTask.GetAwaiter().GetResult();
+        _cleanupTask?.GetAwaiter().GetResult();
 
         lock (_writeSync)
         {

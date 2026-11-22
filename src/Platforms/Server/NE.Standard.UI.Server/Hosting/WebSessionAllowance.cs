@@ -195,6 +195,9 @@ internal sealed class WebSessionAllowance
         /// <summary>Claims <paramref name="count"/> more bytes, or answers <see langword="false"/> when they would cross a limit.</summary>
         public bool TryReserve(long count)
         {
+            if (count <= 0)
+                return true;
+
             lock (_owner._sync)
             {
                 var session = SessionRemainingNoLock();

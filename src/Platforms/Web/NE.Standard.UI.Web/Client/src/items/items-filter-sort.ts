@@ -6,9 +6,11 @@ import { getRealItemElements } from "../addressing/items-empty-renderer.ts";
 import type { ItemsTemplateRenderer } from "./items-template-renderer";
 import { comparable, compareValues, evaluateOperator, isRuleActive, readItemsQuery } from "../interactions/interaction-evaluator.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
+import { serverFileSizePaint } from "../rendering/file-size.ts";
 import { selectPlural } from "../rendering/plural-rules.ts";
-import { isAuthorText, isPhrase } from "../rendering/words.ts";
-import type { Phrase } from "../rendering/words.ts";
+import { formatTimestamp, readInstant } from "../rendering/timestamp-format.ts";
+import { isAuthorText, isFileSize, isMoment, isPhrase } from "../rendering/words.ts";
+import type { FileSize, Moment, Phrase } from "../rendering/words.ts";
 import type { ActiveSort, ItemsQuery } from "../interactions/interaction-evaluator.ts";
 import { getItemsSortDirection } from "../metadata/metadata-index.ts";
 import type {
@@ -75,7 +77,7 @@ function itemMatchesSearch(item: unknown, search: string | null | undefined): bo
     if (words.length === 0)
         return true;
 
-    if (item !== null && typeof item === "object" && !isPhrase(item) && !isAuthorText(item)) {
+    if (item !== null && typeof item === "object" && !isPhrase(item) && !isAuthorText(item) && !isMoment(item) && !isFileSize(item)) {
         const text = searchTextOfObject(item);
 
         for (let i = 0; i < words.length; i++) {
@@ -152,6 +154,19 @@ function collectSearchParts(value: unknown, parts: string[]): void {
         return;
     }
 
+    if (isMoment(value)) {
+        const formatted = formatMomentForSearch(value);
+        if (formatted.length > 0)
+            parts.push(formatted.toLowerCase());
+
+        return;
+    }
+
+    if (isFileSize(value)) {
+        parts.push(formatFileSizeForSearch(value).toLowerCase());
+        return;
+    }
+
     if (value === null || typeof value !== "object")
         return;
 
@@ -185,6 +200,12 @@ function valueContainsWord(value: unknown, word: string): boolean {
         return translated !== null && translated.toLowerCase().includes(word);
     }
 
+    if (isMoment(value))
+        return formatMomentForSearch(value).toLowerCase().includes(word);
+
+    if (isFileSize(value))
+        return formatFileSizeForSearch(value).toLowerCase().includes(word);
+
     if (value === null || typeof value !== "object")
         return false;
 
@@ -203,6 +224,19 @@ function tryTranslatePhraseForSearch(phrase: Phrase): string | null {
         : clientStrings.lookup(phrase.key, true) !== undefined;
 
     return hasWord ? clientStrings.translate(phrase.key, phrase.args) : null;
+}
+
+function formatMomentForSearch(moment: Moment): string {
+    const instant = readInstant(moment.moment);
+
+    if (instant === null)
+        return moment.moment;
+
+    return formatTimestamp(instant, moment.format ?? "date-time", { temporal: clientStrings.temporal, language: clientStrings.language }, Date.now());
+}
+
+function formatFileSizeForSearch(size: FileSize): string {
+    return clientStrings.language.length > 0 ? clientStrings.writeFileSize(size.fileSize) : serverFileSizePaint(size.fileSize);
 }
 
 export function sortElements(elements: readonly Element[], activeSorts: readonly ActiveSort[], itemsRenderer: ItemsTemplateRenderer): Element[] {

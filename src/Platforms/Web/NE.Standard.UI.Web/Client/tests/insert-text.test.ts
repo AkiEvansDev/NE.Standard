@@ -174,3 +174,19 @@ test("a row's press reaches a field outside its list, and one inside its own row
         { target: { id: 7, dynamicParameters: ["a"] }, row: ["a"] }
     ]);
 });
+
+test("InsertText skips nested inputs inside LeadingAction or flyout components and targets the owning component's own caret field", () => {
+    const nestedSearch = FakeElement.of("ui-field", {}, "input");
+    const leadingFlyout = FakeElement.of("ui-flyout", { "data-ui-id": "41" }).append(nestedSearch);
+    const ownArea = field("Hello ", 6);
+    const composer = FakeElement.of("ui-text-area", { "data-ui-id": "40" }).append(leadingFlyout, ownArea);
+
+    Object.assign(nestedSearch, { value: "", selectionStart: 0, selectionEnd: 0, maxLength: -1, readOnly: false, disabled: false });
+    fakeDocument.body.replaceChildren(composer);
+
+    applyInsertText({ kind: "InsertText", text: "world" }, real<Element>(composer), [], null);
+
+    assert.equal(nestedSearch.textContent, "");
+    assert.equal((nestedSearch as unknown as { value: string }).value, "");
+    assert.equal(ownArea.value, "Hello world");
+});

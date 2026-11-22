@@ -9,6 +9,7 @@ import test from "node:test";
 import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 installFakeDom({
+    Event: class extends FakeEvent { public constructor(type: string) { super(type); } },
     window: { addEventListener: () => undefined, removeEventListener: () => undefined, setTimeout, clearTimeout, innerWidth: 1280, innerHeight: 900 },
     getComputedStyle: () => ({ transform: "none", filter: "none", perspective: "none", direction: "ltr" }),
     CSS: { escape: (value: string) => value },
@@ -1011,4 +1012,99 @@ test("a calendar's arrows say the page they turn: a month in the days, a year in
 
     assert.equal(nav("previous").getAttribute("aria-label"), "ui.picker.year.previous");
     assert.equal(nav("next").getAttribute("aria-label"), "ui.picker.year.next");
+});
+
+test("every calendar and date popup starts its week on Monday across English and Russian unless FirstDayOfWeek says otherwise", () => {
+    const ruWeekdays = "Вс|Пн|Вт|Ср|Чт|Пт|Сб";
+    const enDefault = calendar({}, "2026-09-15");
+    const ruDefault = calendar({ "data-ui-temporal-weekdays": ruWeekdays }, "2026-09-15");
+    const omitted = calendar({}, "2026-09-15");
+
+    omitted.root.removeAttribute("data-ui-temporal-first-day");
+    omitted.body.replaceChildren();
+    new TemporalPickerEngine({ root: real<ParentNode>(omitted.root.parent!) });
+
+    const sunday = calendar({ "data-ui-temporal-first-day": "0", "data-ui-temporal-weekdays": ruWeekdays }, "2026-09-15");
+    const headersOf = (scene: Scene): string[] => scene.body.querySelectorAll(".ui-temporal-input__weekday").map(cell => cell.textContent);
+
+    assert.deepEqual(headersOf(enDefault), ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+    assert.deepEqual(headersOf(ruDefault), ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]);
+    assert.deepEqual(headersOf(omitted), ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+    assert.deepEqual(headersOf(sunday), ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]);
+});
+
+test("picking a day in the calendar popup updates CommitGate so clicking clear immediately afterward is not swallowed", async () => {
+    const { CommitGate } = await import("../src/interactions/commit-gate.ts");
+    const { ValueBindingEngine } = await import("../src/updates/value-binding-engine.ts");
+    const { ValueChangeDispatcher } = await import("../src/transport/value-change-dispatcher.ts");
+    const { ValueReaderRegistry } = await import("../src/extensions/value-readers.ts");
+
+    const toggle = FakeElement.of("ui-temporal-input__toggle", { "data-ui-temporal-toggle": "" }, "button");
+    const clearButton = FakeElement.of("ui-temporal-input__clear", { "data-ui-clear": "" }, "button");
+    const field = Object.assign(new FakeInput("text"), { className: "ui-temporal-input__field ui-field", value: "" });
+    const popup = FakeElement.of("ui-temporal-input__popup", { role: "dialog" });
+    const valueInput = Object.assign(new FakeInput("hidden"), { className: "ui-temporal-input__value-input", value: "" });
+
+    field.setAttribute("data-ui-clear-target", "");
+    valueInput.setAttribute("data-ui-bind-value", "21");
+
+    const picker = FakeElement.of("ui-temporal-input ui-date-input", {
+        "data-ui-id": "20",
+        "data-ui-temporal-mode": "date",
+        "data-ui-temporal-default-format": "yyyy-MM-dd",
+        "data-ui-temporal-months": Months,
+        "data-ui-temporal-weekdays": Weekdays
+    }).append(FakeElement.of("ui-temporal-input__row").append(field, clearButton, toggle), popup, valueInput);
+    const page = FakeElement.of("page").append(picker);
+
+    fakeDocument.body.replaceChildren(page);
+
+    const sent: unknown[] = [];
+    const gate = new CommitGate({ root: real<ParentNode>(page) });
+
+    new ValueBindingEngine({
+        root: real<ParentNode>(page),
+        metadata: real({
+            getBindingById: (id: number) => id === 21 ? { componentId: 20, propertyId: "date.value", mode: "TwoWay" } : undefined,
+            getPropertyDefinition: (propertyId: string) => ({ propertyId, propertyName: "Value" })
+        }),
+        dom: real({
+            resolveNearestComponent: (target: FakeElement) => {
+                const element = target.closest("[data-ui-id]");
+                return element === null ? null : { element, componentId: 20, dynamicParameters: [] };
+            }
+        }),
+        dispatcher: new ValueChangeDispatcher(real({
+            processChangeSetAsync: (request: { updates: { value?: unknown }[] }, before?: () => void) => {
+                sent.push(...request.updates.map(update => update.value));
+                before?.();
+                return Promise.resolve();
+            },
+            whenAttached: () => Promise.resolve()
+        })),
+        valueReaders: new ValueReaderRegistry(),
+        recordSent: () => undefined
+    });
+
+    new TemporalPickerEngine({
+        root: real<ParentNode>(page),
+        noteCommitted: (input, track) => gate.noteCommitted(input, track)
+    });
+
+    // Focus empty field (`CommitGate` records ""), open popup, pick a day, then click clear immediately without typing in the field.
+    field.focus();
+    field.blur();
+    toggle.click();
+    popup.querySelector("[data-ui-temporal-day]")!.click();
+    await Promise.resolve();
+
+    assert.equal(sent.length, 1);
+    assert.notEqual(field.value, "");
+
+    clearButton.click();
+    await Promise.resolve();
+
+    assert.equal(field.value, "");
+    assert.equal(valueInput.value, "");
+    assert.equal(sent.at(-1), "");
 });

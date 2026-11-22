@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -68,6 +69,7 @@ public sealed class ClientEffectJsonConverter : UIRuntimeTypeJsonConverter<Clien
     private static readonly string AbstractionsAssemblyName = typeof(ClientEffect).Assembly.GetName().Name!;
     private static readonly ConcurrentDictionary<string, Type> RegisteredTypes = new(StringComparer.Ordinal);
     private static readonly ConcurrentDictionary<Assembly, byte> ScannedAssemblies = new();
+    private static readonly ConcurrentDictionary<string, byte> InspectedReferenceRoots = new(StringComparer.Ordinal);
 
     private static readonly FrozenDictionary<string, Type> BuiltInTypes = new Dictionary<string, Type>(StringComparer.Ordinal)
     {
@@ -139,6 +141,11 @@ public sealed class ClientEffectJsonConverter : UIRuntimeTypeJsonConverter<Clien
             return true;
 
         ScanLoadedAssemblies();
+        if (RegisteredTypes.TryGetValue(kind, out effectType))
+            return true;
+
+        LoadReferencedEffectAssemblies();
+        ScanLoadedAssemblies();
 
         return RegisteredTypes.TryGetValue(kind, out effectType);
     }
@@ -186,5 +193,37 @@ public sealed class ClientEffectJsonConverter : UIRuntimeTypeJsonConverter<Clien
         }
 
         return false;
+    }
+
+    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Optional referenced add-on discovery must ignore unavailable assemblies.")]
+    private static void LoadReferencedEffectAssemblies()
+    {
+        Queue<Assembly> queue = new(AppDomain.CurrentDomain.GetAssemblies());
+        if (Assembly.GetEntryAssembly() is Assembly entry)
+            queue.Enqueue(entry);
+
+        while (queue.Count > 0)
+        {
+            Assembly current = queue.Dequeue();
+            if (current.IsDynamic || current.GetName().Name is not string currentName || !InspectedReferenceRoots.TryAdd(currentName, 0))
+                continue;
+
+            foreach (AssemblyName reference in current.GetReferencedAssemblies())
+            {
+                if (reference.Name is not string refName || InspectedReferenceRoots.ContainsKey(refName))
+                    continue;
+
+                if (!refName.StartsWith("NE.Standard.UI.", StringComparison.Ordinal) && !refName.StartsWith("NE.", StringComparison.Ordinal))
+                    continue;
+
+                try
+                {
+                    queue.Enqueue(Assembly.Load(reference));
+                }
+                catch
+                {
+                }
+            }
+        }
     }
 }

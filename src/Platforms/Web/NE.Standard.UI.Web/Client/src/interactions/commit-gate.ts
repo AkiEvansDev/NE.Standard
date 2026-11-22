@@ -4,7 +4,7 @@
 // the browser raise `change` on blur for a scripted edit (`setRangeText`, `.value = ...` + `input`), which leaves un-debounced fields
 // uncommitted. Every `change` and dirty leave of a caret field is weighed here, ahead of every listener.
 
-import { ComponentSelector } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, DraftDroppedEventName } from "../addressing/dom-attributes.ts";
 import type { PropertyPatchTarget } from "../state/property-state-store.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { isInert, isReadOnly } from "./interactive-state.ts";
@@ -48,6 +48,7 @@ export class CommitGate {
         target.addEventListener("input", domEvent => this.handleInput(domEvent), listenerOptions);
         target.addEventListener("change", domEvent => this.handleChange(domEvent), listenerOptions);
         target.addEventListener("focusout", domEvent => this.handleFocusOut(domEvent), listenerOptions);
+        this.root.addEventListener(DraftDroppedEventName, domEvent => this.handleDraftDropped(domEvent), { signal: this.abort.signal });
 
         this.stopValueHandler = options.propertyPatchEngine?.addValueChangeHandler(change => this.forgetPushed(change.components));
     }
@@ -61,6 +62,33 @@ export class CommitGate {
         this.stopValueHandler?.();
         this.committed.clear();
         this.dirty.clear();
+    }
+
+    /** Records `field`'s current value as committed after a non-caret engine wrote it (such as a temporal picker popup). */
+    public noteCommitted(field: CaretField, track = true): void {
+        if (this.disposed || !this.root.contains(field))
+            return;
+
+        this.dirty.delete(field);
+
+        if (!track && !this.committed.has(field) && !this.focused.has(field))
+            return;
+
+        if (!this.committed.has(field))
+            this.pruneRemembered();
+
+        this.committed.set(field, this.readValue(field));
+    }
+
+    /** Clears `field`'s uncommitted dirty state and snapshots its restored value so a subsequent blur raises no change. */
+    public discard(field: CaretField): void {
+        if (this.disposed)
+            return;
+
+        this.dirty.delete(field);
+
+        if (this.committed.has(field) || this.focused.has(field))
+            this.committed.set(field, this.readValue(field));
     }
 
     /** Commits dirty caret fields accepted by `shouldCommit`, ahead of a command or route switch that did not blur them. */
@@ -207,6 +235,26 @@ export class CommitGate {
                     break;
                 }
             }
+        }
+    }
+
+    private handleDraftDropped(domEvent: Event): void {
+        if (!(domEvent.target instanceof Element))
+            return;
+
+        for (const field of [...this.dirty]) {
+            if (domEvent.target.contains(field) || !field.isConnected)
+                this.dirty.delete(field);
+        }
+
+        for (const field of [...this.committed.keys()]) {
+            if (!field.isConnected) {
+                this.committed.delete(field);
+                continue;
+            }
+
+            if (domEvent.target.contains(field))
+                this.committed.set(field, this.focused.has(field) ? this.readValue(field) : null);
         }
     }
 

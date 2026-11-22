@@ -16,9 +16,13 @@ type WorkerRegistration = Pick<ServiceWorkerRegistration, "showNotification">;
 
 /**
  * Starts what the shell asked for on `root` — registers the framework's worker, or waits for the application's — and answers how a
- * notification reaches it; none where the shell asked for nothing, or the browser has no workers.
+ * notification reaches it; none where the shell asked for nothing, the page runs inside the native desktop host, or the browser has
+ * no workers.
  */
 export function startServiceWorker(root: Element, windowId: string, click: (click: NotificationClick) => void): (() => Promise<WorkerRegistration | undefined>) | undefined {
+    if (typeof (globalThis as { __neDesktopShowNotification?: unknown }).__neDesktopShowNotification === "function")
+        return undefined;
+
     const path = root.getAttribute(ServiceWorkerAttribute);
 
     if (path === null || !("serviceWorker" in navigator))

@@ -95,6 +95,7 @@ public sealed class SearchComponentRenderer : ItemsCollectionRendererBase
         _ = input.Class(WebClassNames.Field);
         _ = input.Attribute("type", "search");
         NativeInputRendererBase.RenderFieldName(context, input, "search");
+        NativeInputRendererBase.RenderFormId(context, input);
         _ = input.Attribute("autocomplete", "off");
 
         // An editable combobox over the list below it: the engine points it at the list (aria-controls), says it is open and names the

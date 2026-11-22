@@ -222,6 +222,9 @@ public static partial class UIStrings
     /// <summary>A value past its field's bound, the bound as the field shows it: a number's <c>{max}</c> and <c>{min}</c>, a moment's.</summary>
     public const string ValueAtMost = "ui.value.max";
     public const string ValueAtLeast = "ui.value.min";
+    public const string ValueMinLength = "ui.value.length.min";
+    public const string ValueMaxLength = "ui.value.length.max";
+    public const string ValueRange = "ui.value.range";
     public const string ValueNotAfter = "ui.value.after";
     public const string ValueNotBefore = "ui.value.before";
 
@@ -426,6 +429,9 @@ public static partial class UIStrings
         [ValueFormat] = "The value does not match the expected format.",
         [ValueAtMost] = "At most {max}.",
         [ValueAtLeast] = "At least {min}.",
+        [ValueMinLength] = "At least {min} characters.",
+        [ValueMaxLength] = "At most {max} characters.",
+        [ValueRange] = "Between {min} and {max}.",
         [ValueNotAfter] = "Not after {max}.",
         [ValueNotBefore] = "Not before {min}.",
         [ValueEndTooNear] = "The end no earlier than {min}.",

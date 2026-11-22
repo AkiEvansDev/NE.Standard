@@ -55,7 +55,25 @@ internal static class UILoggingRegistration
                 options.Rules.Add(new LoggerFilterRule(providerName: null, categoryName: pair.Key, logLevel: pair.Value, filter: null));
 
             if (logging.File.Enabled && logging.File.MinimumLevel is { } fileMinimumLevel)
-                options.Rules.Add(new LoggerFilterRule(providerName: typeof(UIFileLoggerProvider).FullName, categoryName: null, logLevel: fileMinimumLevel, filter: null));
+            {
+                var providerName = typeof(UIFileLoggerProvider).FullName;
+                List<LoggerFilterRule> categoryRules = [];
+
+                foreach (LoggerFilterRule existing in options.Rules)
+                {
+                    if (existing.ProviderName is null
+                        && !string.IsNullOrEmpty(existing.CategoryName)
+                        && !string.Equals(existing.CategoryName, "Default", StringComparison.OrdinalIgnoreCase))
+                    {
+                        categoryRules.Add(new LoggerFilterRule(providerName, existing.CategoryName, existing.LogLevel, existing.Filter));
+                    }
+                }
+
+                options.Rules.Add(new LoggerFilterRule(providerName, categoryName: null, logLevel: fileMinimumLevel, filter: null));
+
+                foreach (LoggerFilterRule categoryRule in categoryRules)
+                    options.Rules.Add(categoryRule);
+            }
         });
     }
 

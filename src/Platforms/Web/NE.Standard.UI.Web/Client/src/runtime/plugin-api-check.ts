@@ -18,7 +18,7 @@ import type { observeComponents } from "../interactions/dom-mutations";
 import type { FileUploads } from "../interactions/file-upload";
 import type { ItemSelection } from "../interactions/row-selection";
 import type { TableColumns } from "../interactions/table-columns-engine";
-import type { TooltipShowOptions, Tooltips } from "../interactions/tooltip-engine";
+import type { TooltipShowOptions, TooltipWordsProvider, Tooltips } from "../interactions/tooltip-engine";
 import type { componentStates } from "../interactions/interactive-state";
 import type { FieldMarkSeverity, FieldMarkWords, FieldValidation, FieldVerdict, RuleJudging } from "../interactions/validation-engine";
 import type { wheel } from "../interactions/wheel-notches";
@@ -101,6 +101,7 @@ export type HandedIn = [
     Assignable<Contract.ChoiceListOptions, ChoiceListOptions>,
     Assignable<Contract.PlainKeyAllowance, PlainKeyAllowance>,
     Assignable<Contract.TooltipShowOptions, TooltipShowOptions>,
+    Assignable<Contract.TooltipWordsProvider, TooltipWordsProvider>,
     Assignable<Contract.ValidationSeverity, FieldMarkSeverity>,
     Assignable<Contract.ValidationWords, FieldMarkWords>,
     Assignable<Contract.EventRegistration, WebUIPluginEventRegistration>,

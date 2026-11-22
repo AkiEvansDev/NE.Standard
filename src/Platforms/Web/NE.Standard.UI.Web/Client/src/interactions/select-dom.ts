@@ -11,10 +11,12 @@ import {
     SearchInputClass, SelectActionClass, SelectChipAttribute, SelectChipsAttribute, SelectClass, SelectContentAttribute,
     SelectedKeysAttribute, SelectFreeTextAttribute, SelectListClass, SelectMaxAttribute, SelectOpenClass, SelectOptionClass,
     SelectOptionIdPrefix, SelectPlaceholderClass, SelectPopupClass, SelectTriggerContentClass, SelectValueAttribute,
-    SelectValueInputClass, SplitButtonMainClass, TextBadgeClass, TextBadgeTitleAttribute, TextTypeOverlineClass, ValueBindingAttribute
+    SelectValueInputClass, SplitButtonMainClass, TextBadgeClass, TextBadgeTitleAttribute, TextTypeOverlineClass,
+    TooltipAttribute, TooltipPlacementAttribute, TooltipPlainAttribute, ValueBindingAttribute
 } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
 import { writeBadgeCount, writeBadgeWords } from "../rendering/web-dom-converters.ts";
+import { dropWaiting } from "./debounced-commit-engine.ts";
 import { isInert, isItemDisabled, isReadOnly } from "./interactive-state.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { isChoiceFull, parseChosenKeys, parseMaxChosen } from "./multi-select-keys.ts";
@@ -30,10 +32,11 @@ import { entryWords } from "./search-terms.ts";
 const BlankBadgeClasses = `${BadgeVariantInfoClass} ${TextTypeOverlineClass}`;
 
 export const ObservedAttributes = [SelectValueAttribute, SelectedKeysAttribute, SelectMaxAttribute];
-export const OptionAttributes = ["class", ComponentKeyAttribute];
+export const OptionAttributes = ["class", "style", ComponentKeyAttribute, TooltipAttribute];
+export const MultiOptionAttributes = ["class", ComponentKeyAttribute];
 // The multi-select's badges variant copies its options' badges into its chips, a badge's colour patched inline: a badge's variant is
 // heard there too, and only a badge's, since the engine writes an option's own (a narrowed list hides by it).
-export const BadgeOptionAttributes = [...OptionAttributes, "style"];
+export const BadgeOptionAttributes = [...MultiOptionAttributes, "style"];
 
 export const SelectHostSelector = `.${SelectClass}, .${MultiSelectButtonClass}`;
 export const SelectTriggerSelector = `.${TriggerClass}, .${MultiSelectButtonClass} > .${SplitButtonMainClass}`;
@@ -433,6 +436,7 @@ function renderTriggerContent(select: HTMLElement, option: HTMLElement | null, v
         if (value !== null && value.length > 0 && select.hasAttribute(SelectFreeTextAttribute)) {
             drawnKeys.set(select, value);
             content = ensureTriggerContent(trigger, content);
+            syncTriggerOptionAttributes(content, null);
             content.textContent = value;
             return true;
         }
@@ -449,10 +453,13 @@ function renderTriggerContent(select: HTMLElement, option: HTMLElement | null, v
     else
         drawnKeys.set(select, optionKey);
 
-    if (content !== null && optionKey !== null && serverKey === optionKey)
+    if (content !== null && optionKey !== null && serverKey === optionKey) {
+        syncTriggerOptionAttributes(content, option);
         return true;
+    }
 
     content = ensureTriggerContent(trigger, content);
+    syncTriggerOptionAttributes(content, option);
 
     const clone = option.cloneNode(true) as HTMLElement;
 
@@ -461,6 +468,37 @@ function renderTriggerContent(select: HTMLElement, option: HTMLElement | null, v
     content.replaceChildren(...clone.childNodes);
 
     return true;
+}
+
+function syncTriggerOptionAttributes(content: HTMLElement, option: HTMLElement | null): void {
+    const inlineStyle = stripDisplayStyle(option?.getAttribute("style") ?? null);
+
+    if (inlineStyle.length > 0)
+        content.setAttribute("style", `display: inline-flex; ${inlineStyle}`);
+    else
+        content.removeAttribute("style");
+
+    content.style.display = "inline-flex";
+
+    for (const attribute of [TooltipAttribute, TooltipPlainAttribute, TooltipPlacementAttribute]) {
+        const value = option?.getAttribute(attribute) ?? null;
+
+        if (value !== null)
+            content.setAttribute(attribute, value);
+        else
+            content.removeAttribute(attribute);
+    }
+}
+
+function stripDisplayStyle(style: string | null): string {
+    if (style === null || style.length === 0)
+        return "";
+
+    return style
+        .split(";")
+        .map(part => part.trim())
+        .filter(part => part.length > 0 && !/^display\s*:/i.test(part))
+        .join("; ");
 }
 
 function decorateOptions(select: HTMLElement, refused: (option: HTMLElement) => boolean = () => false): void {
@@ -595,6 +633,7 @@ export function resetSearchField(select: HTMLElement, notifyBound: boolean): voi
 
     const hadText = searchField.value.length > 0;
 
+    dropWaiting(searchField);
     searchField.value = "";
     clearAskedTerm(searchField);
     narrowToTerm(searchField);
@@ -731,14 +770,17 @@ export function collectMutatedSelects(mutation: MutationRecord, selects: Set<HTM
     }
 
     const target = mutation.target instanceof HTMLElement ? mutation.target : mutation.target.parentElement;
-
-    if (mutation.attributeName === "style" && target?.classList.contains(BadgeClass) !== true)
-        return;
-
     const select = target?.closest(`.${SelectPopupClass}`)?.closest<HTMLElement>(SelectHostSelector);
 
-    if (select !== null && select !== undefined)
-        selects.add(select);
+    if (select === null || select === undefined)
+        return;
+
+    if (mutation.attributeName === "style") {
+        if (isMultiple(select) ? target?.classList.contains(BadgeClass) !== true : target?.closest(`.${SelectOptionClass}`) === null)
+            return;
+    }
+
+    selects.add(select);
 }
 
 export function holdHeightAbove(popup: HTMLElement): void {

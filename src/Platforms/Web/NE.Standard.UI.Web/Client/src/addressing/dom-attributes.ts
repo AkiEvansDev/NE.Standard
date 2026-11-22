@@ -1483,7 +1483,8 @@ export const pluginDomNames = {
     badgeDangerClass: BadgeDangerClass,
     badgeWarningClass: BadgeWarningClass,
     badgeSurfaceClass: BadgeSurfaceClass,
-    itemsVersion: ItemsVersionAttribute
+    itemsVersion: ItemsVersionAttribute,
+    fileMaxSize: FileMaxSizeAttribute
 } as const;
 
 /** A value as the inside of a quoted attribute selector: a quote, a backslash and a control character escaped. */

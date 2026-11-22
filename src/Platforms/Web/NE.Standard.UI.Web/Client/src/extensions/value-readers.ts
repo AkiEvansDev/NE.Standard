@@ -7,6 +7,7 @@ import {
     LastVisibleKeyAttribute,
     LastVisibleKeyValueKind,
     PaneLayoutAttribute,
+    RadioValueAttribute,
     SelectedKeyAttribute,
     SelectedKeysAttribute,
     SplitterPositionAttribute,
@@ -213,6 +214,15 @@ function readJsonAttribute(element: Element, name: string): unknown {
 }
 
 export function clearElementValue(element: Element): void {
+    if (element.getAttribute(ValueKindAttribute) === "checked-radio") {
+        element.removeAttribute(RadioValueAttribute);
+
+        for (const radio of element.querySelectorAll<HTMLInputElement>("input[type=\"radio\"]"))
+            radio.checked = false;
+
+        return;
+    }
+
     if (element instanceof HTMLInputElement && (element.type === "checkbox" || element.type === "radio")) {
         element.checked = false;
         return;

@@ -39,7 +39,7 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
             return;
 
         compilationContext.RegisterOperationAction(operationContext => AnalyzePropertyInitializer(operationContext, bindableComponent, propertyAttribute, blockAttribute), OperationKind.PropertyInitializer);
-        compilationContext.RegisterOperationBlockStartAction(blockContext => RegisterConstructor(blockContext, bindableComponent, propertyAttribute, blockAttribute));
+        compilationContext.RegisterOperationBlockStartAction(blockContext => RegisterConstructor(blockContext, compilationContext.Compilation, bindableComponent, propertyAttribute, blockAttribute));
     }
 
     private static void AnalyzePropertyInitializer(OperationAnalysisContext context, INamedTypeSymbol? bindableComponent, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute)
@@ -71,7 +71,7 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
         return current.Kind == OperationKind.DefaultValue || (current.ConstantValue is { HasValue: true, Value: null });
     }
 
-    private static void RegisterConstructor(OperationBlockStartAnalysisContext blockContext, INamedTypeSymbol? bindableComponent, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute)
+    private static void RegisterConstructor(OperationBlockStartAnalysisContext blockContext, Compilation compilation, INamedTypeSymbol? bindableComponent, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute)
     {
         if (blockContext.OwningSymbol is not IMethodSymbol { MethodKind: MethodKind.Constructor, IsStatic: false } constructor)
             return;
@@ -80,7 +80,7 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
             return;
 
         blockContext.RegisterOperationAction(operationContext => AnalyzeAssignment(operationContext, constructor, containingType, propertyAttribute, blockAttribute), OperationKind.SimpleAssignment, OperationKind.CompoundAssignment, OperationKind.CoalesceAssignment);
-        blockContext.RegisterOperationAction(operationContext => AnalyzeInvocation(operationContext, constructor, containingType, propertyAttribute, blockAttribute), OperationKind.Invocation);
+        blockContext.RegisterOperationAction(operationContext => AnalyzeInvocation(operationContext, compilation, constructor, containingType, propertyAttribute, blockAttribute), OperationKind.Invocation);
     }
 
     private static bool IsComponentType(INamedTypeSymbol type, INamedTypeSymbol? bindableComponent, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute)
@@ -116,11 +116,11 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
         context.ReportDiagnostic(Diagnostic.Create(UIComponentPropertyDiagnostics.ConstructorAssignsComponentProperty, assignment.Syntax.GetLocation(), constructor.ContainingType.Name, propertyReference.Property.Name));
     }
 
-    private static void AnalyzeInvocation(OperationAnalysisContext context, IMethodSymbol constructor, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute)
+    private static void AnalyzeInvocation(OperationAnalysisContext context, Compilation compilation, IMethodSymbol constructor, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute)
     {
         IInvocationOperation invocation = (IInvocationOperation)context.Operation;
 
-        if (!IsReceiverInvocation(invocation, containingType, selfParameter: null))
+        if (!IsReceiverInvocation(invocation, containingType, selfParameter: null, out var isDirectOrExtensionReceiver))
             return;
 
         IMethodSymbol target = invocation.TargetMethod;
@@ -128,15 +128,13 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
         if (target.MethodKind != MethodKind.Ordinary)
             return;
 
-        if (TryGetDirectSetterProperty(target, containingType, propertyAttribute, blockAttribute, out var directProperty))
-        {
-            context.ReportDiagnostic(Diagnostic.Create(UIComponentPropertyDiagnostics.ConstructorAssignsComponentProperty, invocation.Syntax.GetLocation(), constructor.ContainingType.Name, directProperty));
-            return;
-        }
-
         List<string>? mutated = null;
-        HashSet<IMethodSymbol>? visited = null;
-        CollectHelperMutations(invocation.SemanticModel, target, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, context.CancellationToken);
+
+        if (!isDirectOrExtensionReceiver || !TryAddDirectSetterProperties(target, containingType, propertyAttribute, blockAttribute, ref mutated))
+        {
+            HashSet<IMethodSymbol>? visited = null;
+            CollectHelperMutations(compilation, invocation.SemanticModel, target, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, context.CancellationToken);
+        }
 
         if (mutated is null)
             return;
@@ -145,45 +143,59 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
             context.ReportDiagnostic(Diagnostic.Create(UIComponentPropertyDiagnostics.ConstructorAssignsComponentProperty, invocation.Syntax.GetLocation(), constructor.ContainingType.Name, propertyName));
     }
 
-    private static bool TryGetDirectSetterProperty(IMethodSymbol target, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, out string propertyName)
-        => TryGetDirectSetterPropertyByName(target.Name, containingType, propertyAttribute, blockAttribute, out propertyName);
+    private static bool TryAddDirectSetterProperties(IMethodSymbol target, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref List<string>? mutated)
+        => TryAddDirectSetterPropertiesByName(target.Name, containingType, propertyAttribute, blockAttribute, ref mutated);
 
-    private static bool TryGetDirectSetterPropertyByName(string methodName, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, out string propertyName)
+    private static bool TryAddDirectSetterPropertiesByName(string methodName, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref List<string>? mutated)
     {
+        var added = false;
+
         if (methodName.StartsWith("Set", StringComparison.Ordinal) && methodName.Length > 3)
         {
             var candidate = methodName.Substring(3);
 
             if (HasComponentPropertyNamed(containingType, candidate, propertyAttribute, blockAttribute))
             {
-                propertyName = candidate;
-                return true;
+                AddUnique(ref mutated, candidate);
+                added = true;
             }
         }
 
-        var mapped = methodName switch
+        var mapped = GetMappedProperties(methodName);
+
+        if (mapped is not null)
         {
-            "Disable" => "Disabled",
-            "Hide" => "Visibility",
-            "Virtualized" => "Virtualize",
-            "SetAutoGrow" => "Rows",
-            "SetExpandable" => "ShowExpandButton",
-            "SetOrderedMin" or "SetOrderedRange" => "Min",
-            "SetOrderedMax" => "Max",
+            for (var i = 0; i < mapped.Length; i++)
+            {
+                if (HasComponentPropertyNamed(containingType, mapped[i], propertyAttribute, blockAttribute))
+                {
+                    AddUnique(ref mutated, mapped[i]);
+                    added = true;
+                }
+            }
+        }
+
+        return added;
+    }
+
+    private static string[]? GetMappedProperties(string methodName)
+        => methodName switch
+        {
+            "Disable" => ["Disabled", "Enabled"],
+            "Hide" => ["Visibility"],
+            "Virtualized" => ["HostMode"],
+            "SetAutoGrow" => ["MaxRows"],
+            "SetCollapsed" => ["Expanded"],
+            "SetRange" or "SetOrderedRange" => ["Min", "Max"],
+            "SetOrderedMin" => ["Min"],
+            "SetOrderedMax" => ["Max"],
+            "VerticalScrollOnly" or "HorizontalScrollOnly" or "DisableScroll" or "BothScroll" or "NoScroll" or "SetScroll" => ["HorizontalScroll", "VerticalScroll"],
+            "AnchorToEnd" => ["ScrollAnchor"],
+            "SetActionBar" => ["ActionBar", "ActionBarRepeatInMore"],
             _ => null
         };
 
-        if (mapped is not null && HasComponentPropertyNamed(containingType, mapped, propertyAttribute, blockAttribute))
-        {
-            propertyName = mapped;
-            return true;
-        }
-
-        propertyName = string.Empty;
-        return false;
-    }
-
-    private static void CollectHelperMutations(SemanticModel? semanticModel, IMethodSymbol method, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref List<string>? mutated, CancellationToken cancellationToken)
+    private static void CollectHelperMutations(Compilation compilation, SemanticModel? semanticModel, IMethodSymbol method, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref List<string>? mutated, CancellationToken cancellationToken)
     {
         IMethodSymbol definition = method.ReducedFrom ?? method.OriginalDefinition;
 
@@ -206,16 +218,17 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
 
             if (semanticModel is not null && syntax.SyntaxTree == semanticModel.SyntaxTree && semanticModel.GetOperation(syntax, cancellationToken) is { } root)
             {
-                CollectOperationMutations(semanticModel, root, containingType, selfParameter, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+                CollectOperationMutations(compilation, semanticModel, root, containingType, selfParameter, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
             }
             else
             {
-                CollectSyntaxMutations(syntax, selfParameter?.Name, containingType, propertyAttribute, blockAttribute, ref mutated);
+                HashSet<SyntaxNode>? visitedLocalFunctions = null;
+                CollectSyntaxMutations(compilation, semanticModel, definition, syntax, selfParameter?.Name, containingType, propertyAttribute, blockAttribute, ref visited, ref visitedLocalFunctions, ref mutated, cancellationToken);
             }
         }
     }
 
-    private static void CollectOperationMutations(SemanticModel semanticModel, IOperation root, INamedTypeSymbol containingType, IParameterSymbol? selfParameter, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref List<string>? mutated, CancellationToken cancellationToken)
+    private static void CollectOperationMutations(Compilation compilation, SemanticModel semanticModel, IOperation root, INamedTypeSymbol containingType, IParameterSymbol? selfParameter, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref List<string>? mutated, CancellationToken cancellationToken)
     {
         foreach (IOperation operation in root.Descendants())
         {
@@ -228,11 +241,9 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
                     break;
 
                 case IInvocationOperation nestedInvocation
-                    when IsReceiverInvocation(nestedInvocation, containingType, selfParameter):
-                    if (TryGetDirectSetterProperty(nestedInvocation.TargetMethod, containingType, propertyAttribute, blockAttribute, out var directProperty))
-                        AddUnique(ref mutated, directProperty);
-                    else
-                        CollectHelperMutations(semanticModel, nestedInvocation.TargetMethod, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+                    when IsReceiverInvocation(nestedInvocation, containingType, selfParameter, out var isDirectOrExtensionReceiver):
+                    if (!isDirectOrExtensionReceiver || !TryAddDirectSetterProperties(nestedInvocation.TargetMethod, containingType, propertyAttribute, blockAttribute, ref mutated))
+                        CollectHelperMutations(compilation, semanticModel, nestedInvocation.TargetMethod, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
                     break;
 
                 default:
@@ -241,7 +252,7 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private static void CollectSyntaxMutations(SyntaxNode root, string? selfParameterName, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref List<string>? mutated)
+    private static void CollectSyntaxMutations(Compilation compilation, SemanticModel? semanticModel, IMethodSymbol ownerMethod, SyntaxNode root, string? selfParameterName, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref HashSet<SyntaxNode>? visitedLocalFunctions, ref List<string>? mutated, CancellationToken cancellationToken)
     {
         foreach (SyntaxNode node in root.DescendantNodes())
         {
@@ -256,25 +267,172 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
                     break;
 
                 case AssignmentExpressionSyntax { Left: MemberAccessExpressionSyntax memberAccess }
-                    when IsSelfSyntax(memberAccess.Expression, selfParameterName)
+                    when IsSelfSyntax(memberAccess.Expression, selfParameterName, containingType)
                         && HasComponentPropertyNamed(containingType, memberAccess.Name.Identifier.ValueText, propertyAttribute, blockAttribute):
                     AddUnique(ref mutated, memberAccess.Name.Identifier.ValueText);
                     break;
 
-                case InvocationExpressionSyntax { Expression: IdentifierNameSyntax callIdentifier }
-                    when selfParameterName is null && TryGetDirectSetterPropertyByName(callIdentifier.Identifier.ValueText, containingType, propertyAttribute, blockAttribute, out var directCallProperty):
-                    AddUnique(ref mutated, directCallProperty);
+                case InvocationExpressionSyntax { Expression: IdentifierNameSyntax callIdentifier } call:
+                    if (selfParameterName is null && TryAddDirectSetterPropertiesByName(callIdentifier.Identifier.ValueText, containingType, propertyAttribute, blockAttribute, ref mutated))
+                        break;
+
+                    CollectUnqualifiedSyntaxCallMutations(compilation, semanticModel, ownerMethod, root, call, callIdentifier.Identifier.ValueText, selfParameterName, containingType, propertyAttribute, blockAttribute, ref visited, ref visitedLocalFunctions, ref mutated, cancellationToken);
                     break;
 
-                case InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax callMember }
-                    when IsSelfSyntax(callMember.Expression, selfParameterName)
-                        && TryGetDirectSetterPropertyByName(callMember.Name.Identifier.ValueText, containingType, propertyAttribute, blockAttribute, out var memberCallProperty):
-                    AddUnique(ref mutated, memberCallProperty);
+                case InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax callMember } memberCall:
+                    if (IsSelfSyntax(callMember.Expression, selfParameterName, containingType))
+                    {
+                        if (!TryAddDirectSetterPropertiesByName(callMember.Name.Identifier.ValueText, containingType, propertyAttribute, blockAttribute, ref mutated))
+                            CollectMemberSyntaxCallMutations(compilation, semanticModel, ownerMethod, callMember.Name.Identifier.ValueText, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+                    }
+                    else if (PassesSelfAsFirstArgument(memberCall, selfParameterName, containingType) && callMember.Expression is IdentifierNameSyntax typeIdentifier)
+                    {
+                        CollectStaticTypeSyntaxCallMutations(compilation, semanticModel, ownerMethod, typeIdentifier.Identifier.ValueText, callMember.Name.Identifier.ValueText, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+                    }
+
                     break;
 
                 default:
                     break;
             }
+        }
+    }
+
+    private static void CollectUnqualifiedSyntaxCallMutations(Compilation compilation, SemanticModel? semanticModel, IMethodSymbol ownerMethod, SyntaxNode root, InvocationExpressionSyntax call, string methodName, string? selfParameterName, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref HashSet<SyntaxNode>? visitedLocalFunctions, ref List<string>? mutated, CancellationToken cancellationToken)
+    {
+        var passesSelfFirst = PassesSelfAsFirstArgument(call, selfParameterName, containingType);
+
+        foreach (SyntaxNode node in root.DescendantNodes())
+        {
+            if (node is not LocalFunctionStatementSyntax localFunction || localFunction.Identifier.ValueText != methodName)
+                continue;
+
+            string? nestedSelfName;
+
+            if (passesSelfFirst && localFunction.ParameterList.Parameters.Count > 0)
+                nestedSelfName = localFunction.ParameterList.Parameters[0].Identifier.ValueText;
+            else if (selfParameterName is not null && !localFunction.Modifiers.Any(Microsoft.CodeAnalysis.CSharp.SyntaxKind.StaticKeyword) && !DeclaresParameterNamed(localFunction.ParameterList, selfParameterName))
+                nestedSelfName = selfParameterName;
+            else if (selfParameterName is null && !localFunction.Modifiers.Any(Microsoft.CodeAnalysis.CSharp.SyntaxKind.StaticKeyword))
+                nestedSelfName = null;
+            else
+                continue;
+
+            visitedLocalFunctions ??= [];
+
+            if (visitedLocalFunctions.Add(localFunction))
+                CollectSyntaxMutations(compilation, semanticModel, ownerMethod, localFunction, nestedSelfName, containingType, propertyAttribute, blockAttribute, ref visited, ref visitedLocalFunctions, ref mutated, cancellationToken);
+        }
+
+        if (selfParameterName is null)
+        {
+            for (INamedTypeSymbol? current = ownerMethod.ContainingType; current is not null && current.SpecialType != SpecialType.System_Object; current = current.BaseType)
+            {
+                foreach (ISymbol member in current.GetMembers(methodName))
+                {
+                    if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary } candidate && (!candidate.IsStatic || passesSelfFirst))
+                        CollectHelperMutations(compilation, semanticModel, candidate, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+                }
+            }
+        }
+        else if (passesSelfFirst && ownerMethod.ContainingType is { } staticOwner)
+        {
+            foreach (ISymbol member in staticOwner.GetMembers(methodName))
+            {
+                if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary, IsStatic: true } candidate)
+                    CollectHelperMutations(compilation, semanticModel, candidate, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+            }
+        }
+    }
+
+    private static bool PassesSelfAsFirstArgument(InvocationExpressionSyntax call, string? selfParameterName, INamedTypeSymbol containingType)
+        => call.ArgumentList.Arguments.Count > 0 && IsSelfSyntax(call.ArgumentList.Arguments[0].Expression, selfParameterName, containingType);
+
+    private static bool DeclaresParameterNamed(ParameterListSyntax parameterList, string name)
+    {
+        foreach (ParameterSyntax parameter in parameterList.Parameters)
+        {
+            if (parameter.Identifier.ValueText == name)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void CollectMemberSyntaxCallMutations(Compilation compilation, SemanticModel? semanticModel, IMethodSymbol ownerMethod, string methodName, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref List<string>? mutated, CancellationToken cancellationToken)
+    {
+        for (INamedTypeSymbol? current = containingType; current is not null && current.SpecialType != SpecialType.System_Object; current = current.BaseType)
+        {
+            foreach (ISymbol member in current.GetMembers(methodName))
+            {
+                if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary, IsStatic: false } candidate)
+                    CollectHelperMutations(compilation, semanticModel, candidate, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+            }
+        }
+
+        if (ownerMethod.ContainingType is { IsStatic: true } staticOwner)
+        {
+            foreach (ISymbol member in staticOwner.GetMembers(methodName))
+            {
+                if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary, IsExtensionMethod: true } candidate)
+                    CollectHelperMutations(compilation, semanticModel, candidate, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+            }
+        }
+
+        CollectExtensionSyntaxCallMutations(compilation, semanticModel, compilation.GlobalNamespace, methodName, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+    }
+
+    private static void CollectExtensionSyntaxCallMutations(Compilation compilation, SemanticModel? semanticModel, INamespaceSymbol namespaceSymbol, string methodName, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref List<string>? mutated, CancellationToken cancellationToken)
+    {
+        foreach (INamedTypeSymbol type in namespaceSymbol.GetTypeMembers())
+        {
+            if (!type.IsStatic || !type.MightContainExtensionMethods || type.Locations.IsEmpty || !type.Locations[0].IsInSource)
+                continue;
+
+            foreach (ISymbol member in type.GetMembers(methodName))
+            {
+                if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary, IsExtensionMethod: true } candidate
+                    && candidate.Parameters.Length > 0
+                    && IsCompatibleReceiverParameter(candidate.Parameters[0].Type, containingType))
+                {
+                    CollectHelperMutations(compilation, semanticModel, candidate, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+                }
+            }
+        }
+
+        foreach (INamespaceSymbol child in namespaceSymbol.GetNamespaceMembers())
+            CollectExtensionSyntaxCallMutations(compilation, semanticModel, child, methodName, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+    }
+
+    private static bool IsCompatibleReceiverParameter(ITypeSymbol parameterType, INamedTypeSymbol containingType)
+    {
+        if (parameterType is ITypeParameterSymbol)
+            return true;
+
+        if (SymbolEqualityComparer.Default.Equals(parameterType, containingType))
+            return true;
+
+        if (parameterType is INamedTypeSymbol namedType)
+            return namedType.TypeKind == TypeKind.Interface ? containingType.ImplementsInterface(namedType) : containingType.InheritsFrom(namedType);
+
+        return false;
+    }
+
+    private static void CollectStaticTypeSyntaxCallMutations(Compilation compilation, SemanticModel? semanticModel, IMethodSymbol ownerMethod, string typeName, string methodName, INamedTypeSymbol containingType, INamedTypeSymbol propertyAttribute, INamedTypeSymbol? blockAttribute, ref HashSet<IMethodSymbol>? visited, ref List<string>? mutated, CancellationToken cancellationToken)
+    {
+        for (INamespaceSymbol? ns = ownerMethod.ContainingNamespace; ns is not null; ns = ns.ContainingNamespace)
+        {
+            foreach (INamedTypeSymbol candidateType in ns.GetTypeMembers(typeName))
+            {
+                foreach (ISymbol member in candidateType.GetMembers(methodName))
+                {
+                    if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary, IsStatic: true } candidate)
+                        CollectHelperMutations(compilation, semanticModel, candidate, containingType, propertyAttribute, blockAttribute, ref visited, ref mutated, cancellationToken);
+                }
+            }
+
+            if (ns.IsGlobalNamespace)
+                break;
         }
     }
 
@@ -308,10 +466,50 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    private static bool IsSelfSyntax(ExpressionSyntax expression, string? selfParameterName)
-        => selfParameterName is null
-            ? expression is ThisExpressionSyntax
-            : expression is IdentifierNameSyntax id && id.Identifier.ValueText == selfParameterName;
+    private static bool IsSelfSyntax(ExpressionSyntax expression, string? selfParameterName, INamedTypeSymbol containingType)
+    {
+        ExpressionSyntax current = expression;
+
+        while (current is InvocationExpressionSyntax invocation)
+        {
+            if (invocation.Expression is MemberAccessExpressionSyntax chained)
+            {
+                if (!ReturnsSelfOnContainingType(containingType, chained.Name.Identifier.ValueText))
+                    return false;
+
+                current = chained.Expression;
+            }
+            else if (selfParameterName is null && invocation.Expression is IdentifierNameSyntax direct && ReturnsSelfOnContainingType(containingType, direct.Identifier.ValueText))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        return selfParameterName is null
+            ? current is ThisExpressionSyntax
+            : current is IdentifierNameSyntax id && id.Identifier.ValueText == selfParameterName;
+    }
+
+    private static bool ReturnsSelfOnContainingType(INamedTypeSymbol containingType, string methodName)
+    {
+        if (methodName.StartsWith("Set", StringComparison.Ordinal) || GetMappedProperties(methodName) is not null)
+            return true;
+
+        for (INamedTypeSymbol? current = containingType; current is not null && current.SpecialType != SpecialType.System_Object; current = current.BaseType)
+        {
+            foreach (ISymbol member in current.GetMembers(methodName))
+            {
+                if (member is IMethodSymbol { MethodKind: MethodKind.Ordinary, IsStatic: false } candidate && IsSelfType(candidate.ReturnType, containingType))
+                    return true;
+            }
+        }
+
+        return false;
+    }
 
     private static void AddUnique(ref List<string>? list, string value)
     {
@@ -321,18 +519,34 @@ public sealed class UIComponentConstructorAnalyzer : DiagnosticAnalyzer
             list.Add(value);
     }
 
-    private static bool IsReceiverInvocation(IInvocationOperation invocation, INamedTypeSymbol containingType, IParameterSymbol? selfParameter)
+    private static bool IsReceiverInvocation(IInvocationOperation invocation, INamedTypeSymbol containingType, IParameterSymbol? selfParameter, out bool isDirectOrExtensionReceiver)
     {
         if (IsReceiver(invocation.Instance, containingType, selfParameter))
+        {
+            isDirectOrExtensionReceiver = true;
             return true;
+        }
 
         if (invocation.Instance is not null)
+        {
+            isDirectOrExtensionReceiver = false;
             return false;
+        }
 
-        if (invocation.TargetMethod.IsExtensionMethod && invocation.Arguments.Length > 0)
-            return IsReceiver(invocation.Arguments[0].Value, containingType, selfParameter);
+        if (invocation.TargetMethod.IsStatic && invocation.Arguments.Length > 0 && IsReceiver(invocation.Arguments[0].Value, containingType, selfParameter))
+        {
+            isDirectOrExtensionReceiver = invocation.TargetMethod.IsExtensionMethod;
+            return true;
+        }
 
-        return invocation.TargetMethod.ReducedFrom is not null && IsReceiver(invocation.Instance, containingType, selfParameter);
+        if (invocation.TargetMethod.ReducedFrom is not null && IsReceiver(invocation.Instance, containingType, selfParameter))
+        {
+            isDirectOrExtensionReceiver = true;
+            return true;
+        }
+
+        isDirectOrExtensionReceiver = false;
+        return false;
     }
 
     private static bool IsReceiver(IOperation? operation, INamedTypeSymbol containingType, IParameterSymbol? selfParameter)

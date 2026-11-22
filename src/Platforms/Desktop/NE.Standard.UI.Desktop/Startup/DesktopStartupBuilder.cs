@@ -88,7 +88,7 @@ public static class DesktopStartupBuilder
         using DesktopBuiltHost host = Build<TDesktopStartup, TStartup>(args, configureOptions, configureServices);
 
         // Warm Kestrel and WebView2 environment in parallel while WPF creates and lays out the window HWND.
-        ObserveFault(host.StartAsync());
+        _ = ObserveStartupTask(host.StartAsync(), host.WebHost, "StartAsync");
 
         System.Windows.Application app = System.Windows.Application.Current ?? new System.Windows.Application
         {
@@ -96,11 +96,33 @@ public static class DesktopStartupBuilder
         };
 
         DesktopWindow window = host.CreateWindow();
-        ObserveFault(window.ShellControl.WarmEnvironmentAsync());
-        window.Loaded += (_, _) => ObserveFault(window.ShellControl.OpenInitialPageAsync());
+        _ = ObserveStartupTask(window.ShellControl.WarmEnvironmentAsync(), host.WebHost, "WarmEnvironmentAsync");
+        window.Loaded += (_, _) => _ = ObserveStartupTask(window.ShellControl.OpenInitialPageAsync(), host.WebHost, "OpenInitialPageAsync");
         return app.Run(window);
     }
 
-    private static void ObserveFault(Task task)
-        => _ = task.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    internal static Task ObserveStartupTask(Task task, DesktopWebHost host, string operation)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        ArgumentNullException.ThrowIfNull(host);
+        ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+
+        return task.ContinueWith(
+            t =>
+            {
+                AggregateException? aggregate = t.Exception;
+                if (aggregate is null)
+                    return;
+
+                Exception root = aggregate.Flatten().InnerException ?? aggregate;
+                if (root is OperationCanceledException && host.IsDisposed)
+                    return;
+
+                host.LogStartupError(typeof(DesktopStartupBuilder).FullName!, operation, root);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default
+        );
+    }
 }
