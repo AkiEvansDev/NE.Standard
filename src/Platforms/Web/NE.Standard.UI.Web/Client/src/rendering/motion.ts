@@ -44,7 +44,45 @@ export function afterTransitions(element: Element, limit: number, then: () => vo
     };
     const timer = setTimeout(finish, limit);
     // Asked at once, the element's style is brought up to date first, so a change made just now has started its transitions.
-    const transitions = typeof element.getAnimations === "function" ? element.getAnimations().filter(animation => typeof CSSTransition !== "function" || animation instanceof CSSTransition) : [];
+    const transitions = runningTransitions(element);
 
     void Promise.allSettled(transitions.map(transition => transition.finished)).then(finish);
+}
+
+/**
+ * Runs `then` once the element's running transitions end, or synchronously when reduced motion is active or no CSS transition started;
+ * capped at `limit` ms for a backgrounded page.
+ */
+export function whenTransitionsEnd(element: Element, limit: number, then: () => void): void {
+    if (prefersReducedMotion()) {
+        then();
+        return;
+    }
+
+    const transitions = runningTransitions(element);
+
+    if (transitions.length === 0) {
+        then();
+        return;
+    }
+
+    let done = false;
+    const finish = (): void => {
+        if (done)
+            return;
+
+        done = true;
+        clearTimeout(timer);
+        then();
+    };
+    const timer = setTimeout(finish, limit);
+
+    void Promise.allSettled(transitions.map(transition => transition.finished)).then(finish);
+}
+
+function runningTransitions(element: Element): Animation[] {
+    if (typeof element.getAnimations !== "function")
+        return [];
+
+    return element.getAnimations().filter(animation => typeof CSSTransition !== "function" || animation instanceof CSSTransition);
 }

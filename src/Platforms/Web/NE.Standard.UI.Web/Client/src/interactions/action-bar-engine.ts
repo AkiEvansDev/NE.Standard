@@ -76,6 +76,8 @@ export class ActionBarEngine {
 
     // The host whose menu its "more" opened: its bar stands under the menu until it closes, for the keyboard to come back to "more".
     private menuHost: HTMLElement | null = null;
+    private markOutFrame: number | null = null;
+    private askingHost: HTMLElement | null = null;
 
     public constructor(options: ActionBarEngineOptions = {}) {
         this.root = options.root ?? document;
@@ -93,7 +95,7 @@ export class ActionBarEngine {
         this.root.addEventListener("focusout", domEvent => this.handleFocusOut(domEvent));
         this.root.addEventListener("keydown", domEvent => this.handleKeyDown(domEvent));
         // Capture phase: the scroll of any box around a host, which does not bubble.
-        this.root.addEventListener("scroll", () => this.markOut(), true);
+        this.root.addEventListener("scroll", () => this.scheduleMarkOut(), { capture: true, passive: true });
         // A bar standing in a dialog or a drawer is nearer than they are: they leave it the Escape they would take, theirs the next one.
         registerEscapeLayer(target => this.takesEscape(target, true));
     }
@@ -348,8 +350,15 @@ export class ActionBarEngine {
             return;
         }
 
-        if (actionBarMenuOf(host, true) === null)
-            this.hide(host, shown);
+        this.askingHost = host;
+
+        try {
+            if (actionBarMenuOf(host, true) === null)
+                this.hide(host, shown);
+        }
+        finally {
+            this.askingHost = null;
+        }
     }
 
     /** Watches the chosen host's row or siblings, for the host drawn anew in its place and for a list redrawn around it. */
@@ -442,7 +451,7 @@ export class ActionBarEngine {
 
         // An entry's words, state and mark change while the bar stands — a push, a language switch: the bar is drawn again.
         const observer = new MutationObserver(records => {
-            if (!onlyPressWaves(records))
+            if (this.askingHost !== host && !onlyPressWaves(records))
                 this.redraw(host);
         });
 
@@ -540,9 +549,32 @@ export class ActionBarEngine {
         shown.bar.remove();
         this.shown.delete(host);
 
+        if (this.shown.size === 0 && this.markOutFrame !== null && typeof cancelAnimationFrame === "function") {
+            cancelAnimationFrame(this.markOutFrame);
+            this.markOutFrame = null;
+        }
+
         // Another bar over the same row (the one "more" opened beside the chosen) keeps it marked.
         if (shown.row !== null && ![...this.shown.values()].some(other => other.row === shown.row))
             shown.row.removeAttribute(RowBarAttribute);
+    }
+
+    private scheduleMarkOut(): void {
+        if (this.shown.size === 0)
+            return;
+
+        if (typeof requestAnimationFrame !== "function") {
+            this.markOut();
+            return;
+        }
+
+        if (this.markOutFrame !== null)
+            return;
+
+        this.markOutFrame = requestAnimationFrame(() => {
+            this.markOutFrame = null;
+            this.markOut();
+        });
     }
 
     /** A bar whose host the scroll took wholly out of sight is not seen floating against nothing; back in sight, it is again. */

@@ -31,6 +31,7 @@
     corner-shape: @ui-corner-shape;
     background: none;
     color: var(--ui-color-on-background);
+    touch-action: manipulation;
     cursor: pointer;
     .ui-reveal-hover();
 }
@@ -111,6 +112,7 @@
         .ui-popup-ground-lifted(var(--ui-color-surface));
         .ui-elevation-3();
         visibility: hidden;
+        contain: layout paint style;
         // The dialog's sheet's tempo, for the same motion: a panel entering from an edge.
         transition: transform @ui-motion-normal @ui-motion-exit, visibility 0s linear @ui-motion-normal;
     }
@@ -140,6 +142,7 @@
     @{ui-drawers}@{ui-drawers-right}[data-ui-drawer-open="right-side"] > [data-ui-region="right-side"] {
         visibility: visible;
         transform: none;
+        contain: style;
         transition: transform @ui-motion-normal @ui-motion-enter;
     }
 

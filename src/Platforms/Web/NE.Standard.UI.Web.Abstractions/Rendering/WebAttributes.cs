@@ -599,6 +599,12 @@ public static class WebAttributes
     /// <summary>On a split button whose menu opens anywhere but below from its end: the placement's token.</summary>
     public const string SplitPlacement = "data-ui-split-placement";
 
+    /// <summary>On a split button in a row or inside a link: its menu waits in a template the client draws when it is opened.</summary>
+    public const string SplitMenuLater = "data-ui-split-menu-later";
+
+    /// <summary>On the template a row's split button menu waits in: the button's component id.</summary>
+    public const string SplitMenuTemplate = "data-ui-split-menu-template";
+
     /// <summary>The pixels a splitter moves per arrow press.</summary>
     public const string SplitterStep = "data-ui-splitter-step";
 

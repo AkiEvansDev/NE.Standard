@@ -52,14 +52,21 @@ const entries = new WeakMap<Element, HTMLElement>();
  */
 export function readActionBarEntries(menu: HTMLElement): ActionBarEntries {
     const marked: HTMLElement[] = [];
+    const laidOut = new Map<Element, boolean>();
     let more = false;
 
     for (const entry of menu.querySelectorAll<HTMLElement>(MenuControlEntrySelector)) {
-        if (!isShownEntry(entry, menu))
+        // A group's own entry opens its block, which a bar cannot: it stays behind "more".
+        const inBar = entry.hasAttribute(InActionBarAttribute) && !entry.matches(MenuGroupEntrySelector);
+
+        // Once another entry already asks for "more", unmarked entries need no style check of their own.
+        if (!inBar && more)
             continue;
 
-        // A group's own entry opens its block, which a bar cannot: it stays behind "more".
-        if (entry.hasAttribute(InActionBarAttribute) && !entry.matches(MenuGroupEntrySelector))
+        if (!isShownEntryIn(entry, menu, laidOut))
+            continue;
+
+        if (inBar)
             marked.push(entry);
         else
             more = true;
@@ -73,8 +80,25 @@ export function readActionBarEntries(menu: HTMLElement): ActionBarEntries {
  * leaving it out under a bar's "more", which the bar's own entries are.
  */
 export function isShownEntry(entry: HTMLElement, menu: HTMLElement): boolean {
+    return isShownEntryIn(entry, menu);
+}
+
+function isShownEntryIn(entry: HTMLElement, menu: HTMLElement, laidOut?: Map<Element, boolean>): boolean {
     for (let element: HTMLElement | null = entry; element !== null && element !== menu; element = element.parentElement) {
-        if (!element.hasAttribute(MenuLeftOutAttribute) && !isLaidOut(element))
+        if (element.hasAttribute(MenuLeftOutAttribute))
+            continue;
+
+        if (element.hidden || element.style.display === "none")
+            return false;
+
+        let shown = laidOut?.get(element);
+
+        if (shown === undefined) {
+            shown = isLaidOut(element);
+            laidOut?.set(element, shown);
+        }
+
+        if (!shown)
             return false;
     }
 

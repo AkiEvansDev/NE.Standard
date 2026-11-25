@@ -358,6 +358,14 @@
         "value":  "data-ui-split-placement"
     },
     {
+        "constant":  "SplitMenuLaterAttribute",
+        "value":  "data-ui-split-menu-later"
+    },
+    {
+        "constant":  "SplitMenuTemplateAttribute",
+        "value":  "data-ui-split-menu-template"
+    },
+    {
         "constant":  "ItemsHostAttribute",
         "value":  "data-ui-items-host",
         "plugin":  "itemsHost"

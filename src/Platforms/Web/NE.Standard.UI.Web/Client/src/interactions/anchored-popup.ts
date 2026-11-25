@@ -268,7 +268,7 @@ function isSet(value: string | undefined): boolean {
 }
 
 function confinesFixed(contain: string | undefined): boolean {
-    return contain !== undefined && /\b(?:paint|layout|content|strict)\b/.test(contain);
+    return contain !== undefined && contain !== "" && contain !== "none" && contain !== "style" && /\b(?:paint|layout|content|strict)\b/.test(contain);
 }
 
 function isContentContained(visibility: string | undefined): boolean {
@@ -460,7 +460,8 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
         return border > 0 ? -border : 0;
     };
     let popupRect = popup.getBoundingClientRect();
-    const room = roomOf(options.boundary);
+    const band = visibleBand();
+    const room = roomOf(options.boundary, band);
     const tracking = tracked.get(popup);
     const kept = keepSide ? tracking?.side : undefined;
     const side = kept !== undefined && fits(edgeRect, popupRect, kept, gapFor(kept), room) ? kept : resolveSide(edgeRect, popupRect, options.placement, gapFor, room);
@@ -492,8 +493,6 @@ function position(placed: Element, popup: HTMLElement, options: AnchoredPopupOpt
         else
             top = aimAtAnchor(top, crossRect.top + (crossRect.height / 2), popupRect.height);
     }
-
-    const band = visibleBand();
 
     top = band.top + clampToViewport(top - band.top, popupRect.height, band.bottom - band.top);
     left = clampToViewport(left, popupRect.width, window.innerWidth);
@@ -572,8 +571,7 @@ function setArrowOffset(popup: HTMLElement, crossRect: DOMRect, popupRect: DOMRe
 /** The room a popup's side is chosen in: the window, or the part of a boundary inside it. */
 type Room = { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
 
-function roomOf(boundary: Element | undefined): Room {
-    const band = visibleBand();
+function roomOf(boundary: Element | undefined, band: { readonly top: number; readonly bottom: number }): Room {
     const room = { left: 0, top: band.top, right: window.innerWidth, bottom: band.bottom };
 
     if (boundary === undefined || !boundary.isConnected)

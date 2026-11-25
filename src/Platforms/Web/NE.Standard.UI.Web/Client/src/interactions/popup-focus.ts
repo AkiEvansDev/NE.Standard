@@ -41,6 +41,8 @@ const marked = new Set<Element>();
 
 // The ancestors wearing `data-ui-focus-within`, from the focused element's parent up to its component root.
 let focusChain: readonly Element[] = [];
+let focusTarget: Element | null = null;
+let focusMode: "pointer" | "keyboard" | null = null;
 
 // The popups whose focus a pointer's opening took: the focus they give back is the pointer's too (restoreFocusTo).
 const openedByPointer = new WeakSet<Element>();
@@ -198,6 +200,10 @@ export function markPointerFocus(target: EventTarget | null, pointer: boolean): 
  */
 function markFocusWithin(focused: Element | null): void {
     const value = focused === null || focused === document.body || isEditableEntry(focused) ? null : focused.hasAttribute(PointerFocusAttribute) ? "pointer" : "keyboard";
+
+    if (sameFocusChain(focused, value))
+        return;
+
     const chain = focused === null || value === null ? [] : focusWithinChain(focused);
 
     for (const element of focusChain) {
@@ -211,6 +217,33 @@ function markFocusWithin(focused: Element | null): void {
     }
 
     focusChain = chain;
+    focusTarget = focused;
+    focusMode = value;
+}
+
+function sameFocusChain(focused: Element | null, value: "pointer" | "keyboard" | null): boolean {
+    if (focused !== focusTarget || value !== focusMode)
+        return false;
+
+    if (focused === null || value === null)
+        return focusChain.length === 0;
+
+    if (!focused.isConnected)
+        return false;
+
+    let index = 0;
+
+    for (let current = focused.parentElement; current !== null && current !== document.body && !current.hasAttribute(RegionAttribute); current = current.parentElement) {
+        if (index >= focusChain.length || focusChain[index] !== current || current.getAttribute(FocusWithinAttribute) !== value)
+            return false;
+
+        index++;
+
+        if (current.hasAttribute(ComponentIdAttribute) && !isPartOfAnother(current))
+            break;
+    }
+
+    return index === focusChain.length;
 }
 
 /**

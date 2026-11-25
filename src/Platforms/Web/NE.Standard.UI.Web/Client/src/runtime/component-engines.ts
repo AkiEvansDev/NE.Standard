@@ -65,7 +65,7 @@ import { SearchEvent, SearchInputEngine } from "../interactions/search-input-eng
 import { SelectInteractionEngine } from "../interactions/select-interaction-engine";
 import { ShortcutEngine, viewShortcutsOf } from "../interactions/shortcut-engine";
 import { SideDrawerEngine } from "../interactions/side-drawer-engine";
-import { SplitButtonEngine } from "../interactions/split-button-engine";
+import { clearLaterSplitMenus, setLaterSplitMenus, SplitButtonEngine } from "../interactions/split-button-engine";
 import { StepsEngine } from "../interactions/steps-engine";
 import { SurfacePressEngine } from "../interactions/surface-press-engine";
 import { TableColumns, TableColumnsEngine } from "../interactions/table-columns-engine";
@@ -539,9 +539,14 @@ export function createItemsSubsystems(
 
     rowMenus.scan();
     const drawRowMenu = (owner: HTMLElement): HTMLElement | null => rowMenus.draw(owner);
+    const drawRowSplitMenu = (owner: HTMLElement): HTMLElement | null => rowMenus.draw(owner, "split");
 
     setLaterMenus(drawRowMenu);
-    registerRuntimeCleanup(() => clearLaterMenus(drawRowMenu));
+    setLaterSplitMenus(drawRowSplitMenu);
+    registerRuntimeCleanup(() => {
+        clearLaterMenus(drawRowMenu);
+        clearLaterSplitMenus(drawRowSplitMenu);
+    });
 
     const virtualization = new ItemsVirtualizationEngine({
         root,

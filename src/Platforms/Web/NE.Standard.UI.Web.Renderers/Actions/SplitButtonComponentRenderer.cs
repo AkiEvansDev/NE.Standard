@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Actions;
 using NE.Standard.UI.Primitives.Constants;
@@ -80,15 +81,20 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
             _ = toggle.Element("span", chevron => chevron.Class("ui-split-button__chevron"));
         });
 
-        // Inside the root rather than portaled, like a context menu, so closest() paths and the component's inert hold.
-        _ = root.Element("div", menu =>
+        // Inside a row or a link, the menu waits in an inert template (`row-menus.ts`) so a feed's rows do not stamp hidden menus until opened.
+        if (!context.IsPresentationCopy && (context.Node.ContextParameterCount > 0 || context.IsInsideLink))
         {
-            _ = menu.Class(MenuClassName);
-            _ = menu.Attribute("role", "presentation");
-            _ = menu.Attribute(WebAttributes.EventBoundary);
-
-            RenderRegion(context, menu, RegionNames.Menu);
-        });
+            _ = root.Attribute(WebAttributes.SplitMenuLater);
+            _ = root.Element("template", template =>
+            {
+                _ = template.Attribute(WebAttributes.SplitMenuTemplate, context.Node.ComponentId.Value.ToString(CultureInfo.InvariantCulture));
+                RenderMenuPopup(context, template);
+            });
+        }
+        else
+        {
+            RenderMenuPopup(context, root);
+        }
     }
 
     private static bool HasTitle(WebRenderContext context)
@@ -106,5 +112,18 @@ public sealed class SplitButtonComponentRenderer : ButtonRendererBase
 
         if (named)
             WebWords.Write(context, opener, "aria-label", UIStrings.SplitButtonMore);
+    }
+
+    private static void RenderMenuPopup(WebRenderContext context, IHtmlElementBuilder host)
+    {
+        // Inside the root rather than portaled, like a context menu, so closest() paths and the component's inert hold.
+        _ = host.Element("div", menu =>
+        {
+            _ = menu.Class(MenuClassName);
+            _ = menu.Attribute("role", "presentation");
+            _ = menu.Attribute(WebAttributes.EventBoundary);
+
+            RenderRegion(context, menu, RegionNames.Menu);
+        });
     }
 }

@@ -210,3 +210,48 @@ test("a link's menu outside every list waits in the link and is moved in when wa
     assert.deepEqual(rendered, []);
     assert.deepEqual(drawn, [real<FakeElement>(menu)]);
 });
+
+test("a row's split button menu waits in its own template beside any context menu on the same component, without claiming row chords", () => {
+    const splitTemplate = new FakeTemplate({ "data-ui-split-menu-template": "12" });
+    const splitEntry = FakeElement.of("ui-menu-item", { "data-ui-id": "24", "data-ui-shortcut": "Ctrl+M" });
+
+    splitTemplate.content.append(FakeElement.of("ui-split-button__menu").append(FakeElement.of("ui-menu", { "data-ui-id": "23" }).append(splitEntry)));
+
+    const split = FakeElement.of("ui-split-button", {
+        "data-ui-id": "12",
+        "data-ui-context-menu-owner": "",
+        "data-ui-context-menu-later": "",
+        "data-ui-split-menu-later": ""
+    }).append(FakeElement.of("ui-split-button__main", {}, "button"), menuTemplate("12"), splitTemplate);
+    const rowTemplate = new FakeTemplate({ "data-ui-template": "default" });
+    const host = FakeElement.of("ui-items-view__host", { "data-ui-items-host": "" });
+    const view = FakeElement.of("ui-items-view", { "data-ui-id": "10" }).append(rowTemplate, host);
+
+    rowTemplate.content.append(FakeElement.of("ui-row", { "data-ui-id": "11" }).append(split));
+
+    const { menus, rendered, drawn } = menusOver(FakeElement.of("ui-page").append(view));
+
+    menus.scan();
+
+    assert.equal(menus.holds(13), true);
+    assert.equal(menus.holds(23), true);
+    assert.equal(menus.inOneMenu(13, 23), false);
+    assert.deepEqual([...menus.chords()], ["Ctrl+D"]);
+
+    const rowSplit = FakeElement.of("ui-split-button", {
+        "data-ui-id": "12",
+        "data-ui-context-menu-owner": "",
+        "data-ui-context-menu-later": "",
+        "data-ui-split-menu-later": ""
+    }).append(FakeElement.of("ui-split-button__main", {}, "button"));
+
+    host.append(FakeElement.of("ui-items-view__item", { "data-ui-key": "m1" }).append(rowSplit));
+
+    const drawnSplit = menus.draw(real<HTMLElement>(rowSplit), "split");
+
+    assert.equal(real<FakeElement>(drawnSplit)?.classes.has("ui-split-button__menu"), true);
+    assert.equal(rowSplit.hasAttribute("data-ui-split-menu-later"), false);
+    assert.equal(rowSplit.hasAttribute("data-ui-context-menu-later"), true);
+    assert.deepEqual(rendered, [rowSplit]);
+    assert.deepEqual(drawn, [real<FakeElement>(drawnSplit)]);
+});

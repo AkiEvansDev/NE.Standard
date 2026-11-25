@@ -25,7 +25,7 @@ installFakeDom({
     }
 });
 
-const { SplitButtonEngine } = await import("../src/interactions/split-button-engine.ts");
+const { clearLaterSplitMenus, setLaterSplitMenus, SplitButtonEngine } = await import("../src/interactions/split-button-engine.ts");
 const { MenuEngine } = await import("../src/interactions/menu-engine.ts");
 const { noteKey, notePress } = await import("../src/interactions/popup-focus.ts");
 
@@ -144,4 +144,44 @@ test("the open list is called what its opener says", () => {
     assert.notEqual(at.toggle.id, "");
     assert.equal(at.list.getAttribute("aria-labelledby"), at.toggle.id);
     escape();
+});
+
+test("a row's split button draws its waiting menu on first open and opens it once the microtask settles", async () => {
+    const entry = FakeElement.of("ui-menu-item", { id: "branch", role: "menuitem" });
+    const list = FakeElement.of("ui-menu", { role: "menu" }).append(entry);
+    const menu = FakeElement.of("ui-split-button__menu", { role: "presentation" }).append(list);
+    const toggle = FakeElement.of("ui-split-button__toggle", { "aria-haspopup": "menu" }, "button");
+    const button = FakeElement.of("ui-split-button", { "data-ui-id": "9", "data-ui-split-menu-later": "" }).append(
+        FakeElement.of("ui-split-button__main", {}, "button"),
+        toggle
+    );
+    let draws = 0;
+    const draw = (owner: HTMLElement): HTMLElement | null => {
+        draws++;
+        real<FakeElement>(owner).removeAttribute("data-ui-split-menu-later");
+        real<FakeElement>(owner).append(menu);
+        return real<HTMLElement>(menu);
+    };
+
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(button);
+    setLaterSplitMenus(draw);
+
+    try {
+        toggle.focus();
+        notePress(real(toggle));
+        toggle.dispatchEvent(new FakeEvent("click"));
+
+        assert.equal(draws, 1);
+        assert.equal(button.classes.has("ui-split-button--open"), false, "waits a microtask for newly inserted menu observers");
+
+        await Promise.resolve();
+
+        assert.equal(button.classes.has("ui-split-button--open"), true);
+        assert.equal(fakeDocument.activeElement, list);
+        escape();
+    }
+    finally {
+        clearLaterSplitMenus(draw);
+    }
 });

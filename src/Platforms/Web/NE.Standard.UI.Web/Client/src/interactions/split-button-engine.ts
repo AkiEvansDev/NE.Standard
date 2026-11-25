@@ -1,11 +1,24 @@
 // A split button's menu: opened from its end part (or its whole, as a menu button), placed under it, closed by the chosen entry.
 
-import { MenuItemClass, MenuRootClass as ListClass, SplitButtonClass, SplitButtonMainClass, SplitButtonMenuClass, SplitButtonOpenClass, SplitButtonToggleClass, SplitModeAttribute, SplitPlacementAttribute } from "../addressing/dom-attributes.ts";
+import { MenuItemClass, MenuRootClass as ListClass, SplitButtonClass, SplitButtonMainClass, SplitButtonMenuClass, SplitButtonOpenClass, SplitButtonToggleClass, SplitMenuLaterAttribute, SplitModeAttribute, SplitPlacementAttribute } from "../addressing/dom-attributes.ts";
 import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
 import { isPlainKey } from "./keyboard-shortcut.ts";
 import { choosesMenuEntry, menuWalk } from "./menu-group-engine.ts";
 import { OwnedPopups } from "./owned-popup.ts";
 import { focusOpenedList } from "./popup-focus.ts";
+
+let drawLater: ((owner: HTMLElement) => HTMLElement | null) | null = null;
+
+/** Names what draws a row's split button menu that waits in a template (`RowMenus.draw`). */
+export function setLaterSplitMenus(draw: ((owner: HTMLElement) => HTMLElement | null) | null): void {
+    drawLater = draw;
+}
+
+/** Clears the deferred split-menu drawer only when it is still `expected`. */
+export function clearLaterSplitMenus(expected: (owner: HTMLElement) => HTMLElement | null): void {
+    if (drawLater === expected)
+        drawLater = null;
+}
 
 export type SplitButtonEngineOptions = {
     readonly root?: ParentNode;
@@ -94,10 +107,32 @@ export class SplitButtonEngine {
 
     /** Opens the list afresh — from its first entry (its last for `fromEnd`) for a key, from none for a press — not where it was left. */
     private openMenu(button: HTMLElement, fromEnd = false): void {
-        const menu = menuOf(button);
-        const list = menu?.querySelector<HTMLElement>(`.${ListClass}`) ?? null;
+        const existing = menuOf(button);
 
-        if (menu === null || list === null)
+        if (existing !== null) {
+            this.showMenu(button, existing, fromEnd);
+            return;
+        }
+
+        if (drawLater === null || !button.hasAttribute(SplitMenuLaterAttribute))
+            return;
+
+        const drawn = drawLater(button);
+
+        if (drawn === null)
+            return;
+
+        // Measured after the microtask where menu-group and shortcut observers take the newly inserted menu in, as context-menu-engine.ts does.
+        queueMicrotask(() => {
+            if (button.isConnected && !this.menus.isOpen(button))
+                this.showMenu(button, drawn, fromEnd);
+        });
+    }
+
+    private showMenu(button: HTMLElement, menu: HTMLElement, fromEnd: boolean): void {
+        const list = menu.querySelector<HTMLElement>(`.${ListClass}`);
+
+        if (list === null)
             return;
 
         // Against the whole pill — under it, its end at the button's end, unless the author placed it otherwise (`PopupPlacement`): the

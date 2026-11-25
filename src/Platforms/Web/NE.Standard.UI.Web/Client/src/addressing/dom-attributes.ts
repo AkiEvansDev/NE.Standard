@@ -154,6 +154,10 @@ export const SurfaceImageBlurAttribute = "data-ui-surface-image-blur";
 export const SplitModeAttribute = "data-ui-split-mode";
 /** On a split button whose menu opens anywhere but below from its end: the placement's token (`WebAttributes.SplitPlacement`). */
 export const SplitPlacementAttribute = "data-ui-split-placement";
+/** On a split button in a row or inside a link: its menu waits in a template (`row-menus.ts`), drawn into the button when opened. */
+export const SplitMenuLaterAttribute = "data-ui-split-menu-later";
+/** On the template a row's split button menu waits in: the button's component id. */
+export const SplitMenuTemplateAttribute = "data-ui-split-menu-template";
 export const ItemsHostAttribute = "data-ui-items-host";
 /** On an items host while it shows its empty state (`WebAttributes.ItemsEmpty`). */
 export const ItemsEmptyAttribute = "data-ui-items-empty";

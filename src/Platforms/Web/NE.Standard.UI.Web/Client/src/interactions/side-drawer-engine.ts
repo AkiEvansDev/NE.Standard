@@ -17,6 +17,7 @@ import { isBehindModal } from "./open-dialogs.ts";
 import { syncLiftedPopups } from "./anchored-popup.ts";
 import { hasOpenPopups } from "./popup-dismissal.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
+import { motion, whenTransitionsEnd } from "../rendering/motion.ts";
 import { onTierChange } from "../rendering/responsive-tier.ts";
 import { DrawerBreakpointTiers, isBottomBarSide, sideIsDrawer } from "../rendering/side-drawer-width.ts";
 import { ClientStore } from "../state/client-store.ts";
@@ -27,6 +28,7 @@ const RootSelector = `[${RootAttribute}]`;
 const LinkSelector = "a[href]";
 const RightSide = "right-side";
 const PinnedSlot = "pinned";
+const DrawerOpenLimit = motion.normal * 2;
 
 export type SideDrawerEngineOptions = {
     readonly root?: ParentNode;
@@ -41,6 +43,10 @@ export class SideDrawerEngine {
 
     // The button that opened each shell's drawer, which the keyboard goes back to: a side may have more than one.
     private readonly openers = new WeakMap<HTMLElement, HTMLElement>();
+
+    // Sequence token per shell so a cancelled or superseded slide-in never raises a stale `open` event.
+    private readonly openTokens = new WeakMap<HTMLElement, number>();
+    private openSequence = 0;
 
     // The name each open drawer's own switch had before it was called what it does there, given back as the drawer is put away.
     private readonly switchNames = new Map<HTMLElement, string | null>();
@@ -173,10 +179,15 @@ export class SideDrawerEngine {
             const drawer = drawerOf(shell, side);
             const opener = this.openers.get(shell);
 
-            if (drawer === null || !sideIsDrawer(shell, side))
+            if (drawer === null || !sideIsDrawer(shell, side)) {
                 this.close(shell);
-            else if (opener?.isConnected === true)
-                this.placeSwitch(drawer, opener);
+            }
+            else if (opener?.isConnected === true) {
+                const fold = candidateDrawerSwitch(drawer, side);
+
+                if (fold !== null && isInSight(fold))
+                    this.placeSwitch(drawer, opener, fold);
+            }
         }
     }
 
@@ -197,20 +208,27 @@ export class SideDrawerEngine {
         if (shell.hasAttribute(DrawerOpenAttribute))
             this.close(shell);
 
-        const openerBox = drawerSwitch(drawer) === null ? undefined : opener.getBoundingClientRect();
+        const fold = candidateDrawerSwitch(drawer, side);
+        const openerBox = fold === null ? undefined : opener.getBoundingClientRect();
+        const modal = isModal(shell, side);
+        const active = document.activeElement;
+        const pressed = isPointerLast();
 
         shell.setAttribute(DrawerOpenAttribute, side);
         this.openers.set(shell, opener);
         this.markToggles(shell);
-        this.hold(drawer, side, isModal(shell, side));
+        this.hold(drawer, side, modal);
         syncLiftedPopups();
-        this.placeSwitch(drawer, opener, openerBox);
 
-        drawer.querySelector<HTMLElement>(ComponentSelector)?.dispatchEvent(new Event("open", { bubbles: true }));
+        if (fold !== null && isInSight(fold))
+            this.placeSwitch(drawer, opener, fold, openerBox);
 
         // Into the drawer, not behind the backdrop; a single next-frame fallback covers a drawer whose visibility transitions in.
         // A press gives it to the drawer itself: a field of it focused at once would raise a phone's on-screen keyboard unasked.
-        this.focusInto(shell, side, drawer, document.activeElement, isPointerLast());
+        this.focusInto(shell, side, drawer, active, pressed);
+
+        // Raised once the slide-in settles so server round-trips and collection patches do not contend with the entrance animation.
+        this.announceOpen(shell, side, drawer);
     }
 
     /**
@@ -246,12 +264,7 @@ export class SideDrawerEngine {
      * drawer opens and goes away under one button that stays put. The place is custom properties the drawer's rules read
      * (side-drawers.less), so the switch keeps it while the drawer slides away and a side standing in its column again leaves it unread.
      */
-    private placeSwitch(drawer: HTMLElement, opener: HTMLElement, openerBox?: DOMRect): void {
-        const fold = drawerSwitch(drawer);
-
-        if (fold === null)
-            return;
-
+    private placeSwitch(drawer: HTMLElement, opener: HTMLElement, fold: HTMLElement, openerBox?: DOMRect): void {
         const target = openerBox ?? opener.getBoundingClientRect();
 
         if (!this.switchNames.has(fold))
@@ -297,6 +310,16 @@ export class SideDrawerEngine {
             requestAnimationFrame(() => this.focusInto(shell, side, drawer, from, pressed, true));
     }
 
+    private announceOpen(shell: HTMLElement, side: string, drawer: HTMLElement): void {
+        const token = ++this.openSequence;
+
+        this.openTokens.set(shell, token);
+        whenTransitionsEnd(drawer, DrawerOpenLimit, () => {
+            if (this.openTokens.get(shell) === token && shell.getAttribute(DrawerOpenAttribute) === side)
+                drawer.querySelector<HTMLElement>(ComponentSelector)?.dispatchEvent(new Event("open", { bubbles: true }));
+        });
+    }
+
     /**
      * Pins a side or unpins it: pinned, it stands in its column from the extra-large breakpoint up — put away first, as a drawer, if open —
      * and the pin is kept under the first authored id in the side (its root, or a menu in plain boxes), written on the next page's root
@@ -340,6 +363,7 @@ export class SideDrawerEngine {
     private close(shell: HTMLElement, refocus = true): void {
         const side = shell.getAttribute(DrawerOpenAttribute);
 
+        this.openTokens.delete(shell);
         shell.removeAttribute(DrawerOpenAttribute);
         this.markToggles(shell);
 
@@ -383,8 +407,12 @@ export class SideDrawerEngine {
     private markToggles(shell: HTMLElement): void {
         const open = shell.getAttribute(DrawerOpenAttribute);
 
-        for (const toggle of shell.querySelectorAll<HTMLElement>(`[${DrawerToggleAttribute}]`))
-            toggle.setAttribute("aria-expanded", String(toggle.getAttribute(DrawerToggleAttribute) === open));
+        for (const toggle of shell.querySelectorAll<HTMLElement>(`[${DrawerToggleAttribute}]`)) {
+            const expanded = String(toggle.getAttribute(DrawerToggleAttribute) === open);
+
+            if (toggle.getAttribute("aria-expanded") !== expanded)
+                toggle.setAttribute("aria-expanded", expanded);
+        }
     }
 
     /** Takes the holder's marks off a drawer put away: a side standing in its column again is no layer, and its landmark again. */
@@ -434,9 +462,13 @@ export class SideDrawerEngine {
  * The switch of the panel an open drawer starts with, hung on its edge, which puts the drawer away (`isDrawerFoldSwitch`); none where
  * no such panel heads the side — one further down lies nowhere near the button that opened the drawer.
  */
-function drawerSwitch(drawer: HTMLElement): HTMLElement | null {
+function candidateDrawerSwitch(drawer: HTMLElement, side: string): HTMLElement | null {
+    const edgeClass = side === RightSide ? SideRightClass : SideLeftClass;
+
     for (const fold of drawer.querySelectorAll<HTMLElement>(`[${CollapseToggleAttribute}]`)) {
-        if (isDrawerFoldSwitch(fold) && isInSight(fold) && headsDrawer(fold.closest(`.${CollapsibleClass}`), drawer))
+        const panel = fold.closest(`.${CollapsibleClass}`);
+
+        if (panel !== null && !panel.hasAttribute(CollapsedAttribute) && panel.classList.contains(edgeClass) && headsDrawer(panel, drawer))
             return fold;
     }
 

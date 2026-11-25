@@ -7,15 +7,14 @@
 // the menu is drawn with them; drawn, it stays while its row does, as one drawn with the row did.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, `import type` on the rest.
-import { ComponentSelector, ContextMenuLaterAttribute, ContextMenuTemplateAttribute, ItemsHostAttribute, ShortcutAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, ContextMenuLaterAttribute, ContextMenuTemplateAttribute, ItemsHostAttribute, ShortcutAttribute, SplitMenuLaterAttribute, SplitMenuTemplateAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId, readComponentId } from "../addressing/dom-registry.ts";
 import { forEachSubtree } from "../rendering/client-strings.ts";
 import { logWarn } from "../metadata/logger.ts";
 import { tryReadItemProperty } from "./binding-template-evaluator.ts";
 import type { HeldRow } from "./held-collections";
 
-const MenuTemplateSelector = `template[${ContextMenuTemplateAttribute}]`;
-const OwnMenuTemplateSelector = `:scope > ${MenuTemplateSelector}`;
+export type LaterMenuKind = "context" | "split";
 
 export type RowMenusOptions = {
     readonly root: ParentNode;
@@ -30,17 +29,19 @@ export type RowMenusOptions = {
 export class RowMenus {
     private readonly options: RowMenusOptions;
 
-    // A row template's waiting menu, by its owner's component id: one for every row built from that template.
-    private readonly shared = new Map<number, HTMLTemplateElement>();
+    // A row template's waiting menu, by kind and its owner's component id: one for every row built from that template.
+    private readonly shared = new Map<string, HTMLTemplateElement>();
     // The components a waiting menu declares, with the items components whose rows its owner stands in, outermost first.
     private readonly components = new Map<number, readonly number[]>();
-    // The waiting menu each of those components stands in, by its owner's id: two menus in one row hold entries keyed alike.
-    private readonly menuOf = new Map<number, number>();
-    // The owners whose menu's components are known: every row's copy of one declares the same.
-    private readonly declared = new Set<number>();
+    // Which waiting menu components belong to a right-click context menu, whose bound entries contribute row-scoped chords.
+    private readonly contextComponents = new Set<number>();
+    // The waiting menu each of those components stands in, by kind and owner id: two menus on one owner hold entries keyed alike.
+    private readonly menuOf = new Map<number, string>();
+    // The menu slots whose components are known: every row's copy of one declares the same.
+    private readonly declared = new Set<string>();
     // The templates taken in already: one taken out of its row template stands beside it then, among rows it no longer stands in.
     private readonly taken = new WeakSet<HTMLTemplateElement>();
-    // The chords a waiting menu's entries carry as written: a static entry's.
+    // The chords a waiting context menu's entries carry as written: a static entry's.
     private readonly writtenChords = new Set<string>();
 
     private scanned = false;
@@ -130,7 +131,7 @@ export class RowMenus {
             this.chordSet.add(chord);
 
         this.options.heldRows((componentId, row) => {
-            if (this.components.has(componentId))
+            if (this.contextComponents.has(componentId))
                 addItemChords(row.item, this.chordSet);
         });
 
@@ -138,19 +139,21 @@ export class RowMenus {
     }
 
     /** Draws the owner's waiting menu into it and answers it; null where the owner has none waiting. */
-    public draw(owner: HTMLElement): HTMLElement | null {
-        if (!owner.hasAttribute(ContextMenuLaterAttribute))
+    public draw(owner: HTMLElement, kind: LaterMenuKind = "context"): HTMLElement | null {
+        const laterAttribute = laterAttributeOf(kind);
+
+        if (!owner.hasAttribute(laterAttribute))
             return null;
 
         this.scan();
 
-        const menu = this.drawFrom(owner) ?? this.drawAfterRescan(owner);
+        const menu = this.drawFrom(owner, kind) ?? this.drawAfterRescan(owner, kind);
 
         // Asked once: a menu that cannot be drawn is not looked for at every press.
-        owner.removeAttribute(ContextMenuLaterAttribute);
+        owner.removeAttribute(laterAttribute);
 
         if (menu === null) {
-            logWarn("a row's context menu waits in no template.", { owner });
+            logWarn("a row's menu waits in no template.", { owner, kind });
             return null;
         }
 
@@ -159,16 +162,16 @@ export class RowMenus {
         return menu as HTMLElement;
     }
 
-    private drawAfterRescan(owner: HTMLElement): Element | null {
+    private drawAfterRescan(owner: HTMLElement, kind: LaterMenuKind): Element | null {
         this.scanned = false;
         this.scan();
 
-        return this.drawFrom(owner);
+        return this.drawFrom(owner, kind);
     }
 
-    private drawFrom(owner: HTMLElement): Element | null {
+    private drawFrom(owner: HTMLElement, kind: LaterMenuKind): Element | null {
         // A row the server drew holds its own, painted with its values: moved in where it waits, the owner's last child.
-        const own = owner.querySelector<HTMLTemplateElement>(OwnMenuTemplateSelector);
+        const own = owner.querySelector<HTMLTemplateElement>(`:scope > template[${templateAttributeOf(kind)}]`);
 
         if (own !== null) {
             const menu = own.content.firstElementChild;
@@ -178,7 +181,7 @@ export class RowMenus {
             return menu;
         }
 
-        const template = this.shared.get(readComponentId(owner));
+        const template = this.shared.get(slotKey(kind, readComponentId(owner)));
         const menu = template === undefined ? null : this.options.render(template, owner);
 
         if (menu !== null)
@@ -196,7 +199,12 @@ export class RowMenus {
             const above = [...hosts, ...rowHostsAbove(template)];
 
             if (template.hasAttribute(ContextMenuTemplateAttribute)) {
-                this.takeMenu(template, above, outermost);
+                this.takeMenu(template, "context", above, outermost);
+                continue;
+            }
+
+            if (template.hasAttribute(SplitMenuTemplateAttribute)) {
+                this.takeMenu(template, "split", above, outermost);
                 continue;
             }
 
@@ -207,32 +215,40 @@ export class RowMenus {
         }
     }
 
-    private takeMenu(template: HTMLTemplateElement, hosts: readonly number[], outermost: HTMLTemplateElement | null): void {
-        const ownerId = Number(template.getAttribute(ContextMenuTemplateAttribute));
-        const declares = !this.declared.has(ownerId);
+    private takeMenu(template: HTMLTemplateElement, kind: LaterMenuKind, hosts: readonly number[], outermost: HTMLTemplateElement | null): void {
+        const ownerId = Number(template.getAttribute(templateAttributeOf(kind)));
+        const key = slotKey(kind, ownerId);
+        const declares = !this.declared.has(key);
 
         this.taken.add(template);
-        this.declared.add(ownerId);
+        this.declared.add(key);
 
         // A drawn row's own entries may carry chords of their own (painted from its item); the components are its template's.
         forEachSubtree(template.content, subtree => {
             if (declares) {
                 for (const element of subtree.querySelectorAll(ComponentSelector)) {
-                    this.components.set(readComponentId(element), hosts);
-                    this.menuOf.set(readComponentId(element), ownerId);
+                    const componentId = readComponentId(element);
+
+                    this.components.set(componentId, hosts);
+                    this.menuOf.set(componentId, key);
+
+                    if (kind === "context")
+                        this.contextComponents.add(componentId);
                 }
             }
 
-            for (const element of subtree.querySelectorAll(`[${ShortcutAttribute}]`)) {
-                const chord = element.getAttribute(ShortcutAttribute)?.trim() ?? "";
+            if (kind === "context") {
+                for (const element of subtree.querySelectorAll(`[${ShortcutAttribute}]`)) {
+                    const chord = element.getAttribute(ShortcutAttribute)?.trim() ?? "";
 
-                if (chord.length > 0)
-                    this.writtenChords.add(chord);
+                    if (chord.length > 0)
+                        this.writtenChords.add(chord);
+                }
             }
         });
 
         // A drawn row's own stays in its owner, for that row alone.
-        if (template.parentElement?.hasAttribute(ContextMenuLaterAttribute) === true && outermost === null)
+        if (template.parentElement?.hasAttribute(laterAttributeOf(kind)) === true && outermost === null)
             return;
 
         // Out of the row template, beside the outermost one on the page: no row clones it, and a language switch reaches its words.
@@ -240,8 +256,20 @@ export class RowMenus {
             outermost.after(template);
 
         if (Number.isInteger(ownerId) && ownerId > 0)
-            this.shared.set(ownerId, template);
+            this.shared.set(key, template);
     }
+}
+
+function laterAttributeOf(kind: LaterMenuKind): string {
+    return kind === "split" ? SplitMenuLaterAttribute : ContextMenuLaterAttribute;
+}
+
+function templateAttributeOf(kind: LaterMenuKind): string {
+    return kind === "split" ? SplitMenuTemplateAttribute : ContextMenuTemplateAttribute;
+}
+
+function slotKey(kind: LaterMenuKind, ownerId: number): string {
+    return `${kind}:${ownerId}`;
 }
 
 /** The items components whose rows an element stands in within its own tree, outermost first. */
