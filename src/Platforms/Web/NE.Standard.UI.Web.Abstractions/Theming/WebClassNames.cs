@@ -388,6 +388,8 @@ public static class WebClassNames
     public const string SearchField = "ui-search__field";
 
     /// <summary>The select classes the client finds elements by too.</summary>
+    public const string SelectQuiet = "ui-select--quiet";
+
     public const string SelectAction = "ui-select__action";
 
     public const string SelectList = "ui-select__list";
@@ -919,6 +921,10 @@ public static class WebClassNames
     /// <summary>An expander's modifier: <c>ui-expander--quiet</c> for the quiet fold, nothing for the card.</summary>
     public static string ExpanderVariant(UIExpanderVariant value)
         => value == UIExpanderVariant.Quiet ? "ui-expander--quiet" : string.Empty;
+
+    /// <summary>A select's modifier: <c>ui-select--quiet</c> for the quiet trigger, nothing for the field.</summary>
+    public static string SelectVariant(UISelectVariant value)
+        => value == UISelectVariant.Quiet ? SelectQuiet : string.Empty;
 
     public static string ImageShape(UIShape value)
         => value == UIShape.Circle ? "ui-image--circle" : string.Empty;

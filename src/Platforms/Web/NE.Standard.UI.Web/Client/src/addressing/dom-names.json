@@ -2869,6 +2869,10 @@
         "value":  "data-ui-select-value"
     },
     {
+        "constant":  "SelectLockedAttribute",
+        "value":  "data-ui-select-locked"
+    },
+    {
         "constant":  "SelectTriggerContentClass",
         "value":  "ui-select__trigger-content"
     },
@@ -3463,6 +3467,10 @@
     {
         "constant":  "ExpanderQuietClass",
         "value":  "ui-expander--quiet"
+    },
+    {
+        "constant":  "SelectQuietClass",
+        "value":  "ui-select--quiet"
     },
     {
         "constant":  "TextMaxLinesClass",

@@ -3,7 +3,7 @@ import {
     MultiSelectButtonClass, MultiSelectChipClass, MultiSelectChipRemoveClass, MultiSelectChipsClass, SearchInputClass, SelectActionClass, SelectChipAttribute,
     SelectClass, SelectClearAttribute, SelectedKeysAttribute, SelectFreeTextAttribute, SelectListClass,
     SelectListIdPrefix, SelectMaxAttribute, SelectOpenClass, SelectOptionClass, SelectPlacementAttribute,
-    SelectPopupClass, SelectTagEntryAttribute, SelectValueAttribute, SelectValueInputClass
+    SelectPopupClass, SelectQuietClass, SelectTagEntryAttribute, SelectValueAttribute, SelectValueInputClass
 } from "../addressing/dom-attributes.ts";
 import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
 import { isCaretField } from "./caret-fields.ts";
@@ -20,7 +20,7 @@ import { narrowToTerm, needsManualSearch, refreshEmptyState } from "./search-inp
 import {
     BadgeOptionAttributes, candidateOptions, collectMutatedSelects, controlOf, currentOption, entryOf, entryTarget,
     focusChip, handleChipNavigationKey, holdHeightAbove, initializeEntryPopup, initializePopupFocus,
-    initializeSearchPopup, isBoxAroundEntry, isDisabledOptionKey, isFixed, isMultiple, isSelectTrigger, keepFieldFocus, markActiveOption, markListKeyboard,
+    initializeSearchPopup, isBoxAroundEntry, isDisabledOptionKey, isFixed, isMultiple, isSelectTrigger, isSingleLocked, keepFieldFocus, markActiveOption, markListKeyboard,
     moveCurrentOption, MultiOptionAttributes, ObservedAttributes, OptionAttributes, optionKeyNamed, optionLabel, optionsOf,
     resetSearchField, resolveClearKeySelect, resolveClosedArrowStart, scrollIntoList, searchFieldOf, SelectHostSelector, SelectTriggerSelector, syncMultipleSelect, syncSingleSelect,
     triggerOf, typedFieldOf
@@ -266,10 +266,15 @@ export class SelectInteractionEngine {
         this.watchOptions(select);
         markListKeyboard(select);
 
-        if (isMultiple(select))
+        if (isMultiple(select)) {
             syncMultipleSelect(select);
-        else
-            syncSingleSelect(select, this.drawnKeys);
+            return;
+        }
+
+        syncSingleSelect(select, this.drawnKeys);
+
+        if (this.openSelect === select && isSingleLocked(select))
+            this.close();
     }
 
     private watchOptions(select: HTMLElement): void {
@@ -347,7 +352,7 @@ export class SelectInteractionEngine {
         if (trigger !== null) {
             const select = trigger.closest<HTMLElement>(SelectHostSelector);
 
-            if (isFixed(select))
+            if (isFixed(select) || isSingleLocked(select))
                 return;
 
             domEvent.preventDefault();
@@ -589,7 +594,7 @@ export class SelectInteractionEngine {
         const select = target.closest<HTMLElement>(SelectHostSelector);
         const open = select !== null && select === this.openSelect;
 
-        if (select === null || isFixed(select) || (!open && !isSelectTrigger(target)))
+        if (select === null || isFixed(select) || (!open && isSingleLocked(select)) || (!open && !isSelectTrigger(target)))
             return false;
 
         const field = searchFieldOf(select);
@@ -645,6 +650,9 @@ export class SelectInteractionEngine {
             return false;
 
         if (domEvent.key === "Enter" || domEvent.key === " ") {
+            if (isSingleLocked(select))
+                return false;
+
             domEvent.preventDefault();
             this.toggle(select);
             return true;
@@ -689,6 +697,9 @@ export class SelectInteractionEngine {
             return;
         }
 
+        if (isSingleLocked(select))
+            return;
+
         this.close();
 
         const field = typedFieldOf(select);
@@ -715,12 +726,13 @@ export class SelectInteractionEngine {
         field?.setAttribute("aria-controls", listId);
 
         const button = select.classList.contains(MultiSelectButtonClass);
+        const quiet = select.classList.contains(SelectQuietClass);
         const defaultPlacement = button ? "bottom-end" : "bottom-start";
         const opened = this.popups.open({
             owner: select,
             popup,
             anchor: button ? select : trigger,
-            placement: { placement: token !== null && isAnchoredPopupPlacement(token) ? token : defaultPlacement, minAnchorWidth: !button },
+            placement: { placement: token !== null && isAnchoredPopupPlacement(token) ? token : defaultPlacement, minAnchorWidth: !button && !quiet },
             openers: entry !== null ? [entry] : field === null ? [trigger] : [trigger, field],
             namedBy: entry ?? trigger,
             namedPart: list,

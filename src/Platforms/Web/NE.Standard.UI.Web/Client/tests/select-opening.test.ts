@@ -3,7 +3,13 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+import { FakeElement, FakeEvent, FakeInput, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
+
+Object.defineProperty(FakeElement.prototype, "childNodes", {
+    get(this: FakeElement) {
+        return this.children;
+    }
+});
 
 installFakeDom({
     window: { addEventListener: () => undefined, setTimeout, innerWidth: 1280, innerHeight: 900 },
@@ -274,4 +280,124 @@ test("a button in a select's action group neither opens nor closes the list, and
     assert.equal(optionClick.defaultPrevented, true);
     assert.equal(buttonMulti.select.classes.has("ui-select--open"), true);
     close(buttonMulti);
+});
+
+test("a single-value select locks when it has 0 selectable options or 1 already-chosen option, while keeping clear, actions, search and unselected 1-option selects live", () => {
+    const host = FakeElement.of("lock-host");
+
+    const buildSelect = (keys: readonly string[], value?: string, extraClasses = ""): { select: FakeElement; trigger: FakeElement; clear: FakeElement; action: FakeElement; options: FakeElement[] } => {
+        const clear = FakeElement.of("ui-select__clear", { "data-ui-select-clear": "", role: "button" }, "span");
+        const action = FakeElement.of("ui-button", { type: "button" }, "button");
+        const actionGroup = FakeElement.of("ui-select__action").append(action);
+        const placeholder = FakeElement.of("ui-select__placeholder", {}, "span");
+        const trigger = FakeElement.of("ui-select__trigger", { tabindex: "0", role: "combobox", "aria-haspopup": "listbox", "aria-expanded": "false" }).append(placeholder, clear, actionGroup);
+        const options = keys.map(key => FakeElement.of("ui-select__option", { "data-ui-key": key, role: "option", tabindex: "-1" }).append(FakeElement.of("ui-text", {}, "span")));
+        options.forEach((opt, i) => {
+            opt.children[0].textContent = keys[i];
+        });
+        const popup = FakeElement.of("ui-select__popup ui-select__list", { role: "listbox" }).append(...options);
+        const attrs: Record<string, string> = { "data-ui-id": "9", "data-ui-clearable": "" };
+        if (value !== undefined)
+            attrs["data-ui-select-value"] = value;
+
+        const select = FakeElement.of(`ui-select ${extraClasses}`.trim(), attrs).append(trigger, popup);
+        return { select, trigger, clear, action, options };
+    };
+
+    const empty = buildSelect([]);
+    const singleChosen = buildSelect(["gemma-4"], "gemma-4");
+    const singleUnchosen = buildSelect(["gemma-4"]);
+    const singleSearch = buildSelect(["gemma-4"], "gemma-4", "ui-search");
+    const singleMulti = buildSelect(["gemma-4"], undefined, "ui-multi-select");
+    singleMulti.select.setAttribute("data-ui-selected-keys", "[\"gemma-4\"]");
+
+    const searchInput = Object.assign(new FakeInput("search"), { className: "ui-search__input" });
+    singleSearch.select.querySelector(".ui-select__popup")!.prepend(searchInput);
+
+    host.append(empty.select, singleChosen.select, singleUnchosen.select, singleSearch.select, singleMulti.select);
+    fakeDocument.body.children.length = 0;
+    fakeDocument.body.append(host);
+
+    // Constructing the engine syncs every select under `host`.
+    new SelectInteractionEngine({ root: real<ParentNode>(host) });
+
+    assert.equal(empty.select.hasAttribute("data-ui-select-locked"), true);
+    assert.equal(singleChosen.select.hasAttribute("data-ui-select-locked"), true);
+    assert.equal(singleUnchosen.select.hasAttribute("data-ui-select-locked"), false);
+    assert.equal(singleSearch.select.hasAttribute("data-ui-select-locked"), false);
+    assert.equal(singleMulti.select.hasAttribute("data-ui-select-locked"), false);
+
+    // Locked 0-option and 1-chosen-option selects ignore click, Enter, Space, ArrowDown and type-ahead.
+    for (const locked of [empty, singleChosen]) {
+        notePress(real(locked.trigger));
+        locked.trigger.focus();
+        locked.trigger.dispatchEvent(new FakeEvent("click"));
+        assert.equal(locked.select.classes.has("ui-select--open"), false);
+
+        for (const key of ["Enter", " ", "ArrowDown", "g"]) {
+            const keyEvent = new FakeKeyboardEvent(key, locked.trigger);
+            noteKey(real<Event>(keyEvent));
+            locked.trigger.dispatchEvent(keyEvent);
+            assert.equal(locked.select.classes.has("ui-select--open"), false);
+        }
+    }
+
+    // Trailing action button inside a locked select still receives clicks.
+    let actionClicks = 0;
+    singleChosen.action.addEventListener("click", () => {
+        actionClicks++;
+    });
+    singleChosen.action.dispatchEvent(new FakeEvent("click"));
+    assert.equal(actionClicks, 1);
+
+    // Clearing a 1-option chosen select unlocks it so the user can pick that option again; choosing it locks it again.
+    singleChosen.clear.dispatchEvent(new FakeEvent("click"));
+    assert.equal(singleChosen.select.hasAttribute("data-ui-select-value"), false);
+    assert.equal(singleChosen.select.hasAttribute("data-ui-select-locked"), false);
+
+    notePress(real(singleChosen.trigger));
+    singleChosen.trigger.focus();
+    singleChosen.trigger.dispatchEvent(new FakeEvent("click"));
+    assert.equal(singleChosen.select.classes.has("ui-select--open"), true);
+
+    singleChosen.options[0].dispatchEvent(new FakeEvent("click"));
+    assert.equal(singleChosen.select.classes.has("ui-select--open"), false);
+    assert.equal(singleChosen.select.getAttribute("data-ui-select-value"), "gemma-4");
+    assert.equal(singleChosen.select.hasAttribute("data-ui-select-locked"), true);
+
+    // 1-option unchosen select opens normally and locks once picked.
+    notePress(real(singleUnchosen.trigger));
+    singleUnchosen.trigger.focus();
+    singleUnchosen.trigger.dispatchEvent(new FakeEvent("click"));
+    assert.equal(singleUnchosen.select.classes.has("ui-select--open"), true);
+    singleUnchosen.options[0].dispatchEvent(new FakeEvent("click"));
+    assert.equal(singleUnchosen.select.hasAttribute("data-ui-select-locked"), true);
+
+    // Search and MultiSelect with 1 chosen option still open.
+    notePress(real(singleSearch.trigger));
+    singleSearch.trigger.focus();
+    singleSearch.trigger.dispatchEvent(new FakeEvent("click"));
+    assert.equal(singleSearch.select.classes.has("ui-select--open"), true);
+    singleSearch.trigger.dispatchEvent(new FakeEvent("click"));
+
+    notePress(real(singleMulti.trigger));
+    singleMulti.trigger.focus();
+    singleMulti.trigger.dispatchEvent(new FakeEvent("click"));
+    assert.equal(singleMulti.select.classes.has("ui-select--open"), true);
+    singleMulti.trigger.dispatchEvent(new FakeEvent("click"));
+});
+
+test("a quiet select opens its popup at content width while a field select floors the popup at the trigger's width", () => {
+    const field = scene({ value: "amsterdam" });
+    field.trigger.rect = { left: 20, top: 20, width: 180, height: 40 };
+    press(field);
+    assert.equal(field.select.querySelector(".ui-select__popup")!.style.minWidth, "180px");
+    close(field);
+
+    const quiet = scene({ value: "amsterdam" });
+    quiet.select.classes.add("ui-select--quiet");
+    quiet.trigger.rect = { left: 20, top: 20, width: 84, height: 32 };
+    press(quiet);
+    assert.equal(quiet.select.querySelector(".ui-select__popup")!.style.minWidth, undefined);
+    close(quiet);
 });

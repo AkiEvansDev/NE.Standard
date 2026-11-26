@@ -23,3 +23,31 @@ test("an upright slider's minimum stands under its track and its maximum over it
     assert.match(declarations(".ui-slider.ui-orientation--vertical > .ui-slider__row") ?? "", /flex-direction: column-reverse;/);
     assert.doesNotMatch(declarations(".ui-slider__row") ?? "", /flex-direction/);
 });
+
+test("horizontal sliders use compact even-pixel row, track and handle dimensions and step the handle's fill with no halo ring", () => {
+    assert.match(declarations(".ui-slider__row") ?? "", /min-height: 1\.5rem;/);
+    assert.match(declarations(".ui-slider:not(.ui-orientation--vertical) .ui-slider__input") ?? "", /height: 1\.5rem;/);
+    assert.match(declarations(".ui-slider__input::-webkit-slider-runnable-track") ?? "", /height: 0\.375rem;/);
+    assert.match(declarations(".ui-slider__input::-webkit-slider-thumb") ?? "", /margin-top: -0\.3125rem;[\s\S]*width: 1rem;\s*height: 1rem;/);
+
+    assert.match(declarations(".ui-slider.ui-input--small:not(.ui-orientation--vertical) > .ui-slider__row") ?? "", /min-height: 1\.25rem;/);
+    assert.match(declarations(".ui-slider.ui-input--small:not(.ui-orientation--vertical) .ui-slider__input::-webkit-slider-runnable-track") ?? "", /height: 0\.25rem;/);
+    assert.match(declarations(".ui-slider.ui-input--small .ui-slider__input::-webkit-slider-thumb") ?? "", /width: 0\.875rem;\s*height: 0\.875rem;/);
+
+    assert.match(declarations(".ui-slider.ui-input--large:not(.ui-orientation--vertical) > .ui-slider__row") ?? "", /min-height: 2rem;/);
+    assert.match(declarations(".ui-slider.ui-input--large:not(.ui-orientation--vertical) .ui-slider__input::-webkit-slider-runnable-track") ?? "", /height: 0\.5rem;/);
+    assert.match(declarations(".ui-slider.ui-input--large .ui-slider__input::-webkit-slider-thumb") ?? "", /width: 1\.25rem;\s*height: 1\.25rem;/);
+
+    assert.doesNotMatch(css, /0 0 0 4px color-mix/);
+    assert.match(css, /\.ui-slider__input:not\(:disabled\):not\(\[aria-readonly='true'\]\):hover::-webkit-slider-thumb \{\s*background: color-mix\(in srgb, var\(--ui-range-fill-color, var\(--ui-color-primary\)\) 88%/);
+    assert.match(css, /\.ui-slider__input:not\(:disabled\):not\(\[aria-readonly='true'\]\):active::-webkit-slider-thumb \{\s*background: color-mix\(in srgb, var\(--ui-range-fill-color, var\(--ui-color-primary\)\) 80%/);
+});
+
+test("range sliders align their leading readout to start and horizontal sliders honour --ui-slider-row-box beside field boxes", () => {
+    const leadingReadout = declarations(".ui-slider--show-value:not(.ui-slider--show-range).ui-slider--range:not(.ui-orientation--vertical) > .ui-slider__row > .ui-slider__value:not(.ui-slider__value--end)") ?? "";
+    const rowBox = declarations('.ui-slider:not(.ui-orientation--vertical) > .ui-slider__row[style*="--ui-slider-row-box"]') ?? "";
+
+    assert.match(leadingReadout, /align-items: flex-start;/);
+    assert.match(leadingReadout, /text-align: start;/);
+    assert.match(rowBox, /min-height: var\(--ui-slider-row-box/);
+});

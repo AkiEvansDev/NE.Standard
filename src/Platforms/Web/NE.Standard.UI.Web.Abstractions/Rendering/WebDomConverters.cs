@@ -134,6 +134,9 @@ public static class WebDomConverters
     /// <summary>An expander's variant as its modifier: <c>ui-expander--quiet</c>, or nothing for the card.</summary>
     public const string ExpanderVariantClass = "expanderVariantClass";
 
+    /// <summary>A select's variant as its modifier: <c>ui-select--quiet</c>, or nothing for the field.</summary>
+    public const string SelectVariantClass = "selectVariantClass";
+
     /// <summary>An image's shape as its modifier: <c>ui-image--circle</c>, or nothing for the default.</summary>
     public const string ImageShapeClass = "imageShapeClass";
     public const string BackgroundImageCss = "backgroundImageCss";

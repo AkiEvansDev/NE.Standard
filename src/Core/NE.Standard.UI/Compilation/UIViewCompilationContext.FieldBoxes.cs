@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.Components;
+using NE.Standard.UI.Components.BuiltIns.Inputs;
 using NE.Standard.UI.Components.BuiltIns.Layouts;
 using NE.Standard.UI.Components.BuiltIns.Navigation;
 using NE.Standard.UI.Primitives.Styling;
@@ -19,6 +21,7 @@ internal sealed partial class UIViewCompilationContext
     // The things standing level with captioned fields' boxes, by authored id: found once, when the first component asks, over the
     // whole tree, since a thing's alignment is its siblings'.
     private Dictionary<string, UIResponsive<UIFieldBoxAlignment>>? _impliedFieldBoxes;
+    private Dictionary<string, UIResponsive<UIFieldBoxAlignment>>? _impliedSliderRowBoxes;
 
     /// <summary>
     /// The field boxes a control with no caption row stands level with, per breakpoint, where its author left it unset: at each width
@@ -337,4 +340,172 @@ internal sealed partial class UIViewCompilationContext
 
         return aligned ? UIResponsive<UIFieldBoxAlignment>.Create(tiers[start], own[1], own[2], own[3], own[4]) : null;
     }
+
+    /// <summary>
+    /// The field-box height a horizontal slider's track row centres within at each breakpoint where it stands side by side with a
+    /// boxed field or a control aligned to the slider's own caption box, leaving stacked sliders at their compact height.
+    /// </summary>
+    private UIResponsive<UIFieldBoxAlignment>? ImpliedSliderRowBoxes(IVisualComponent component)
+    {
+        if (component is not SliderComponent { RowFieldBox: null })
+            return null;
+
+        _impliedSliderRowBoxes ??= ImplySliderRowBoxes();
+
+        return _impliedSliderRowBoxes.TryGetValue(component.Id, out UIResponsive<UIFieldBoxAlignment> boxes) ? boxes : null;
+    }
+
+    private Dictionary<string, UIResponsive<UIFieldBoxAlignment>> ImplySliderRowBoxes()
+    {
+        Dictionary<string, UIResponsive<UIFieldBoxAlignment>> implied = [with(StringComparer.Ordinal)];
+        FieldRowScratch scratch = new();
+
+        foreach (IVisualComponent component in _componentOrder)
+        {
+            if (component is (StackPanelComponent or WrapPanelComponent or ContainerComponent) and IContainerComponent { Children.Count: > 1 } container)
+                ImplySliderRowBoxes(container, implied, scratch);
+        }
+
+        return implied;
+    }
+
+    private void ImplySliderRowBoxes(IContainerComponent container, Dictionary<string, UIResponsive<UIFieldBoxAlignment>> implied, FieldRowScratch scratch)
+    {
+        IReadOnlyList<IVisualComponent> children = container.Children;
+        IVisualComponent?[] controls = new IVisualComponent?[children.Count];
+        var hasSlider = false;
+
+        for (var i = 0; i < children.Count; i++)
+        {
+            controls[i] = SoleRowControl(children[i]);
+            hasSlider |= controls[i] is SliderComponent { RowFieldBox: null };
+        }
+
+        if (!hasSlider)
+            return;
+
+        UIFieldBoxAlignment[] tiers = scratch.Begin(children.Count);
+        var grid = container is ContainerComponent;
+        var wraps = container is WrapPanelComponent or StackPanelComponent { Wrap: true };
+        var any = false;
+
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (container is IOrientationComponent oriented && !RunsAcross(oriented, tier))
+                continue;
+
+            for (var i = 0; i < children.Count; i++)
+            {
+                if (controls[i] is not SliderComponent { RowFieldBox: null } slider || !RunsAcross(slider, tier) || IsGone(children[i], tier) || IsGone(slider, tier))
+                    continue;
+
+                if (wraps && FillsRowLine(children[i], slider, tier))
+                    continue;
+
+                if (ResolveSliderRowBox(children, controls, i, tier, grid, wraps) is UIFieldBoxAlignment box)
+                {
+                    tiers[(i * TierCount) + (int)tier] = box;
+                    any = true;
+                }
+            }
+        }
+
+        if (!any)
+            return;
+
+        for (var i = 0; i < children.Count; i++)
+        {
+            if (controls[i] is SliderComponent { RowFieldBox: null } slider && ToResponsive(tiers, i) is UIResponsive<UIFieldBoxAlignment> boxes)
+                implied[slider.Id] = boxes;
+        }
+    }
+
+    /// <summary>The sole control inside a row child or a single-control label/field cell; null for plain words, surfaces or multi-field forms.</summary>
+    private static IVisualComponent? SoleRowControl(IVisualComponent component)
+    {
+        switch (component)
+        {
+            case IInputComponent or IButtonComponent or ISwitcherComponent or ButtonGroupComponent:
+                return component;
+            case StackPanelComponent panel:
+                IVisualComponent? sole = null;
+
+                for (var i = 0; i < panel.Children.Count; i++)
+                {
+                    IVisualComponent child = panel.Children[i];
+
+                    if (SoleRowControl(child) is IVisualComponent inner)
+                    {
+                        if (sole is not null)
+                            return null;
+
+                        sole = inner;
+                    }
+                    else if (child is (not ITextComponent) or IInputComponent or IButtonComponent or ISwitcherComponent)
+                    {
+                        return null;
+                    }
+                }
+
+                return sole;
+            default:
+                return null;
+        }
+    }
+
+    private static bool FillsRowLine(IVisualComponent cell, IVisualComponent? control, UIResponsiveTier tier)
+        => cell.Width?.Resolve(tier) == UILayoutLength.Fill() || control?.Width?.Resolve(tier) == UILayoutLength.Fill();
+
+    private static UIFieldBoxAlignment? ResolveSliderRowBox(IReadOnlyList<IVisualComponent> children, IVisualComponent?[] controls, int sliderIndex, UIResponsiveTier tier, bool grid, bool wraps)
+    {
+        UIGridPlacement ownPlacement = grid ? children[sliderIndex].Placement?.Resolve(tier) ?? WholeRow : default;
+
+        if (grid && ownPlacement.ColumnSpan >= UIGridPlacement.GridColumns)
+            return null;
+
+        UISize? siblingFieldBox = null;
+        var alignsUncaptionedSibling = false;
+
+        for (var j = 0; j < children.Count; j++)
+        {
+            if (j == sliderIndex || IsGone(children[j], tier))
+                continue;
+
+            if (grid)
+            {
+                UIGridPlacement otherPlacement = children[j].Placement?.Resolve(tier) ?? WholeRow;
+
+                if (otherPlacement.ColumnSpan >= UIGridPlacement.GridColumns
+                    || !Overlap(ownPlacement.Row, ownPlacement.RowSpan, otherPlacement.Row, otherPlacement.RowSpan)
+                    || Overlap(ownPlacement.Column, ownPlacement.ColumnSpan, otherPlacement.Column, otherPlacement.ColumnSpan))
+                {
+                    continue;
+                }
+            }
+            else if (wraps && FillsRowLine(children[j], controls[j], tier))
+            {
+                continue;
+            }
+
+            if (SiblingFieldBox(controls[j], tier) is UISize box)
+                siblingFieldBox = Merge(siblingFieldBox, box);
+            else if (UIFieldBoxes.CaptionRowBox(children[j], tier) is null && (AlignTarget(children[j]) is not null || children[j].AlignWithFieldBoxes?.Resolve(tier) is not (null or UIFieldBoxAlignment.None)))
+                alignsUncaptionedSibling = true;
+        }
+
+        if (siblingFieldBox is not null)
+            return ToAlignment(siblingFieldBox);
+
+        return alignsUncaptionedSibling ? ToAlignment(CertainCaption(children[sliderIndex], tier)) : null;
+    }
+
+    private static UISize? SiblingFieldBox(IVisualComponent? control, UIResponsiveTier tier)
+        => control switch
+        {
+            SelectComponent { Variant: UISelectVariant.Quiet } => null,
+            IMultiSelectComponent { Variant: UIMultiSelectVariant.Checkboxes or UIMultiSelectVariant.Button } => null,
+            IFieldInputComponent => (control as ISizedInputComponent)?.Size?.Resolve(tier) ?? UISize.Medium,
+            ISwitcherComponent { Variant: UISwitcherVariant.Field } switcher => switcher.Size?.Resolve(tier) ?? UISize.Medium,
+            _ => null
+        };
 }

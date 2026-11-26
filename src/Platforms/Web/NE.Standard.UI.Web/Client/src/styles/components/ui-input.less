@@ -324,7 +324,7 @@
     margin-right: 0;
 }
 
-.ui-input--ghost > :is(@{ui-input-field}) > :is(@{ui-field-divided-end}) {
+.ui-input--ghost:not(.ui-select--quiet) > :is(@{ui-input-field}) > :is(@{ui-field-divided-end}) {
     margin-right: -@ui-space-2;
 }
 
@@ -356,7 +356,7 @@
     gap: @ui-field-padding-sm;
 }
 
-.ui-input--small:not(.ui-input--underline) > :is(@{ui-input-field}) > :is(@{ui-field-divided-end}) {
+.ui-input--small:not(.ui-input--underline, .ui-select--quiet) > :is(@{ui-input-field}) > :is(@{ui-field-divided-end}) {
     margin-right: -@ui-field-padding-sm;
 }
 
@@ -468,34 +468,39 @@ input.ui-field {
 }
 
 // Underline's focus and open list colour its bottom rule alone. A message's colour still outranks the focus mark.
-.ui-input--underline:not(.ui-disabled)@{ui-field-edged}@{ui-field-focus} > :is(@{ui-input-field}),
+.ui-input--underline:not(.ui-disabled, .ui-select--quiet)@{ui-field-edged}@{ui-field-focus} > :is(@{ui-input-field}),
 .ui-input--underline:not(.ui-disabled)@{ui-field-edged} > .ui-field-box@{ui-field-focus},
-.ui-input--underline:is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+.ui-input--underline:is(@{ui-input-open}):not(.ui-disabled, .ui-select--quiet) > :is(@{ui-input-field}) {
     --ui-field-line: var(--ui-mark-field);
     border-bottom-color: var(--ui-field-line);
 }
 
-.ui-input--underline:is(@{ui-validation-marked}):not(.ui-disabled)@{ui-field-focus} > :is(@{ui-input-field}),
+.ui-input--underline:is(@{ui-validation-marked}):not(.ui-disabled, .ui-select--quiet)@{ui-field-focus} > :is(@{ui-input-field}),
 .ui-input--underline:is(@{ui-validation-marked}):not(.ui-disabled) > .ui-field-box@{ui-field-focus},
-.ui-input--underline:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+.ui-input--underline:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled, .ui-select--quiet) > :is(@{ui-input-field}) {
     --ui-field-line: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 
-// A ghost's focus is a ghost button's wash, since a ring would read as a smaller Outline; the same @ui-field-focus as the edges.
+// A ghost's or quiet select's focus is a ghost button's wash, since a ring would read as a smaller Outline; the same @ui-field-focus as the edges.
 .ui-input--ghost:not(.ui-disabled)@{ui-field-edged} > :is(@{ui-input-field-state})@{ui-field-focus},
-.ui-input--ghost:is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+.ui-input--ghost:is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}),
+.ui-select--quiet:not(.ui-disabled)@{ui-field-edged} > .ui-select__trigger@{ui-field-focus},
+.ui-select--quiet.ui-select--open:not(.ui-disabled) > .ui-select__trigger {
     border-color: transparent;
     background: var(--ui-wash-hover);
 }
 
 // No edge for any focus, a press's too: opening and closing a list focus the trigger, which would paint the primary edge.
-.ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within {
+.ui-input--ghost:not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within,
+.ui-select--quiet:not(.ui-disabled) > .ui-select__trigger:focus-within {
     border-color: transparent;
 }
 
-// Except the edge of a ghost with a message, which says something about the value and stays through focus and an open list.
+// Except the edge of a ghost or quiet select with a message, which says something about the value and stays through focus and an open list.
 .ui-input--ghost:is(@{ui-validation-marked}):not(.ui-disabled) > :is(@{ui-input-field-state}):focus-within,
-.ui-input--ghost:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}) {
+.ui-input--ghost:is(@{ui-validation-marked}):is(@{ui-input-open}):not(.ui-disabled) > :is(@{ui-input-field}),
+.ui-select--quiet:is(@{ui-validation-marked}):not(.ui-disabled) > .ui-select__trigger:focus-within,
+.ui-select--quiet:is(@{ui-validation-marked}).ui-select--open:not(.ui-disabled) > .ui-select__trigger {
     border-color: var(--ui-validation-color, var(--ui-color-danger-ink));
 }
 

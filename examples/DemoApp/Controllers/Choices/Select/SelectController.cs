@@ -8,14 +8,21 @@ namespace DemoApp.Controllers.Choices.Select;
 /// </summary>
 internal sealed partial class SelectFieldGroupContext : OptionsFieldGroupContext
 {
+    [RecursiveMember]
+    public partial UISelectVariant? Variant { get; set; } = UISelectVariant.Field;
+
     public SelectFieldGroupContext() : base("Pick a region", DemoIcons.Navigation, DemoIcons.Filter)
     {
+        AddOption(nameof(Variant), CycleVariant, () => Variant);
         AddAppearanceOption();
         AddSizeOption();
         AddPlaceholderOption();
         AddAffixIconOptions();
         AddAdornmentOptions();
     }
+
+    public void CycleVariant()
+        => SetLastChange(nameof(Variant), Variant = CycleEnum(Variant));
 }
 
 /// <summary>

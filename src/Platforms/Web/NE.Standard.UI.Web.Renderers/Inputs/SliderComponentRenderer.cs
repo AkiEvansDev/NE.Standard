@@ -1,7 +1,9 @@
 using System;
 using System.Globalization;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -17,6 +19,15 @@ namespace NE.Standard.UI.Web.Renderers.Inputs;
 public sealed class SliderComponentRenderer : TextContentRendererBase
 {
     private const string EndInputClass = WebClassNames.SliderInputEnd;
+    private const string RowBoxVariable = "--ui-slider-row-box";
+
+    private static readonly Func<UIFieldBoxAlignment, string> RowBoxFormatter = static boxes => boxes switch
+    {
+        UIFieldBoxAlignment.Small => "var(--ui-field-box-small)",
+        UIFieldBoxAlignment.Medium => "var(--ui-field-box-medium)",
+        UIFieldBoxAlignment.Large => "var(--ui-field-box-large)",
+        _ => "var(--ui-slider-row-floor, 1.5rem)"
+    };
 
     // A range's end handle and its readings: optional targets, since a property registers one list for both kinds of slider.
     private static readonly WebDomOperation[] EndValueOperations =
@@ -88,6 +99,7 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
         _ = root.Element("span", row =>
         {
             _ = row.Class("ui-slider__row");
+            ApplyRowBoxes(context, row);
 
             _ = row.Element("span", min =>
             {
@@ -96,6 +108,10 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
                 if (initialMin is decimal initial)
                     _ = min.Text(initial.ToString(CultureInfo.InvariantCulture));
             });
+
+            // Before the track on a band, so the start value stands at the start end and `.ui-slider__value` patches reach it first.
+            if (isRange)
+                RenderReadout(row, Clamp(initialValue, initialMin, initialMax), end: false, valueSizer);
 
             _ = row.Element("span", track =>
             {
@@ -151,13 +167,25 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
                     _ = max.Text(initial.ToString(CultureInfo.InvariantCulture));
             });
 
-            if (isRange)
-                RenderRangeReadout(row, Clamp(initialValue, initialMin, initialMax), Clamp(initialEnd, initialMin, initialMax), valueSizer);
-            else
-                RenderReadout(row, Clamp(initialValue, initialMin, initialMax), end: false, valueSizer);
+            RenderReadout(row, Clamp(isRange ? initialEnd : initialValue, initialMin, initialMax), end: isRange, valueSizer);
         });
 
         RenderValidationMessage(context, root);
+    }
+
+    private static void ApplyRowBoxes(WebRenderContext context, IHtmlElementBuilder row)
+    {
+        if (ReadRenderValue<UIResponsive<UIFieldBoxAlignment>?>(context, SliderComponent.RowFieldBoxProperty, null) is not UIResponsive<UIFieldBoxAlignment> boxes)
+            return;
+
+        for (UIResponsiveTier tier = UIResponsiveTier.Base; tier <= UIResponsiveTier.Xxl; tier++)
+        {
+            if (boxes.Resolve(tier) != UIFieldBoxAlignment.None)
+            {
+                WebResponsiveCss.WriteTiers(row, boxes, RowBoxVariable, RowBoxFormatter);
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -236,25 +264,6 @@ public sealed class SliderComponentRenderer : TextContentRendererBase
 
             if (initial is decimal value)
                 _ = output.Text(value.ToString(CultureInfo.InvariantCulture));
-        });
-    }
-
-    /// <summary>A band's two readings, "20 – 80", each written as the single slider writes its value.</summary>
-    private static void RenderRangeReadout(IHtmlElementBuilder row, decimal? start, decimal? end, string valueSizer)
-    {
-        _ = row.Element("span", values =>
-        {
-            _ = values.Class("ui-slider__values");
-
-            RenderReadout(values, start, end: false, valueSizer);
-
-            _ = values.Element("span", dash =>
-            {
-                _ = dash.Class("ui-slider__dash");
-                _ = dash.Text(" – ");
-            });
-
-            RenderReadout(values, end, end: true, valueSizer);
         });
     }
 

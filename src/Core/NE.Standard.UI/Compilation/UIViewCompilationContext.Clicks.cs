@@ -53,6 +53,9 @@ internal sealed partial class UIViewCompilationContext
         if (property.Equals(ISelectedKeyComponent.SelectedKeyProperty) && component is TabsComponent { TabKeys: { Count: > 0 } tabKeys })
             return tabKeys[0];
 
+        if (property.Equals(SliderComponent.RowFieldBoxProperty))
+            return ImpliedSliderRowBoxes(component);
+
         return property.Equals(IVisualComponent.AlignWithFieldBoxesProperty) ? ImpliedFieldBoxes(component) : null;
     }
 

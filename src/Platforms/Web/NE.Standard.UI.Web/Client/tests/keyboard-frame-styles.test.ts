@@ -75,16 +75,17 @@ test("a pinned table's focused row keeps its layer above its pinned cells", () =
     assert.match(rules(`${row}::after`), /outline: inherit;/);
 });
 
-test("a quiet expander's header pulls its inline padding into the margin with hover/focus wash", () => {
+test("a quiet expander's header stands flush with its content and answers hover and keyboard focus in its ink alone", () => {
     const header = rules(".ui-expander--quiet > .ui-expander__header");
 
     assert.match(header, /width: fit-content;/);
-    assert.match(header, /max-width: calc\(100% \+ 8px\);/);
-    assert.match(header, /margin: 0 -2px 0 -6px;/);
-    assert.match(header, /padding: 0 2px 0 6px;/);
-    assert.match(header, /border-radius: var\(--ui-radius-button\);/);
+    assert.match(header, /max-width: 100%;/);
+    assert.match(header, /padding: 0;/);
+    assert.doesNotMatch(header, /margin:/);
+    assert.doesNotMatch(header, /border-radius:/);
     assert.match(rules(".ui-expander--quiet > .ui-expander__header > .ui-expander__chevron"), /margin-left: 0;/);
-    assert.match(css, /\.ui-expander--quiet:not\(\.ui-disabled\):not\(\.ui-loading\):not\(:disabled\):where\(:not\(\[data-ui-popup-hover\]\)\) > \.ui-expander__header:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*background-color: var\(--ui-wash-hover\);\s*color: var\(--ui-faint-base, var\(--ui-color-on-surface\)\);/);
+    assert.match(css, /\.ui-expander--quiet:not\(\.ui-disabled\):not\(\.ui-loading\):not\(:disabled\):where\(:not\(\[data-ui-popup-hover\]\)\) > \.ui-expander__header:focus-visible:not\(\[data-ui-pointer-focus\]\) \{\s*color: var\(--ui-faint-base, var\(--ui-color-on-surface\)\);\s*\}/);
+    assert.doesNotMatch(css, /(?:^|\n)\s*\.ui-expander--quiet[^{}]*> \.ui-expander__header:(?:hover|active|focus-visible)[^{}]*\{[^{}]*background-color:/);
 });
 
 test("a component that clips its children leaves an outside focus ring its reach in forced colours", () => {

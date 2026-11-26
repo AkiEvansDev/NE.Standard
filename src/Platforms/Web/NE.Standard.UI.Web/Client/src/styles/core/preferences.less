@@ -88,7 +88,8 @@
     }
 
     // A toggle's input is visually hidden, and its ring with it: the row the keyboard stands on is framed instead.
-    :is(.ui-checkbox, .ui-switch, .ui-radio-group__item, .ui-multi-select__check)@{ui-keyboard-within} {
+    :is(.ui-checkbox, .ui-switch, .ui-radio-group__item, .ui-multi-select__check)@{ui-keyboard-within},
+    .ui-expander--quiet@{ui-button-live} > .ui-expander__header@{ui-keyboard-focus} {
         outline: 2px solid Highlight;
         outline-offset: 2px;
     }
@@ -421,6 +422,16 @@
 
     .ui-slider__input::-moz-range-thumb {
         .ui-forced-range-thumb();
+    }
+
+    .ui-slider__input@{ui-keyboard-focus}::-webkit-slider-thumb {
+        outline: 2px solid Highlight;
+        outline-offset: 2px;
+    }
+
+    .ui-slider__input@{ui-keyboard-focus}::-moz-range-thumb {
+        outline: 2px solid Highlight;
+        outline-offset: 2px;
     }
 
 

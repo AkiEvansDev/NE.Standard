@@ -33,6 +33,7 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
             .BindItems<SelectController>(static x => x.OptionsGroup.Options)
             .BindValue<SelectController>(static x => x.ValueGroup.Value)
             .BindIsReadOnly<SelectController>(static x => x.ValueGroup.IsReadOnly)
+            .BindVariant<SelectController>(static x => x.FieldGroup.Variant)
             .BindSize<SelectController>(static x => x.FieldGroup.Size)
             .BindAppearance<SelectController>(static x => x.FieldGroup.Appearance)
             .BindPlaceholder<SelectController>(static x => x.FieldGroup.Placeholder)
@@ -113,8 +114,8 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
         );
 
     protected override IVisualComponent[] CreateExamples()
-        // Paired by height: the plain lists and field actions beside the placements and rich fields, the crowded row below.
-        => DemoUI.CreateColumns([CreatePlainGroup(), CreateActionsGroup(), CreateNarrowGroup()], [CreatePlacementGroup(), CreateRichGroup()]);
+        // Paired by height: the plain lists, field actions and crowded row beside the placements, quiet triggers and rich fields.
+        => DemoUI.CreateColumns([CreatePlainGroup(), CreateActionsGroup(), CreateNarrowGroup()], [CreatePlacementGroup(), CreateQuietGroup(), CreateRichGroup()]);
 
     /// <summary>The ordinary case: a name per option, headed by the group each belongs to.</summary>
     private static ContainerComponent CreatePlainGroup()
@@ -230,6 +231,57 @@ internal sealed class SelectView : DemoComponentView, IUIViewDefinition
                 )
         );
     }
+
+    /// <summary>
+    /// A borderless trigger fitted to its content: closed, it shows only the chosen option's icon and title with the chevron beside
+    /// them; open, its popup still draws every option's full description and badge.
+    /// </summary>
+    private static ContainerComponent CreateQuietGroup()
+    {
+        return DemoUI.CreateExample("Quiet inline trigger",
+            UILayout.Stack(16)
+                .AddChild(new SurfaceComponent()
+                    .SetSurface(UISurfaceStyle.Surface)
+                    .SetPadding(UIThickness.All(12, 8, 8, 8))
+                    .SetContent(UILayout.Ends(
+                        UIText.Caption("Local permissions").Muted(),
+                        new SelectComponent()
+                            .SetVariant(UISelectVariant.Quiet)
+                            .SetSize(UISize.Small)
+                            .SetAccessibleName("Local permissions")
+                            .SetPopupPlacement(UIPopupPlacement.BottomEnd)
+                            .SetOptions(PermissionOptions())
+                            .SetValue("turbo")
+                    ))
+                )
+                .AddChild(UILayout.Row(16,
+                    new SelectComponent()
+                        .SetVariant(UISelectVariant.Quiet)
+                        .SetSize(UISize.Small)
+                        .SetAccessibleName("Small environment")
+                        .SetOptions(DemoSamples.Environments())
+                        .SetValue("dev"),
+                    new SelectComponent()
+                        .SetVariant(UISelectVariant.Quiet)
+                        .SetAccessibleName("Medium environment")
+                        .SetOptions(DemoSamples.Environments())
+                        .SetValue("staging"),
+                    new SelectComponent()
+                        .SetVariant(UISelectVariant.Quiet)
+                        .SetSize(UISize.Large)
+                        .SetAccessibleName("Large environment")
+                        .SetOptions(DemoSamples.Environments())
+                        .SetValue("prod")
+                )),
+            note: "`SetVariant(UISelectVariant.Quiet)`: no border, fill or `12rem` width floor at rest, answering hover and keyboard focus with `--ui-wash-hover` while keeping the popup's rich rows intact."
+        );
+    }
+
+    private static OptionItem[] PermissionOptions()
+        => [
+            new() { Id = "review", Icon = DemoIcons.Outline(DemoIcons.BadgeCheck), Title = "Request Review", Description = "Every command requires approval." },
+            new() { Id = "turbo", Icon = DemoIcons.Outline(DemoIcons.Shield), Title = "Turbo", BadgeTitle = "Default", BadgeVariant = UIBadgeVariant.Surface, Description = "Run all commands without restrictions." }
+        ];
 
     /// <summary>
     /// Options carrying every text surface, drawn by the default row and then by a template of the author's own, which binds the same

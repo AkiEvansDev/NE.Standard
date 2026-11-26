@@ -78,6 +78,13 @@ public abstract partial class SliderComponent<T>(string? id = null) : InputCompo
     public decimal? MinDistance { get; set; }
 
     /// <summary>
+    /// Gets or sets the sibling field-box height the horizontal slider's track row centres within per breakpoint; unset, the compiler
+    /// infers it wherever the slider stands side by side with a field box or an aligned control.
+    /// </summary>
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
+    public UIResponsive<UIFieldBoxAlignment>? RowFieldBox { get; set; }
+
+    /// <summary>
     /// Makes the slider pick a band with two handles.
     /// </summary>
     public T SetIsRange()

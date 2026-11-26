@@ -8,6 +8,7 @@ using NE.Standard.UI.Abstractions.Binding.Addresses;
 using NE.Standard.UI.Abstractions.Binding.Properties;
 using NE.Standard.UI.Abstractions.Data;
 using NE.Standard.UI.Abstractions.Identity;
+using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Items;
@@ -850,6 +851,36 @@ public abstract class ItemsCollectionRendererBase : WebComponentRendererBase
         _ = ResolveRenderValue(rootContext, property, out T? value, out _);
 
         return value;
+    }
+
+    /// <summary>Whether <paramref name="item"/> renders a visible, enabled, selectable row on the first paint.</summary>
+    protected static bool IsItemSelectable(WebRenderContext context, IHtmlElementBuilder row, object? item)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(row);
+
+        if (item is null)
+            return false;
+
+        if (item is IItemAbilitiesModel abilities && abilities.CanSelect == false)
+            return false;
+
+        if (!TryResolveItemTemplate(context, item, out UIComponentSlot? slot))
+            return false;
+
+        UIDynamicParameterScope parameter = CreateParameterScope(slot.RootComponentId, item);
+        IReadOnlyList<UIDynamicParameterScope> parameters = context.Parameters.Count == 0 ? [parameter] : [.. context.Parameters, parameter];
+        WebRenderContext rootContext = RowRootContext(context.WithParameters(parameters), row, slot.RootComponentId);
+
+        _ = ResolveRenderValue(rootContext, IVisualComponent.EnabledProperty, out bool? enabled, out _);
+        _ = ResolveRenderValue(rootContext, IVisualComponent.LoadingProperty, out bool? loading, out _);
+        _ = ResolveRenderValue(rootContext, IItemAbilitiesComponent.CanSelectProperty, out bool? canSelect, out _);
+        _ = ResolveRenderValue(rootContext, IVisualComponent.VisibilityProperty, out UIResponsive<UIVisibility>? visibility, out _);
+
+        return enabled != false
+            && loading != true
+            && canSelect != false
+            && (visibility is not UIResponsive<UIVisibility> tierVisibility || tierVisibility.Base == UIVisibility.Visible);
     }
 
     // Headers are attribute-marked siblings, not containers: the client re-groups after every change and can then

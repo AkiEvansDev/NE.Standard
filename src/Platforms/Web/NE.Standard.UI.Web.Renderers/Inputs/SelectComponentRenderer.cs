@@ -5,6 +5,7 @@ using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Inputs;
+using NE.Standard.UI.Primitives.Items;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -40,6 +41,7 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
     private const string ClearKeyTarget = $":is([role=\"combobox\"]:is(.{WebClassNames.SelectTrigger}, .{WebClassNames.MultiSelectEntry}), .{WebClassNames.SplitButtonMain})";
 
     private static readonly WebDomOperation[] ValueOperations = [WebDomOperation.Attribute(WebAttributes.SelectValue, target: "root", converter: WebDomConverters.NonEmptyText)];
+    private static readonly WebDomOperation[] VariantOperations = [WebDomOperation.Class(converter: WebDomConverters.SelectVariantClass)];
 
     private static readonly WebDomOperation[] TextOperations =
     [
@@ -67,6 +69,11 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
 
         RenderTooltip(context, root);
         TextContentRendererBase.RenderInputAppearance(context, root);
+        _ = RenderProperty<UISelectVariant?>(context, root, SelectComponent.VariantProperty, static (target, value) =>
+        {
+            if (value is UISelectVariant variant && WebClassNames.SelectVariant(variant) is { Length: > 0 } className)
+                _ = target.Class(className);
+        }, VariantOperations);
         TextContentRendererBase.RenderInputHeader(context, root, titleCanGoInside: true);
         RenderAdornmentState(context, root);
 
@@ -77,6 +84,9 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         RegisterItemsFilterSortMetadata(context);
 
         (IReadOnlyList<object?> items, var isBound) = ResolveItems(context);
+
+        if (!isBound && IsSingleSelectLocked(context, root, items, currentValue))
+            _ = root.Attribute(WebAttributes.SelectLocked);
 
         RenderTrigger(context, root, items, currentValue);
         RenderValueInput(context, root, valueKind, currentValue, valueBinding);
@@ -132,6 +142,33 @@ public sealed class SelectComponentRenderer : ItemsCollectionRendererBase
         }, ValueOperations);
 
         return valueKind;
+    }
+
+    private static bool IsSingleSelectLocked(WebRenderContext context, IHtmlElementBuilder root, IReadOnlyList<object?> items, string? currentValue)
+    {
+        if (ResolveHostMode(context) == UIItemsHostMode.Windowed)
+            return false;
+
+        object? singleItem = null;
+        var count = 0;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+
+            if (!IsItemSelectable(context, root, item))
+                continue;
+
+            count++;
+
+            if (count > 1)
+                return false;
+
+            singleItem = item;
+        }
+
+        return count == 0
+            || (!string.IsNullOrEmpty(currentValue) && singleItem is IBindableItem { Id: { } id } && string.Equals(id, currentValue, StringComparison.Ordinal));
     }
 
     /// <summary>

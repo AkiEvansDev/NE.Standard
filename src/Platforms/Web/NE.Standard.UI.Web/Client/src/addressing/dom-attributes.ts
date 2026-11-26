@@ -1106,6 +1106,8 @@ export const SelectListClass = "ui-select__list";
 export const SearchWaitingAttribute = "data-ui-search-waiting";
 
 export const SelectValueAttribute = "data-ui-select-value";
+/** On a single-value select's root while it has no selectable options or only its already-chosen one (`WebAttributes.SelectLocked`): kept by select-dom.ts. */
+export const SelectLockedAttribute = "data-ui-select-locked";
 export const SelectTriggerContentClass = "ui-select__trigger-content";
 export const SelectPlaceholderClass = "ui-select__placeholder";
 export const SelectPopupClass = "ui-select__popup";
@@ -1411,6 +1413,8 @@ export const FieldExpandCloseClass = "ui-field-expand-dialog__close";
 export const FieldExpandBodyClass = "ui-field-expand-dialog__body";
 
 export const FieldExpandPlaceholderClass = "ui-field-expand__placeholder";
+
+export const SelectQuietClass = "ui-select--quiet";
 
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {

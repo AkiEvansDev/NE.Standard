@@ -4,15 +4,15 @@
 import {
     ActiveAttribute, BadgeClass, BadgeIconAttribute, BadgeIconClass, BadgeSelectClass, BadgeSetAttribute, BadgeTitleAttribute,
     BadgeTitleClass, BadgeVariantInfoClass, BindingAttributePrefix, ClearableAttribute, ComponentContextAttribute,
-    ComponentIdAttribute, ComponentKeyAttribute, ComponentParameterCountAttribute, ensureElementId, HiddenClass,
+    ComponentIdAttribute, ComponentKeyAttribute, ComponentParameterCountAttribute, ensureElementId, HiddenClass, HostModeAttribute,
     IconClass, InputAffixIconPrefixClass, ListKeyboardAttribute, ListTriggerClass as TriggerClass,
     MultiSelectButtonClass, MultiSelectChipClass, MultiSelectChipLabelClass, MultiSelectChipRemoveClass, MultiSelectChipsClass,
-    MultiSelectClass, MultiSelectEntryClass, PointerFocusAttribute, PopupPlacementAttribute, SearchClass,
+    MultiSelectClass, MultiSelectEntryClass, PointerFocusAttribute, PopupPlacementAttribute, RowIdleAttribute, SearchClass,
     SearchInputClass, SelectActionClass, SelectChipAttribute, SelectChipsAttribute, SelectClass, SelectContentAttribute,
-    SelectedKeysAttribute, SelectFreeTextAttribute, SelectListClass, SelectMaxAttribute, SelectOpenClass, SelectOptionClass,
+    SelectedKeysAttribute, SelectFreeTextAttribute, SelectListClass, SelectLockedAttribute, SelectMaxAttribute, SelectOpenClass, SelectOptionClass,
     SelectOptionIdPrefix, SelectPlaceholderClass, SelectPopupClass, SelectTriggerContentClass, SelectValueAttribute,
     SelectValueInputClass, SplitButtonMainClass, TextBadgeClass, TextBadgeTitleAttribute, TextTypeOverlineClass,
-    TooltipAttribute, TooltipPlacementAttribute, TooltipPlainAttribute, ValueBindingAttribute
+    TooltipAttribute, TooltipPlacementAttribute, TooltipPlainAttribute, UnselectableAttribute, ValueBindingAttribute
 } from "../addressing/dom-attributes.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
 import { writeBadgeCount, writeBadgeWords } from "../rendering/web-dom-converters.ts";
@@ -32,7 +32,7 @@ import { entryWords } from "./search-terms.ts";
 const BlankBadgeClasses = `${BadgeVariantInfoClass} ${TextTypeOverlineClass}`;
 
 export const ObservedAttributes = [SelectValueAttribute, SelectedKeysAttribute, SelectMaxAttribute];
-export const OptionAttributes = ["class", "style", ComponentKeyAttribute, TooltipAttribute];
+export const OptionAttributes = ["class", "style", ComponentKeyAttribute, TooltipAttribute, RowIdleAttribute, UnselectableAttribute];
 export const MultiOptionAttributes = ["class", ComponentKeyAttribute];
 // The multi-select's badges variant copies its options' badges into its chips, a badge's colour patched inline: a badge's variant is
 // heard there too, and only a badge's, since the engine writes an option's own (a narrowed list hides by it).
@@ -56,6 +56,11 @@ export function triggerOf(select: HTMLElement): HTMLElement | null {
 /** A read-only select, search or multi-select keeps its field focusable and readable, and offers no list and no change. */
 export function isFixed(select: HTMLElement | null): boolean {
     return select === null || isReadOnly(select) || isInert(select);
+}
+
+/** Whether a single-value select has nothing to switch to: no selectable option, or only its already-chosen one. */
+export function isSingleLocked(select: HTMLElement | null): boolean {
+    return select !== null && select.hasAttribute(SelectLockedAttribute);
 }
 
 export function isMultiple(select: HTMLElement): boolean {
@@ -277,7 +282,7 @@ export function resolveClosedArrowStart(domEvent: KeyboardEvent, openSelect: HTM
     const trigger = domEvent.target instanceof HTMLElement && isSelectTrigger(domEvent.target) ? domEvent.target : null;
     const select = trigger?.closest<HTMLElement>(SelectHostSelector) ?? null;
 
-    if (select === null || select === openSelect || isFixed(select))
+    if (select === null || select === openSelect || isFixed(select) || isSingleLocked(select))
         return null;
 
     const field = searchFieldOf(select);
@@ -345,6 +350,21 @@ export function syncSingleSelect(select: HTMLElement, drawnKeys: WeakMap<HTMLEle
 
     // Last, because it reads the list this method has just finished putting in order.
     refreshEmptyState(select);
+    syncSingleLock(select, value);
+}
+
+function syncSingleLock(select: HTMLElement, value: string | null): void {
+    const lockable = !isSearch(select)
+        && !select.hasAttribute(SelectFreeTextAttribute)
+        && select.querySelector(`[${HostModeAttribute}="windowed"]`) === null;
+    const enabled = lockable ? candidateOptions(select) : [];
+    const locked = lockable && (
+        enabled.length === 0
+        || (enabled.length === 1 && value !== null && value.length > 0 && enabled[0].getAttribute(ComponentKeyAttribute) === value)
+    );
+
+    if (select.hasAttribute(SelectLockedAttribute) !== locked)
+        select.toggleAttribute(SelectLockedAttribute, locked);
 }
 
 /** Draws a multi-select's value: its chips in chosen order, the chosen options checked, the rest refused once it is full. */

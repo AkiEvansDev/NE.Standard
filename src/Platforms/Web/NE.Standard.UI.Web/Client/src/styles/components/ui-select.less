@@ -67,6 +67,15 @@
     display: none;
 }
 
+// Single-value select with no selectable option or only its already-chosen one: no list to open, so the chevron hides and the trigger offers no hand while keeping clear and actions live.
+.ui-select[data-ui-select-locked] > .ui-select__trigger {
+    cursor: default;
+
+    > .ui-select__chevron {
+        display: none;
+    }
+}
+
 // Read-only (select, search, multi-select): focusable and readable, but no list, clear or chip removal, and no hand.
 .ui-select.ui-readonly > .ui-select__trigger {
     cursor: default;
@@ -143,6 +152,99 @@
 
     .ui-input--title-inside .ui-select__placeholder {
         text-align: end;
+    }
+
+// Quiet: a compact borderless trigger fitted to its content, showing only the chosen option's icon and single-line title with the
+// chevron right after them while opening the full option list; hover, keyboard focus and open answer with --ui-wash-hover.
+.ui-select.ui-select--quiet {
+    --ui-input-focus-ring: 0;
+    --ui-field-inset: @ui-space-2;
+    .ui-responsive-property(width, --ui-width, fit-content);
+    .ui-responsive-property(min-width, --ui-min-width, 0);
+}
+
+    .ui-select.ui-select--quiet.ui-select--quiet > .ui-select__trigger {
+        min-height: @ui-button-height-sm;
+        padding: 0 calc(@ui-space-2 - var(--ui-border-width, 1px));
+        gap: @ui-space-1;
+        .ui-authored-border(~"var(--ui-border-width, 1px)"; var(--ui-radius-button); transparent);
+        background: transparent;
+        color: @ui-text-muted;
+        transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease, border-color @ui-motion-fast @ui-motion-ease;
+    }
+
+    .ui-select.ui-select--quiet.ui-select--quiet.ui-input--small > .ui-select__trigger {
+        min-height: 1.5rem;
+        padding: 0 calc(0.375rem - var(--ui-border-width, 1px));
+        gap: 0.25rem;
+    }
+
+    .ui-select.ui-select--quiet.ui-select--quiet.ui-input--large > .ui-select__trigger {
+        min-height: 2.25rem;
+        padding: 0 calc(@ui-space-3 - var(--ui-border-width, 1px));
+    }
+
+    @media @{ui-can-hover} {
+        .ui-select.ui-select--quiet:not(.ui-disabled):not(.ui-readonly):not([data-ui-select-locked]) > .ui-select__trigger:not([data-ui-inner-pointer~="hover"]):hover {
+            background-color: var(--ui-wash-hover);
+            color: @ui-text-ink;
+        }
+    }
+
+    .ui-select.ui-select--quiet:not(.ui-disabled) > .ui-select__trigger@{ui-field-focus},
+    .ui-select.ui-select--quiet.ui-select--open:not(.ui-disabled) > .ui-select__trigger {
+        color: @ui-text-ink;
+    }
+
+    .ui-select.ui-select--quiet:not(.ui-disabled):not(.ui-readonly):not([data-ui-select-locked]) > .ui-select__trigger:not([data-ui-inner-pointer~="hover"]):active {
+        background-color: var(--ui-wash-active);
+        color: @ui-text-ink;
+    }
+
+    .ui-select.ui-select--quiet > .ui-select__trigger > .ui-select__chevron {
+        align-self: center;
+        width: @ui-glyph-sm;
+        margin: 0 0 0 auto;
+        border-left: 0;
+        padding: 0;
+        color: inherit;
+    }
+
+    .ui-select--quiet:is(:not([data-ui-select-value]), [data-ui-select-value=""]) > .ui-select__trigger > .ui-select__clear {
+        display: none;
+    }
+
+    .ui-select--quiet > .ui-select__trigger > :is(.ui-select__trigger-content, .ui-select__placeholder),
+    .ui-select--quiet > .ui-select__trigger > .ui-select__trigger-content > * {
+        flex: 0 1 auto;
+    }
+
+    .ui-select--quiet > .ui-select__trigger > .ui-select__trigger-content > .ui-text {
+        > @{ui-text-picture-tile} {
+            height: 1lh;
+        }
+
+        > .ui-text__body {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: auto;
+            column-gap: 0;
+        }
+
+        > .ui-text__body > .ui-text__header {
+            display: flex;
+            width: auto;
+            min-height: 0;
+        }
+
+        > .ui-text__body > .ui-text__header > .ui-text__title {
+            flex: 0 1 auto;
+            flex-basis: auto;
+        }
+
+        .ui-text__description,
+        .ui-text__badge {
+            display: none;
+        }
     }
 
 // A row of a popup list as a menu's entry is, its height and padding: a list read down, not pressed one by one. A template shorter

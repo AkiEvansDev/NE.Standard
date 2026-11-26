@@ -112,10 +112,10 @@
     .ui-chevron-down();
 }
 
-// Quiet: a line of muted words with the chevron right after them, standing on the ground of what holds it — no edge (unless authored),
-// fill or rule, and the content flush under it. Its header fits its words and answers hover and keyboard focus with `--ui-wash-hover`
-// and 2nd-degree ink; no wave as no expander has (press-ripple-engine.ts). Whatever its Surface: an authored Surface or Tinted ground
-// and ink, written `!important`, give way here too.
+// Quiet: a line of muted words with the chevron right after them, standing flush on the ground of what holds it — no edge (unless
+// authored), fill, hover pill or rule, and the content flush under it. Its header fits its words and answers hover, keyboard focus and
+// press in its ink alone; no wave as no expander has (press-ripple-engine.ts). Whatever its Surface: an authored Surface or Tinted
+// ground and ink, written `!important`, give way here too.
 .ui-expander.ui-expander--quiet {
     --ui-surface-fill: inherit;
     --ui-faint-base: inherit !important;
@@ -140,13 +140,10 @@
         grid-template-columns: minmax(0, auto) auto;
         justify-content: start;
         width: fit-content;
-        max-width: calc(100% + 8px);
-        margin: 0 -2px 0 -6px;
-        padding: 0 2px 0 6px;
-        border-radius: @ui-list-entry-radius;
-        corner-shape: @ui-corner-shape;
+        max-width: 100%;
+        padding: 0;
         color: @ui-text-muted;
-        transition: background-color @ui-motion-fast @ui-motion-ease, color @ui-motion-fast @ui-motion-ease;
+        transition: color @ui-motion-fast @ui-motion-ease;
     }
 
         .ui-expander--quiet > .ui-expander__header > .ui-expander__chevron {
@@ -198,14 +195,12 @@
 
     @media @{ui-can-hover} {
         .ui-expander--quiet@{ui-button-live} > .ui-expander__header:hover {
-            background-color: var(--ui-wash-hover);
             color: @ui-text-ink;
         }
     }
 
     .ui-expander--quiet@{ui-button-live} > .ui-expander__header:active {
-        background-color: var(--ui-wash-active);
-        color: @ui-text-ink;
+        color: var(--ui-text-selected);
     }
 
     .ui-expander--quiet > .ui-expander__content {

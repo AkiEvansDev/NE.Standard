@@ -1,7 +1,7 @@
 // Mirrors the C# WebCssValues/WebClassNames helpers value-for-value, over models read by their camel-cased members, as the wire sends them.
 
 // `.ts` on the imports, and types imported as types: `node --test` runs this module and resolves files literally.
-import { BadgeColoredClass, ExpanderQuietClass, IconCircleClass, ImageCircleClass, TextAreaGrowClass, TextMaxLinesClass, toKebabCase } from "../addressing/dom-attributes.ts";
+import { BadgeColoredClass, ExpanderQuietClass, IconCircleClass, ImageCircleClass, SelectQuietClass, TextAreaGrowClass, TextMaxLinesClass, toKebabCase } from "../addressing/dom-attributes.ts";
 import { clampByte, onColorToken, toHexByte } from "./color-bytes.ts";
 import {
     enumNames, isBackgroundImageBlurred, isTiered, toBackgroundImageCss, toBackgroundImageDimCss, toBadgeTitleFit, toBorderEdge,
@@ -144,6 +144,7 @@ const imageFitTokens = ["fill", "contain", "cover", "none"];
 const imageFitSizeTokens = ["100% 100%", "contain", "cover", "auto"];
 const imageShapeTokens = ["default", "circle"];
 const expanderVariantTokens = ["card", "quiet"];
+const selectVariantTokens = ["field", "quiet"];
 const backgroundDimModeTokens = ["uniform", "vignette"];
 const progressVariantTokens = ["linear", "circular"];
 const textAreaResizeTokens = ["none", "vertical", "horizontal", "both"];
@@ -339,6 +340,7 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     ["gridTrackLimitsAttribute", value => toGridTrackLimits(value)],
     tokenClass("imageFitClass", "ui-image-fit--", imageFitTokens),
     familyClass("expanderVariantClass", toClassFamily([ExpanderQuietClass]), value => toToken(value, expanderVariantTokens) === "quiet" ? ExpanderQuietClass : ""),
+    familyClass("selectVariantClass", toClassFamily([SelectQuietClass]), value => toToken(value, selectVariantTokens) === "quiet" ? SelectQuietClass : ""),
     familyClass("imageShapeClass", toClassFamily([ImageCircleClass]), value => toToken(value, imageShapeTokens) === "circle" ? ImageCircleClass : ""),
     ["backgroundImageCss", value => toBackgroundImageCss(value)],
     ["backgroundImageAttribute", value => toBackgroundImageCss(value).length === 0 ? undefined : ""],
