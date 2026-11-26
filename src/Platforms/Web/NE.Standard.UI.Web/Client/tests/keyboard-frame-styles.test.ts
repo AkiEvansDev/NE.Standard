@@ -108,11 +108,11 @@ test("a tab's caption and a panel's pin answer keyboard focus with the same wash
 
 test("a file or image picker's trigger and add tile answer keyboard focus with the same ink or wash as pointer hover and no ring", () => {
     const filePickFocus = rules(".ui-file-input__pick:focus-visible:not([data-ui-pointer-focus]):not([aria-disabled='true'])");
-    const filePickWithin = rules(".ui-file-input:not(.ui-disabled):not(.ui-readonly) > .ui-file-input__row[data-ui-focus-within='keyboard'] > .ui-file-input__pick:not([aria-disabled='true'])");
+    const filePickWithin = rules(".ui-file-input:not(.ui-disabled):not(.ui-readonly):not([data-ui-select-locked]) > .ui-file-input__row[data-ui-focus-within='keyboard'] > .ui-file-input__pick:not([aria-disabled='true'])");
     const filePickFrame = rules(".ui-file-input__pick:focus-visible:not([data-ui-pointer-focus])");
-    const imagePickFocus = rules(".ui-image-input:not(.ui-disabled):not(.ui-readonly) > .ui-image-input__surface:not(.ui-loading):focus-visible:not([data-ui-pointer-focus]) > .ui-image-input__pick");
-    const imageAddHover = rules(".ui-image-input:not(.ui-disabled):not(.ui-readonly) .ui-image-input__add:hover");
-    const imageAddFocus = rules(".ui-image-input:not(.ui-disabled):not(.ui-readonly) .ui-image-input__add:focus-visible:not([data-ui-pointer-focus])");
+    const imagePickFocus = rules(".ui-image-input:not(.ui-disabled):not(.ui-readonly):not([data-ui-select-locked]) > .ui-image-input__surface:not(.ui-loading):focus-visible:not([data-ui-pointer-focus]) > .ui-image-input__pick");
+    const imageAddHover = rules(".ui-image-input:not(.ui-disabled):not(.ui-readonly):not([data-ui-select-locked]) .ui-image-input__add:hover");
+    const imageAddFocus = rules(".ui-image-input:not(.ui-disabled):not(.ui-readonly):not([data-ui-select-locked]) .ui-image-input__add:focus-visible:not([data-ui-pointer-focus])");
 
     assert.match(filePickFocus, /color: var\(--ui-color-on-surface\);/);
     assert.match(filePickWithin, /color: var\(--ui-color-on-surface\);/);

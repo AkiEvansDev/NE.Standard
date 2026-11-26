@@ -1320,6 +1320,8 @@ export const MenuRailListAttribute = "data-ui-menu-rail-list";
 export const ThemeSwitcherLabelTextCurrentClass = "ui-theme-switcher__label-text--current";
 
 export const IconCircleClass = "ui-icon--circle";
+export const ButtonCircleClass = "ui-button--circle";
+export const SurfaceCircleClass = "ui-surface--circle";
 export const BadgeColoredClass = "ui-badge--colored";
 export const ExpanderQuietClass = "ui-expander--quiet";
 export const TextMaxLinesClass = "ui-text--max-lines";

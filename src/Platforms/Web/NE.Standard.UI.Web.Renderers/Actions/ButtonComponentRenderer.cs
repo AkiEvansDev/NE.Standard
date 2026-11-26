@@ -2,6 +2,7 @@ using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Components.BuiltIns.Actions;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
@@ -11,6 +12,7 @@ namespace NE.Standard.UI.Web.Renderers.Actions;
 public sealed class ButtonComponentRenderer : ButtonRendererBase
 {
     private static readonly WebDomOperation[] PressedOperations = [WebDomOperation.Attribute("aria-pressed", converter: WebDomConverters.AriaBooleanAttribute, convertsNull: true)];
+    private static readonly WebDomOperation[] ShapeOperations = [WebDomOperation.Class(converter: WebDomConverters.ButtonShapeClass)];
 
     public override string ComponentTypeKey => ButtonComponent.ComponentTypeKey;
 
@@ -33,6 +35,7 @@ public sealed class ButtonComponentRenderer : ButtonRendererBase
             RenderLinkAddress(context, root, ILinkableComponent.UrlProperty);
 
         RenderPressed(context, root);
+        RenderShape(context, root);
         RenderButtonLabel(context, root);
     }
 
@@ -51,4 +54,11 @@ public sealed class ButtonComponentRenderer : ButtonRendererBase
             target.Attribute("aria-pressed", value == true ? "true" : "false"),
         PressedOperations);
     }
+
+    private static void RenderShape(WebRenderContext context, IHtmlElementBuilder root)
+        => _ = RenderProperty<UIShape?>(context, root, ButtonComponent.ShapeProperty, static (target, value) =>
+        {
+            if (value is UIShape shape && WebClassNames.ButtonShape(shape) is { Length: > 0 } className)
+                _ = target.Class(className);
+        }, ShapeOperations);
 }

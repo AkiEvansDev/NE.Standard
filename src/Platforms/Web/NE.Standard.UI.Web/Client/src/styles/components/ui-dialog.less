@@ -188,6 +188,17 @@
     --ui-dialog-sheet-from: translateY(-100%);
 }
 
+// Like a phone's list sheet, a bottom sheet sits on the page's background unless the author chose another dialog surface.
+.ui-dialog[data-ui-dialog-placement="bottom"] > .ui-dialog__surface:not([data-ui-dialog-surface]) {
+    background: var(--ui-color-background);
+    color: var(--ui-color-on-background);
+    --ui-faint-base: initial;
+    --ui-ground: var(--ui-color-background);
+    --ui-surface-fill: var(--ui-color-background);
+    --ui-popup-ground: initial;
+    --ui-field-ground-share: initial;
+}
+
 .ui-dialog[data-ui-dialog-placement="bottom"] {
     --ui-dialog-sheet-from: translateY(100%);
 }

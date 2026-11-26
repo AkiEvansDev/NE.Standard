@@ -27,7 +27,7 @@
     .ui-responsive-property(border-width, --ui-border-thickness, @width);
     border-color: @color;
     .ui-responsive-property(border-radius, --ui-border-radius, @radius);
-    corner-shape: @ui-corner-shape;
+    corner-shape: var(--ui-corner-shape, @ui-corner-shape);
 }
 
 // Resets a property's five tiers on a component root that re-declares them, and fences each into its band there.

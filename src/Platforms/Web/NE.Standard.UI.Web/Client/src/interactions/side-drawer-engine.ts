@@ -17,7 +17,6 @@ import { isBehindModal } from "./open-dialogs.ts";
 import { syncLiftedPopups } from "./anchored-popup.ts";
 import { hasOpenPopups } from "./popup-dismissal.ts";
 import { clientStrings } from "../rendering/client-strings.ts";
-import { motion, whenTransitionsEnd } from "../rendering/motion.ts";
 import { onTierChange } from "../rendering/responsive-tier.ts";
 import { DrawerBreakpointTiers, isBottomBarSide, sideIsDrawer } from "../rendering/side-drawer-width.ts";
 import { ClientStore } from "../state/client-store.ts";
@@ -28,7 +27,6 @@ const RootSelector = `[${RootAttribute}]`;
 const LinkSelector = "a[href]";
 const RightSide = "right-side";
 const PinnedSlot = "pinned";
-const DrawerOpenLimit = motion.normal * 2;
 
 export type SideDrawerEngineOptions = {
     readonly root?: ParentNode;
@@ -43,10 +41,6 @@ export class SideDrawerEngine {
 
     // The button that opened each shell's drawer, which the keyboard goes back to: a side may have more than one.
     private readonly openers = new WeakMap<HTMLElement, HTMLElement>();
-
-    // Sequence token per shell so a cancelled or superseded slide-in never raises a stale `open` event.
-    private readonly openTokens = new WeakMap<HTMLElement, number>();
-    private openSequence = 0;
 
     // The name each open drawer's own switch had before it was called what it does there, given back as the drawer is put away.
     private readonly switchNames = new Map<HTMLElement, string | null>();
@@ -227,8 +221,8 @@ export class SideDrawerEngine {
         // A press gives it to the drawer itself: a field of it focused at once would raise a phone's on-screen keyboard unasked.
         this.focusInto(shell, side, drawer, active, pressed);
 
-        // Raised once the slide-in settles so server round-trips and collection patches do not contend with the entrance animation.
-        this.announceOpen(shell, side, drawer);
+        // Raised as the drawer opens so client interactions apply on the first frame and OnDrawerOpen runs alongside the slide-in.
+        this.announceOpen(drawer);
     }
 
     /**
@@ -310,14 +304,8 @@ export class SideDrawerEngine {
             requestAnimationFrame(() => this.focusInto(shell, side, drawer, from, pressed, true));
     }
 
-    private announceOpen(shell: HTMLElement, side: string, drawer: HTMLElement): void {
-        const token = ++this.openSequence;
-
-        this.openTokens.set(shell, token);
-        whenTransitionsEnd(drawer, DrawerOpenLimit, () => {
-            if (this.openTokens.get(shell) === token && shell.getAttribute(DrawerOpenAttribute) === side)
-                drawer.querySelector<HTMLElement>(ComponentSelector)?.dispatchEvent(new Event("open", { bubbles: true }));
-        });
+    private announceOpen(drawer: HTMLElement): void {
+        drawer.querySelector<HTMLElement>(ComponentSelector)?.dispatchEvent(new Event("open", { bubbles: true }));
     }
 
     /**
@@ -363,7 +351,6 @@ export class SideDrawerEngine {
     private close(shell: HTMLElement, refocus = true): void {
         const side = shell.getAttribute(DrawerOpenAttribute);
 
-        this.openTokens.delete(shell);
         shell.removeAttribute(DrawerOpenAttribute);
         this.markToggles(shell);
 

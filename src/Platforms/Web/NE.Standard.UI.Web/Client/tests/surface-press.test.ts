@@ -224,3 +224,17 @@ test("the pointer leaving the page takes the hover mark off", () => {
 
     assert.equal(card.hasAttribute(Mark), false);
 });
+
+test("a clickable image is a button Tab stop that Enter and Space press, while a linked image stays a native anchor", () => {
+    const avatar = FakeElement.of("ui-image ui-image--circle ui-surface--clickable", { "data-ui-id": "12" }, "span");
+    const linked = FakeElement.of("ui-image ui-image--circle ui-surface--clickable", { "data-ui-id": "13", href: "/users/13" }, "a");
+    const clicks = start(avatar, linked);
+
+    assert.equal(avatar.getAttribute("role"), "button");
+    assert.equal(avatar.getAttribute("tabindex"), "0");
+    assert.equal(linked.hasAttribute("role"), false);
+    assert.equal(linked.hasAttribute("tabindex"), false);
+
+    avatar.dispatchEvent(new FakeKeyboardEvent("Enter", avatar));
+    assert.equal(clicks.get(avatar), 1);
+});

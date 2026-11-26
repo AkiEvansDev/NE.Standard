@@ -579,7 +579,7 @@ public static class WebAttributes
 
     public const string SelectValue = "data-ui-select-value";
 
-    /// <summary>On a single-value select's root while it has no selectable options or only its already-chosen one: the chevron hides and the trigger opens no list (<c>select-dom.ts</c> keeps it).</summary>
+    /// <summary>On a single-value select's root while it has no selectable options or only its already-chosen one: the trigger text and chevron dim and the trigger opens no list (<c>select-dom.ts</c> keeps it).</summary>
     public const string SelectLocked = "data-ui-select-locked";
 
     /// <summary>On a select-shaped root whose list opens anywhere but below from the start edge: the placement's token.</summary>

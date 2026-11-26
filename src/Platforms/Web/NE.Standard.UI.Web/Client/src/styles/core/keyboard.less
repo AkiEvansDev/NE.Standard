@@ -84,6 +84,10 @@
     background-color: color-mix(in srgb, @ui-text-ink calc(var(--ui-wash-hover-share) / 2), var(--ui-surface-fill));
 }
 
+.ui-image.ui-surface--clickable@{ui-button-live}:not(.ui-loading, [data-ui-pending])@{ui-keyboard-focus}::after {
+    background-color: var(--ui-wash-hover);
+}
+
 .ui-expander:not(.ui-expander--quiet)@{ui-button-live} > .ui-expander__header@{ui-keyboard-focus} {
     background-color: var(--ui-wash-hover);
 

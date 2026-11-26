@@ -3615,5 +3615,13 @@
         "constant":  "FieldExpandPlaceholderClass",
         "value":  "ui-field-expand__placeholder",
         "clientOnly":  true
+    },
+    {
+        "constant":  "ButtonCircleClass",
+        "value":  "ui-button--circle"
+    },
+    {
+        "constant":  "SurfaceCircleClass",
+        "value":  "ui-surface--circle"
     }
 ]

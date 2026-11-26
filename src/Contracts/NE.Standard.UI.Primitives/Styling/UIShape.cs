@@ -1,19 +1,18 @@
 namespace NE.Standard.UI.Primitives.Styling;
 
 /// <summary>
-/// The shape a picture is drawn in — an image standing alone, or an icon that is a picture; a glyph keeps its own whatever the shape.
+/// The shape an image, picture icon, button or surface is drawn in; a glyph icon keeps its own whatever the shape.
 /// </summary>
 public enum UIShape
 {
     /// <summary>
-    /// The picture's own: an image in the box the layout gives it, its corners as <c>BorderRadius</c> says; an icon's picture as it is,
-    /// its corners slightly rounded.
+    /// The component's own box and <c>BorderRadius</c>; an icon's picture as it is, its corners slightly rounded.
     /// </summary>
     Default = 0,
 
     /// <summary>
-    /// A circle the picture fills, a picture of another proportion cropped to its middle (an image's <c>Fit</c> may say otherwise) — a
-    /// person, a team.
+    /// A square box with a true circular edge (<c>50%</c> round), cropping an image of another proportion to its middle unless
+    /// <c>Fit</c> says otherwise — an avatar, a round action button, or a circular surface.
     /// </summary>
     Circle = 1
 }

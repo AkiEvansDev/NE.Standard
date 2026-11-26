@@ -78,8 +78,8 @@ holds no application state and decides nothing; state survives a reload exactly 
   `UIGridUnit.Absolute/Star/Auto`), responsive values `UIResponsive<T>.Create(base, sm:, md:, xl:, xxl:)` written phone first.
   `GridSplitterComponent` lets the reader re-divide tracks (`BindPosition` keeps the share per person), `PaneContainerComponent`
   lets them move whole panes (`AddPane`, `BindLayout`).
-- `SetContextMenu(menu)` on any component (press-and-hold on a phone), `OnClick` on a surface or card (pressable with no
-  `SetClickable`), `SetUrl`/`BindUrl` on a surface, a card, a file tile, a button or an action row (a link: no click command, no control inside — tabs, a pager, a switcher, an expander, a tree, chosen rows, steps, a data grid or a chart with a legend, zoom or point click count as one, a package's own component through `IPressablePartsComponent`; a description's link inside shows as its words), `SetVisibility`,
+- `SetContextMenu(menu)` on any component (press-and-hold on a phone), `OnClick` on a surface, card, file tile or image (pressable with no
+  `SetClickable`), `SetUrl`/`BindUrl` on a surface, a card, a file tile, an image, a button or an action row (a link: no click command, no control inside — tabs, a pager, a switcher, an expander, a tree, chosen rows, steps, a data grid or a chart with a legend, zoom or point click count as one, a package's own component through `IPressablePartsComponent`; a description's link inside shows as its words), `SetVisibility`,
   `SetTheme`, `TextSelectable`, inline text markup in a text's words (`SetDescriptionAutolinks(true)` links bare http(s)
   addresses, for a chat's messages; `SetDescriptionPlain(true)` shows the words as written, `SetTooltipPlain(true)` a tooltip's).
 - Safe-area insets (`env(safe-area-inset-*)`) keep the root shell, side drawers, bottom bar, toasts, and sheets clear of phone cut-outs and system gesture bars on the fixed theme background.
@@ -178,7 +178,7 @@ Returned in `UICommandResult.Ok([...])`, pushed with `Context.SendEffectsAsync`,
 `ShowSystemNotificationEffect`, `RequestNotificationPermissionEffect` (from an interaction: a browser asks only inside a press),
 `AnnounceEffect` (screen reader only), `DownloadFileEffect`, `SetThemeEffect`,
 `SetThemeColorsEffect`, `SetLanguageEffect`, `RenameItemEffect` (a tree's node, a tab, a text or header region), `CopyToClipboardEffect`, `InsertTextEffect`,
-`OpenPickerEffect`, `ExpandFieldEffect` (opens a `SetExpandable` text area's or code editor's modal dialog), `ShowImageEffect` (lightbox; `OnClickShowImage` on a surface) — every targeted effect takes a component instance (`UIComponentReference`) or string id. `ClientEffectKinds` lists the kinds. A dialog
+`OpenPickerEffect`, `ExpandFieldEffect` (opens a `SetExpandable` text area's or code editor's modal dialog), `ShowImageEffect` (lightbox; `OnClickShowImage` on an image or surface) — every targeted effect takes a component instance (`UIComponentReference`) or string id. `ClientEffectKinds` lists the kinds. A dialog
 key the view does not declare is refused at compile from an interaction and dropped (logged as an error) from a command; so is an
 effect at a component it cannot act on (a picker at no file input, an expand at no `IExpandableInputComponent`, a row at no list, an insert at no `ICaretFieldComponent` - a
 text input, a text area, a number input, a search, the code editor; a package's caret field implements it), and an address that is a

@@ -1,5 +1,12 @@
 @import "../mixins/focus.less";
 
+// Non-inheriting so updating `--ui-window-foot` on `<html>` (window-foot.ts) restyles only the document background, never walking every DOM node.
+@property --ui-window-foot {
+    syntax: "*";
+    inherits: false;
+    initial-value: transparent;
+}
+
 *,
 *::before,
 *::after {

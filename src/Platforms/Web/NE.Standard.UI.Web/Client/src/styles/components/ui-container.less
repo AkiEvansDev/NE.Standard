@@ -38,6 +38,23 @@
     display: none;
 }
 
+// Stacked panes (UILayout.Panes(..., stacked: true)): the incoming pane fades and slides subtly into place from its side.
+.ui-container[data-ui-panes-stacked] > .ui-container {
+    transition: opacity @ui-motion-fast @ui-motion-enter, translate @ui-motion-fast @ui-motion-enter, visibility @ui-motion-fast allow-discrete;
+
+    @starting-style {
+        opacity: 0;
+        translate: 6px 0;
+    }
+}
+
+.ui-container[data-ui-panes-stacked] > .ui-container:first-child {
+    @starting-style {
+        opacity: 0;
+        translate: -6px 0;
+    }
+}
+
 // A child's line on one axis: its position and its span, each through its tier chain (the tiers are fenced where they are reset).
 .ui-placement-line(@property, @axis, @span-default) {
     @{property}: .ui-responsive-chain(~"--ui-placement-@{axis}"; auto)[@value] / span .ui-responsive-chain(~"--ui-placement-@{axis}-span"; @span-default)[@value];

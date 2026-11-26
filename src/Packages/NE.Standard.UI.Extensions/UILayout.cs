@@ -338,6 +338,7 @@ public static class UILayout
         if (stacked)
         {
             ContainerComponent stackedPanes = new ContainerComponent()
+                .SetStackedPanes(true)
                 .AddChild(Pane(list, StatePath(statePath, nameof(UIPanesState.ListVisibility)), whole, UIThickness.Uniform(0)));
 
             if (placeholder is not null)

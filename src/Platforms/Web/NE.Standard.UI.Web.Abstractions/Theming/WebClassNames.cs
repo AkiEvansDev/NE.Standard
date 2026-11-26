@@ -929,6 +929,12 @@ public static class WebClassNames
     public static string ImageShape(UIShape value)
         => value == UIShape.Circle ? "ui-image--circle" : string.Empty;
 
+    public static string ButtonShape(UIShape value)
+        => value == UIShape.Circle ? "ui-button--circle" : string.Empty;
+
+    public static string SurfaceShape(UIShape value)
+        => value == UIShape.Circle ? "ui-surface--circle" : string.Empty;
+
     public static string ProgressVariant(UIProgressVariant value)
         => value switch
         {

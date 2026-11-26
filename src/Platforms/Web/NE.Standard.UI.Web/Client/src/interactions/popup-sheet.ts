@@ -5,7 +5,7 @@
 // their owned popup's (`OwnedPopupsOptions.sheetOnPhone`); the look is ui-sheet.less's.
 
 // `node --test` loads this module as it is: `.ts` on the value imports.
-import { SheetAttribute, SheetBackClass, SheetBackMarkClass, SheetCoveredAttribute, SheetScrimClass, SheetScrimLeavingAttribute } from "../addressing/dom-attributes.ts";
+import { PopupLiftedAttribute, SheetAttribute, SheetBackClass, SheetBackMarkClass, SheetCoveredAttribute, SheetScrimClass, SheetScrimLeavingAttribute } from "../addressing/dom-attributes.ts";
 import { isSheet, liftIntoTopLayer, lowerIntoPlace } from "./anchored-popup.ts";
 import { focusAsLastInput, trapTab } from "./popup-focus.ts";
 import { entryWords } from "./search-terms.ts";
@@ -71,7 +71,9 @@ export function presentSheet(popup: HTMLElement, opening: SheetOpening): void {
     // its closed rule names together — and the opening slides from there. One still sliding out as a sheet turns back where it is.
     if (!wasSheet) {
         popup.setAttribute("popover", "manual");
-        finishTransitions(popup);
+
+        if (popup.hasAttribute(PopupLiftedAttribute))
+            finishTransitions(popup);
     }
 
     // The last opening's row, still sliding out as this one came.
@@ -219,7 +221,15 @@ function settle(sheet: OpenSheet): void {
         focusAsLastInput(popup);
     }
 
-    sheet.hidden = hideAround(popup);
+    if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => {
+            if (sheets.includes(sheet) && sheet.hidden.length === 0)
+                sheet.hidden = hideAround(popup);
+        });
+    }
+    else {
+        sheet.hidden = hideAround(popup);
+    }
 }
 
 /**

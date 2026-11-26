@@ -25,6 +25,13 @@ public abstract partial class SurfaceComponent<T>(string? id = null) : BorderedR
     public bool? QuietHover { get; set; }
 
     /// <summary>
+    /// Gets or sets the surface's shape — <see cref="UIShape.Circle"/> for a square box with a circular edge that outranks
+    /// <c>BorderRadius</c>.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIShape? Shape { get; set; }
+
+    /// <summary>
     /// What the surface is to a screen reader when it holds a message — a status, read when the reader is free, or an alert, read at
     /// once — so its words are read as they change and as it is shown; unset, neither. A clickable surface is a button or a group
     /// instead.

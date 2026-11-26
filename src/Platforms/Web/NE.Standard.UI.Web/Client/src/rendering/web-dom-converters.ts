@@ -1,7 +1,7 @@
 // Mirrors the C# WebCssValues/WebClassNames helpers value-for-value, over models read by their camel-cased members, as the wire sends them.
 
 // `.ts` on the imports, and types imported as types: `node --test` runs this module and resolves files literally.
-import { BadgeColoredClass, ExpanderQuietClass, IconCircleClass, ImageCircleClass, SelectQuietClass, TextAreaGrowClass, TextMaxLinesClass, toKebabCase } from "../addressing/dom-attributes.ts";
+import { BadgeColoredClass, ButtonCircleClass, ExpanderQuietClass, IconCircleClass, ImageCircleClass, SelectQuietClass, SurfaceCircleClass, TextAreaGrowClass, TextMaxLinesClass, toKebabCase } from "../addressing/dom-attributes.ts";
 import { clampByte, onColorToken, toHexByte } from "./color-bytes.ts";
 import {
     enumNames, isBackgroundImageBlurred, isTiered, toBackgroundImageCss, toBackgroundImageDimCss, toBadgeTitleFit, toBorderEdge,
@@ -342,6 +342,8 @@ export const webDomConverters = new Map<string, WebDomConverter>([
     familyClass("expanderVariantClass", toClassFamily([ExpanderQuietClass]), value => toToken(value, expanderVariantTokens) === "quiet" ? ExpanderQuietClass : ""),
     familyClass("selectVariantClass", toClassFamily([SelectQuietClass]), value => toToken(value, selectVariantTokens) === "quiet" ? SelectQuietClass : ""),
     familyClass("imageShapeClass", toClassFamily([ImageCircleClass]), value => toToken(value, imageShapeTokens) === "circle" ? ImageCircleClass : ""),
+    familyClass("buttonShapeClass", toClassFamily([ButtonCircleClass]), value => toToken(value, imageShapeTokens) === "circle" ? ButtonCircleClass : ""),
+    familyClass("surfaceShapeClass", toClassFamily([SurfaceCircleClass]), value => toToken(value, imageShapeTokens) === "circle" ? SurfaceCircleClass : ""),
     ["backgroundImageCss", value => toBackgroundImageCss(value)],
     ["backgroundImageAttribute", value => toBackgroundImageCss(value).length === 0 ? undefined : ""],
     ["imageFitSizeCss", value => toToken(value, imageFitSizeTokens)],

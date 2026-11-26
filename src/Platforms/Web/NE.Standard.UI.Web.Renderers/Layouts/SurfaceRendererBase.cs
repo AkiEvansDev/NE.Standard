@@ -24,6 +24,8 @@ public abstract class SurfaceRendererBase : WebComponentRendererBase
         WebDomOperation.ToggleAttribute(WebAttributes.EventSuppress(EventNames.Click), condition: WebValueCondition.IsFalse)
     ];
 
+    private static readonly WebDomOperation[] ShapeOperations = [WebDomOperation.Class(converter: WebDomConverters.SurfaceShapeClass)];
+
     /// <summary>An anchor where the surface links to an address (<see cref="ILinkableComponent.Url"/>), so it opens in a new tab and copies as a link.</summary>
     protected override (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
         => DrawsLink(context) ? ("a", ClassName) : base.ResolveRoot(context);
@@ -35,6 +37,7 @@ public abstract class SurfaceRendererBase : WebComponentRendererBase
         ArgumentNullException.ThrowIfNull(root);
 
         SurfaceChromeRenderer.RenderChrome(context, root);
+        RenderShape(context, root);
         RenderClickable(context, root);
         RenderFlagClass(context, root, SurfaceComponent.QuietHoverProperty, "ui-surface--quiet-hover");
         RenderLiveRegion(context, root);
@@ -91,4 +94,11 @@ public abstract class SurfaceRendererBase : WebComponentRendererBase
         if (live is UILiveRegion region)
             _ = root.Attribute("role", region == UILiveRegion.Alert ? "alert" : "status");
     }
+
+    private static void RenderShape(WebRenderContext context, IHtmlElementBuilder root)
+        => _ = RenderProperty<UIShape?>(context, root, SurfaceComponent.ShapeProperty, static (target, value) =>
+        {
+            if (value is UIShape shape && WebClassNames.SurfaceShape(shape) is { Length: > 0 } className)
+                _ = target.Class(className);
+        }, ShapeOperations);
 }

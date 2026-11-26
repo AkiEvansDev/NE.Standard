@@ -50,6 +50,13 @@ public abstract partial class ButtonComponent<T>(string? id = null) : VisualComp
     [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValueMember = nameof(DefaultSize))]
     public UIResponsive<UISize>? Size { get; set; }
 
+    /// <summary>
+    /// Gets or sets the button's shape — <see cref="UIShape.Circle"/> for a round action button: a square box with a circular edge that
+    /// outranks <c>BorderRadius</c>.
+    /// </summary>
+    [UIComponentProperty(DefaultValue = null)]
+    public UIShape? Shape { get; set; }
+
     /// <inheritdoc/>
     /// <remarks>Not translatable: a chord names physical keys. A literal one is checked when the view compiles.</remarks>
     [UIComponentProperty(Contract = typeof(IButtonComponent), DefaultValue = null)]

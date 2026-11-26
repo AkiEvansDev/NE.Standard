@@ -59,7 +59,7 @@ test("rounded corners follow @ui-corner-shape, nested 2px channels step to @ui-n
 
     const groupBody = ruleBody(".ui-button-group");
     assert.match(groupBody, /calc\(var\(--ui-radius-button\) \+ 2px\)/);
-    assert.match(groupBody, /corner-shape: squircle;/);
+    assert.match(groupBody, /corner-shape: var\(--ui-corner-shape, squircle\);/);
 
     const groupItemBody = ruleBody(".ui-button-group__item > .ui-button");
     assert.match(groupItemBody, /calc\(var\(--ui-radius-button\) - var\(--ui-border-width, 1px\)\)/);
@@ -69,7 +69,11 @@ test("rounded corners follow @ui-corner-shape, nested 2px channels step to @ui-n
     assert.match(ruleBody(".ui-color-input__tab"), /border-radius: calc\(var\(--ui-radius-button\) - 1px\);\s*corner-shape: superellipse\(1\.5\);/);
     assert.match(ruleBody(".ui-color-input__swatch"), /corner-shape: superellipse\(1\.5\);/);
 
+    assert.match(ruleBody('[style*="--ui-border-radius: 999px"]'), /--ui-corner-shape: round;/);
+
     for (const circleSelector of [
+        ".ui-button--circle",
+        ".ui-surface--circle",
         ".ui-image--circle",
         ".ui-image-input--avatar > .ui-image-input__surface",
         ".ui-icon--image.ui-icon--circle::before",

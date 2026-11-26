@@ -32,6 +32,9 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
     /// <summary>The free air after the container's end, which the scroller along that end takes for its overlay bar (core/scrollbar.less).</summary>
     public const string ScrollbarAirVariable = "--ui-scrollbar-air";
 
+    /// <summary>Marks a single-column <c>UILayout.Panes(..., stacked: true)</c> container so <c>ui-container.less</c> animates pane switches.</summary>
+    public const string PanesStackedAttribute = "data-ui-panes-stacked";
+
     private const string SpacedTarget = $":scope[style*='{SpacingVariable}'], :scope[{WebAttributes.BindingPrefix}spacing], :scope[{WebAttributes.IntoPrefix}spacing]";
 
     // A track list's first paint and its one operation per variable, built once rather than per container (a row template's too).
@@ -52,6 +55,7 @@ public sealed class ContainerComponentRenderer : WebComponentRendererBase
 
         ContainerStyleRenderer.RenderContainerStyle(context, root);
         LayoutClipReachRenderer.Render(context, root);
+        RenderFlagAttribute(context, root, ContainerComponent.StackedPanesProperty, PanesStackedAttribute);
 
         // A variable rather than the grid property itself, so a splitter's tiers can sit over it in the stylesheet's chain.
         RenderTracks(context, root, ContainerComponent.ColumnsProperty, ColumnsVariable, WebAttributes.ColumnLimits);

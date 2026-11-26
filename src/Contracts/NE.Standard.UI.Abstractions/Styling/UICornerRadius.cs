@@ -21,6 +21,11 @@ public readonly record struct UICornerRadius(double TopLeft, double TopRight, do
         => new(radius, radius, radius, radius);
 
     /// <summary>
+    /// A capsule radius (<c>999</c> on all four corners) that rounds shorter sides into semicircular arcs rather than squircles.
+    /// </summary>
+    public static UICornerRadius Pill => new(999, 999, 999, 999);
+
+    /// <summary>
     /// Creates a corner radius rounding only the top corners, leaving the bottom corners square.
     /// </summary>
     public static UICornerRadius Top(double radius)

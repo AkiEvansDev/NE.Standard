@@ -6,7 +6,7 @@
 // veil over the ground so the system bar matches the dimmed area beside the panel.
 
 import {
-    DialogBackdropAttribute, DialogModalAttribute, DialogPlacementAttribute, DialogSurfaceClass, DrawerBackdropAttribute,
+    DialogAttribute, DialogBackdropAttribute, DialogModalAttribute, DialogPlacementAttribute, DialogSurfaceClass, DrawerBackdropAttribute,
     DrawerModelessAttribute, DrawerOpenAttribute, pinnedAttribute, RegionAttribute, RootAttribute, SheetAttribute,
     SheetCoveredAttribute, ThemeAttribute, WindowFootAttribute, WindowFootEdgeAttribute
 } from "../addressing/dom-attributes.ts";
@@ -16,6 +16,7 @@ import { isPressWaveRecord } from "./press-wave.ts";
 
 const FootSelector = `[${WindowFootAttribute}]`;
 const EdgeSelector = `[${WindowFootEdgeAttribute}]`;
+const FootTreeChangeSelector = `[${WindowFootAttribute}], [${SheetAttribute}], [${DialogAttribute}], dialog, [${DrawerBackdropAttribute}], [${RootAttribute}]`;
 const OpenPopupSheetSelector = `[${SheetAttribute}][popover]:popover-open:not([${SheetCoveredAttribute}])`;
 const OpenDrawerBackdropSelector = `[${RootAttribute}][${DrawerOpenAttribute}] > [${DrawerBackdropAttribute}]`;
 const FootProperty = "--ui-window-foot";
@@ -108,7 +109,10 @@ export class WindowFootEngine {
     private readonly schemeMedia: MediaQueryList | null;
     private readonly stopSheets: () => void;
     private readonly onSchemeChange = (): void => this.schedule();
-    private readonly onResize = (): void => this.schedule();
+    private readonly onResize = (): void => {
+        this.cachedInset = null;
+        this.schedule();
+    };
     private readonly onTransitionEnd = (event: Event): void => {
         if (!(event instanceof TransitionEvent) || event.propertyName !== "background-color")
             return;
@@ -119,12 +123,13 @@ export class WindowFootEngine {
         this.schedule();
     };
     private probe: HTMLElement | null = null;
+    private cachedInset: number | null = null;
     private frame = 0;
 
     public constructor(options: WindowFootEngineOptions = {}) {
         this.root = options.root ?? document;
         this.treeObserver = new MutationObserver(mutations => {
-            if (!mutations.every(isPressWaveRecord))
+            if (mutations.some(isRelevantFootMutation))
                 this.schedule();
         });
         this.treeObserver.observe(this.root, {
@@ -168,6 +173,7 @@ export class WindowFootEngine {
         this.root.removeEventListener("transitionend", this.onTransitionEnd, true);
         this.probe?.remove();
         this.probe = null;
+        this.cachedInset = null;
 
         for (const foot of this.root.querySelectorAll<HTMLElement>(EdgeSelector))
             this.clearFoot(foot);
@@ -258,6 +264,9 @@ export class WindowFootEngine {
     }
 
     private bottomInset(): number {
+        if (this.cachedInset !== null)
+            return this.cachedInset;
+
         if (this.probe === null || !this.probe.isConnected) {
             this.probe = document.createElement("div");
             this.probe.style.cssText = `position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden`;
@@ -266,13 +275,17 @@ export class WindowFootEngine {
 
         const measured = this.probe.getBoundingClientRect().height;
 
-        if (measured > 0)
+        if (measured > 0) {
+            this.cachedInset = measured;
             return measured;
+        }
 
         const raw = getComputedStyle(document.documentElement).getPropertyValue(InsetProperty);
         const fallback = Number.parseFloat(raw);
+        const resolved = Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
 
-        return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+        this.cachedInset = resolved;
+        return resolved;
     }
 }
 
@@ -351,4 +364,28 @@ function affectsWindowFoot(target: Element): boolean {
         || target.hasAttribute(DialogBackdropAttribute)
         || target.tagName === "DIALOG"
         || target.querySelector(FootSelector) !== null;
+}
+
+function isRelevantFootMutation(mutation: MutationRecord): boolean {
+    if (isPressWaveRecord(mutation))
+        return false;
+
+    if (mutation.type === "attributes") {
+        if (mutation.attributeName !== "hidden")
+            return true;
+
+        return mutation.target instanceof Element && (mutation.target.matches(FootTreeChangeSelector) || affectsWindowFoot(mutation.target));
+    }
+
+    for (const node of mutation.addedNodes) {
+        if (node instanceof Element && (node.matches(FootTreeChangeSelector) || node.querySelector(FootTreeChangeSelector) !== null))
+            return true;
+    }
+
+    for (const node of mutation.removedNodes) {
+        if (node instanceof Element && (node.matches(FootTreeChangeSelector) || node.querySelector(FootTreeChangeSelector) !== null))
+            return true;
+    }
+
+    return false;
 }

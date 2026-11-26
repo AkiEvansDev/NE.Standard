@@ -16,16 +16,25 @@
     overscroll-behavior: contain;
     // The safe area kept below, where a phone draws its home bar, and at the sides, where a phone on its side has its cut-out.
     padding: 0 calc(@ui-space-2 + env(safe-area-inset-right, 0px)) calc(@ui-space-2 + env(safe-area-inset-bottom)) calc(@ui-space-2 + env(safe-area-inset-left, 0px));
+    border-top: var(--ui-border-width, 1px) solid var(--ui-color-border);
     border-inline: none;
     border-bottom: none;
     .ui-sheet-edge();
+    // Bottom sheets sit on the page's background rather than raised surface, separated by the 1 px top edge over the dimmed veil.
+    background: var(--ui-color-background);
+    color: var(--ui-color-on-background);
+    --ui-faint-base: initial;
+    --ui-ground: var(--ui-color-background);
+    --ui-surface-fill: var(--ui-color-background);
+    --ui-popup-ground: initial;
+    --ui-field-ground-share: initial;
     // It slides rather than fades: opaque through the slide, which `--ui-sheet-drag` moves under a finger (sheet-swipe.ts).
     opacity: 1;
     transform: translateY(100%);
     transition:
-        transform @ui-motion-normal @ui-motion-exit,
-        display @ui-motion-normal allow-discrete,
-        overlay @ui-motion-normal allow-discrete;
+        transform @ui-motion-fast @ui-motion-exit,
+        display @ui-motion-fast allow-discrete,
+        overlay @ui-motion-fast allow-discrete;
 }
 
 // Sliding out, it takes no press nor a drag's moves: what the drag that closed it goes on over is the page's.
@@ -35,6 +44,7 @@
 
 [data-ui-sheet][popover]:popover-open {
     .ui-sheet-follow();
+    transition-duration: @ui-motion-normal;
     transition-timing-function: @ui-motion-enter;
 
     @starting-style {
@@ -119,14 +129,15 @@
     opacity: 0;
     pointer-events: none;
     transition:
-        opacity @ui-motion-normal @ui-motion-exit,
-        display @ui-motion-normal allow-discrete,
-        overlay @ui-motion-normal allow-discrete;
+        opacity @ui-motion-fast @ui-motion-exit,
+        display @ui-motion-fast allow-discrete,
+        overlay @ui-motion-fast allow-discrete;
 }
 
 .ui-sheet-scrim:popover-open {
     opacity: 1;
     pointer-events: auto;
+    transition-duration: @ui-motion-normal;
     transition-timing-function: @ui-motion-enter;
 
     @starting-style {

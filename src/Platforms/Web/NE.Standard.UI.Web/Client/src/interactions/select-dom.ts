@@ -777,8 +777,10 @@ export function collectMutatedSelects(mutation: MutationRecord, selects: Set<HTM
             if (isSelectHost(added))
                 selects.add(added);
 
-            for (const select of added.querySelectorAll<HTMLElement>(SelectHostSelector))
-                selects.add(select);
+            if (added.firstElementChild !== null) {
+                for (const select of added.querySelectorAll<HTMLElement>(SelectHostSelector))
+                    selects.add(select);
+            }
         }
     }
 

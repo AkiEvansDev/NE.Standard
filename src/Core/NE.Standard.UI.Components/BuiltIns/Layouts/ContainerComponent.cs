@@ -58,6 +58,13 @@ public abstract partial class ContainerComponent<T> : ContainerComponentBase<T>,
     public UIResponsive<double>? ScrollbarAir { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the container's cells are stacked panes (<c>UILayout.Panes(..., stacked: true)</c>) that switch in one
+    /// column with a subtle entrance transition.
+    /// </summary>
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
+    public bool? StackedPanes { get; set; }
+
+    /// <summary>
     /// Sets a grid column definition, optionally per breakpoint (an auto column on a phone, a fixed one wider up). <paramref name="index"/>
     /// is 1-based, matching <see cref="UIGridPlacement.Column"/>.
     /// </summary>

@@ -1,6 +1,6 @@
 // Placement for every popup engine: a popup is `position: fixed`, stays in the DOM, and needs no ancestor with a fixed containing block.
 
-import { BottomBarAttribute, DialogAttribute, DrawerOpenAttribute, NotificationHostClass, PopupCappedAttribute, PopupLiftedAttribute, PopupPlacementAttribute, PopupStoodInAttribute, RegionAttribute, SheetAttribute, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
+import { BottomBarAttribute, DialogAttribute, DrawerOpenAttribute, NotificationHostClass, PopupCappedAttribute, PopupLiftedAttribute, PopupPlacementAttribute, PopupStoodInAttribute, RegionAttribute, SheetAttribute, SheetScrimClass, SurfaceImageBlurAttribute, ThemeAttribute } from "../addressing/dom-attributes.ts";
 import { afterTransitions, motion } from "../rendering/motion.ts";
 import { reachesTier } from "../rendering/responsive-tier.ts";
 import { withoutRuntimeCleanup } from "../runtime/cleanup-scope.ts";
@@ -214,6 +214,13 @@ function isOutsideAnchorsModal(anchor: Element, popup: HTMLElement): boolean {
  * until the fade is over: the hold is taken off this one showing.
  */
 function showInTopLayerAtOnce(popup: HTMLElement): void {
+    // A phone's sheet and its veil are never measured beside an anchor under a transformed ancestor, so they skip the synchronous style flushes.
+    if (isSheet(popup) || popup.classList.contains(SheetScrimClass)) {
+        popup.showPopover();
+        keepNotificationsAbove(popup);
+        return;
+    }
+
     const style = getComputedStyle(popup);
     const properties = (style.transitionProperty ?? "").split(",").map(property => property.trim());
     const overlay = properties.indexOf("overlay");

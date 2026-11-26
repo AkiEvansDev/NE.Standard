@@ -139,6 +139,12 @@ public static class WebDomConverters
 
     /// <summary>An image's shape as its modifier: <c>ui-image--circle</c>, or nothing for the default.</summary>
     public const string ImageShapeClass = "imageShapeClass";
+
+    /// <summary>A button's shape as its modifier: <c>ui-button--circle</c>, or nothing for the default.</summary>
+    public const string ButtonShapeClass = "buttonShapeClass";
+
+    /// <summary>A surface's shape as its modifier: <c>ui-surface--circle</c>, or nothing for the default.</summary>
+    public const string SurfaceShapeClass = "surfaceShapeClass";
     public const string BackgroundImageCss = "backgroundImageCss";
 
     /// <summary>Present, and empty, while a background picture is one the page may load; otherwise removed.</summary>

@@ -202,17 +202,13 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
         return DemoUI.CreateExample("Client lightbox (OnClickShowImage & ShowImageEffect)",
             UILayout.Row(24)
                 .SetWrap(true)
-                .AddChild(DemoUI.CreateLabelled("One picture: the surface's own", new SurfaceComponent()
-                    .SetPadding(UIThickness.Uniform(0))
+                .AddChild(DemoUI.CreateLabelled("One picture: the image's own", new ImageComponent()
+                    .SetSource(DemoImages.SunsetRuins)
+                    .SetAltText("Europe North's banner")
+                    .SetFit(UIImageFit.Cover)
                     .SetBorderRadius(UICornerRadius.Uniform(8))
-                    .SetContent(new ImageComponent()
-                        .SetSource(DemoImages.SunsetRuins)
-                        .SetAltText("Europe North's banner")
-                        .SetFit(UIImageFit.Cover)
-                        .SetBorderRadius(UICornerRadius.Uniform(8))
-                        .SetWidth(UILayoutLength.Absolute(260))
-                        .SetHeight(UILayoutLength.Absolute(146))
-                    )
+                    .SetWidth(UILayoutLength.Absolute(260))
+                    .SetHeight(UILayoutLength.Absolute(146))
                     .OnClickShowImage()
                     )
                 )
@@ -227,24 +223,20 @@ internal sealed class ImageView : DemoComponentView, IUIViewDefinition
                     )
                 ),
             columns: 24,
-            note: "OnClickShowImage() makes a surface pressable and shows the picture it holds; ShowImageEffect with a set and an index shows the set from that one, walked by the arrows at the picture's foot, ← and → or a swipe. A press beside the picture or Escape closes it. In a list, OnClickShowImage(amongRows: true) walks the pictures of the rows drawn — the Chat screen's photos."
+            note: "OnClickShowImage() makes an image (or a surface holding one) pressable and shows it full size; ShowImageEffect with a set and an index shows the set from that one, walked by the arrows at the picture's foot, ← and → or a swipe. A press beside the picture or Escape closes it. In a list, OnClickShowImage(amongRows: true) walks the pictures of the rows drawn — the Chat screen's photos."
         );
     }
 
     /// <summary>
-    /// A thumbnail: a pressable surface round the picture — a Tab stop Enter and Space press — so the keyboard opens it as the pointer does.
+    /// A thumbnail: a pressable image — a Tab stop Enter and Space press — so the keyboard opens it as the pointer does.
     /// </summary>
-    private static SurfaceComponent CreateThumbnail(int index)
-        => new SurfaceComponent()
-            .SetPadding(UIThickness.Uniform(0))
+    private static ImageComponent CreateThumbnail(int index)
+        => new ImageComponent()
+            .SetSource(Gallery[index].Source)
+            .SetAltText(Gallery[index].Caption)
+            .SetFit(UIImageFit.Cover)
             .SetBorderRadius(UICornerRadius.Uniform(6))
-            .SetContent(new ImageComponent()
-                .SetSource(Gallery[index].Source)
-                .SetAltText(Gallery[index].Caption)
-                .SetFit(UIImageFit.Cover)
-                .SetBorderRadius(UICornerRadius.Uniform(6))
-                .SetWidth(UILayoutLength.Absolute(68))
-                .SetHeight(UILayoutLength.Absolute(68))
-            )
+            .SetWidth(UILayoutLength.Absolute(68))
+            .SetHeight(UILayoutLength.Absolute(68))
             .InteractOn(EventNames.Click, new ShowImageEffect(Gallery, index));
 }

@@ -5,15 +5,15 @@
 // Under the pointer it washes and presses only where no control of its own takes the pointer: `data-ui-inner-pointer` says so.
 
 // `.ts` on the value imports: `node --test` runs this module directly.
-import { CardClass, ComponentIdAttribute, DisabledClass, FileTileClass, InnerPointerAttribute, LoadingClass, SurfaceClass, SurfaceClickableClass, writeAttribute } from "../addressing/dom-attributes.ts";
+import { CardClass, ComponentIdAttribute, DisabledClass, FileTileClass, ImageClass, InnerPointerAttribute, LoadingClass, SurfaceClass, SurfaceClickableClass, writeAttribute } from "../addressing/dom-attributes.ts";
 import { observeComponents } from "./dom-mutations.ts";
 import { isPlainKey, SpaceRelease } from "./keyboard-shortcut.ts";
 import { ControlSelector, isOwnControlOf, soleControlOf } from "./own-control.ts";
 import { isRovingStop } from "./row-cursor.ts";
 import { KeyboardRowsRootSelector, SelectionRootSelector, SelectionRowSelector } from "./row-selection.ts";
 
-// Component roots only: a picture of a surface (a select's chosen option) carries no id, and takes no press. A file tile is pressed as one.
-const SurfaceSelector = `:is(.${SurfaceClass}, .${CardClass}, .${FileTileClass})[${ComponentIdAttribute}]`;
+// Component roots only: a picture of a surface (a select's chosen option) carries no id, and takes no press. A file tile or image is pressed as one.
+const SurfaceSelector = `:is(.${SurfaceClass}, .${CardClass}, .${FileTileClass}, .${ImageClass})[${ComponentIdAttribute}]`;
 
 /** What the pointer does on a control inside a clickable surface (or a column's edge in its caption): rests over it, or holds it pressed. */
 export type InnerPointer = "hover" | "press";

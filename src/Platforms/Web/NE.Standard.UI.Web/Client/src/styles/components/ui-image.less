@@ -1,4 +1,5 @@
 @import "../core/tokens.less";
+@import "../mixins/interactive.less";
 @import "../mixins/responsive.less";
 @import "../mixins/stand-in.less";
 
@@ -11,8 +12,39 @@
     .ui-responsive-property(max-width, --ui-max-width, 100%);
     // BorderRadius, through the border's chain as a bordered component's corners are.
     .ui-responsive-property(border-radius, --ui-border-radius, 0);
-    corner-shape: @ui-corner-shape;
+    corner-shape: var(--ui-corner-shape, @ui-corner-shape);
 }
+
+:where(a.ui-image) {
+    color: inherit;
+    text-decoration: none;
+}
+
+// A pressable image (OnClick, Url, Clickable) washes over the picture on `::after`, since an opaque `<img>` covers its box's ground.
+.ui-image.ui-surface--clickable {
+    position: relative;
+}
+
+    .ui-image.ui-surface--clickable:not(.ui-loading, [data-ui-pending])::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        corner-shape: inherit;
+        background-color: transparent;
+        pointer-events: none;
+        transition: background-color @ui-motion-fast @ui-motion-ease;
+    }
+
+    @media @{ui-can-hover} {
+        .ui-image.ui-surface--clickable@{ui-button-live}:not(.ui-loading, [data-ui-pending]):hover::after {
+            background-color: var(--ui-wash-hover);
+        }
+    }
+
+    .ui-image.ui-surface--clickable@{ui-button-live}:not(.ui-loading, [data-ui-pending]):active::after {
+        background-color: var(--ui-wash-active);
+    }
 
     // `height: 100%` of a box with no height of its own is the picture's own; a cap on the box's height reaches it, as it did the
     // `<img>` alone, or the picture would run out of its box.

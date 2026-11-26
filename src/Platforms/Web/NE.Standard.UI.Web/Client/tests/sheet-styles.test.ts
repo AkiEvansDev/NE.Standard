@@ -68,3 +68,15 @@ test("a non-modal dialog takes a press on its panel alone, so the page beside it
     assert.match(rule(".ui-dialog:not([data-ui-dialog-modal], [hidden]) > .ui-dialog__surface"), /pointer-events: auto;/);
     assert.doesNotMatch(rule(".ui-dialog__backdrop"), /pointer-events/);
 });
+
+test("bottom sheets sit on the page background with a 1px top border, while locked selects dim their value and chevron instead of hiding the chevron", () => {
+    const sheet = rule("[data-ui-sheet][popover]");
+    const bottomDialog = rule(".ui-dialog[data-ui-dialog-placement=\"bottom\"] > .ui-dialog__surface:not([data-ui-dialog-surface])");
+    const lockedParts = rule(".ui-select[data-ui-select-locked] > .ui-select__trigger > :is(.ui-select__trigger-content, .ui-select__placeholder, .ui-select__chevron)");
+
+    assert.match(sheet, /background: var\(--ui-color-background\);/);
+    assert.match(sheet, /border-top: var\(--ui-border-width, 1px\) solid var\(--ui-color-border\);/);
+    assert.match(bottomDialog, /background: var\(--ui-color-background\);/);
+    assert.match(lockedParts, /opacity: var\(--ui-disabled-opacity\);/);
+    assert.doesNotMatch(css, /\.ui-select\[data-ui-select-locked\] > \.ui-select__trigger > \.ui-select__chevron \{\s*display: none;/);
+});

@@ -309,41 +309,25 @@ test("the drawer leaves Escape to a popup open in it, and takes the next once th
     assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
 });
 
-test("an animated drawer waits for its slide-in transition to end before raising open, and cancels it if closed meanwhile", async () => {
+test("opening a drawer raises open at once so state updates run alongside the slide, and closing never raises it", () => {
     const { root, toggle, drawer } = shell();
     const panel = FakeElement.of("ui-drawer-panel", { "data-ui-id": "19" });
-    let finishSlide: (() => void) | null = null;
     let opened = 0;
 
     drawer.append(panel);
     panel.addEventListener("open", () => {
         opened++;
     });
-    Object.assign(drawer, {
-        getAnimations: () => [{
-            finished: new Promise<void>(resolve => {
-                finishSlide = resolve;
-            })
-        }]
-    });
 
     toggle.dispatchEvent(new FakeEvent("click"));
     assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
-    assert.equal(opened, 0, "open waits while the entrance transition runs");
-
-    finishSlide!();
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    assert.equal(opened, 1);
-
-    // Closed and put away before a second opening's slide finishes: no open fires for the aborted slide.
-    toggle.dispatchEvent(new FakeEvent("click"));
-    toggle.dispatchEvent(new FakeEvent("click"));
     assert.equal(opened, 1);
 
     toggle.dispatchEvent(new FakeEvent("click"));
     assert.equal(root.hasAttribute("data-ui-drawer-open"), false);
-
-    finishSlide!();
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
     assert.equal(opened, 1);
+
+    toggle.dispatchEvent(new FakeEvent("click"));
+    assert.equal(root.getAttribute("data-ui-drawer-open"), "left");
+    assert.equal(opened, 2);
 });

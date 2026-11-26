@@ -67,12 +67,12 @@
     display: none;
 }
 
-// Single-value select with no selectable option or only its already-chosen one: no list to open, so the chevron hides and the trigger offers no hand while keeping clear and actions live.
+// Single-value select with no selectable option or only its already-chosen one: no list to open, so the value and chevron dim to disabled opacity and the trigger offers no hand while keeping clear and actions live.
 .ui-select[data-ui-select-locked] > .ui-select__trigger {
     cursor: default;
 
-    > .ui-select__chevron {
-        display: none;
+    > :is(.ui-select__trigger-content, .ui-select__placeholder, .ui-select__chevron) {
+        opacity: var(--ui-disabled-opacity);
     }
 }
 
@@ -99,7 +99,7 @@
 }
 
     @media @{ui-can-hover} {
-        .ui-select:not(.ui-disabled):not(.ui-readonly) > .ui-select__trigger:not([data-ui-inner-pointer~="hover"]):hover .ui-select__chevron {
+        .ui-select:not(.ui-disabled):not(.ui-readonly):not([data-ui-select-locked]) > .ui-select__trigger:not([data-ui-inner-pointer~="hover"]):hover .ui-select__chevron {
             color: var(--ui-color-on-surface);
         }
     }

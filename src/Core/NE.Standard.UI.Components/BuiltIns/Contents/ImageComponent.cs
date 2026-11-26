@@ -1,19 +1,26 @@
+using System.Collections.Generic;
+using NE.Standard.UI.Abstractions.Effects;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Constants;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Components.BuiltIns.Contents;
 
 /// <summary>
-/// A visual component that renders a bitmap image from a source URL.
+/// A visual component that renders a bitmap image from a source URL, optionally pressable as a whole or linking to an address.
 /// </summary>
 [UIComponentPropertyDefault(nameof(IVisualComponent.HorizontalAlignment), nameof(DefaultAlignment))]
 [UIComponentPropertyDefault(nameof(IVisualComponent.VerticalAlignment), nameof(DefaultAlignment))]
 [UIComponentPropertyBlock(typeof(ITooltipComponent))]
-public abstract partial class ImageComponent<T>(string? id = null) : VisualComponentBase<T>(id), ITooltipComponent
+[UIComponentPropertyBlock(typeof(IClickableComponent))]
+[UIComponentPropertyBlock(typeof(ILinkableComponent))]
+[UIComponentPropertyBlock(typeof(IAccessibleNameComponent))]
+public abstract partial class ImageComponent<T>(string? id = null) : VisualComponentBase<T>(id), ITooltipComponent, IClickableComponent, ILinkableComponent, IAccessibleNameComponent
     where T : ImageComponent<T>, IUIComponentDefinition
 {
     private static readonly UIResponsive<UIAlignment> DefaultAlignment = UIAlignment.Center;
@@ -72,6 +79,37 @@ public abstract partial class ImageComponent<T>(string? id = null) : VisualCompo
     /// </summary>
     [UIComponentProperty(DefaultValue = true)]
     public bool? Lazy { get; set; }
+
+    /// <summary>
+    /// Registers a command to invoke when the image is pressed; the image is pressable unless its author set or bound <c>Clickable</c>.
+    /// </summary>
+    public T OnClick(string command)
+        => On(EventNames.Click, command);
+
+    /// <summary>
+    /// Registers a command with bound arguments to invoke when the image is pressed.
+    /// </summary>
+    public T OnClick(string command, params KeyValuePair<string, UIActionArgument>[] arguments)
+        => On(EventNames.Click, command, arguments);
+
+    /// <summary>
+    /// Registers a command with literal arguments to invoke when the image is pressed.
+    /// </summary>
+    public T OnClickLiteral(string command, params KeyValuePair<string, object?>[] arguments)
+        => OnLiteral(EventNames.Click, command, arguments);
+
+    /// <summary>
+    /// Runs the command on press with the key of the item the image is drawn for — a row's avatar or thumbnail.
+    /// </summary>
+    public T OnClickWithItemKey(string command, string argumentName = "id")
+        => OnClick(command, UIAction.ArgCurrentItemKey(argumentName));
+
+    /// <summary>
+    /// Shows the image full size on a press, on the page alone (<see cref="ShowImageEffect"/>); <paramref name="amongRows"/> shows it
+    /// among the pictures of the image's other drawn rows.
+    /// </summary>
+    public T OnClickShowImage(bool amongRows = false)
+        => InteractOn(EventNames.Click, amongRows ? ShowImageEffect.AmongRows(Id) : ShowImageEffect.Of(Id));
 }
 
 /// <summary>

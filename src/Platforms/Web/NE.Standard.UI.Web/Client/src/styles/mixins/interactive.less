@@ -96,8 +96,8 @@
 @ui-split-parts: ~'.ui-split-button:not([data-ui-split-mode="menu"])';
 @ui-not-split-parts: ~":not(@{ui-split-parts})";
 
-// A field root that answers the pointer: not disabled or read-only (a read-only one keeps its focus edge, but lifts nothing).
-@ui-field-live: ~":not(.ui-disabled):not(.ui-readonly)";
+// A field root that answers the pointer: not disabled, read-only or locked (a read-only or locked one keeps its focus edge, but lifts nothing).
+@ui-field-live: ~":not(.ui-disabled):not(.ui-readonly):not([data-ui-select-locked])";
 
 // A filled ground (a primary, accent or danger button's) answers the pointer darkened by a black tint, 16% under a press, in either
 // palette: the washes are the text's colour, light on a dark palette, and would lighten it.

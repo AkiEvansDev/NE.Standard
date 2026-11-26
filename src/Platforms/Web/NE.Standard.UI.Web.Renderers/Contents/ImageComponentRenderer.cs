@@ -1,10 +1,12 @@
 using System;
+using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.BuiltIns.Contents;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
+using NE.Standard.UI.Web.Renderers.Layouts;
 
 namespace NE.Standard.UI.Web.Renderers.Contents;
 
@@ -27,10 +29,21 @@ public sealed class ImageComponentRenderer : WebComponentRendererBase
 
     protected override string ClassName => WebClassNames.Image;
 
+    /// <summary>An anchor where the image links to an address (<see cref="ILinkableComponent.Url"/>), as a surface or file tile is.</summary>
+    protected override (string ElementName, string ClassName) ResolveRoot(WebRenderContext context)
+        => DrawsLink(context) ? ("a", ClassName) : base.ResolveRoot(context);
+
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(root);
+
+        SurfaceRendererBase.RenderClickable(context, root);
+
+        if (DrawsLink(context))
+            RenderLinkAddress(context, root, ILinkableComponent.UrlProperty);
+
+        RenderAccessibleName(context, root);
 
         _ = RenderProperty<UIImageFit?>(context, root, ImageComponent.FitProperty, static (target, value) =>
         {

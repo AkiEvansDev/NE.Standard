@@ -84,8 +84,8 @@ export class SelectInteractionEngine {
         this.optionWatch = this.root instanceof Node ? new MutationObserver(answer) : null;
         registerRuntimeCleanup(() => this.optionWatch?.disconnect());
 
-        if (this.root instanceof Node)
-            new MutationObserver(answer).observe(this.root, { attributes: true, attributeFilter: ObservedAttributes, childList: true, subtree: true });
+        if (this.root instanceof Node && this.optionWatch !== null)
+            this.optionWatch.observe(this.root, { attributes: true, attributeFilter: ObservedAttributes, childList: true, subtree: true });
 
         for (const select of this.root.querySelectorAll<HTMLElement>(SelectHostSelector))
             this.sync(select);

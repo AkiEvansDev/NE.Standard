@@ -45,6 +45,13 @@
     .ui-responsive-property(border-radius, --ui-border-radius, ~"@{ui-list-entry-radius} @{ui-list-entry-radius} 0 0");
 }
 
+// Shape Circle: a square box with a true circular edge, outranking BorderRadius.
+.ui-surface--circle {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    corner-shape: round;
+}
+
 // A surface pays for its own padding; a card's content band and an expander's summary and content carry theirs.
 .ui-surface {
     .ui-responsive-property(padding, --ui-padding, @ui-space-4);
