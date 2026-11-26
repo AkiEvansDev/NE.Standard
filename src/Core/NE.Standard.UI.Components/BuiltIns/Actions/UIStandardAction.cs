@@ -14,7 +14,7 @@ public readonly record struct UIStandardAction(string Title, string Icon, bool I
     // The shell's UIStrings.Action* keys, spelt here because the components cannot reach the shell; UIStringsSyncTests holds the
     // two together. The pin's offer is the outlined pin, the unpin's the struck one; Cancel wears the ×; Done ends an edit made in
     // place with a check, where Save writes a document out under its disk. New makes one and Add puts one more in a list, both under
-    // the plus; Remove takes one out of a list under the minus, where Delete destroys it. More is the vertical ⋮.
+    // the plus; Remove takes one out of a list under the minus, where Delete destroys it. More is the vertical ⋮; Send is the upward arrow.
     public static readonly UIStandardAction Pin = new("ui.action.pin", UIGlyphs.PinOutlined);
     public static readonly UIStandardAction Unpin = new("ui.action.unpin", UIGlyphs.PinOff);
     public static readonly UIStandardAction Open = new("ui.action.open", UIGlyphs.OpenInNew);
@@ -39,7 +39,7 @@ public readonly record struct UIStandardAction(string Title, string Icon, bool I
     public static readonly UIStandardAction Rename = new("ui.action.rename", UIGlyphs.Rename);
     public static readonly UIStandardAction Add = new("ui.action.add", UIGlyphs.Add);
     public static readonly UIStandardAction Remove = new("ui.action.remove", UIGlyphs.Remove);
-    public static readonly UIStandardAction Send = new("ui.action.send", UIGlyphs.Send);
+    public static readonly UIStandardAction Send = new("ui.action.send", UIGlyphs.ArrowUp);
     public static readonly UIStandardAction Attach = new("ui.action.attach", UIGlyphs.AttachFile);
     public static readonly UIStandardAction Menu = new("ui.action.menu", UIGlyphs.Menu);
     public static readonly UIStandardAction Stop = new("ui.action.stop", UIGlyphs.Stop);

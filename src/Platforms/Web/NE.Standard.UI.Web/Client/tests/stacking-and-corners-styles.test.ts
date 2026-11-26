@@ -64,6 +64,8 @@ test("rounded corners follow @ui-corner-shape, nested 2px channels step to @ui-n
     const groupItemBody = ruleBody(".ui-button-group__item > .ui-button");
     assert.match(groupItemBody, /calc\(var\(--ui-radius-button\) - var\(--ui-border-width, 1px\)\)/);
     assert.match(groupItemBody, /corner-shape: superellipse\(1\.5\);/);
+    assert.match(ruleBody(".ui-button-group--small .ui-button-group__item > .ui-button > .ui-button__content.ui-text-type--body"), /line-height: var\(--ui-text-caption-line-height\);/);
+    assert.match(ruleBody(".ui-button-group--small .ui-button-group__item > .ui-button"), /0\.125rem 0\.5rem/);
 
     assert.match(ruleBody(".ui-color-input__tabs"), /border-radius: calc\(var\(--ui-radius-button\) \+ 2px\);\s*corner-shape: squircle;/);
     assert.match(ruleBody(".ui-color-input__tab"), /border-radius: calc\(var\(--ui-radius-button\) - 1px\);\s*corner-shape: superellipse\(1\.5\);/);

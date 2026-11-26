@@ -38,20 +38,12 @@
     display: none;
 }
 
-// Stacked panes (UILayout.Panes(..., stacked: true)): the incoming pane fades and slides subtly into place from its side.
+// Stacked panes (UILayout.Panes(..., stacked: true)): the incoming pane fades crisply into place without horizontal scrollport bleed.
 .ui-container[data-ui-panes-stacked] > .ui-container {
-    transition: opacity @ui-motion-fast @ui-motion-enter, translate @ui-motion-fast @ui-motion-enter, visibility @ui-motion-fast allow-discrete;
+    transition: opacity @ui-motion-fast @ui-motion-enter, visibility @ui-motion-fast allow-discrete;
 
     @starting-style {
         opacity: 0;
-        translate: 6px 0;
-    }
-}
-
-.ui-container[data-ui-panes-stacked] > .ui-container:first-child {
-    @starting-style {
-        opacity: 0;
-        translate: -6px 0;
     }
 }
 

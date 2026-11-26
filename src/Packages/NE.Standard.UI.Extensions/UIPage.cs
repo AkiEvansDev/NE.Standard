@@ -987,7 +987,6 @@ public static class UIPage
 
         ContainerComponent bar = UILayout.Ends(heading, barActions);
         IVisualComponent head = subheader is null ? bar : UILayout.Stack(DrawerSpacing, bar, subheader);
-        UIThickness horizontal = UIThickness.All(DrawerPadding, 0, DrawerPadding, 0);
 
         ContainerComponent panel = new ContainerComponent(id)
             .SetRow(1, UIGridUnit.Auto())
@@ -995,12 +994,17 @@ public static class UIPage
             .SetWidth(DrawerWidth)
             .SetMaxWidth(UILayoutLength.Fill())
             .SetHeight(UILayoutLength.Fill())
-            .SetPadding(UIThickness.All(0, DrawerPadding, 0, DrawerPadding))
-            .SetSpacing(DrawerSpacing)
-            .AddChild(new ContainerComponent().SetPadding(horizontal).AddChild(head).SetPlacement(1, 1, 24, 1))
+            .SetPadding(UIThickness.All(0, DrawerPadding, 0, 0))
+            .AddChild(new ContainerComponent()
+                .SetPadding(UIThickness.All(DrawerPadding, 0, DrawerPadding, DrawerPadding))
+                .SetBorderThickness(UIThickness.All(0, 0, 0, 1))
+                .SetBorderColor(UIThemeColor.Border)
+                .AddChild(head)
+                .SetPlacement(1, 1, 24, 1)
+            )
             .AddChild(new ScrollContainerComponent()
                 .SetHeight(UILayoutLength.Fill())
-                .SetPadding(UIThickness.All(DrawerPadding, 2, DrawerPadding, 2))
+                .SetPadding(UIThickness.Uniform(DrawerPadding))
                 .AddChild(body)
                 .SetPlacement(1, 2, 24, 1)
             );
@@ -1009,7 +1013,13 @@ public static class UIPage
             ? panel
             : panel
                 .AddRow(UIGridUnit.Auto())
-                .AddChild(new ContainerComponent().SetPadding(horizontal).AddChild(footer).SetPlacement(1, 3, 24, 1));
+                .AddChild(new ContainerComponent()
+                    .SetPadding(UIThickness.Uniform(DrawerPadding))
+                    .SetBorderThickness(UIThickness.All(0, 1, 0, 0))
+                    .SetBorderColor(UIThemeColor.Border)
+                    .AddChild(footer)
+                    .SetPlacement(1, 3, 24, 1)
+                );
     }
 
     /// <summary>
