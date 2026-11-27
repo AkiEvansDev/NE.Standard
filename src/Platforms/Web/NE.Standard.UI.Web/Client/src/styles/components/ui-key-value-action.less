@@ -51,7 +51,7 @@
 @media @{ui-can-hover} {
     // Its own rows, not a nested list's, and not a disabled one (`@ui-row-live`), as an items view's, a table's and a tree's.
     .ui-key-value-action--row-hover > .ui-key-value-action__host > .ui-key-value-action__row@{ui-row-live}:hover {
-        .ui-row-hover();
+        .ui-row-hover(false);
         background-clip: padding-box;
 
         // One wash, not two: the editing cell's own — its focus's, its pointer's — comes off under a hover the row already answers.
@@ -87,9 +87,10 @@
     }
 
 // The keyboard's row: the list is a row host whose cursor's row holds the focus, the host's one Tab stop (row-cursor.ts).
-.ui-row-cursor-on-row(~".ui-key-value-action", ~".ui-key-value-action__row");
+.ui-row-cursor-on-row(~".ui-key-value-action", ~".ui-key-value-action__row", @buttons: false);
 
 .ui-key-value-action > .ui-key-value-action__host > .ui-key-value-action__row[data-ui-row-click]:not([data-ui-row-editing])@{ui-row-live} {
+    touch-action: manipulation;
     cursor: pointer;
 }
 

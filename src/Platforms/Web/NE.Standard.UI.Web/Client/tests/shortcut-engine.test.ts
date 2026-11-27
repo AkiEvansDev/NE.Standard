@@ -292,3 +292,41 @@ test("a chord only a row's menu waiting to be drawn names draws that row's menu 
     assert.deepEqual(drawn, ["b"]);
     setLaterMenus(null);
 });
+
+test("a closed split-button menu does not claim chords page-wide, and answers its own chord only while open", () => {
+    const warnings: unknown[] = [];
+    const originalWarn = console.warn;
+
+    console.warn = (...args: unknown[]) => warnings.push(args);
+
+    try {
+        const pageRename = button("F2");
+        const words = FakeElement.of("ui-menu-item__shortcut", {}, "span");
+        const splitEntry = FakeElement.of("ui-menu-item", { "data-ui-shortcut": "F2" }, "a").append(words);
+        const splitMenu = FakeElement.of("ui-split-button__menu").append(FakeElement.of("ui-menu").append(splitEntry));
+        const splitButton = FakeElement.of("ui-split-button").append(splitMenu);
+        let splitPresses = 0;
+
+        splitMenu.laidOut = false;
+        splitEntry.addEventListener("click", () => splitPresses++);
+
+        page([pageRename.element, splitButton]);
+
+        // Closed split-button menu still formats its chord label, emits no collision warning, and lets the page control fire.
+        assert.equal(words.textContent, "F2");
+        assert.equal(press(pageRename.element, "F2", "F2"), true);
+        assert.equal(pageRename.presses, 1);
+        assert.equal(splitPresses, 0);
+        assert.deepEqual(warnings, []);
+
+        // Once the split-button menu opens, F2 activates its entry ahead of the page control behind it.
+        splitButton.classList.add("ui-split-button--open");
+        splitMenu.laidOut = true;
+        assert.equal(press(splitEntry, "F2", "F2"), true);
+        assert.equal(pageRename.presses, 1);
+        assert.equal(splitPresses, 1);
+    }
+    finally {
+        console.warn = originalWarn;
+    }
+});

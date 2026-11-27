@@ -136,16 +136,17 @@
 
 @media @{ui-can-hover} {
     .ui-tree--row-hover > [data-ui-items-host] > .ui-tree__row@{ui-row-live}:hover {
-        .ui-row-hover();
+        .ui-row-hover(false);
     }
 }
 
-.ui-row-cursor(~".ui-tree", ~".ui-tree__row");
-.ui-row-bar(~".ui-tree", ~".ui-tree__row");
+.ui-row-cursor(~".ui-tree", ~".ui-tree__row", @buttons: false);
+.ui-row-bar(~".ui-tree", ~".ui-tree__row", @buttons: false);
 
 .ui-tree[data-ui-selection="one"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live},
 .ui-tree[data-ui-selection="many"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-tree__row@{ui-row-live},
 .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-click]@{ui-row-live} {
+    touch-action: manipulation;
     cursor: pointer;
 }
 

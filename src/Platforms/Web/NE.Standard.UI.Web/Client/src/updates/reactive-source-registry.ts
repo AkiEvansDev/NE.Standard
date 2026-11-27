@@ -63,12 +63,38 @@ export class ReactiveSourceRegistry {
         };
     }
 
+    /** Records the authored shown value of any watched source inside `scope` (a dialog mounted after initial boot) not yet in state. */
+    public recordShownValuesIn(scope: ParentNode): void {
+        if (this.edits === undefined || this.sourcesByComponent.size === 0)
+            return;
+
+        for (const [componentId, sources] of this.sourcesByComponent) {
+            const component = scope.querySelector(`[${ComponentIdAttribute}="${componentId}"]`);
+
+            if (component === null)
+                continue;
+
+            for (const source of sources) {
+                if (this.propertyPatchEngine.hasRecordedValue(source, []))
+                    continue;
+
+                const holder = isEndSource(source, this.edits.metadata) ? component.querySelector(`[${ValueEndAttribute}]`) : resolveValueHolder(component);
+
+                if (holder !== null)
+                    this.propertyPatchEngine.recordValue(source, [], this.edits.valueReaders.readBound(holder));
+            }
+        }
+    }
+
     /**
      * Records the value a watched source's field shows as the page opens, as an edit of it is recorded: a field set at authoring time
      * and bound to nothing is never pushed, so a rule reading it — a list's filter — would read no value until the reader edits it.
      * A bound source's value arrives with the page's snapshot over it, the same.
      */
     private recordShownValue(source: WebRenderPropertyReferenceMetadata): void {
+        if (this.propertyPatchEngine.hasRecordedValue(source, []))
+            return;
+
         const component = this.edits?.root.querySelector(`[${ComponentIdAttribute}="${getIdValue(source.componentId)}"]`) ?? null;
         const holder = component === null ? null : isEndSource(source, this.edits?.metadata) ? component.querySelector(`[${ValueEndAttribute}]`) : resolveValueHolder(component);
 

@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Compiled.Indexes;
+using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Compiled.Views;
@@ -13,6 +15,8 @@ public sealed class CompiledView
 {
     // The dialogs' titles, gathered at the first ask (NamesDialog).
     private HashSet<UIComponentId>? _dialogTitles;
+    // Distinct component type keys across the compiled graph, gathered once per compile.
+    private FrozenSet<string>? _componentTypes;
 
     /// <summary>
     /// Gets the view title.
@@ -114,6 +118,25 @@ public sealed class CompiledView
     public CompiledDialog? FindDialog(string key)
         => CompiledDialog.Find(Dialogs, key);
 
+    /// <summary>Distinct component type keys present anywhere in this compiled view (regions, dialogs, templates and slots).</summary>
+    public IReadOnlySet<string> ComponentTypes => _componentTypes ??= GatherComponentTypes();
+
+    /// <summary>Whether the compiled view uses at least one of <paramref name="typeKeys"/>.</summary>
+    public bool UsesAnyComponentType(IReadOnlyList<string> typeKeys)
+    {
+        ArgumentNullException.ThrowIfNull(typeKeys);
+
+        IReadOnlySet<string> present = ComponentTypes;
+
+        for (var i = 0; i < typeKeys.Count; i++)
+        {
+            if (present.Contains(typeKeys[i]))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>Whether the component is a dialog's title, which the dialog's panel names in <c>aria-labelledby</c>.</summary>
     /// <remarks>Asked for every component a page renders, so the titles are gathered once per compile, not scanned per component.</remarks>
     public bool NamesDialog(UIComponentId componentId)
@@ -125,6 +148,16 @@ public sealed class CompiledView
         _dialogTitles ??= GatherDialogTitles();
 
         return _dialogTitles.Contains(componentId);
+    }
+
+    private FrozenSet<string> GatherComponentTypes()
+    {
+        HashSet<string> types = [with(StringComparer.Ordinal)];
+
+        foreach (UIComponentNode node in Graph.All)
+            _ = types.Add(node.TypeKey);
+
+        return types.ToFrozenSet(StringComparer.Ordinal);
     }
 
     private HashSet<UIComponentId> GatherDialogTitles()

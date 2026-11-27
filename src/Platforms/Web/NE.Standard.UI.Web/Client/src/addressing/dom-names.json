@@ -2477,6 +2477,10 @@
         "value":  "data-ui-dialog-placement"
     },
     {
+        "constant":  "DialogTemplateAttribute",
+        "value":  "data-ui-dialog-template"
+    },
+    {
         "constant":  "OverlayScrollbarClass",
         "value":  "ui-overlay-scrollbar",
         "clientOnly":  true

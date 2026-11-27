@@ -4,6 +4,7 @@
 // whole page on every breakpoint crossed. One class, so every rule of the stylesheet and every engine reading it see the width's.
 
 import { TierLayoutAttribute, TierOrientationAttribute, TierSizeAttribute } from "../addressing/dom-attributes.ts";
+import { observeMutations } from "../interactions/dom-mutations.ts";
 import type { ResponsiveTier } from "./responsive-tier.ts";
 import { currentResponsiveTier, onTierChange, responsiveTiers } from "./responsive-tier.ts";
 
@@ -53,11 +54,8 @@ export class TierClassEngine {
         fitAllTierClasses(this.root);
         onTierChange(() => fitAllTierClasses(this.root));
 
-        if (!(this.root instanceof Node))
-            return;
-
         // Its own records rather than a component watch: a row put into a panel that is fitted itself holds elements of its own to fit.
-        new MutationObserver(records => {
+        observeMutations(this.root, { childList: true, attributeFilter: [...TierClassAttributes] }, records => {
             const tier = currentResponsiveTier();
 
             for (const record of records) {
@@ -71,6 +69,6 @@ export class TierClassEngine {
                         fitAllTierClasses(node, tier);
                 }
             }
-        }).observe(this.root, { subtree: true, childList: true, attributeFilter: [...TierClassAttributes] });
+        });
     }
 }

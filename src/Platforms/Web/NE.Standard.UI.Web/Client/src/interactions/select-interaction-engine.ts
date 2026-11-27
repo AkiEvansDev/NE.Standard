@@ -8,6 +8,7 @@ import {
 import { isAnchoredPopupPlacement } from "./anchored-popup.ts";
 import { isCaretField } from "./caret-fields.ts";
 import { dropWaiting } from "./debounced-commit-engine.ts";
+import { observeMutations } from "./dom-mutations.ts";
 import { isInert, isItemDisabled } from "./interactive-state.ts";
 import { isComposing, isPlainKey } from "./keyboard-shortcut.ts";
 import { enterTags, holdsTagSeparator, parseChosenKeys, parseMaxChosen, removeChosenKey, splitTags, takeTypedTags, toggleChosenKey } from "./multi-select-keys.ts";
@@ -69,7 +70,7 @@ export class SelectInteractionEngine {
         this.root = options.root ?? document;
         this.validation = options.validation;
 
-        const answer = (mutations: MutationRecord[]): void => {
+        const answer = (mutations: readonly MutationRecord[]): void => {
             const selects = new Set<HTMLElement>();
 
             for (const mutation of mutations) {
@@ -81,11 +82,10 @@ export class SelectInteractionEngine {
                 this.sync(select);
         };
 
-        this.optionWatch = this.root instanceof Node ? new MutationObserver(answer) : null;
+        observeMutations(this.root, { attributes: true, attributeFilter: ObservedAttributes, childList: true }, answer);
+        // Per-select option observer watches `characterData` and `style` on individual select hosts rather than the whole document.
+        this.optionWatch = this.root instanceof Node && typeof MutationObserver === "function" ? new MutationObserver(answer) : null;
         registerRuntimeCleanup(() => this.optionWatch?.disconnect());
-
-        if (this.root instanceof Node && this.optionWatch !== null)
-            this.optionWatch.observe(this.root, { attributes: true, attributeFilter: ObservedAttributes, childList: true, subtree: true });
 
         for (const select of this.root.querySelectorAll<HTMLElement>(SelectHostSelector))
             this.sync(select);

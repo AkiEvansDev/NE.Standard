@@ -128,17 +128,18 @@
 
 [data-ui-id] {
     --ui-align-h: initial;
+    --ui-align-h-sm: initial;
+    --ui-align-h-md: initial;
+    --ui-align-h-xl: initial;
+    --ui-align-h-xxl: initial;
     --ui-align-v: initial;
-    --ui-align-v-stretch-fallback: initial;
+    --ui-align-v-sm: initial;
+    --ui-align-v-md: initial;
+    --ui-align-v-xl: initial;
+    --ui-align-v-xxl: initial;
     --ui-corner-shape: initial;
-
-    // Custom properties inherit; without this reset a tinted card would hand its colour to every surface inside it.
     --ui-surface-color: initial;
-
-    .ui-responsive-layout-reset();
-    .ui-responsive-reset(--ui-padding);
-    .ui-responsive-reset(--ui-border-thickness);
-    .ui-responsive-reset(--ui-border-radius);
+    .ui-responsive-root-reset();
 
     // Fill (WebCssValues.FillSize) is the parent's room less the element's own margins on that axis, so a filled box with a margin
     // fits its parent in any layout rather than overflowing it by the margin; the margin's tiers carry their sides summed.
@@ -194,8 +195,8 @@
 // on the same line (never a wrapping panel's) makes caption and box tall. Rejected: a cell around it (a hidden thing left its cell's
 // gap, and every arrangement wrapped its children by hand).
 .ui-field-aligned[data-ui-id] {
-    .ui-responsive-reset(--ui-field-aligned);
-    .ui-responsive-reset(--ui-field-aligned-box);
+    .ui-responsive-local-reset(--ui-field-aligned);
+    .ui-responsive-local-reset(--ui-field-aligned-box);
     // A field's box by its Size (ui-input.less).
     --ui-field-box-small: @ui-control-height-sm;
     --ui-field-box-medium: @ui-control-height;
@@ -457,6 +458,10 @@ body {
 // A control's words are never selected, whatever a TextSelectable says around or inside it: a press is the control's, a drag its
 // drag (a caption's, a tab's), and a double press must not light a word of a label.
 @ui-control-hosts: ~".ui-button, .ui-action, .ui-tabs__strip, .ui-tabs-view__host, .ui-tab-item, .ui-steps, .ui-menu, .ui-context-menu, .ui-action-bar, .ui-tree__row, .ui-table__header, .ui-select__trigger, .ui-select__popup, .ui-command-bar, .ui-button-group, .ui-split-button, .ui-breadcrumbs, .ui-collapsible__toggle, .ui-expander__header, .ui-key-value-action__action";
+
+:is(@{ui-control-hosts}) {
+    touch-action: manipulation;
+}
 
 :is(@{ui-control-hosts}),
 :is(@{ui-control-hosts}) :is(.ui-content-text, [data-ui-text-select]) {

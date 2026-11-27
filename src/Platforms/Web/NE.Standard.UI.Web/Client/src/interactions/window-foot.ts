@@ -10,6 +10,7 @@ import {
     DrawerModelessAttribute, DrawerOpenAttribute, pinnedAttribute, RegionAttribute, RootAttribute, SheetAttribute,
     SheetCoveredAttribute, ThemeAttribute, WindowFootAttribute, WindowFootEdgeAttribute
 } from "../addressing/dom-attributes.ts";
+import { observeMutations } from "./dom-mutations.ts";
 import { findOpenModalDialog, findTopmostOpenDialog } from "./open-dialogs.ts";
 import { onSheetChange } from "./popup-sheet.ts";
 import { isPressWaveRecord } from "./press-wave.ts";
@@ -104,7 +105,7 @@ function opaqueForm(color: string): string {
 
 export class WindowFootEngine {
     private readonly root: ParentNode;
-    private readonly treeObserver: MutationObserver;
+    private readonly treeObserver: MutationObserver | null;
     private readonly themeObserver: MutationObserver;
     private readonly schemeMedia: MediaQueryList | null;
     private readonly stopSheets: () => void;
@@ -128,13 +129,8 @@ export class WindowFootEngine {
 
     public constructor(options: WindowFootEngineOptions = {}) {
         this.root = options.root ?? document;
-        this.treeObserver = new MutationObserver(mutations => {
-            if (mutations.some(isRelevantFootMutation))
-                this.schedule();
-        });
-        this.treeObserver.observe(this.root, {
+        this.treeObserver = observeMutations(this.root, {
             childList: true,
-            subtree: true,
             attributes: true,
             attributeFilter: [
                 DrawerOpenAttribute,
@@ -148,6 +144,9 @@ export class WindowFootEngine {
                 "hidden",
                 "open"
             ]
+        }, mutations => {
+            if (mutations.some(isRelevantFootMutation))
+                this.schedule();
         });
         this.themeObserver = new MutationObserver(() => this.schedule());
         this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: [ThemeAttribute] });
@@ -165,7 +164,7 @@ export class WindowFootEngine {
             this.frame = 0;
         }
 
-        this.treeObserver.disconnect();
+        this.treeObserver?.disconnect();
         this.themeObserver.disconnect();
         this.schemeMedia?.removeEventListener("change", this.onSchemeChange);
         this.stopSheets();

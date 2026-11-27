@@ -9,12 +9,31 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { FakeElement, FakeEvent, FakeKeyboardEvent, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
+let queuedMutations: MutationRecord[] = [];
+
 installFakeDom({
     window: { innerWidth: 1280, addEventListener: () => undefined, removeEventListener: () => undefined, setTimeout, clearTimeout },
-    getComputedStyle: () => ({ direction: "ltr" })
+    getComputedStyle: () => ({ direction: "ltr" }),
+    MutationObserver: class {
+        public observe(): void {
+        }
+
+        public disconnect(): void {
+            queuedMutations = [];
+        }
+
+        public takeRecords(): MutationRecord[] {
+            const drained = queuedMutations;
+
+            queuedMutations = [];
+
+            return drained;
+        }
+    }
 });
 
 const { DialogEngine } = await import("../src/interactions/dialog-engine.ts");
+const { observeMutations } = await import("../src/interactions/dom-mutations.ts");
 const { OwnedPopups } = await import("../src/interactions/owned-popup.ts");
 
 const body = fakeDocument.body;
@@ -182,4 +201,76 @@ test("a dialog the server closes while a list hung at the body's end from a stri
     assert.equal(fakeDocument.activeElement, opener);
 
     lists.close();
+});
+
+test("a dialog holding an inert template mounts its content on first open, invokes onMount once, and focuses inside it", () => {
+    const mounted: string[] = [];
+    const lazyDialogs = new DialogEngine({ root: real<ParentNode>(body), onMount: (_surface, key) => mounted.push(key) });
+    const confirm = FakeElement.of("ui-dialog", { "data-ui-dialog": "lazy", "data-ui-dialog-modal": "", "data-ui-dialog-close-escape": "", hidden: "" });
+    const surface = FakeElement.of("ui-dialog__surface", { role: "dialog", tabindex: "-1" });
+    const button = new FakeElement("button");
+    const template = FakeElement.of("", { "data-ui-dialog-template": "" }, "template") as FakeElement & { content: FakeElement; replaceWith(node: FakeElement): void };
+
+    template.content = button;
+    template.replaceWith = (node: FakeElement): void => {
+        const index = surface.children.indexOf(template);
+
+        if (index >= 0) {
+            surface.children.splice(index, 1);
+            surface.append(node);
+        }
+    };
+    surface.append(template);
+    confirm.append(FakeElement.of("ui-dialog__backdrop", { "data-ui-dialog-backdrop": "" }), surface);
+    body.children.length = 0;
+    body.append(new FakeElement().append(confirm));
+
+    lazyDialogs.open("lazy");
+
+    assert.deepEqual(mounted, ["lazy"]);
+    assert.deepEqual(surface.children, [button]);
+    assert.equal(fakeDocument.activeElement, button);
+
+    lazyDialogs.close("lazy");
+    lazyDialogs.open("lazy");
+
+    assert.deepEqual(mounted, ["lazy"]);
+    lazyDialogs.close("lazy");
+});
+
+test("mounting a lazy dialog flushes queued subtree mutations after unhiding and before choosing initial focus", () => {
+    const lazyDialogs = new DialogEngine({ root: real<ParentNode>(body) });
+    const confirm = FakeElement.of("ui-dialog", { "data-ui-dialog": "lazy-menu", "data-ui-dialog-modal": "", "data-ui-dialog-close-escape": "", hidden: "" });
+    const surface = FakeElement.of("ui-dialog__surface", { role: "dialog", tabindex: "-1" });
+    const entry = FakeElement.of("ui-menu__item", { tabindex: "-1" }, "a");
+    const template = FakeElement.of("", { "data-ui-dialog-template": "" }, "template") as FakeElement & { content: FakeElement; replaceWith(node: FakeElement): void };
+    let unhiddenWhenFlushed = false;
+
+    const subscription = observeMutations(real<ParentNode>(body), { childList: true }, () => {
+        unhiddenWhenFlushed = !confirm.hasAttribute("hidden");
+        entry.setAttribute("tabindex", "0");
+    });
+
+    template.content = entry;
+    template.replaceWith = (node: FakeElement): void => {
+        const index = surface.children.indexOf(template);
+
+        if (index >= 0) {
+            surface.children.splice(index, 1);
+            surface.append(node);
+            queuedMutations.push(real<MutationRecord>({ type: "childList", target: surface, addedNodes: [node], removedNodes: [template] }));
+        }
+    };
+    surface.append(template);
+    confirm.append(FakeElement.of("ui-dialog__backdrop", { "data-ui-dialog-backdrop": "" }), surface);
+    body.children.length = 0;
+    body.append(new FakeElement().append(confirm));
+
+    lazyDialogs.open("lazy-menu");
+
+    assert.equal(unhiddenWhenFlushed, true);
+    assert.equal(fakeDocument.activeElement, entry);
+
+    lazyDialogs.close("lazy-menu");
+    subscription?.disconnect();
 });

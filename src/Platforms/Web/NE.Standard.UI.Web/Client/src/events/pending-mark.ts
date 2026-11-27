@@ -4,8 +4,8 @@
 // `.ts` on the value imports: `node --test` loads this module as it is.
 import { LoadingClass, PendingAttribute } from "../addressing/dom-attributes.ts";
 
-/** How long an answer may take unseen: a quicker one shows nothing, so a fast link never flickers. */
-export const PendingDelayMilliseconds = 300;
+/** How long an answer may take unseen: a quicker one shows nothing, so a fast link never flickers while slow taps acknowledge promptly. */
+export const PendingDelayMilliseconds = 160;
 
 /** The event a press raises — a button's click or submit, a row's or a card's — and the one whose element is marked. */
 export const PendingEventName = "click";

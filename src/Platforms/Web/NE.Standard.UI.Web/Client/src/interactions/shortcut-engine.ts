@@ -1,20 +1,20 @@
 // The page's one registry of key chords. A control's or a menu entry's (`data-ui-shortcut`) presses it from anywhere on the page; a
-// context menu's entry presses it for the row under the keyboard, as the menu opened there would — a row's menu waiting to be drawn
-// (`row-menus.ts`) names its chords all the same, and is drawn by the chord; the view's own
-// (`UIViewBase.CreateShortcuts`) is raised as `shortcut:<chord>` on the view's content, where its command or effect is compiled. One set
-// of rules for all three: a modified chord fires in a field unless the field took it (the listener is in the bubble phase), an
-// unmodified key typed into a field is the text's, an open modal keeps everything outside it out of reach, and a chord claimed twice
-// fires neither.
+// split button's popup menu entry presses it only while that menu is open; a context menu's entry presses it for the row under the
+// keyboard, as the menu opened there would — a row's menu waiting to be drawn (`row-menus.ts`) names its chords all the same, and is
+// drawn by the chord; the view's own (`UIViewBase.CreateShortcuts`) is raised as `shortcut:<chord>` on the view's content, where its
+// command or effect is compiled. One set of rules for all: a modified chord fires in a field unless the field took it (the listener is
+// in the bubble phase), an unmodified key typed into a field is the text's, an open modal keeps everything outside it out of reach,
+// and a chord claimed twice fires neither.
 
-import { CommitInPlaceEventName, ContextMenuAttribute, MenuItemClass, MenuItemShortcutAttribute, MenuItemShortcutClass, ShortcutAttribute, TextTitleClass } from "../addressing/dom-attributes.ts";
+import { CommitInPlaceEventName, ContextMenuAttribute, MenuItemClass, MenuItemShortcutAttribute, MenuItemShortcutClass, PopupLiftedAttribute, ShortcutAttribute, SplitButtonMenuClass, SplitButtonOpenClass, TextTitleClass } from "../addressing/dom-attributes.ts";
 import type { WebUIMetadata } from "../metadata/metadata-index.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
 import { logWarn } from "../metadata/logger.ts";
 import { isShownEntry } from "./action-bar.ts";
 import { isCaretField, isFieldKey } from "./caret-fields.ts";
 import { contextMenuAt, keyboardPlace } from "./context-menu-engine.ts";
+import { observeMutations } from "./dom-mutations.ts";
 import { isInert } from "./interactive-state.ts";
-import { onlyPressWaves } from "./press-wave.ts";
 import type { KeyboardShortcut } from "./keyboard-shortcut.ts";
 import { formatShortcut, isComposing, matchesShortcut, parseShortcut, shortcutKey } from "./keyboard-shortcut.ts";
 import { findOpenModalDialog } from "./open-dialogs.ts";
@@ -28,6 +28,7 @@ const ViewShortcutPrefix = "shortcut:";
 // A menu entry's chord at its end, written by this engine in the reader's platform's words.
 const EntryShortcutSelector = `:scope > .${MenuItemShortcutClass}`;
 const ContextMenuSelector = `[${ContextMenuAttribute}]`;
+const SplitButtonMenuSelector = `.${SplitButtonMenuClass}`;
 const ShortcutSelector = `[${ShortcutAttribute}]`;
 const TitleSelector = `.${TextTitleClass}`;
 
@@ -60,6 +61,8 @@ export class ShortcutEngine {
     private readonly claims = new Map<string, Claim | null>();
     // The chords some context menu's entry carries, so a key no entry names never asks a menu to open.
     private readonly entryShortcuts = new Map<string, KeyboardShortcut>();
+    // The chords some split button's popup menu carries, active only while that menu is open.
+    private readonly splitMenuShortcuts = new Map<string, KeyboardShortcut>();
     private stale = true;
     // The waiting menus' chords' version the registry was built on.
     private laterVersion = -1;
@@ -75,21 +78,13 @@ export class ShortcutEngine {
 
         writeEntryChords(this.root);
 
-        if (this.root instanceof Node) {
-            // Any change stales the registry, rebuilt on the next key; an entry's words are written as it arrives or its chord changes.
-            const observer = new MutationObserver(mutations => {
-                // A press's wave in an entry changes no chord.
-                if (onlyPressWaves(mutations))
-                    return;
+        // Any change stales the registry, rebuilt on the next key; an entry's words are written as it arrives or its chord changes.
+        observeMutations(this.root, { childList: true, attributeFilter: [ShortcutAttribute] }, mutations => {
+            this.stale = true;
 
-                this.stale = true;
-
-                for (const mutation of mutations)
-                    writeChordsOf(mutation);
-            });
-
-            observer.observe(this.root, { childList: true, subtree: true, attributeFilter: [ShortcutAttribute] });
-        }
+            for (const mutation of mutations)
+                writeChordsOf(mutation);
+        });
     }
 
     private handleKeydown(domEvent: Event): void {
@@ -103,10 +98,14 @@ export class ShortcutEngine {
         if (this.stale || this.laterVersion !== (this.options.laterChords?.version ?? -1))
             this.rebuild();
 
-        if (this.claims.size === 0 && this.entryShortcuts.size === 0)
+        if (this.claims.size === 0 && this.entryShortcuts.size === 0 && this.splitMenuShortcuts.size === 0)
             return;
 
         const modal = findOpenModalDialog(this.root);
+
+        // An open split-button menu answers its own chords before the page behind it.
+        if (this.pressOpenSplitMenuEntry(domEvent, modal))
+            return;
 
         // The row under the keyboard first: its menu is nearer the reader than anything page-wide claiming the same chord.
         if (this.pressContextEntry(domEvent, modal))
@@ -134,6 +133,35 @@ export class ShortcutEngine {
         }
     }
 
+    /** Presses the matching entry of an open split-button menu; closed split-button menus never claim or fire page-wide chords. */
+    private pressOpenSplitMenuEntry(domEvent: KeyboardEvent, modal: HTMLElement | null): boolean {
+        let named = false;
+
+        for (const shortcut of this.splitMenuShortcuts.values())
+            named ||= matchesShortcut(shortcut, domEvent);
+
+        if (!named)
+            return false;
+
+        const menu = this.findOpenSplitMenu(domEvent.target);
+
+        if (menu === null || (modal !== null && !modal.contains(menu) && !menu.hasAttribute(PopupLiftedAttribute)))
+            return false;
+
+        return this.pressMenuEntry(menu, domEvent, "split button menu shortcut is claimed twice and will fire nothing.");
+    }
+
+    private findOpenSplitMenu(target: EventTarget | null): HTMLElement | null {
+        const fromTarget = target instanceof Element ? target.closest<HTMLElement>(SplitButtonMenuSelector) : null;
+
+        if (fromTarget !== null && (fromTarget.hasAttribute(PopupLiftedAttribute) || fromTarget.closest(`.${SplitButtonOpenClass}`) !== null))
+            return fromTarget;
+
+        const openOwner = this.root.querySelector<HTMLElement>(`.${SplitButtonOpenClass}`);
+
+        return openOwner?.querySelector<HTMLElement>(`:scope > ${SplitButtonMenuSelector}`) ?? null;
+    }
+
     /**
      * Presses the entry of the context menu at the keyboard's place that carries the chord — the menu a right press there opens, asked
      * as an opening asks it — for the row the keyboard is on; nothing where no row is under the cursor or chosen.
@@ -154,15 +182,19 @@ export class ShortcutEngine {
         if (opened === null)
             return false;
 
-        const entries = [...opened.menu.querySelectorAll<HTMLElement>(ShortcutSelector)].filter(entry => {
+        return this.pressMenuEntry(opened.menu, domEvent, "context menu shortcut is claimed twice and will fire nothing.");
+    }
+
+    private pressMenuEntry(menu: HTMLElement, domEvent: KeyboardEvent, duplicateMessage: string): boolean {
+        const entries = [...menu.querySelectorAll<HTMLElement>(ShortcutSelector)].filter(entry => {
             const shortcut = parseShortcut(entry.getAttribute(ShortcutAttribute));
 
-            return shortcut !== null && matchesShortcut(shortcut, domEvent) && !isInert(entry) && isShownEntry(entry, opened.menu);
+            return shortcut !== null && matchesShortcut(shortcut, domEvent) && !isInert(entry) && isShownEntry(entry, menu);
         });
 
         if (entries.length !== 1) {
             if (entries.length > 1)
-                logWarn("context menu shortcut is claimed twice and will fire nothing.", { entries });
+                logWarn(duplicateMessage, { entries });
 
             return false;
         }
@@ -184,6 +216,7 @@ export class ShortcutEngine {
     private rebuild(): void {
         this.claims.clear();
         this.entryShortcuts.clear();
+        this.splitMenuShortcuts.clear();
         this.stale = false;
 
         for (const element of this.root.querySelectorAll<HTMLElement>(ShortcutSelector)) {
@@ -200,6 +233,9 @@ export class ShortcutEngine {
             // A context menu's entry acts on what the menu is opened on: it is looked for at the keyboard's place, not page-wide.
             if (element.closest(ContextMenuSelector) !== null)
                 this.entryShortcuts.set(shortcutKey(shortcut), shortcut);
+            // A split button's popup menu stays closed until opened: its chords act only while that menu is open, never page-wide.
+            else if (element.closest(SplitButtonMenuSelector) !== null)
+                this.splitMenuShortcuts.set(shortcutKey(shortcut), shortcut);
             else
                 this.claim({ shortcut, element, view: null });
         }

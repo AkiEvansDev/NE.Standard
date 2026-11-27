@@ -1,6 +1,6 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { CollectionSinkAttribute, ComponentKeyAttribute, ComponentSelector, ItemsEmptyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes.ts";
-import { findOwningComponentAddress, findOwningComponentId } from "../addressing/dom-registry.ts";
+import { CollectionSinkAttribute, ComponentKeyAttribute, ComponentSelector, DialogTemplateAttribute, ItemsEmptyAttribute, ItemsHostAttribute } from "../addressing/dom-attributes.ts";
+import { findOwningComponentAddress, findOwningComponentId, readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
 import { onNotCarried, readItemValuePath } from "../items/binding-template-evaluator.ts";
 import { HeldCollections } from "../items/held-collections.ts";
@@ -69,6 +69,11 @@ export class UpdateProcessor {
     // The collections of hosts declared inside an item template, for the rows built after they arrived.
     private readonly held = new HeldCollections();
 
+    // Components waiting inside inert closed dialog templates until first open: collections and sinks are held until mounted.
+    private readonly waitingDialogComponents = new Set<number>();
+    private readonly waitingDialogSinks = new Set<number>();
+    private readonly heldSinkUpdates = new Map<number, ServerCollectionChangeUIUpdate[]>();
+
     // What each host's rows carry, on a page in development; empty elsewhere, and nothing is marked.
     private readonly projections: ItemProjections;
 
@@ -113,6 +118,28 @@ export class UpdateProcessor {
 
         if (!this.projections.isEmpty)
             onNotCarried((record, propertyName) => this.projections.check(record, propertyName));
+
+        this.scanWaitingDialogs();
+    }
+
+    /** Records components and collection sinks inside closed dialog templates so updates arriving before first open are held. */
+    private scanWaitingDialogs(): void {
+        for (const template of this.dom.root.querySelectorAll<HTMLTemplateElement>(`template[${DialogTemplateAttribute}]`)) {
+            if (template.content === undefined)
+                continue;
+
+            for (const element of template.content.querySelectorAll(ComponentSelector)) {
+                const componentId = readComponentId(element);
+
+                if (componentId <= 0)
+                    continue;
+
+                this.waitingDialogComponents.add(componentId);
+
+                if (element.hasAttribute(CollectionSinkAttribute))
+                    this.waitingDialogSinks.add(componentId);
+            }
+        }
     }
 
     /** Gives a row just built the collections its hosts share, as the server last sent them rather than as the template was rendered. */
@@ -153,12 +180,12 @@ export class UpdateProcessor {
      * a list in a menu waiting outside the rows to be drawn (a link's, `row-menus.ts`), held for the menu drawn later.
      */
     private holdsCollection(componentId: number, dynamicParameters: readonly unknown[]): boolean {
-        return dynamicParameters.length === 0 && (this.itemsTemplates.isTemplateComponent(componentId) || this.rowMenus.holds(componentId));
+        return dynamicParameters.length === 0 && (this.itemsTemplates.isTemplateComponent(componentId) || this.rowMenus.holds(componentId) || this.waitingDialogComponents.has(componentId));
     }
 
-    /** Whether a collection is a row's own for its menu waiting to be drawn (`row-menus.ts`), held for the menu drawn later. */
+    /** Whether a collection is a row's own for its menu or closed dialog waiting to be drawn, held until mounted. */
     private holdsRowCollection(componentId: number, dynamicParameters: readonly unknown[]): boolean {
-        return dynamicParameters.length > 0 && this.rowMenus.holds(componentId);
+        return dynamicParameters.length > 0 && (this.rowMenus.holds(componentId) || this.waitingDialogComponents.has(componentId));
     }
 
     /** Every held row with its component: the chords a menu waiting to be drawn carries are read off them. */
@@ -210,6 +237,92 @@ export class UpdateProcessor {
     }
 
     /**
+     * Brings a dialog surface just mounted from its inert template up to date: registers server-drawn rows, refills held collections,
+     * initializes untouched item hosts, replays pushed property values and flushes buffered collection-sink updates.
+     */
+    public mountDialogSurface(surface: Element): void {
+        const mountedIds = new Set<number>();
+
+        for (const element of surface.querySelectorAll(ComponentSelector)) {
+            const componentId = readComponentId(element);
+
+            if (componentId <= 0)
+                continue;
+
+            mountedIds.add(componentId);
+            this.waitingDialogComponents.delete(componentId);
+            this.waitingDialogSinks.delete(componentId);
+        }
+
+        this.dom.invalidate(surface);
+        registerRenderedRows(surface, this.metadata, this.itemsRenderer, this.projections);
+
+        const done = new Set<Element>();
+
+        for (let host = nextHost(surface, done); host !== null; host = nextHost(surface, done)) {
+            done.add(host);
+
+            const owner = findOwningComponentAddress(host);
+
+            if (owner === null)
+                continue;
+
+            const items = owner.dynamicParameters.length > 0
+                ? this.held.getRow(owner.componentId, owner.dynamicParameters)
+                : this.held.takeWaiting(host) ?? this.held.get(owner.componentId);
+
+            if (items !== undefined) {
+                this.refillHost(host, { componentId: owner.componentId, dynamicParameters: owner.dynamicParameters, items });
+
+                if (!this.itemsTemplates.isTemplateComponent(owner.componentId) && !this.rowMenus.holds(owner.componentId))
+                    this.held.forget(owner.componentId);
+            }
+            else {
+                this.syncItemsHost(host, owner.componentId);
+            }
+
+            const submenuId = this.itemsTemplates.getSubmenuComponentId?.(owner.componentId);
+
+            if (submenuId !== undefined) {
+                for (const row of getRealItemElements(host)) {
+                    const rowKey = row.getAttribute(ComponentKeyAttribute);
+
+                    if (rowKey !== null && (this.held.getRow(submenuId, [...owner.dynamicParameters, rowKey])?.length ?? 0) > 0)
+                        this.mountRowSubmenu(row, rowKey, owner.componentId);
+                }
+            }
+        }
+
+        for (const element of surface.querySelectorAll(ComponentSelector)) {
+            const componentId = readComponentId(element);
+
+            if (componentId > 0)
+                mountedIds.add(componentId);
+        }
+
+        this.dom.invalidate(surface);
+        this.propertyPatchEngine.replayComponents(mountedIds);
+
+        for (const componentId of mountedIds) {
+            const buffered = this.heldSinkUpdates.get(componentId);
+
+            if (buffered === undefined)
+                continue;
+
+            this.heldSinkUpdates.delete(componentId);
+
+            for (const update of buffered) {
+                const dynamicParameters = update.component?.dynamicParameters ?? [];
+                const component = this.dom.findComponent(componentId, dynamicParameters);
+                const sinkKind = component?.getAttribute(CollectionSinkAttribute) ?? null;
+
+                if (component !== null && sinkKind !== null)
+                    this.sinks.dispatch(sinkKind, toCollectionChange(update, component, componentId, dynamicParameters));
+            }
+        }
+    }
+
+    /**
      * A patch to a part of a waiting menu's entry (a pin's words, a check): the entry's held item takes the value as it was sent,
      * whether the menu is drawn or not, so a menu drawn later — or drawn again with its row — shows it, in the reader's language then.
      * The entry is named by its key after its row's (a row's menu), or by its key alone (a link's menu outside the rows); a list not
@@ -250,7 +363,7 @@ export class UpdateProcessor {
      * own — before a change or a patch applies to it: started empty, the menu drawn later would show that change alone.
      */
     private holdFromRender(componentId: number, dynamicParameters: readonly unknown[]): void {
-        if (!this.rowMenus.holds(componentId) || this.heldList(componentId, dynamicParameters) !== undefined)
+        if ((!this.rowMenus.holds(componentId) && !this.waitingDialogComponents.has(componentId)) || this.heldList(componentId, dynamicParameters) !== undefined)
             return;
 
         const drawn = this.metadata.getItemValues(componentId, dynamicParameters);
@@ -391,7 +504,7 @@ export class UpdateProcessor {
     }
 
     private namesSink(refill: CollectionRefill): boolean {
-        return this.dom.findComponent(refill.componentId, refill.dynamicParameters)?.hasAttribute(CollectionSinkAttribute) === true;
+        return this.waitingDialogSinks.has(refill.componentId) || this.dom.findComponent(refill.componentId, refill.dynamicParameters)?.hasAttribute(CollectionSinkAttribute) === true;
     }
 
     /** Applies a reset-then-whole-collection pair by reconciling against the rows on screen, rather than rebuilding them. */
@@ -576,6 +689,18 @@ export class UpdateProcessor {
             if (!this.sinks.dispatch(sinkKind, toCollectionChange(update, component, componentId, dynamicParameters)))
                 logWarn("no collection sink is registered for the kind the component names.", { kind: sinkKind, update });
 
+            return;
+        }
+
+        if (component === null && this.waitingDialogSinks.has(componentId)) {
+            let queue = this.heldSinkUpdates.get(componentId);
+
+            if (queue === undefined || getCollectionUpdateAction(update.action) === "Reset") {
+                queue = [];
+                this.heldSinkUpdates.set(componentId, queue);
+            }
+
+            queue.push(update);
             return;
         }
 

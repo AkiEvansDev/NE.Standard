@@ -46,6 +46,16 @@ export class HeldCollections {
         applyChange(rows, update);
     }
 
+    /** Lets go of the rows held for a component (both shared and row-scoped) once its surface is mounted. */
+    public forget(componentId: number): void {
+        this.collections.delete(componentId);
+
+        for (const [key, held] of this.rowCollections) {
+            if (held.componentId === componentId)
+                this.rowCollections.delete(key);
+        }
+    }
+
     /** The rows held for a component, or none where nothing was. */
     public get(componentId: number): readonly HeldRow[] | undefined {
         return this.collections.get(componentId);

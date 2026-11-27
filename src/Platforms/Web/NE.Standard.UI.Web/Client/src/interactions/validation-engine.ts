@@ -8,7 +8,7 @@ import { findOwningComponentAddress, readComponentId } from "../addressing/dom-r
 import { matchesDynamicParameters } from "../addressing/dynamic-parameters.ts";
 import type { ValueReaderRegistry } from "../extensions/value-readers.ts";
 import { resolveValueHolder } from "../extensions/value-readers.ts";
-import { getIdValue, getPropertyKeyName, getValidationTrigger } from "../metadata/metadata-index.ts";
+import { getIdValue, getPropertyKeyName, getValidationTrigger, rowKeysText } from "../metadata/metadata-index.ts";
 import type { MetadataIndex, ServerValidationUIUpdate, WebRenderPropertyReferenceMetadata, WebRenderValidationMetadata } from "../metadata/metadata-index.ts";
 import { prefersReducedMotion } from "../rendering/motion.ts";
 import { clientStrings, readTextWords } from "../rendering/client-strings.ts";
@@ -103,6 +103,8 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
     private readonly markerMirrors = new WeakMap<HTMLElement, HTMLElement>();
     /** The lines a shared message target holds, one per field element — a templated field has one id across its rows. */
     private readonly messageLines = new Map<string, MessageLines>();
+    /** Server refusals that arrived while their target component waited inside a closed dialog template. */
+    private readonly pendingRefusals = new Map<string, ServerValidationUIUpdate>();
 
     public constructor(options: ValidationEngineOptions) {
         this.options = options;
@@ -368,8 +370,21 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
         const message = update.message ?? "";
         // The author's text or a key as a plain string, or a phrase (a FormatMessage given as one).
         const spoken = isPhrase(message) || (typeof message === "string" && message.length > 0);
+        const key = `${componentId}:${rowKeysText(dynamicParameters)}:${getPropertyKeyName(update.address?.property)}`;
+        const targets = this.options.dom.findAllComponents(componentId, dynamicParameters);
 
-        for (const element of this.options.dom.findAllComponents(componentId, dynamicParameters)) {
+        if (targets.length === 0) {
+            if (spoken)
+                this.pendingRefusals.set(key, update);
+            else
+                this.pendingRefusals.delete(key);
+
+            return;
+        }
+
+        this.pendingRefusals.delete(key);
+
+        for (const element of targets) {
             if (!spoken) {
                 this.refusalByElement.delete(element);
             } else {
@@ -378,6 +393,32 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
             }
 
             this.applyCurrentState(componentId, element);
+        }
+    }
+
+    /** Replays server refusals that arrived while a dialog waited in its inert template, once its surface is mounted. */
+    public replayRefusals(scope: ParentNode): void {
+        if (this.pendingRefusals.size === 0)
+            return;
+
+        const mounted = new Set<number>();
+
+        for (const element of scope.querySelectorAll(ComponentSelector)) {
+            const componentId = readComponentId(element);
+
+            if (componentId > 0)
+                mounted.add(componentId);
+        }
+
+        if (mounted.size === 0)
+            return;
+
+        for (const [key, update] of [...this.pendingRefusals]) {
+            if (!mounted.has(getIdValue(update.address?.component?.id)))
+                continue;
+
+            this.pendingRefusals.delete(key);
+            this.applyServerRefusal(update);
         }
     }
 
@@ -823,6 +864,8 @@ export class ValidationEngine implements FieldValidation, EntryValidation, Shown
 
     /** Forgets every rule, bound, refusal and conflict judgement across the page when switching to another runtime. */
     public discardAll(): void {
+        this.pendingRefusals.clear();
+
         for (const [key, held] of [...this.messageLines]) {
             held.lines.clear();
             this.messageLines.delete(key);

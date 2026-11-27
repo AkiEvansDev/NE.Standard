@@ -11,8 +11,42 @@
     // Reset here, or a nested container takes its parent's spacing. The column gap is capped at a 24th of the room the fixed
     // columns leave, so a narrow container closes up; by 24, not 23, or the star columns get none and round into overflow.
     // The row gap has no track count to fit, so it stays uncapped.
-    .ui-responsive-reset(--ui-container-spacing);
-    .ui-responsive-reset(--ui-container-fixed-columns);
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        --ui-container-spacing-sm: initial !important;
+        --ui-container-fixed-columns-sm: initial !important;
+        --ui-columns-sm: initial !important;
+        --ui-rows-sm: initial !important;
+        --ui-split-columns-sm: initial !important;
+        --ui-split-rows-sm: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-md - 0.02px)) {
+        --ui-container-spacing-md: initial !important;
+        --ui-container-fixed-columns-md: initial !important;
+        --ui-columns-md: initial !important;
+        --ui-rows-md: initial !important;
+        --ui-split-columns-md: initial !important;
+        --ui-split-rows-md: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-xl - 0.02px)) {
+        --ui-container-spacing-xl: initial !important;
+        --ui-container-fixed-columns-xl: initial !important;
+        --ui-columns-xl: initial !important;
+        --ui-rows-xl: initial !important;
+        --ui-split-columns-xl: initial !important;
+        --ui-split-rows-xl: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+        --ui-container-spacing-xxl: initial !important;
+        --ui-container-fixed-columns-xxl: initial !important;
+        --ui-columns-xxl: initial !important;
+        --ui-rows-xxl: initial !important;
+        --ui-split-columns-xxl: initial !important;
+        --ui-split-rows-xxl: initial !important;
+    }
+
     .ui-responsive-property(--ui-container-gap, --ui-container-spacing, 0px);
     row-gap: var(--ui-container-gap);
     @fixed-columns: .ui-responsive-chain(--ui-container-fixed-columns; 0px)[@value];
@@ -21,11 +55,7 @@
     background-color: var(--ui-surface-color, transparent);
     .ui-surface-image();
 
-    // The authored tracks per tier, reset here or a nested container lays out on its parent's; a splitter's division sits over them.
-    .ui-responsive-reset(--ui-columns);
-    .ui-responsive-reset(--ui-rows);
-    .ui-responsive-reset(--ui-split-columns);
-    .ui-responsive-reset(--ui-split-rows);
+    // The authored tracks per tier (`inherits: false` in core/properties.less); a splitter's division sits over them.
     @columns: .ui-responsive-chain(--ui-columns; repeat(24, minmax(0, 1fr)))[@value];
     @rows: .ui-responsive-chain(--ui-rows; minmax(0, 1fr))[@value];
     .ui-responsive-property(grid-template-columns, --ui-split-columns, @columns);
@@ -53,10 +83,33 @@
 }
 
 :is(@{ui-placement-hosts}) > :is([data-ui-id], .ui-pane-container__place) {
-    .ui-responsive-reset(--ui-placement-column);
-    .ui-responsive-reset(--ui-placement-row);
-    .ui-responsive-reset(--ui-placement-column-span);
-    .ui-responsive-reset(--ui-placement-row-span);
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        --ui-placement-column-sm: initial !important;
+        --ui-placement-row-sm: initial !important;
+        --ui-placement-column-span-sm: initial !important;
+        --ui-placement-row-span-sm: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-md - 0.02px)) {
+        --ui-placement-column-md: initial !important;
+        --ui-placement-row-md: initial !important;
+        --ui-placement-column-span-md: initial !important;
+        --ui-placement-row-span-md: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-xl - 0.02px)) {
+        --ui-placement-column-xl: initial !important;
+        --ui-placement-row-xl: initial !important;
+        --ui-placement-column-span-xl: initial !important;
+        --ui-placement-row-span-xl: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+        --ui-placement-column-xxl: initial !important;
+        --ui-placement-row-xxl: initial !important;
+        --ui-placement-column-span-xxl: initial !important;
+        --ui-placement-row-span-xxl: initial !important;
+    }
 
     --ui-placement-column: 1;
     --ui-placement-row: 1;

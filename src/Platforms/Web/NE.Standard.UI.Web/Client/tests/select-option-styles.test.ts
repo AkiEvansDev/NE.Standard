@@ -54,3 +54,15 @@ test("a template shorter than the row stands in its middle: a select's option ce
     // A component root's own `align-self: normal` stretched it in the multi-select's row; the template's own alignment still wins.
     assert.match(declarations(".ui-multi-select .ui-select__option > *"), /align-self: var\(--ui-align-v, center\);/);
 });
+
+test("a select trigger's chosen text inherits both font size and line height, and a small select scales and centres its chevron", () => {
+    const triggerText = declarations(".ui-select__trigger-content > .ui-text");
+
+    assert.match(triggerText, /font-size: inherit;/);
+    assert.match(triggerText, /line-height: inherit;/);
+
+    const smallChevron = declarations(".ui-select.ui-input--small > .ui-select__trigger > .ui-select__chevron::before");
+
+    assert.match(smallChevron, /font-size: 0\.75rem;/);
+    assert.match(smallChevron, /translate: 0 1px;/);
+});

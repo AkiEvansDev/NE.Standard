@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -71,6 +72,11 @@ public sealed class WebAssetDescriptor
     public string? ResourceAssemblyName { get; init; }
 
     public int Order { get; init; }
+
+    /// <summary>
+    /// Component type keys whose presence in a compiled view requires this asset; <see langword="null"/> means linked on every view.
+    /// </summary>
+    public IReadOnlyList<string>? RequiredComponentTypes { get; init; }
 
     public Stream Open()
     {

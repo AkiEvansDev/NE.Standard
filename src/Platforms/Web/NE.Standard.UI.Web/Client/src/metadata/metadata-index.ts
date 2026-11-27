@@ -100,12 +100,18 @@ export class MetadataIndex {
     private readonly validationsAgainstComponentId = new Map<number, WebRenderValidationMetadata[]>();
     private readonly validationTargetsByComponentId = new Map<number, WebRenderValidationMessageTargetMetadata>();
     private readonly exposedProperties = new Map<string, WebRenderPropertyReferenceMetadata>();
+    private readonly componentTypes: ReadonlySet<string> | null;
+    private readonly hasExternalComponentTypes: boolean;
 
     // A plain field rather than a parameter property: node's type stripping refuses one, and the tests import this module.
     public readonly metadata: WebUIMetadata;
 
     public constructor(metadata: WebUIMetadata) {
         this.metadata = metadata;
+        this.componentTypes = metadata.componentTypes !== undefined && metadata.componentTypes !== null && metadata.componentTypes.length > 0
+            ? new Set(metadata.componentTypes)
+            : null;
+        this.hasExternalComponentTypes = this.componentTypes !== null && [...this.componentTypes].some(typeKey => !typeKey.startsWith("standard."));
 
         for (const property of metadata.propertyDefinitions)
             this.addPropertyDefinition(property);
@@ -140,6 +146,26 @@ export class MetadataIndex {
 
         for (const validation of metadata.validations)
             this.addValidation(validation);
+    }
+
+    /**
+     * Whether a built-in component engine for `typeKeys` should start: when one of those built-in types is in the view, or when a
+     * non-core package component is present (since a package renderer may emit core DOM primitives directly without a child node).
+     */
+    public allowsCoreEngine(typeKeys: readonly string[]): boolean {
+        return this.hasExternalComponentTypes || this.hasAnyComponentType(typeKeys);
+    }
+
+    private hasAnyComponentType(typeKeys: readonly string[]): boolean {
+        if (this.componentTypes === null)
+            return true;
+
+        for (const typeKey of typeKeys) {
+            if (this.componentTypes.has(typeKey))
+                return true;
+        }
+
+        return false;
     }
 
     public getPropertyDefinition(propertyId: string): WebRenderPropertyDefinitionMetadata | undefined {

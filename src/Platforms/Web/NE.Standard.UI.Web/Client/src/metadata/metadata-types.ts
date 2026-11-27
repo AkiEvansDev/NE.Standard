@@ -37,6 +37,8 @@ export type WebUIMetadata = {
     readonly words?: readonly WebRenderWordMetadata[];
     // In development, what the view's compile warned of — a binding naming nothing — for the page's console.
     readonly compileWarnings?: readonly string[] | null;
+    // Distinct component type keys present anywhere in the compiled view, letting the client skip unneeded component engines.
+    readonly componentTypes?: readonly string[] | null;
 };
 
 /** A static translatable value by where it landed: its component, property and row keys, and its key — a string or a phrase. */

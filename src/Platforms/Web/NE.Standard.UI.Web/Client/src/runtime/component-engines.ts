@@ -196,14 +196,24 @@ type CoreEngineContext = EngineContext & {
     readonly valueBinding: ValueBindingEngine | undefined;
 };
 
+type ComponentEngineEntry = readonly [
+    name: string,
+    start: (context: CoreEngineContext) => unknown,
+    types?: readonly string[]
+];
+
+const TemporalInputTypes: readonly string[] = ["standard.input.calendar", "standard.input.date", "standard.input.date-time", "standard.input.time"];
+const TimeInputTypes: readonly string[] = ["standard.input.date-time", "standard.input.time"];
+
 // Engines needing only the root and the shared services, named for the console if one throws; where their order matters, it says so.
-const ComponentEngines: readonly (readonly [name: string, start: (context: CoreEngineContext) => unknown])[] = [
+// Entries listing `types` start when the compiled view contains one of those built-in types (or any package component).
+const ComponentEngines: readonly ComponentEngineEntry[] = [
     ["refusal", ({ root }) => startRefusals(root)],
-    ["file input", ({ root, validation }) => new FileInputEngine({ root, validation })],
-    ["image input", ({ root, validation, propertyPatchEngine, dialogs }) => new ImageInputEngine({ root, validation, propertyPatchEngine, dialogs })],
-    ["key value action", ({ root, dom, propertyPatchEngine, validation }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine, validation })],
+    ["file input", ({ root, validation }) => new FileInputEngine({ root, validation }), ["standard.input.file"]],
+    ["image input", ({ root, validation, propertyPatchEngine, dialogs }) => new ImageInputEngine({ root, validation, propertyPatchEngine, dialogs }), ["standard.input.image", "standard.input.file"]],
+    ["key value action", ({ root, dom, propertyPatchEngine, validation }) => new KeyValueActionEngine({ root, dom, propertyPatchEngine, validation }), ["standard.key-value-action"]],
     // Listens in the capture phase ahead of FieldKeysEngine so trigger keys claim Enter, Tab, Backspace and Delete first.
-    ["text trigger", ({ root, propertyPatchEngine }) => new TextTriggerEngine({ root, propertyPatchEngine })],
+    ["text trigger", ({ root, propertyPatchEngine }) => new TextTriggerEngine({ root, propertyPatchEngine }), ["standard.input.text", "standard.input.text-area"]],
     ["field keys", ({ root, propertyPatchEngine, commitGate, valueBinding }) => new FieldKeysEngine({
         root,
         propertyPatchEngine,
@@ -217,56 +227,56 @@ const ComponentEngines: readonly (readonly [name: string, start: (context: CoreE
     // Ahead of the engines reading a class it sets (an orientation, a size, a list's layout), so they read the width's.
     ["tier classes", ({ root }) => new TierClassEngine({ root })],
     ["image fallback", ({ root }) => new ImageFallbackEngine({ root })],
-    ["radio group sync", ({ root }) => new RadioGroupSyncEngine({ root })],
-    ["multi-select checkboxes", ({ root }) => new MultiSelectCheckboxesEngine({ root })],
+    ["radio group sync", ({ root }) => new RadioGroupSyncEngine({ root }), ["standard.input.radio-group"]],
+    ["multi-select checkboxes", ({ root }) => new MultiSelectCheckboxesEngine({ root }), ["standard.input.multi-select"]],
     ["select interaction", ({ root, validation }) => new SelectInteractionEngine({ root, validation })],
-    ["search input", ({ root }) => new SearchInputEngine({ root })],
+    ["search input", ({ root }) => new SearchInputEngine({ root }), ["standard.input.search"]],
     ["debounced commit", ({ root }) => new DebouncedCommitEngine({ root })],
     // Only where the stylesheet cannot size a growing text area to its text on its own.
-    ["text area grow", ({ root, propertyPatchEngine }) => sizesFieldsToContent() ? undefined : new TextAreaGrowEngine({ root, propertyPatchEngine })],
+    ["text area grow", ({ root, propertyPatchEngine }) => sizesFieldsToContent() ? undefined : new TextAreaGrowEngine({ root, propertyPatchEngine }), ["standard.input.text-area"]],
     // Before items selection so F2 on a renamable text inside a row or cell opens its inline rename field first.
     ["text rename", ({ root, effects, propertyPatchEngine }) => new TextRenameEngine({ root, effects, propertyPatchEngine })],
     ["items selection", ({ root, heldRows }) => new ItemsSelectionEngine({ root, rows: heldRows })],
-    ["range value", ({ root, propertyPatchEngine }) => new RangeValueEngine({ root, propertyPatchEngine })],
-    ["color input", ({ root, propertyPatchEngine }) => new ColorInputEngine({ root, propertyPatchEngine })],
+    ["range value", ({ root, propertyPatchEngine }) => new RangeValueEngine({ root, propertyPatchEngine }), ["standard.input.slider", "standard.input.image"]],
+    ["color input", ({ root, propertyPatchEngine }) => new ColorInputEngine({ root, propertyPatchEngine }), ["standard.input.color"]],
     ["temporal picker", ({ root, propertyPatchEngine, validation, commitGate }) => new TemporalPickerEngine({
         root,
         propertyPatchEngine,
         validation,
         noteCommitted: (field, track) => commitGate?.noteCommitted(field, track)
-    })],
-    ["theme switcher", ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom })],
-    ["language switcher", ({ root, effects, dom }) => new LanguageSwitcherEngine({ root, effects, dom })],
-    ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine })],
-    ["timestamp", ({ root, propertyPatchEngine }) => new TimestampEngine({ root, propertyPatchEngine })],
-    ["file tile", ({ root, propertyPatchEngine }) => new FileTileEngine({ root, propertyPatchEngine })],
+    }), TemporalInputTypes],
+    ["theme switcher", ({ root, effects, dom }) => new ThemeSwitcherEngine({ root, effects, dom }), ["standard.theme-switcher"]],
+    ["language switcher", ({ root, effects, dom }) => new LanguageSwitcherEngine({ root, effects, dom }), ["standard.language-switcher"]],
+    ["time segment", ({ root, propertyPatchEngine }) => new TimeSegmentEngine({ root, propertyPatchEngine }), TimeInputTypes],
+    ["timestamp", ({ root, propertyPatchEngine }) => new TimestampEngine({ root, propertyPatchEngine }), ["standard.timestamp"]],
+    ["file tile", ({ root, propertyPatchEngine }) => new FileTileEngine({ root, propertyPatchEngine }), ["standard.file-tile", "standard.input.file", "standard.default.file.template"]],
     ["context menu", ({ root, dom }) => new ContextMenuEngine({ root, dom })],
-    ["split button", ({ root }) => new SplitButtonEngine({ root })],
+    ["split button", ({ root }) => new SplitButtonEngine({ root }), ["standard.split-button"]],
     ["toggle button", ({ root }) => new ToggleButtonEngine({ root })],
-    ["button group", ({ root }) => new ButtonGroupEngine({ root })],
+    ["button group", ({ root }) => new ButtonGroupEngine({ root }), ["standard.button-group"]],
     ["menu", ({ root }) => new MenuEngine({ root })],
     ["action bar", ({ root, dom }) => new ActionBarEngine({ root, dom })],
     // Before the group engine: it restores a menu's fold, and groups are opened against the shape that leaves.
-    ["collapsible", ({ root }) => new CollapsibleEngine({ root })],
-    ["menu group", ({ root }) => new MenuGroupEngine({ root })],
-    ["menu search", ({ root }) => new MenuSearchEngine({ root })],
+    ["collapsible", ({ root }) => new CollapsibleEngine({ root }), ["standard.collapsible-panel", "standard.expander", "standard.menu", "standard.accordion"]],
+    ["menu group", ({ root }) => new MenuGroupEngine({ root }), ["standard.menu"]],
+    ["menu search", ({ root }) => new MenuSearchEngine({ root }), ["standard.menu"]],
     ["side drawer", ({ root }) => new SideDrawerEngine({ root })],
     ["screen keyboard", () => new ScreenKeyboardEngine()],
     ["window foot", ({ root }) => new WindowFootEngine({ root })],
-    ["grid splitter", ({ root }) => new GridSplitterEngine({ root })],
-    ["pane container", ({ root }) => new PaneContainerEngine({ root })],
-    ["accordion", ({ root }) => new AccordionEngine({ root })],
-    ["tabs", ({ root }) => new TabsEngine({ root })],
-    ["tabs view", ({ root, effects, propertyPatchEngine }) => new TabsViewEngine({ root, effects, propertyPatchEngine })],
-    ["command bar", ({ root }) => new CommandBarEngine({ root })],
-    ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root })],
-    ["steps", ({ root }) => new StepsEngine({ root })],
+    ["grid splitter", ({ root }) => new GridSplitterEngine({ root }), ["standard.grid-splitter"]],
+    ["pane container", ({ root }) => new PaneContainerEngine({ root }), ["standard.pane-container"]],
+    ["accordion", ({ root }) => new AccordionEngine({ root }), ["standard.accordion", "standard.items-view"]],
+    ["tabs", ({ root }) => new TabsEngine({ root }), ["standard.tabs", "standard.tabs-view"]],
+    ["tabs view", ({ root, effects, propertyPatchEngine }) => new TabsViewEngine({ root, effects, propertyPatchEngine }), ["standard.tabs-view"]],
+    ["command bar", ({ root }) => new CommandBarEngine({ root }), ["standard.command-bar"]],
+    ["breadcrumbs", ({ root }) => new BreadcrumbsEngine({ root }), ["standard.breadcrumbs"]],
+    ["steps", ({ root }) => new StepsEngine({ root }), ["standard.steps"]],
     ["scroll anchor", ({ root }) => new ScrollAnchorEngine({ root })],
     ["visible keys", ({ root }) => new VisibleKeyEngine({ root })],
     ["surface press", ({ root }) => new SurfacePressEngine({ root })],
     ["text selection", ({ root }) => new TextSelectionEngine({ root })],
     ["scroll group", ({ root }) => new ScrollGroupEngine({ root })],
-    ["flyout interaction", ({ root }) => new FlyoutInteractionEngine({ root })],
+    ["flyout interaction", ({ root }) => new FlyoutInteractionEngine({ root }), ["standard.flyout"]],
     ["text fold", ({ root }) => new TextFoldEngine({ root })],
     ["tooltip", ({ root }) => startTooltips(root)]
 ];
@@ -309,11 +319,14 @@ export function startCoreComponentEngines(
 
     const coreContext: CoreEngineContext = { ...engineContext, commitGate, valueBinding };
 
-    for (const [name, start] of ComponentEngines)
-        record(startEngine(name, start, coreContext));
+    for (const [name, start, types] of ComponentEngines) {
+        if (types === undefined || metadata.allowsCoreEngine(types))
+            record(startEngine(name, start, coreContext));
+    }
 
     // Apart from the list: a tree's filter and sort run in its own walk, which needs the rules and the rows' values.
-    record(startEngine("tree", ({ root, effects, propertyPatchEngine }) => new TreeEngine({ root, effects, propertyPatchEngine, rules: { metadata, state: propertyState, renderer: itemsRenderer, compareItems, itemMatchesFilters } }), engineContext));
+    if (metadata.allowsCoreEngine(["standard.tree"]))
+        record(startEngine("tree", ({ root, effects, propertyPatchEngine }) => new TreeEngine({ root, effects, propertyPatchEngine, rules: { metadata, state: propertyState, renderer: itemsRenderer, compareItems, itemMatchesFilters } }), engineContext));
 
     // Apart from the list: whether a sort orders a host is the rules', and a virtualized host's order its values'.
     record(startEngine("items reorder", ({ root }) => new ItemsReorderEngine({ root, services: { metadata, state: propertyState, keysOf: host => virtualization.keysOf(host) } }), engineContext));
@@ -399,7 +412,8 @@ function registerBuiltInPipelineEvents(
     }), engineContext));
 
     // After the window engine, which it asks for a page; its Page keys are heard on the window, ahead of the row cursor's.
-    record(startEngine("pager", ({ root, dom }) => new PagerEngine({ root, dom, windows }), engineContext));
+    if (metadata.allowsCoreEngine(["standard.pager"]))
+        record(startEngine("pager", ({ root, dom }) => new PagerEngine({ root, dom, windows }), engineContext));
 }
 
 export function createPluginEngineContext(

@@ -47,3 +47,26 @@ test("a source with no field on the page records nothing", () => {
 
     assert.equal(state.has(FilterValue, []), false);
 });
+
+test("recordShownValuesIn records an unbound field mounted in a dialog without overwriting a pushed server value", () => {
+    const field = new FakeInput("text");
+    const dialog = FakeElement.of("ui-dialog__surface").append(FakeElement.of("ui-text-input", { "data-ui-id": "7" }).append(field));
+
+    field.value = "authored";
+    fakeDocument.body.children.length = 0;
+
+    const { state, sources } = createRegistry();
+
+    sources.watch(FilterValue, () => undefined);
+    assert.equal(state.has(FilterValue, []), false);
+
+    // Unbound source mounted later records its authored value.
+    sources.recordShownValuesIn(real<ParentNode>(dialog));
+    assert.equal(state.get(FilterValue, []), "authored");
+
+    // A pushed value already in state is preserved when recordShownValuesIn runs again.
+    state.set(FilterValue, [], "pushed");
+    field.value = "stale-dom";
+    sources.recordShownValuesIn(real<ParentNode>(dialog));
+    assert.equal(state.get(FilterValue, []), "pushed");
+});

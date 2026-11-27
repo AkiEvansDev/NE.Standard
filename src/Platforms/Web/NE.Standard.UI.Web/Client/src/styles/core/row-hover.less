@@ -1,0 +1,29 @@
+@import "./tokens.less";
+@import "../mixins/selected.less";
+
+// Quiet buttons inside any washed row (hover, keyboard cursor, or floating action bar) share one rule set instead of
+// repeating the button/split-button descendants per list host and state.
+@media @{ui-can-hover} {
+    :is(
+        .ui-items-view--row-hover > [data-ui-items-host] > .ui-items-view__item@{ui-row-live}:hover,
+        .ui-table--row-hover > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live}:hover,
+        .ui-tree--row-hover > [data-ui-items-host] > .ui-tree__row@{ui-row-live}:hover,
+        .ui-key-value-action--row-hover > .ui-key-value-action__host > .ui-key-value-action__row@{ui-row-live}:hover
+    ) {
+        .ui-row-hover-buttons();
+    }
+}
+
+:is(
+    .ui-items-view:not([role="list"])@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus]:not([data-ui-selected]),
+    .ui-items-view[role="list"]:not(.ui-items-view--wrap) > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus]@{ui-row-cursor-focus}:not([data-ui-selected]),
+    .ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-bar]:not([data-ui-selected]),
+    .ui-table[role="table"] > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]@{ui-row-cursor-focus}:not([data-ui-selected]),
+    .ui-table[role="grid"]@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]:not([data-ui-selected]),
+    .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-bar]:not([data-ui-selected]),
+    .ui-tree@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-tree__row[data-ui-row-focus]:not([data-ui-selected]),
+    .ui-tree > [data-ui-items-host] > .ui-tree__row[data-ui-row-bar]:not([data-ui-selected]),
+    .ui-key-value-action > [data-ui-items-host] > .ui-key-value-action__row[data-ui-row-focus]@{ui-row-cursor-focus}:not([data-ui-selected])
+) {
+    .ui-row-hover-buttons();
+}

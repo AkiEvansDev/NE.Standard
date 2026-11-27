@@ -320,17 +320,17 @@
 
 @media @{ui-can-hover} {
     .ui-table--row-hover > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live}:hover {
-        .ui-row-hover();
+        .ui-row-hover(false);
     }
 }
 
 // A table's row holds the focus itself (row-cursor.ts); a grid's root holds it and names the cell.
-.ui-row-cursor-on-row(~'.ui-table[role="table"]', ~".ui-table__row", ~".ui-table__scroll > ");
+.ui-row-cursor-on-row(~'.ui-table[role="table"]', ~".ui-table__row", ~".ui-table__scroll > ", @buttons: false);
 
 // A grid's keyboard stands on a cell (row-cursor.ts): its row keeps the keyboard's wash, as a list's row does, and the cell wears the
 // frame.
 .ui-table[role="grid"]@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus]:not([data-ui-selected]) {
-    .ui-row-hover();
+    .ui-row-hover(false);
 }
 
 .ui-table[role="grid"]@{ui-row-cursor-focus} > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-focus][data-ui-selected] {
@@ -345,7 +345,7 @@
     background-image: linear-gradient(var(--ui-wash-hover), var(--ui-wash-hover));
     .ui-keyboard-frame();
 }
-.ui-row-bar(~".ui-table", ~".ui-table__row", ~".ui-table__scroll > ");
+.ui-row-bar(~".ui-table", ~".ui-table__row", ~".ui-table__scroll > ", @buttons: false);
 
 .ui-table__cell {
     display: flex;
@@ -542,6 +542,7 @@
 .ui-table[data-ui-selection="one"]:not([data-ui-no-row-select]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live},
 .ui-table[data-ui-selection="many"]:not([data-ui-no-row-select]) > .ui-table__scroll > [data-ui-items-host] > .ui-table__row@{ui-row-live},
 .ui-table > .ui-table__scroll > [data-ui-items-host] > .ui-table__row[data-ui-row-click]@{ui-row-live} {
+    touch-action: manipulation;
     cursor: pointer;
 }
 

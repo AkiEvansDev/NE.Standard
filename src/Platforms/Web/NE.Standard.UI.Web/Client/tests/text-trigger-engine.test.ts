@@ -250,10 +250,12 @@ test("server-loaded items for one trigger keep static items for a sibling trigge
         "data-ui-trigger-search": ""
     }, "label").append(FakeElement.of("ui-text-input__row").append(field));
 
-    fakeDocument.body.replaceChildren(owner);
+    const page = FakeElement.of("page").append(owner);
+
+    fakeDocument.body.replaceChildren(page);
     mutationCallbacks.length = 0;
     new TextTriggerEngine({
-        root: real<ParentNode>(fakeDocument.body),
+        root: real<ParentNode>(page),
         propertyPatchEngine: real({
             addValueChangeHandler: (handler: (change: { readonly components: readonly Element[] }) => void) => {
                 valueChangeHandlers.push(handler);

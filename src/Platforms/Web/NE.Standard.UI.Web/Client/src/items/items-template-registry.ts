@@ -1,8 +1,7 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ComponentSelector, EmptyTemplateAttribute, GroupTemplateAttribute, TemplateAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, DialogTemplateAttribute, EmptyTemplateAttribute, GroupTemplateAttribute, TemplateAttribute } from "../addressing/dom-attributes.ts";
 import { readComponentId } from "../addressing/dom-registry.ts";
 import type { DomRegistry } from "../addressing/dom-registry.ts";
-import { forEachSubtree } from "../rendering/client-strings.ts";
 import { SubmenuVariantKey } from "./menu-row-decorator.ts";
 
 const DefaultTemplateKey = "default";
@@ -104,7 +103,16 @@ function indexTemplates(root: ParentNode): IndexedTemplates {
     const submenuParentByChildId = new Map<number, number>();
     const submenuChildByParentId = new Map<number, number>();
 
-    forEachSubtree(root, subtree => {
+    const walk = (subtree: ParentNode, insideItemTemplate: boolean): void => {
+        if (insideItemTemplate) {
+            for (const element of subtree.querySelectorAll(ComponentSelector)) {
+                const componentId = readComponentId(element);
+
+                if (componentId > 0)
+                    templateComponentIds.add(componentId);
+            }
+        }
+
         for (const template of subtree.querySelectorAll<HTMLTemplateElement>("template")) {
             const owner = template.parentElement;
             const ownerId = owner === null ? 0 : readComponentId(owner);
@@ -121,19 +129,13 @@ function indexTemplates(root: ParentNode): IndexedTemplates {
                     submenuChildByParentId.set(ownerId, childId);
                 }
             }
+
+            if (template.content !== undefined)
+                walk(template.content, insideItemTemplate || !template.hasAttribute(DialogTemplateAttribute));
         }
+    };
 
-        // The page itself is not a template: only what a template's content declares.
-        if (subtree === root)
-            return;
-
-        for (const element of subtree.querySelectorAll(ComponentSelector)) {
-            const componentId = readComponentId(element);
-
-            if (componentId > 0)
-                templateComponentIds.add(componentId);
-        }
-    });
+    walk(root, false);
 
     return { templateComponentIds, templateOwnersById, submenuParentByChildId, submenuChildByParentId };
 }

@@ -1,8 +1,9 @@
 // `.ts` on the value imports: `node --test` loads this module as it is (the lightbox's test).
-import { ComponentSelector, cssAttributeValue, DialogAttribute, DialogBackdropAttribute, DialogCloseBackdropAttribute, DialogCloseEscapeAttribute, DialogModalAttribute, DialogPlacementAttribute, DialogSurfaceClass, FormIdAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, cssAttributeValue, DialogAttribute, DialogBackdropAttribute, DialogCloseBackdropAttribute, DialogCloseEscapeAttribute, DialogModalAttribute, DialogPlacementAttribute, DialogSurfaceClass, DialogTemplateAttribute, FormIdAttribute } from "../addressing/dom-attributes.ts";
 import { logWarn } from "../metadata/logger.ts";
 import { syncLiftedPopups } from "./anchored-popup.ts";
 import { isCaretField } from "./caret-fields.ts";
+import { flushRootMutations } from "./dom-mutations.ts";
 import { escapeIsClaimed } from "./field-escape.ts";
 import { isComposing } from "./keyboard-shortcut.ts";
 import { popupHolding } from "./owned-popup.ts";
@@ -18,12 +19,15 @@ export type DialogEngineOptions = {
     readonly dom?: ComponentIndex;
     /** Discards a form as `DiscardFormEffect` does (the runtime runs that effect); left out, the viewer's close discards nothing. */
     readonly discardForm?: (formId: string) => void;
+    /** Runs once after a closed dialog's inert template is moved into its surface on first open. */
+    readonly onMount?: (surface: HTMLElement, key: string) => void;
 };
 
 export class DialogEngine {
     private readonly root: ParentNode;
     private readonly components: ComponentIndex | null;
     private readonly discardForm: ((formId: string) => void) | null;
+    private readonly onMount: ((surface: HTMLElement, key: string) => void) | null;
     private readonly returnFocusByKey = new Map<string, HTMLElement>();
     // The swipe each open bottom sheet follows, detached as it closes.
     private readonly swipes = new Map<string, () => void>();
@@ -33,6 +37,7 @@ export class DialogEngine {
         this.root = options.root ?? document;
         this.components = options.dom ?? null;
         this.discardForm = options.discardForm ?? null;
+        this.onMount = options.onMount ?? null;
 
         this.root.addEventListener("mousedown", domEvent => keepFocusOffBackdrop(domEvent), true);
         this.root.addEventListener("click", domEvent => this.handleClick(domEvent), true);
@@ -55,13 +60,18 @@ export class DialogEngine {
         if (!dialog.hasAttribute("hidden"))
             return true;
 
+        const surface = dialog.querySelector<HTMLElement>(`.${DialogSurfaceClass}`) ?? dialog;
+        const mounted = this.mount(surface, key);
+
         standOnTop(dialog);
         dialog.removeAttribute("hidden");
         syncLiftedPopups();
 
+        if (mounted)
+            flushRootMutations(this.root);
+
         // A dialog with nothing focusable in it still takes the focus on its surface, or Tab escapes back to the page behind. Its body
         // starts at the top, not where the last opening was scrolled to: the dialog is one per page, reused for every item it shows.
-        const surface = dialog.querySelector<HTMLElement>(`.${DialogSurfaceClass}`) ?? dialog;
         const first = firstFocusable(dialog);
 
         // Opened by a finger, the surface holds the focus rather than a text field: the phone's keyboard would rise at once over the
@@ -129,6 +139,24 @@ export class DialogEngine {
             if (key !== null)
                 this.close(key);
         }
+    }
+
+    private mount(surface: HTMLElement, key: string): boolean {
+        for (const child of surface.children) {
+            if (child.localName === "template" && child.hasAttribute(DialogTemplateAttribute)) {
+                const template = child as HTMLTemplateElement;
+
+                if (template.content !== undefined) {
+                    template.replaceWith(template.content);
+                    this.onMount?.(surface, key);
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
+        return false;
     }
 
     private find(key: string): HTMLElement | null {

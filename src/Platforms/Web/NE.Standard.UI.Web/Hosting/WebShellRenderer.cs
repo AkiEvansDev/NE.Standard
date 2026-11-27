@@ -439,9 +439,23 @@ public static class WebShellRenderer
         WriteItemValues(writer, metadata.ItemValues);
         WriteWords(writer, metadata.Words);
         WriteCompileWarnings(writer, metadata.CompileWarnings);
+        WriteComponentTypes(writer, metadata.ComponentTypes);
         WriteItemsFilterSort(writer, metadata.ItemsFilterSort);
 
         writer.WriteEndObject();
+    }
+
+    private static void WriteComponentTypes(Utf8JsonWriter writer, IReadOnlyList<string> componentTypes)
+    {
+        if (componentTypes.Count == 0)
+            return;
+
+        writer.WriteStartArray("componentTypes");
+
+        for (var i = 0; i < componentTypes.Count; i++)
+            writer.WriteStringValue(componentTypes[i]);
+
+        writer.WriteEndArray();
     }
 
     private static void WritePropertyDefinitions(Utf8JsonWriter writer, IReadOnlyList<WebRenderPropertyDefinitionMetadata> definitions)

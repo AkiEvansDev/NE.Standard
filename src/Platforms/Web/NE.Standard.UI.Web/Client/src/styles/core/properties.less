@@ -1,0 +1,42 @@
+// Strictly self-only custom properties registered with `inherits: false` so parent values never cascade to descendants,
+// eliminating per-node `initial` reset walls on layouts and placed children.
+// Layout, sizing, alignment, border, corner-shape, surface-color and host-spacing properties stay inherited so component
+// roots (`[data-ui-id]`) pass authored values down to their internal BEM parts (`__surface`, `__host`, `__row`, `__trigger`,
+// `__box`, `__dial`, `__scroll`, `__main`) while fencing at the next `[data-ui-id]` boundary.
+
+.ui-local-property(@name) {
+    @property @{name} {
+        syntax: "*";
+        inherits: false;
+    }
+}
+
+.ui-local-responsive-property(@name) {
+    .ui-local-property(@name);
+    .ui-local-property(~"@{name}-sm");
+    .ui-local-property(~"@{name}-md");
+    .ui-local-property(~"@{name}-xl");
+    .ui-local-property(~"@{name}-xxl");
+}
+
+.ui-local-property(--ui-align-v-stretch-fallback);
+
+.ui-local-responsive-property(--ui-field-aligned);
+.ui-local-responsive-property(--ui-field-aligned-box);
+.ui-local-responsive-property(--ui-scrollbar-air);
+.ui-local-responsive-property(--ui-slider-row-box);
+.ui-local-responsive-property(--ui-container-spacing);
+.ui-local-responsive-property(--ui-container-fixed-columns);
+.ui-local-responsive-property(--ui-columns);
+.ui-local-responsive-property(--ui-rows);
+.ui-local-responsive-property(--ui-split-columns);
+.ui-local-responsive-property(--ui-split-rows);
+.ui-local-responsive-property(--ui-placement-column);
+.ui-local-responsive-property(--ui-placement-row);
+.ui-local-responsive-property(--ui-placement-column-span);
+.ui-local-responsive-property(--ui-placement-row-span);
+.ui-local-responsive-property(--ui-pane-columns);
+.ui-local-responsive-property(--ui-pane-rows);
+.ui-local-responsive-property(--ui-stack-panel-spacing);
+.ui-local-responsive-property(--ui-wrap-panel-spacing);
+.ui-local-responsive-property(--ui-wrap-panel-line-spacing);

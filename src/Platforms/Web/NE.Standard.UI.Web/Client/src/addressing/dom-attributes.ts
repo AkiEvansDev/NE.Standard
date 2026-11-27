@@ -1418,6 +1418,8 @@ export const FieldExpandPlaceholderClass = "ui-field-expand__placeholder";
 
 export const SelectQuietClass = "ui-select--quiet";
 
+export const DialogTemplateAttribute = "data-ui-dialog-template";
+
 /** The names above a package reads too, handed to it as `names` so a rename here reaches it. */
 export const pluginDomNames = {
     componentId: ComponentIdAttribute,

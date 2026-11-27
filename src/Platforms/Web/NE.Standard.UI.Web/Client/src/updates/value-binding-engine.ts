@@ -1,5 +1,5 @@
 // `.ts` on the value imports, and types imported as types: `node --test` loads this module as it is.
-import { ClearAttribute, ClearTargetAttribute, ComponentSelector, cssAttributeValue, DraftDroppedEventName, FormIdAttribute, SecretFieldAttribute, TemporalEndAttribute, ValueBindingAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
+import { ClearAttribute, ClearTargetAttribute, ComponentSelector, cssAttributeValue, DialogTemplateAttribute, DraftDroppedEventName, FormIdAttribute, SecretFieldAttribute, TemporalEndAttribute, ValueBindingAttribute, ValueKindAttribute } from "../addressing/dom-attributes.ts";
 import { isBufferedMode, isWritableMode, resolveWritableBinding, ValueSyncEventNames } from "../addressing/dom-registry.ts";
 import type { ComponentResolveResult, DomRegistry, FormValues, PressedForm } from "../addressing/dom-registry.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
@@ -80,6 +80,9 @@ export class ValueBindingEngine {
 
     // An attach's snapshot is being applied: a field the reader is typing in holds its words against it (`holdTypedDuring`).
     private holdingTyped = false;
+
+    // Reload-carried values whose fields still live inside an unmounted closed `<template data-ui-dialog-template>`.
+    private waitingDialogUnsaved: { readonly unsaved: UnsavedValue; readonly write: (element: Element, bindingId: number, value: unknown) => boolean }[] = [];
 
     public constructor(options: ValueBindingEngineOptions) {
         this.options = options;
@@ -250,6 +253,8 @@ export class ValueBindingEngine {
             if (element.isConnected)
                 released.add(element);
         }
+
+        this.waitingDialogUnsaved.length = 0;
 
         return [...released];
     }
@@ -783,6 +788,9 @@ export class ValueBindingEngine {
             });
         }
 
+        for (const waiting of this.waitingDialogUnsaved)
+            values.push(waiting.unsaved);
+
         return values;
     }
 
@@ -790,39 +798,75 @@ export class ValueBindingEngine {
      * Puts carried-over values back into their fields and has each go as the reader's edit: written, then `input` and `change` raised,
      * so a TwoWay field sends it, an OnSubmit field holds it and the field's rules judge it. One whose field another writer changed
      * since the edit started, or that was held over another's already, is written but held and marked, as a value that waited out a
-     * drop is (`ValueConflict`). A field gone, closed to the reader, or already holding the value is left as it is; answers how many
-     * were put back.
+     * drop is (`ValueConflict`). A field inside a still-unmounted dialog template waits until that dialog mounts; answers how many
+     * were put back immediately.
      */
     public restoreUnsaved(values: readonly UnsavedValue[], write: (element: Element, bindingId: number, value: unknown) => boolean): number {
         let restored = 0;
+        const hasClosedTemplates = this.hasUnmountedDialogs();
 
         for (const unsaved of values) {
-            const field = this.findField(unsaved);
             const binding = this.options.metadata.getBindingById(Number(unsaved.bindingId));
 
-            if (field === null || binding === undefined || isReadOnly(field.element) || isInert(field.element) || isSensitive(field.element))
+            if (binding === undefined)
                 continue;
 
-            if (areValuesEqual(this.options.valueReaders.readBound(field.element), unsaved.value) || !write(field.element, Number(unsaved.bindingId), unsaved.value))
-                continue;
+            const field = this.findField(unsaved);
 
-            restored++;
+            if (field === null) {
+                if (hasClosedTemplates)
+                    this.waitingDialogUnsaved.push({ unsaved, write });
 
-            if (unsaved.conflicted === true || this.changedSince(unsaved, binding)) {
-                this.holdConflicted(field.element, field.component);
                 continue;
             }
 
-            field.element.dispatchEvent(new Event("input", { bubbles: true }));
-            field.element.dispatchEvent(new Event("change", { bubbles: true }));
+            if (this.applyRestoredField(field, binding, unsaved, write))
+                restored++;
         }
 
         return restored;
     }
 
+    /** Applies carried-over reload values whose fields lived inside an inert dialog template until `scope` mounted. */
+    public restoreMountedUnsaved(scope: ParentNode): number {
+        if (this.waitingDialogUnsaved.length === 0)
+            return 0;
+
+        let restored = 0;
+        const remaining: { readonly unsaved: UnsavedValue; readonly write: (element: Element, bindingId: number, value: unknown) => boolean }[] = [];
+        const hasClosedTemplates = this.hasUnmountedDialogs();
+
+        for (const entry of this.waitingDialogUnsaved) {
+            const binding = this.options.metadata.getBindingById(Number(entry.unsaved.bindingId));
+
+            if (binding === undefined)
+                continue;
+
+            const field = this.findField(entry.unsaved, scope);
+
+            if (field === null) {
+                if (hasClosedTemplates)
+                    remaining.push(entry);
+
+                continue;
+            }
+
+            if (this.applyRestoredField(field, binding, entry.unsaved, entry.write))
+                restored++;
+        }
+
+        this.waitingDialogUnsaved = remaining;
+
+        return restored;
+    }
+
+    private hasUnmountedDialogs(): boolean {
+        return this.root.querySelector(`template[${DialogTemplateAttribute}]`) !== null;
+    }
+
     /** The field whose writable value goes through the binding, in the row the keys name; a control or a `data-ui-bind-value` element. */
-    private findField(unsaved: UnsavedValue): { readonly element: Element; readonly component: Element } | null {
-        for (const raw of this.root.querySelectorAll(`input, textarea, select, [${ValueBindingAttribute}]`)) {
+    private findField(unsaved: UnsavedValue, scope: ParentNode = this.root): { readonly element: Element; readonly component: Element } | null {
+        for (const raw of scope.querySelectorAll(`input, textarea, select, [${ValueBindingAttribute}]`)) {
             const element = this.resolveBindingElement(raw);
 
             if (resolveWritableBinding(element, this.options.metadata)?.bindingId !== unsaved.bindingId)
@@ -835,6 +879,24 @@ export class ValueBindingEngine {
         }
 
         return null;
+    }
+
+    private applyRestoredField(field: { readonly element: Element; readonly component: Element }, binding: WebRenderPropertyReferenceMetadata, unsaved: UnsavedValue, write: (element: Element, bindingId: number, value: unknown) => boolean): boolean {
+        if (isReadOnly(field.element) || isInert(field.element) || isSensitive(field.element))
+            return false;
+
+        if (areValuesEqual(this.options.valueReaders.readBound(field.element), unsaved.value) || !write(field.element, Number(unsaved.bindingId), unsaved.value))
+            return false;
+
+        if (unsaved.conflicted === true || this.changedSince(unsaved, binding)) {
+            this.holdConflicted(field.element, field.component);
+            return true;
+        }
+
+        field.element.dispatchEvent(new Event("input", { bubbles: true }));
+        field.element.dispatchEvent(new Event("change", { bubbles: true }));
+
+        return true;
     }
 
     /** Whether the server now holds neither what the carried-over edit started from nor the edit itself; false where either is unknown. */

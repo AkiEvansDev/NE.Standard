@@ -54,16 +54,18 @@ function createRow(value: string, rule: WebRenderValidationMetadata): Row {
         FakeElement.of("ui-key-value-action__edit-action").append(FakeElement.of("ui-button", {}, "button"), FakeElement.of("ui-button", {}, "button"))
     );
 
+    const root = FakeElement.of("ui-key-value-action").append(row);
+
     title.textContent = value;
     field.value = value;
     field.setAttribute("data-ui-bind-value", "11");
     fakeDocument.body.children.length = 0;
-    fakeDocument.body.append(FakeElement.of("ui-key-value-action").append(row));
+    fakeDocument.body.append(root);
     fakeDocument.activeElement = fakeDocument.body;
     observers.length = 0;
 
     const validation = new ValidationEngine({
-        root: real<ParentNode>(fakeDocument.body),
+        root: real<ParentNode>(root),
         metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => id === 4 ? [rule] : [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
         dom: real({
             resolveNearestComponent: (start: FakeElement) => {
@@ -76,7 +78,7 @@ function createRow(value: string, rule: WebRenderValidationMetadata): Row {
         valueReaders: real({ readBound: (element: FakeInput) => element.value })
     });
 
-    new KeyValueActionEngine({ root: real(fakeDocument.body), dom: real({}), propertyPatchEngine: real({}), validation });
+    new KeyValueActionEngine({ root: real(root), dom: real({}), propertyPatchEngine: real({}), validation });
 
     return { row, title, component, field };
 }

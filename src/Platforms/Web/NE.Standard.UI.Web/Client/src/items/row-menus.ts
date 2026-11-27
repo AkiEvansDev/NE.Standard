@@ -7,7 +7,7 @@
 // the menu is drawn with them; drawn, it stays while its row does, as one drawn with the row did.
 
 // `node --test` loads this module as it is: `.ts` on the value imports, `import type` on the rest.
-import { ComponentSelector, ContextMenuLaterAttribute, ContextMenuTemplateAttribute, ItemsHostAttribute, ShortcutAttribute, SplitMenuLaterAttribute, SplitMenuTemplateAttribute } from "../addressing/dom-attributes.ts";
+import { ComponentSelector, ContextMenuLaterAttribute, ContextMenuTemplateAttribute, DialogTemplateAttribute, ItemsHostAttribute, ShortcutAttribute, SplitMenuLaterAttribute, SplitMenuTemplateAttribute } from "../addressing/dom-attributes.ts";
 import { findOwningComponentId, readComponentId } from "../addressing/dom-registry.ts";
 import { forEachSubtree } from "../rendering/client-strings.ts";
 import { logWarn } from "../metadata/logger.ts";
@@ -195,6 +195,11 @@ export class RowMenus {
         for (const template of [...container.querySelectorAll<HTMLTemplateElement>("template")]) {
             if (this.taken.has(template))
                 continue;
+
+            if (template.hasAttribute(DialogTemplateAttribute)) {
+                this.scanContainer(template.content, hosts, outermost);
+                continue;
+            }
 
             const above = [...hosts, ...rowHostsAbove(template)];
 

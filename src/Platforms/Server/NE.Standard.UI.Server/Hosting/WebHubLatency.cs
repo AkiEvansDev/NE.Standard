@@ -47,7 +47,9 @@ internal sealed partial class WebHubLatency : IHubFilter
         ArgumentNullException.ThrowIfNull(invocationContext);
         ArgumentNullException.ThrowIfNull(next);
 
-        return _latency == TimeSpan.Zero ? next(invocationContext) : DelayedAsync(invocationContext, next);
+        return _latency == TimeSpan.Zero || string.Equals(invocationContext.HubMethodName, nameof(WebUIHub.PingAsync), StringComparison.Ordinal)
+            ? next(invocationContext)
+            : DelayedAsync(invocationContext, next);
     }
 
     private async ValueTask<object?> DelayedAsync(HubInvocationContext invocationContext, Func<HubInvocationContext, ValueTask<object?>> next)

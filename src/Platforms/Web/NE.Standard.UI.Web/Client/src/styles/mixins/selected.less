@@ -75,12 +75,20 @@
 @ui-row-floating: ~".ui-action-bar, .ui-context-menu, .ui-split-button__menu, .ui-menu__submenu, .ui-flyout__content, .ui-select__popup, .ui-temporal-input__popup, .ui-color-input__popup";
 @ui-row-own: ~":not(:is(@{ui-row-floating}) *)";
 
-// A row under the pointer: a wash, since the host may have no surface of its own. A quiet button in it brightens instead of a second
-// wash (a filter: its ink is already the row's); its press, stronger than any hover, takes the pressed wash.
-.ui-row-hover() {
+// A row under the pointer: a wash, since the host may have no surface of its own. `@buttons` defaults to true for external/add-on
+// callers; core list hosts pass `false` and share one `.ui-row-hover-buttons()` emission in `core/row-hover.less`.
+.ui-row-hover(@buttons: true) {
     background-color: var(--ui-wash-hover);
     --ui-row-wash: var(--ui-wash-hover);
+}
 
+.ui-row-hover(@buttons: true) when (@buttons = true) {
+    .ui-row-hover-buttons();
+}
+
+// Quiet buttons inside a washed row brighten instead of stacking a second wash (a filter: their ink is already the row's);
+// their press, stronger than any hover, takes the pressed wash.
+.ui-row-hover-buttons() {
     .ui-button--ghost@{ui-row-own} {
         .ui-reveal-hover-off({ color: var(--ui-color-on-surface); });
     }
@@ -163,9 +171,9 @@
 
 // The keyboard's row washes like the pointer's; on a chosen row, as a layer, so it still reads as chosen.
 // `@via` the path from host to items host when not direct (a table's scroll box), ending in " > ".
-.ui-row-cursor(@host; @row; @via: ~"") {
+.ui-row-cursor(@host; @row; @via: ~""; @buttons: true) {
     @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]:not([data-ui-selected]) {
-        .ui-row-hover();
+        .ui-row-hover(@buttons);
     }
 
     @{host}@{ui-row-cursor-focus} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus][data-ui-selected] {
@@ -180,9 +188,9 @@
 // The same where the row holds the focus itself — a list's, a table's and a key-value list's, whose roles take no active descendant, so
 // the cursor's row is the host's one Tab stop (row-cursor.ts): the wash on the focused row, and no ring of its own.
 // `:focus-within` moves every row at once while the focus is among them, as the host's own focus did.
-.ui-row-cursor-on-row(@host; @row; @via: ~"") {
+.ui-row-cursor-on-row(@host; @row; @via: ~""; @buttons: true) {
     @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]@{ui-row-cursor-focus}:not([data-ui-selected]) {
-        .ui-row-hover();
+        .ui-row-hover(@buttons);
     }
 
     @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-row-focus]@{ui-row-cursor-focus}[data-ui-selected] {
@@ -239,9 +247,9 @@
 // The row an action bar stands over (`data-ui-row-bar`, which action-bar-engine.ts writes as it shows the bar) washes as the keyboard's
 // row does, so the bar says whose it is when no pointer is on the row — a finger lifted, the keyboard; on a chosen row, as the cursor's
 // layer. `SelectionStyle.ActionBarBackground` (`--ui-selected-bar-ground`) gives it another ground, or none for a row its own card covers.
-.ui-row-bar(@host; @row; @via: ~"") {
+.ui-row-bar(@host; @row; @via: ~""; @buttons: true) {
     @{host} > @{via}[data-ui-items-host] > @{row}[data-ui-row-bar]:not([data-ui-selected]) {
-        .ui-row-hover();
+        .ui-row-hover(@buttons);
         background-color: var(--ui-selected-bar-ground, var(--ui-wash-hover));
         --ui-row-wash: var(--ui-selected-bar-ground, var(--ui-wash-hover));
     }

@@ -36,9 +36,9 @@ test("a panel's line is a caption's line and the root's gap per tier, the paddin
     assert.ok(rule, "no field-aligned rule");
     assert.match(panel, new RegExp(`padding: var\\(--ui-padding-xxl, .*var\\(--ui-padding, ${literal(Line)} 0 0\\)`));
     assert.doesNotMatch(panel, /padding-top/);
-    // Reset, so a thing inside a marked one reads none of its tiers.
-    assert.match(rule, /--ui-field-aligned: initial;/);
-    assert.match(rule, /--ui-field-aligned-box: initial;/);
+    // Non-inherited via @property, so a thing inside a marked one reads none of its tiers.
+    assert.match(css, /@property --ui-field-aligned \{\s*syntax: "\*";\s*inherits: false;\s*\}/);
+    assert.match(css, /@property --ui-field-aligned-box \{\s*syntax: "\*";\s*inherits: false;\s*\}/);
 });
 
 test("a panel's band under the line is as tall as a field's box of the size written, the least height's default", () => {

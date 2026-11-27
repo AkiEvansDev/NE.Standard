@@ -108,6 +108,9 @@ public sealed class WebRenderMetadata
     /// <summary>What the view's compile warned of, for the page's console in development; empty elsewhere.</summary>
     public IReadOnlyList<string> CompileWarnings { get; set; } = [];
 
+    /// <summary>Distinct component type keys present in the compiled view, used by the client to skip unneeded component engines.</summary>
+    public IReadOnlyList<string> ComponentTypes { get; set; } = [];
+
     public IReadOnlyList<UIBindingId> InitBindingIds
         => _bindings
             .Select(static binding => binding.BindingId)

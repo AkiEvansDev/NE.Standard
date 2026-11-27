@@ -6,6 +6,7 @@ import { readComponentId, resolveWritableBinding } from "../addressing/dom-regis
 import { closestLogical, collectDynamicParameters, logicalParentOf, readParameterCount } from "../addressing/dynamic-parameters.ts";
 import { clearElementValue } from "../extensions/value-readers.ts";
 import type { ConverterRegistry } from "../extensions/converters.ts";
+import { getIdValue } from "../metadata/metadata-index.ts";
 import type { WebDomOperation, WebRenderBindingMetadata, WebRenderPropertyReferenceMetadata } from "../metadata/metadata-index.ts";
 import { shownValue } from "../rendering/client-strings.ts";
 import { isAuthorText, isPhrase } from "../rendering/words.ts";
@@ -62,7 +63,7 @@ export class PropertyPatchEngine {
         return () => this.valueChangeHandlers.delete(handler);
     }
 
-    public applyPropertyValue(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown, local: boolean): void {
+    public applyPropertyValue(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[], value: unknown, local: boolean, forceNotify = false): void {
         const resolvedAddresses = this.addressResolver.resolveProperties(reference, dynamicParameters);
         // The words the value shows, looked up once, here; the state below keeps the value itself, so a switch can look it up again.
         const shown = this.shownValue(reference, value);
@@ -115,7 +116,7 @@ export class PropertyPatchEngine {
         }
 
         // A restore changes no state but must still be heard; a held element hears nothing, or its editor would overwrite the reader's value.
-        if ((!this.state.set(reference, dynamicParameters, value, () => rowsOf(resolvedAddresses[0]?.component)) && !this.restoring) || held)
+        if ((!this.state.set(reference, dynamicParameters, value, () => rowsOf(resolvedAddresses[0]?.component)) && !this.restoring && !forceNotify) || held)
             return;
 
         this.notifyValueChanged({
@@ -159,6 +160,11 @@ export class PropertyPatchEngine {
             this.operations.apply({ resolved, operation, target, value: shown, convertedValue, local });
     }
 
+    /** Whether a value is already recorded in state for `reference` and `dynamicParameters`. */
+    public hasRecordedValue(reference: WebRenderPropertyReferenceMetadata, dynamicParameters: readonly unknown[] = []): boolean {
+        return this.state.has(reference, dynamicParameters);
+    }
+
     /**
      * Records a value the page already shows — one it sent, or the reader's edit — as the property's latest, telling no handler: the
      * server echoes none, and its old value pushed later would read as no change. The change it made, or null where the state held it.
@@ -177,6 +183,19 @@ export class PropertyPatchEngine {
             local: true,
             components: resolvedAddresses.map(resolved => resolved.component)
         };
+    }
+
+    /**
+     * Replays recorded server values onto components just mounted from an inert dialog template, notifying derived UI engines.
+     */
+    public replayComponents(componentIds: ReadonlySet<number>): void {
+        if (componentIds.size === 0)
+            return;
+
+        for (const entry of [...this.state.entries()]) {
+            if (componentIds.has(getIdValue(entry.reference.componentId)))
+                this.applyPropertyValue(entry.reference, entry.dynamicParameters, entry.value, false, true);
+        }
     }
 
     /**

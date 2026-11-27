@@ -332,19 +332,20 @@
 .ui-items-view[data-ui-selection="one"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-items-view__item@{ui-row-live},
 .ui-items-view[data-ui-selection="many"]:not([data-ui-no-row-select]) > [data-ui-items-host] > .ui-items-view__item@{ui-row-live},
 .ui-items-view > [data-ui-items-host] > .ui-items-view__item[data-ui-row-click]@{ui-row-live} {
+    touch-action: manipulation;
     cursor: pointer;
 }
 
 // The pointer's and the keyboard's wash: a stack's row paints it, a wrap's tile as a layer over its own ground (below).
 @media @{ui-can-hover} {
     .ui-items-view--row-hover > [data-ui-items-host] > .ui-items-view__item@{ui-row-live}:hover {
-        .ui-row-hover();
+        .ui-row-hover(false);
     }
 }
 
 // A list's row holds the focus itself, a wrap list's tile (row-cursor.ts); a listbox holds it on the root.
-.ui-row-cursor(~'.ui-items-view:not([role="list"])', ~".ui-items-view__item");
-.ui-row-cursor-on-row(~'.ui-items-view[role="list"]:not(.ui-items-view--wrap)', ~".ui-items-view__item");
+.ui-row-cursor(~'.ui-items-view:not([role="list"])', ~".ui-items-view__item", @buttons: false);
+.ui-row-cursor-on-row(~'.ui-items-view[role="list"]:not(.ui-items-view--wrap)', ~".ui-items-view__item", @buttons: false);
 
 // A wrap's row is display: contents and draws no outline: its tile wears the keyboard's wash.
 .ui-items-view--wrap:not([role="list"])@{ui-row-cursor-focus} > [data-ui-items-host] > .ui-items-view__item[data-ui-row-focus] > [data-ui-id] {
@@ -364,7 +365,7 @@
 .ui-items-view--wrap[role="list"] > [data-ui-items-host] > .ui-items-view__item > [data-ui-id]:focus {
     outline: none;
 }
-.ui-row-bar(~".ui-items-view", ~".ui-items-view__item");
+.ui-row-bar(~".ui-items-view", ~".ui-items-view__item", @buttons: false);
 
 .ui-items-view--wrap > [data-ui-items-host] > .ui-items-view__item > [data-ui-id] {
     .ui-tile-wash();

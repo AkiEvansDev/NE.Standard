@@ -6,7 +6,7 @@ import { ItemsHostAttribute, ItemsViewWrapClass, NoRowOpenAttribute, NoRowSelect
 import { readWindowFlag, readWindowNumber, resolveHostMode, windowOffset } from "../addressing/items-host-mode.ts";
 import { readHostScroll, scrollHostTo } from "../addressing/items-viewport.ts";
 import { isFieldKey } from "./caret-fields.ts";
-import { observeComponents } from "./dom-mutations.ts";
+import { observeComponents, observeMutations } from "./dom-mutations.ts";
 import { isOwnControlOf, ownControlOf, ownPressControlsOf, soleControlOf } from "./own-control.ts";
 import { bringBackToTabOrder, takeOutOfTabOrder } from "./tab-out.ts";
 import { FocusableSelector, firstFocusable, focusAsLastInput, isPointerLast, markPointerFocus } from "./popup-focus.ts";
@@ -112,9 +112,7 @@ export class ItemsSelectionEngine {
         );
 
         // The cursor moved by any engine, a removal or a redraw: the controls of the row it left leave the Tab order, the new row's join it.
-        if (this.root instanceof Node) {
-            new MutationObserver(records => this.followCursor(records)).observe(this.root, { subtree: true, attributes: true, attributeFilter: [RowFocusAttribute] });
-        }
+        observeMutations(this.root, { attributes: true, attributeFilter: [RowFocusAttribute] }, records => this.followCursor(records));
     }
 
     private applyAll(roots: Iterable<HTMLElement>): void {

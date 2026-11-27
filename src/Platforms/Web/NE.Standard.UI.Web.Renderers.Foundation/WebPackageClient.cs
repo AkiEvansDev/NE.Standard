@@ -18,12 +18,21 @@ public static class WebPackageClient
     /// Calling it twice registers nothing more, so a package's <c>Add…</c> stays idempotent through this alone.
     /// </summary>
     public static IServiceCollection AddPackageClient(this IServiceCollection services, string assemblyName, string bundleName)
+        => AddPackageClient(services, assemblyName, bundleName, []);
+
+    /// <summary>
+    /// Registers <c>{bundleName}.js</c> and <c>{bundleName}.css</c> embedded under <c>Client/dist</c> of <paramref name="assemblyName"/>,
+    /// linked only on views whose compiled graph contains at least one of <paramref name="requiredComponentTypes"/> (or on every view when empty).
+    /// </summary>
+    public static IServiceCollection AddPackageClient(this IServiceCollection services, string assemblyName, string bundleName, params string[] requiredComponentTypes)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(assemblyName);
         ArgumentException.ThrowIfNullOrWhiteSpace(bundleName);
+        ArgumentNullException.ThrowIfNull(requiredComponentTypes);
 
         var scriptKey = $"{bundleName}.js";
+        string[]? scopedTypes = requiredComponentTypes.Length == 0 ? null : [.. requiredComponentTypes];
 
         foreach (ServiceDescriptor descriptor in services)
         {
@@ -39,7 +48,8 @@ public static class WebPackageClient
             Source = $"{assemblyName}.Client.dist.{bundleName}.css",
             ResourceAssemblyName = assemblyName,
             PublicPath = $"/_ne/css/{bundleName}.css",
-            Order = PackageAssetOrder
+            Order = PackageAssetOrder,
+            RequiredComponentTypes = scopedTypes
         });
 
         _ = services.AddSingleton(new WebAssetDescriptor
@@ -50,7 +60,8 @@ public static class WebPackageClient
             Source = $"{assemblyName}.Client.dist.{bundleName}.js",
             ResourceAssemblyName = assemblyName,
             PublicPath = $"/_ne/js/{bundleName}.js",
-            Order = PackageAssetOrder
+            Order = PackageAssetOrder,
+            RequiredComponentTypes = scopedTypes
         });
 
         return services;

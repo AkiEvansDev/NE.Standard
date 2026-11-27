@@ -378,6 +378,14 @@ internal sealed partial class WebUIHub : Hub
     private string? ReadSessionId(HttpContext? http)
         => http is null ? null : WebClientRequest.ReadSessionId(http, _sessionCookie);
 
+    /// <summary>Zero-work liveness probe used by the client after sleep or network changes to detect half-open sockets immediately.</summary>
+    public Task PingAsync()
+    {
+        Context.ConnectionAborted.ThrowIfCancellationRequested();
+
+        return Task.CompletedTask;
+    }
+
     /// <summary>Records what the page reports of itself — on screen or not, its notification permission — on its connection.</summary>
     /// <remarks>What the client says: it steers whether a notification shows on the screen or the system's, never what is allowed.</remarks>
     public Task ReportClientStateAsync(UIHubClientStateRequest request)

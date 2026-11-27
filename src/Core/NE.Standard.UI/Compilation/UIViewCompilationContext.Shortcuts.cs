@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Interaction;
+using NE.Standard.UI.Authoring.BuiltIns;
 using NE.Standard.UI.Authoring.BuiltIns.Models;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Authoring.Views;
@@ -31,7 +32,7 @@ internal sealed partial class UIViewCompilationContext
     /// <summary>
     /// Refuses a chord that names no key, one the browser keeps for itself, one in a template every row repeats, and one claimed twice
     /// where the page reads a chord page-wide with a control or the view's own among the claims; a context menu's entry acts on the
-    /// row under the keyboard, so its chords are its own.
+    /// row under the keyboard and a split button's popup menu acts only while open, so neither claims page-wide.
     /// </summary>
     private void ValidateShortcuts()
     {
@@ -69,8 +70,8 @@ internal sealed partial class UIViewCompilationContext
     }
 
     /// <summary>
-    /// Where a component's chord is read: inside a context menu, by the row under the keyboard; inside a template (a row, a group
-    /// header), by every copy; else page-wide. The nearest of the two wins, so a row's context menu is the menu's.
+    /// Where a component's chord is read: inside a context menu or split button popup menu, scoped to that popup; inside a template
+    /// (a row, a group header), by every copy; else page-wide. The nearest wins, so a row's popup menu is the menu's.
     /// </summary>
     private ShortcutScope ShortcutScopeOf(string componentId)
     {
@@ -79,8 +80,8 @@ internal sealed partial class UIViewCompilationContext
             if (!_slotByRootComponentId.TryGetValue(id, out UIComponentSlot? slot))
                 continue;
 
-            if (slot.Kind == UIComponentSlotKind.ContextMenu)
-                return ShortcutScope.ContextMenu;
+            if (slot.Kind == UIComponentSlotKind.ContextMenu || IsSplitButtonMenu(slot))
+                return ShortcutScope.PopupMenu;
 
             if (slot.Kind is UIComponentSlotKind.Template or UIComponentSlotKind.TemplateVariant or UIComponentSlotKind.GroupTemplate)
                 return ShortcutScope.Template;
@@ -88,6 +89,10 @@ internal sealed partial class UIViewCompilationContext
 
         return ShortcutScope.Page;
     }
+
+    private bool IsSplitButtonMenu(UIComponentSlot slot)
+        => slot.Kind == UIComponentSlotKind.Region && slot.Key == RegionNames.Menu
+            && _components[GetAuthoringId(slot.OwnerComponentId)] is ISplitButtonComponent;
 
     /// <summary>Whether a menu is a region of a control that answers its menus' chords itself (<see cref="IShortcutOwnerComponent"/>).</summary>
     private bool IsShortcutOwnersMenu(string menuId)
@@ -189,7 +194,7 @@ internal sealed partial class UIViewCompilationContext
     private enum ShortcutScope
     {
         Page,
-        ContextMenu,
+        PopupMenu,
         Template
     }
 }

@@ -9,6 +9,7 @@ import { FakeElement, fakeDocument, installFakeDom, real } from "./fake-dom.ts";
 
 // The observers the engines make, so a test can hand them the records a browser would.
 const observers: ((records: readonly MutationRecord[]) => void)[] = [];
+let queuedRecords: MutationRecord[] = [];
 
 installFakeDom({
     MutationObserver: class {
@@ -18,10 +19,23 @@ installFakeDom({
 
         public observe(): void {
         }
+
+        public disconnect(): void {
+            queuedRecords = [];
+        }
+
+        public takeRecords(): MutationRecord[] {
+            const drained = queuedRecords;
+
+            queuedRecords = [];
+
+            return drained;
+        }
     }
 });
 
-const { collectComponents } = await import("../src/interactions/dom-mutations.ts");
+const { collectComponents, flushRootMutations, observeComponents, observeMutations } = await import("../src/interactions/dom-mutations.ts");
+const { MetadataIndex } = await import("../src/metadata/metadata-index.ts");
 const { TimestampEngine } = await import("../src/interactions/timestamp-engine.ts");
 
 /** A host of `count` rows, each holding a stamp, and how many times the host was searched. */
@@ -127,4 +141,98 @@ test("the timestamp engine reads a row put into a list of stamps for that row's 
     observers.forEach(observer => observer([added(host, row)]));
 
     assert.deepEqual(read, [row.children[0]]);
+});
+
+test("multiple component and raw observers on the same root share one native MutationObserver and route records by channel", () => {
+    const { host } = hostOfRows(2);
+    const page = FakeElement.of("page").append(host);
+    const stamp = host.children[0].children[0];
+    const seenChild: number[] = [];
+    const seenAttr: string[] = [];
+    const seenRaw: number[] = [];
+
+    fakeDocument.body.replaceChildren(page);
+    observers.length = 0;
+
+    const a = observeComponents(real<ParentNode>(page), ".ui-timestamp", { childList: true }, items => seenChild.push([...items].length));
+    const b = observeComponents(real<ParentNode>(page), ".ui-timestamp", { attributeFilter: ["data-ui-test-a"] }, items => {
+        for (const item of items)
+            seenAttr.push(item.className);
+    });
+    const c = observeMutations(real<ParentNode>(page), { attributeFilter: ["data-ui-test-b"] }, records => seenRaw.push(records.length));
+
+    // Only one native MutationObserver should be created on the root for all subscribers.
+    assert.equal(observers.length, 1);
+
+    observers[0]([real<MutationRecord>({ type: "attributes", target: stamp, attributeName: "data-ui-test-a" })]);
+
+    assert.deepEqual(seenChild, []);
+    assert.deepEqual(seenAttr, ["ui-timestamp"]);
+    assert.deepEqual(seenRaw, []);
+
+    observers[0]([real<MutationRecord>({ type: "attributes", target: stamp, attributeName: "data-ui-test-b" })]);
+
+    assert.deepEqual(seenRaw, [1]);
+
+    a?.disconnect();
+    b?.disconnect();
+    c?.disconnect();
+});
+
+test("reobserving for a later subscriber drains queued records instead of dropping them on disconnect", async () => {
+    const { host } = hostOfRows(1);
+    const page = FakeElement.of("page").append(host);
+    const stamp = host.children[0].children[0];
+    const seen: string[] = [];
+
+    fakeDocument.body.replaceChildren(page);
+    observers.length = 0;
+
+    const first = observeMutations(real<ParentNode>(page), { attributeFilter: ["data-ui-first"] }, records => {
+        for (const record of records)
+            seen.push(record.attributeName ?? "");
+    });
+
+    queuedRecords = [real<MutationRecord>({ type: "attributes", target: stamp, attributeName: "data-ui-first" })];
+
+    // Adding a subscriber with a new attribute grows the hub options and re-observes; queued records must still arrive.
+    const second = observeMutations(real<ParentNode>(page), { attributeFilter: ["data-ui-second"] }, () => undefined);
+
+    await Promise.resolve();
+
+    assert.deepEqual(seen, ["data-ui-first"]);
+
+    first?.disconnect();
+    second?.disconnect();
+});
+
+test("flushRootMutations drains pending records synchronously, and allowsCoreEngine opens core engines for package views without hardcoding add-on names", () => {
+    const { host } = hostOfRows(1);
+    const page = FakeElement.of("page").append(host);
+    const stamp = host.children[0].children[0];
+    const seen: string[] = [];
+
+    fakeDocument.body.replaceChildren(page);
+    observers.length = 0;
+
+    const subscription = observeMutations(real<ParentNode>(page), { attributeFilter: ["data-ui-sync"] }, records => {
+        for (const record of records)
+            seen.push(record.attributeName ?? "");
+    });
+
+    queuedRecords = [real<MutationRecord>({ type: "attributes", target: stamp, attributeName: "data-ui-sync" })];
+    flushRootMutations(real<ParentNode>(page));
+
+    assert.deepEqual(seen, ["data-ui-sync"]);
+    subscription?.disconnect();
+
+    const emptyBase = { propertyDefinitions: [], bindings: [], events: [], interactions: [], items: [], itemsFilterSort: [], validations: [] };
+    const coreOnly = new MetadataIndex({ ...emptyBase, componentTypes: ["standard.text", "standard.button"] });
+    const withAddon = new MetadataIndex({ ...emptyBase, componentTypes: ["standard.text", "custom.widget"] });
+    const unmanifested = new MetadataIndex(emptyBase);
+
+    assert.equal(coreOnly.allowsCoreEngine(["standard.select"]), false);
+    assert.equal(coreOnly.allowsCoreEngine(["standard.button"]), true);
+    assert.equal(withAddon.allowsCoreEngine(["standard.select"]), true);
+    assert.equal(unmanifested.allowsCoreEngine(["standard.select"]), true);
 });

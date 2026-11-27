@@ -19,6 +19,7 @@ using NE.Standard.UI.Abstractions.Identity;
 using NE.Standard.UI.Abstractions.Navigation;
 using NE.Standard.UI.Abstractions.Styling.Theme;
 using NE.Standard.UI.Application;
+using NE.Standard.UI.Compiled.Views;
 using NE.Standard.UI.Navigation;
 using NE.Standard.UI.Shell.Hosting;
 using NE.Standard.UI.Shell.Localization;
@@ -267,7 +268,7 @@ public static partial class WebEndpointRouteBuilderExtensions
             ThemeMode = resolution.Session.ThemeMode,
             Theme = application.Theme,
             ThemeColors = resolution.Session.ThemeColors,
-            Assets = assets.Assets,
+            Assets = FilterAssetsForView(assets.Assets, resolution.View),
             Language = resolution.Session.Language,
             Title = TranslateTitle(application.Translator, resolution),
             Icon = endpointOptions.Icon ?? application.Icon,
@@ -297,6 +298,35 @@ public static partial class WebEndpointRouteBuilderExtensions
             http.Response.StatusCode = StatusCodes.Status404NotFound;
 
         return new ShellDocumentResult(shell, resolution, endpointOptions, metrics, logger, started, shaped, hydrated, painted);
+    }
+
+    /// <summary>Returns the assets required by <paramref name="view"/>, omitting add-on bundles whose components do not appear in the view.</summary>
+    private static IReadOnlyList<WebAssetDescriptor> FilterAssetsForView(IReadOnlyList<WebAssetDescriptor> all, CompiledView view)
+    {
+        List<WebAssetDescriptor>? filtered = null;
+
+        for (var i = 0; i < all.Count; i++)
+        {
+            WebAssetDescriptor asset = all[i];
+            var include = asset.RequiredComponentTypes is null || view.UsesAnyComponentType(asset.RequiredComponentTypes);
+
+            if (!include)
+            {
+                if (filtered is null)
+                {
+                    filtered = [with(all.Count - 1)];
+
+                    for (var j = 0; j < i; j++)
+                        filtered.Add(all[j]);
+                }
+
+                continue;
+            }
+
+            filtered?.Add(asset);
+        }
+
+        return filtered ?? all;
     }
 
     /// <summary>The view's title in the session's language: a plain key, or a key filled with the view's own arguments.</summary>

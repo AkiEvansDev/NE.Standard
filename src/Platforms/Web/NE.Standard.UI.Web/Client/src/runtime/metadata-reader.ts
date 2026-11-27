@@ -1,4 +1,4 @@
-import { MetadataAttribute } from "../addressing/dom-attributes.ts";
+import { MetadataAttribute } from "../addressing/dom-attributes";
 import { WebUIMetadata } from "../metadata/metadata-index";
 
 const MetadataSelector = `script[type='application/json'][${MetadataAttribute}]`;
@@ -28,7 +28,8 @@ export function readWebUIMetadata(documentRoot: ParentNode = document): WebUIMet
         itemsFilterSort: parsed.itemsFilterSort ?? [],
         itemValues: parsed.itemValues ?? [],
         words: parsed.words ?? [],
-        compileWarnings: parsed.compileWarnings ?? []
+        compileWarnings: parsed.compileWarnings ?? [],
+        componentTypes: parsed.componentTypes ?? null
     };
 }
 

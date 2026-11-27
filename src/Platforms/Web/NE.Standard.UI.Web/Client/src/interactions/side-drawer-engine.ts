@@ -275,8 +275,16 @@ export class SideDrawerEngine {
             return;
         }
 
-        fold.style.setProperty("--ui-drawer-switch-width", `${target.width}px`);
-        fold.style.setProperty("--ui-drawer-switch-height", `${target.height}px`);
+        // Measure once before writing offsets: avoids writing zeroed vars and forcing an extra layout pass when size is unchanged.
+        const sameSize = fold.hasAttribute(DrawerSwitchAttribute)
+            && fold.style.getPropertyValue("--ui-drawer-switch-width") === `${target.width}px`
+            && fold.style.getPropertyValue("--ui-drawer-switch-height") === `${target.height}px`;
+
+        if (!sameSize) {
+            fold.style.setProperty("--ui-drawer-switch-width", `${target.width}px`);
+            fold.style.setProperty("--ui-drawer-switch-height", `${target.height}px`);
+        }
+
         fold.style.setProperty("--ui-drawer-switch-x", "0px");
         row.style.setProperty("--ui-drawer-switch-y", "0px");
         fold.setAttribute(DrawerSwitchAttribute, "");

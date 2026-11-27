@@ -49,11 +49,12 @@ test("a stretch's fallback is derived from the tier in force, never written by t
         assert.ok(css.includes(`--ui-align-v: var(--ui-align-v-${tier}) !important;\n    --ui-align-v-stretch-fallback: initial !important;`), tier);
     }
 
-    // Every rule writing the fallback is the reset or keyed on an alignment the server wrote, so no write of the server's own is read.
+    // Every rule writing the fallback is keyed on an alignment the server wrote (the property itself is registered `inherits: false`).
+    assert.match(css, /@property --ui-align-v-stretch-fallback \{\s*syntax: "\*";\s*inherits: false;\s*\}/);
     const writers = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(rule => rule[2].includes("--ui-align-v-stretch-fallback:")).map(rule => rule[1].trim());
 
-    assert.ok(writers.length === 2 + 2 * Tiers.length, writers.join(" | "));
-    assert.ok(writers.every(selector => selector === "[data-ui-id]" || /^\[data-ui-id\]\[style\*="--ui-align-v(-[a-z]+)?:( stretch)?"\]$/.test(selector)), writers.join(" | "));
+    assert.ok(writers.length === 1 + 2 * Tiers.length, writers.join(" | "));
+    assert.ok(writers.every(selector => /^\[data-ui-id\]\[style\*="--ui-align-v(-[a-z]+)?:( stretch)?"\]$/.test(selector)), writers.join(" | "));
 });
 
 test("a patch writes each tier's own token and takes an unset tier off", () => {

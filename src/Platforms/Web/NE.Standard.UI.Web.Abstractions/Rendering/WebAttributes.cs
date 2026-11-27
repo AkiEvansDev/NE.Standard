@@ -142,6 +142,9 @@ public static class WebAttributes
     /// <summary>The edge a dialog shown as a sheet stands against; a bottom sheet the viewer may dismiss is swiped down.</summary>
     public const string DialogPlacement = "data-ui-dialog-placement";
 
+    /// <summary>On the inert template holding a closed dialog's content until the dialog is opened for the first time.</summary>
+    public const string DialogTemplate = "data-ui-dialog-template";
+
     public const string EmptyPlaceholder = "data-ui-empty-placeholder";
 
     public const string EmptyTemplate = "data-ui-empty-template";
@@ -189,6 +192,7 @@ public static class WebAttributes
 
     /// <summary>The script element that carries the render metadata.</summary>
     public const string Metadata = "data-ui-metadata";
+
 
     public const string FallbackSrc = "data-ui-fallback-src";
 

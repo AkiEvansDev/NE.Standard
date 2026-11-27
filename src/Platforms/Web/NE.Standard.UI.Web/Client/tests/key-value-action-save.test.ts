@@ -60,15 +60,17 @@ function createRow(): Row {
         FakeElement.of("ui-key-value-action__edit-action").append(save, cancel)
     );
 
+    const root = FakeElement.of("ui-key-value-action").append(row);
+
     field.value = "150";
     field.setAttribute("data-ui-bind-value", "11");
     fakeDocument.body.children.length = 0;
-    fakeDocument.body.append(FakeElement.of("ui-key-value-action").append(row));
+    fakeDocument.body.append(root);
     fakeDocument.activeElement = fakeDocument.body;
     observers.length = 0;
 
     const validation = new ValidationEngine({
-        root: real<ParentNode>(fakeDocument.body),
+        root: real<ParentNode>(root),
         metadata: real<MetadataIndex>({ getValidationsForComponent: (id: number) => id === 4 ? Rules : [], getValidationTarget: () => undefined, getValidationsAgainst: () => [] }),
         dom: real({
             resolveNearestComponent: (start: FakeElement) => {
@@ -81,7 +83,7 @@ function createRow(): Row {
         valueReaders: real({ readBound: (element: FakeInput) => element.value })
     });
 
-    new KeyValueActionEngine({ root: real(fakeDocument.body), dom: real({}), propertyPatchEngine: real({}), validation });
+    new KeyValueActionEngine({ root: real(root), dom: real({}), propertyPatchEngine: real({}), validation });
 
     return { row, field, save, cancel, validation };
 }

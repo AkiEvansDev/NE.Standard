@@ -84,9 +84,9 @@ export class WebUIRuntime {
     private readonly options: WebUIRuntimeOptions;
     private readonly root: ParentNode;
     private culturesLanguage = document.documentElement.lang;
-    private readonly metadata = new MetadataIndex(readWebUIMetadata());
-    private readonly hydration = readHydration();
-    private renderSequence = this.hydration?.sequence ?? null;
+    private readonly metadata: MetadataIndex;
+    private readonly hydration: ReturnType<typeof readHydration>;
+    private renderSequence: number | null;
     private readonly rewriteMoments: () => void;
     private readonly rewritePageWritten: () => void;
     private readonly dom: DomRegistry;
@@ -126,7 +126,7 @@ export class WebUIRuntime {
     private reloading = false;
     private readonly connection: ConnectionWatch;
     private heldRuntime: string | null = null;
-    private pageId = this.hydration?.pageId ?? null;
+    private pageId: string | null;
     private runtimeSearch = window.location.search;
     private inertContent: Element | null = null;
     private endSwitchProgress: (() => void) | null = null;
@@ -148,6 +148,10 @@ export class WebUIRuntime {
     public constructor(options: WebUIRuntimeOptions = {}) {
         this.options = options;
         this.root = options.root ?? document;
+        this.metadata = new MetadataIndex(readWebUIMetadata(this.root));
+        this.hydration = readHydration(this.root);
+        this.renderSequence = this.hydration?.sequence ?? null;
+        this.pageId = this.hydration?.pageId ?? null;
 
         const leaveCleanupScope = this.cleanupScope.enter([this.root, window, document, document.documentElement, (window as { navigation?: unknown }).navigation]);
 
@@ -177,7 +181,21 @@ export class WebUIRuntime {
             this.dialogs = new DialogEngine({
                 root: this.root,
                 dom: this.dom,
-                discardForm: formId => this.effects.apply({ effect: { kind: ClientEffectKinds.DiscardForm, formId }, dom: this.dom })
+                discardForm: formId => this.effects.apply({ effect: { kind: ClientEffectKinds.DiscardForm, formId }, dom: this.dom }),
+                onMount: surface => {
+                    ensureFormOwners(surface);
+                    // Record authored values of unbound watched sources before mounting lists so filters/sorts apply on first open.
+                    this.reactiveSources.recordShownValuesIn(surface);
+                    this.updateProcessor.mountDialogSurface(surface);
+                    validationEngine.replayRefusals(surface);
+
+                    const restored = valueBinding?.restoreMountedUnsaved(surface) ?? 0;
+
+                    if (restored > 0)
+                        logDebug(`${restored} unsaved value(s) carried over the reload were put back on dialog mount.`);
+
+                    this.windows.reconsider();
+                }
             });
             setPopupComponents(this.dom);
             this.notifications = new NotificationEngine({ root: this.root, dom: this.dom });

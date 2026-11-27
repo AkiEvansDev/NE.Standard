@@ -83,6 +83,7 @@ internal sealed class WebViewRenderer : IWebViewRenderer
 
         RenderRegions(resolution, html, metadata, values);
         RenderDialogs(resolution, html, metadata, values);
+        metadata.ComponentTypes = [.. resolution.View.ComponentTypes];
 
         if (_development)
         {
@@ -477,7 +478,12 @@ internal sealed class WebViewRenderer : IWebViewRenderer
                     if (dialog.Modal)
                         _ = surface.Attribute("aria-modal", "true");
 
-                    RenderRoot(viewResolution, dialog.RootComponentId, surface, metadata, values);
+                    // Keep closed dialog trees inert in a template until first open so unused dialogs pay no style or layout cost.
+                    _ = surface.Element("template", template =>
+                    {
+                        _ = template.Attribute(WebAttributes.DialogTemplate);
+                        RenderRoot(viewResolution, dialog.RootComponentId, template, metadata, values);
+                    });
                 });
             });
         }

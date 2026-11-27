@@ -511,3 +511,42 @@ test("a value the server failed, the connection standing, is said to the person:
     assert.equal(failures.length, 1);
     assert.match(String(failures[0]), /the server threw/);
 });
+
+test("a value carried over a reload for a field inside an unmounted dialog template waits until that dialog mounts", async () => {
+    const page = createPage();
+    const surface = FakeElement.of("ui-dialog__surface", { role: "dialog", tabindex: "-1" });
+    const dialogComponent = FakeElement.of("ui-text-input", { "data-ui-id": "1" });
+    const dialogField = new FakeInput("text");
+    const template = FakeElement.of("", { "data-ui-dialog-template": "" }, "template") as FakeElement & { content: FakeElement };
+    const written: unknown[] = [];
+
+    dialogField.setAttribute("data-ui-bind-text", "13");
+    dialogField.value = "server";
+    dialogComponent.append(dialogField);
+    template.content = dialogComponent;
+    surface.append(template);
+    fakeDocument.body.append(surface);
+
+    const write = (element: Element, bindingId: number, value: unknown): boolean => {
+        written.push([bindingId, value]);
+        (element as unknown as FakeInput).value = String(value);
+        return true;
+    };
+
+    // While the dialog is still an unmounted `<template data-ui-dialog-template>`, nothing writes yet, and a second reload still sees the draft.
+    assert.equal(page.engine.restoreUnsaved([{ bindingId: "13", dynamicParameters: [], value: "dialog draft" }], write), 0);
+    assert.deepEqual(written, []);
+    assert.deepEqual(page.engine.unsavedValues(), [{ bindingId: "13", dynamicParameters: [], value: "dialog draft" }]);
+
+    // Mounting the dialog template and calling `restoreMountedUnsaved(surface)` restores and sends the carried value.
+    const index = surface.children.indexOf(template);
+    surface.children.splice(index, 1);
+    surface.append(dialogComponent);
+
+    assert.equal(page.engine.restoreMountedUnsaved(real<ParentNode>(surface)), 1);
+    await settle();
+
+    assert.deepEqual(written, [[13, "dialog draft"]]);
+    assert.equal(dialogField.value, "dialog draft");
+    assert.deepEqual(page.hub.sent, ["dialog draft"]);
+});

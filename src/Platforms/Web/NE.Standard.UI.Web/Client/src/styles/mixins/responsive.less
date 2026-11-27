@@ -30,13 +30,18 @@
     corner-shape: var(--ui-corner-shape, @ui-corner-shape);
 }
 
-// Resets a property's five tiers on a component root that re-declares them, and fences each into its band there.
+// Resets an inherited responsive property on a root so descendants never see a parent's tiers, and fences each tier into its band.
 .ui-responsive-reset(@variable) {
     @{variable}: initial;
     @{variable}-sm: initial;
     @{variable}-md: initial;
     @{variable}-xl: initial;
     @{variable}-xxl: initial;
+    .ui-responsive-fence(@variable);
+}
+
+// Fences an element-local responsive property (registered `inherits: false` in core/properties.less) into its width bands.
+.ui-responsive-local-reset(@variable) {
     .ui-responsive-fence(@variable);
 }
 
@@ -60,17 +65,105 @@
     }
 }
 
-// A component's own size and margin tiers, reset on whatever wears a component's layout: a component's root, a dialog's panel.
+.ui-responsive-layout-initial(@suffix: ~"") {
+    --ui-width@{suffix}: initial;
+    --ui-min-width@{suffix}: initial;
+    --ui-max-width@{suffix}: initial;
+    --ui-height@{suffix}: initial;
+    --ui-min-height@{suffix}: initial;
+    --ui-max-height@{suffix}: initial;
+    --ui-margin@{suffix}: initial;
+    --ui-margin-x@{suffix}: initial;
+    --ui-margin-y@{suffix}: initial;
+}
+
+.ui-responsive-layout-tier(@tier) {
+    --ui-width-@{tier}: initial !important;
+    --ui-min-width-@{tier}: initial !important;
+    --ui-max-width-@{tier}: initial !important;
+    --ui-height-@{tier}: initial !important;
+    --ui-min-height-@{tier}: initial !important;
+    --ui-max-height-@{tier}: initial !important;
+    --ui-margin-@{tier}: initial !important;
+    --ui-margin-x-@{tier}: initial !important;
+    --ui-margin-y-@{tier}: initial !important;
+}
+
+// A component's own size and margin tiers, reset cleanly and fenced in four consolidated `@media` blocks rather than 36 separate ones.
 .ui-responsive-layout-reset() {
-    .ui-responsive-reset(--ui-width);
-    .ui-responsive-reset(--ui-min-width);
-    .ui-responsive-reset(--ui-max-width);
-    .ui-responsive-reset(--ui-height);
-    .ui-responsive-reset(--ui-min-height);
-    .ui-responsive-reset(--ui-max-height);
-    .ui-responsive-reset(--ui-margin);
-    .ui-responsive-reset(--ui-margin-x);
-    .ui-responsive-reset(--ui-margin-y);
+    .ui-responsive-layout-initial();
+    .ui-responsive-layout-initial(~"-sm");
+    .ui-responsive-layout-initial(~"-md");
+    .ui-responsive-layout-initial(~"-xl");
+    .ui-responsive-layout-initial(~"-xxl");
+
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        .ui-responsive-layout-tier(sm);
+    }
+
+    @media (max-width: (@ui-breakpoint-md - 0.02px)) {
+        .ui-responsive-layout-tier(md);
+    }
+
+    @media (max-width: (@ui-breakpoint-xl - 0.02px)) {
+        .ui-responsive-layout-tier(xl);
+    }
+
+    @media (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+        .ui-responsive-layout-tier(xxl);
+    }
+}
+
+// Layout, padding and border tiers reset and fenced on `[data-ui-id]` in four consolidated `@media` blocks instead of 52 separate ones.
+.ui-responsive-root-reset() {
+    .ui-responsive-layout-initial();
+    .ui-responsive-layout-initial(~"-sm");
+    .ui-responsive-layout-initial(~"-md");
+    .ui-responsive-layout-initial(~"-xl");
+    .ui-responsive-layout-initial(~"-xxl");
+    --ui-padding: initial;
+    --ui-padding-sm: initial;
+    --ui-padding-md: initial;
+    --ui-padding-xl: initial;
+    --ui-padding-xxl: initial;
+    --ui-border-thickness: initial;
+    --ui-border-thickness-sm: initial;
+    --ui-border-thickness-md: initial;
+    --ui-border-thickness-xl: initial;
+    --ui-border-thickness-xxl: initial;
+    --ui-border-radius: initial;
+    --ui-border-radius-sm: initial;
+    --ui-border-radius-md: initial;
+    --ui-border-radius-xl: initial;
+    --ui-border-radius-xxl: initial;
+
+    @media (max-width: (@ui-breakpoint-sm - 0.02px)) {
+        .ui-responsive-layout-tier(sm);
+        --ui-padding-sm: initial !important;
+        --ui-border-thickness-sm: initial !important;
+        --ui-border-radius-sm: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-md - 0.02px)) {
+        .ui-responsive-layout-tier(md);
+        --ui-padding-md: initial !important;
+        --ui-border-thickness-md: initial !important;
+        --ui-border-radius-md: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-xl - 0.02px)) {
+        .ui-responsive-layout-tier(xl);
+        --ui-padding-xl: initial !important;
+        --ui-border-thickness-xl: initial !important;
+        --ui-border-radius-xl: initial !important;
+    }
+
+    @media (max-width: (@ui-breakpoint-xxl - 0.02px)) {
+        .ui-responsive-layout-tier(xxl);
+        --ui-padding-xxl: initial !important;
+        --ui-border-thickness-xxl: initial !important;
+        --ui-border-radius-xxl: initial !important;
+    }
 }
 
 // @rules once per tier inside that tier's own width band and no other, for a rule CSS cannot undo (`display: none`): with @tier naming

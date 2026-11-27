@@ -80,6 +80,8 @@ internal static class WebServerRegistration
             options.AddFilter<WebHubDisconnectFilter>();
             options.AddFilter<WebHubLatency>();
             options.StatefulReconnectBufferSize = 1024 * 1024;
+            options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+            options.ClientTimeoutInterval = TimeSpan.FromSeconds(24);
         }).AddJsonProtocol();
         _ = services.AddOptions<JsonHubProtocolOptions>()
             .Configure<IServiceProvider>(static (options, provider) => WebHubProtocol.Configure(options, provider.GetService<UIApplication>()?.Security));

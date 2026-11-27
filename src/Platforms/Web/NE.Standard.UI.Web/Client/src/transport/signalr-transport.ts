@@ -9,6 +9,11 @@ import { AttachGate, CommandExpired, ConnectionDropped, pressAllowance } from ".
 import { InboundOrder } from "./inbound-order.ts";
 import type { ChangeSink } from "./inbound-order.ts";
 import { DefaultReconnectWindowMilliseconds, ReconnectLoop } from "./reconnect-loop.ts";
+import { WakeProbe } from "./wake-probe.ts";
+
+// Keep-alive and timeout aligned with the server (`UIServerStartupBase`): faster mid-session drop detection without chatter.
+const KeepAliveIntervalMilliseconds = 10_000;
+const ServerTimeoutMilliseconds = 24_000;
 
 // A call waiting behind the attach longer than this is said in the console.
 const AttachStallWarningMilliseconds = 500;
@@ -66,11 +71,16 @@ export class SignalRTransport {
 
     // Pushes and the answers that carry changes, applied in the order they arrived.
     private readonly inbound: InboundOrder;
-    private readonly onOnline = (): void => this.reconnect?.wake();
-    private readonly onPageShow = (): void => this.reconnect?.wake();
+    private readonly wakeProbe: WakeProbe;
+    private readonly onOffline = (): void => this.wakeProbe.noteHidden();
+    private readonly onOnline = (): void => this.handleWake(true);
+    private readonly onPageShow = (event: PageTransitionEvent): void => this.handleWake(event.persisted);
+    private readonly onResume = (): void => this.handleWake(true);
     private readonly onVisibilityChange = (): void => {
         if (isOnScreen(document.visibilityState))
-            this.reconnect?.wake();
+            this.handleWake(false);
+        else
+            this.wakeProbe.noteHidden();
     };
     private disposed = false;
 
@@ -87,12 +97,40 @@ export class SignalRTransport {
             .withStatefulReconnect()
             .configureLogging(LogLevel.Warning)
             .build();
+        this.connection.keepAliveIntervalInMilliseconds = KeepAliveIntervalMilliseconds;
+        this.connection.serverTimeoutInMilliseconds = ServerTimeoutMilliseconds;
         this.connection.onclose(error => this.closed(error));
 
-        // The network back or the page on screen again: a try now beats the rest of a wait of up to half a minute.
+        this.wakeProbe = new WakeProbe({
+            isConnected: () => this.started && !this.stopping && this.reconnect === null && this.connection.state === HubConnectionState.Connected,
+            ping: () => this.connection.invoke<void>("PingAsync"),
+            onStalled: () => this.recoverHalfOpenSocket()
+        });
+
+        // The network back or the page on screen again: wake an active retry or verify a supposedly open socket is still alive.
+        window.addEventListener("offline", this.onOffline);
         window.addEventListener("online", this.onOnline);
         window.addEventListener("pageshow", this.onPageShow);
+        document.addEventListener("resume", this.onResume);
         document.addEventListener("visibilitychange", this.onVisibilityChange);
+    }
+
+    private handleWake(forceProbe: boolean): void {
+        if (this.reconnect !== null) {
+            this.reconnect.wake();
+            return;
+        }
+
+        this.wakeProbe.wake(forceProbe);
+    }
+
+    /** Tears down a half-open socket without marking `stopping`, so `closed()` enters `reconnectAsync` immediately. */
+    private recoverHalfOpenSocket(): void {
+        if (this.stopping || this.disposed || this.gate.failure !== null || this.connection.state !== HubConnectionState.Connected)
+            return;
+
+        logWarn("connection stalled after wake; reopening socket.");
+        void this.connection.stop().catch(error => logWarn("closing stalled socket failed.", error));
     }
 
     /** A connection closed under the page is started again until the server's retention runs out; one the page closed is said closed. */
@@ -247,8 +285,11 @@ export class SignalRTransport {
             return;
 
         this.disposed = true;
+        this.wakeProbe.dispose();
+        window.removeEventListener("offline", this.onOffline);
         window.removeEventListener("online", this.onOnline);
         window.removeEventListener("pageshow", this.onPageShow);
+        document.removeEventListener("resume", this.onResume);
         document.removeEventListener("visibilitychange", this.onVisibilityChange);
         this.reconnectingHandlers.length = 0;
         this.reconnectedHandlers.length = 0;

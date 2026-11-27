@@ -7,7 +7,7 @@ import { applyRovingTabIndex, moveRovingFocus, isRovingCandidate, resolveRovingT
 import type { TooltipWordsProvider } from "./tooltip-engine.ts";
 import { isComposing, isPlainKey, SpaceRelease } from "./keyboard-shortcut.ts";
 import { isBottomBar, isFlyoutGroup, menuWalk, outermostMenuOf, submenuGroupOf, towardContent, walkRootOf } from "./menu-group-engine.ts";
-import { isPressWaveRecord } from "./press-wave.ts";
+import { observeMutations } from "./dom-mutations.ts";
 import { registerTooltipWords } from "./tooltip-engine.ts";
 import { typeAheadCharacter } from "./type-ahead.ts";
 import { escapeInlineMarkup } from "../rendering/inline-markup.ts";
@@ -31,6 +31,7 @@ export class MenuEngine {
     private tabStopsScheduled = false;
     // The menus a change touched since the last rebuild: only their walks are rebuilt.
     private readonly touched = new Set<HTMLElement>();
+    private readonly initialized = new WeakSet<HTMLElement>();
 
     // The entry a Space went down on: it presses on the key's release, as a button does.
     private readonly space = new SpaceRelease();
@@ -49,21 +50,26 @@ export class MenuEngine {
 
         this.applyTabStops(this.root.querySelectorAll<HTMLElement>(`.${RootClass}`));
 
-        if (this.root instanceof Node) {
-            // Not observeComponents: tab stops rebuild only for the menus a change touched, not every row a table draws.
-            const observer = new MutationObserver(mutations => {
-                for (const mutation of mutations) {
-                    if (!isPressWaveRecord(mutation))
-                        collectTouchedMenus(mutation, this.touched);
+        // The search's mark too: an entry it hides can't stay the one Tab lands on; a group opening or closing changes the walk.
+        observeMutations(this.root, { childList: true, attributeFilter: [MenuUnmatchedAttribute, MenuOpenAttribute] }, mutations => {
+            const uninitialized: HTMLElement[] = [];
+
+            for (const mutation of mutations)
+                collectTouchedMenus(mutation, this.touched);
+
+            for (const menu of this.touched) {
+                if (!this.initialized.has(walkRootOf(menu))) {
+                    uninitialized.push(menu);
+                    this.touched.delete(menu);
                 }
+            }
 
-                if (this.touched.size > 0)
-                    this.scheduleTabStops();
-            });
+            if (uninitialized.length > 0)
+                this.applyTabStops(uninitialized);
 
-            // The search's mark too: an entry it hides can't stay the one Tab lands on; a group opening or closing changes the walk.
-            observer.observe(this.root, { childList: true, subtree: true, attributeFilter: [MenuUnmatchedAttribute, MenuOpenAttribute] });
-        }
+            if (this.touched.size > 0)
+                this.scheduleTabStops();
+        });
     }
 
     private scheduleTabStops(): void {
@@ -88,8 +94,12 @@ export class MenuEngine {
         const walks = new Set<HTMLElement>();
 
         for (const menu of menus) {
-            if (menu.isConnected)
-                walks.add(walkRootOf(menu));
+            if (menu.isConnected) {
+                const walk = walkRootOf(menu);
+
+                this.initialized.add(walk);
+                walks.add(walk);
+            }
         }
 
         for (const menu of walks) {

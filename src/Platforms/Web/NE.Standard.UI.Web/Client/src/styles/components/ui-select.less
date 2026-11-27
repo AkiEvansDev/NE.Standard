@@ -22,6 +22,7 @@
     color: inherit;
     font: inherit;
     text-align: start;
+    touch-action: manipulation;
     cursor: pointer;
 }
 
@@ -113,6 +114,12 @@
         .ui-chevron-down();
     }
 
+    // Small caption text sits ~1px lower optically than the 24px box middle, and a 12px chevron matches caption height.
+    .ui-select.ui-input--small > .ui-select__trigger > .ui-select__chevron::before {
+        font-size: @ui-glyph-xs;
+        translate: 0 1px;
+    }
+
     .ui-select--open .ui-select__chevron::before {
         .ui-chevron-up();
     }
@@ -136,9 +143,18 @@
         min-width: 0;
     }
 
-    // The chosen option is the field's value: the field's font size, not its template's body size.
+    // The chosen option is the field's value: the field's font size and line height, not its template's body size.
     .ui-select__trigger-content > .ui-text {
         font-size: inherit;
+        line-height: inherit;
+    }
+
+    .ui-input--small .ui-select__trigger-content > .ui-text {
+        --ui-text-glyph: @ui-glyph-sm;
+    }
+
+    .ui-input--large .ui-select__trigger-content > .ui-text {
+        --ui-text-glyph: @ui-glyph-md-lg;
     }
 
     // With the caption inside the box, the chosen option reads from the trailing edge, as a text field's value does.
@@ -208,6 +224,10 @@
         border-left: 0;
         padding: 0;
         color: inherit;
+    }
+
+    .ui-select.ui-select--quiet.ui-input--small > .ui-select__trigger > .ui-select__chevron {
+        width: @ui-glyph-xs;
     }
 
     .ui-select--quiet:is(:not([data-ui-select-value]), [data-ui-select-value=""]) > .ui-select__trigger > .ui-select__clear {
